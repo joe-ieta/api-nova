@@ -51,7 +51,7 @@ Impact:
 
 Related code:
 
-- `packages/mcp-swagger-server/src/lib/initTools.ts`
+- `packages/api-nova-server/src/lib/initTools.ts`
 
 Status:
 
@@ -69,7 +69,7 @@ Impact:
 
 Related code:
 
-- `packages/mcp-swagger-api/src/modules/servers/servers.controller.ts`
+- `packages/api-nova-api/src/modules/servers/servers.controller.ts`
 
 Status:
 
@@ -87,7 +87,7 @@ Impact:
 
 Related code:
 
-- `packages/mcp-swagger-api/src/modules/security/controllers/permission.controller.ts`
+- `packages/api-nova-api/src/modules/security/controllers/permission.controller.ts`
 
 Status:
 
@@ -105,8 +105,8 @@ Impact:
 
 Related code:
 
-- `packages/mcp-swagger-api/src/modules/security/services/auth.service.ts`
-- `packages/mcp-swagger-api/src/modules/websocket/services/notification.service.ts`
+- `packages/api-nova-api/src/modules/security/services/auth.service.ts`
+- `packages/api-nova-api/src/modules/websocket/services/notification.service.ts`
 
 Status:
 
@@ -125,7 +125,7 @@ Impact:
 
 Related code:
 
-- `packages/mcp-swagger-api/src/modules/servers/services/server-metrics.service.ts`
+- `packages/api-nova-api/src/modules/servers/services/server-metrics.service.ts`
 
 Status:
 
@@ -144,8 +144,8 @@ Impact:
 
 Related code:
 
-- `packages/mcp-swagger-ui/src/layout/MainLayout.vue`
-- `packages/mcp-swagger-ui/src/locales/*`
+- `packages/api-nova-ui/src/layout/MainLayout.vue`
+- `packages/api-nova-ui/src/locales/*`
 
 Status:
 
@@ -164,7 +164,7 @@ Impact:
 
 Related code:
 
-- `packages/mcp-swagger-ui/src/modules/servers/ServerManager.vue`
+- `packages/api-nova-ui/src/modules/servers/ServerManager.vue`
 
 Status:
 
@@ -198,8 +198,8 @@ Impact:
 
 Related code:
 
-- `packages/mcp-swagger-ui/vite.config.ts`
-- `packages/mcp-swagger-ui/src/modules/*`
+- `packages/api-nova-ui/vite.config.ts`
+- `packages/api-nova-ui/src/modules/*`
 
 Status:
 
@@ -239,8 +239,8 @@ Impact:
 
 Related code:
 
-- `packages/mcp-swagger-api/src/modules/servers/services/api-management-center.service.ts`
-- `packages/mcp-swagger-ui/src/modules/endpoint-registry/EndpointRegistry.vue`
+- `packages/api-nova-api/src/modules/servers/services/api-management-center.service.ts`
+- `packages/api-nova-ui/src/modules/endpoint-registry/EndpointRegistry.vue`
 
 Status:
 
@@ -260,8 +260,8 @@ Impact:
 
 Related code:
 
-- `packages/mcp-swagger-ui/src/locales/zh-CN.ts`
-- `packages/mcp-swagger-ui/src/locales/en-US.ts`
+- `packages/api-nova-ui/src/locales/zh-CN.ts`
+- `packages/api-nova-ui/src/locales/en-US.ts`
 
 Status:
 

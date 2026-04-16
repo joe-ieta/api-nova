@@ -3,7 +3,7 @@
   "changelog": [
     "@changesets/changelog-github",
     {
-      "repo": "zaizaizhao/mcp-swagger-server"
+      "repo": "joe-ieta/api-nova"
     }
   ],
   "commit": false,
@@ -12,7 +12,7 @@
   "access": "public",
   "baseBranch": "dev",
   "updateInternalDependencies": "patch",
-  "ignore": ["mcp-swagger-api"],
+  "ignore": ["api-nova-api"],
   "privatePackages": {
     "version": false,
     "tag": false

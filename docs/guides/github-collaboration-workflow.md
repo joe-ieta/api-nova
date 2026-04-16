@@ -252,10 +252,10 @@ git merge upstream/main
 Typical checks:
 
 ```bash
-pnpm --filter mcp-swagger-api run type-check
-pnpm --filter mcp-swagger-api run build
-pnpm --filter mcp-swagger-ui run build
-pnpm --filter mcp-swagger-server run build
+pnpm --filter api-nova-api run type-check
+pnpm --filter api-nova-api run build
+pnpm --filter api-nova-ui run build
+pnpm --filter api-nova-server run build
 ```
 
 ### 5. Decide whether to absorb
@@ -341,10 +341,10 @@ git status --short
 Before release:
 
 ```bash
-pnpm --filter mcp-swagger-api run type-check
-pnpm --filter mcp-swagger-api run build
-pnpm --filter mcp-swagger-ui run build
-pnpm --filter mcp-swagger-server run build
+pnpm --filter api-nova-api run type-check
+pnpm --filter api-nova-api run build
+pnpm --filter api-nova-ui run build
+pnpm --filter api-nova-server run build
 ```
 
 ## Recommended Command Set For This Project
@@ -396,7 +396,7 @@ git merge upstream/main
 
 ```bash
 gh pr create \
-  --repo zaizaizhao/mcp-swagger-server \
+  --repo joe-ieta/api-nova \
   --base main \
   --head joe-ieta:feature/<topic> \
   --title "<title>" \

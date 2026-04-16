@@ -1,0 +1,17 @@
+{
+	"defaultTransport": "stdio",
+	"defaultPort": 3322,
+	"autoSave": true,
+	"debugMode": false,
+	"theme": "dark-red-cyber",
+	"showWelcome": true,
+	"confirmOnExit": true,
+	"serverTimeout": 30000,
+	"maxRetries": 5,
+	"retryDelay": 5000,
+	"watchFiles": false,
+	"hotReload": false,
+	"logLevel": "info",
+	"recentConfigs": [],
+	"maxRecentConfigs": 10
+}

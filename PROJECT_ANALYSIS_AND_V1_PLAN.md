@@ -1,8 +1,8 @@
-# MCP Swagger Server Project Analysis and V1 Plan
+# ApiNova Project Analysis and V1 Plan
 
 ## 1. Project Summary
 
-`mcp-swagger-server` is a monorepo product that converts OpenAPI/Swagger specifications into MCP-compatible tools and exposes those tools through multiple product surfaces.
+`api-nova-server` is a monorepo product that converts OpenAPI/Swagger specifications into MCP-compatible tools and exposes those tools through multiple product surfaces.
 
 Current top-level governance documents:
 
@@ -12,10 +12,10 @@ Current top-level governance documents:
 
 Current repository structure:
 
-- `packages/mcp-swagger-parser`: OpenAPI parsing, validation, normalization, Swagger 2 to OpenAPI 3 conversion
-- `packages/mcp-swagger-server`: MCP tool transformation and transport runtime
-- `packages/mcp-swagger-api`: NestJS backend for management, orchestration, storage, monitoring
-- `packages/mcp-swagger-ui`: Vue-based operator UI
+- `packages/api-nova-parser`: OpenAPI parsing, validation, normalization, Swagger 2 to OpenAPI 3 conversion
+- `packages/api-nova-server`: MCP tool transformation and transport runtime
+- `packages/api-nova-api`: NestJS backend for management, orchestration, storage, monitoring
+- `packages/api-nova-ui`: Vue-based operator UI
 
 ## 2. Current Product Capability Assessment
 
@@ -38,7 +38,7 @@ Current repository structure:
 
 ### P0. Core behavior duplication
 
-`packages/mcp-swagger-api` implements parsing, normalization, and tool-generation behavior that overlaps with `mcp-swagger-parser` and `mcp-swagger-server`.
+`packages/api-nova-api` implements parsing, normalization, and tool-generation behavior that overlaps with `api-nova-parser` and `api-nova-server`.
 
 Impact:
 

@@ -33,7 +33,7 @@ The main product chain is:
 
 Package:
 
-- `packages/mcp-swagger-parser`
+- `packages/api-nova-parser`
 
 Responsibilities:
 
@@ -47,7 +47,7 @@ Responsibilities:
 
 Package:
 
-- `packages/mcp-swagger-server`
+- `packages/api-nova-server`
 
 Responsibilities:
 
@@ -60,7 +60,7 @@ Responsibilities:
 
 Package:
 
-- `packages/mcp-swagger-api`
+- `packages/api-nova-api`
 
 Responsibilities:
 
@@ -74,7 +74,7 @@ Responsibilities:
 
 Package:
 
-- `packages/mcp-swagger-ui`
+- `packages/api-nova-ui`
 
 Responsibilities:
 

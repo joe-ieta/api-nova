@@ -1,4 +1,4 @@
-# MCP Swagger Server NPM 发布指南
+# ApiNova NPM 发布指南
 
 ## 🎯 发布状态分析
 
@@ -16,12 +16,12 @@
 
 **问题**: `package.json` 中缺少 `bin` 字段，用户无法通过全局命令直接使用。
 
-**解决方案**: 在 `packages/mcp-swagger-server/package.json` 中添加：
+**解决方案**: 在 `packages/api-nova-server/package.json` 中添加：
 
 ```json
 {
   "bin": {
-    "mcp-swagger-server": "./dist/cli.js",
+    "api-nova-server": "./dist/cli.js",
     "mcp-swagger": "./dist/cli.js"
   }
 }
@@ -51,13 +51,13 @@
 
 ```json
 {
-  "name": "mcp-swagger-server",
+  "name": "api-nova-server",
   "version": "1.0.0",
   "description": "A Model Context Protocol (MCP) server for Swagger/OpenAPI documentation",
   "main": "dist/index.js",
   "types": "dist/types/index.d.ts",
   "bin": {
-    "mcp-swagger-server": "./dist/cli.js",
+    "api-nova-server": "./dist/cli.js",
     "mcp-swagger": "./dist/cli.js"
   },
   "engines": {
@@ -82,26 +82,26 @@
 pnpm run build
 
 # 2. 验证构建产物
-ls -la packages/mcp-swagger-server/dist/
+ls -la packages/api-nova-server/dist/
 
 # 3. 测试 CLI 功能
-node packages/mcp-swagger-server/dist/cli.js --help
+node packages/api-nova-server/dist/cli.js --help
 ```
 
 ### 3. 本地测试安装
 
 ```bash
 # 在项目根目录执行
-cd packages/mcp-swagger-server
+cd packages/api-nova-server
 npm pack
 
 # 在临时目录测试全局安装
 mkdir /tmp/test-install
 cd /tmp/test-install
-npm install -g /path/to/mcp-swagger-server-1.0.0.tgz
+npm install -g /path/to/api-nova-server-1.0.0.tgz
 
 # 测试全局命令
-mcp-swagger-server --help
+api-nova-server --help
 mcp-swagger --help
 ```
 
@@ -118,7 +118,7 @@ npm publish --tag beta
 npm publish
 
 # 4. 验证发布成功
-npm info mcp-swagger-server
+npm info api-nova-server
 ```
 
 ---
@@ -128,32 +128,32 @@ npm info mcp-swagger-server
 ### 全局安装
 
 ```bash
-npm install -g mcp-swagger-server
+npm install -g api-nova-server
 ```
 
 ### 基本使用
 
 ```bash
 # 查看帮助
-mcp-swagger-server --help
+api-nova-server --help
 
 # 从 URL 启动 HTTP 服务器
-mcp-swagger-server --transport streamable --port 3322 --openapi https://api.github.com/openapi.json
+api-nova-server --transport streamable --port 3322 --openapi https://api.github.com/openapi.json
 
 # 从本地文件启动并监控变化
-mcp-swagger-server --transport streamable --openapi ./api.json --watch
+api-nova-server --transport streamable --openapi ./api.json --watch
 
 # STDIO 模式 (适合 AI 客户端)
-mcp-swagger-server --transport stdio --openapi https://petstore.swagger.io/v2/swagger.json
+api-nova-server --transport stdio --openapi https://petstore.swagger.io/v2/swagger.json
 
 # SSE 模式 (适合 Web 前端)
-mcp-swagger-server --transport sse --port 3323 --openapi ./openapi.yaml
+api-nova-server --transport sse --port 3323 --openapi ./openapi.yaml
 ```
 
 ### 编程式使用
 
 ```javascript
-const { createMcpServer, runStreamableServer } = require('mcp-swagger-server');
+const { createMcpServer, runStreamableServer } = require('api-nova-server');
 
 // 创建 MCP 服务器实例
 const server = createMcpServer(openApiSpec);
@@ -197,10 +197,10 @@ runStreamableServer(server, { port: 3322 });
 
 ```bash
 # 全局安装
-npm install -g mcp-swagger-server
+npm install -g api-nova-server
 
 # 直接使用
-mcp-swagger-server --transport streamable --openapi https://api.example.com/openapi.json
+api-nova-server --transport streamable --openapi https://api.example.com/openapi.json
 ```
 
 **推荐发布流程**:

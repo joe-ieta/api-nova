@@ -36,7 +36,7 @@ else
     echo "❌ NestJS开发服务器未运行"
 fi
 
-if pgrep -f "mcp-swagger-api/dist/src/main" > /dev/null; then
+if pgrep -f "api-nova-api/dist/src/main" > /dev/null; then
     echo "✅ 后端主服务正在运行"
 else
     echo "❌ 后端主服务未运行"

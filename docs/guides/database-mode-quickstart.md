@@ -11,7 +11,7 @@ They are complementary modes, not replacement relationships.
 
 Use SQLite when you want the fastest single-machine setup.
 
-Example `packages/mcp-swagger-api/.env`:
+Example `packages/api-nova-api/.env`:
 
 ```env
 NODE_ENV=development
@@ -29,8 +29,8 @@ API_KEY=change-this-api-key
 Start:
 
 ```bash
-pnpm --filter mcp-swagger-api run build
-node packages/mcp-swagger-api/dist/src/main.js
+pnpm --filter api-nova-api run build
+node packages/api-nova-api/dist/src/main.js
 ```
 
 Notes:
@@ -58,7 +58,7 @@ Ubuntu:
 sudo -u postgres psql -c "CREATE DATABASE mcp_swagger_api;"
 ```
 
-Example `packages/mcp-swagger-api/.env`:
+Example `packages/api-nova-api/.env`:
 
 ```env
 NODE_ENV=development

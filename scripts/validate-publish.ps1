@@ -1,12 +1,12 @@
 #!/usr/bin/env pwsh
 
-# MCP Swagger Server 发布前验证脚本
+# ApiNova 发布前验证脚本
 # 此脚本用于验证包是否准备好发布到 NPM
 
-Write-Host "🚀 MCP Swagger Server 发布验证" -ForegroundColor Cyan
+Write-Host "🚀 ApiNova 发布验证" -ForegroundColor Cyan
 Write-Host "=================================" -ForegroundColor Cyan
 
-$projectDir = "packages/mcp-swagger-server"
+$projectDir = "packages/api-nova-server"
 $packageJson = "$projectDir/package.json"
 $distDir = "$projectDir/dist"
 $cliFile = "$distDir/cli.js"
@@ -131,12 +131,12 @@ Write-Host "`n🎯 发布建议:" -ForegroundColor Cyan
 Write-Host "1. 确保已登录 NPM: npm login" -ForegroundColor White
 Write-Host "2. 首次发布建议使用 beta 标签: npm publish --tag beta" -ForegroundColor White
 Write-Host "3. 测试 beta 版本后再发布正式版: npm publish" -ForegroundColor White
-Write-Host "4. 发布后验证: npm info mcp-swagger-server" -ForegroundColor White
+Write-Host "4. 发布后验证: npm info api-nova-server" -ForegroundColor White
 
 # 8. 使用示例
 Write-Host "`n📚 发布后用户使用示例:" -ForegroundColor Cyan
-Write-Host "npm install -g mcp-swagger-server" -ForegroundColor Green
-Write-Host "mcp-swagger-server --help" -ForegroundColor Green
-Write-Host "mcp-swagger-server --transport streamable --openapi https://api.github.com/openapi.json" -ForegroundColor Green
+Write-Host "npm install -g api-nova-server" -ForegroundColor Green
+Write-Host "api-nova-server --help" -ForegroundColor Green
+Write-Host "api-nova-server --transport streamable --openapi https://api.github.com/openapi.json" -ForegroundColor Green
 
 Write-Host "`n🎉 验证完成！项目已准备好发布到 NPM。" -ForegroundColor Green

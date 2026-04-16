@@ -1,47 +1,47 @@
-# MCP Swagger Server
+# ApiNova
 
-Convert OpenAPI / Swagger-described REST APIs into runnable MCP tools and servers.
+Convert OpenAPI / Swagger-described REST APIs into runnable MCP tools, managed runtimes, and AI-ready API capabilities.
 
 **Languages**: English | [中文](./README.md)
 
-## Current Positioning
+## Current Project Features
 
-The current repository priority is to converge on a basic usable, releasable version that can be connected to real LLM applications.
-
-The main product chain is:
-
-- OpenAPI/Swagger input
-- parsing and normalization
-- endpoint extraction and filtering
-- MCP tool generation
-- MCP runtime exposure
-- API / UI management workflows
+- OpenAPI / Swagger import from URL, file upload, and raw content
+- parsing, validation, normalization, and compatibility conversion
+- MCP tool generation and AI-ready API capability delivery
+- MCP runtime support for `stdio`, `streamable`, and `sse`
+- management workflows across CLI, API, and UI
+- Endpoint Registry for manual registration and endpoint lifecycle actions
+- Bearer token and custom header injection
+- managed process lifecycle, health checks, logs, and monitoring support
+- SQLite default mode with PostgreSQL as an optional heavier deployment path
+- Windows and Linux / Ubuntu support targets
 
 ## Monorepo Structure
 
-- `packages/mcp-swagger-parser`
+- `packages/api-nova-parser`
   OpenAPI/Swagger parsing, validation, normalization, endpoint extraction
-- `packages/mcp-swagger-server`
+- `packages/api-nova-server`
   MCP tool transformation and runtime with `stdio`, `sse`, and `streamable`
-- `packages/mcp-swagger-api`
+- `packages/api-nova-api`
   management backend for orchestration, persistence, security, and operations
-- `packages/mcp-swagger-ui`
+- `packages/api-nova-ui`
   operator UI consuming backend contracts
 
 ## Recommended Current Usage
 
-### 1. Connect directly as an MCP server for LLM applications
+### 1. Connect directly as an MCP server for AI applications
 
 Install:
 
 ```bash
-npm install -g mcp-swagger-server
+npm install -g api-nova-server
 ```
 
 Run in `stdio` mode:
 
 ```bash
-mss --openapi https://petstore.swagger.io/v2/swagger.json --transport stdio
+api-nova --openapi https://petstore.swagger.io/v2/swagger.json --transport stdio
 ```
 
 Example MCP client configuration:
@@ -50,7 +50,7 @@ Example MCP client configuration:
 {
   "mcpServers": {
     "swagger-api": {
-      "command": "mss",
+      "command": "api-nova",
       "args": [
         "--openapi",
         "https://petstore.swagger.io/v2/swagger.json",
@@ -126,7 +126,7 @@ The current main path supports:
 Example:
 
 ```bash
-mss \
+api-nova \
   --openapi https://api.example.com/openapi.json \
   --transport streamable \
   --auth-type bearer \

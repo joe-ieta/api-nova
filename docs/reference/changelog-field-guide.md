@@ -30,7 +30,7 @@
 
 **生成的 CHANGELOG.md 示例：**
 ```markdown
-# mcp-swagger-server
+# api-nova-server
 
 ## 1.0.10
 ### Minor Changes
@@ -45,27 +45,27 @@
 ```json
 {
   "changelog": ["@changesets/changelog-github", {
-    "repo": "yourname/mcp-swagger-server"
+    "repo": "yourname/api-nova-server"
   }]
 }
 ```
 
 **生成的 CHANGELOG.md 示例：**
 ```markdown
-# mcp-swagger-server
+# api-nova-server
 
 ## 1.0.10
 
 ### Minor Changes
 
-- [#123](https://github.com/yourname/mcp-swagger-server/pull/123) [`a1b2c3d`](https://github.com/yourname/mcp-swagger-server/commit/a1b2c3d) Thanks [@contributor](https://github.com/contributor)! - Added new authentication feature
+- [#123](https://github.com/yourname/api-nova-server/pull/123) [`a1b2c3d`](https://github.com/yourname/api-nova-server/commit/a1b2c3d) Thanks [@contributor](https://github.com/contributor)! - Added new authentication feature
 
 ### Patch Changes
 
-- [#124](https://github.com/yourname/mcp-swagger-server/pull/124) [`e4f5g6h`](https://github.com/yourname/mcp-swagger-server/commit/e4f5g6h) Thanks [@maintainer](https://github.com/maintainer)! - Fixed bug in parser
+- [#124](https://github.com/yourname/api-nova-server/pull/124) [`e4f5g6h`](https://github.com/yourname/api-nova-server/commit/e4f5g6h) Thanks [@maintainer](https://github.com/maintainer)! - Fixed bug in parser
 
 - Updated dependencies
-  - mcp-swagger-parser@1.0.6
+  - api-nova-parser@1.0.6
 ```
 
 ### 3.3 禁用 changelog
@@ -87,17 +87,17 @@ pnpm changeset
 **交互式选择：**
 ```
 ? Which packages would you like to include? 
-✓ mcp-swagger-server
-✓ mcp-swagger-parser
+✓ api-nova-server
+✓ api-nova-parser
 
 ? Which packages should have a major bump? 
   (none selected)
 
 ? Which packages should have a minor bump? 
-✓ mcp-swagger-server
+✓ api-nova-server
 
 ? Which packages should have a patch bump? 
-✓ mcp-swagger-parser
+✓ api-nova-parser
 
 ? Please enter a summary for this change:
 Added Bearer token authentication support and fixed parser edge cases
@@ -106,8 +106,8 @@ Added Bearer token authentication support and fixed parser edge cases
 **生成的 .changeset 文件：**
 ```markdown
 ---
-"mcp-swagger-server": minor
-"mcp-swagger-parser": patch
+"api-nova-server": minor
+"api-nova-parser": patch
 ---
 
 Added Bearer token authentication support and fixed parser edge cases
@@ -117,31 +117,31 @@ Added Bearer token authentication support and fixed parser edge cases
 
 运行 `pnpm changeset version` 后：
 
-**mcp-swagger-server/CHANGELOG.md:**
+**api-nova-server/CHANGELOG.md:**
 ```markdown
-# mcp-swagger-server
+# api-nova-server
 
 ## 1.1.0
 
 ### Minor Changes
 
-- [#45](https://github.com/yourname/mcp-swagger-server/pull/45) [`abc123`](https://github.com/yourname/mcp-swagger-server/commit/abc123) Thanks [@developer](https://github.com/developer)! - Added Bearer token authentication support and fixed parser edge cases
+- [#45](https://github.com/yourname/api-nova-server/pull/45) [`abc123`](https://github.com/yourname/api-nova-server/commit/abc123) Thanks [@developer](https://github.com/developer)! - Added Bearer token authentication support and fixed parser edge cases
 
 ### Patch Changes
 
 - Updated dependencies
-  - mcp-swagger-parser@1.0.6
+  - api-nova-parser@1.0.6
 ```
 
-**mcp-swagger-parser/CHANGELOG.md:**
+**api-nova-parser/CHANGELOG.md:**
 ```markdown
-# mcp-swagger-parser
+# api-nova-parser
 
 ## 1.0.6
 
 ### Patch Changes
 
-- [#45](https://github.com/yourname/mcp-swagger-server/pull/45) [`abc123`](https://github.com/yourname/mcp-swagger-server/commit/abc123) Thanks [@developer](https://github.com/developer)! - Added Bearer token authentication support and fixed parser edge cases
+- [#45](https://github.com/yourname/api-nova-server/pull/45) [`abc123`](https://github.com/yourname/api-nova-server/commit/abc123) Thanks [@developer](https://github.com/developer)! - Added Bearer token authentication support and fixed parser edge cases
 ```
 
 ## 5. 高级配置选项
@@ -172,7 +172,7 @@ Added Bearer token authentication support and fixed parser edge cases
 ```json
 {
   "changelog": ["@changesets/changelog-github", {
-    "repo": "yourname/mcp-swagger-server"
+    "repo": "yourname/api-nova-server"
   }]
 }
 ```
@@ -191,7 +191,7 @@ pnpm changeset
 pnpm changeset version
 
 # 查看生成的 changelog
-cat packages/mcp-swagger-server/CHANGELOG.md
+cat packages/api-nova-server/CHANGELOG.md
 ```
 
 ## 7. 常见问题

@@ -2,7 +2,7 @@
 
 ## 🐛 问题描述
 
-当将 `mcp-swagger-server` 发布到 npm 仓库后，使用 `npx mcp-swagger-server` 运行时会出现以下错误：
+当将 `api-nova-server` 发布到 npm 仓库后，使用 `npx api-nova-server` 运行时会出现以下错误：
 
 ```
 Cannot find module 'tslib'
@@ -154,7 +154,7 @@ function checkCompiledDependencies() {
 ### 发布后验证（待完成）
 ```bash
 npm publish             # 发布新版本
-npx mcp-swagger-server@1.0.6 --help  # 全局安装测试
+npx api-nova-server@1.0.6 --help  # 全局安装测试
 ```
 
 ## 📚 相关文档

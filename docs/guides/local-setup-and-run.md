@@ -52,14 +52,14 @@ Run from repository root.
 Windows PowerShell:
 
 ```powershell
-cd E:\CodexDev\mcp-swagger-server
+cd E:\CodexDev\api-nova-server
 pnpm install
 ```
 
 Ubuntu:
 
 ```bash
-cd /path/to/mcp-swagger-server
+cd /path/to/api-nova-server
 pnpm install
 ```
 
@@ -77,13 +77,13 @@ Copy the API env template:
 Windows PowerShell:
 
 ```powershell
-Copy-Item packages\mcp-swagger-api\.env.example packages\mcp-swagger-api\.env
+Copy-Item packages\api-nova-api\.env.example packages\api-nova-api\.env
 ```
 
 Ubuntu:
 
 ```bash
-cp packages/mcp-swagger-api/.env.example packages/mcp-swagger-api/.env
+cp packages/api-nova-api/.env.example packages/api-nova-api/.env
 ```
 
 Recommended minimum env:
@@ -108,7 +108,7 @@ SUPER_ADMIN_PASSWORD=Admin@123456
 Notes:
 
 - if `DB_TYPE` is omitted, the API defaults to `sqlite`
-- if `packages/mcp-swagger-api/.env` only contains `DB_HOST` / `DB_PORT` / `DB_DATABASE` but omits `DB_TYPE`, runtime still uses SQLite instead of PostgreSQL
+- if `packages/api-nova-api/.env` only contains `DB_HOST` / `DB_PORT` / `DB_DATABASE` but omits `DB_TYPE`, runtime still uses SQLite instead of PostgreSQL
 - `DB_SQLITE_PATH` may be relative to the workspace or absolute
 - startup logs should report `Database mode: sqlite`
 
@@ -128,7 +128,7 @@ Ubuntu:
 sudo -u postgres psql -c "CREATE DATABASE mcp_swagger_api;"
 ```
 
-Then configure `packages/mcp-swagger-api/.env`:
+Then configure `packages/api-nova-api/.env`:
 
 ```env
 NODE_ENV=development
@@ -178,20 +178,20 @@ Recommended validation after switching to PostgreSQL:
 Windows PowerShell:
 
 ```powershell
-cd E:\CodexDev\mcp-swagger-server
-pnpm --filter mcp-swagger-api run build
+cd E:\CodexDev\api-nova-server
+pnpm --filter api-nova-api run build
 $env:DB_TYPE="postgres"
-pnpm --filter mcp-swagger-api run test -- --runInBand
-node packages\mcp-swagger-api\dist\src\main.js
+pnpm --filter api-nova-api run test -- --runInBand
+node packages\api-nova-api\dist\src\main.js
 ```
 
 Ubuntu:
 
 ```bash
-cd /path/to/mcp-swagger-server
-pnpm --filter mcp-swagger-api run build
-DB_TYPE=postgres pnpm --filter mcp-swagger-api run test -- --runInBand
-DB_TYPE=postgres node packages/mcp-swagger-api/dist/src/main.js
+cd /path/to/api-nova-server
+pnpm --filter api-nova-api run build
+DB_TYPE=postgres pnpm --filter api-nova-api run test -- --runInBand
+DB_TYPE=postgres node packages/api-nova-api/dist/src/main.js
 ```
 
 Validation points:
@@ -217,10 +217,10 @@ pnpm build
 Per-package build:
 
 ```bash
-pnpm --filter mcp-swagger-parser run build
-pnpm --filter mcp-swagger-server run build
-pnpm --filter mcp-swagger-api run build
-pnpm --filter mcp-swagger-ui run build
+pnpm --filter api-nova-parser run build
+pnpm --filter api-nova-server run build
+pnpm --filter api-nova-api run build
+pnpm --filter api-nova-ui run build
 ```
 
 If parser behavior changed, run:
@@ -242,7 +242,7 @@ pnpm run verify:parser-chain:full
 Development mode:
 
 ```bash
-pnpm --filter mcp-swagger-api run start:dev
+pnpm --filter api-nova-api run start:dev
 ```
 
 Built mode:
@@ -250,15 +250,15 @@ Built mode:
 Windows PowerShell:
 
 ```powershell
-pnpm --filter mcp-swagger-api run build
-node packages\mcp-swagger-api\dist\src\main.js
+pnpm --filter api-nova-api run build
+node packages\api-nova-api\dist\src\main.js
 ```
 
 Ubuntu:
 
 ```bash
-pnpm --filter mcp-swagger-api run build
-node packages/mcp-swagger-api/dist/src/main.js
+pnpm --filter api-nova-api run build
+node packages/api-nova-api/dist/src/main.js
 ```
 
 Main addresses:
@@ -270,7 +270,7 @@ Main addresses:
 ### 5.2 Start UI
 
 ```bash
-pnpm --filter mcp-swagger-ui run dev
+pnpm --filter api-nova-ui run dev
 ```
 
 Main address:
@@ -286,15 +286,15 @@ The default dev proxy target is:
 Windows PowerShell:
 
 ```powershell
-pnpm --filter mcp-swagger-server run build
-node packages\mcp-swagger-server\dist\cli.js --openapi .\examples\minimal-openapi.json --transport streamable --port 3322
+pnpm --filter api-nova-server run build
+node packages\api-nova-server\dist\cli.js --openapi .\examples\minimal-openapi.json --transport streamable --port 3322
 ```
 
 Ubuntu:
 
 ```bash
-pnpm --filter mcp-swagger-server run build
-node packages/mcp-swagger-server/dist/cli.js --openapi ./examples/minimal-openapi.json --transport streamable --port 3322
+pnpm --filter api-nova-server run build
+node packages/api-nova-server/dist/cli.js --openapi ./examples/minimal-openapi.json --transport streamable --port 3322
 ```
 
 Main addresses:
@@ -313,7 +313,7 @@ Notes:
 ### SQLite path
 
 1. `pnpm install`
-2. Copy `.env.example` to `packages/mcp-swagger-api/.env`
+2. Copy `.env.example` to `packages/api-nova-api/.env`
 3. Keep `DB_TYPE=sqlite` or omit it
 4. Start API
 5. Open `http://127.0.0.1:3001/api/docs`
@@ -324,7 +324,7 @@ Notes:
 
 1. Start PostgreSQL
 2. Create database `mcp_swagger_api`
-3. Configure `packages/mcp-swagger-api/.env`
+3. Configure `packages/api-nova-api/.env`
 4. Set `DB_TYPE=postgres`
 5. Start API
 6. Open `http://127.0.0.1:3001/api/docs`
@@ -337,14 +337,14 @@ Core checks:
 ```bash
 pnpm build
 pnpm type-check
-pnpm --filter mcp-swagger-server run test
+pnpm --filter api-nova-server run test
 ```
 
 Targeted runtime checks:
 
 ```bash
-pnpm --filter mcp-swagger-server run test:transform-spec
-pnpm --filter mcp-swagger-server run test:streamable-session
+pnpm --filter api-nova-server run test:transform-spec
+pnpm --filter api-nova-server run test:streamable-session
 ```
 
 ## 8. Common Problems
@@ -387,7 +387,7 @@ Check:
 - rebuild the API package before restart:
 
 ```bash
-pnpm --filter mcp-swagger-api run build
+pnpm --filter api-nova-api run build
 ```
 
 If startup succeeds, logs should include:

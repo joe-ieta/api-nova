@@ -1,0 +1,109 @@
+{
+  "name": "api-nova-parser",
+  "version": "1.7.0",
+  "description": "Enterprise-grade OpenAPI/Swagger specification parser for ApiNova and AI-ready API workflows",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "tsc && npm run build:cleanup",
+    "build:cleanup": "node -e \"const fs=require('fs'); const path=require('path'); const distPath='./dist'; if(fs.existsSync(distPath)) { const files=fs.readdirSync(distPath); files.forEach(file => { if(file.endsWith('.test.js') || file.endsWith('.test.d.ts') || file.endsWith('.spec.js') || file.endsWith('.spec.d.ts')) { fs.unlinkSync(path.join(distPath, file)); } }); }\"",
+    "build:watch": "tsc --watch",
+    "dev": "tsc --watch",
+    "prepack": "npm run build",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "type-check": "tsc --noEmit",
+    "clean": "rimraf dist",
+    "docs": "typedoc src/index.ts --out docs --theme default"
+  },
+  "dependencies": {
+    "@apidevtools/swagger-parser": "=10.0.3",
+    "axios": "^1.6.0",
+    "js-yaml": "^4.1.0",
+    "swagger2openapi": "^7.0.8",
+    "zod": "^3.25.28"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/js-yaml": "^4.0.5",
+    "@types/node": "^20.9.0",
+    "@types/swagger2openapi": "^7.0.4",
+    "eslint": "^8.53.0",
+    "jest": "^29.7.0",
+    "rimraf": "^5.0.5",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.2.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=4.5.0"
+  },
+  "keywords": [
+    "openapi",
+    "swagger",
+    "parser",
+    "mcp",
+    "model-context-protocol",
+    "api",
+    "specification",
+    "rest",
+    "typescript",
+    "validator",
+    "yaml",
+    "json",
+    "api-parser",
+    "openapi-parser",
+    "swagger-parser",
+    "mcp-tools",
+    "ai-integration"
+  ],
+  "author": {
+    "name": "ApiNova Team",
+    "email": "2534243725@qq.com",
+    "url": "https://github.com/zaizaizhao"
+  },
+  "contributors": [
+    {
+      "name": "ZhaoYaNan(ZTE)",
+      "email": "2534243725@qq.com"
+    }
+  ],
+  "license": "MIT",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/zaizaizhao"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joe-ieta/api-nova.git",
+    "directory": "packages/api-nova-parser"
+  },
+  "bugs": {
+    "url": "https://github.com/joe-ieta/api-nova/issues"
+  },
+  "homepage": "https://github.com/joe-ieta/api-nova/tree/main/packages/api-nova-parser#readme"
+}

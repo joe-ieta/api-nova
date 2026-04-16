@@ -1,14 +1,14 @@
 # NestJS 后端项目快速搭建脚本
 # 使用 PowerShell 执行: .\scripts\setup-nestjs.ps1
 
-Write-Host "🚀 开始创建 NestJS MCP Swagger Server..." -ForegroundColor Green
+Write-Host "🚀 开始创建 NestJS ApiNova..." -ForegroundColor Green
 
 # 检查 Node.js 版本
 $nodeVersion = node --version
 Write-Host "📋 当前 Node.js 版本: $nodeVersion" -ForegroundColor Cyan
 
 # 创建项目目录
-$projectPath = "packages\mcp-swagger-server-nestjs"
+$projectPath = "packages\api-nova-server-nestjs"
 Write-Host "📁 创建项目目录: $projectPath" -ForegroundColor Cyan
 
 if (Test-Path $projectPath) {
@@ -26,9 +26,9 @@ Write-Host "🏗️  初始化 NestJS 项目..." -ForegroundColor Cyan
 # 创建基础 package.json
 $packageJson = @"
 {
-  "name": "mcp-swagger-server-nestjs",
+  "name": "api-nova-server-nestjs",
   "version": "1.0.0",
-  "description": "NestJS-based MCP Swagger Server with enterprise architecture",
+  "description": "NestJS-based ApiNova with enterprise architecture",
   "author": "MCP Development Team",
   "private": true,
   "license": "MIT",
@@ -75,7 +75,7 @@ npx nest generate app . --flat
 Write-Host "✅ NestJS 项目创建完成！" -ForegroundColor Green
 Write-Host ""
 Write-Host "📋 下一步操作：" -ForegroundColor Yellow
-Write-Host "   1. cd packages\mcp-swagger-server-nestjs" -ForegroundColor White
+Write-Host "   1. cd packages\api-nova-server-nestjs" -ForegroundColor White
 Write-Host "   2. npm run start:dev" -ForegroundColor White
 Write-Host "   3. 访问 http://localhost:3322 查看API" -ForegroundColor White
 Write-Host "   4. 访问 http://localhost:3322/docs 查看Swagger文档" -ForegroundColor White

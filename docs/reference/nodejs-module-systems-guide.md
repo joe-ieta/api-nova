@@ -168,7 +168,7 @@ const child = spawn('node', [wrapperPath]);
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "mcp-swagger-server": "./dist/cli.js"
+    "api-nova-server": "./dist/cli.js"
   }
 }
 ```
@@ -249,7 +249,7 @@ import chalk from 'chalk';
 ```json
 {
   "bin": {
-    "mcp-swagger-server": "./dist/cli.js"
+    "api-nova-server": "./dist/cli.js"
   }
 }
 ```
@@ -309,7 +309,7 @@ node --version
 3. **混合使用可行**：动态导入提供了桥梁
 4. **选择取决于项目需求**：新项目推荐 ESM，现有项目可以渐进迁移
 
-对于我们的 `mcp-swagger-server` 项目，当前采用降级 chalk 到 4.x 版本是最务实的选择，确保了兼容性和稳定性。未来可以考虑完整迁移到 ESM。
+对于我们的 `api-nova-server` 项目，当前采用降级 chalk 到 4.x 版本是最务实的选择，确保了兼容性和稳定性。未来可以考虑完整迁移到 ESM。
 
 ## 参考资料
 

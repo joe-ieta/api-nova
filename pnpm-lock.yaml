@@ -39,7 +39,7 @@ importers:
         specifier: ^5.8.3
         version: 5.8.3
 
-  packages/mcp-swagger-api:
+  packages/api-nova-api:
     dependencies:
       '@modelcontextprotocol/sdk':
         specifier: ^1.26.0
@@ -122,12 +122,12 @@ importers:
       js-yaml:
         specifier: ^4.1.0
         version: 4.1.0
-      mcp-swagger-parser:
+      api-nova-parser:
         specifier: workspace:*
-        version: link:../mcp-swagger-parser
-      mcp-swagger-server:
+        version: link:../api-nova-parser
+      api-nova-server:
         specifier: workspace:*
-        version: link:../mcp-swagger-server
+        version: link:../api-nova-server
       multer:
         specifier: ^2.0.2
         version: 2.0.2
@@ -259,7 +259,7 @@ importers:
         specifier: ^5.1.3
         version: 5.8.3
 
-  packages/mcp-swagger-parser:
+  packages/api-nova-parser:
     dependencies:
       '@apidevtools/swagger-parser':
         specifier: '=10.0.3'
@@ -305,7 +305,7 @@ importers:
         specifier: ^5.2.0
         version: 5.8.3
 
-  packages/mcp-swagger-server:
+  packages/api-nova-server:
     dependencies:
       '@modelcontextprotocol/sdk':
         specifier: ^1.26.0
@@ -352,9 +352,9 @@ importers:
       js-yaml:
         specifier: ^4.1.0
         version: 4.1.0
-      mcp-swagger-parser:
+      api-nova-parser:
         specifier: workspace:*
-        version: link:../mcp-swagger-parser
+        version: link:../api-nova-parser
       node-persist:
         specifier: ^4.0.4
         version: 4.0.4
@@ -417,7 +417,7 @@ importers:
         specifier: ^5.8.3
         version: 5.8.3
 
-  packages/mcp-swagger-ui:
+  packages/api-nova-ui:
     dependencies:
       '@element-plus/icons-vue':
         specifier: ^2.3.0
@@ -440,9 +440,9 @@ importers:
       js-yaml:
         specifier: ^4.1.0
         version: 4.1.0
-      mcp-swagger-parser:
+      api-nova-parser:
         specifier: workspace:*
-        version: link:../mcp-swagger-parser
+        version: link:../api-nova-parser
       monaco-editor:
         specifier: ^0.44.0
         version: 0.44.0

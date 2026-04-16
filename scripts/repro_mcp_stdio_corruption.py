@@ -148,12 +148,12 @@ def main() -> int:
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
-    cli_interactive = repo_root / "packages/mcp-swagger-server/dist/cli-interactive.js"
-    cli_standard = repo_root / "packages/mcp-swagger-server/dist/cli.js"
+    cli_interactive = repo_root / "packages/api-nova-server/dist/cli-interactive.js"
+    cli_standard = repo_root / "packages/api-nova-server/dist/cli.js"
 
     if not cli_interactive.exists() or not cli_standard.exists():
         print("dist files not found. Please build first:")
-        print("  pnpm -C packages/mcp-swagger-server build")
+        print("  pnpm -C packages/api-nova-server build")
         return 2
 
     cases = [

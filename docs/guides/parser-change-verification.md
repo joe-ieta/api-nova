@@ -1,14 +1,14 @@
 # Parser Change Verification
 
-This guide defines the required rebuild and verification path after any change in `packages/mcp-swagger-parser`.
+This guide defines the required rebuild and verification path after any change in `packages/api-nova-parser`.
 
 ## Purpose
 
-`mcp-swagger-parser` is consumed by:
+`api-nova-parser` is consumed by:
 
-- `mcp-swagger-server`
-- `mcp-swagger-api`
-- `mcp-swagger-ui`
+- `api-nova-server`
+- `api-nova-api`
+- `api-nova-ui`
 
 A parser fix is not considered complete until downstream packages have been rebuilt and re-verified.
 
@@ -57,8 +57,8 @@ pnpm run verify:parser-chain:full
 
 This additionally runs:
 
-- `mcp-swagger-api` build
-- `mcp-swagger-ui` build
+- `api-nova-api` build
+- `api-nova-ui` build
 
 Use this for release convergence or when runtime packaging behavior is under review.
 

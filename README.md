@@ -16,31 +16,28 @@ This repository has since evolved in a materially different direction. The curre
 
 Because the product positioning and implementation baseline have diverged substantially, this repository now continues as an independent line of development. The original upstream remains a reference source, but it is no longer the controlling baseline for ApiNova.
 
-## Current Product Position
+## Current Project Features
 
-ApiNova is in a product-convergence stage.
-
-The current goal is not broad feature expansion. The goal is to keep a stable, runnable, and releasable baseline that can actually be connected to real AI applications and operated over time.
-
-Current primary product paths:
-
-- import OpenAPI / Swagger documents
-- parse, validate, and normalize specifications
-- inspect API paths and generated capability definitions
-- convert API operations into MCP tools and AI-ready API capabilities
-- run and manage MCP servers and gateway-facing services
-- provide API Gateway-style operator workflows across CLI, API, and UI
-- keep CLI, API, and UI behavior aligned
+- OpenAPI / Swagger import from URL, file upload, and raw content
+- specification parsing, validation, normalization, and compatibility conversion
+- MCP tool generation and AI-ready API capability shaping
+- MCP runtime delivery over `stdio`, `streamable`, and `sse`
+- gateway-oriented management workflows across CLI, API, and UI
+- Endpoint Registry for manual registration, probing, readiness, publish, and offline actions
+- Bearer token and custom header injection
+- managed process lifecycle, logs, health checks, and monitoring support
+- SQLite default mode with PostgreSQL as the heavier optional deployment path
+- Windows and Linux / Ubuntu support targets in the current baseline
 
 ## Monorepo Structure
 
-- `packages/mcp-swagger-parser`
+- `packages/api-nova-parser`
   Parses, validates, normalizes, and reconciles OpenAPI / Swagger inputs.
-- `packages/mcp-swagger-server`
+- `packages/api-nova-server`
   Transforms normalized API operations into MCP tools and provides the MCP runtime.
-- `packages/mcp-swagger-api`
+- `packages/api-nova-api`
   Provides management APIs, persistence, authentication, server orchestration, and monitoring support.
-- `packages/mcp-swagger-ui`
+- `packages/api-nova-ui`
   Provides the operator-facing import, validation, conversion, and server management UI.
 
 ## Current Baseline
@@ -81,13 +78,13 @@ Notes:
 Install:
 
 ```bash
-npm install -g mcp-swagger-server
+npm install -g api-nova-server
 ```
 
 Start with `stdio`:
 
 ```bash
-mss --openapi https://petstore.swagger.io/v2/swagger.json --transport stdio
+api-nova --openapi https://petstore.swagger.io/v2/swagger.json --transport stdio
 ```
 
 Example MCP client configuration:
@@ -96,7 +93,7 @@ Example MCP client configuration:
 {
   "mcpServers": {
     "swagger-api": {
-      "command": "mss",
+      "command": "api-nova",
       "args": [
         "--openapi",
         "https://petstore.swagger.io/v2/swagger.json",
@@ -131,8 +128,8 @@ See:
 
 Database mode quick check:
 
-- if `DB_TYPE` is omitted, `mcp-swagger-api` defaults to `SQLite`
-- if `DB_TYPE=postgres`, `mcp-swagger-api` runs in `PostgreSQL` mode
+- if `DB_TYPE` is omitted, `api-nova-api` defaults to `SQLite`
+- if `DB_TYPE=postgres`, `api-nova-api` runs in `PostgreSQL` mode
 - startup logs print `Database mode: sqlite` or `Database mode: postgres`
 - the current baseline has already verified:
   - SQLite default startup path

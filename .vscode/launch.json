@@ -5,11 +5,11 @@
       "name": "Debug MSS - Help",
       "type": "node",
       "request": "launch",
-      "program": "${workspaceFolder}/packages/mcp-swagger-server/dist/cli-interactive.js",
+      "program": "${workspaceFolder}/packages/api-nova-server/dist/cli-interactive.js",
       "args": ["--help"],
-      "cwd": "${workspaceFolder}/packages/mcp-swagger-server",
+      "cwd": "${workspaceFolder}/packages/api-nova-server",
       "sourceMaps": true,
-      "outFiles": ["${workspaceFolder}/packages/mcp-swagger-server/dist/**/*.js"],
+      "outFiles": ["${workspaceFolder}/packages/api-nova-server/dist/**/*.js"],
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"]
     },
@@ -17,15 +17,15 @@
       "name": "Debug MSS - Petstore Streamable",
       "type": "node",
       "request": "launch",
-      "program": "${workspaceFolder}/packages/mcp-swagger-server/dist/cli-interactive.js",
+      "program": "${workspaceFolder}/packages/api-nova-server/dist/cli-interactive.js",
       "args": [
         "--transport", "streamable",
         "--port", "3323",
         "--openapi", "https://petstore3.swagger.io/api/v3/openapi.json"
       ],
-      "cwd": "${workspaceFolder}/packages/mcp-swagger-server",
+      "cwd": "${workspaceFolder}/packages/api-nova-server",
       "sourceMaps": true,
-      "outFiles": ["${workspaceFolder}/packages/mcp-swagger-server/dist/**/*.js"],
+      "outFiles": ["${workspaceFolder}/packages/api-nova-server/dist/**/*.js"],
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"]
     },
@@ -33,11 +33,11 @@
       "name": "Debug MSS - Custom Args",
       "type": "node",
       "request": "launch",
-      "program": "${workspaceFolder}/packages/mcp-swagger-server/dist/cli-interactive.js",
+      "program": "${workspaceFolder}/packages/api-nova-server/dist/cli-interactive.js",
       "args": [],
-      "cwd": "${workspaceFolder}/packages/mcp-swagger-server",
+      "cwd": "${workspaceFolder}/packages/api-nova-server",
       "sourceMaps": true,
-      "outFiles": ["${workspaceFolder}/packages/mcp-swagger-server/dist/**/*.js"],
+      "outFiles": ["${workspaceFolder}/packages/api-nova-server/dist/**/*.js"],
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"]
     },
@@ -45,15 +45,15 @@
       "name": "Debug Alias CLI - Petstore Streamable",
       "type": "node",
       "request": "launch",
-      "program": "${workspaceFolder}/packages/mcp-swagger-server/dist/cli.js",
+      "program": "${workspaceFolder}/packages/api-nova-server/dist/cli.js",
       "args": [
         "--transport", "streamable",
         "--port", "3323",
         "--openapi", "https://petstore3.swagger.io/api/v3/openapi.json"
       ],
-      "cwd": "${workspaceFolder}/packages/mcp-swagger-server",
+      "cwd": "${workspaceFolder}/packages/api-nova-server",
       "sourceMaps": true,
-      "outFiles": ["${workspaceFolder}/packages/mcp-swagger-server/dist/**/*.js"],
+      "outFiles": ["${workspaceFolder}/packages/api-nova-server/dist/**/*.js"],
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"]
     }

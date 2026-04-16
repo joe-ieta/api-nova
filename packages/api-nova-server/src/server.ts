@@ -1,0 +1,117 @@
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { AuthConfig } from 'api-nova-parser';
+
+import { initTools } from "./tools/initTools";
+import { startStdioMcpServer, startSseMcpServer, startStreamableMcpServer } from "./transportUtils";
+
+export interface ServerOptions {
+  openApiData?: any;
+  authConfig?: AuthConfig;
+  customHeaders?: any;
+  debugHeaders?: boolean;
+  operationFilter?: any;
+  baseUrl?: string;
+  sourceOrigin?: string;
+}
+
+export interface HttpTransportSecurityOptions {
+  host?: string;
+  allowedHosts?: string[];
+  allowedOrigins?: string[];
+  enableDnsRebindingProtection?: boolean;
+}
+
+export async function createMcpServer(
+  options: ServerOptions = {},
+  lifecycle: { registerSignalHandlers?: boolean } = {}
+) {
+  const server = new McpServer(
+    {
+      name: "api-nova-server",
+      version: "1.7.0",
+      description: "A Model Context Protocol server for Swagger documentation to transform OpenAPI specs into MCP format.",
+    },
+    {
+      capabilities: {
+        tools: {},
+      },
+    }
+  );
+
+  // 先初始化工具，确保在连接传输层前完成
+  await initTools(server, options.openApiData, options.authConfig, options.customHeaders, options.debugHeaders, options.operationFilter, options.baseUrl, options.sourceOrigin);
+
+  if (lifecycle.registerSignalHandlers !== false) {
+    process.on("SIGINT", async () => {
+      await server.close();
+      process.exit(0);
+    });
+    process.on("SIGTERM", async () => {
+      await server.close();
+      process.exit(0);
+    });
+  }
+
+  return server;
+}
+
+export async function runStdioServer(
+  openApiData?: any,
+  authConfig?: AuthConfig,
+  customHeaders?: any,
+  debugHeaders?: boolean,
+  operationFilter?: any,
+  baseUrl?: string,
+  sourceOrigin?: string
+): Promise<void> {
+  const server = await createMcpServer({ openApiData, authConfig, customHeaders, debugHeaders, operationFilter, baseUrl, sourceOrigin });
+  await startStdioMcpServer(server);
+}
+
+export async function runSseServer(
+  endpoint = "/sse",
+  port = 3322,
+  openApiData?: any,
+  authConfig?: AuthConfig,
+  customHeaders?: any,
+  debugHeaders?: boolean,
+  operationFilter?: any,
+  host?: string,
+  securityOptions: Omit<HttpTransportSecurityOptions, "host"> = {},
+  baseUrl?: string,
+  sourceOrigin?: string
+): Promise<void> {
+  const createSessionServer = () =>
+    createMcpServer(
+      { openApiData, authConfig, customHeaders, debugHeaders, operationFilter, baseUrl, sourceOrigin },
+      { registerSignalHandlers: false }
+    );
+  await startSseMcpServer(createSessionServer, endpoint, port, {
+    host,
+    ...securityOptions,
+  });
+}
+
+export async function runStreamableServer(
+  endpoint = "/mcp",
+  port = 3322,
+  openApiData?: any,
+  authConfig?: AuthConfig,
+  customHeaders?: any,
+  debugHeaders?: boolean,
+  operationFilter?: any,
+  host?: string,
+  securityOptions: Omit<HttpTransportSecurityOptions, "host"> = {},
+  baseUrl?: string,
+  sourceOrigin?: string
+): Promise<void> {
+  const createSessionServer = () =>
+    createMcpServer(
+      { openApiData, authConfig, customHeaders, debugHeaders, operationFilter, baseUrl, sourceOrigin },
+      { registerSignalHandlers: false }
+    );
+  await startStreamableMcpServer(createSessionServer, endpoint, port, {
+    host,
+    ...securityOptions,
+  });
+}

@@ -107,7 +107,7 @@ Status note:
 
 Target:
 
-- review management endpoint guard coverage in `packages/mcp-swagger-api/src/modules/servers/servers.controller.ts`
+- review management endpoint guard coverage in `packages/api-nova-api/src/modules/servers/servers.controller.ts`
 - confirm which endpoints must require authenticated access by default
 - remove any ambiguity between documented auth expectations and actual controller behavior
 
@@ -119,7 +119,7 @@ Expected result:
 
 Target:
 
-- review `packages/mcp-swagger-server/src/lib/initTools.ts`
+- review `packages/api-nova-server/src/lib/initTools.ts`
 - reduce or eliminate fallback-only transformation behavior where practical
 - keep parser output and runtime transformation behavior aligned
 
@@ -131,8 +131,8 @@ Expected result:
 
 Target:
 
-- review development placeholders in `packages/mcp-swagger-ui/src/layout/MainLayout.vue`
-- review fragile component usage in `packages/mcp-swagger-ui/src/modules/servers/ServerManager.vue`
+- review development placeholders in `packages/api-nova-ui/src/layout/MainLayout.vue`
+- review fragile component usage in `packages/api-nova-ui/src/modules/servers/ServerManager.vue`
 - remove or downgrade non-baseline actions that confuse operators
 
 Expected result:
@@ -143,7 +143,7 @@ Expected result:
 
 Target:
 
-- review placeholder CPU metrics in `packages/mcp-swagger-api/src/modules/servers/services/server-metrics.service.ts`
+- review placeholder CPU metrics in `packages/api-nova-api/src/modules/servers/services/server-metrics.service.ts`
 - ensure monitoring surfaces do not over-claim metric accuracy
 - classify any incomplete monitoring behavior in `open-items`
 

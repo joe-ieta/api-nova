@@ -1,11 +1,11 @@
 #!/usr/bin/env pwsh
 
-# MCP Swagger Server Release Validation Script
+# ApiNova Release Validation Script
 
-Write-Host "MCP Swagger Server Release Validation" -ForegroundColor Cyan
+Write-Host "ApiNova Release Validation" -ForegroundColor Cyan
 Write-Host "=====================================" -ForegroundColor Cyan
 
-$projectDir = "packages/mcp-swagger-server"
+$projectDir = "packages/api-nova-server"
 $packageJson = "$projectDir/package.json"
 $distDir = "$projectDir/dist"
 $cliFile = "$distDir/cli.js"

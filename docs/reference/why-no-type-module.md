@@ -13,11 +13,11 @@
 ### 1. package.json 配置
 ```json
 {
-  "name": "mcp-swagger-server",
+  "name": "api-nova-server",
   // 注意：没有 "type": "module" 
   "main": "dist/index.js",
   "bin": {
-    "mcp-swagger-server": "./dist/cli.js"
+    "api-nova-server": "./dist/cli.js"
   }
 }
 ```

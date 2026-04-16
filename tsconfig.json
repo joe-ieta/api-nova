@@ -5,8 +5,8 @@
     "moduleResolution": "node",
     "baseUrl": "./",
     "paths": {
-      "mcp-swagger-parser": ["./packages/mcp-swagger-parser/src"],
-      "mcp-swagger-parser/*": ["./packages/mcp-swagger-parser/src/*"],
+      "api-nova-parser": ["./packages/api-nova-parser/src"],
+      "api-nova-parser/*": ["./packages/api-nova-parser/src/*"],
       "@/*": ["./packages/*"]
     },
     "esModuleInterop": true,

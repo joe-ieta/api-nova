@@ -1,12 +1,12 @@
-# MCP Swagger Server - Changesets 实施指南
+# ApiNova - Changesets 实施指南
 
 ## 项目概述
 
 本项目是一个基于 pnpm workspace 的 monorepo 架构，包含以下可发布的包：
 
-- `mcp-swagger-server` - 主服务包 (v1.0.9)
-- `mcp-swagger-parser` - 解析器包 (v1.0.5)
-- `@mcp-swagger/api` - API 服务包 (私有，不发布)
+- `api-nova-server` - 主服务包 (v1.0.9)
+- `api-nova-parser` - 解析器包 (v1.0.5)
+- `api-nova-api` - API 服务包 (私有，不发布)
 
 ## 当前状态分析
 
@@ -47,7 +47,7 @@ pnpm changeset init
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@mcp-swagger/api"],
+  "ignore": ["api-nova-api"],
   "privatePackages": {
     "version": true,
     "tag": false
@@ -119,10 +119,10 @@ enable-pre-post-scripts=true
 
 ### 第四步：包配置优化
 
-#### mcp-swagger-server/package.json
+#### api-nova-server/package.json
 ```json
 {
-  "name": "mcp-swagger-server",
+  "name": "api-nova-server",
   "version": "1.0.9",
   "publishConfig": {
     "access": "public",
@@ -137,10 +137,10 @@ enable-pre-post-scripts=true
 }
 ```
 
-#### mcp-swagger-parser/package.json
+#### api-nova-parser/package.json
 ```json
 {
-  "name": "mcp-swagger-parser", 
+  "name": "api-nova-parser", 
   "version": "1.0.5",
   "publishConfig": {
     "access": "public",
@@ -170,7 +170,7 @@ enable-pre-post-scripts=true
    ```
    
    选择选项：
-   - 选择要更新的包: `mcp-swagger-server`, `mcp-swagger-parser`
+   - 选择要更新的包: `api-nova-server`, `api-nova-parser`
    - 选择版本类型: `patch`, `minor`, `major`
    - 输入描述: "Add new feature for XXX"
 
@@ -306,7 +306,7 @@ jobs:
 
       - name: Check for changeset
         run: |
-          if [ -z "$(pnpm changeset status --output=json | jq -r '.releases[] | select(.name != "@mcp-swagger/api")')" ]; then
+          if [ -z "$(pnpm changeset status --output=json | jq -r '.releases[] | select(.name != "api-nova-api")')" ]; then
             echo "::error::No changeset found. Please run 'pnpm changeset' to create one."
             exit 1
           fi
@@ -382,8 +382,8 @@ echo "4. 设置 NPM_TOKEN 密钥"
 # 好的变更集示例
 
 ---
-"mcp-swagger-server": minor
-"mcp-swagger-parser": patch
+"api-nova-server": minor
+"api-nova-parser": patch
 ---
 
 Add support for OpenAPI 3.1 specifications

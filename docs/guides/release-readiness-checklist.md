@@ -34,7 +34,7 @@ Run:
 ```bash
 pnpm build
 pnpm type-check
-pnpm --filter mcp-swagger-server run test
+pnpm --filter api-nova-server run test
 ```
 
 If parser behavior changed, also run:
@@ -51,12 +51,12 @@ pnpm run verify:parser-chain:full
 
 ## 4. API Test Verification
 
-For targeted OpenAPI management and validation paths under `packages/mcp-swagger-api`:
+For targeted OpenAPI management and validation paths under `packages/api-nova-api`:
 
 Windows PowerShell:
 
 ```powershell
-cd packages\mcp-swagger-api
+cd packages\api-nova-api
 .\node_modules\.bin\jest.cmd --runInBand src/modules/openapi/services/parser.service.spec.ts
 .\node_modules\.bin\jest.cmd --runInBand src/modules/openapi/services/openapi.service.spec.ts
 .\node_modules\.bin\jest.cmd --runInBand src/modules/openapi/services/validator.service.spec.ts
@@ -65,7 +65,7 @@ cd packages\mcp-swagger-api
 Ubuntu:
 
 ```bash
-cd packages/mcp-swagger-api
+cd packages/api-nova-api
 ./node_modules/.bin/jest --runInBand src/modules/openapi/services/parser.service.spec.ts
 ./node_modules/.bin/jest --runInBand src/modules/openapi/services/openapi.service.spec.ts
 ./node_modules/.bin/jest --runInBand src/modules/openapi/services/validator.service.spec.ts
@@ -74,7 +74,7 @@ cd packages/mcp-swagger-api
 For broader API regression verification:
 
 ```bash
-pnpm --filter mcp-swagger-api test
+pnpm --filter api-nova-api test
 ```
 
 ## 5. Runtime Path Verification
@@ -164,7 +164,7 @@ At minimum verify:
 - UI startup
 - basic import and conversion workflow
 - parser verification path
-- `pnpm --filter mcp-swagger-server run test:streamable-session`
+- `pnpm --filter api-nova-server run test:streamable-session`
 
 ## 10. Open Items Review
 

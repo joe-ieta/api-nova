@@ -14,10 +14,10 @@ It turns OpenAPI/Swagger-described APIs into usable MCP capabilities and other A
 
 The repository contains four product layers:
 
-- `packages/mcp-swagger-parser`: parsing, normalization, validation, spec compatibility
-- `packages/mcp-swagger-server`: MCP tool generation and transport runtime
-- `packages/mcp-swagger-api`: product backend, orchestration, persistence, security
-- `packages/mcp-swagger-ui`: product frontend and operator workflow
+- `packages/api-nova-parser`: parsing, normalization, validation, spec compatibility
+- `packages/api-nova-server`: MCP tool generation and transport runtime
+- `packages/api-nova-api`: product backend, orchestration, persistence, security
+- `packages/api-nova-ui`: product frontend and operator workflow
 
 The core product value is the stable chain:
 
