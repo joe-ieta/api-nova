@@ -1,33 +1,35 @@
-# MCP Swagger Server
+# ApiNova
 
-Convert OpenAPI and Swagger specifications into MCP tools, runnable MCP servers, and a product-oriented MCP Gateway operating surface.
+ApiNova（中文名：达雅，亦可称 Api达雅）是一个面向 AI 时代的 API Gateway 与 API 能力平台。
+
+It preserves core API gateway and API operations capabilities while making managed APIs easier for AI applications, agents, and model runtimes to connect to, understand, and invoke.
 
 Documentation priority is accuracy over localization. Active docs may remain primarily in English during convergence.
 
 ## Project Origin
 
-This repository started from the original `mcp-swagger-server` project.
+ApiNova started from the original `mcp-swagger-server` project.
 
 The original upstream provided an excellent initial design for OpenAPI/Swagger parsing, MCP tool generation, and fast MCP server exposure. This repository explicitly acknowledges that foundation and thanks the original author and contributors for that work.
 
-This repository has since evolved in a materially different direction. The current goal is no longer only fast OpenAPI-to-MCP conversion as a technical showcase. The repository is now being developed as a product-oriented API Gateway and API-to-MCP platform with an MCP Gateway application shape.
+This repository has since evolved in a materially different direction. The current goal is no longer only fast OpenAPI-to-MCP conversion as a technical showcase. ApiNova is now being developed as a product-oriented API Gateway and API capability platform, with MCP support treated as one important capability rather than the only product identity.
 
-Because the product positioning and implementation baseline have diverged substantially, this repository now continues as an independent line of development. The original upstream remains a reference source, but it is no longer the controlling baseline for this repository.
+Because the product positioning and implementation baseline have diverged substantially, this repository now continues as an independent line of development. The original upstream remains a reference source, but it is no longer the controlling baseline for ApiNova.
 
 ## Current Product Position
 
-This repository is in a product-convergence stage.
+ApiNova is in a product-convergence stage.
 
-The current goal is not broad feature expansion. The goal is to keep a stable, runnable, and releasable baseline that can actually be connected to model applications and operated over time.
+The current goal is not broad feature expansion. The goal is to keep a stable, runnable, and releasable baseline that can actually be connected to real AI applications and operated over time.
 
 Current primary product paths:
 
 - import OpenAPI / Swagger documents
 - parse, validate, and normalize specifications
-- inspect API paths and generated tool definitions
-- convert API operations into MCP tools
-- run and manage MCP servers
-- provide MCP Gateway-style operator workflows across CLI, API, and UI
+- inspect API paths and generated capability definitions
+- convert API operations into MCP tools and AI-ready API capabilities
+- run and manage MCP servers and gateway-facing services
+- provide API Gateway-style operator workflows across CLI, API, and UI
 - keep CLI, API, and UI behavior aligned
 
 ## Monorepo Structure

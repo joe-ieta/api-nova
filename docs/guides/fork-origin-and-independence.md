@@ -2,13 +2,13 @@
 
 ## Purpose
 
-This document records the origin of this repository, the product-positioning shift that has already happened, and the working rule for the relationship with the original upstream repository.
+This document records the origin of ApiNova, the product-positioning shift that has already happened, and the working rule for the relationship with the original upstream repository.
 
 It exists to prevent collaboration drift, positioning drift, and confusion about whether this repository is still trying to stay functionally aligned with the original project.
 
 ## Origin
 
-This repository started from the original `mcp-swagger-server` upstream project.
+ApiNova started from the original `mcp-swagger-server` upstream project.
 
 The original repository provided a strong initial design for:
 
@@ -17,15 +17,15 @@ The original repository provided a strong initial design for:
 - runnable MCP server exposure
 - a fast path for turning API specifications into MCP-compatible tooling
 
-That upstream work created the technical foundation from which this repository evolved.
+That upstream work created the technical foundation from which ApiNova evolved.
 
-This repository explicitly acknowledges that origin and thanks the original author and contributors for the quality of the initial design and implementation direction.
+ApiNova explicitly acknowledges that origin and thanks the original author and contributors for the quality of the initial design and implementation direction.
 
 ## Current Position
 
-This repository is no longer positioned only as a fast OpenAPI-to-MCP conversion demo or a lightweight technical showcase.
+ApiNova（中文名：达雅，亦可称 Api达雅）is no longer positioned only as a fast OpenAPI-to-MCP conversion demo or a lightweight technical showcase.
 
-It is now positioned as a product-oriented API Gateway and API-to-MCP platform, with the goal of providing an operable MCP Gateway application form.
+It is now positioned as a product-oriented API Gateway and API capability platform, with MCP support as one important capability in a broader AI-ready API product direction.
 
 That means the working focus has shifted toward:
 
@@ -49,7 +49,7 @@ The current repository has already accumulated substantial divergence from the o
 
 Because of that divergence, keeping this repository tightly coupled to the upstream project would now create more confusion than value.
 
-This repository will therefore continue as an independently developed product line.
+ApiNova will therefore continue as an independently developed product line.
 
 ## Relationship With Upstream
 
@@ -59,11 +59,11 @@ The upstream repository remains important as:
 - a design reference
 - a possible source of selective ideas or reusable fixes
 
-But upstream is no longer treated as the controlling baseline for this repository.
+But upstream is no longer treated as the controlling baseline for ApiNova.
 
 Working rule:
 
-- `origin/main` is the only active product baseline
+- `origin/main` is the only active product baseline for ApiNova
 - upstream is reference-only
 - upstream changes are adopted only by explicit review and selective integration
 - this repository does not aim to remain behaviorally identical to upstream
@@ -105,4 +105,4 @@ Project documentation must continue to:
 
 ## Product Rule
 
-For planning and release decisions, this repository should now be judged by its own product constraints and release baseline, not by whether it remains close to upstream.
+For planning and release decisions, ApiNova should now be judged by its own product constraints and release baseline, not by whether it remains close to upstream.

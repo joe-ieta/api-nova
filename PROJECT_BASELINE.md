@@ -1,4 +1,4 @@
-# MCP Swagger Server Project Baseline
+# ApiNova Project Baseline
 
 ## Purpose
 
@@ -12,7 +12,9 @@ The repository originated from the upstream `mcp-swagger-server` project, but th
 
 ## Product Definition
 
-`mcp-swagger-server` is a product for converting OpenAPI/Swagger-described APIs into MCP-compatible tools and exposing them through stable runtime and management surfaces.
+ApiNova is a product-oriented API Gateway and API capability platform for turning OpenAPI/Swagger-described APIs into AI-ready capabilities and exposing them through stable runtime and management surfaces.
+
+Its Chinese name may be written as 达雅 or Api达雅.
 
 The product is not a demo converter, not a one-off code generator, and not only a test harness.
 
@@ -21,8 +23,8 @@ The main product chain is:
 - OpenAPI/Swagger input
 - parsing and normalization
 - endpoint extraction and filtering
-- MCP tool generation
-- MCP runtime exposure
+- MCP tool generation and capability shaping
+- MCP runtime exposure and gateway-facing service operation
 - management and operator workflows
 
 ## Current Product Surfaces
@@ -174,7 +176,7 @@ Do not introduce:
 
 The current project priority is not to maximize feature count.
 
-The current priority is to converge on a basic, usable, releasable version that can be connected to real LLM applications with predictable behavior.
+The current priority is to converge on a basic, usable, releasable version that can be connected to real AI applications with predictable behavior.
 
 That means follow-up work should answer:
 

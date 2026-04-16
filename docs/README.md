@@ -1,10 +1,10 @@
-# Documentation Index
+# ApiNova Documentation Index
 
 ## Purpose
 
 This directory separates current-use documentation from archived historical material.
 
-Use this index as the documentation entry point. Do not treat archived plans, old implementation notes, or completion summaries as the current project baseline.
+Use this index as the documentation entry point for ApiNova. Do not treat archived plans, old implementation notes, or completion summaries as the current project baseline.
 
 The current top-level governance documents remain at repository root:
 

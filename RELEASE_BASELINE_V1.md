@@ -1,8 +1,8 @@
-# MCP Swagger Server Release Baseline V1
+# ApiNova Release Baseline V1
 
 ## Goal
 
-Converge the repository toward a basic usable version that is suitable for release and can be connected to real LLM applications through MCP.
+Converge the repository toward a basic usable version that is suitable for release and can be connected to real AI applications.
 
 This is a release-baseline document, not a long-term feature roadmap.
 
@@ -15,7 +15,7 @@ The release baseline is acceptable only if the following are true:
 - the main management surface has explicit security boundaries
 - runtime logging does not pollute MCP transports by default
 - Windows and Ubuntu usage paths are both documented and viable
-- a user can import an OpenAPI spec, generate tools, run an MCP server, and connect it to an LLM client with a documented path
+- a user can import an OpenAPI spec, generate tools, run an MCP server, and connect it to an AI application with a documented path
 
 ## Current Release Focus
 
@@ -60,7 +60,7 @@ Expected characteristics:
 - fewer surprises
 - clearer contracts
 - easier setup
-- easier connection to MCP-capable LLM applications
+- easier connection to MCP-capable AI applications
 
 ## Release Work Checklist
 

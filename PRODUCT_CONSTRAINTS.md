@@ -1,4 +1,4 @@
-# MCP Swagger Server Product Constraints
+# ApiNova Product Constraints
 
 ## Purpose
 
@@ -8,7 +8,9 @@ These constraints override local implementation preferences. Future changes must
 
 ## Product Positioning
 
-`mcp-swagger-server` is a product for converting OpenAPI/Swagger-described APIs into usable MCP capabilities for AI clients and management platforms.
+ApiNova is an AI-ready API capabilities product positioned as an API gateway and management platform.
+
+It turns OpenAPI/Swagger-described APIs into usable MCP capabilities and other AI-facing integration surfaces for clients, agents, and management workflows.
 
 The repository contains four product layers:
 
@@ -19,7 +21,7 @@ The repository contains four product layers:
 
 The core product value is the stable chain:
 
-- `OpenAPI input -> parser -> MCP tool model -> runtime transport -> operator/client integration`
+- `OpenAPI input -> parser -> capability model -> runtime transport -> operator/client integration`
 
 ## Top-Level Constraints
 
