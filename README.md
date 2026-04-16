@@ -4,19 +4,19 @@
 
 ApiNova（中文名：达雅，亦可称 Api达雅）是一个面向 AI 时代的 API Gateway 与 API 能力平台。
 
-它在保留传统 API 网关与 API 运营能力的同时，让被管理的 API 更适合被 AI 应用、Agent 与模型运行时接入、理解与调用。
+本项目为一个轻量化API网关，同时提供MCP Server自动发布，方便传统服务（API）被 AI 应用、Agent 与模型运行时接入、理解与调用，可与qt-llmlite项目配合。
 
-当前文档默认以中文为主，英文介绍见 [README_EN.md](./README_EN.md)。
+For english users please read [README_EN.md](./README_EN.md)。
 
 ## 项目起源
 
 ApiNova 起源于 `mcp-swagger-server`。
 
-原始项目为 OpenAPI / Swagger 解析、MCP Tool 生成与快速运行时暴露提供了很好的基础设计。当前仓库明确感谢原作者与贡献者的工作，并在此基础上继续演进。
+随着产品定位与实现基线持续变化，本仓库已经不再只是 OpenAPI 到 MCP 的技术展示，希望API对现代AI支持与传统API Gateway能力并重，构建一个轻量化的基础应用平台，支撑传统数据服务，简化AI从大量现有API服务中获得能力的过程，提供API语义表达，实现AI应用的“信达雅”。
 
-随着产品定位与实现基线持续变化，本仓库已经不再只是 OpenAPI 到 MCP 的技术展示，而是沿着 API Gateway 与 API capability platform 的方向独立发展。MCP 仍然是重要能力之一，但不再是唯一产品身份。
+项目原始来源于 `mcp-swagger-server`，为 OpenAPI / Swagger 解析、MCP Tool 生成与快速运行时暴露提供了很好的基础设计，是0到1的突破，真诚感谢原作者与贡献者的工作，并欢迎继续为本项目提出指导、改进和建议。
 
-因此，当前仓库已经作为独立产品线继续演进：原 upstream 仍可作为参考来源，但不再是 ApiNova 的控制性产品基线。
+当前仓库作为独立产品线继续演进，原项目仍将是本项目的重要参考来源，但不再是 ApiNova 的控制性产品基线。
 
 ## 当前项目特性
 
