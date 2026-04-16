@@ -321,7 +321,7 @@ export async function runStdioServer(): Promise<void> {
   await cliAdapter.runStandalone({ transport: 'stdio' });
 }
 
-export async function runSseServer(endpoint = "/sse", port = 3322): Promise<void> {
+export async function runSseServer(endpoint = "/sse", port = 9022): Promise<void> {
   await cliAdapter.runStandalone({ 
     transport: 'sse', 
     endpoint, 
@@ -329,7 +329,7 @@ export async function runSseServer(endpoint = "/sse", port = 3322): Promise<void
   });
 }
 
-export async function runStreamableServer(endpoint = "/mcp", port = 3322): Promise<void> {
+export async function runStreamableServer(endpoint = "/mcp", port = 9022): Promise<void> {
   await cliAdapter.runStandalone({ 
     transport: 'streamable', 
     endpoint, 

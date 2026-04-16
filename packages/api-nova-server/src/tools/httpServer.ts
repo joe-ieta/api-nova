@@ -17,7 +17,7 @@ export interface HttpSecurityOptions {
 
   /**
    * Allowed Origin header values.
-   * Example: http://localhost:3000
+   * Example: http://localhost:9000
    */
   allowedOrigins?: string[];
 

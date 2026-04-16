@@ -319,7 +319,7 @@ export class ServerManager extends EventEmitter {
         httpServer = await startSseMcpServer(
           createSessionServer,
           '/sse',
-          config.port || 3322,
+          config.port || 9022,
           {
             host: config.host || 'localhost'
           }
@@ -329,7 +329,7 @@ export class ServerManager extends EventEmitter {
         httpServer = await startStreamableMcpServer(
           createSessionServer,
           '/mcp',
-          config.port || 3322,
+          config.port || 9022,
           {
             host: config.host || 'localhost'
           }

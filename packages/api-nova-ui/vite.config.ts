@@ -25,22 +25,22 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: 9000,
     strictPort: true,
     host: true,
     proxy: {
       "/api": {
-        target: "http://localhost:3001",
+        target: "http://localhost:9001",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, "/api"),
       },
       "/socket.io": {
-        target: "http://localhost:3001",
+        target: "http://localhost:9001",
         changeOrigin: true,
         ws: true,
       },
       "/monitoring": {
-        target: "http://localhost:3001",
+        target: "http://localhost:9001",
         changeOrigin: true,
         ws: true,
       },

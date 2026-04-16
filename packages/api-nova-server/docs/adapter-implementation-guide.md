@@ -132,14 +132,14 @@ export class CLIAdapter {
         break;
 
       case 'sse':
-        const ssePort = config.options?.port || 3322;
+        const ssePort = config.options?.port || 9022;
         const sseEndpoint = config.options?.endpoint || '/sse';
         console.log(`🔗 Starting SSE transport on port ${ssePort}${sseEndpoint}`);
         await startSseMcpServer(server, sseEndpoint, ssePort);
         break;
 
       case 'streamable':
-        const streamPort = config.options?.port || 3322;
+        const streamPort = config.options?.port || 9022;
         const streamEndpoint = config.options?.endpoint || '/mcp';
         console.log(`🔗 Starting HTTP Stream transport on port ${streamPort}${streamEndpoint}`);
         await startStreamableMcpServer(server, streamEndpoint, streamPort);

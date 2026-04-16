@@ -517,7 +517,7 @@ const templateDialogVisible = ref(false);
 // 表单数据
 const configForm = reactive<ConfigForm>({
   name: "",
-  serverUrl: "http://localhost:3000",
+  serverUrl: "http://localhost:9000",
   timeout: 30000,
   retries: 3,
   enableLogging: true,
@@ -893,7 +893,7 @@ const exportConfig = () => {
 const resetConfig = () => {
   Object.assign(configForm, {
     name: "",
-    serverUrl: "http://localhost:3000",
+    serverUrl: "http://localhost:9000",
     timeout: 30000,
     retries: 3,
     enableLogging: true,
@@ -940,7 +940,7 @@ const useHistory = (item: ConfigHistory) => {
     // 恢复表单数据
     Object.assign(configForm, {
       name: config.name,
-      serverUrl: config.server?.url || "http://localhost:3000",
+      serverUrl: config.server?.url || "http://localhost:9000",
       timeout: config.server?.timeout || 30000,
       retries: config.server?.retries || 3,
       enableLogging: config.logging?.enabled !== false,

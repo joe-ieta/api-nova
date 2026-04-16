@@ -64,7 +64,7 @@ export async function runStdioServer(): Promise<void> {
  */
 export async function runSseServer(
   endpoint: string = "/sse",
-  port: number = 3322
+  port: number = 9022
 ): Promise<void> {
   const adapter = getGlobalAdapter();
   await adapter.runStandalone({ 
@@ -81,7 +81,7 @@ export async function runSseServer(
  */
 export async function runStreamableServer(
   endpoint: string = "/mcp",
-  port: number = 3322
+  port: number = 9022
 ): Promise<void> {
   const adapter = getGlobalAdapter();
   await adapter.runStandalone({ 

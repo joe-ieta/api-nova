@@ -41,7 +41,7 @@ export class MCPServerEntity {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
-  @Column({ type: 'int', default: 3322 })
+  @Column({ type: 'int', default: 9022 })
   port: number;
 
   @Column({

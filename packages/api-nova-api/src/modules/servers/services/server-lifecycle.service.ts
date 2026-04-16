@@ -194,7 +194,7 @@ export class ServerLifecycleService {
     }
 
     // OpenAPI数据源（使用API URL）
-    const apiBaseUrl = this.configService.get('API_BASE_URL', 'http://localhost:3001');
+    const apiBaseUrl = this.configService.get('API_BASE_URL', 'http://localhost:9001');
     const openApiUrl = `${apiBaseUrl}/api/openapi/by-server/${serverEntity.id}`;
     args.push('--openapi', openApiUrl);
 

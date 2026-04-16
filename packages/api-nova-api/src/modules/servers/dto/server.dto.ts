@@ -28,7 +28,7 @@ export class CreateServerDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ description: '服务器端口', example: 3322, minimum: 1024, maximum: 65535 })
+  @ApiPropertyOptional({ description: '服务器端口', example: 9022, minimum: 1024, maximum: 65535 })
   @IsOptional()
   @IsNumber()
   @Min(1024)
@@ -69,7 +69,7 @@ export class CreateServerDto {
   @IsString({ each: true })
   tags?: string[];
 
-  @ApiPropertyOptional({ description: '服务器端点地址', example: 'http://localhost:3322' })
+  @ApiPropertyOptional({ description: '服务器端点地址', example: 'http://localhost:9022' })
   @IsOptional()
   @IsString()
   endpoint?: string;
@@ -94,7 +94,7 @@ export class UpdateServerDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ description: '服务器端口', example: 3322, minimum: 1024, maximum: 65535 })
+  @ApiPropertyOptional({ description: '服务器端口', example: 9022, minimum: 1024, maximum: 65535 })
   @IsOptional()
   @IsNumber()
   @Min(1024)
@@ -136,7 +136,7 @@ export class UpdateServerDto {
   @IsString({ each: true })
   tags?: string[];
 
-  @ApiPropertyOptional({ description: '服务器端点地址', example: 'http://localhost:3322' })
+  @ApiPropertyOptional({ description: '服务器端点地址', example: 'http://localhost:9022' })
   @IsOptional()
   @IsString()
   endpoint?: string;

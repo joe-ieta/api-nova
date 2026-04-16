@@ -41,7 +41,7 @@ cp .env.example .env
 #### 编辑 .env 文件
 ```env
 # 基础配置
-MCP_PORT=3322
+MCP_PORT=9022
 MCP_TRANSPORT=stdio
 MCP_OPENAPI_URL=https://petstore.swagger.io/v2/swagger.json
 MCP_ENDPOINT=/mcp
@@ -182,7 +182,7 @@ api-nova-server --config production.json
 ```json
 {
   "transport": "streamable",
-  "port": 3322,
+  "port": 9022,
   "endpoint": "/api/mcp",
   "openapi": "https://api.yourcompany.com/openapi.json",
   "auth": {

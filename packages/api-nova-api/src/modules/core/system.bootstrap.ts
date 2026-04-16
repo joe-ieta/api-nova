@@ -61,7 +61,7 @@ export class SystemBootstrap implements OnApplicationBootstrap {
    */
   private async logSystemInfo(): Promise<void> {
     const nodeEnv = this.configService.get('NODE_ENV', 'development');
-    const port = this.configService.get('PORT', 3001);
+    const port = this.configService.get('PORT', 9001);
     const mcpPort = this.configService.get('MCP_PORT', 3002);
     const dbHost = this.configService.get('DB_HOST', 'localhost');
     const dbPort = this.configService.get('DB_PORT', 5432);
@@ -113,7 +113,7 @@ export class SystemBootstrap implements OnApplicationBootstrap {
         initialization,
         environment: {
           nodeEnv: this.configService.get('NODE_ENV', 'development'),
-          port: this.configService.get('PORT', 3001),
+          port: this.configService.get('PORT', 9001),
           mcpPort: this.configService.get('MCP_PORT', 3002),
         }
       };
@@ -130,7 +130,7 @@ export class SystemBootstrap implements OnApplicationBootstrap {
         },
         environment: {
           nodeEnv: this.configService.get('NODE_ENV', 'development'),
-          port: this.configService.get('PORT', 3001),
+          port: this.configService.get('PORT', 9001),
           mcpPort: this.configService.get('MCP_PORT', 3002),
         }
       };

@@ -961,7 +961,7 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
   /**
    * 查找可用端口
    */
-  private async findAvailablePort(startPort: number = 3322): Promise<number> {
+  private async findAvailablePort(startPort: number = 9022): Promise<number> {
     for (let port = startPort; port < startPort + 1000; port++) {
       const existingServer = await this.serverRepository.findOne({
         where: { port, status: ServerStatus.RUNNING },

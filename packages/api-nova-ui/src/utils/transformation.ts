@@ -157,7 +157,7 @@ export const createMCPServer = (config: ServerConfig): MCPServer => {
     name: config.name || "",
     version: config.version || "1.0.0",
     description: config.description || "",
-    port: config.port || 3000,
+    port: config.port || 9000,
     transport: config.transport || "streamable",
     status: "stopped",
     healthy: false,

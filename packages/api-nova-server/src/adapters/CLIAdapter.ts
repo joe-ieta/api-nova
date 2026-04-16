@@ -54,7 +54,7 @@ export class CLIAdapter {
         port: {
           type: 'string',
           short: 'p',
-          default: '3322',
+          default: '9022',
         },
         endpoint: {
           type: 'string',
@@ -79,7 +79,7 @@ export class CLIAdapter {
 
     return {
       transport: values.transport as 'stdio' | 'sse' | 'streamable',
-      port: parseInt(values.port || '3322', 10),
+      port: parseInt(values.port || '9022', 10),
       endpoint: values.endpoint || this.getDefaultEndpoint(values.transport as string),
       autoRestart: values['auto-restart'] || false,
       maxRetries: parseInt(values['max-retries'] || '5', 10),
@@ -149,7 +149,7 @@ Usage: api-nova [options]
 
 Options:
   -t, --transport <type>     Transport type (stdio, sse, streamable) [default: stdio]
-  -p, --port <port>         Port number for HTTP transports [default: 3322]
+  -p, --port <port>         Port number for HTTP transports [default: 9022]
   -e, --endpoint <path>     Endpoint path for HTTP transports [default: /sse or /mcp]
   --auto-restart            Auto restart on error
   --max-retries <num>       Maximum retry attempts [default: 5]
@@ -157,7 +157,7 @@ Options:
 
 Examples:
   api-nova                                  # STDIO transport
-  api-nova -t sse -p 3000 -e /api           # SSE transport on port 3000
+  api-nova -t sse -p 9000 -e /api           # SSE transport on port 9000
   api-nova -t streamable                    # HTTP Streamable transport
 `);
   }

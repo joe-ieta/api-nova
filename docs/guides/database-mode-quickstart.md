@@ -15,8 +15,8 @@ Example `packages/api-nova-api/.env`:
 
 ```env
 NODE_ENV=development
-PORT=3001
-MCP_PORT=3322
+PORT=9001
+MCP_PORT=9022
 
 DB_TYPE=sqlite
 DB_SQLITE_PATH=data/mcp-swagger.db
@@ -62,8 +62,8 @@ Example `packages/api-nova-api/.env`:
 
 ```env
 NODE_ENV=development
-PORT=3001
-MCP_PORT=3322
+PORT=9001
+MCP_PORT=9022
 
 DB_TYPE=postgres
 DB_HOST=localhost

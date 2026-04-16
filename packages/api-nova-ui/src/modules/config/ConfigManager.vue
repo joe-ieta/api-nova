@@ -1207,8 +1207,8 @@ const showHistoryDetails = (item: OperationHistory) => {
 const generateMockConfig = (type: string): any => {
   const configs: Record<string, any> = {
     servers: [
-      { id: "1", name: "API Server", port: 3000, status: "running" },
-      { id: "2", name: "Test Server", port: 3001, status: "stopped" },
+      { id: "1", name: "API Server", port: 9000, status: "running" },
+      { id: "2", name: "Test Server", port: 9001, status: "stopped" },
     ],
     auth: [
       { id: "1", type: "bearer", name: "API Token" },

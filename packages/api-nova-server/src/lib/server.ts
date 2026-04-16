@@ -67,7 +67,7 @@ export async function runStdioServer(options: {
  */
 export async function runSseServer(
   endpoint = "/sse",
-  port = 3322,
+  port = 9022,
   options: {
     name?: string;
     version?: string;
@@ -85,7 +85,7 @@ export async function runSseServer(
  */
 export async function runStreamableServer(
   endpoint = "/mcp",
-  port = 3322,
+  port = 9022,
   options: {
     name?: string;
     version?: string;

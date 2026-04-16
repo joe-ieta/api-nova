@@ -15,8 +15,8 @@
 
 默认开发联调端口：
 
-- UI: `3000`
-- API: `http://127.0.0.1:3001`
+- UI: `9000`
+- API: `http://127.0.0.1:9001`
 
 ## 当前支持基线
 
@@ -55,7 +55,7 @@ pnpm --filter api-nova-ui run dev
 访问：
 
 ```text
-http://127.0.0.1:3000
+http://127.0.0.1:9000
 ```
 
 ## 构建命令
@@ -72,7 +72,7 @@ pnpm --filter api-nova-ui run lint
 如需覆盖默认 API 目标，可使用 `.env.local`：
 
 ```env
-VITE_API_BASE_URL=http://127.0.0.1:3001/api
+VITE_API_BASE_URL=http://127.0.0.1:9001/api
 VITE_APP_TITLE=ApiNova
 ```
 

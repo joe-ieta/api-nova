@@ -487,7 +487,7 @@ export class OpenAPIWizard {
           type: 'number',
           name: 'port',
           message: '端口号:',
-          default: existing?.port || (transport === 'sse' ? 3000 : 8080),
+          default: existing?.port || (transport === 'sse' ? 9000 : 8080),
           validate: (input: number) => {
             if (input < 1 || input > 65535) {
               return '端口号必须在 1-65535 之间';

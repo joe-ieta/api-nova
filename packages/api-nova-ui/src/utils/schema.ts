@@ -395,7 +395,7 @@ const generateStringSuggestions = (format?: string): string[] => {
       return [
         "https://api.example.com",
         "https://www.example.com",
-        "http://localhost:3000",
+        "http://localhost:9000",
       ];
     case "date":
       const today = new Date().toISOString().split("T")[0];

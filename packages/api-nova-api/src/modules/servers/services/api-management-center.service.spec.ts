@@ -79,7 +79,7 @@ describe('ApiManagementCenterService', () => {
 
     const result = await service.registerManualEndpoint({
       name: 'health-endpoint',
-      baseUrl: 'http://localhost:3001',
+      baseUrl: 'http://localhost:9001',
       method: 'GET',
       path: '/health',
       description: 'Health check endpoint',
@@ -89,7 +89,7 @@ describe('ApiManagementCenterService', () => {
       expect.objectContaining({
         name: 'health-endpoint',
         openApiData: expect.objectContaining({
-          servers: [{ url: 'http://localhost:3001' }],
+          servers: [{ url: 'http://localhost:9001' }],
           paths: expect.objectContaining({
             '/health': expect.any(Object),
           }),
@@ -100,14 +100,14 @@ describe('ApiManagementCenterService', () => {
       expect.objectContaining({
         config: expect.objectContaining({
           management: expect.objectContaining({
-            probeUrl: 'http://localhost:3001/health',
+            probeUrl: 'http://localhost:9001/health',
             lifecycleStatus: 'draft',
             publishEnabled: false,
           }),
         }),
       }),
     );
-    expect(result.profile.probeUrl).toBe('http://localhost:3001/health');
+    expect(result.profile.probeUrl).toBe('http://localhost:9001/health');
   });
 
   it('marks a manual endpoint verified after a healthy probe', async () => {
@@ -115,7 +115,7 @@ describe('ApiManagementCenterService', () => {
       id: 'probe-1',
       name: 'health-endpoint',
       openApiData: {
-        servers: [{ url: 'http://localhost:3001' }],
+        servers: [{ url: 'http://localhost:9001' }],
         paths: {
           '/health': {
             get: {},
@@ -125,7 +125,7 @@ describe('ApiManagementCenterService', () => {
       config: {
         management: {
           sourceType: 'manual',
-          probeUrl: 'http://localhost:3001/health',
+          probeUrl: 'http://localhost:9001/health',
           lifecycleStatus: 'draft',
           publishEnabled: false,
         },
@@ -137,7 +137,7 @@ describe('ApiManagementCenterService', () => {
     const result = await service.probeEndpoint('probe-1');
 
     expect(httpService.head).toHaveBeenCalledWith(
-      'http://localhost:3001/health',
+      'http://localhost:9001/health',
       expect.objectContaining({
         timeout: 8000,
       }),
@@ -177,7 +177,7 @@ describe('ApiManagementCenterService', () => {
         config: {
           management: {
             sourceType: 'manual',
-            sourceRef: 'http://localhost:3001',
+            sourceRef: 'http://localhost:9001',
           },
         },
       },
@@ -260,7 +260,7 @@ describe('ApiManagementCenterService', () => {
       openApiData: { openapi: '3.0.0' },
       config: {
         management: {
-          probeUrl: 'http://localhost:3001/health',
+          probeUrl: 'http://localhost:9001/health',
           lifecycleStatus: 'draft',
           publishEnabled: false,
         },
@@ -275,7 +275,7 @@ describe('ApiManagementCenterService', () => {
     const result = await service.probeEndpoint('probe-2');
 
     expect(httpService.get).toHaveBeenCalledWith(
-      'http://localhost:3001/health',
+      'http://localhost:9001/health',
       expect.objectContaining({
         timeout: 8000,
       }),
@@ -290,7 +290,7 @@ describe('ApiManagementCenterService', () => {
       openApiData: { openapi: '3.0.0' },
       config: {
         management: {
-          probeUrl: 'http://127.0.0.1:3322/health',
+          probeUrl: 'http://127.0.0.1:9022/health',
           lifecycleStatus: 'draft',
           publishEnabled: false,
         },
@@ -303,13 +303,13 @@ describe('ApiManagementCenterService', () => {
     const result = await service.probeEndpoint('probe-3');
 
     expect(httpService.head).toHaveBeenCalledWith(
-      'http://127.0.0.1:3322/health',
+      'http://127.0.0.1:9022/health',
       expect.objectContaining({
         timeout: 8000,
       }),
     );
     expect(httpService.get).toHaveBeenCalledWith(
-      'http://127.0.0.1:3322/health',
+      'http://127.0.0.1:9022/health',
       expect.objectContaining({
         timeout: 8000,
       }),
@@ -418,7 +418,7 @@ describe('ApiManagementCenterService', () => {
       openApiData: { openapi: '3.0.0' },
       config: {
         management: {
-          probeUrl: 'http://localhost:3001/not-found',
+          probeUrl: 'http://localhost:9001/not-found',
           lifecycleStatus: 'draft',
           publishEnabled: false,
         },
@@ -443,7 +443,7 @@ describe('ApiManagementCenterService', () => {
       openApiData: { openapi: '3.0.0' },
       config: {
         management: {
-          probeUrl: 'http://localhost:3001/health',
+          probeUrl: 'http://localhost:9001/health',
           lifecycleStatus: 'offline',
           publishEnabled: false,
         },
@@ -465,7 +465,7 @@ describe('ApiManagementCenterService', () => {
       name: 'health-endpoint',
       openApiData: {
         openapi: '3.0.3',
-        servers: [{ url: 'http://localhost:3001' }],
+        servers: [{ url: 'http://localhost:9001' }],
         paths: {
           '/health': {
             get: {},
@@ -475,8 +475,8 @@ describe('ApiManagementCenterService', () => {
       config: {
         management: {
           sourceType: 'manual',
-          sourceRef: 'http://localhost:3001',
-          probeUrl: 'http://localhost:3001/health',
+          sourceRef: 'http://localhost:9001',
+          probeUrl: 'http://localhost:9001/health',
           lifecycleStatus: 'draft',
           publishEnabled: false,
         },

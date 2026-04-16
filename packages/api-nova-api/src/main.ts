@@ -49,7 +49,7 @@ async function bootstrap() {
     const corsOrigins = configService
       .get<string>(
         'CORS_ORIGINS',
-        'http://localhost:5173,http://localhost:3000,http://127.0.0.1:3000',
+        'http://localhost:5173,http://localhost:9000,http://127.0.0.1:9000',
       )
       .split(',')
       .map((origin) => origin.trim())
@@ -103,7 +103,7 @@ async function bootstrap() {
           使用JWT Bearer Token认证，请在请求头中添加 Authorization: Bearer <token>
         `)
         .setVersion('1.0')
-        .addServer(`http://localhost:${configService.get<number>('PORT', 3001)}`, 'Development')
+        .addServer(`http://localhost:${configService.get<number>('PORT', 9001)}`, 'Development')
         .addBearerAuth(
           {
             type: 'http',
@@ -143,16 +143,16 @@ async function bootstrap() {
         customfavIcon: '/favicon.ico',
       });
 
-      logger.log(`📚 Swagger documentation available at: http://localhost:${configService.get<number>('PORT', 3001)}/api/docs`);
+      logger.log(`📚 Swagger documentation available at: http://localhost:${configService.get<number>('PORT', 9001)}/api/docs`);
     }
 
     // 启动应用
-    const port = configService.get<number>('PORT', 3001);
+    const port = configService.get<number>('PORT', 9001);
     await app.listen(port, '0.0.0.0');
 
     logger.log(`🚀 Application is running on: http://localhost:${port}/api/docs`);
     logger.log(`🏥 Health check available at: http://localhost:${port}/health`);
-    logger.log(`🎛️ MCP Server running on port: ${configService.get<number>('MCP_PORT', 3322)}`);
+    logger.log(`🎛️ MCP Server running on port: ${configService.get<number>('MCP_PORT', 9022)}`);
     
     // 优雅关闭处理
     process.on('SIGTERM', async () => {

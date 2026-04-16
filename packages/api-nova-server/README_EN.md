@@ -53,7 +53,7 @@ pnpm add -g api-nova-server
 api-nova
 
 # One-shot startup (with arguments)
-api-nova --openapi https://petstore3.swagger.io/api/v3/openapi.json --transport streamable --port 3322
+api-nova --openapi https://petstore3.swagger.io/api/v3/openapi.json --transport streamable --port 9022
 
 # Using GitHub API (if available)
 api-nova --openapi https://api.github.com/openapi.json --transport sse --port 3323
@@ -95,7 +95,7 @@ const { data: openApiData } = await axios.get(
   'https://petstore3.swagger.io/api/v3/openapi.json'
 );
 
-await runStreamableServer('/mcp', 3322, openApiData);
+await runStreamableServer('/mcp', 9022, openApiData);
 ```
 
 ## 🛠️ Main Features
@@ -125,7 +125,7 @@ api-nova [options]
 Options:
   --openapi <url|file>    OpenAPI specification URL or file path (required)
   --transport <type>      Transport type: stdio|streamable|sse (default: stdio)
-  --port <number>         Server port (default: 3322)
+  --port <number>         Server port (default: 9022)
   --host <string>         Server host (default: 127.0.0.1)
   --base-url <url>        Override API base URL (highest priority)
   --config <file>         JSON config file
@@ -150,7 +150,7 @@ Options:
 api-nova \
   --openapi https://petstore3.swagger.io/api/v3/openapi.json \
   --transport streamable \
-  --port 3322
+  --port 9022
 ```
 
 After conversion, AI assistants can call various Petstore API functions, such as:
@@ -191,7 +191,7 @@ export MCP_OPENAPI_URL="https://api.example.com/openapi.json"
 export MCP_TRANSPORT="streamable"
 
 # Set default port
-export MCP_PORT="3322"
+export MCP_PORT="9022"
 
 # Optional: set default base URL override
 export MCP_BASE_URL="https://api.example.com/v1"
@@ -208,7 +208,7 @@ Create `mcp-swagger.config.json`:
 {
   "openapi": "https://api.example.com/openapi.json",
   "transport": "streamable",
-  "port": 3322,
+  "port": 9022,
   "cors": true,
   "rateLimit": {
     "max": 100,
@@ -342,10 +342,10 @@ This project is open-sourced under the [MIT License](LICENSE). Feel free to use 
 Want to experience ApiNova immediately? Try this one-click launch command:
 
 ```bash
-api-nova --openapi https://petstore3.swagger.io/api/v3/openapi.json --transport streamable --port 3322
+api-nova --openapi https://petstore3.swagger.io/api/v3/openapi.json --transport streamable --port 9022
 ```
 
-Then visit `http://localhost:3322` to see the generated MCP tools!
+Then visit `http://localhost:9022` to see the generated MCP tools!
 
 ---
 

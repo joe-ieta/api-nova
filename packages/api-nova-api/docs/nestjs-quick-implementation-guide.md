@@ -104,7 +104,7 @@ async function bootstrap() {
     SwaggerModule.setup('api/docs', app, document);
   }
 
-  const port = process.env.PORT || 3001;
+  const port = process.env.PORT || 9001;
   await app.listen(port);
   
   console.log(`🚀 Application is running on: http://localhost:${port}`);
@@ -273,7 +273,7 @@ export class MCPService {
         success: true,
         data: {
           ...configResult,
-          mcpServerUrl: `http://localhost:${this.configService.get('MCP_PORT', 3322)}/mcp`,
+          mcpServerUrl: `http://localhost:${this.configService.get('MCP_PORT', 9022)}/mcp`,
           configuredAt: new Date().toISOString(),
         }
       };
@@ -292,8 +292,8 @@ export class MCPService {
       success: true,
       data: {
         mcpServerRunning: true,
-        mcpServerUrl: `http://localhost:${this.configService.get('MCP_PORT', 3322)}/mcp`,
-        configApiUrl: `http://localhost:${this.configService.get('PORT', 3001)}`,
+        mcpServerUrl: `http://localhost:${this.configService.get('MCP_PORT', 9022)}/mcp`,
+        configApiUrl: `http://localhost:${this.configService.get('PORT', 9001)}`,
         toolsCount: tools.length,
         hasConfiguration: !!spec,
         apiTitle: spec?.info?.title || null,
@@ -451,11 +451,11 @@ export class MCPResponseDto {
 ```bash
 # .env.development
 NODE_ENV=development
-PORT=3001
-MCP_PORT=3322
+PORT=9001
+MCP_PORT=9022
 
 # CORS配置
-CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+CORS_ORIGINS=http://localhost:5173,http://localhost:9000
 
 # 安全配置 (开发环境可选)
 API_KEY=
@@ -496,11 +496,11 @@ HEALTH_CHECK_ENABLED=true
 pnpm run start:dev
 
 # 验证服务状态
-curl http://localhost:3001/api/health
-curl http://localhost:3001/api/status
+curl http://localhost:9001/api/health
+curl http://localhost:9001/api/status
 
 # 查看Swagger文档
-open http://localhost:3001/api/docs
+open http://localhost:9001/api/docs
 ```
 
 ### 2. 与前端联调
@@ -515,7 +515,7 @@ pnpm run dev:full
 ### 3. 测试API功能
 ```bash
 # 测试配置接口
-curl -X POST http://localhost:3001/api/configure \
+curl -X POST http://localhost:9001/api/configure \
   -H "Content-Type: application/json" \
   -d '{
     "source": {
@@ -525,13 +525,13 @@ curl -X POST http://localhost:3001/api/configure \
   }'
 
 # 查看工具列表
-curl http://localhost:3001/api/tools
+curl http://localhost:9001/api/tools
 ```
 
 ## 📋 验收检查清单
 
 ### ✅ 基础功能验收
-- [ ] 服务启动成功 (端口3001)
+- [ ] 服务启动成功 (端口9001)
 - [ ] Swagger文档可访问
 - [ ] 健康检查接口正常
 - [ ] CORS配置正确

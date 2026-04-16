@@ -4,15 +4,15 @@ export const validationSchema = Joi.object({
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')
     .default('development'),
-  PORT: Joi.number().port().default(3001),
-  MCP_PORT: Joi.number().port().default(3322),
+  PORT: Joi.number().port().default(9001),
+  MCP_PORT: Joi.number().port().default(9022),
 
   CORS_ORIGINS: Joi.string().default(
-    'http://localhost:5173,http://localhost:3000,http://127.0.0.1:3000',
+    'http://localhost:5173,http://localhost:9000,http://127.0.0.1:9000',
   ),
 
   DB_TYPE: Joi.string().valid('sqlite', 'postgres').default('sqlite'),
-  DB_SQLITE_PATH: Joi.string().default('data/mcp-swagger.db'),
+  DB_SQLITE_PATH: Joi.string().default('data/api-nova.db'),
   DB_HOST: Joi.string().default('localhost'),
   DB_PORT: Joi.number().port().default(5432),
   DB_USERNAME: Joi.string().default('postgres'),
@@ -43,7 +43,7 @@ export const validationSchema = Joi.object({
   MAX_PAYLOAD_SIZE: Joi.string().default('10mb'),
 
   MCP_SERVER_HOST: Joi.string().default('localhost'),
-  MCP_SERVER_PORT: Joi.number().port().default(3322),
+  MCP_SERVER_PORT: Joi.number().port().default(9022),
   MCP_SERVER_HEALTH_CHECK_INTERVAL: Joi.number().positive().default(30000),
 
   DEFAULT_OPENAPI_BASE_URL: Joi.string().uri().optional(),

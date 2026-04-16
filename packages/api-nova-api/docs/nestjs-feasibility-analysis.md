@@ -388,7 +388,7 @@ export class AppConfigService {
   constructor(private configService: ConfigService) {}
   
   get mcpPort(): number {
-    return this.configService.get<number>('MCP_PORT', 3322);
+    return this.configService.get<number>('MCP_PORT', 9022);
   }
   
   get corsOrigins(): string[] {

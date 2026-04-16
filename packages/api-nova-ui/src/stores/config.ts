@@ -792,7 +792,7 @@ export const useConfigStore = defineStore("config", () => {
         migratedConfig.apiVersion = "2.0";
         migratedConfig.websocket = {
           enabled: true,
-          port: 3001,
+          port: 9001,
         };
 
         // 重构服务器配置
@@ -803,7 +803,7 @@ export const useConfigStore = defineStore("config", () => {
               name: server.name,
               config: {
                 host: server.host || "localhost",
-                port: server.port || 3000,
+                port: server.port || 9000,
                 protocol: server.protocol || "http",
               },
               status: server.status || "stopped",
@@ -923,8 +923,8 @@ export const useConfigStore = defineStore("config", () => {
     // 模拟获取不同类型的配置数据
     const mockData: Record<string, any> = {
       servers: [
-        { id: "1", name: "API Server", port: 3000, status: "running" },
-        { id: "2", name: "Test Server", port: 3001, status: "stopped" },
+        { id: "1", name: "API Server", port: 9000, status: "running" },
+        { id: "2", name: "Test Server", port: 9001, status: "stopped" },
       ],
       auth: [
         { id: "1", type: "bearer", name: "API Token" },

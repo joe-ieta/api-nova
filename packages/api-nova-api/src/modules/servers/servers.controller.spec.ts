@@ -92,7 +92,7 @@ describe('ServersController', () => {
     await expect(
       controller.registerManualEndpoint({
         name: 'health-endpoint',
-        baseUrl: 'http://localhost:3001',
+        baseUrl: 'http://localhost:9001',
         method: 'GET',
         path: '/health',
       } as any),
@@ -144,7 +144,7 @@ describe('ServersController', () => {
       config: {
         management: {
           sourceType: 'manual',
-          probeUrl: 'http://localhost:3001/health',
+          probeUrl: 'http://localhost:9001/health',
         },
       },
     });
@@ -163,7 +163,7 @@ describe('ServersController', () => {
       config: {
         management: {
           sourceType: 'manual',
-          probeUrl: 'http://localhost:3001/health',
+          probeUrl: 'http://localhost:9001/health',
         },
       },
     });

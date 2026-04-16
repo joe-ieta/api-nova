@@ -223,7 +223,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
   const connectWebSocket = () => {
     try {
       // 假设WebSocket端点，实际项目中应该从配置获取
-      ws = new WebSocket("ws://localhost:3001/ws/monitoring");
+      ws = new WebSocket("ws://localhost:9001/ws/monitoring");
 
       ws.onopen = () => {
         isConnected.value = true;

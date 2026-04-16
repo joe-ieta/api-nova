@@ -81,10 +81,10 @@ pnpm --filter api-nova-api test
 
 Verify the main operator paths:
 
-- UI main entry: `http://127.0.0.1:3000/`
-- API main entry: `http://127.0.0.1:3001/api`
-- API Swagger docs: `http://127.0.0.1:3001/api/docs`
-- MCP endpoint example: `http://127.0.0.1:3322/mcp`
+- UI main entry: `http://127.0.0.1:9000/`
+- API main entry: `http://127.0.0.1:9001/api`
+- API Swagger docs: `http://127.0.0.1:9001/api/docs`
+- MCP endpoint example: `http://127.0.0.1:9022/mcp`
 
 Check:
 

@@ -1,6 +1,6 @@
 export const CLI_DEFAULTS = {
   transport: 'stdio' as const,
-  port: 3322,
+  port: 9022,
   host: '127.0.0.1',
   maxRetries: 5,
   retryDelay: 5000,

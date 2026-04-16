@@ -16,11 +16,11 @@ export class AppConfigService {
   }
 
   get port(): number {
-    return this.configService.get<number>('PORT', 3001);
+    return this.configService.get<number>('PORT', 9001);
   }
 
   get mcpPort(): number {
-    return this.configService.get<number>('MCP_PORT', 3322);
+    return this.configService.get<number>('MCP_PORT', 9022);
   }
 
   get isDevelopment(): boolean {
@@ -40,7 +40,7 @@ export class AppConfigService {
     return this.configService
       .get<string>(
         'CORS_ORIGINS',
-        'http://localhost:5173,http://localhost:3000,http://127.0.0.1:3000',
+        'http://localhost:5173,http://localhost:9000,http://127.0.0.1:9000',
       )
       .split(',')
       .map(origin => origin.trim())
@@ -80,7 +80,7 @@ export class AppConfigService {
   }
 
   get mcpServerPort(): number {
-    return this.configService.get<number>('MCP_SERVER_PORT', 3322);
+    return this.configService.get<number>('MCP_SERVER_PORT', 9022);
   }
 
   get mcpServerUrl(): string {

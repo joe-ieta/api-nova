@@ -55,13 +55,13 @@ api-nova --openapi https://petstore.swagger.io/v2/swagger.json --transport stdio
 ### Streamable HTTP
 
 ```bash
-api-nova --openapi https://petstore.swagger.io/v2/swagger.json --transport streamable --port 3322
+api-nova --openapi https://petstore.swagger.io/v2/swagger.json --transport streamable --port 9022
 ```
 
 ### SSE
 
 ```bash
-api-nova --openapi https://petstore.swagger.io/v2/swagger.json --transport sse --port 3322
+api-nova --openapi https://petstore.swagger.io/v2/swagger.json --transport sse --port 9022
 ```
 
 ## 常用参数

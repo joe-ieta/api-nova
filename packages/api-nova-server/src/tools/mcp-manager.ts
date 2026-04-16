@@ -17,7 +17,7 @@ const { values, positionals } = parseArgs({
     port: {
       type: 'string',
       short: 'p',
-      default: '3322'
+      default: '9022'
     },
     transport: {
       type: 'string',
@@ -80,7 +80,7 @@ MCP Server Manager - 可重启的 MCP 服务器管理工具
 
 选项:
   -c, --config <file>        配置文件路径 (默认: mcp-config.json)
-  -p, --port <port>          服务器端口 (默认: 3322)
+  -p, --port <port>          服务器端口 (默认: 9022)
   -t, --transport <type>     传输协议: stdio, sse, streamable (默认: sse)
   -e, --endpoint <path>      端点路径 (默认: /sse)
   --max-retries <num>        最大重试次数 (默认: 5)

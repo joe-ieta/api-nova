@@ -138,7 +138,7 @@ npm install -g api-nova-server
 api-nova-server --help
 
 # 从 URL 启动 HTTP 服务器
-api-nova-server --transport streamable --port 3322 --openapi https://api.github.com/openapi.json
+api-nova-server --transport streamable --port 9022 --openapi https://api.github.com/openapi.json
 
 # 从本地文件启动并监控变化
 api-nova-server --transport streamable --openapi ./api.json --watch
@@ -159,7 +159,7 @@ const { createMcpServer, runStreamableServer } = require('api-nova-server');
 const server = createMcpServer(openApiSpec);
 
 // 运行 Streamable 服务器
-runStreamableServer(server, { port: 3322 });
+runStreamableServer(server, { port: 9022 });
 ```
 
 ---

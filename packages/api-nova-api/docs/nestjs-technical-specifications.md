@@ -6,7 +6,7 @@
 - **项目名称**: ApiNova API Server
 - **技术栈**: NestJS + TypeScript + pnpm
 - **运行环境**: Node.js 18+
-- **端口配置**: 3001 (API服务) + 3322 (MCP协议)
+- **端口配置**: 9001 (API服务) + 9022 (MCP协议)
 - **开发模式**: Monorepo集成
 
 ### 依赖版本规范
@@ -254,7 +254,7 @@ async function bootstrap() {
     })
   );
   
-  await app.listen(3001);
+  await app.listen(9001);
 }
 ```
 
@@ -303,7 +303,7 @@ export class HealthController {
   @HealthCheck()
   check() {
     return this.health.check([
-      () => this.http.pingCheck('mcp-server', 'http://localhost:3322/health'),
+      () => this.http.pingCheck('mcp-server', 'http://localhost:9022/health'),
       () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
       () => this.memory.checkRSS('memory_rss', 150 * 1024 * 1024),
     ]);
@@ -437,11 +437,11 @@ COPY . .
 RUN pnpm run build
 
 # 暴露端口
-EXPOSE 3001
+EXPOSE 9001
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3001/api/health || exit 1
+  CMD curl -f http://localhost:9001/api/health || exit 1
 
 # 启动应用
 CMD ["node", "dist/main"]
@@ -452,11 +452,11 @@ CMD ["node", "dist/main"]
 # .env.example
 # 应用配置
 NODE_ENV=development
-PORT=3001
-MCP_PORT=3322
+PORT=9001
+MCP_PORT=9022
 
 # CORS配置
-CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+CORS_ORIGINS=http://localhost:5173,http://localhost:9000
 
 # 安全配置
 API_KEY=your-api-key-here
@@ -485,7 +485,7 @@ HEALTH_CHECK_INTERVAL=30000
     "exec_mode": "cluster",
     "env": {
       "NODE_ENV": "production",
-      "PORT": 3001
+      "PORT": 9001
     },
     "error_file": "logs/err.log",
     "out_file": "logs/out.log",

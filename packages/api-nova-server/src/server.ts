@@ -70,7 +70,7 @@ export async function runStdioServer(
 
 export async function runSseServer(
   endpoint = "/sse",
-  port = 3322,
+  port = 9022,
   openApiData?: any,
   authConfig?: AuthConfig,
   customHeaders?: any,
@@ -94,7 +94,7 @@ export async function runSseServer(
 
 export async function runStreamableServer(
   endpoint = "/mcp",
-  port = 3322,
+  port = 9022,
   openApiData?: any,
   authConfig?: AuthConfig,
   customHeaders?: any,

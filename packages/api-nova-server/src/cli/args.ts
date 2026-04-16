@@ -133,7 +133,7 @@ export function showHelp() {
   console.log(CliDesign.tableRow([
     CliDesign.brand.secondary('MCP_PORT'),
     CliDesign.brand.white('默认端口号'),
-    CliDesign.brand.muted('3322')
+    CliDesign.brand.muted('9022')
   ]));
   console.log(CliDesign.tableRow([
     CliDesign.brand.secondary('MCP_TRANSPORT'),

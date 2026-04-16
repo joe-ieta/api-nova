@@ -25,8 +25,8 @@ describe('AppConfigService', () => {
   });
 
   it('should have default values', () => {
-    expect(service.port).toBe(3001);
-    expect(service.mcpPort).toBe(3322);
+    expect(service.port).toBe(9001);
+    expect(service.mcpPort).toBe(9022);
     expect(service.nodeEnv).toBeDefined();
   });
 

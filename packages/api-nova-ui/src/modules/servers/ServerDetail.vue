@@ -1452,7 +1452,7 @@ const getParameterCount = (parameters: any) => {
 
 const getServerUrl = () => {
   if (!serverInfo.value) return "";
-  const port = serverInfo.value.port || 3000;
+  const port = serverInfo.value.port || 9000;
   return `http://localhost:${port}`;
 };
 

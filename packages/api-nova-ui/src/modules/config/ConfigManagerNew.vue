@@ -1018,7 +1018,7 @@ const generateMockConfig = (type: string): any => {
         id: "1",
         name: "API Server",
         host: "localhost",
-        port: 3000,
+        port: 9000,
         protocol: "http",
       },
       {

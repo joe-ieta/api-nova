@@ -6,7 +6,7 @@
   "openapi": "https://petstore.swagger.io/v2/swagger.json",
   "watch": false,
   "allowedHosts": ["localhost", "127.0.0.1"],
-  "allowedOrigins": ["http://localhost:3000"],
+  "allowedOrigins": ["http://localhost:9000"],
   "disableDnsRebindingProtection": false,
   "auth": {
     "type": "bearer",

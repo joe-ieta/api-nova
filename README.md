@@ -140,9 +140,9 @@ Database mode quick check:
 
 In the default development layout:
 
-- UI: `http://127.0.0.1:3000`
-- API: `http://127.0.0.1:3001`
-- MCP streamable example: `http://127.0.0.1:3322/mcp`
+- UI: `http://127.0.0.1:9000`
+- API: `http://127.0.0.1:9001`
+- MCP streamable example: `http://127.0.0.1:9022/mcp`
 
 Notes:
 

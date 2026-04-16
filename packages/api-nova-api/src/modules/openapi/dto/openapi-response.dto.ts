@@ -157,7 +157,7 @@ export class ConfigureResultDto {
 
   @ApiProperty({
     description: 'MCP服务器URL',
-    example: 'http://localhost:3322',
+    example: 'http://localhost:9022',
   })
   mcpServerUrl: string;
 

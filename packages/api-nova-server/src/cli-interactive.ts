@@ -317,7 +317,7 @@ function showHelp() {
 
 示例:
   api-nova-interactive                    # 进入交互式模式
-  api-nova --openapi ./api.json --transport streamable --port 3322
+  api-nova --openapi ./api.json --transport streamable --port 9022
   api-nova --config ./config.json        # 一次性直启（读取配置）
   api-nova --config ./my-config.json --debug
 

@@ -77,8 +77,8 @@ Write-Host ""
 Write-Host "📋 下一步操作：" -ForegroundColor Yellow
 Write-Host "   1. cd packages\api-nova-server-nestjs" -ForegroundColor White
 Write-Host "   2. npm run start:dev" -ForegroundColor White
-Write-Host "   3. 访问 http://localhost:3322 查看API" -ForegroundColor White
-Write-Host "   4. 访问 http://localhost:3322/docs 查看Swagger文档" -ForegroundColor White
+Write-Host "   3. 访问 http://localhost:9001 查看API" -ForegroundColor White
+Write-Host "   4. 访问 http://localhost:9001/api/docs 查看Swagger文档" -ForegroundColor White
 Write-Host ""
 Write-Host "🎯 项目已配置完成，可以开始开发！" -ForegroundColor Green
 

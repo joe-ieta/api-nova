@@ -58,7 +58,7 @@ export class MCPService implements OnModuleDestroy {
     name: 'api-nova-api-server',
     version: '1.0.0',
     description: 'MCP server from API integration',
-    port: 3322,
+    port: 9022,
     transport: 'streamable'
   };
 

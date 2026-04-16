@@ -486,7 +486,7 @@ import { runStandaloneServer } from 'api-nova-server';
 await runStandaloneServer({
   configFile: './mcp-server.config.json',
   transport: 'streamable',
-  port: 3322
+  port: 9022
 });
 
 // 方式2: 程序化配置 (新增)
@@ -501,13 +501,13 @@ await runStandaloneServer({
   },
   server: {
     transport: 'streamable',
-    port: 3322
+    port: 9022
   }
 });
 
 // 方式3: 原有方式 (保持兼容)
 import { runStreamableServer } from 'api-nova-server/legacy';
-await runStreamableServer('/mcp', 3322);
+await runStreamableServer('/mcp', 9022);
 ```
 
 ### 场景2: NestJS/Express集成

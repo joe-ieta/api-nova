@@ -90,8 +90,8 @@ Recommended minimum env:
 
 ```env
 NODE_ENV=development
-PORT=3001
-MCP_PORT=3322
+PORT=9001
+MCP_PORT=9022
 
 DB_TYPE=sqlite
 DB_SQLITE_PATH=data/mcp-swagger.db
@@ -132,8 +132,8 @@ Then configure `packages/api-nova-api/.env`:
 
 ```env
 NODE_ENV=development
-PORT=3001
-MCP_PORT=3322
+PORT=9001
+MCP_PORT=9022
 
 DB_TYPE=postgres
 DB_HOST=localhost
@@ -198,8 +198,8 @@ Validation points:
 
 - startup log prints `Database mode: postgres`
 - startup log prints the target PostgreSQL host, port, and database
-- `GET http://localhost:3001/api/health/live` returns `200`
-- `GET http://localhost:3001/api/api/system/initialization` returns initialized status
+- `GET http://localhost:9001/api/health/live` returns `200`
+- `GET http://localhost:9001/api/api/system/initialization` returns initialized status
 
 Current verified baseline:
 
@@ -263,9 +263,9 @@ node packages/api-nova-api/dist/src/main.js
 
 Main addresses:
 
-- API base: `http://127.0.0.1:3001/api`
-- API docs: `http://127.0.0.1:3001/api/docs`
-- health: `http://127.0.0.1:3001/health`
+- API base: `http://127.0.0.1:9001/api`
+- API docs: `http://127.0.0.1:9001/api/docs`
+- health: `http://127.0.0.1:9001/health`
 
 ### 5.2 Start UI
 
@@ -275,11 +275,11 @@ pnpm --filter api-nova-ui run dev
 
 Main address:
 
-- UI: `http://127.0.0.1:3000/`
+- UI: `http://127.0.0.1:9000/`
 
 The default dev proxy target is:
 
-- `http://127.0.0.1:3001`
+- `http://127.0.0.1:9001`
 
 ### 5.3 Start Runtime CLI
 
@@ -287,20 +287,20 @@ Windows PowerShell:
 
 ```powershell
 pnpm --filter api-nova-server run build
-node packages\api-nova-server\dist\cli.js --openapi .\examples\minimal-openapi.json --transport streamable --port 3322
+node packages\api-nova-server\dist\cli.js --openapi .\examples\minimal-openapi.json --transport streamable --port 9022
 ```
 
 Ubuntu:
 
 ```bash
 pnpm --filter api-nova-server run build
-node packages/api-nova-server/dist/cli.js --openapi ./examples/minimal-openapi.json --transport streamable --port 3322
+node packages/api-nova-server/dist/cli.js --openapi ./examples/minimal-openapi.json --transport streamable --port 9022
 ```
 
 Main addresses:
 
-- MCP endpoint: `http://127.0.0.1:3322/mcp`
-- CLI health: `http://127.0.0.1:3322/health`
+- MCP endpoint: `http://127.0.0.1:9022/mcp`
+- CLI health: `http://127.0.0.1:9022/health`
 
 Notes:
 
@@ -316,7 +316,7 @@ Notes:
 2. Copy `.env.example` to `packages/api-nova-api/.env`
 3. Keep `DB_TYPE=sqlite` or omit it
 4. Start API
-5. Open `http://127.0.0.1:3001/api/docs`
+5. Open `http://127.0.0.1:9001/api/docs`
 6. Start UI if needed
 7. Start runtime CLI if MCP endpoint testing is needed
 
@@ -327,7 +327,7 @@ Notes:
 3. Configure `packages/api-nova-api/.env`
 4. Set `DB_TYPE=postgres`
 5. Start API
-6. Open `http://127.0.0.1:3001/api/docs`
+6. Open `http://127.0.0.1:9001/api/docs`
 7. Start UI if needed
 
 ## 7. Verification Commands
@@ -369,9 +369,9 @@ psql -U postgres -h localhost -p 5432 -d mcp_swagger_api
 
 Check:
 
-- API is running on `3001`
-- UI is running on `3000`
-- `http://127.0.0.1:3001/health` responds
+- API is running on `9001`
+- UI is running on `9000`
+- `http://127.0.0.1:9001/health` responds
 
 ### 8.3 PostgreSQL startup fails after database creation
 
@@ -425,7 +425,7 @@ Currently verified in the active baseline:
 - supported MCP transports are `stdio`, `streamable`, and `sse`
 - SQLite is the default database mode
 - PostgreSQL remains supported
-- API docs are exposed at `http://127.0.0.1:3001/api/docs`
+- API docs are exposed at `http://127.0.0.1:9001/api/docs`
 - runtime direct-spec transformation smoke passes
 - Streamable multi-session smoke passes
 
