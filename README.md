@@ -1,93 +1,93 @@
 # ApiNova
 
+**语言**：中文 | [English](./README_EN.md)
+
 ApiNova（中文名：达雅，亦可称 Api达雅）是一个面向 AI 时代的 API Gateway 与 API 能力平台。
 
-It preserves core API gateway and API operations capabilities while making managed APIs easier for AI applications, agents, and model runtimes to connect to, understand, and invoke.
+它在保留传统 API 网关与 API 运营能力的同时，让被管理的 API 更适合被 AI 应用、Agent 与模型运行时接入、理解与调用。
 
-Documentation priority is accuracy over localization. Active docs may remain primarily in English during convergence.
+当前文档默认以中文为主，英文介绍见 [README_EN.md](./README_EN.md)。
 
-## Project Origin
+## 项目起源
 
-ApiNova started from the original `mcp-swagger-server` project.
+ApiNova 起源于 `mcp-swagger-server`。
 
-The original upstream provided an excellent initial design for OpenAPI/Swagger parsing, MCP tool generation, and fast MCP server exposure. This repository explicitly acknowledges that foundation and thanks the original author and contributors for that work.
+原始项目为 OpenAPI / Swagger 解析、MCP Tool 生成与快速运行时暴露提供了很好的基础设计。当前仓库明确感谢原作者与贡献者的工作，并在此基础上继续演进。
 
-This repository has since evolved in a materially different direction. The current goal is no longer only fast OpenAPI-to-MCP conversion as a technical showcase. ApiNova is now being developed as a product-oriented API Gateway and API capability platform, with MCP support treated as one important capability rather than the only product identity.
+随着产品定位与实现基线持续变化，本仓库已经不再只是 OpenAPI 到 MCP 的技术展示，而是沿着 API Gateway 与 API capability platform 的方向独立发展。MCP 仍然是重要能力之一，但不再是唯一产品身份。
 
-Because the product positioning and implementation baseline have diverged substantially, this repository now continues as an independent line of development. The original upstream remains a reference source, but it is no longer the controlling baseline for ApiNova.
+因此，当前仓库已经作为独立产品线继续演进：原 upstream 仍可作为参考来源，但不再是 ApiNova 的控制性产品基线。
 
-## Current Project Features
+## 当前项目特性
 
-- OpenAPI / Swagger import from URL, file upload, and raw content
-- specification parsing, validation, normalization, and compatibility conversion
-- MCP tool generation and AI-ready API capability shaping
-- MCP runtime delivery over `stdio`, `streamable`, and `sse`
-- gateway-oriented management workflows across CLI, API, and UI
-- Endpoint Registry for manual registration, probing, readiness, publish, and offline actions
-- Bearer token and custom header injection
-- managed process lifecycle, logs, health checks, and monitoring support
-- SQLite default mode with PostgreSQL as the heavier optional deployment path
-- Windows and Linux / Ubuntu support targets in the current baseline
+- 支持从 URL、文件上传、原始文本导入 OpenAPI / Swagger
+- 支持规范解析、校验、标准化与兼容转换
+- 支持生成 MCP Tools，并将 API 整理为更适合 AI 使用的能力形态
+- 支持 `stdio`、`streamable`、`sse` 三种 MCP 运行时交付方式
+- 提供 CLI、API、UI 三层协同的网关管理工作流
+- 提供 Endpoint Registry，用于手工注册端点以及探测、就绪检查、发布、下线等动作
+- 支持 Bearer Token 与自定义 Header 注入
+- 支持托管进程生命周期、日志、健康检查与监控
+- 默认使用 SQLite，也支持 PostgreSQL 作为更重型的部署路径
+- 当前基线同时覆盖 Windows 与 Linux / Ubuntu
 
-## Monorepo Structure
+## Monorepo 结构
 
 - `packages/api-nova-parser`
-  Parses, validates, normalizes, and reconciles OpenAPI / Swagger inputs.
+  负责 OpenAPI / Swagger 输入的解析、校验、标准化与兼容处理。
 - `packages/api-nova-server`
-  Transforms normalized API operations into MCP tools and provides the MCP runtime.
+  负责将标准化后的 API 操作转换为 MCP Tools，并提供 MCP 运行时。
 - `packages/api-nova-api`
-  Provides management APIs, persistence, authentication, server orchestration, and monitoring support.
+  负责管理 API、持久化、认证、服务编排与监控支撑。
 - `packages/api-nova-ui`
-  Provides the operator-facing import, validation, conversion, and server management UI.
+  负责面向运营与管理人员的导入、校验、转换与服务管理界面。
 
-## Current Baseline
+## 当前基线
 
-### Runtime requirements
+### 运行要求
 
 - Node.js `>= 20`
 - pnpm `>= 8`
 - Windows
-- Linux, with Ubuntu treated as the primary Linux compatibility target
+- Linux，其中当前主要兼容目标为 Ubuntu
 
-### Database modes
+### 数据库模式
 
-- default: `SQLite`
-- optional: `PostgreSQL`
+- 默认：`SQLite`
+- 可选：`PostgreSQL`
 
-SQLite is the default path for single-node and lightweight deployments.
+SQLite 适合单节点与轻量部署。
 
-PostgreSQL remains the heavier deployment path for higher concurrency, longer-running operations, and stronger operational requirements.
+PostgreSQL 适合更高并发、更长生命周期任务与更强运维要求的部署场景。
 
-### Supported MCP transports
-
-Current baseline transports:
+### 当前支持的 MCP 传输
 
 - `stdio`
 - `streamable`
 - `sse`
 
-Notes:
+说明：
 
-- `streamable` is expected to support concurrent multi-session access in the current baseline
-- API/UI websocket channels are used for management and monitoring, but they are not MCP transports
+- 当前基线下，`streamable` 预期支持并发多会话访问
+- API / UI 中的 WebSocket 仅用于管理与监控，不属于 MCP transport
 
-## Quick Start
+## 快速开始
 
-### Run as a CLI / MCP server
+### 作为 CLI / MCP Server 运行
 
-Install:
+安装：
 
 ```bash
 npm install -g api-nova-server
 ```
 
-Start with `stdio`:
+以 `stdio` 方式启动：
 
 ```bash
 api-nova --openapi https://petstore.swagger.io/v2/swagger.json --transport stdio
 ```
 
-Example MCP client configuration:
+MCP 客户端配置示例：
 
 ```json
 {
@@ -105,7 +105,7 @@ Example MCP client configuration:
 }
 ```
 
-### Local development
+### 本地开发
 
 ```bash
 node -v
@@ -120,60 +120,60 @@ pnpm lint
 pnpm type-check
 ```
 
-See:
+详见：
 
 - [Local Setup And Run](./docs/guides/local-setup-and-run.md)
 - [Database Mode Quickstart](./docs/guides/database-mode-quickstart.md)
 - [Database Strategy](./docs/guides/database-strategy.md)
 
-Database mode quick check:
+数据库模式快速检查：
 
-- if `DB_TYPE` is omitted, `api-nova-api` defaults to `SQLite`
-- if `DB_TYPE=postgres`, `api-nova-api` runs in `PostgreSQL` mode
-- startup logs print `Database mode: sqlite` or `Database mode: postgres`
-- the current baseline has already verified:
-  - SQLite default startup path
-  - PostgreSQL schema initialization and startup path
-  - CI coverage for both database modes
+- 未设置 `DB_TYPE` 时，`api-nova-api` 默认使用 `SQLite`
+- 设置 `DB_TYPE=postgres` 时，`api-nova-api` 使用 `PostgreSQL`
+- 启动日志会打印 `Database mode: sqlite` 或 `Database mode: postgres`
+- 当前基线已验证：
+  - SQLite 默认启动路径
+  - PostgreSQL 模式下的 schema 初始化与启动路径
+  - 两种数据库模式下的 CI / 测试覆盖
 
-## Main Runtime Endpoints
+## 默认开发端点
 
-In the default development layout:
+默认开发布局下：
 
-- UI: `http://127.0.0.1:9000`
-- API: `http://127.0.0.1:9001`
-- MCP streamable example: `http://127.0.0.1:9022/mcp`
+- UI：`http://127.0.0.1:9000`
+- API：`http://127.0.0.1:9001`
+- MCP Streamable 示例：`http://127.0.0.1:9022/mcp`
 
-Notes:
+说明：
 
-- `/mcp` is an MCP protocol endpoint, not a browser UI page
-- if a browser hits `/mcp` directly and receives `Mcp-Session-Id header is required`, that is expected protocol behavior
+- `/mcp` 是 MCP 协议端点，不是浏览器页面
+- 浏览器直接访问 `/mcp` 时，如果收到 `Mcp-Session-Id header is required`，这是符合协议预期的行为
 
-## Current Product Capabilities
+## 当前产品能力
 
-- OpenAPI / Swagger import
-- URL import, raw text import, and file upload import
-- specification validation and normalization
-- Swagger 2.0 to OpenAPI 3.x compatibility conversion
-- OpenAPI `3.0.4` compatibility handling in the validation path
-- tool preview and conversion workflows
-- manual endpoint registration through Endpoint Registry
-- endpoint probe, readiness, publish, and offline lifecycle actions for manual endpoints
-- Bearer token and custom header injection
-- streamable multi-session support
-- CLI and server smoke test coverage
-- managed process lifecycle and process log inspection
-- SQLite / PostgreSQL dual database support
+- OpenAPI / Swagger 导入
+- URL 导入、原始文本导入、文件上传导入
+- 规范校验与标准化
+- Swagger 2.0 到 OpenAPI 3.x 兼容转换
+- OpenAPI `3.0.4` 兼容处理
+- Tool 预览与转换工作流
+- 通过 Endpoint Registry 进行手工端点注册
+- 手工端点的探测、就绪检查、发布、下线生命周期动作
+- Bearer Token 与自定义 Header 注入
+- `streamable` 多会话支持
+- CLI 与 Server smoke test 覆盖
+- 托管进程生命周期与进程日志查看
+- SQLite / PostgreSQL 双数据库支持
 
-Current operator boundary note:
+当前运营边界说明：
 
-- OpenAPI Management remains the import and specification workflow
-- Endpoint Registry is a peer management surface for manually registered endpoints and lightweight governance of imported endpoints
-- the semantic-layer enhancement discussed in planning is still deferred and tracked as an open item
+- OpenAPI Management 仍然是导入与规范处理主路径
+- Endpoint Registry 是与之并行的管理面，用于手工注册端点以及对导入端点进行轻量治理
+- 规划中的语义层增强仍处于延期状态，当前作为开放事项持续跟踪
 
-## Documentation Entry Points
+## 文档入口
 
-Start from:
+建议从以下文档开始：
 
 - [PRODUCT_CONSTRAINTS](./PRODUCT_CONSTRAINTS.md)
 - [PROJECT_BASELINE](./PROJECT_BASELINE.md)
@@ -183,14 +183,14 @@ Start from:
 - [Current Convergence Plan](./docs/guides/current-convergence-plan.md)
 - [Open Items](./docs/reference/open-items.md)
 
-## Working Rules
+## 工作原则
 
-- stabilize the release path before expanding scope
-- keep deferred items visible instead of implying they already work
-- keep Windows and Linux / Ubuntu support aligned
-- keep docs, CLI, API, and UI aligned with the real implementation
-- prefer reliability of long-running operation over feature count
+- 在扩展范围之前，优先稳定发布路径
+- 对延期项保持可见，不将其表述为已完成能力
+- 保持 Windows 与 Linux / Ubuntu 支持一致
+- 保持文档、CLI、API、UI 与真实实现一致
+- 优先保证长周期运行可靠性，而不是单纯追求功能数量
 
-## License
+## 许可证
 
-MIT, see [LICENSE](./LICENSE)
+MIT，详见 [LICENSE](./LICENSE)

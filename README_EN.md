@@ -2,7 +2,9 @@
 
 Convert OpenAPI / Swagger-described REST APIs into runnable MCP tools, managed runtimes, and AI-ready API capabilities.
 
-**Languages**: English | [中文](./README.md)
+**Languages**: [中文](./README.md) | English
+
+The default project introduction is now the Chinese README. This file is the English companion version.
 
 ## Current Project Features
 
