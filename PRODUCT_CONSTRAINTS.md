@@ -81,6 +81,18 @@ The core product value is the stable chain:
 - Work should be shipped in coherent product increments, each with clear scope and user-visible value.
 - Each increment should strengthen the main path before adding adjacent features.
 
+### 11. Brand, naming, and port invariants must not drift
+
+- The active product identity is `ApiNova`; the Chinese name is `达雅`, and `Api达雅` may be used as a secondary mixed-form expression in Chinese contexts.
+- Active docs, UI copy, API descriptions, CLI help, examples, and default configuration must not regress to legacy product labels such as `mcp-swagger-server`, `mcp-swagger-parser`, or similar old project names unless the text is explicitly marked as historical origin, archive material, or compatibility context.
+- Historical origin references are allowed only when clearly framed as background. They must not appear as the current product name.
+- The active default external development ports are part of the product contract:
+  - UI: `9000`
+  - API: `9001`
+  - MCP runtime default: `9022`
+- New docs, examples, tests, scripts, environment defaults, Docker manifests, and operator-facing surfaces must use these ports unless a deliberate top-level baseline change is made.
+- Reintroducing old default ports such as `3000`, `3001`, or `3322` into active product surfaces should be treated as contract drift and a product defect.
+
 ## Delivery Priorities
 
 All future optimization should prioritize work in this order:

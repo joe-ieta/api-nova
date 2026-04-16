@@ -6,9 +6,11 @@ This document defines the current project baseline for architecture, functional 
 
 It is the reference point for all follow-up work. If an implementation, proposal, or external design note conflicts with this document, this document wins unless explicitly updated.
 
-This baseline exists to prevent architecture drift, scope drift, and product-positioning drift.
+This baseline exists to prevent architecture drift, scope drift, product-positioning drift, and active-contract drift.
 
 The repository originated from the upstream `mcp-swagger-server` project, but the current baseline is governed by this repository's own product direction and release rules rather than by upstream alignment.
+
+This baseline also anchors active naming and default runtime ports so later changes do not drift back toward legacy project labels or stale port contracts.
 
 ## Product Definition
 
@@ -26,6 +28,24 @@ The main product chain is:
 - MCP tool generation and capability shaping
 - MCP runtime exposure and gateway-facing service operation
 - management and operator workflows
+
+## Naming And Default Runtime Baseline
+
+### Product naming baseline
+
+- English primary name: `ApiNova`
+- Chinese primary name: `达雅`
+- Optional mixed Chinese form: `Api达雅`
+
+Legacy upstream names may appear only in archive, origin, or compatibility context. They are not valid current product labels for active docs or operator-facing surfaces.
+
+### Default development ports
+
+- UI: `9000`
+- API: `9001`
+- MCP runtime: `9022`
+
+These values are the active default runtime baseline. Reintroducing `3000`, `3001`, or `3322` as active defaults should be treated as baseline drift.
 
 ## Current Product Surfaces
 
