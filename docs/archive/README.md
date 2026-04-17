@@ -28,6 +28,10 @@ HTML prototypes and exploratory artifacts.
 
 Former active guides that became stale, drifted from the current baseline, or were replaced by tighter documentation.
 
+### `reference`
+
+Historical reference notes such as one-off issue resolutions, abandoned release-flow drafts, and implementation rationale that no longer define the active maintenance baseline.
+
 ## Rules
 
 - Archived documents are read-only by default.

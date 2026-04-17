@@ -178,7 +178,7 @@ Recommended starting points:
 - [RELEASE_BASELINE_V1](./RELEASE_BASELINE_V1.md)
 - [Documentation Index](./docs/README.md)
 - [Fork Origin And Independence](./docs/guides/fork-origin-and-independence.md)
-- [Current Convergence Plan](./docs/guides/current-convergence-plan.md)
+- [Staged Development Plan](./docs/guides/staged-development-plan.md)
 - [Open Items](./docs/reference/open-items.md)
 
 ## Working Principles

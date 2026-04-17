@@ -12,7 +12,6 @@ The current top-level governance documents remain at repository root:
 - [PRODUCT_CONSTRAINTS](../PRODUCT_CONSTRAINTS.md)
 - [PROJECT_BASELINE](../PROJECT_BASELINE.md)
 - [RELEASE_BASELINE_V1](../RELEASE_BASELINE_V1.md)
-- [PROJECT_ANALYSIS_AND_V1_PLAN](../PROJECT_ANALYSIS_AND_V1_PLAN.md)
 
 ## Current Active Documents
 
@@ -26,12 +25,9 @@ The current top-level governance documents remain at repository root:
 
 ### Planning and governance
 
-- [Current Convergence Plan](./guides/current-convergence-plan.md)
 - [Fork Origin And Independence](./guides/fork-origin-and-independence.md)
-- [Next Phase Development Plan](./guides/next-phase-development-plan.md)
 - [Staged Development Plan](./guides/staged-development-plan.md)
 - [Endpoint Semantic Layer Requirements](./guides/endpoint-semantic-layer-requirements.md)
-- [Lightweight API Access Management Requirements](./guides/lightweight-api-access-management-requirements.md)
 - [Open Items](./reference/open-items.md)
 - [Versioning Policy](./reference/versioning-policy.md)
 - [GitHub Collaboration Workflow](./guides/github-collaboration-workflow.md)
@@ -55,6 +51,9 @@ Examples now treated as archive material:
 - release-specific notes
 - troubleshooting deep dives that do not define the current baseline
 - feature-specific implementation guides that are no longer part of the active operator path
+- superseded convergence and next-phase planning drafts
+- completed phase requirement and sprint breakdown notes
+- earlier root-level project analysis snapshots that no longer define the current baseline
 
 ## Reading Order
 

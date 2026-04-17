@@ -4,31 +4,29 @@
 
 ApiNova（中文名：达雅，亦可称 Api达雅）是一个面向 AI 时代的 API Gateway 与 API 能力平台。
 
-本项目为一个轻量化API网关，同时提供MCP Server自动发布，方便传统服务（API）被 AI 应用、Agent 与模型运行时接入、理解与调用，可与qt-llmlite项目配合。
+它以 OpenAPI / Swagger 为输入基础，提供解析、校验、标准化、MCP Tool 生成、运行时暴露，以及面向运营与管理的 API / UI 工作流，让传统 API 更适合被 AI 应用、Agent 与模型运行时接入、理解与调用。
 
-English speakers, please see [README_EN.md](./README_EN.md)。
+English speakers can use [README_EN.md](./README_EN.md).
 
-## 项目起源
+## 项目来源
 
-ApiNova 起源于 `mcp-swagger-server` / `https://github.com/zaizaizhao/mcp-swagger-server`。
+ApiNova 起源于 [`mcp-swagger-server`](https://github.com/zaizaizhao/mcp-swagger-server)。
 
-随着产品定位与实现基线持续变化，本仓库已经不再只是 OpenAPI 到 MCP 的技术展示，希望API对现代AI支持与传统API Gateway能力并重，构建一个轻量化的基础应用平台，支撑传统数据服务，简化AI从大量现有API服务中获得能力的过程，提供API语义表达，实现AI应用的“信达雅”。
-
-项目原始来源于 `mcp-swagger-server`，为 OpenAPI / Swagger 解析、MCP Tool 生成与快速运行时暴露提供了很好的基础设计，是0到1的突破，真诚感谢原作者与贡献者的工作，并欢迎继续为本项目提出指导、改进和建议。
-
-当前仓库作为独立产品线继续演进，原项目仍将是本项目的重要参考来源，但不再是 ApiNova 的控制性产品基线。
+原项目为 OpenAPI / Swagger 解析、MCP Tool 生成与快速运行时暴露提供了重要基础。本仓库在此基础上继续独立演进，当前产品定位不再只是 OpenAPI 到 MCP 的技术展示，而是一个兼顾 API Gateway 管理能力与 AI-ready API capability delivery 的产品化工程。
 
 ## 当前项目特性
 
 - 支持从 URL、文件上传、原始文本导入 OpenAPI / Swagger
-- 支持规范解析、校验、标准化与兼容转换
-- 支持生成 MCP Tools，并将 API 整理为更适合 AI 使用的能力形态
-- 支持 `stdio`、`streamable`、`sse` 三种 MCP 运行时交付方式
-- 提供 CLI、API、UI 三层协同的网关管理工作流
-- 提供 Endpoint Registry，用于手工注册端点以及探测、就绪检查、发布、下线等动作
+- 支持规范解析、校验、标准化与兼容性转换
+- 支持 Swagger 2.0 到 OpenAPI 3.x 的兼容处理
+- 支持将 API 能力转换为 MCP Tools
+- 支持 `stdio`、`streamable`、`sse` 三种 MCP 运行时传输方式
+- 提供 CLI、API、UI 协同的导入、转换、发布与管理链路
+- 提供 Endpoint Registry，用于手工端点注册与轻量治理
+- 支持探测、就绪检查、发布、下线等端点生命周期动作
 - 支持 Bearer Token 与自定义 Header 注入
 - 支持托管进程生命周期、日志、健康检查与监控
-- 默认使用 SQLite，也支持 PostgreSQL 作为更重型的部署路径
+- 默认使用 SQLite，同时支持 PostgreSQL
 - 当前基线同时覆盖 Windows 与 Linux / Ubuntu
 
 ## Monorepo 结构
@@ -58,9 +56,9 @@ ApiNova 起源于 `mcp-swagger-server` / `https://github.com/zaizaizhao/mcp-swag
 
 SQLite 适合单节点与轻量部署。
 
-PostgreSQL 适合更高并发、更长生命周期任务与更强运维要求的部署场景。
+PostgreSQL 适合更高并发、更长生命周期任务与更重的运维场景。
 
-### 当前支持的 MCP 传输
+### 当前支持的 MCP Transport
 
 - `stdio`
 - `streamable`
@@ -120,7 +118,7 @@ pnpm lint
 pnpm type-check
 ```
 
-详见：
+更多说明：
 
 - [Local Setup And Run](./docs/guides/local-setup-and-run.md)
 - [Database Mode Quickstart](./docs/guides/database-mode-quickstart.md)
@@ -130,15 +128,11 @@ pnpm type-check
 
 - 未设置 `DB_TYPE` 时，`api-nova-api` 默认使用 `SQLite`
 - 设置 `DB_TYPE=postgres` 时，`api-nova-api` 使用 `PostgreSQL`
-- 启动日志会打印 `Database mode: sqlite` 或 `Database mode: postgres`
-- 当前基线已验证：
-  - SQLite 默认启动路径
-  - PostgreSQL 模式下的 schema 初始化与启动路径
-  - 两种数据库模式下的 CI / 测试覆盖
+- 启动日志应显示 `Database mode: sqlite` 或 `Database mode: postgres`
 
-## 默认开发端点
+## 默认开发端口
 
-默认开发布局下：
+默认开发布局如下：
 
 - UI：`http://127.0.0.1:9000`
 - API：`http://127.0.0.1:9001`
@@ -147,29 +141,13 @@ pnpm type-check
 说明：
 
 - `/mcp` 是 MCP 协议端点，不是浏览器页面
-- 浏览器直接访问 `/mcp` 时，如果收到 `Mcp-Session-Id header is required`，这是符合协议预期的行为
+- 浏览器直接访问 `/mcp` 时若返回 `Mcp-Session-Id header is required`，属于符合预期的协议行为
 
-## 当前产品能力
-
-- OpenAPI / Swagger 导入
-- URL 导入、原始文本导入、文件上传导入
-- 规范校验与标准化
-- Swagger 2.0 到 OpenAPI 3.x 兼容转换
-- OpenAPI `3.0.4` 兼容处理
-- Tool 预览与转换工作流
-- 通过 Endpoint Registry 进行手工端点注册
-- 手工端点的探测、就绪检查、发布、下线生命周期动作
-- Bearer Token 与自定义 Header 注入
-- `streamable` 多会话支持
-- CLI 与 Server smoke test 覆盖
-- 托管进程生命周期与进程日志查看
-- SQLite / PostgreSQL 双数据库支持
-
-当前运营边界说明：
+## 当前产品能力边界
 
 - OpenAPI Management 仍然是导入与规范处理主路径
-- Endpoint Registry 是与之并行的管理面，用于手工注册端点以及对导入端点进行轻量治理
-- 规划中的语义层增强仍处于延期状态，当前作为开放事项持续跟踪
+- Endpoint Registry 是并行的治理入口，用于手工注册端点以及对导入端点做轻量治理
+- 语义发布层仍处于规划阶段，保留在 `open-items` 中，当前不属于已发布基线
 
 ## 文档入口
 
@@ -180,7 +158,7 @@ pnpm type-check
 - [RELEASE_BASELINE_V1](./RELEASE_BASELINE_V1.md)
 - [Documentation Index](./docs/README.md)
 - [Fork Origin And Independence](./docs/guides/fork-origin-and-independence.md)
-- [Current Convergence Plan](./docs/guides/current-convergence-plan.md)
+- [Staged Development Plan](./docs/guides/staged-development-plan.md)
 - [Open Items](./docs/reference/open-items.md)
 
 ## 工作原则
@@ -189,7 +167,7 @@ pnpm type-check
 - 对延期项保持可见，不将其表述为已完成能力
 - 保持 Windows 与 Linux / Ubuntu 支持一致
 - 保持文档、CLI、API、UI 与真实实现一致
-- 优先保证长周期运行可靠性，而不是单纯追求功能数量
+- 优先保证长期运行可靠性，而不是单纯追求功能数量
 
 ## 许可证
 

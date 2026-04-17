@@ -249,7 +249,7 @@ Impact:
 Related documents:
 
 - `docs/guides/endpoint-semantic-layer-requirements.md`
-- `docs/guides/endpoint-semantic-layer-sprint-breakdown.md`
+- `docs/archive/guides/endpoint-semantic-layer-sprint-breakdown.md`
 
 Status:
 

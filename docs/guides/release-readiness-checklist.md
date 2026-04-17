@@ -23,7 +23,7 @@ Confirm active documentation is aligned with the implementation:
 - `docs/guides/local-setup-and-run.md`
 - `docs/guides/database-mode-quickstart.md`
 - `docs/guides/database-strategy.md`
-- `docs/guides/current-convergence-plan.md`
+- `docs/guides/staged-development-plan.md`
 - package README files for affected packages
 - deferred or partial items are tracked in `docs/reference/open-items.md`
 

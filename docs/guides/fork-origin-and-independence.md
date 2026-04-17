@@ -8,7 +8,7 @@ It exists to prevent collaboration drift, positioning drift, and confusion about
 
 ## Origin
 
-ApiNova started from the original `api-nova-server` upstream project.
+ApiNova started from the original `mcp-swagger-server` upstream project.
 
 The original repository provided a strong initial design for:
 
@@ -23,7 +23,7 @@ ApiNova explicitly acknowledges that origin and thanks the original author and c
 
 ## Current Position
 
-ApiNova（中文名：达雅，亦可称 Api达雅）is no longer positioned only as a fast OpenAPI-to-MCP conversion demo or a lightweight technical showcase.
+ApiNova is no longer positioned only as a fast OpenAPI-to-MCP conversion demo or a lightweight technical showcase.
 
 It is now positioned as a product-oriented API Gateway and API capability platform, with MCP support as one important capability in a broader AI-ready API product direction.
 

@@ -9,11 +9,9 @@ This directory contains active operational and usage-oriented documentation for 
 - [local-setup-and-run](./local-setup-and-run.md)
 - [parser-change-verification](./parser-change-verification.md)
 - [release-readiness-checklist](./release-readiness-checklist.md)
-- [current-convergence-plan](./current-convergence-plan.md)
-- [next-phase-development-plan](./next-phase-development-plan.md)
+- [staged-development-plan](./staged-development-plan.md)
 - [github-collaboration-workflow](./github-collaboration-workflow.md)
 - [endpoint-semantic-layer-requirements](./endpoint-semantic-layer-requirements.md)
-- [lightweight-api-access-management-requirements](./lightweight-api-access-management-requirements.md)
 
 ## Guide Inclusion Rule
 
