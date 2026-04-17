@@ -10,11 +10,11 @@ For english users please read [README_EN.md](./README_EN.md)。
 
 ## 项目起源
 
-ApiNova 起源于 `api-nova-server`。
+ApiNova 起源于 `mcp-swagger-server` / `https://github.com/zaizaizhao/mcp-swagger-server`。
 
 随着产品定位与实现基线持续变化，本仓库已经不再只是 OpenAPI 到 MCP 的技术展示，希望API对现代AI支持与传统API Gateway能力并重，构建一个轻量化的基础应用平台，支撑传统数据服务，简化AI从大量现有API服务中获得能力的过程，提供API语义表达，实现AI应用的“信雅达”。
 
-项目原始来源于 `api-nova-server`，为 OpenAPI / Swagger 解析、MCP Tool 生成与快速运行时暴露提供了很好的基础设计，是0到1的突破，真诚感谢原作者与贡献者的工作，并欢迎继续为本项目提出指导、改进和建议。
+项目原始来源于 `mcp-swagger-server`，为 OpenAPI / Swagger 解析、MCP Tool 生成与快速运行时暴露提供了很好的基础设计，是0到1的突破，真诚感谢原作者与贡献者的工作，并欢迎继续为本项目提出指导、改进和建议。
 
 当前仓库作为独立产品线继续演进，原项目仍将是本项目的重要参考来源，但不再是 ApiNova 的控制性产品基线。
 
