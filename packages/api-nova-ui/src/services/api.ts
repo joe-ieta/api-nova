@@ -27,6 +27,7 @@ import {
   createRetryFunction,
   type APIError,
 } from "@/utils/apiError";
+import { documentsApi } from "@/api/documents";
 
 // 创建axios实例
 const api: AxiosInstance = axios.create({
@@ -622,8 +623,30 @@ export const serverAPI = {
 export const openApiAPI = {
   // 获取所有规范
   async getSpecs(): Promise<OpenAPISpec[]> {
-    const response = await api.get("/openapi/specs");
-    return response.data;
+    const documents = await documentsApi.getDocuments();
+    const detailDocuments = await Promise.all(
+      documents.map((document) => documentsApi.getDocument(document.id)),
+    );
+
+    return detailDocuments.map((document) => ({
+      id: document.id,
+      name: document.name,
+      version: document.version || document.info?.version || "1.0.0",
+      description: document.description || document.info?.description,
+      content: document.content,
+      pathCount: document.endpointCount || 0,
+      toolCount: document.endpointCount || 0,
+      createdAt: document.createdAt,
+      lastModified: document.updatedAt,
+      validationStatus: document.status === "invalid" ? "invalid" : "valid",
+      validationErrors:
+        document.metadata?.validationErrors?.map((message) => ({
+          path: "",
+          message,
+          severity: "error" as const,
+          code: "DOCUMENT_VALIDATION_ERROR",
+        })) || [],
+    }));
   },
 
   // 创建新规范

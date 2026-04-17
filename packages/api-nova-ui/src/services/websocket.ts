@@ -108,6 +108,21 @@ export class WebSocketService {
         return;
       }
 
+      if (this.socket && !this.socket.connected) {
+        console.log("[WebSocketService] Reusing existing socket connection...");
+        this.isConnecting = true;
+        this.socket.once("connect", () => {
+          this.isConnecting = false;
+          resolve();
+        });
+        this.socket.once("connect_error", (error) => {
+          this.isConnecting = false;
+          reject(error);
+        });
+        this.socket.connect();
+        return;
+      }
+
       this.isConnecting = true;
 
       try {
@@ -119,7 +134,6 @@ export class WebSocketService {
           reconnectionAttempts: this.maxReconnectAttempts,
           reconnectionDelay: this.reconnectDelay,
           autoConnect: false,
-          forceNew: true,
           // 添加更多配置以提高连接稳定性
           upgrade: true,
           rememberUpgrade: true,
@@ -135,7 +149,7 @@ export class WebSocketService {
         console.log("[WebSocketService] Initiating connection...");
         this.socket.connect();
 
-        this.socket.on("connect", () => {
+        this.socket.once("connect", () => {
           console.log("[WebSocketService] WebSocket connected successfully!");
           console.log("[WebSocketService] Socket ID:", this.socket?.id);
           console.log(
@@ -156,7 +170,7 @@ export class WebSocketService {
           resolve();
         });
 
-        this.socket.on("connect_error", (error) => {
+        this.socket.once("connect_error", (error) => {
           console.error(
             "[WebSocketService] WebSocket connection error:",
             error,

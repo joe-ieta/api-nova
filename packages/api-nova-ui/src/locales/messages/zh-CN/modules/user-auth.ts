@@ -25,6 +25,7 @@ export default {
     },
     messages: {
       loginSuccess: "登录成功",
+      welcomeBack: "欢迎回来，{username}",
     },
     register: {
       title: "用户注册",

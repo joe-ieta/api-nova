@@ -25,6 +25,7 @@ export default {
     },
     messages: {
       loginSuccess: "Login successful",
+      welcomeBack: "Welcome back, {username}",
     },
     register: {
       title: "User Registration",

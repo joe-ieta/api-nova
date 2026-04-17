@@ -14,6 +14,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
   const reconnectAttempts = ref(0);
   const lastError = ref<string | null>(null);
   const subscriptions = ref<Set<string>>(new Set());
+  const listenersInitialized = ref(false);
 
   // 计算属性
   const connectionStatus = computed(() => {
@@ -414,7 +415,10 @@ export const useWebSocketStore = defineStore("websocket", () => {
 
   // 初始化
   const initialize = async () => {
-    setupEventListeners();
+    if (!listenersInitialized.value) {
+      setupEventListeners();
+      listenersInitialized.value = true;
+    }
 
     // 如果全局设置启用了自动连接，则自动连接
     if (appStore.globalSettings.autoRefresh) {
