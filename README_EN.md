@@ -1,38 +1,77 @@
 # ApiNova
 
-Convert OpenAPI / Swagger-described REST APIs into runnable MCP tools, managed runtimes, and AI-ready API capabilities.
-
 **Languages**: [中文](./README.md) | English
 
-The default project introduction is now the Chinese README. This file is the English companion version.
+ApiNova (Chinese name: Daya, also referred to as ApiDaya in Chinese contexts) is an API Gateway and API capability platform for the AI era.
+
+The project is a lightweight API gateway that also provides MCP Server publishing, so that traditional services and APIs can be connected to, understood by, and invoked from AI applications, agents, and model runtimes more easily.
+
+The Chinese README is the default project introduction. This file is the English companion version.
+
+## Project Origin
+
+ApiNova originates from `mcp-swagger-server` / `https://github.com/zaizaizhao/mcp-swagger-server`.
+
+As the product positioning and implementation baseline evolved, this repository stopped being only a technical OpenAPI-to-MCP demonstration. The current direction is to balance modern AI-facing API capability delivery with traditional API gateway value, forming a lightweight application platform that helps existing API services expose usable capabilities to AI systems with better semantic expression.
+
+The original `mcp-swagger-server` project provided an important 0-to-1 foundation for OpenAPI / Swagger parsing, MCP tool generation, and fast runtime exposure. The project remains an important reference source, but it is no longer the controlling product baseline for ApiNova.
 
 ## Current Project Features
 
-- OpenAPI / Swagger import from URL, file upload, and raw content
-- parsing, validation, normalization, and compatibility conversion
-- MCP tool generation and AI-ready API capability delivery
-- MCP runtime support for `stdio`, `streamable`, and `sse`
-- management workflows across CLI, API, and UI
-- Endpoint Registry for manual registration and endpoint lifecycle actions
-- Bearer token and custom header injection
-- managed process lifecycle, health checks, logs, and monitoring support
-- SQLite default mode with PostgreSQL as an optional heavier deployment path
-- Windows and Linux / Ubuntu support targets
+- Import OpenAPI / Swagger from URL, file upload, or raw content
+- Parse, validate, normalize, and compatibility-convert API specifications
+- Generate MCP tools and reshape APIs into AI-ready capabilities
+- Support three MCP runtime transport modes: `stdio`, `streamable`, and `sse`
+- Provide coordinated gateway management workflows across CLI, API, and UI
+- Provide an Endpoint Registry for manual endpoint registration plus probe, readiness check, publish, and offline lifecycle actions
+- Support Bearer Token and custom header injection
+- Support managed process lifecycle, logs, health checking, and monitoring
+- Use SQLite by default, with PostgreSQL as the heavier deployment option
+- Keep both Windows and Linux / Ubuntu in the supported baseline
 
 ## Monorepo Structure
 
 - `packages/api-nova-parser`
-  OpenAPI/Swagger parsing, validation, normalization, endpoint extraction
+  Responsible for parsing, validation, normalization, and compatibility handling of OpenAPI / Swagger inputs.
 - `packages/api-nova-server`
-  MCP tool transformation and runtime with `stdio`, `sse`, and `streamable`
+  Responsible for transforming normalized API operations into MCP tools and providing the MCP runtime.
 - `packages/api-nova-api`
-  management backend for orchestration, persistence, security, and operations
+  Responsible for management APIs, persistence, authentication, service orchestration, and monitoring support.
 - `packages/api-nova-ui`
-  operator UI consuming backend contracts
+  Responsible for the operator-facing import, validation, conversion, and service-management interface.
 
-## Recommended Current Usage
+## Current Baseline
 
-### 1. Connect directly as an MCP server for AI applications
+### Runtime Requirements
+
+- Node.js `>= 20`
+- pnpm `>= 8`
+- Windows
+- Linux, with Ubuntu as the primary compatibility target
+
+### Database Modes
+
+- Default: `SQLite`
+- Optional: `PostgreSQL`
+
+SQLite is suited for single-node and lightweight deployment.
+
+PostgreSQL is suited for higher concurrency, longer-lived tasks, and more demanding operational environments.
+
+### Currently Supported MCP Transports
+
+- `stdio`
+- `streamable`
+- `sse`
+
+Notes:
+
+- Under the current baseline, `streamable` is expected to support concurrent multi-session access.
+- WebSocket support in the API / UI is for management and monitoring only. It is not an MCP transport.
+
+## Quick Start
+
+### Run as a CLI / MCP Server
 
 Install:
 
@@ -40,7 +79,7 @@ Install:
 npm install -g api-nova-server
 ```
 
-Run in `stdio` mode:
+Start in `stdio` mode:
 
 ```bash
 api-nova --openapi https://petstore.swagger.io/v2/swagger.json --transport stdio
@@ -64,49 +103,14 @@ Example MCP client configuration:
 }
 ```
 
-### 2. Local development
-
-Requirements:
-
-- Node.js `>= 20`
-- pnpm `>= 8`
-- GitHub CLI (`gh`, optional for CLI-based PR/release workflow)
-
-Bootstrap development environment:
-
-Windows PowerShell:
-
-```powershell
-node -v
-corepack enable
-corepack prepare pnpm@latest --activate
-pnpm -v
-```
-
-Ubuntu:
+### Local Development
 
 ```bash
 node -v
 corepack enable
 corepack prepare pnpm@latest --activate
 pnpm -v
-```
-
-If `corepack` is unavailable, install pnpm with npm:
-
-```bash
-npm install -g pnpm
-```
-
-Install dependencies:
-
-```bash
 pnpm install
-```
-
-Common commands:
-
-```bash
 pnpm build
 pnpm dev
 pnpm test
@@ -114,54 +118,76 @@ pnpm lint
 pnpm type-check
 ```
 
-For complete environment setup (SQLite/PostgreSQL, API/UI/server startup), see:
-[docs/guides/local-setup-and-run.md](./docs/guides/local-setup-and-run.md)
+See also:
 
-## Auth and Filtering
+- [Local Setup And Run](./docs/guides/local-setup-and-run.md)
+- [Database Mode Quickstart](./docs/guides/database-mode-quickstart.md)
+- [Database Strategy](./docs/guides/database-strategy.md)
 
-The current main path supports:
+Quick database mode checks:
 
-- Bearer token authentication
-- custom request headers
-- endpoint filtering by method, path, `operationId`, status code, and parameters
+- When `DB_TYPE` is not set, `api-nova-api` uses `SQLite` by default
+- When `DB_TYPE=postgres` is set, `api-nova-api` uses `PostgreSQL`
+- Startup logs should show either `Database mode: sqlite` or `Database mode: postgres`
+- The current baseline has already been verified for:
+  - SQLite default startup path
+  - PostgreSQL schema initialization and startup path
+  - CI / test coverage across both database modes
 
-Example:
+## Default Development Endpoints
 
-```bash
-api-nova \
-  --openapi https://api.example.com/openapi.json \
-  --transport streamable \
-  --auth-type bearer \
-  --bearer-env API_TOKEN \
-  --operation-filter-methods GET \
-  --operation-filter-methods POST
-```
+Under the default development layout:
+
+- UI: `http://127.0.0.1:9000`
+- API: `http://127.0.0.1:9001`
+- MCP Streamable example: `http://127.0.0.1:9022/mcp`
+
+Notes:
+
+- `/mcp` is an MCP protocol endpoint, not a browser page
+- If a browser directly accesses `/mcp` and receives `Mcp-Session-Id header is required`, that is expected protocol behavior
+
+## Current Product Capabilities
+
+- OpenAPI / Swagger import
+- URL import, raw text import, and file upload import
+- Spec validation and normalization
+- Swagger 2.0 to OpenAPI 3.x compatibility conversion
+- OpenAPI `3.0.4` compatibility handling
+- Tool preview and conversion workflows
+- Manual endpoint registration through Endpoint Registry
+- Manual endpoint lifecycle actions including probe, readiness, publish, and offline
+- Bearer Token and custom header injection
+- `streamable` multi-session support
+- CLI and server smoke-test coverage
+- Managed process lifecycle and process log inspection
+- Dual database support for SQLite and PostgreSQL
+
+Current operating-scope notes:
+
+- OpenAPI Management remains the primary path for import and spec processing
+- Endpoint Registry is a parallel management surface for manual endpoint registration and lightweight governance of imported endpoints
+- The planned semantic enhancement layer is still deferred and remains an open item rather than released baseline behavior
 
 ## Documentation Entry Points
 
-Current active project governance and entry documents:
+Recommended starting points:
 
-- [Product Constraints](./PRODUCT_CONSTRAINTS.md)
-- [Project Baseline](./PROJECT_BASELINE.md)
-- [Release Baseline](./RELEASE_BASELINE_V1.md)
-- [Project Analysis and Plan](./PROJECT_ANALYSIS_AND_V1_PLAN.md)
+- [PRODUCT_CONSTRAINTS](./PRODUCT_CONSTRAINTS.md)
+- [PROJECT_BASELINE](./PROJECT_BASELINE.md)
+- [RELEASE_BASELINE_V1](./RELEASE_BASELINE_V1.md)
 - [Documentation Index](./docs/README.md)
+- [Fork Origin And Independence](./docs/guides/fork-origin-and-independence.md)
+- [Current Convergence Plan](./docs/guides/current-convergence-plan.md)
+- [Open Items](./docs/reference/open-items.md)
 
-The `docs/` directory is now organized as:
+## Working Principles
 
-- `docs/guides`
-  active setup, usage, deployment, auth, and troubleshooting docs
-- `docs/reference`
-  current release and protocol reference material
-- `docs/archive`
-  archived plans, summaries, old designs, and historical material
-
-## Current Working Rules
-
-- converge the releasable baseline before expanding features
-- treat external design notes as reference, not direct implementation truth
-- keep both Windows and Linux/Ubuntu supported
-- keep CLI, API, UI, and docs aligned on main-path behavior
+- Stabilize the release path before expanding scope
+- Keep deferred items visible instead of describing them as complete capabilities
+- Keep Windows and Linux / Ubuntu support aligned
+- Keep docs, CLI, API, and UI aligned with real implementation behavior
+- Prioritize long-running operational reliability over raw feature count
 
 ## License
 
