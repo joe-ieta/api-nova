@@ -237,9 +237,9 @@
             <!-- 配置格式选择 -->
             <div class="format-tabs">
               <el-radio-group v-model="previewFormat" @change="generateConfig">
-                <el-radio-button label="json">JSON</el-radio-button>
-                <el-radio-button label="yaml">YAML</el-radio-button>
-                <el-radio-button label="toml">TOML</el-radio-button>
+                <el-radio-button value="json">JSON</el-radio-button>
+                <el-radio-button value="yaml">YAML</el-radio-button>
+                <el-radio-button value="toml">TOML</el-radio-button>
               </el-radio-group>
             </div>
 

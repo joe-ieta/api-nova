@@ -484,6 +484,10 @@ export const notify = globalNotification;
 export default {
   install(app: any) {
     globalErrorHandler.install(app);
+    app.provide("$globalErrorHandler", globalErrorHandler);
+    app.provide("$notify", globalNotification);
+    app.provide("$handleError", handleError);
+    app.provide("$handleApiError", handleApiError);
 
     // 将错误处理器和通知管理器添加到全局属性
     app.config.globalProperties.$errorHandler = globalErrorHandler;

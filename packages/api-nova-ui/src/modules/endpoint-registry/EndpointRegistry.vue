@@ -24,13 +24,13 @@
       <el-row :gutter="12">
         <el-col :xs="24" :md="12">
             <el-radio-group v-model="selectedSourceType" size="small">
-            <el-radio-button label="all">
+            <el-radio-button value="all">
               {{ sourceTypeLabel.all }}
             </el-radio-button>
-            <el-radio-button label="manual">
+            <el-radio-button value="manual">
               {{ sourceTypeLabel.manual }}
             </el-radio-button>
-            <el-radio-button label="imported">
+            <el-radio-button value="imported">
               {{ sourceTypeLabel.imported }}
             </el-radio-button>
           </el-radio-group>

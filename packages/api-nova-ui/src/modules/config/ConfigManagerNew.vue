@@ -154,17 +154,17 @@
 
         <el-form-item label="导出格式">
           <el-radio-group v-model="exportForm.format">
-            <el-radio label="json">JSON</el-radio>
-            <el-radio label="yaml">YAML</el-radio>
-            <el-radio label="zip">ZIP压缩包</el-radio>
+            <el-radio value="json">JSON</el-radio>
+            <el-radio value="yaml">YAML</el-radio>
+            <el-radio value="zip">ZIP压缩包</el-radio>
           </el-radio-group>
         </el-form-item>
 
         <el-form-item label="敏感数据">
           <el-radio-group v-model="exportForm.sensitiveData">
-            <el-radio label="exclude">排除敏感信息</el-radio>
-            <el-radio label="encrypt">加密敏感信息</el-radio>
-            <el-radio label="include">包含敏感信息</el-radio>
+            <el-radio value="exclude">排除敏感信息</el-radio>
+            <el-radio value="encrypt">加密敏感信息</el-radio>
+            <el-radio value="include">包含敏感信息</el-radio>
           </el-radio-group>
         </el-form-item>
 
@@ -371,9 +371,9 @@
 
               <div class="conflict-resolution">
                 <el-radio-group v-model="conflict.resolution">
-                  <el-radio label="keep">保留当前配置</el-radio>
-                  <el-radio label="replace">使用导入配置</el-radio>
-                  <el-radio label="merge">合并配置</el-radio>
+                  <el-radio value="keep">保留当前配置</el-radio>
+                  <el-radio value="replace">使用导入配置</el-radio>
+                  <el-radio value="merge">合并配置</el-radio>
                 </el-radio-group>
               </div>
             </div>
@@ -451,8 +451,8 @@
       <div class="preview-content">
         <div class="preview-toolbar">
           <el-radio-group v-model="previewFormat" size="small">
-            <el-radio-button label="json">JSON</el-radio-button>
-            <el-radio-button label="yaml">YAML</el-radio-button>
+            <el-radio-button value="json">JSON</el-radio-button>
+            <el-radio-button value="yaml">YAML</el-radio-button>
           </el-radio-group>
           <el-button
             size="small"

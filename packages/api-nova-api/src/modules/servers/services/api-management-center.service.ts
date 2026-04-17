@@ -89,20 +89,37 @@ export class ApiManagementCenterService {
     return {
       total: filtered.length,
       data: filtered.map((server) => {
-        const profile = this.getProfile(server);
-        const endpoint = this.extractPrimaryEndpoint(server.openApiData);
-        const endpoints = this.extractEndpoints(server.openApiData);
-        return {
-          id: server.id,
-          name: server.name,
-          version: server.version,
-          profile,
-          endpoint,
-          endpoints,
-          toolsCount: server.toolsCount || 0,
-          healthy: server.healthy,
-          updatedAt: server.updatedAt,
-        };
+        try {
+          const profile = this.getProfile(server);
+          const endpoint = this.extractPrimaryEndpoint(server.openApiData);
+          const endpoints = this.extractEndpoints(server.openApiData);
+          return {
+            id: server.id,
+            name: server.name,
+            version: server.version,
+            profile,
+            endpoint,
+            endpoints,
+            toolsCount: server.toolsCount || 0,
+            healthy: server.healthy,
+            updatedAt: server.updatedAt,
+          };
+        } catch (error) {
+          this.logger.warn(
+            `Failed to normalize API center overview entry for server ${server.id}: ${(error as Error).message}`,
+          );
+          return {
+            id: server.id,
+            name: server.name,
+            version: server.version,
+            profile: this.getProfile(server),
+            endpoint: {},
+            endpoints: [],
+            toolsCount: server.toolsCount || 0,
+            healthy: server.healthy,
+            updatedAt: server.updatedAt,
+          };
+        }
       }),
     };
   }

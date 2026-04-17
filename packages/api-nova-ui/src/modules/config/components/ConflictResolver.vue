@@ -114,7 +114,7 @@
                 @change="updateResolution(conflict.id, $event)"
                 class="resolution-options"
               >
-                <el-radio label="keep" class="resolution-option">
+                <el-radio value="keep" class="resolution-option">
                   <div class="option-content">
                     <div class="option-title">保留当前配置</div>
                     <div class="option-description">
@@ -123,14 +123,14 @@
                   </div>
                 </el-radio>
 
-                <el-radio label="replace" class="resolution-option">
+                <el-radio value="replace" class="resolution-option">
                   <div class="option-content">
                     <div class="option-title">使用导入配置</div>
                     <div class="option-description">完全替换为导入的配置</div>
                   </div>
                 </el-radio>
 
-                <el-radio label="merge" class="resolution-option">
+                <el-radio value="merge" class="resolution-option">
                   <div class="option-content">
                     <div class="option-title">智能合并</div>
                     <div class="option-description">
@@ -139,7 +139,7 @@
                   </div>
                 </el-radio>
 
-                <el-radio label="custom" class="resolution-option">
+                <el-radio value="custom" class="resolution-option">
                   <div class="option-content">
                     <div class="option-title">自定义配置</div>
                     <div class="option-description">手动编辑最终配置</div>

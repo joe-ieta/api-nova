@@ -72,6 +72,7 @@ import { use } from "echarts/core";
 import { LineChart } from "echarts/charts";
 import {
   GridComponent,
+  TitleComponent,
   TooltipComponent,
   LegendComponent,
   DataZoomComponent,
@@ -84,6 +85,7 @@ import type { ChartSeries } from "@/types";
 use([
   LineChart,
   GridComponent,
+  TitleComponent,
   TooltipComponent,
   LegendComponent,
   DataZoomComponent,

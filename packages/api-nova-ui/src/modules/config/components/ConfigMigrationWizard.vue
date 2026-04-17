@@ -280,17 +280,17 @@
                 <el-form :model="migrationOptions" label-width="120px">
                   <el-form-item label="备份策略">
                     <el-radio-group v-model="migrationOptions.backupStrategy">
-                      <el-radio label="full">完整备份</el-radio>
-                      <el-radio label="incremental">增量备份</el-radio>
-                      <el-radio label="none">不备份</el-radio>
+                      <el-radio value="full">完整备份</el-radio>
+                      <el-radio value="incremental">增量备份</el-radio>
+                      <el-radio value="none">不备份</el-radio>
                     </el-radio-group>
                   </el-form-item>
 
                   <el-form-item label="失败处理">
                     <el-radio-group v-model="migrationOptions.failureHandling">
-                      <el-radio label="rollback">自动回滚</el-radio>
-                      <el-radio label="stop">停止执行</el-radio>
-                      <el-radio label="continue">继续执行</el-radio>
+                      <el-radio value="rollback">自动回滚</el-radio>
+                      <el-radio value="stop">停止执行</el-radio>
+                      <el-radio value="continue">继续执行</el-radio>
                     </el-radio-group>
                   </el-form-item>
 
