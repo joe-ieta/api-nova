@@ -52,6 +52,24 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (
+            id.includes("/node_modules/vue/") ||
+            id.includes("/node_modules/@vue/") ||
+            id.includes("/node_modules/vue-router/") ||
+            id.includes("/node_modules/pinia/") ||
+            id.includes("/node_modules/vue-i18n/")
+          ) {
+            return "vendor-vue";
+          }
+
+          if (
+            id.includes("/node_modules/axios/") ||
+            id.includes("/node_modules/date-fns/") ||
+            id.includes("/node_modules/highlight.js/")
+          ) {
+            return "vendor-app";
+          }
+
           if (id.includes("monaco-editor")) {
             return "vendor-monaco";
           }
@@ -72,6 +90,10 @@ export default defineConfig({
             return "feature-monitoring";
           }
 
+          if (id.includes("/src/modules/auth/")) {
+            return "feature-auth";
+          }
+
           if (id.includes("/src/modules/ai/")) {
             return "feature-ai";
           }
@@ -82,6 +104,10 @@ export default defineConfig({
 
           if (id.includes("/src/modules/testing/")) {
             return "feature-testing";
+          }
+
+          if (id.includes("/src/locales/messages/")) {
+            return "feature-i18n";
           }
 
           if (id.includes("/src/modules/openapi/")) {

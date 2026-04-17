@@ -14,7 +14,8 @@ import { i18n } from "@/locales";
 
 export const useAuthStore = defineStore("auth", () => {
   const appStore = useAppStore();
-  const t = i18n.global.t;
+  const t = (key: string, params?: Record<string, unknown>) =>
+    i18n.global.t(key as never, params as never);
 
   // 用户认证状态
   const currentUser = ref<User | null>(null);

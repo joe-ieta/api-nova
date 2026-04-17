@@ -1,5 +1,5 @@
 /**
- * 格式化日期 - 简化版本
+ * Date helpers used by UI fallback formatting paths.
  */
 export const formatDate = (
   date: string | Date,
@@ -7,8 +7,6 @@ export const formatDate = (
 ): string => {
   try {
     const dateObj = typeof date === "string" ? new Date(date) : date;
-
-    // 简单格式化，不依赖date-fns
     const year = dateObj.getFullYear();
     const month = String(dateObj.getMonth() + 1).padStart(2, "0");
     const day = String(dateObj.getDate()).padStart(2, "0");
@@ -27,7 +25,8 @@ export const formatDate = (
 };
 
 /**
- * 格式化相对时间
+ * Returns a simple relative time string in English.
+ * Operator-facing pages should prefer the i18n layer when available.
  */
 export const formatRelativeTime = (date: string | Date): string => {
   try {
@@ -38,10 +37,10 @@ export const formatRelativeTime = (date: string | Date): string => {
     const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
     const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
 
-    if (diffInMinutes < 1) return "刚刚";
-    if (diffInMinutes < 60) return `${diffInMinutes}分钟前`;
-    if (diffInHours < 24) return `${diffInHours}小时前`;
-    if (diffInDays < 7) return `${diffInDays}天前`;
+    if (diffInMinutes < 1) return "just now";
+    if (diffInMinutes < 60) return `${diffInMinutes} minute(s) ago`;
+    if (diffInHours < 24) return `${diffInHours} hour(s) ago`;
+    if (diffInDays < 7) return `${diffInDays} day(s) ago`;
 
     return formatDate(dateObj, "MM-dd HH:mm");
   } catch (error) {
@@ -51,7 +50,7 @@ export const formatRelativeTime = (date: string | Date): string => {
 };
 
 /**
- * 格式化文件大小
+ * Formats a file size value.
  */
 export const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return "0 B";
@@ -64,13 +63,14 @@ export const formatFileSize = (bytes: number): string => {
 };
 
 /**
- * 格式化持续时间
+ * Formats a duration in milliseconds.
  */
 export const formatDuration = (ms: number): string => {
   if (ms < 1000) return `${ms}ms`;
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  if (ms < 3600000)
+  if (ms < 3600000) {
     return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
+  }
 
   const hours = Math.floor(ms / 3600000);
   const minutes = Math.floor((ms % 3600000) / 60000);

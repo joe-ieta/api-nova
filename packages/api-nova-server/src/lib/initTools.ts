@@ -1,24 +1,27 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { Transformer } from '../core';
-import type { TransformOptions } from '../types';
+import { Transformer } from "../core";
+import type { TransformOptions } from "../types";
+import { serverDebugLog, serverErrorLog } from "../utils/logger";
 
 /**
- * 初始化工具 - 兼容原有API
+ * Initialize tools from an OpenAPI file while keeping transport-sensitive
+ * runtime paths quiet by default.
  */
 export async function initTools(
   server: McpServer,
   swaggerFile?: string,
-  options: TransformOptions = {}
+  options: TransformOptions = {},
 ): Promise<void> {
-  console.log("🔧 Initializing MCP tools from OpenAPI specification...");
-  
   const transformer = new Transformer();
-  
+
   try {
+    serverDebugLog(
+      `Initializing MCP tools from OpenAPI specification${swaggerFile ? `: ${swaggerFile}` : ""}`,
+    );
+
     const tools = await transformer.transformFromFile(swaggerFile, options);
-    
-    console.log(`📦 Generated ${tools.length} tools from OpenAPI specification`);
-    
+    serverDebugLog(`Generated ${tools.length} tools from OpenAPI specification`);
+
     for (const tool of tools) {
       server.registerTool(
         tool.name,
@@ -26,36 +29,35 @@ export async function initTools(
           description: tool.description,
           inputSchema: tool.inputSchema,
         },
-        tool.handler
+        tool.handler,
       );
-      
-      console.log(`✅ Registered tool: ${tool.name}`);
+
+      serverDebugLog(`Registered tool: ${tool.name}`);
     }
-    
-    console.log("🎉 Tool initialization completed successfully");
+
+    serverDebugLog("Tool initialization completed successfully");
   } catch (error) {
-    console.error("❌ Failed to initialize tools:", error);
+    serverErrorLog("Failed to initialize tools:", error);
     throw error;
   }
 }
 
 /**
- * 从URL初始化工具
+ * Initialize tools from an OpenAPI URL.
  */
 export async function initToolsFromUrl(
   server: McpServer,
   url: string,
-  options: TransformOptions = {}
+  options: TransformOptions = {},
 ): Promise<void> {
-  console.log(`🔧 Initializing MCP tools from OpenAPI URL: ${url}`);
-  
   const transformer = new Transformer();
-  
+
   try {
+    serverDebugLog(`Initializing MCP tools from OpenAPI URL: ${url}`);
+
     const tools = await transformer.transformFromUrl(url, options);
-    
-    console.log(`📦 Generated ${tools.length} tools from OpenAPI URL`);
-    
+    serverDebugLog(`Generated ${tools.length} tools from OpenAPI URL`);
+
     for (const tool of tools) {
       server.registerTool(
         tool.name,
@@ -63,37 +65,35 @@ export async function initToolsFromUrl(
           description: tool.description,
           inputSchema: tool.inputSchema,
         },
-        tool.handler
+        tool.handler,
       );
-      
-      console.log(`✅ Registered tool: ${tool.name}`);
+
+      serverDebugLog(`Registered tool: ${tool.name}`);
     }
-    
-    console.log("🎉 Tool initialization from URL completed successfully");
+
+    serverDebugLog("Tool initialization from URL completed successfully");
   } catch (error) {
-    console.error("❌ Failed to initialize tools from URL:", error);
+    serverErrorLog("Failed to initialize tools from URL:", error);
     throw error;
   }
 }
 
 /**
- * 从规范对象初始化工具
+ * Initialize tools from an already loaded OpenAPI spec object.
  */
 export async function initToolsFromSpec(
   server: McpServer,
   spec: any,
-  options: TransformOptions = {}
+  options: TransformOptions = {},
 ): Promise<void> {
-  console.log("🔧 Initializing MCP tools from OpenAPI specification object...");
-  
   const transformer = new Transformer();
-  
+
   try {
-    // 注意：这里需要实现transformFromSpec方法，目前先用文件方式
+    serverDebugLog("Initializing MCP tools from OpenAPI specification object");
+
     const tools = await transformer.transformFromSpec(spec, options);
-    
-    console.log(`📦 Generated ${tools.length} tools from OpenAPI specification`);
-    
+    serverDebugLog(`Generated ${tools.length} tools from OpenAPI specification`);
+
     for (const tool of tools) {
       server.registerTool(
         tool.name,
@@ -101,15 +101,15 @@ export async function initToolsFromSpec(
           description: tool.description,
           inputSchema: tool.inputSchema,
         },
-        tool.handler
+        tool.handler,
       );
-      
-      console.log(`✅ Registered tool: ${tool.name}`);
+
+      serverDebugLog(`Registered tool: ${tool.name}`);
     }
-    
-    console.log("🎉 Tool initialization from spec completed successfully");
+
+    serverDebugLog("Tool initialization from spec completed successfully");
   } catch (error) {
-    console.error("❌ Failed to initialize tools from spec:", error);
+    serverErrorLog("Failed to initialize tools from spec:", error);
     throw error;
   }
 }

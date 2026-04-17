@@ -1,4 +1,11 @@
-const DEBUG_ENABLED_VALUES = new Set(['1', 'true', 'yes', 'on', 'debug', 'verbose']);
+const DEBUG_ENABLED_VALUES = new Set([
+  "1",
+  "true",
+  "yes",
+  "on",
+  "debug",
+  "verbose",
+]);
 
 function isEnabled(value?: string): boolean {
   return value ? DEBUG_ENABLED_VALUES.has(value.toLowerCase()) : false;
@@ -10,6 +17,8 @@ export function isServerDebugEnabled(explicit = false): boolean {
   }
 
   return (
+    isEnabled(process.env.API_NOVA_DEBUG) ||
+    isEnabled(process.env.API_NOVA_SERVER_DEBUG) ||
     isEnabled(process.env.api_nova_DEBUG) ||
     isEnabled(process.env.api_nova_SERVER_DEBUG)
   );
@@ -28,5 +37,9 @@ export function serverWarnLog(message?: unknown, ...optionalParams: unknown[]): 
     return;
   }
 
+  console.error(message, ...optionalParams);
+}
+
+export function serverErrorLog(message?: unknown, ...optionalParams: unknown[]): void {
   console.error(message, ...optionalParams);
 }

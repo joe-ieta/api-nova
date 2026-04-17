@@ -58,6 +58,7 @@ The core product value is the stable chain:
 - `stdio`, `sse`, and `streamable` are product surfaces, not internal experiments.
 - Library/runtime code must avoid uncontrolled stdout noise that can corrupt protocol streams.
 - Logging must be controllable by environment or configuration.
+- Runtime helper paths that can execute on MCP transports should stay quiet by default and use stderr-only debug or error logging when observability is needed.
 
 ### 7. Observability without pollution
 
@@ -92,6 +93,13 @@ The core product value is the stable chain:
   - MCP runtime default: `9022`
 - New docs, examples, tests, scripts, environment defaults, Docker manifests, and operator-facing surfaces must use these ports unless a deliberate top-level baseline change is made.
 - Reintroducing old default ports such as `3000`, `3001`, or `3322` into active product surfaces should be treated as contract drift and a product defect.
+
+### 12. Localization and encoding discipline must not drift
+
+- Chinese is the default operator locale, but fallback behavior must remain available so UI text never regresses into garbled output.
+- Operator-facing locale resources should move toward feature-level modularization instead of regrowing into one fragile monolithic file.
+- Active docs, locale resources, and operator copy must be edited and stored with stable UTF-8 encoding.
+- When translation coverage is incomplete, readable fallback text is acceptable; corrupted text is not.
 
 ## Delivery Priorities
 

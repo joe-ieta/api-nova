@@ -55,11 +55,13 @@ Related code:
 
 Status:
 
-- partially addressed / still inconsistent
+- partially addressed
 
 Why it remains open:
 
-- direct spec initialization is now supported in the runtime wrapper, but transformation behavior is still split across more than one entry path and should continue to be unified
+- direct spec initialization is now supported in the runtime wrapper
+- the legacy `lib/initTools.ts` helper no longer emits unconditional stdout logs and now follows the quiet-by-default runtime rule
+- transformation behavior is still split across more than one entry path and should continue to be unified
 
 Impact:
 
@@ -208,6 +210,7 @@ Status:
 Why it remains open:
 
 - Monaco editor has been moved out of the application startup path and the UI build now uses clearer feature-level chunking
+- vendor splitting now separates Vue/runtime dependencies, app-heavy libraries, Monaco, charts, and feature-level i18n payloads more explicitly
 - the main entry bundle is materially smaller, but Vite still reports oversized vendor chunks for Monaco, charts, and Element Plus
 - further reduction likely needs more selective dependency loading and targeted vendor-splitting rather than only route-level chunking
 
@@ -224,7 +227,7 @@ Related documents:
 
 Status:
 
-- planned / deferred
+- partially addressed
 
 Why it remains open:
 
@@ -269,9 +272,10 @@ Status:
 
 Why it remains open:
 
-- the current locale files remain large, centralized, and fragile under repeated edits
-- historical encoding corruption is still visible in parts of the locale surface, especially in Chinese strings
-- locale content should be split by feature module and backed by stricter encoding discipline so future changes do not create wide, noisy diffs or cross-module merge conflicts
+- active locale entrypoints now use modular message overlays instead of relying only on one centralized file
+- Chinese remains the default locale and now falls back to English instead of showing corrupted operator text when coverage is incomplete
+- historical encoding corruption is still present in older locale payloads and some non-i18n source comments
+- more feature areas still need to migrate out of legacy centralized locale resources
 
 Impact:
 
