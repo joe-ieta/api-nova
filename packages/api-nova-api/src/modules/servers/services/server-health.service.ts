@@ -8,6 +8,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { MCPServerEntity, ServerStatus } from '../../../database/entities/mcp-server.entity';
 import { LogEntryEntity, LogLevel, LogSource } from '../../../database/entities/log-entry.entity';
 import { ServerManagerService, ServerInstance } from './server-manager.service';
+import { TelemetryModeMap, TelemetryMode } from '../interfaces/observability.interface';
 import { ServerLifecycleService } from './server-lifecycle.service';
 
 export interface HealthCheckResult {
@@ -19,6 +20,7 @@ export interface HealthCheckResult {
   timestamp: Date;
   endpoint?: string;
   uptime?: number;
+  telemetry: TelemetryModeMap;
 }
 
 export interface ServerHealthMetrics {
@@ -33,6 +35,7 @@ export interface ServerHealthMetrics {
   successRate: number;
   averageResponseTime: number;
   endpoint?: string;
+  telemetry: TelemetryModeMap;
 }
 
 @Injectable()
@@ -132,6 +135,11 @@ export class ServerHealthService {
         timestamp: new Date(),
         endpoint: instance.entity.endpoint,
         uptime: instance.startTime ? Math.floor((Date.now() - instance.startTime.getTime()) / 1000) : 0,
+        telemetry: {
+          healthy: TelemetryMode.DERIVED,
+          responseTime: TelemetryMode.MEASURED,
+          uptime: TelemetryMode.DERIVED,
+        },
       };
 
       // 更新数据库中的健康状态
@@ -161,6 +169,11 @@ export class ServerHealthService {
         responseTime,
         error: error.message,
         timestamp: new Date(),
+        telemetry: {
+          healthy: TelemetryMode.DERIVED,
+          responseTime: TelemetryMode.MEASURED,
+          uptime: TelemetryMode.UNAVAILABLE,
+        },
       };
 
       // 更新数据库中的健康状态
@@ -214,6 +227,15 @@ export class ServerHealthService {
       successRate,
       averageResponseTime,
       endpoint: server.endpoint,
+      telemetry: {
+        healthy: TelemetryMode.DERIVED,
+        uptime: TelemetryMode.DERIVED,
+        lastHealthCheck: TelemetryMode.DERIVED,
+        healthCheckCount: TelemetryMode.DERIVED,
+        failedHealthChecks: TelemetryMode.DERIVED,
+        successRate: TelemetryMode.DERIVED,
+        averageResponseTime: TelemetryMode.DERIVED,
+      },
     };
   }
 

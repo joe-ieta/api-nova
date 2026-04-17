@@ -9,6 +9,7 @@ import * as process from 'process';
 
 import { MCPServerEntity } from '../../../database/entities/mcp-server.entity';
 import { LogEntryEntity, LogLevel, LogSource } from '../../../database/entities/log-entry.entity';
+import { TelemetryMode, TelemetryModeMap } from '../interfaces/observability.interface';
 import { ServerManagerService } from './server-manager.service';
 
 export interface ServerMetrics {
@@ -39,6 +40,7 @@ export interface ServerMetrics {
   toolCallCount: number; // 工具调用次数
   toolErrorCount: number; // 工具错误次数
   averageToolResponseTime: number; // 平均工具响应时间
+  telemetry: TelemetryModeMap;
 }
 
 export interface SystemMetrics {
@@ -60,6 +62,7 @@ export interface SystemMetrics {
   totalServers: number; // 总服务器数
   runningServers: number; // 运行中的服务器数
   healthyServers: number; // 健康的服务器数
+  telemetry: TelemetryModeMap;
 }
 
 export interface MetricsQuery {
@@ -257,6 +260,22 @@ export class ServerMetricsService {
       toolCallCount: currentStats.toolCallCount,
       toolErrorCount: currentStats.toolErrorCount,
       averageToolResponseTime,
+      telemetry: {
+        uptime: TelemetryMode.DERIVED,
+        requestCount: TelemetryMode.DERIVED,
+        errorCount: TelemetryMode.DERIVED,
+        responseTime: TelemetryMode.DERIVED,
+        cpuUsage: TelemetryMode.UNAVAILABLE,
+        memoryUsage: TelemetryMode.MEASURED,
+        memoryUsagePercent: TelemetryMode.MEASURED,
+        activeConnections: TelemetryMode.DERIVED,
+        totalConnections: TelemetryMode.DERIVED,
+        bytesReceived: TelemetryMode.DERIVED,
+        bytesSent: TelemetryMode.DERIVED,
+        toolCallCount: TelemetryMode.DERIVED,
+        toolErrorCount: TelemetryMode.DERIVED,
+        averageToolResponseTime: TelemetryMode.DERIVED,
+      },
     };
 
     // 保存指标历史
@@ -291,6 +310,17 @@ export class ServerMetricsService {
       totalServers: allServers.length,
       runningServers,
       healthyServers,
+      telemetry: {
+        totalMemory: TelemetryMode.MEASURED,
+        freeMemory: TelemetryMode.MEASURED,
+        cpuCount: TelemetryMode.MEASURED,
+        loadAverage: TelemetryMode.MEASURED,
+        processMemory: TelemetryMode.MEASURED,
+        processCpuUsage: TelemetryMode.UNAVAILABLE,
+        totalServers: TelemetryMode.DERIVED,
+        runningServers: TelemetryMode.DERIVED,
+        healthyServers: TelemetryMode.DERIVED,
+      },
     };
 
     // 保存系统指标历史

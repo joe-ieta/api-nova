@@ -17,6 +17,7 @@ import {
   DEFAULT_PROCESS_CONFIG
 } from '../interfaces/process.interface';
 import { MCPServerEntity, TransportType } from '../../../database/entities/mcp-server.entity';
+import { TelemetryModeMap, TelemetryMode } from '../interfaces/observability.interface';
 
 @Injectable()
 export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
@@ -159,6 +160,12 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
         lastCheck: new Date(),
         memoryUsage: processInfo.memoryUsage,
         cpuUsage: processInfo.cpuUsage,
+        telemetry: {
+          healthy: TelemetryMode.DERIVED,
+          responseTime: TelemetryMode.MEASURED,
+          memoryUsage: processInfo.memoryUsage ? TelemetryMode.DERIVED : TelemetryMode.UNAVAILABLE,
+          cpuUsage: processInfo.cpuUsage ? TelemetryMode.DERIVED : TelemetryMode.UNAVAILABLE,
+        },
       };
 
       // 更新进程内存和CPU使用情况
@@ -172,6 +179,12 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
         responseTime,
         error: error.message,
         lastCheck: new Date(),
+        telemetry: {
+          healthy: TelemetryMode.DERIVED,
+          responseTime: TelemetryMode.MEASURED,
+          memoryUsage: TelemetryMode.UNAVAILABLE,
+          cpuUsage: TelemetryMode.UNAVAILABLE,
+        },
       };
 
       this.logger.error(`Health check failed for server ${serverId}:`, error);
@@ -232,7 +245,11 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
             healthy: false,
             responseTime: Date.now() - startTime,
             error: `Process not alive: ${error.message}`,
-            lastCheck: new Date()
+            lastCheck: new Date(),
+            telemetry: {
+              healthy: TelemetryMode.DERIVED,
+              responseTime: TelemetryMode.MEASURED,
+            }
           };
         }
       } else {
@@ -241,7 +258,11 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
           healthy: false,
           responseTime: Date.now() - startTime,
           error: 'No PID found for process',
-          lastCheck: new Date()
+          lastCheck: new Date(),
+          telemetry: {
+            healthy: TelemetryMode.DERIVED,
+            responseTime: TelemetryMode.MEASURED,
+          }
         };
       }
 
@@ -265,7 +286,11 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
         healthy: false,
         responseTime: Date.now() - startTime,
         error: error.message,
-        lastCheck: new Date()
+        lastCheck: new Date(),
+        telemetry: {
+          healthy: TelemetryMode.DERIVED,
+          responseTime: TelemetryMode.MEASURED,
+        }
       };
     }
   }
@@ -287,14 +312,22 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
         responseTime: Date.now() - startTime,
         status: response.status,
         data: response.data,
-        lastCheck: new Date()
+        lastCheck: new Date(),
+        telemetry: {
+          healthy: TelemetryMode.DERIVED,
+          responseTime: TelemetryMode.MEASURED,
+        }
       };
     } catch (error) {
       return {
         healthy: false,
         responseTime: Date.now() - startTime,
         error: error.message,
-        lastCheck: new Date()
+        lastCheck: new Date(),
+        telemetry: {
+          healthy: TelemetryMode.DERIVED,
+          responseTime: TelemetryMode.MEASURED,
+        }
       };
     }
   }
@@ -384,6 +417,12 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
         memoryUsage: entity.memoryUsage,
         cpuUsage: entity.cpuUsage,
         lastCheck: entity.timestamp,
+        telemetry: {
+          healthy: TelemetryMode.DERIVED,
+          responseTime: TelemetryMode.MEASURED,
+          memoryUsage: entity.memoryUsage ? TelemetryMode.DERIVED : TelemetryMode.UNAVAILABLE,
+          cpuUsage: entity.cpuUsage ? TelemetryMode.DERIVED : TelemetryMode.UNAVAILABLE,
+        },
       }));
     } catch (error) {
       this.logger.error(`Failed to get health check history for ${serverId}:`, error);
@@ -412,6 +451,12 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
         memoryUsage: entity.memoryUsage,
         cpuUsage: entity.cpuUsage,
         lastCheck: entity.timestamp,
+        telemetry: {
+          healthy: TelemetryMode.DERIVED,
+          responseTime: TelemetryMode.MEASURED,
+          memoryUsage: entity.memoryUsage ? TelemetryMode.DERIVED : TelemetryMode.UNAVAILABLE,
+          cpuUsage: entity.cpuUsage ? TelemetryMode.DERIVED : TelemetryMode.UNAVAILABLE,
+        },
       };
     } catch (error) {
       this.logger.error(`Failed to get latest health check for ${serverId}:`, error);
@@ -448,6 +493,7 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
     unhealthyChecks: number;
     averageResponseTime: number;
     uptime: number;
+    telemetry: TelemetryModeMap;
   }> {
     try {
       const cutoffDate = new Date();
@@ -474,7 +520,14 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
         healthyChecks,
         unhealthyChecks,
         averageResponseTime,
-        uptime
+        uptime,
+        telemetry: {
+          totalChecks: TelemetryMode.DERIVED,
+          healthyChecks: TelemetryMode.DERIVED,
+          unhealthyChecks: TelemetryMode.DERIVED,
+          averageResponseTime: TelemetryMode.DERIVED,
+          uptime: TelemetryMode.DERIVED,
+        }
       };
     } catch (error) {
       this.logger.error(`Failed to get health stats for ${serverId}:`, error);
@@ -483,7 +536,14 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
         healthyChecks: 0,
         unhealthyChecks: 0,
         averageResponseTime: 0,
-        uptime: 0
+        uptime: 0,
+        telemetry: {
+          totalChecks: TelemetryMode.DERIVED,
+          healthyChecks: TelemetryMode.DERIVED,
+          unhealthyChecks: TelemetryMode.DERIVED,
+          averageResponseTime: TelemetryMode.DERIVED,
+          uptime: TelemetryMode.DERIVED,
+        }
       };
     }
   }

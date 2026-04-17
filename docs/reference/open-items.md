@@ -14,6 +14,16 @@ At the same time, they are not part of the current release baseline unless expli
 - An open item is not a release commitment unless it is moved into the active baseline.
 - If an open item affects operator expectations, active docs should reference it here instead of implying that it already works.
 
+## Active Execution Basis
+
+Use the following documents together when planning the next development cycle:
+
+- `NEXT_DEVELOPMENT_BASELINE.md`
+- `docs/guides/staged-development-plan.md`
+- `PRODUCT_CONSTRAINTS.md`
+
+The top priority after the current convergence pass is Stage 2 through Stage 5 work, not reopening already-hardened branding and release-baseline changes unless a regression is found.
+
 ## Current Open Items
 
 ### 1. Architecture documentation baseline rewrite

@@ -5,7 +5,10 @@ import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 
-import { ServersController } from './servers.controller';
+import { ServersApiCenterController } from './controllers/servers-api-center.controller';
+import { ServersLifecycleController } from './controllers/servers-lifecycle.controller';
+import { ServersObservabilityController } from './controllers/servers-observability.controller';
+import { ServersProcessController } from './controllers/servers-process.controller';
 import { ServerManagerService } from './services/server-manager.service';
 import { ServerLifecycleService } from './services/server-lifecycle.service';
 import { ServerHealthService } from './services/server-health.service';
@@ -16,6 +19,7 @@ import { ProcessErrorHandlerService } from './services/process-error-handler.ser
 import { ProcessResourceMonitorService } from './services/process-resource-monitor.service';
 import { ProcessLogMonitorService } from './services/process-log-monitor.service';
 import { SystemLogService } from './services/system-log.service';
+import { ManagementEventService } from './services/management-event.service';
 
 import { MCPServerEntity } from '../../database/entities/mcp-server.entity';
 import { AuthConfigEntity } from '../../database/entities/auth-config.entity';
@@ -57,7 +61,12 @@ import { SecurityModule } from '../security/security.module';
     DocumentsModule,
     SecurityModule,
   ],
-  controllers: [ServersController],
+  controllers: [
+    ServersLifecycleController,
+    ServersApiCenterController,
+    ServersProcessController,
+    ServersObservabilityController,
+  ],
   providers: [
     ServerManagerService,
     ServerLifecycleService,
@@ -69,6 +78,7 @@ import { SecurityModule } from '../security/security.module';
     ProcessResourceMonitorService,
     ProcessLogMonitorService,
     SystemLogService,
+    ManagementEventService,
     ApiManagementCenterService,
   ],
   exports: [
@@ -82,6 +92,7 @@ import { SecurityModule } from '../security/security.module';
     ProcessResourceMonitorService,
     ProcessLogMonitorService,
     SystemLogService,
+    ManagementEventService,
     ApiManagementCenterService,
   ],
 })

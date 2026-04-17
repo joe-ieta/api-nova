@@ -178,7 +178,7 @@
           </div>
           <div class="brand-text">
             <h1 class="brand-title">ApiNova</h1>
-            <p class="brand-subtitle">雅达 AI API Gateway</p>
+            <p class="brand-subtitle">达雅 AI API Gateway</p>
           </div>
         </div>
         <div class="login-title-section">

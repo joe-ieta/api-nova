@@ -84,7 +84,7 @@ The core product value is the stable chain:
 
 ### 11. Brand, naming, and port invariants must not drift
 
-- The active product identity is `ApiNova`; the Chinese name is `雅达`, and `Api雅达` may be used as a secondary mixed-form expression in Chinese contexts.
+- The active product identity is `ApiNova`; the Chinese name is `达雅`, and `Api达雅` may be used as a secondary mixed-form expression in Chinese contexts.
 - Active docs, UI copy, API descriptions, CLI help, examples, and default configuration must not regress to legacy product labels such as `api-nova-server`, `api-nova-parser`, or similar old project names unless the text is explicitly marked as historical origin, archive material, or compatibility context.
 - Historical origin references are allowed only when clearly framed as background. They must not appear as the current product name.
 - The active default external development ports are part of the product contract:

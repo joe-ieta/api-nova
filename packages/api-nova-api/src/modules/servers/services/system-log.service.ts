@@ -3,16 +3,27 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { SystemLogEntity, SystemLogLevel, SystemLogEventType } from '../../../database/entities/system-log.entity';
+import {
+  SystemLogEntity,
+  SystemLogEventType,
+  SystemLogLevel,
+  SystemLogStatus,
+} from '../../../database/entities/system-log.entity';
 import { MCPServerEntity } from '../../../database/entities/mcp-server.entity';
 import { SystemLogResponseDto } from '../dto/system-log.dto';
 
 export interface CreateSystemLogDto {
-  serverId: string;
+  serverId?: string;
   eventType: SystemLogEventType;
   description: string;
   level?: SystemLogLevel;
+  status?: SystemLogStatus;
+  source?: string;
+  userId?: string;
+  serverName?: string;
+  serverPort?: number;
   details?: Record<string, any>;
+  metadata?: Record<string, any>;
 }
 
 export interface QuerySystemLogDto {
@@ -55,7 +66,13 @@ export class SystemLogService {
         eventType: data.eventType,
         message: data.description,
         level: data.level || SystemLogLevel.INFO,
+        status: data.status || SystemLogStatus.SUCCESS,
+        source: data.source,
+        userId: data.userId,
+        serverName: data.serverName,
+        serverPort: data.serverPort,
         context: data.details,
+        metadata: data.metadata,
       });
 
       return await this.systemLogRepository.save(logEntry);

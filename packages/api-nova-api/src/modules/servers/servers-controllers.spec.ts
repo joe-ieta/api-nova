@@ -1,54 +1,53 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { HttpException } from '@nestjs/common';
-import { ServersController } from './servers.controller';
-import { ServerManagerService } from './services/server-manager.service';
-import { SystemLogService } from './services/system-log.service';
-import { OpenAPIService } from '../openapi/services/openapi.service';
-import { ServerHealthService } from './services/server-health.service';
-import { ServerMetricsService } from './services/server-metrics.service';
-import { ProcessManagerService } from './services/process-manager.service';
-import { ProcessHealthService } from './services/process-health.service';
-import { ProcessErrorHandlerService } from './services/process-error-handler.service';
-import { ProcessResourceMonitorService } from './services/process-resource-monitor.service';
-import { ProcessLogMonitorService } from './services/process-log-monitor.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { ApiManagementCenterService } from './services/api-management-center.service';
+import { Test, TestingModule } from '@nestjs/testing';
+
+import { OpenAPIService } from '../openapi/services/openapi.service';
 import { JwtAuthGuard } from '../security/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../security/guards/permissions.guard';
+import { ServersApiCenterController } from './controllers/servers-api-center.controller';
+import { ServersLifecycleController } from './controllers/servers-lifecycle.controller';
+import { ManagementEventService } from './services/management-event.service';
+import { ApiManagementCenterService } from './services/api-management-center.service';
+import { ServerManagerService } from './services/server-manager.service';
 
-describe('ServersController', () => {
-  let controller: ServersController;
+describe('Servers controllers', () => {
+  let apiCenterController: ServersApiCenterController;
+  let lifecycleController: ServersLifecycleController;
+
   const serverManager = {
+    createServer: jest.fn(),
+    getAllServers: jest.fn(),
     getServerById: jest.fn(),
     updateServer: jest.fn(),
     deleteServer: jest.fn(),
+    getServerInstance: jest.fn(),
+    startServer: jest.fn(),
+    stopServer: jest.fn(),
+    restartServer: jest.fn(),
   };
 
   const apiManagementCenter = {
     getOverview: jest.fn(),
+    updateProfile: jest.fn(),
     probeEndpoint: jest.fn(),
     getPublishReadiness: jest.fn(),
+    getProbeHistory: jest.fn(),
     registerManualEndpoint: jest.fn(),
     changeEndpointState: jest.fn(),
   };
 
   beforeEach(async () => {
     jest.clearAllMocks();
+
     const builder = Test.createTestingModule({
-      controllers: [ServersController],
+      controllers: [ServersApiCenterController, ServersLifecycleController],
       providers: [
         { provide: ServerManagerService, useValue: serverManager },
-        { provide: SystemLogService, useValue: {} },
-        { provide: OpenAPIService, useValue: {} },
-        { provide: ServerHealthService, useValue: {} },
-        { provide: ServerMetricsService, useValue: {} },
-        { provide: ProcessManagerService, useValue: {} },
-        { provide: ProcessHealthService, useValue: {} },
-        { provide: ProcessErrorHandlerService, useValue: {} },
-        { provide: ProcessResourceMonitorService, useValue: {} },
-        { provide: ProcessLogMonitorService, useValue: {} },
-        { provide: EventEmitter2, useValue: { emit: jest.fn(), once: jest.fn() } },
         { provide: ApiManagementCenterService, useValue: apiManagementCenter },
+        { provide: ManagementEventService, useValue: { record: jest.fn() } },
+        { provide: EventEmitter2, useValue: { emit: jest.fn(), once: jest.fn() } },
+        { provide: OpenAPIService, useValue: {} },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -58,7 +57,8 @@ describe('ServersController', () => {
 
     const module: TestingModule = await builder.compile();
 
-    controller = module.get<ServersController>(ServersController);
+    apiCenterController = module.get<ServersApiCenterController>(ServersApiCenterController);
+    lifecycleController = module.get<ServersLifecycleController>(ServersLifecycleController);
   });
 
   it('should block publish when readiness check fails', async () => {
@@ -67,7 +67,7 @@ describe('ServersController', () => {
     );
 
     await expect(
-      controller.changeEndpointState('server-1', { action: 'publish' }),
+      apiCenterController.changeEndpointState('server-1', { action: 'publish' } as any, {} as any),
     ).rejects.toBeInstanceOf(HttpException);
   });
 
@@ -77,7 +77,7 @@ describe('ServersController', () => {
       data: [{ id: 'server-1', name: 'health-endpoint' }],
     });
 
-    await expect(controller.getApiCenterOverview({ sourceType: 'manual' } as any)).resolves.toEqual({
+    await expect(apiCenterController.getApiCenterOverview({ sourceType: 'manual' } as any)).resolves.toEqual({
       total: 1,
       data: [{ id: 'server-1', name: 'health-endpoint' }],
     });
@@ -90,12 +90,12 @@ describe('ServersController', () => {
     });
 
     await expect(
-      controller.registerManualEndpoint({
+      apiCenterController.registerManualEndpoint({
         name: 'health-endpoint',
         baseUrl: 'http://localhost:9001',
         method: 'GET',
         path: '/health',
-      } as any),
+      } as any, {} as any),
     ).resolves.toEqual({
       serverId: 'server-1',
       name: 'health-endpoint',
@@ -108,7 +108,7 @@ describe('ServersController', () => {
       probe: { status: 'healthy' },
     });
 
-    await expect(controller.probeEndpoint('server-1', { path: '/health' } as any)).resolves.toEqual({
+    await expect(apiCenterController.probeEndpoint('server-1', { path: '/health' } as any, {} as any)).resolves.toEqual({
       serverId: 'server-1',
       probe: { status: 'healthy' },
     });
@@ -122,7 +122,7 @@ describe('ServersController', () => {
       reasons: [],
     });
 
-    await expect(controller.getPublishReadiness('server-1')).resolves.toEqual({
+    await expect(apiCenterController.getPublishReadiness('server-1')).resolves.toEqual({
       serverId: 'server-1',
       ready: true,
       reasons: [],
@@ -149,7 +149,7 @@ describe('ServersController', () => {
       },
     });
 
-    await expect(controller.getServerById('server-1')).resolves.toEqual({
+    await expect(lifecycleController.getServerById('server-1')).resolves.toEqual({
       id: 'server-1',
       name: 'health-endpoint',
       openApiData: {
@@ -177,7 +177,7 @@ describe('ServersController', () => {
     });
 
     await expect(
-      controller.updateServer('server-1', {
+      lifecycleController.updateServer('server-1', {
         name: 'health-endpoint',
         description: 'updated',
         openApiData: {
@@ -188,7 +188,7 @@ describe('ServersController', () => {
             sourceType: 'manual',
           },
         },
-      } as any),
+      } as any, {} as any),
     ).resolves.toEqual({
       id: 'server-1',
       name: 'health-endpoint',
@@ -199,7 +199,7 @@ describe('ServersController', () => {
   it('deletes a manual endpoint through the server delete flow', async () => {
     serverManager.deleteServer.mockResolvedValue(undefined);
 
-    await expect(controller.deleteServer('server-1')).resolves.toEqual({
+    await expect(lifecycleController.deleteServer('server-1', {} as any)).resolves.toEqual({
       success: true,
       message: 'Server deleted successfully',
     });

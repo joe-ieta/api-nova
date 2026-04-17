@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as pidusage from 'pidusage';
 import * as os from 'os';
+import { TelemetryMode, TelemetryModeMap } from '../interfaces/observability.interface';
 
 export interface ProcessResourceMetrics {
   pid: number;
@@ -11,6 +12,7 @@ export interface ProcessResourceMetrics {
   ctime: number;      // 子进程CPU时间
   elapsed: number;    // 进程运行时间
   timestamp: Date;    // 采集时间
+  telemetry: TelemetryModeMap;
 }
 
 export interface SystemResourceInfo {
@@ -18,6 +20,7 @@ export interface SystemResourceInfo {
   freeMemory: number;     // 系统可用内存
   cpuCount: number;       // CPU核心数
   loadAverage: number[];  // 系统负载
+  telemetry: TelemetryModeMap;
 }
 
 @Injectable()
@@ -43,7 +46,14 @@ export class ProcessResourceMonitorService {
         ppid: stats.ppid,
         ctime: stats.ctime,
         elapsed: stats.elapsed,
-        timestamp: new Date()
+        timestamp: new Date(),
+        telemetry: {
+          cpu: TelemetryMode.MEASURED,
+          memory: TelemetryMode.MEASURED,
+          ppid: TelemetryMode.MEASURED,
+          ctime: TelemetryMode.MEASURED,
+          elapsed: TelemetryMode.DERIVED,
+        }
       };
     } catch (error) {
       this.logger.warn(`Failed to get resource metrics for PID ${pid}:`, error.message);
@@ -59,7 +69,13 @@ export class ProcessResourceMonitorService {
       totalMemory: os.totalmem(),
       freeMemory: os.freemem(),
       cpuCount: os.cpus().length,
-      loadAverage: os.loadavg()
+      loadAverage: os.loadavg(),
+      telemetry: {
+        totalMemory: TelemetryMode.MEASURED,
+        freeMemory: TelemetryMode.MEASURED,
+        cpuCount: TelemetryMode.MEASURED,
+        loadAverage: TelemetryMode.MEASURED,
+      }
     };
   }
 

@@ -16,7 +16,7 @@ This baseline also anchors active naming and default runtime ports so later chan
 
 ApiNova is a product-oriented API Gateway and API capability platform for turning OpenAPI/Swagger-described APIs into AI-ready capabilities and exposing them through stable runtime and management surfaces.
 
-Its Chinese name may be written as 雅达 or Api雅达.
+Its Chinese name may be written as 达雅 or Api达雅.
 
 The product is not a demo converter, not a one-off code generator, and not only a test harness.
 
@@ -34,8 +34,8 @@ The main product chain is:
 ### Product naming baseline
 
 - English primary name: `ApiNova`
-- Chinese primary name: `雅达`
-- Optional mixed Chinese form: `Api雅达`
+- Chinese primary name: `达雅`
+- Optional mixed Chinese form: `Api达雅`
 
 Legacy upstream names may appear only in archive, origin, or compatibility context. They are not valid current product labels for active docs or operator-facing surfaces.
 

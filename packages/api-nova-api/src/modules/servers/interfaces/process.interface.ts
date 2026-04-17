@@ -1,3 +1,5 @@
+import { TelemetryModeMap } from './observability.interface';
+
 // 进程配置接口
 export interface ProcessConfig {
   id: string; // 改名为id以保持一致性
@@ -79,6 +81,7 @@ export interface HealthCheckResult {
   lastCheck?: Date;
   memoryUsage?: NodeJS.MemoryUsage;
   cpuUsage?: NodeJS.CpuUsage;
+  telemetry?: TelemetryModeMap;
 }
 
 // 重启策略类型枚举
@@ -168,6 +171,7 @@ export interface ProcessMetrics {
   errorCount: number;
   lastHealthCheck: Date;
   averageResponseTime: number;
+  telemetry?: TelemetryModeMap;
 }
 
 // 进程管理配置
