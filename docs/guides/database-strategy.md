@@ -283,7 +283,7 @@ Verified on April 16, 2026 against the pulled current baseline:
 
 - runtime defaults to `SQLite` when `DB_TYPE` is omitted
 - PostgreSQL mode activates only when `DB_TYPE=postgres` is set explicitly
-- a clean PostgreSQL rebuild of `mcp_swagger_api` completed successfully
+- a clean PostgreSQL rebuild of `api_nova_api` completed successfully
 - API startup in PostgreSQL mode completed with automatic schema creation and seed initialization
 - recreated PostgreSQL schema contains 19 public tables, including `endpoint_probe_logs`
 - recreated seed data includes 27 permissions, 5 roles, and 1 super admin user

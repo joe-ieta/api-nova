@@ -2,7 +2,7 @@
 
 ## 概述
 
-本指南展示如何在 mcp-swagger-server 中配置自定义请求头，用于代理 OpenAPI 接口时自动添加特定的 HTTP 头。
+本指南展示如何在 api-nova-server 中配置自定义请求头，用于代理 OpenAPI 接口时自动添加特定的 HTTP 头。
 
 ## 快速开始
 
@@ -10,19 +10,19 @@
 
 ```bash
 # 添加静态请求头
-mcp-swagger-server \
+api-nova-server \
   --openapi https://api.example.com/swagger.json \
   --custom-header "User-Agent=MCP-Client/1.0" \
   --custom-header "X-Client-Version=1.0.0"
 
 # 添加环境变量请求头
-mcp-swagger-server \
+api-nova-server \
   --openapi https://api.example.com/swagger.json \
   --custom-header-env "X-Client-ID=CLIENT_ID" \
   --custom-header-env "X-API-Source=API_SOURCE"
 
 # 启用调试模式
-mcp-swagger-server \
+api-nova-server \
   --openapi https://api.example.com/swagger.json \
   --custom-header "User-Agent=MCP-Client/1.0" \
   --debug-headers
@@ -38,7 +38,7 @@ mcp-swagger-server \
   "transport": "stdio",
   "customHeaders": {
     "static": {
-      "User-Agent": "MCP-Swagger-Client/1.0",
+      "User-Agent": "ApiNova-Client/1.0",
       "X-Client-Version": "1.0.0",
       "Accept": "application/json"
     },
@@ -53,7 +53,7 @@ mcp-swagger-server \
 
 运行命令：
 ```bash
-mcp-swagger-server --config config.json
+api-nova-server --config config.json
 ```
 
 ### 3. 环境变量方式
@@ -72,12 +72,12 @@ MCP_CUSTOM_HEADERS_ACCEPT=application/json
 
 # 环境变量映射
 CLIENT_ID=my-client-123
-REQUEST_SOURCE=mcp-swagger-server
+REQUEST_SOURCE=api-nova-server
 ```
 
 运行命令：
 ```bash
-mcp-swagger-server --env .env
+api-nova-server --env .env
 ```
 
 ## 常见用例
@@ -102,7 +102,7 @@ mcp-swagger-server --env .env
 {
   "customHeaders": {
     "static": {
-      "X-Request-Source": "mcp-swagger-server",
+      "X-Request-Source": "api-nova-server",
       "X-Debug-Mode": "true"
     },
     "env": {
@@ -202,7 +202,7 @@ mcp-swagger-server --env .env
 ### 1. 启用调试模式
 
 ```bash
-mcp-swagger-server --debug-headers --openapi https://api.example.com/swagger.json
+api-nova-server --debug-headers --openapi https://api.example.com/swagger.json
 ```
 
 ### 2. 查看实际发送的请求头
@@ -250,4 +250,4 @@ Final custom headers: { "User-Agent": "MCP-Client/1.0", "X-Client-ID": "client12
 3. 验证文件权限
 4. 检查配置文件编码格式
 
-这个功能为您的 mcp-swagger-server 提供了强大的请求头自定义能力，可以满足各种 API 集成场景的需求。
+这个功能为您的 api-nova-server 提供了强大的请求头自定义能力，可以满足各种 API 集成场景的需求。

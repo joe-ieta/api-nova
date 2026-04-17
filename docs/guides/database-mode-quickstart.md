@@ -19,7 +19,7 @@ PORT=9001
 MCP_PORT=9022
 
 DB_TYPE=sqlite
-DB_SQLITE_PATH=data/mcp-swagger.db
+DB_SQLITE_PATH=data/api-nova.db
 
 JWT_SECRET=change-this-jwt-secret
 JWT_REFRESH_SECRET=change-this-refresh-secret
@@ -49,13 +49,13 @@ Create the database:
 Windows PowerShell:
 
 ```powershell
-psql -U postgres -h localhost -p 5432 -c "CREATE DATABASE mcp_swagger_api;"
+psql -U postgres -h localhost -p 5432 -c "CREATE DATABASE api_nova_api;"
 ```
 
 Ubuntu:
 
 ```bash
-sudo -u postgres psql -c "CREATE DATABASE mcp_swagger_api;"
+sudo -u postgres psql -c "CREATE DATABASE api_nova_api;"
 ```
 
 Example `packages/api-nova-api/.env`:
@@ -70,7 +70,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=postgres
 DB_PASSWORD=your-postgres-password
-DB_DATABASE=mcp_swagger_api
+DB_DATABASE=api_nova_api
 
 JWT_SECRET=change-this-jwt-secret
 JWT_REFRESH_SECRET=change-this-refresh-secret
@@ -88,15 +88,15 @@ Reset database when you need a clean baseline:
 Windows PowerShell:
 
 ```powershell
-psql -U postgres -h localhost -p 5432 -d postgres -c "DROP DATABASE IF EXISTS mcp_swagger_api;"
-psql -U postgres -h localhost -p 5432 -d postgres -c "CREATE DATABASE mcp_swagger_api;"
+psql -U postgres -h localhost -p 5432 -d postgres -c "DROP DATABASE IF EXISTS api_nova_api;"
+psql -U postgres -h localhost -p 5432 -d postgres -c "CREATE DATABASE api_nova_api;"
 ```
 
 Ubuntu:
 
 ```bash
-sudo -u postgres psql -d postgres -c "DROP DATABASE IF EXISTS mcp_swagger_api;"
-sudo -u postgres psql -d postgres -c "CREATE DATABASE mcp_swagger_api;"
+sudo -u postgres psql -d postgres -c "DROP DATABASE IF EXISTS api_nova_api;"
+sudo -u postgres psql -d postgres -c "CREATE DATABASE api_nova_api;"
 ```
 
 ## Product Guidance

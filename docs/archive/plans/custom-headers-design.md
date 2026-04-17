@@ -1,8 +1,8 @@
-# MCP Swagger 自定义请求头设计方案
+# ApiNova 自定义请求头设计方案
 
 ## 1. 概述
 
-本文档描述了如何在 `mcp-swagger-parser` 中实现自定义请求头功能，以及如何通过 `mcp-swagger-server` 传递这些参数。
+本文档描述了如何在 `api-nova-parser` 中实现自定义请求头功能，以及如何通过 `api-nova-server` 传递这些参数。
 
 ## 2. 设计原则
 
@@ -267,13 +267,13 @@ export class OpenAPIToMCPTransformer {
 
 ```bash
 # 环境变量文件
-mcp-swagger-server --env .env --custom-headers-config headers.json
+api-nova-server --env .env --custom-headers-config headers.json
 
 # 直接传递
-mcp-swagger-server --custom-header "User-Agent=MyApp/1.0" --custom-header "X-Client-ID=12345"
+api-nova-server --custom-header "User-Agent=MyApp/1.0" --custom-header "X-Client-ID=12345"
 
 # 配置文件
-mcp-swagger-server --config config.json
+api-nova-server --config config.json
 ```
 
 ### 5.2 配置文件格式
@@ -284,7 +284,7 @@ mcp-swagger-server --config config.json
   "transport": "stdio",
   "customHeaders": {
     "static": {
-      "User-Agent": "MCP-Swagger-Client/1.0",
+      "User-Agent": "ApiNova-Client/1.0",
       "X-Client-Version": "1.0.0",
       "Accept": "application/json"
     },
@@ -328,7 +328,7 @@ const transformer = new OpenAPIToMCPTransformer(
   {
     customHeaders: {
       static: {
-        'User-Agent': 'MCP-Swagger-Client/1.0',
+        'User-Agent': 'ApiNova-Client/1.0',
         'X-Client-Version': '1.0.0'
       },
       env: {
@@ -348,7 +348,7 @@ const transformer = new OpenAPIToMCPTransformer(
   {
     customHeaders: {
       static: {
-        'User-Agent': 'MCP-Swagger-Client/1.0'
+        'User-Agent': 'ApiNova-Client/1.0'
       },
       dynamic: {
         'X-Request-ID': () => `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,

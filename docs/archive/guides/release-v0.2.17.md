@@ -27,20 +27,20 @@ This release closes the current Streamable HTTP regression loop and aligns the r
 Use these commands from repository root:
 
 ```bash
-pnpm --filter mcp-swagger-server run test:cli
-pnpm --filter mcp-swagger-server run test:smoke
-pnpm --filter mcp-swagger-server run test:streamable-session
-pnpm --filter mcp-swagger-server run test
+pnpm --filter api-nova-server run test:cli
+pnpm --filter api-nova-server run test:smoke
+pnpm --filter api-nova-server run test:streamable-session
+pnpm --filter api-nova-server run test
 ```
 
 ## Verified In This Release
 
-- `pnpm --filter mcp-swagger-server run type-check`
-- `pnpm --filter mcp-swagger-server run build`
-- `pnpm --filter mcp-swagger-server run test:cli`
-- `pnpm --filter mcp-swagger-server run test:smoke`
-- `pnpm --filter mcp-swagger-server run test:streamable-session`
-- `pnpm --filter mcp-swagger-server run test`
+- `pnpm --filter api-nova-server run type-check`
+- `pnpm --filter api-nova-server run build`
+- `pnpm --filter api-nova-server run test:cli`
+- `pnpm --filter api-nova-server run test:smoke`
+- `pnpm --filter api-nova-server run test:streamable-session`
+- `pnpm --filter api-nova-server run test`
 
 ## Residual Risks
 

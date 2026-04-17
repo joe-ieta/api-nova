@@ -22,7 +22,7 @@
 {
   "bin": {
     "api-nova-server": "./dist/cli.js",
-    "mcp-swagger": "./dist/cli.js"
+    "api-nova": "./dist/cli.js"
   }
 }
 ```
@@ -58,7 +58,7 @@
   "types": "dist/types/index.d.ts",
   "bin": {
     "api-nova-server": "./dist/cli.js",
-    "mcp-swagger": "./dist/cli.js"
+    "api-nova": "./dist/cli.js"
   },
   "engines": {
     "node": ">=16.0.0"
@@ -102,7 +102,7 @@ npm install -g /path/to/api-nova-server-1.0.0.tgz
 
 # 测试全局命令
 api-nova-server --help
-mcp-swagger --help
+api-nova --help
 ```
 
 ### 4. 发布步骤

@@ -6,7 +6,7 @@
 
 本轮认定的发布主路径如下：
 
-- CLI 主路径：`mcp-swagger-server` / `mcp-swagger` / `mss` 直接读取 OpenAPI 并启动 MCP Server
+- CLI 主路径：`api-nova-server` / `api-nova` / `mss` 直接读取 OpenAPI 并启动 MCP Server
 - API 主路径：健康检查、OpenAPI 解析/校验、Server 管理、Swagger 文档
 - UI 主路径：开发态通过 Vite 代理访问后端，并覆盖 OpenAPI 解析上传、Server 列表与操作等已对齐路径
 
@@ -21,12 +21,12 @@
 ### CLI
 
 - 包入口：
-  - `mcp-swagger-server`
-  - `mcp-swagger`
+  - `api-nova-server`
+  - `api-nova`
   - `mss`
 - 当前可用帮助命令：
-  - `pnpm --filter mcp-swagger-server run cli:help`
-  - `node packages/mcp-swagger-server/dist/cli.js --help`
+  - `pnpm --filter api-nova-server run cli:help`
+  - `node packages/api-nova-server/dist/cli.js --help`
 - 默认关键参数：
   - `--openapi <url|file>`
   - `--transport <stdio|streamable|sse>`
@@ -62,7 +62,7 @@
 
 - Vite 开发端口：`3000`
 - API 代理：
-  - `/api -> http://localhost:3001`
+  - `/api -> http://localhost:9001`
 - 本轮已对齐的 UI 服务层主路径：
   - `POST /api/openapi/parse`
   - `POST /api/openapi/upload`
@@ -78,7 +78,7 @@ API 运行前置条件：
 
 - 默认模式不需要外部数据库，未设置 `DB_TYPE` 时使用 SQLite
 - SQLite 模式要求 API 进程对 SQLite 文件目录有写权限
-- PostgreSQL 模式要求正确的数据库地址、账号与密码，否则 `mcp-swagger-api` 无法完成启动，`/health` 与 `/api/docs` 不会可用
+- PostgreSQL 模式要求正确的数据库地址、账号与密码，否则 `api-nova-api` 无法完成启动，`/health` 与 `/api/docs` 不会可用
 
 ### Windows PowerShell
 
@@ -87,22 +87,22 @@ corepack enable
 corepack prepare pnpm@latest --activate
 pnpm install
 pnpm build
-pnpm --filter mcp-swagger-server run cli:help
-pnpm --filter mcp-swagger-api run build
-pnpm --filter mcp-swagger-ui run build
+pnpm --filter api-nova-server run cli:help
+pnpm --filter api-nova-api run build
+pnpm --filter api-nova-ui run build
 ```
 
 本地最小 CLI 验证：
 
 ```powershell
-node packages/mcp-swagger-server/dist/cli.js --openapi .\examples\minimal-openapi.json --transport stdio
+node packages/api-nova-server/dist/cli.js --openapi .\examples\minimal-openapi.json --transport stdio
 ```
 
 本地开发启动：
 
 ```powershell
-pnpm --filter mcp-swagger-api run start:dev
-pnpm --filter mcp-swagger-ui run dev
+pnpm --filter api-nova-api run start:dev
+pnpm --filter api-nova-ui run dev
 ```
 
 ### Ubuntu
@@ -112,22 +112,22 @@ corepack enable
 corepack prepare pnpm@latest --activate
 pnpm install
 pnpm build
-pnpm --filter mcp-swagger-server run cli:help
-pnpm --filter mcp-swagger-api run build
-pnpm --filter mcp-swagger-ui run build
+pnpm --filter api-nova-server run cli:help
+pnpm --filter api-nova-api run build
+pnpm --filter api-nova-ui run build
 ```
 
 本地最小 CLI 验证：
 
 ```bash
-node packages/mcp-swagger-server/dist/cli.js --openapi ./examples/minimal-openapi.json --transport stdio
+node packages/api-nova-server/dist/cli.js --openapi ./examples/minimal-openapi.json --transport stdio
 ```
 
 本地开发启动：
 
 ```bash
-pnpm --filter mcp-swagger-api run start:dev
-pnpm --filter mcp-swagger-ui run dev
+pnpm --filter api-nova-api run start:dev
+pnpm --filter api-nova-ui run dev
 ```
 
 ## 4. 最小接入示例
@@ -153,7 +153,7 @@ pnpm --filter mcp-swagger-ui run dev
 ### API 解析最小请求
 
 ```bash
-curl -X POST http://localhost:3001/api/openapi/parse \
+curl -X POST http://localhost:9001/api/openapi/parse \
   -H "Content-Type: application/json" \
   -d '{
     "source": {
@@ -171,8 +171,8 @@ curl -X POST http://localhost:3001/api/openapi/parse \
   - UI 代理目标与部分主路径接口已对齐
   - Windows / Ubuntu 命令均采用同一套 Node 20 + pnpm 方案，可跨平台执行
 - 已发现并修正：
-  - `mcp-swagger-server` 的 `cli:help` 脚本参数透传错误
-  - `mcp-swagger-api` 的 `start:prod` 启动路径错误
+  - `api-nova-server` 的 `cli:help` 脚本参数透传错误
+  - `api-nova-api` 的 `start:prod` 启动路径错误
   - UI 服务层中的 `parse/upload/validate-url` 主路径调用错误
 - 当前边界：
   - UI 仍存在历史模块与旧接口并存的情况，尚未达到“所有页面都可发布”

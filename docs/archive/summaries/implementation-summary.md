@@ -10,7 +10,7 @@
 
 **错误场景重现**：
 ```
-Error: Failed to resolve entry for package "mcp-swagger-parser"
+Error: Failed to resolve entry for package "api-nova-parser"
 ```
 
 **技术根因**：
@@ -39,7 +39,7 @@ class MonorepoBuildManager {
 ```
 
 **实现效果**：
-- ✅ 自动发现 3 个包：`mcp-swagger-parser`、`mcp-swagger-server`、`mcp-swagger-ui`
+- ✅ 自动发现 3 个包：`api-nova-parser`、`api-nova-server`、`api-nova-ui`
 - ✅ 正确构建顺序：`parser → server → ui`
 - ✅ 构建时间：总计 7.8 秒，并行优化
 
@@ -57,10 +57,10 @@ class DevEnvironmentManager {
 ```
 
 **实现效果**：
-- 🔨 构建依赖包：`mcp-swagger-parser` (454ms) + `mcp-swagger-server` (561ms)
+- 🔨 构建依赖包：`api-nova-parser` (454ms) + `api-nova-server` (561ms)
 - 👀 启动 watch 模式：自动重编译
-- 🌐 前端服务器：http://localhost:3001
-- ⚙️ MCP 服务器：http://localhost:3322
+- 🌐 前端服务器：http://localhost:9001
+- ⚙️ MCP 服务器：http://localhost:9022
 
 ### 3. 项目诊断系统
 
@@ -79,7 +79,7 @@ class MonorepoDiagnostic {
 - ✅ 项目结构：6/6 通过
 - ✅ 依赖完整性：3 个包，依赖关系正确
 - ✅ 构建产物：dist 目录和入口文件存在
-- ⚠️ 发现并修复：`mcp-swagger-server` 的 main 字段问题
+- ⚠️ 发现并修复：`api-nova-server` 的 main 字段问题
 
 ## 技术实现亮点
 
@@ -168,7 +168,7 @@ packages:
 ```json
 // 依赖声明
 "dependencies": {
-  "mcp-swagger-parser": "workspace:*"
+  "api-nova-parser": "workspace:*"
 }
 ```
 
@@ -187,9 +187,9 @@ packages:
 
 ```
 📊 构建统计（实际测试）：
-├── mcp-swagger-parser: 454ms
-├── mcp-swagger-server: 561ms
-└── mcp-swagger-ui: 5295ms
+├── api-nova-parser: 454ms
+├── api-nova-server: 561ms
+└── api-nova-ui: 5295ms
 总计：6.3 秒（包含并行优化）
 ```
 
@@ -199,8 +199,8 @@ packages:
 🚀 一键启动开发环境：
 ├── 📦 自动构建依赖包
 ├── 👀 启动 watch 模式
-├── 🌐 前端服务器：http://localhost:3001
-├── ⚙️ MCP 服务器：http://localhost:3322
+├── 🌐 前端服务器：http://localhost:9001
+├── ⚙️ MCP 服务器：http://localhost:9022
 └── ✅ 11 个 MCP 工具注册成功
 ```
 

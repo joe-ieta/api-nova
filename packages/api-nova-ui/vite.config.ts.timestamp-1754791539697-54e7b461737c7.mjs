@@ -1,12 +1,12 @@
 // vite.config.ts
-import { defineConfig } from "file:///E:/demo/mcp/mcp-swagger-server/node_modules/.pnpm/vite@5.4.19_@types+node@20.19.1_terser@5.43.1/node_modules/vite/dist/node/index.js";
-import vue from "file:///E:/demo/mcp/mcp-swagger-server/node_modules/.pnpm/@vitejs+plugin-vue@4.6.2_vi_6e2db9735746870408ac73bfac3de572/node_modules/@vitejs/plugin-vue/dist/index.mjs";
+import { defineConfig } from "file:///E:/demo/mcp/api-nova-server/node_modules/.pnpm/vite@5.4.19_@types+node@20.19.1_terser@5.43.1/node_modules/vite/dist/node/index.js";
+import vue from "file:///E:/demo/mcp/api-nova-server/node_modules/.pnpm/@vitejs+plugin-vue@4.6.2_vi_6e2db9735746870408ac73bfac3de572/node_modules/@vitejs/plugin-vue/dist/index.mjs";
 import { resolve } from "path";
-import AutoImport from "file:///E:/demo/mcp/mcp-swagger-server/node_modules/.pnpm/unplugin-auto-import@0.16.7_fcab70ba7f8bd47baba63d058a6ce290/node_modules/unplugin-auto-import/dist/vite.js";
-import Components from "file:///E:/demo/mcp/mcp-swagger-server/node_modules/.pnpm/unplugin-vue-components@0.2_128e49b678e37bfa6616f114b9eada0c/node_modules/unplugin-vue-components/dist/vite.mjs";
-import { ElementPlusResolver } from "file:///E:/demo/mcp/mcp-swagger-server/node_modules/.pnpm/unplugin-vue-components@0.2_128e49b678e37bfa6616f114b9eada0c/node_modules/unplugin-vue-components/dist/resolvers.mjs";
+import AutoImport from "file:///E:/demo/mcp/api-nova-server/node_modules/.pnpm/unplugin-auto-import@0.16.7_fcab70ba7f8bd47baba63d058a6ce290/node_modules/unplugin-auto-import/dist/vite.js";
+import Components from "file:///E:/demo/mcp/api-nova-server/node_modules/.pnpm/unplugin-vue-components@0.2_128e49b678e37bfa6616f114b9eada0c/node_modules/unplugin-vue-components/dist/vite.mjs";
+import { ElementPlusResolver } from "file:///E:/demo/mcp/api-nova-server/node_modules/.pnpm/unplugin-vue-components@0.2_128e49b678e37bfa6616f114b9eada0c/node_modules/unplugin-vue-components/dist/resolvers.mjs";
 var __vite_injected_original_dirname =
-  "E:\\demo\\mcp\\mcp-swagger-server\\packages\\mcp-swagger-ui";
+  "E:\\demo\\mcp\\api-nova-server\\packages\\api-nova-ui";
 var vite_config_default = defineConfig({
   plugins: [
     vue(),
@@ -31,7 +31,7 @@ var vite_config_default = defineConfig({
     host: true,
     proxy: {
       "/api": {
-        target: "http://localhost:3001",
+        target: "http://localhost:9001",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, "/api"),
       },

@@ -43,7 +43,7 @@ export function parseCLIArgs(): { values: ParsedOptions; positionals: string[] }
 }
 
 export function showHelp() {
-  CliDesign.showHeader('MCP SWAGGER SERVER');
+  CliDesign.showHeader('ApiNova SERVER');
   
   console.log(CliDesign.brand.muted('  Transform OpenAPI specifications into MCP format for AI assistants'));
   

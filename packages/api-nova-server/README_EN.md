@@ -202,7 +202,7 @@ export API_TOKEN="your-token-here"
 
 ### Configuration File
 
-Create `mcp-swagger.config.json`:
+Create `api-nova.config.json`:
 
 ```json
 {

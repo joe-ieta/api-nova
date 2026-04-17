@@ -2,17 +2,17 @@
 
 ## 概述
 
-本文档详细阐述了在mcp-swagger-server中集成企业级业务系统token认证的技术方案。该方案涵盖了从OpenAPI规范解析到MCP工具执行的完整认证流程，确保能够满足企业实际应用场景的安全需求。
+本文档详细阐述了在api-nova-server中集成企业级业务系统token认证的技术方案。该方案涵盖了从OpenAPI规范解析到MCP工具执行的完整认证流程，确保能够满足企业实际应用场景的安全需求。
 
 ## 1. 技术背景分析
 
 ### 1.1 现有架构分析
 
-当前mcp-swagger-server的架构包含以下关键组件：
+当前api-nova-server的架构包含以下关键组件：
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   MCP Swagger Server                        │
+│                   ApiNova Server                        │
 ├─────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐  ┌──────────────┐  ┌─────────────────┐    │
 │  │   OpenAPI   │  │  Tool        │  │   MCP Server    │    │
@@ -149,11 +149,11 @@ interface EnhancedMCPTool extends MCPTool {
 
 **全局配置方式**：
 ```typescript
-// 在mcp-swagger-server启动时配置
+// 在api-nova-server启动时配置
 const serverConfig = {
   openapi: 'https://api.example.com/openapi.json',
   transport: 'streamable',
-  port: 3322,
+  port:9022,
   auth: {
     type: 'bearer',
     credentials: {
@@ -281,7 +281,7 @@ class AuthenticatedHttpClient {
 
 ```bash
 # 基础用法
-mcp-swagger-server \
+api-nova-server \
   --openapi https://api.example.com/openapi.json \
   --auth-type bearer \
   --auth-token "your-bearer-token" \
@@ -289,7 +289,7 @@ mcp-swagger-server \
   --port 3322
 
 # 高级用法
-mcp-swagger-server \
+api-nova-server \
   --openapi https://api.example.com/openapi.json \
   --auth-config ./auth-config.json \
   --transport streamable \
@@ -317,12 +317,12 @@ mcp-swagger-server \
 #### 2.4.2 编程式集成
 
 ```typescript
-import { createMcpServer } from 'mcp-swagger-server';
+import { createMcpServer } from 'api-nova-server';
 
 const server = await createMcpServer({
   openapi: 'https://api.example.com/openapi.json',
   transport: 'streamable',
-  port: 3322,
+  port:9022,
   auth: {
     type: 'bearer',
     credentials: {
@@ -343,7 +343,7 @@ await server.start();
 #### 2.4.3 API集成
 
 ```typescript
-// 通过mcp-swagger-api服务
+// 通过api-nova-api服务
 const response = await fetch('/api/v1/mcp/create', {
   method: 'POST',
   headers: {
@@ -355,7 +355,7 @@ const response = await fetch('/api/v1/mcp/create', {
     config: {
       name: 'enterprise-api',
       version: '1.0.0',
-      port: 3322,
+      port:9022,
       transport: 'streamable'
     },
     authConfig: {
@@ -523,7 +523,7 @@ const internalSystemConfig = {
       },
       "transport": {
         "type": "streamable",
-        "port": 3322
+        "port":9022
       }
     }
   ]
@@ -637,17 +637,17 @@ ENV REFRESH_TOKEN=""
 
 EXPOSE 3322
 
-CMD ["mcp-swagger-server", "--config", "/app/config/auth.json"]
+CMD ["api-nova-server", "--config", "/app/config/auth.json"]
 ```
 
 **Docker Compose**：
 ```yaml
 version: '3.8'
 services:
-  mcp-swagger-server:
+  api-nova-server:
     build: .
     ports:
-      - "3322:3322"
+      - "3322:9022"
     environment:
       - NODE_ENV=production
       - API_TOKEN=${API_TOKEN}
@@ -664,22 +664,22 @@ services:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mcp-swagger-server
+  name: api-nova-server
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: mcp-swagger-server
+      app: api-nova-server
   template:
     metadata:
       labels:
-        app: mcp-swagger-server
+        app: api-nova-server
     spec:
       containers:
-      - name: mcp-swagger-server
-        image: mcp-swagger-server:latest
+      - name: api-nova-server
+        image: api-nova-server:latest
         ports:
-        - containerPort: 3322
+        - containerPort:9022
         env:
         - name: API_TOKEN
           valueFrom:
@@ -709,9 +709,9 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: 'mcp-swagger-server'
+  - job_name: 'api-nova-server'
     static_configs:
-      - targets: ['localhost:3322']
+      - targets: ['localhost:9022']
     metrics_path: '/metrics'
 ```
 

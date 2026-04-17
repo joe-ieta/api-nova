@@ -10,8 +10,8 @@ export function isServerDebugEnabled(explicit = false): boolean {
   }
 
   return (
-    isEnabled(process.env.MCP_SWAGGER_DEBUG) ||
-    isEnabled(process.env.MCP_SWAGGER_SERVER_DEBUG)
+    isEnabled(process.env.api_nova_DEBUG) ||
+    isEnabled(process.env.api_nova_SERVER_DEBUG)
   );
 }
 

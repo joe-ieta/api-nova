@@ -1,8 +1,8 @@
-# MCP Swagger Server 架构文档
+# ApiNova Server 架构文档
 
 ## 📋 文档概览
 
-本目录包含 MCP Swagger Server 项目的详细架构设计文档，涵盖系统设计、重构方案和实施计划。
+本目录包含 ApiNova Server 项目的详细架构设计文档，涵盖系统设计、重构方案和实施计划。
 
 ---
 
@@ -22,13 +22,13 @@
 - 📊 效益分析和成功标准定义
 
 **关键决策**:
-- 将 OpenAPI 解析逻辑抽离为独立的 `mcp-swagger-parser` 库
+- 将 OpenAPI 解析逻辑抽离为独立的 `api-nova-parser` 库
 - 建立清晰的职责分工和依赖关系
 - 采用 workspace 管理策略实现 monorepo
 
 #### 2. [解析库抽离实施计划](./parser-extraction-implementation-plan.md)
 **状态**: ✅ 完成  
-**概要**: `mcp-swagger-parser` 库抽离的详细实施计划
+**概要**: `api-nova-parser` 库抽离的详细实施计划
 
 **核心内容**:
 - 📊 当前代码状态分析和边界划分
@@ -56,7 +56,7 @@
 
 ### ADR-002: 抽离 OpenAPI 解析库
 ```
-决策: 将解析逻辑抽离为独立的 mcp-swagger-parser 包
+决策: 将解析逻辑抽离为独立的 api-nova-parser 包
 原因: 关注点分离，提高可测试性和复用性
 影响: 短期增加重构工作量，长期降低维护成本
 状态: ✅ 批准
@@ -77,7 +77,7 @@
 ### 系统整体架构
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    MCP Swagger Server Ecosystem            │
+│                    ApiNova Server Ecosystem            │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌─────────────────┐    ┌──────────────────┐               │
@@ -88,7 +88,7 @@
 │            └──────────┬───────────┘                        │
 │                       │                                    │
 │  ┌─────────────────────▼────────────────────┐              │
-│  │         MCP Swagger Server               │              │
+│  │         ApiNova Server               │              │
 │  │  ┌─────────────────┐ ┌─────────────────┐ │              │
 │  │  │  MCP Converter  │ │ Protocol Layer  │ │              │
 │  │  │                 │ │ (stdio/sse/     │ │              │
@@ -110,13 +110,13 @@
 
 ### 包依赖关系图
 ```
-@mcp-swagger/ui ────────┐
+@api-nova/ui ────────┐
                         │
                         ▼
-@mcp-swagger/server ────► mcp-swagger-parser
+@api-nova/server ────► api-nova-parser
                         │
                         ▼
-@mcp-swagger/cli ───────┘
+@api-nova/cli ───────┘
 
 依赖方向: 从左到右，右侧包不依赖左侧包
 ```
@@ -148,7 +148,7 @@ Input Source → Parser → Validation → Extraction → Conversion → MCP Out
 ```
 
 ### 下一步行动
-1. **立即开始**: 创建 `mcp-swagger-parser` 包结构
+1. **立即开始**: 创建 `api-nova-parser` 包结构
 2. **本周目标**: 完成核心代码抽离
 3. **下周计划**: 服务器端重构和测试
 

@@ -141,10 +141,10 @@ content: [createTextContent(fullResponseText, {
 ### 2. 构建测试 ✅
 整个项目构建成功，包括：
 
-- ✅ mcp-swagger-parser 包构建成功
-- ✅ mcp-swagger-server 包构建成功
-- ✅ mcp-swagger-api 包构建成功
-- ✅ mcp-swagger-ui 包构建成功
+- ✅ api-nova-parser 包构建成功
+- ✅ api-nova-server 包构建成功
+- ✅ api-nova-api 包构建成功
+- ✅ api-nova-ui 包构建成功
 
 ### 3. 类型检查 ✅
 所有 TypeScript 类型检查通过，无编译错误。
@@ -190,7 +190,7 @@ content: [createTextContent(fullResponseText, {
 
 - [MCP 工具响应验证分析](./mcp-tool-response-validation.md) - 详细分析文档
 - [MCP 与 JSON-RPC 2.0 关系说明](./mcp-jsonrpc-relationship.md) - 协议关系解析
-- [test-mcp-compliance.ts](../packages/mcp-swagger-parser/test-mcp-compliance.ts) - 验证测试代码
+- [test-mcp-compliance.ts](../packages/api-nova-parser/test-mcp-compliance.ts) - 验证测试代码
 
 ## 🎉 总结
 

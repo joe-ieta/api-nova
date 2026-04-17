@@ -159,7 +159,7 @@ export async function main() {
   const operationFilter = parseOperationFilter(options, config);
 
   // Show startup banner
-  CliDesign.showHeader('MCP SWAGGER SERVER');
+  CliDesign.showHeader('ApiNova SERVER');
   console.log(CliDesign.brand.primary.bold(`  ${CliDesign.icons.rocket} 正在启动服务器...`));
   console.log();
 

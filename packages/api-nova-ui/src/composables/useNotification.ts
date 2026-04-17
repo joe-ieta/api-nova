@@ -26,11 +26,11 @@ export const useNotification = () => {
       ElMessage({
         message: options,
         type: "info",
-        duration: 3000,
+        duration:9000,
       });
     } else {
       ElMessage({
-        duration: 3000,
+        duration:9000,
         showClose: true,
         ...options,
       });

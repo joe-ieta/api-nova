@@ -1,4 +1,4 @@
-# 实用MCP Swagger UI架构实现方案
+# 实用ApiNova UI架构实现方案
 
 ## 🎯 项目目标
 
@@ -8,17 +8,17 @@
 
 ### 当前项目结构
 ```
-mcp-swagger-server/
+api-nova-server/
 ├── packages/
-│   ├── mcp-swagger-parser/          # ✅ 已实现：核心解析库
-│   ├── mcp-swagger-server/          # ✅ 已实现：MCP服务器
+│   ├── api-nova-parser/          # ✅ 已实现：核心解析库
+│   ├── api-nova-server/          # ✅ 已实现：MCP服务器
 │   │   ├── src/
 │   │   │   ├── server.ts           # MCP服务器核心
 │   │   │   ├── tools/initTools.ts  # 工具初始化
 │   │   │   ├── transform/          # OpenAPI→MCP转换
 │   │   │   ├── transportUtils/     # 传输层(stdio,sse,stream)
 │   │   │   └── swagger_json_file/  # 静态swagger文件
-│   └── mcp-swagger-ui/             # ✅ 已实现：Web UI界面
+│   └── api-nova-ui/             # ✅ 已实现：Web UI界面
 │       ├── src/
 │       │   ├── views/Home.vue      # 主界面
 │       │   ├── stores/app.ts       # 状态管理
@@ -29,7 +29,7 @@ mcp-swagger-server/
 ### 当前实现状态
 1. **✅ MCP服务器**: 已实现，支持多种传输协议(stdio、sse、stream)
 2. **✅ Web UI**: 已实现基础界面，支持OpenAPI输入和预览
-3. **✅ 解析库**: mcp-swagger-parser已实现核心解析功能
+3. **✅ 解析库**: api-nova-parser已实现核心解析功能
 4. **❌ 集成**: UI和MCP服务器之间缺少桥接
 5. **❌ 动态配置**: 目前使用静态swagger.json文件
 
@@ -41,7 +41,7 @@ mcp-swagger-server/
 ┌─────────────────────────────────────────────────────────────────┐
 │                      Web Browser                                │
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │              MCP Swagger UI                             │    │
+│  │              ApiNova UI                             │    │
 │  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐      │    │
 │  │  │ OpenAPI     │ │   Preview   │ │   Config    │      │    │
 │  │  │ Input       │ │  Component  │ │  Manager    │      │    │
@@ -52,7 +52,7 @@ mcp-swagger-server/
                           ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                   Configuration API Server                      │
-│                      (Port: 3001)                              │
+│                      (Port:9001)                              │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │                  Express API                            │    │
 │  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐      │    │
@@ -71,8 +71,8 @@ mcp-swagger-server/
                           │ File System / Process Signal
                           ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    MCP Swagger Server                           │
-│                      (Port: 3322)                              │
+│                    ApiNova Server                           │
+│                      (Port:9022)                              │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │                MCP Protocol Layer                       │    │
 │  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐      │    │
@@ -95,7 +95,7 @@ mcp-swagger-server/
 │                   (AI Assistant)                               │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │              StreamableHTTPClientTransport              │    │
-│  │  • 连接到 http://localhost:3322/mcp                      │    │
+│  │  • 连接到 http://localhost:9022/mcp                      │    │
 │  │  • 发现可用工具                                           │    │
 │  │  • 调用API工具                                           │    │
 │  └─────────────────────────────────────────────────────────┘    │
@@ -123,10 +123,10 @@ mcp-swagger-server/
 重新设计MCP服务器，支持动态工具注册，而不是依赖静态文件：
 
 ```typescript
-// packages/mcp-swagger-server/src/dynamicServer.ts
+// packages/api-nova-server/src/dynamicServer.ts
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp";
-import { transformToMCPTools, parseFromUrl, parseFromString } from 'mcp-swagger-parser';
-import type { MCPTool, OpenAPISpec, InputSource } from 'mcp-swagger-parser';
+import { transformToMCPTools, parseFromUrl, parseFromString } from 'api-nova-parser';
+import type { MCPTool, OpenAPISpec, InputSource } from 'api-nova-parser';
 
 export class DynamicMCPServer {
   private mcpServer: McpServer;
@@ -136,7 +136,7 @@ export class DynamicMCPServer {
   constructor() {
     this.mcpServer = new McpServer(
       {
-        name: "mcp-swagger-server-dynamic",
+        name: "api-nova-server-dynamic",
         version: "2.0.0",
         description: "Dynamic MCP server for OpenAPI specifications"
       },
@@ -321,11 +321,11 @@ export class DynamicMCPServer {
 ### 第二步：创建配置API服务
 
 ```typescript
-// packages/mcp-swagger-config-api/src/server.ts
+// packages/api-nova-config-api/src/server.ts
 import express from 'express';
 import cors from 'cors';
-import { DynamicMCPServer } from '../../mcp-swagger-server/src/dynamicServer';
-import { startStreamableMcpServer } from '../../mcp-swagger-server/src/transportUtils';
+import { DynamicMCPServer } from '../../api-nova-server/src/dynamicServer';
+import { startStreamableMcpServer } from '../../api-nova-server/src/transportUtils';
 
 const app = express();
 const PORT = 3001;
@@ -463,14 +463,14 @@ app.listen(PORT, () => {
 
 ### 第二步：修改前端API调用
 
-更新现有的`packages/mcp-swagger-ui/src/utils/parser.ts`：
+更新现有的`packages/api-nova-ui/src/utils/parser.ts`：
 
 ```typescript
-// packages/mcp-swagger-ui/src/utils/parser.ts
+// packages/api-nova-ui/src/utils/parser.ts
 import axios from 'axios';
 
 const configAPI = axios.create({
-  baseURL: 'http://localhost:3001/api',
+  baseURL: 'http://localhost:9001/api',
   timeout: 30000
 });
 
@@ -515,7 +515,7 @@ export async function getMCPServerStatus(): Promise<MCPServerStatus> {
     return {
       mcpServerRunning: false,
       mcpServerUrl: null,
-      configApiUrl: 'http://localhost:3001',
+      configApiUrl: 'http://localhost:9001',
       toolsCount: 0,
       hasConfiguration: false,
       apiTitle: null,
@@ -586,7 +586,7 @@ interface ToolInfo {
 
 ### 第三步：增强UI界面
 
-更新`packages/mcp-swagger-ui/src/views/Home.vue`，添加完整的MCP管理界面：
+更新`packages/api-nova-ui/src/views/Home.vue`，添加完整的MCP管理界面：
 
 ```vue
 <template>
@@ -748,7 +748,7 @@ import {
 const mcpServerStatus = ref({
   mcpServerRunning: false,
   mcpServerUrl: null,
-  configApiUrl: 'http://localhost:3001',
+  configApiUrl: 'http://localhost:9001',
   toolsCount: 0,
   hasConfiguration: false,
   apiTitle: null,
@@ -1020,7 +1020,7 @@ const client = new Client({
 });
 
 const transport = new StreamableHTTPClientTransport({
-  baseUrl: "http://localhost:3322/mcp"
+  baseUrl: "http://localhost:9022/mcp"
 });
 
 await client.connect(transport);
@@ -1043,11 +1043,11 @@ console.log('工具调用结果:', result);
 // package.json (根目录)
 {
   "scripts": {
-    "dev:config-api": "pnpm --filter=mcp-swagger-config-api run dev",
-    "dev:ui": "pnpm --filter=mcp-swagger-ui run dev",
+    "dev:config-api": "pnpm --filter=api-nova-config-api run dev",
+    "dev:ui": "pnpm --filter=api-nova-ui run dev",
     "dev:full": "concurrently \"pnpm run dev:config-api\" \"pnpm run dev:ui\"",
     "build:all": "pnpm -r run build",
-    "start:production": "concurrently \"pnpm --filter=mcp-swagger-config-api run start\" \"pnpm --filter=mcp-swagger-ui run preview\""
+    "start:production": "concurrently \"pnpm --filter=api-nova-config-api run start\" \"pnpm --filter=api-nova-ui run preview\""
   }
 }
 ```

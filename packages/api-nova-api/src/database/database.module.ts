@@ -68,7 +68,7 @@ import { SeedService } from './seed.service';
           port: configService.get('DB_PORT', 5432),
           username: configService.get('DB_USERNAME', 'postgres'),
           password: configService.get('DB_PASSWORD', 'password'),
-          database: String(configService.get('DB_DATABASE', 'mcp_swagger_api')),
+          database: String(configService.get('DB_DATABASE', 'api_nova_api')),
           entities,
           synchronize: configService.get(
             'DB_SYNCHRONIZE',
@@ -77,7 +77,7 @@ import { SeedService } from './seed.service';
           logging: configService.get('DB_LOGGING', false),
           ssl: nodeEnv === 'production' ? { rejectUnauthorized: false } : false,
           retryAttempts: 3,
-          retryDelay: 3000,
+          retryDelay:9000,
           autoLoadEntities: true,
           keepConnectionAlive: true,
         };

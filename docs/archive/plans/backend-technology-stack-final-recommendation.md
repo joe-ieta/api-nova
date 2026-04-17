@@ -161,8 +161,8 @@ export class ConversionService {
 
 # 或手动执行
 cd packages
-npx @nestjs/cli new mcp-swagger-server-nestjs
-cd mcp-swagger-server-nestjs
+npx @nestjs/cli new api-nova-server-nestjs
+cd api-nova-server-nestjs
 ```
 
 ### 第2步：依赖安装 (15分钟)

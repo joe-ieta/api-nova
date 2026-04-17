@@ -19,7 +19,7 @@
 - **多格式支持**：支持 JSON 和 YAML 格式
 - **高性能**：经过 74,426 个真实世界 Swagger 2.0 定义的测试
 
-## 2. 在 mcp-swagger-parser 中的应用场景
+## 2. 在 api-nova-parser 中的应用场景
 
 ### 2.1 当前痛点
 - 许多传统 API 仍然使用 Swagger 2.0 格式
@@ -298,7 +298,7 @@ export interface EnhancedParseResult extends ParseResult {
 
 ### 5.1 基本使用
 ```typescript
-import { parseAndTransform } from 'mcp-swagger-parser';
+import { parseAndTransform } from 'api-nova-parser';
 
 // 自动检测和转换 Swagger 2.0
 const tools = await parseAndTransform('swagger2-api.json', {
@@ -393,7 +393,7 @@ try {
 
 ## 9. 总结
 
-通过集成 `swagger2openapi`，`mcp-swagger-parser` 将能够：
+通过集成 `swagger2openapi`，`api-nova-parser` 将能够：
 
 1. **无缝支持** Swagger 2.0 和 OpenAPI 3.0+ 规范
 2. **自动转换** 旧版规范到新版格式

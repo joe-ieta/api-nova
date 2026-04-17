@@ -62,10 +62,10 @@ export class SystemBootstrap implements OnApplicationBootstrap {
   private async logSystemInfo(): Promise<void> {
     const nodeEnv = this.configService.get('NODE_ENV', 'development');
     const port = this.configService.get('PORT', 9001);
-    const mcpPort = this.configService.get('MCP_PORT', 3002);
+    const mcpPort = this.configService.get('MCP_PORT', 9022);
     const dbHost = this.configService.get('DB_HOST', 'localhost');
     const dbPort = this.configService.get('DB_PORT', 5432);
-    const dbName = this.configService.get('DB_DATABASE', 'mcp_swagger_api');
+    const dbName = this.configService.get('DB_DATABASE', 'api_nova_api');
     
     this.logger.log('🎯 系统配置信息:');
     this.logger.log(`   环境: ${nodeEnv}`);
@@ -114,7 +114,7 @@ export class SystemBootstrap implements OnApplicationBootstrap {
         environment: {
           nodeEnv: this.configService.get('NODE_ENV', 'development'),
           port: this.configService.get('PORT', 9001),
-          mcpPort: this.configService.get('MCP_PORT', 3002),
+          mcpPort: this.configService.get('MCP_PORT', 9022),
         }
       };
     } catch (error) {
@@ -131,7 +131,7 @@ export class SystemBootstrap implements OnApplicationBootstrap {
         environment: {
           nodeEnv: this.configService.get('NODE_ENV', 'development'),
           port: this.configService.get('PORT', 9001),
-          mcpPort: this.configService.get('MCP_PORT', 3002),
+          mcpPort: this.configService.get('MCP_PORT', 9022),
         }
       };
     }

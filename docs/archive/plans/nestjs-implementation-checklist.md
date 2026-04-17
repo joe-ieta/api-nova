@@ -14,7 +14,7 @@
   ```
 - [ ] **验证项目结构**
   ```
-  packages/mcp-swagger-server-nestjs/
+  packages/api-nova-server-nestjs/
   ├── src/
   ├── test/
   ├── package.json
@@ -53,8 +53,8 @@
 - [ ] **验证启动**
   ```bash
   npm run start:dev
-  # 应该在 http://localhost:3322 启动
-  # Swagger 文档在 http://localhost:3322/docs
+  # 应该在 http://localhost:9022 启动
+  # Swagger 文档在 http://localhost:9022/docs
   ```
 
 #### 配置模块设置 (45分钟)
@@ -225,8 +225,8 @@
 ### 🔌 前端集成 (4小时)
 
 #### API 客户端更新
-- [ ] **修改 `packages/mcp-swagger-ui/src/utils/api.ts`**
-  - 更新 API 基础 URL (localhost:3322)
+- [ ] **修改 `packages/api-nova-ui/src/utils/api.ts`**
+  - 更新 API 基础 URL (localhost:9022)
   - 移除 demo 模式
   - 添加真实 API 调用
 
@@ -321,7 +321,7 @@
 
 **第二步：验证环境**
 ```bash
-cd packages\mcp-swagger-server-nestjs
+cd packages\api-nova-server-nestjs
 npm run start:dev
 ```
 

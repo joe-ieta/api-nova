@@ -17,7 +17,7 @@ export const validationSchema = Joi.object({
   DB_PORT: Joi.number().port().default(5432),
   DB_USERNAME: Joi.string().default('postgres'),
   DB_PASSWORD: Joi.string().default('password'),
-  DB_DATABASE: Joi.string().default('mcp_swagger_api'),
+  DB_DATABASE: Joi.string().default('api_nova_api'),
   DB_LOGGING: Joi.boolean().default(false),
   DB_SYNCHRONIZE: Joi.boolean().optional(),
 

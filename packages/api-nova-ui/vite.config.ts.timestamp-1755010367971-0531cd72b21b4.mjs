@@ -1,12 +1,12 @@
 // vite.config.ts
-import { defineConfig } from "file:///Users/zhucaiyunxiaodi/Downloads/mcp-swagger-server/node_modules/.pnpm/vite@5.4.19_@types+node@20.19.1_terser@5.43.1/node_modules/vite/dist/node/index.js";
-import vue from "file:///Users/zhucaiyunxiaodi/Downloads/mcp-swagger-server/node_modules/.pnpm/@vitejs+plugin-vue@4.6.2_vite@5.4.19_@types+node@20.19.1_terser@5.43.1__vue@3.5.17_typescript@5.2.2_/node_modules/@vitejs/plugin-vue/dist/index.mjs";
+import { defineConfig } from "file:///Users/zhucaiyunxiaodi/Downloads/api-nova-server/node_modules/.pnpm/vite@5.4.19_@types+node@20.19.1_terser@5.43.1/node_modules/vite/dist/node/index.js";
+import vue from "file:///Users/zhucaiyunxiaodi/Downloads/api-nova-server/node_modules/.pnpm/@vitejs+plugin-vue@4.6.2_vite@5.4.19_@types+node@20.19.1_terser@5.43.1__vue@3.5.17_typescript@5.2.2_/node_modules/@vitejs/plugin-vue/dist/index.mjs";
 import { resolve } from "path";
-import AutoImport from "file:///Users/zhucaiyunxiaodi/Downloads/mcp-swagger-server/node_modules/.pnpm/unplugin-auto-import@0.16.7_@vueuse+core@9.13.0_vue@3.5.17_typescript@5.2.2___rollup@4.44.0/node_modules/unplugin-auto-import/dist/vite.js";
-import Components from "file:///Users/zhucaiyunxiaodi/Downloads/mcp-swagger-server/node_modules/.pnpm/unplugin-vue-components@0.25.2_@babel+parser@7.27.5_rollup@4.44.0_vue@3.5.17_typescript@5.2.2_/node_modules/unplugin-vue-components/dist/vite.mjs";
-import { ElementPlusResolver } from "file:///Users/zhucaiyunxiaodi/Downloads/mcp-swagger-server/node_modules/.pnpm/unplugin-vue-components@0.25.2_@babel+parser@7.27.5_rollup@4.44.0_vue@3.5.17_typescript@5.2.2_/node_modules/unplugin-vue-components/dist/resolvers.mjs";
+import AutoImport from "file:///Users/zhucaiyunxiaodi/Downloads/api-nova-server/node_modules/.pnpm/unplugin-auto-import@0.16.7_@vueuse+core@9.13.0_vue@3.5.17_typescript@5.2.2___rollup@4.44.0/node_modules/unplugin-auto-import/dist/vite.js";
+import Components from "file:///Users/zhucaiyunxiaodi/Downloads/api-nova-server/node_modules/.pnpm/unplugin-vue-components@0.25.2_@babel+parser@7.27.5_rollup@4.44.0_vue@3.5.17_typescript@5.2.2_/node_modules/unplugin-vue-components/dist/vite.mjs";
+import { ElementPlusResolver } from "file:///Users/zhucaiyunxiaodi/Downloads/api-nova-server/node_modules/.pnpm/unplugin-vue-components@0.25.2_@babel+parser@7.27.5_rollup@4.44.0_vue@3.5.17_typescript@5.2.2_/node_modules/unplugin-vue-components/dist/resolvers.mjs";
 var __vite_injected_original_dirname =
-  "/Users/zhucaiyunxiaodi/Downloads/mcp-swagger-server/packages/mcp-swagger-ui";
+  "/Users/zhucaiyunxiaodi/Downloads/api-nova-server/packages/api-nova-ui";
 var vite_config_default = defineConfig({
   plugins: [
     vue(),
@@ -31,17 +31,17 @@ var vite_config_default = defineConfig({
     host: true,
     proxy: {
       "/api": {
-        target: "http://localhost:3001",
+        target: "http://localhost:9001",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, "/api"),
       },
       "/socket.io": {
-        target: "http://localhost:3001",
+        target: "http://localhost:9001",
         changeOrigin: true,
         ws: true,
       },
       "/monitoring": {
-        target: "http://localhost:3001",
+        target: "http://localhost:9001",
         changeOrigin: true,
         ws: true,
       },

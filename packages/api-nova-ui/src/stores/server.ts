@@ -93,7 +93,7 @@ export const useServerStore = defineStore("server", () => {
         type: "success",
         title: "服务器创建成功",
         message: `服务器 "${config.name}" 已成功创建`,
-        duration: 3000,
+        duration:9000,
       });
       clearError();
       return true;
@@ -124,7 +124,7 @@ export const useServerStore = defineStore("server", () => {
         type: "success",
         title: "服务器更新成功",
         message: `服务器配置已更新`,
-        duration: 3000,
+        duration:9000,
       });
       clearError();
       return true;
@@ -158,7 +158,7 @@ export const useServerStore = defineStore("server", () => {
           type: "success",
           title: "服务器删除成功",
           message: `服务器 "${serverName}" 已删除`,
-          duration: 3000,
+          duration:9000,
         });
       }
       clearError();
@@ -209,7 +209,7 @@ export const useServerStore = defineStore("server", () => {
         type: "success",
         title: `服务器${actionText}成功`,
         message: response.message || `服务器已${actionText}`,
-        duration: 3000,
+        duration:9000,
       });
       clearError();
       return true;
@@ -367,7 +367,7 @@ export const useServerStore = defineStore("server", () => {
         title: `批量${actionText}成功`,
         message:
           response.message || `已${actionText} ${serverIds.length} 个服务器`,
-        duration: 3000,
+        duration:9000,
       });
       clearError();
       return true;
@@ -441,7 +441,7 @@ export const useServerStore = defineStore("server", () => {
         type: "success",
         title: "健康检查完成",
         message: `服务器健康状态: ${response.healthy ? "健康" : "异常"}`,
-        duration: 3000,
+        duration:9000,
       });
       return true;
     } catch (err) {

@@ -8,21 +8,21 @@
 
 ### 1.1 依赖解析机制
 
-在 monorepo 中，当一个包（如 `mcp-swagger-ui`）依赖另一个包（如 `mcp-swagger-parser`）时，模块解析器需要找到实际的入口文件：
+在 monorepo 中，当一个包（如 `api-nova-ui`）依赖另一个包（如 `api-nova-parser`）时，模块解析器需要找到实际的入口文件：
 
 ```json
-// packages/mcp-swagger-ui/package.json
+// packages/api-nova-ui/package.json
 {
   "dependencies": {
-    "mcp-swagger-parser": "workspace:*"
+    "api-nova-parser": "workspace:*"
   }
 }
 ```
 
 ```json
-// packages/mcp-swagger-parser/package.json
+// packages/api-nova-parser/package.json
 {
-  "name": "mcp-swagger-parser",
+  "name": "api-nova-parser",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -70,7 +70,7 @@ function scanDependencies(entryPoints) {
 }
 ```
 
-**失败场景**: 当扫描到 `mcp-swagger-parser` 时，如果 `dist/index.js` 不存在，扫描失败，开发服务器无法启动。
+**失败场景**: 当扫描到 `api-nova-parser` 时，如果 `dist/index.js` 不存在，扫描失败，开发服务器无法启动。
 
 ## 2. 自动化构建脚本的优势
 
@@ -131,7 +131,7 @@ const buildPackages = async (packages) => {
 ### 3.1 项目结构设计
 
 ```
-mcp-swagger-server/
+api-nova-server/
 ├── packages/
 │   ├── core/                    # 基础工具包
 │   │   ├── src/
@@ -157,13 +157,13 @@ mcp-swagger-server/
 
 ```json
 {
-  "name": "mcp-swagger-server",
+  "name": "api-nova-server",
   "private": true,
   "scripts": {
     "build": "node scripts/build.js",
     "build:packages": "pnpm -r --filter='!./packages/ui' run build",
     "dev": "node scripts/dev.js",
-    "dev:ui": "pnpm --filter=mcp-swagger-ui run dev",
+    "dev:ui": "pnpm --filter=api-nova-ui run dev",
     "clean": "pnpm -r run clean && rimraf node_modules",
     "postinstall": "pnpm run build:packages"
   },
@@ -389,7 +389,7 @@ if (require.main === module) {
 ```json
 // packages/parser/package.json
 {
-  "name": "mcp-swagger-parser",
+  "name": "api-nova-parser",
   "version": "0.1.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

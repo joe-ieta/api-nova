@@ -23,7 +23,7 @@ This release closes the current product baseline around installation, startup, d
 
 - no external database is required for first startup
 - if `DB_TYPE` is unset, the API defaults to SQLite
-- the default SQLite file path is `data/mcp-swagger.db`
+- the default SQLite file path is `data/api-nova.db`
 
 ### Production path
 
@@ -32,25 +32,25 @@ This release closes the current product baseline around installation, startup, d
 
 ## Verified in this release
 
-- `pnpm --filter mcp-swagger-api run type-check`
-- `pnpm --filter mcp-swagger-ui run type-check`
-- `pnpm --filter mcp-swagger-server run type-check`
-- `pnpm --filter mcp-swagger-api run build`
-- `pnpm --filter mcp-swagger-api test`
-- `pnpm --filter mcp-swagger-ui run build`
-- `pnpm --filter mcp-swagger-server run build`
+- `pnpm --filter api-nova-api run type-check`
+- `pnpm --filter api-nova-ui run type-check`
+- `pnpm --filter api-nova-server run type-check`
+- `pnpm --filter api-nova-api run build`
+- `pnpm --filter api-nova-api test`
+- `pnpm --filter api-nova-ui run build`
+- `pnpm --filter api-nova-server run build`
 - default SQLite initialization when `DB_TYPE` is unset
 - `node scripts/verify-parser-propagation.js`
-- `packages/mcp-swagger-api/src/modules/openapi/services/parser.service.spec.ts`
-- `packages/mcp-swagger-api/src/modules/openapi/services/openapi.service.spec.ts`
-- `packages/mcp-swagger-api/src/modules/openapi/services/validator.service.spec.ts`
-- `packages/mcp-swagger-api/src/modules/servers/services/process-manager.service.spec.ts`
-- `packages/mcp-swagger-api/src/modules/servers/services/process-health.service.spec.ts`
-- `packages/mcp-swagger-api/src/modules/servers/services/system-log.service.spec.ts`
+- `packages/api-nova-api/src/modules/openapi/services/parser.service.spec.ts`
+- `packages/api-nova-api/src/modules/openapi/services/openapi.service.spec.ts`
+- `packages/api-nova-api/src/modules/openapi/services/validator.service.spec.ts`
+- `packages/api-nova-api/src/modules/servers/services/process-manager.service.spec.ts`
+- `packages/api-nova-api/src/modules/servers/services/process-health.service.spec.ts`
+- `packages/api-nova-api/src/modules/servers/services/system-log.service.spec.ts`
 
 ## Follow-up Baseline
 
-For any later release that changes `mcp-swagger-parser`, downstream verification should include:
+For any later release that changes `api-nova-parser`, downstream verification should include:
 
 - `pnpm run verify:parser-chain`
 

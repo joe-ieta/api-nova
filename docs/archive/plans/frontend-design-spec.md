@@ -1,8 +1,8 @@
-# MCP Swagger Server 前端界面设计文档
+# ApiNova Server 前端界面设计文档
 
 ## 📋 概述
 
-本文档描述了 MCP Swagger Server 前端界面的设计原型，该界面用于帮助用户轻松地将 OpenAPI/Swagger 规范转换为 MCP (Model Context Protocol) 格式。
+本文档描述了 ApiNova Server 前端界面的设计原型，该界面用于帮助用户轻松地将 OpenAPI/Swagger 规范转换为 MCP (Model Context Protocol) 格式。
 
 ## 🎯 设计目标
 
@@ -17,7 +17,7 @@
 ### 主要组件
 
 #### 1. 头部区域 (Header)
-- **MCP Swagger Server** 主标题
+- **ApiNova Server** 主标题
 - 简短的功能描述
 - 采用渐变背景，提升视觉吸引力
 

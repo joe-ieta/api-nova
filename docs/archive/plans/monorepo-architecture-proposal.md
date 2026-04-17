@@ -1,11 +1,11 @@
-# MCP Swagger Server Monorepo 架构提案
+# ApiNova Server Monorepo 架构提案
 
 ## 🏗️ 推荐的 Monorepo 结构
 
 ```
-mcp-swagger-server/
+api-nova-server/
 ├── packages/
-│   ├── mcp-swagger-parser/          # 🔍 核心解析库
+│   ├── api-nova-parser/          # 🔍 核心解析库
 │   │   ├── src/
 │   │   │   ├── parsers/
 │   │   │   │   ├── openapi-parser.ts      # OpenAPI 3.x 解析器
@@ -29,7 +29,7 @@ mcp-swagger-server/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   ├── mcp-swagger-converter/       # 🔄 转换逻辑库
+│   ├── api-nova-converter/       # 🔄 转换逻辑库
 │   │   ├── src/
 │   │   │   ├── converters/
 │   │   │   │   ├── openapi-to-mcp.ts     # OpenAPI → MCP 转换
@@ -48,7 +48,7 @@ mcp-swagger-server/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   ├── mcp-swagger-server/          # ⚙️ MCP 协议服务器
+│   ├── api-nova-server/          # ⚙️ MCP 协议服务器
 │   │   ├── src/
 │   │   │   ├── server.ts            # MCP 服务器核心
 │   │   │   ├── transports/          # 传输层
@@ -57,12 +57,12 @@ mcp-swagger-server/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   ├── mcp-swagger-ui/              # 🎨 Web 用户界面
+│   ├── api-nova-ui/              # 🎨 Web 用户界面
 │   │   ├── src/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   ├── mcp-swagger-cli/             # 💻 命令行工具 (新增)
+│   ├── api-nova-cli/             # 💻 命令行工具 (新增)
 │   │   ├── src/
 │   │   │   ├── commands/
 │   │   │   │   ├── convert.ts       # 转换命令
@@ -73,7 +73,7 @@ mcp-swagger-server/
 │   │   ├── package.json
 │   │   └── README.md
 │   │
-│   └── mcp-swagger-types/           # 📋 共享类型定义
+│   └── api-nova-types/           # 📋 共享类型定义
 │       ├── src/
 │       │   ├── openapi.ts           # OpenAPI 类型
 │       │   ├── mcp.ts               # MCP 类型
@@ -99,7 +99,7 @@ mcp-swagger-server/
 
 ## 🎯 核心包职责分工
 
-### 📦 mcp-swagger-parser
+### 📦 api-nova-parser
 **职责**: 专注于 API 规范的解析和标准化
 ```typescript
 // 主要 API 设计
@@ -121,7 +121,7 @@ export interface ParsedApi {
 }
 ```
 
-### 🔄 mcp-swagger-converter
+### 🔄 api-nova-converter
 **职责**: 专注于格式转换逻辑
 ```typescript
 // 主要 API 设计
@@ -142,7 +142,7 @@ export interface ConvertOptions {
 }
 ```
 
-### ⚙️ mcp-swagger-server
+### ⚙️ api-nova-server
 **职责**: 专注于 MCP 协议实现
 ```typescript
 // 主要 API 设计
@@ -160,30 +160,30 @@ export class McpSwaggerServer {
 ## 📊 依赖关系图
 
 ```
-mcp-swagger-types ← (所有包都依赖)
+api-nova-types ← (所有包都依赖)
        ↑
-mcp-swagger-parser ← mcp-swagger-converter ← mcp-swagger-server
-                                          ← mcp-swagger-cli
-                                          ← mcp-swagger-ui
+api-nova-parser ← api-nova-converter ← api-nova-server
+                                          ← api-nova-cli
+                                          ← api-nova-ui
 ```
 
 ## 🚀 迁移计划
 
 ### 阶段 1: 创建核心解析库 (1-2 天)
-- [ ] 创建 `mcp-swagger-parser` 包
+- [ ] 创建 `api-nova-parser` 包
 - [ ] 抽离现有的 OpenAPI 解析逻辑
 - [ ] 添加完整的类型定义
 - [ ] 编写单元测试
 
 ### 阶段 2: 创建转换库 (2-3 天)
-- [ ] 创建 `mcp-swagger-converter` 包
+- [ ] 创建 `api-nova-converter` 包
 - [ ] 抽离转换逻辑
 - [ ] 实现策略模式
 - [ ] 添加优化器支持
 
 ### 阶段 3: 重构现有服务器 (1-2 天)
-- [ ] 更新 `mcp-swagger-server` 使用新的库
-- [ ] 更新 `mcp-swagger-ui` 使用新的库
+- [ ] 更新 `api-nova-server` 使用新的库
+- [ ] 更新 `api-nova-ui` 使用新的库
 - [ ] 更新依赖关系
 
 ### 阶段 4: 增强和扩展 (按需)
@@ -196,7 +196,7 @@ mcp-swagger-parser ← mcp-swagger-converter ← mcp-swagger-server
 ### 1. **生态系统扩展**
 ```typescript
 // 其他开发者可以轻松扩展
-import { BaseParser } from 'mcp-swagger-parser';
+import { BaseParser } from 'api-nova-parser';
 
 class CustomApiParser extends BaseParser {
   // 自定义解析逻辑
@@ -215,13 +215,13 @@ const converter = new McpConverter()
 ### 3. **多环境支持**
 ```typescript
 // Node.js 环境
-import { OpenApiParser } from 'mcp-swagger-parser/node';
+import { OpenApiParser } from 'api-nova-parser/node';
 
 // 浏览器环境
-import { OpenApiParser } from 'mcp-swagger-parser/browser';
+import { OpenApiParser } from 'api-nova-parser/browser';
 
 // Deno 环境
-import { OpenApiParser } from 'mcp-swagger-parser/deno';
+import { OpenApiParser } from 'api-nova-parser/deno';
 ```
 
 ## 🎯 结论

@@ -1,4 +1,4 @@
-# MCP Swagger UI 开发指南
+# ApiNova UI 开发指南
 
 ## 快速开始
 
@@ -13,7 +13,7 @@
 
 ```bash
 # 1. 进入项目目录
-cd packages/mcp-swagger-ui
+cd packages/api-nova-ui
 
 # 2. 安装依赖
 npm install
@@ -22,7 +22,7 @@ npm install
 npm run dev
 
 # 4. 在浏览器中访问
-# http://localhost:3000
+# http://localhost:9000
 ```
 
 ### 项目脚本
@@ -675,7 +675,7 @@ const AsyncComponent = defineAsyncComponent(
 ### 环境变量配置
 ```bash
 # .env.production
-VITE_APP_TITLE=MCP Swagger Server
+VITE_APP_TITLE=ApiNova Server
 VITE_API_BASE_URL=https://api.example.com
 VITE_ENABLE_DEMO_MODE=false
 ```
@@ -778,4 +778,4 @@ export const useAppStore = defineStore('app', {
 })
 ```
 
-这个开发指南提供了完整的开发流程、最佳实践和常见问题解决方案，帮助开发者快速上手并高效地开发 MCP Swagger UI 项目。
+这个开发指南提供了完整的开发流程、最佳实践和常见问题解决方案，帮助开发者快速上手并高效地开发 ApiNova UI 项目。

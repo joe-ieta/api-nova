@@ -1,4 +1,4 @@
-# MCP Swagger 自定义请求头实现方案
+# ApiNova 自定义请求头实现方案
 
 ## 1. 实现架构
 
@@ -7,7 +7,7 @@
 #### 更新 TransformerOptions 接口
 
 ```typescript
-// packages/mcp-swagger-parser/src/transformer/types.ts
+// packages/api-nova-parser/src/transformer/types.ts
 
 /**
  * 自定义请求头配置
@@ -78,7 +78,7 @@ export interface TransformerOptions {
 #### CustomHeadersManager 类
 
 ```typescript
-// packages/mcp-swagger-parser/src/headers/CustomHeadersManager.ts
+// packages/api-nova-parser/src/headers/CustomHeadersManager.ts
 
 import { CustomHeaders, RequestContext } from '../transformer/types';
 
@@ -236,7 +236,7 @@ export class CustomHeadersManager {
 #### 更新 OpenAPIToMCPTransformer 类
 
 ```typescript
-// packages/mcp-swagger-parser/src/transformer/index.ts
+// packages/api-nova-parser/src/transformer/index.ts
 
 import { CustomHeadersManager } from '../headers/CustomHeadersManager';
 
@@ -322,7 +322,7 @@ export class OpenAPIToMCPTransformer {
 ### 2.1 新增 CLI 参数
 
 ```typescript
-// packages/mcp-swagger-server/src/cli.ts
+// packages/api-nova-server/src/cli.ts
 
 interface ServerOptions {
   // ... 现有选项 ...
@@ -365,7 +365,7 @@ const { values, positionals } = parseArgs({
 ### 2.2 配置解析函数
 
 ```typescript
-// packages/mcp-swagger-server/src/cli.ts
+// packages/api-nova-server/src/cli.ts
 
 interface CustomHeadersConfig {
   static?: Record<string, string>;
@@ -467,7 +467,7 @@ function extractCustomHeadersFromEnv(envVars: Record<string, string> = {}): Reco
 ### 2.3 配置文件格式
 
 ```typescript
-// packages/mcp-swagger-server/src/types/config.ts
+// packages/api-nova-server/src/types/config.ts
 
 export interface ConfigFile {
   openapi?: string;
@@ -502,19 +502,19 @@ export interface ConfigFile {
 
 ```bash
 # 1. 基本静态头
-mcp-swagger-server \
+api-nova-server \
   --openapi https://api.example.com/swagger.json \
   --custom-header "User-Agent=MCP-Client/1.0" \
   --custom-header "X-Client-Version=1.0.0"
 
 # 2. 环境变量头
-mcp-swagger-server \
+api-nova-server \
   --openapi https://api.example.com/swagger.json \
   --custom-header-env "X-Client-ID=CLIENT_ID" \
   --custom-header-env "X-Request-Source=REQUEST_SOURCE"
 
 # 3. 配置文件
-mcp-swagger-server \
+api-nova-server \
   --config config.json \
   --custom-headers-config headers.json \
   --debug-headers
@@ -522,7 +522,7 @@ mcp-swagger-server \
 # 4. 环境变量格式
 export MCP_CUSTOM_HEADERS_USER_AGENT="MCP-Client/1.0"
 export MCP_CUSTOM_HEADERS_X_CLIENT_VERSION="1.0.0"
-mcp-swagger-server --openapi https://api.example.com/swagger.json
+api-nova-server --openapi https://api.example.com/swagger.json
 ```
 
 ### 3.2 配置文件示例
@@ -534,7 +534,7 @@ mcp-swagger-server --openapi https://api.example.com/swagger.json
   "transport": "stdio",
   "customHeaders": {
     "static": {
-      "User-Agent": "MCP-Swagger-Client/1.0",
+      "User-Agent": "ApiNova-Client/1.0",
       "X-Client-Version": "1.0.0",
       "Accept": "application/json"
     },
@@ -565,7 +565,7 @@ mcp-swagger-server --openapi https://api.example.com/swagger.json
 // headers.json (专用头配置文件)
 {
   "static": {
-    "User-Agent": "MCP-Swagger-Client/1.0",
+    "User-Agent": "ApiNova-Client/1.0",
     "X-Client-Version": "1.0.0",
     "Accept": "application/json"
   },
@@ -595,7 +595,7 @@ MCP_CUSTOM_HEADERS_ACCEPT=application/json
 
 # 环境变量映射
 CLIENT_ID=my-client-123
-REQUEST_SOURCE=mcp-swagger-server
+REQUEST_SOURCE=api-nova-server
 ```
 
 ## 4. 预定义动态头函数
@@ -603,7 +603,7 @@ REQUEST_SOURCE=mcp-swagger-server
 ### 4.1 常用动态头生成器
 
 ```typescript
-// packages/mcp-swagger-parser/src/headers/generators.ts
+// packages/api-nova-parser/src/headers/generators.ts
 
 export const predefinedGenerators = {
   /**
@@ -687,7 +687,7 @@ private async resolveDynamicHeaders(dynamicConfig: Record<string, string | (() =
 ### 5.1 单元测试
 
 ```typescript
-// packages/mcp-swagger-parser/src/headers/__tests__/CustomHeadersManager.test.ts
+// packages/api-nova-parser/src/headers/__tests__/CustomHeadersManager.test.ts
 
 import { CustomHeadersManager } from '../CustomHeadersManager';
 
@@ -772,7 +772,7 @@ describe('CustomHeadersManager', () => {
 ### 5.2 集成测试
 
 ```typescript
-// packages/mcp-swagger-parser/src/transformer/__tests__/CustomHeaders.integration.test.ts
+// packages/api-nova-parser/src/transformer/__tests__/CustomHeaders.integration.test.ts
 
 import { OpenAPIToMCPTransformer } from '../index';
 import axios from 'axios';
@@ -856,15 +856,15 @@ describe('OpenAPIToMCPTransformer with CustomHeaders', () => {
 ### 6.1 README 更新
 
 需要更新以下文档：
-- `packages/mcp-swagger-parser/README.md`
-- `packages/mcp-swagger-server/README.md`
+- `packages/api-nova-parser/README.md`
+- `packages/api-nova-server/README.md`
 - `docs/usage-guide.md`
 
 ### 6.2 API 文档更新
 
 需要更新：
-- `packages/mcp-swagger-parser/docs/API_DOCUMENTATION.md`
-- `packages/mcp-swagger-parser/docs/TECHNICAL_DOCUMENTATION.md`
+- `packages/api-nova-parser/docs/API_DOCUMENTATION.md`
+- `packages/api-nova-parser/docs/TECHNICAL_DOCUMENTATION.md`
 
 ## 7. 向后兼容性
 

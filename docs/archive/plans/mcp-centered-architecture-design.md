@@ -34,7 +34,7 @@
                           │ MCP Server Communication
                           ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                    MCP Swagger Server Core                                      │
+│                    ApiNova Server Core                                      │
 │  ┌─────────────────────────────────────────────────────────────┐               │
 │  │                   MCP Tools Registry                        │               │
 │  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐          │               │
@@ -126,7 +126,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                     Parsing & Validation Stage                                  │
 │  ┌─────────────────────────────────────────────────────────────┐               │
-│  │            Multi-Format Parser (mcp-swagger-parser)        │               │
+│  │            Multi-Format Parser (api-nova-parser)        │               │
 │  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐          │               │
 │  │  │ OpenAPI 3.x │ │Swagger 2.0  │ │  Postman    │          │               │    
 │  │  │   Parser    │ │   Parser    │ │  Collection │          │               │
@@ -197,7 +197,7 @@
 
 ## 🏢 三层架构详细设计
 
-### 第一层: MCP Swagger Server (核心MCP服务)
+### 第一层: ApiNova Server (核心MCP服务)
 
 ```typescript
 // 核心MCP服务器架构
@@ -208,7 +208,7 @@ class MCPSwaggerServer {
   
   constructor() {
     this.mcpServer = new McpServer({
-      name: "mcp-swagger-server",
+      name: "api-nova-server",
       version: "2.0.0",
       description: "Advanced OpenAPI to MCP Tools Bridge"
     });
@@ -547,7 +547,7 @@ class AdaptiveLearning {
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mcp-swagger-server
+  name: api-nova-server
 spec:
   replicas: 3
   strategy:
@@ -559,19 +559,19 @@ spec:
     spec:
       containers:
       - name: mcp-server
-        image: mcp-swagger-server:latest
+        image: api-nova-server:latest
         ports:
-        - containerPort: 3322
+        - containerPort:9022
         livenessProbe:
           httpGet:
             path: /health
-            port: 3322
+            port:9022
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /ready
-            port: 3322
+            port:9022
           initialDelaySeconds: 5
           periodSeconds: 5
         resources:

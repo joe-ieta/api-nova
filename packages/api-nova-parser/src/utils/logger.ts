@@ -10,8 +10,8 @@ export function isParserDebugEnabled(explicit = false): boolean {
   }
 
   return (
-    isEnabled(process.env.MCP_SWAGGER_DEBUG) ||
-    isEnabled(process.env.MCP_SWAGGER_PARSER_DEBUG)
+    isEnabled(process.env.api_nova_DEBUG) ||
+    isEnabled(process.env.api_nova_PARSER_DEBUG)
   );
 }
 

@@ -1,4 +1,4 @@
-# MCP Swagger Server - 使用文档
+# ApiNova Server - 使用文档
 
 > 🚀 将任何 OpenAPI/Swagger 规范转换为 MCP (Model Context Protocol) 工具，让 AI 助手轻松调用 REST API
 
@@ -7,13 +7,13 @@
 ### 全局安装 (推荐)
 
 ```bash
-npm install -g mcp-swagger-server
+npm install -g api-nova-server
 ```
 
 ### 本地项目安装
 
 ```bash
-npm install mcp-swagger-server
+npm install api-nova-server
 ```
 
 ---
@@ -26,17 +26,17 @@ npm install mcp-swagger-server
 
 ```bash
 # 查看帮助信息
-mcp-swagger-server --help
-mcp-swagger --help  # 简短别名
+api-nova-server --help
+api-nova --help  # 简短别名
 
 # 从 GitHub API 启动 HTTP 服务器
-mcp-swagger-server --transport streamable --port 3322 --openapi https://api.github.com/openapi.json
+api-nova-server --transport streamable --port 3322 --openapi https://api.github.com/openapi.json
 
 # 从本地文件启动，并监控文件变化
-mcp-swagger-server --transport streamable --openapi ./my-api.json --watch
+api-nova-server --transport streamable --openapi ./my-api.json --watch
 
 # STDIO 模式 (最适合 AI 客户端集成)
-mcp-swagger-server --transport stdio --openapi https://petstore.swagger.io/v2/swagger.json
+api-nova-server --transport stdio --openapi https://petstore.swagger.io/v2/swagger.json
 ```
 
 #### 2. 完整命令选项
@@ -44,7 +44,7 @@ mcp-swagger-server --transport stdio --openapi https://petstore.swagger.io/v2/sw
 ```bash
 选项:
   -t, --transport <type>     传输协议 (stdio|http|sse|streamable) [默认: stdio]
-  -p, --port <port>          服务器端口 [默认: 3322]
+  -p, --port <port>          服务器端口 [默认:9022]
   -e, --endpoint <url>       自定义端点 URL
   -o, --openapi <source>     OpenAPI 规范源 (URL 或文件路径)
   -w, --watch               监控 OpenAPI 文件变化并自动重载
@@ -58,22 +58,22 @@ mcp-swagger-server --transport stdio --openapi https://petstore.swagger.io/v2/sw
 
 ```bash
 # 🌐 HTTP 服务器模式 - 适合 Web 应用集成
-mcp-swagger-server --transport streamable --port 3322 --openapi https://api.github.com/openapi.json
+api-nova-server --transport streamable --port 3322 --openapi https://api.github.com/openapi.json
 
 # 📡 SSE (Server-Sent Events) 模式 - 适合实时 Web 应用
-mcp-swagger-server --transport sse --port 3323 --openapi ./openapi.yaml
+api-nova-server --transport sse --port 3323 --openapi ./openapi.yaml
 
 # 🔄 Streamable 模式 - 适合流式处理
-mcp-swagger-server --transport streamable --port 3324 --openapi https://petstore.swagger.io/v2/swagger.json
+api-nova-server --transport streamable --port 3324 --openapi https://petstore.swagger.io/v2/swagger.json
 
 # 💻 STDIO 模式 - 最适合 AI 客户端 (Claude Desktop, VS Code 等)
-mcp-swagger-server --transport stdio --openapi https://api.example.com/v1/openapi.json
+api-nova-server --transport stdio --openapi https://api.example.com/v1/openapi.json
 
 # 👁️ 监控模式 - 自动重载配置变化
-mcp-swagger-server --transport streamable --openapi ./api.yaml --watch
+api-nova-server --transport streamable --openapi ./api.yaml --watch
 
 # 🔧 托管模式 - 自动重启和错误恢复
-mcp-swagger-server --transport streamable --openapi https://api.example.com/openapi.json --auto-restart
+api-nova-server --transport streamable --openapi https://api.example.com/openapi.json --auto-restart
 ```
 
 ### 环境变量配置
@@ -87,7 +87,7 @@ export MCP_ENDPOINT=/mcp
 export MCP_AUTO_RELOAD=true
 
 # 然后直接运行
-mcp-swagger-server
+api-nova-server
 ```
 
 ---
@@ -98,7 +98,7 @@ mcp-swagger-server
 
 1. **安装服务器**:
    ```bash
-   npm install -g mcp-swagger-server
+   npm install -g api-nova-server
    ```
 
 2. **配置 Claude Desktop** (`claude_desktop_config.json`):
@@ -106,7 +106,7 @@ mcp-swagger-server
    {
      "mcpServers": {
        "swagger-api": {
-         "command": "mcp-swagger-server",
+         "command": "api-nova-server",
          "args": [
            "--transport", "stdio", 
            "--openapi", "https://api.github.com/openapi.json"
@@ -125,7 +125,7 @@ mcp-swagger-server
   "mcp.servers": [
     {
       "name": "My API Server",  
-      "command": "mcp-swagger-server",
+      "command": "api-nova-server",
       "args": [
         "--transport", "stdio",
         "--openapi", "./my-openapi.yaml"
@@ -140,7 +140,7 @@ mcp-swagger-server
 #### Node.js 项目集成
 
 ```javascript
-const { createMcpServer, runStreamableServer } = require('mcp-swagger-server');
+const { createMcpServer, runStreamableServer } = require('api-nova-server');
 
 // 从 URL 加载 OpenAPI 规范
 async function startMyAPIServer() {
@@ -151,7 +151,7 @@ async function startMyAPIServer() {
   
   // 启动 Streamable 服务器
   await runStreamableServer(server, { 
-    port: 3322,
+    port:9022,
     host: 'localhost'
   });
   
@@ -169,7 +169,7 @@ import {
   runStdioServer, 
   runStreamableServer,
   ServerOptions 
-} from 'mcp-swagger-server';
+} from 'api-nova-server';
 
 interface MyServerConfig {
   openApiSource: string;
@@ -208,7 +208,7 @@ async function setupMcpServer(config: MyServerConfig) {
 
 ```bash
 # 启动服务连接内部 API
-mcp-swagger-server --transport stdio --openapi https://internal-api.company.com/openapi.json
+api-nova-server --transport stdio --openapi https://internal-api.company.com/openapi.json
 
 # AI 助手现在可以：
 # - 查询用户信息
@@ -223,9 +223,9 @@ mcp-swagger-server --transport stdio --openapi https://internal-api.company.com/
 
 ```bash
 # 启动调试服务器
-mcp-swagger-server --transport streamable --port 3322 --openapi ./my-api.yaml --watch
+api-nova-server --transport streamable --port 3322 --openapi ./my-api.yaml --watch
 
-# 访问 http://localhost:3322 进行交互式测试
+# 访问 http://localhost:9022 进行交互式测试
 # 修改 my-api.yaml 文件会自动重载
 ```
 
@@ -235,13 +235,13 @@ mcp-swagger-server --transport streamable --port 3322 --openapi ./my-api.yaml --
 
 ```bash
 # 服务 A
-mcp-swagger-server --transport streamable --port 3001 --openapi https://service-a.com/openapi.json
+api-nova-server --transport streamable --port 3001 --openapi https://service-a.com/openapi.json
 
 # 服务 B  
-mcp-swagger-server --transport streamable --port 3002 --openapi https://service-b.com/openapi.json
+api-nova-server --transport streamable --port 3002 --openapi https://service-b.com/openapi.json
 
 # 服务 C
-mcp-swagger-server --transport streamable --port 3003 --openapi https://service-c.com/openapi.json
+api-nova-server --transport streamable --port 3003 --openapi https://service-c.com/openapi.json
 ```
 
 ### 4. 开发环境自动化
@@ -250,13 +250,13 @@ mcp-swagger-server --transport streamable --port 3003 --openapi https://service-
 
 ```bash
 # 监控本地 OpenAPI 文件，自动重载
-mcp-swagger-server --transport sse --openapi ./dev-api.yaml --watch --auto-restart
+api-nova-server --transport sse --openapi ./dev-api.yaml --watch --auto-restart
 
 # 配合 Git hooks 实现自动更新
 # .git/hooks/post-merge
 #!/bin/bash
-pkill -f "mcp-swagger-server" 
-mcp-swagger-server --transport streamable --openapi ./openapi.yaml &
+pkill -f "api-nova-server" 
+api-nova-server --transport streamable --openapi ./openapi.yaml &
 ```
 
 ---
@@ -270,7 +270,7 @@ mcp-swagger-server --transport streamable --openapi ./openapi.yaml &
 ```json
 {
   "transport": "streamable",
-  "port": 3322,
+  "port":9022,
   "host": "0.0.0.0",
   "openapi": "./openapi.yaml",
   "watch": true,
@@ -282,7 +282,7 @@ mcp-swagger-server --transport streamable --openapi ./openapi.yaml &
 
 然后直接运行：
 ```bash
-mcp-swagger-server  # 自动读取配置文件
+api-nova-server  # 自动读取配置文件
 ```
 
 ---
@@ -294,19 +294,19 @@ mcp-swagger-server  # 自动读取配置文件
 #### 1. 端口占用错误
 ```bash
 # 检查端口占用
-netstat -an | grep :3322
+netstat -an | grep :9022
 
 # 使用其他端口
-mcp-swagger-server --port 3323
+api-nova-server --port 3323
 ```
 
 #### 2. OpenAPI 规范解析失败
 ```bash
 # 验证 OpenAPI 规范有效性
-mcp-swagger-server --openapi ./api.yaml --validate-only
+api-nova-server --openapi ./api.yaml --validate-only
 
 # 查看详细错误信息
-mcp-swagger-server --openapi ./api.yaml --verbose
+api-nova-server --openapi ./api.yaml --verbose
 ```
 
 #### 3. 网络连接问题
@@ -316,18 +316,18 @@ curl -I https://api.github.com/openapi.json
 
 # 使用代理
 export HTTP_PROXY=http://proxy.company.com:8080
-mcp-swagger-server --openapi https://api.github.com/openapi.json
+api-nova-server --openapi https://api.github.com/openapi.json
 ```
 
 ### 日志调试
 
 ```bash
 # 启用详细日志
-export DEBUG=mcp-swagger:*
-mcp-swagger-server --openapi ./api.yaml
+export DEBUG=api-nova:*
+api-nova-server --openapi ./api.yaml
 
 # 输出到文件
-mcp-swagger-server --openapi ./api.yaml 2>&1 | tee server.log
+api-nova-server --openapi ./api.yaml 2>&1 | tee server.log
 ```
 
 ---
@@ -338,28 +338,28 @@ mcp-swagger-server --openapi ./api.yaml 2>&1 | tee server.log
 
 ```bash
 # 使用 PM2 进程管理
-pm2 start "mcp-swagger-server --transport streamable --openapi https://api.prod.com/openapi.json" --name "mcp-api-server"
+pm2 start "api-nova-server --transport streamable --openapi https://api.prod.com/openapi.json" --name "mcp-api-server"
 
 # Docker 部署
 docker run -d \
-  --name mcp-swagger-server \
-  -p 3322:3322 \
+  --name api-nova-server \
+  -p 3322:9022 \
   -e MCP_OPENAPI_URL=https://api.prod.com/openapi.json \
-  mcp-swagger-server:latest
+  api-nova-server:latest
 ```
 
 ### 2. 安全考虑
 
 ```bash
 # 限制访问地址
-mcp-swagger-server --transport streamable --host 127.0.0.1 --openapi ./internal-api.yaml
+api-nova-server --transport streamable --host 127.0.0.1 --openapi ./internal-api.yaml
 
 # 使用 HTTPS OpenAPI 源
-mcp-swagger-server --openapi https://secure-api.company.com/openapi.json
+api-nova-server --openapi https://secure-api.company.com/openapi.json
 
 # 环境变量存储敏感信息
 export OPENAPI_URL=https://api.company.com/openapi.json?token=SECRET
-mcp-swagger-server --openapi $OPENAPI_URL
+api-nova-server --openapi $OPENAPI_URL
 ```
 
 ### 3. 性能优化
@@ -367,21 +367,21 @@ mcp-swagger-server --openapi $OPENAPI_URL
 ```bash
 # 启用缓存
 export MCP_CACHE_TTL=3600  # 缓存 1 小时
-mcp-swagger-server --openapi https://api.github.com/openapi.json
+api-nova-server --openapi https://api.github.com/openapi.json
 
 # 使用本地文件避免网络延迟
-mcp-swagger-server --openapi ./cached-openapi.json
+api-nova-server --openapi ./cached-openapi.json
 ```
 
 ---
 
 ## 🔗 相关链接
 
-- **GitHub Repository**: https://github.com/yourusername/mcp-swagger-server
-- **NPM Package**: https://www.npmjs.com/package/mcp-swagger-server  
+- **GitHub Repository**: https://github.com/yourusername/api-nova-server
+- **NPM Package**: https://www.npmjs.com/package/api-nova-server  
 - **Model Context Protocol**: https://modelcontextprotocol.io/
 - **OpenAPI Specification**: https://swagger.io/specification/
-- **Issue Tracker**: https://github.com/yourusername/mcp-swagger-server/issues
+- **Issue Tracker**: https://github.com/yourusername/api-nova-server/issues
 
 ---
 
@@ -391,7 +391,7 @@ mcp-swagger-server --openapi ./cached-openapi.json
 
 ```bash
 # 克隆项目
-git clone https://github.com/yourusername/mcp-swagger-server.git
+git clone https://github.com/yourusername/api-nova-server.git
 
 # 安装依赖
 pnpm install

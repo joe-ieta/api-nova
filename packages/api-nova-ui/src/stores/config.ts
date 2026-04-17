@@ -196,7 +196,7 @@ export const useConfigStore = defineStore("config", () => {
         type: "success",
         title: "配置导出成功",
         message: `已导出配置文件: ${filename}`,
-        duration: 3000,
+        duration:9000,
       });
 
       return true;
@@ -292,7 +292,7 @@ export const useConfigStore = defineStore("config", () => {
         type: "success",
         title: "配置导入成功",
         message: `已成功导入配置`,
-        duration: 3000,
+        duration:9000,
       });
 
       return {
@@ -345,7 +345,7 @@ export const useConfigStore = defineStore("config", () => {
         type: "success",
         title: "备份创建成功",
         message: `已创建配置备份: ${name}`,
-        duration: 3000,
+        duration:9000,
       });
 
       return backup.id;
@@ -375,7 +375,7 @@ export const useConfigStore = defineStore("config", () => {
         type: "success",
         title: "备份恢复成功",
         message: `已恢复配置备份: ${backup.name}`,
-        duration: 3000,
+        duration:9000,
       });
 
       return true;
@@ -510,7 +510,7 @@ export const useConfigStore = defineStore("config", () => {
           type: "success",
           title: "配置迁移成功",
           message: `已成功从 ${sourceVersion} 迁移到 ${targetVersion}`,
-          duration: 3000,
+          duration:9000,
         });
       } else {
         appStore.addNotification({
@@ -621,7 +621,7 @@ export const useConfigStore = defineStore("config", () => {
         type: "success",
         title: "服务重启成功",
         message: "所有服务已成功重启",
-        duration: 3000,
+        duration:9000,
       });
     } catch (error) {
       const errorMessage =
@@ -909,7 +909,7 @@ export const useConfigStore = defineStore("config", () => {
         type: "success",
         title: "备份删除成功",
         message: "配置备份已删除",
-        duration: 3000,
+        duration:9000,
       });
 
       return true;

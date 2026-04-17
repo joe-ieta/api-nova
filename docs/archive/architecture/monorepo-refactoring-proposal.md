@@ -1,8 +1,8 @@
-# MCP Swagger Server Monorepo 架构重构方案
+# ApiNova Server Monorepo 架构重构方案
 
 ## 📋 文档概述
 
-本文档描述了将 MCP Swagger Server 项目重构为 monorepo 架构的设计方案，重点是将 OpenAPI 解析逻辑抽离为独立的 `mcp-swagger-parser` 库。
+本文档描述了将 ApiNova Server 项目重构为 monorepo 架构的设计方案，重点是将 OpenAPI 解析逻辑抽离为独立的 `api-nova-parser` 库。
 
 **文档版本**: v1.0  
 **创建日期**: 2025-06-17  
@@ -33,7 +33,7 @@
 
 ```
 现有结构 (存在的问题):
-packages/mcp-swagger-server/
+packages/api-nova-server/
 ├── src/
 │   ├── transform/
 │   │   ├── openapi-to-mcp.ts        ❌ 解析 + 转换逻辑混合
@@ -66,9 +66,9 @@ openapi-to-mcp.ts:
 ### Monorepo 整体结构
 
 ```
-mcp-swagger-server/ (monorepo root)
+api-nova-server/ (monorepo root)
 ├── packages/
-│   ├── mcp-swagger-parser/           ✅ 新增：OpenAPI 解析库
+│   ├── api-nova-parser/           ✅ 新增：OpenAPI 解析库
 │   │   ├── src/
 │   │   │   ├── parsers/             # 解析器实现
 │   │   │   ├── validators/          # 验证器
@@ -78,7 +78,7 @@ mcp-swagger-server/ (monorepo root)
 │   │   ├── tests/                   # 单元测试
 │   │   └── package.json
 │   │
-│   ├── mcp-swagger-server/          ✅ 重构：MCP 服务器
+│   ├── api-nova-server/          ✅ 重构：MCP 服务器
 │   │   ├── src/
 │   │   │   ├── converters/          # MCP 转换逻辑
 │   │   │   ├── protocols/           # MCP 协议实现
@@ -86,9 +86,9 @@ mcp-swagger-server/ (monorepo root)
 │   │   │   └── server.ts            # 服务器主逻辑
 │   │   └── package.json
 │   │
-│   ├── mcp-swagger-ui/              ✅ 保持：前端界面
+│   ├── api-nova-ui/              ✅ 保持：前端界面
 │   │
-│   └── mcp-swagger-cli/             ✅ 新增：命令行工具 (可选)
+│   └── api-nova-cli/             ✅ 新增：命令行工具 (可选)
 │
 ├── docs/                            ✅ 文档目录
 ├── tools/                           ✅ 开发工具
@@ -97,7 +97,7 @@ mcp-swagger-server/ (monorepo root)
 
 ### 核心包职责分工
 
-#### 📦 `mcp-swagger-parser` - OpenAPI 解析库
+#### 📦 `api-nova-parser` - OpenAPI 解析库
 
 **核心职责**:
 - OpenAPI 2.0/3.x 规范解析
@@ -126,7 +126,7 @@ export interface ParsedApiSpec {
 }
 ```
 
-#### ⚙️ `mcp-swagger-server` - MCP 服务器
+#### ⚙️ `api-nova-server` - MCP 服务器
 
 **核心职责**:
 - MCP 协议实现
@@ -137,7 +137,7 @@ export interface ParsedApiSpec {
 **依赖关系**:
 ```typescript
 // 依赖解析库
-import { OpenApiParser } from 'mcp-swagger-parser';
+import { OpenApiParser } from 'api-nova-parser';
 
 export class McpSwaggerServer {
   constructor(private parser: OpenApiParser) {}
@@ -152,7 +152,7 @@ export class McpSwaggerServer {
 }
 ```
 
-#### 🎨 `mcp-swagger-ui` - 前端界面
+#### 🎨 `api-nova-ui` - 前端界面
 
 **核心职责**:
 - 用户界面交互
@@ -160,7 +160,7 @@ export class McpSwaggerServer {
 - 转换结果展示
 - 配置选项管理
 
-#### 💻 `mcp-swagger-cli` - 命令行工具 (新增)
+#### 💻 `api-nova-cli` - 命令行工具 (新增)
 
 **核心职责**:
 - 命令行接口
@@ -175,7 +175,7 @@ export class McpSwaggerServer {
 ### 重构前数据流
 
 ```
-Input → [mcp-swagger-server] → Output
+Input → [api-nova-server] → Output
          ↓
     解析 + 转换 + 协议处理
     (所有逻辑混合在一起)
@@ -184,7 +184,7 @@ Input → [mcp-swagger-server] → Output
 ### 重构后数据流
 
 ```
-Input → [mcp-swagger-parser] → ParsedSpec → [mcp-swagger-server] → McpConfig
+Input → [api-nova-parser] → ParsedSpec → [api-nova-server] → McpConfig
          ↓                                    ↓
     专注解析和验证                        专注转换和协议处理
          ↓                                    ↓
@@ -197,7 +197,7 @@ Input → [mcp-swagger-parser] → ParsedSpec → [mcp-swagger-server] → McpCo
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   输入源        │    │  解析层          │    │  转换层         │
 │                 │    │                  │    │                 │
-│ • URL          │────▶│ mcp-swagger-     │────▶│ mcp-swagger-    │
+│ • URL          │────▶│ api-nova-     │────▶│ api-nova-    │
 │ • File         │    │ parser           │    │ server          │
 │ • Text         │    │                  │    │                 │
 │                 │    │ • 验证           │    │ • MCP 转换      │
@@ -219,7 +219,7 @@ Input → [mcp-swagger-parser] → ParsedSpec → [mcp-swagger-server] → McpCo
 #### Workspace 配置 (package.json)
 ```json
 {
-  "name": "mcp-swagger-monorepo",
+  "name": "api-nova-monorepo",
   "private": true,
   "workspaces": [
     "packages/*"
@@ -228,18 +228,18 @@ Input → [mcp-swagger-parser] → ParsedSpec → [mcp-swagger-server] → McpCo
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint",
-    "dev:parser": "pnpm --filter mcp-swagger-parser dev",
-    "dev:server": "pnpm --filter @mcp-swagger/server dev",
-    "dev:ui": "pnpm --filter @mcp-swagger/ui dev"
+    "dev:parser": "pnpm --filter api-nova-parser dev",
+    "dev:server": "pnpm --filter @api-nova/server dev",
+    "dev:ui": "pnpm --filter @api-nova/ui dev"
   }
 }
 ```
 
 #### 版本管理策略
 ```json
-// packages/mcp-swagger-parser/package.json
+// packages/api-nova-parser/package.json
 {
-  "name": "mcp-swagger-parser",
+  "name": "api-nova-parser",
   "version": "1.0.0",
   "exports": {
     ".": {
@@ -250,12 +250,12 @@ Input → [mcp-swagger-parser] → ParsedSpec → [mcp-swagger-server] → McpCo
   }
 }
 
-// packages/mcp-swagger-server/package.json
+// packages/api-nova-server/package.json
 {
-  "name": "@mcp-swagger/server",
+  "name": "@api-nova/server",
   "version": "1.0.0",
   "dependencies": {
-    "mcp-swagger-parser": "workspace:^1.0.0"
+    "api-nova-parser": "workspace:^1.0.0"
   }
 }
 ```
@@ -272,9 +272,9 @@ Input → [mcp-swagger-parser] → ParsedSpec → [mcp-swagger-server] → McpCo
     "declarationMap": true
   },
   "references": [
-    { "path": "./packages/mcp-swagger-parser" },
-    { "path": "./packages/mcp-swagger-server" },
-    { "path": "./packages/mcp-swagger-ui" }
+    { "path": "./packages/api-nova-parser" },
+    { "path": "./packages/api-nova-server" },
+    { "path": "./packages/api-nova-ui" }
   ]
 }
 ```
@@ -291,7 +291,7 @@ Input → [mcp-swagger-parser] → ParsedSpec → [mcp-swagger-server] → McpCo
 
 ### 分层测试架构
 
-#### 解析库测试 (`mcp-swagger-parser`)
+#### 解析库测试 (`api-nova-parser`)
 ```typescript
 // 单元测试示例
 describe('OpenApiParser', () => {
@@ -315,7 +315,7 @@ describe('OpenApiParser', () => {
 });
 ```
 
-#### 集成测试 (`mcp-swagger-server`)
+#### 集成测试 (`api-nova-server`)
 ```typescript
 // 集成测试示例
 describe('McpSwaggerServer Integration', () => {
@@ -360,7 +360,7 @@ describe('Complete Workflow', () => {
 #### 阶段 1: 解析库创建 (1 周)
 1. **创建包结构**
    ```bash
-   mkdir -p packages/mcp-swagger-parser/src/{parsers,validators,types}
+   mkdir -p packages/api-nova-parser/src/{parsers,validators,types}
    ```
 
 2. **抽离解析逻辑**
@@ -409,10 +409,10 @@ describe('Complete Workflow', () => {
 // 在过渡期保留旧接口
 export class LegacyOpenApiParser {
   /**
-   * @deprecated Use mcp-swagger-parser instead
+   * @deprecated Use api-nova-parser instead
    */
   static async parseOpenApi(source: any): Promise<any> {
-    console.warn('This method is deprecated. Please use mcp-swagger-parser');
+    console.warn('This method is deprecated. Please use api-nova-parser');
     
     const parser = new OpenApiParser();
     return parser.parseFromUrl(source.url);
@@ -583,12 +583,12 @@ export class LegacyOpenApiParser {
 ### 实施优先级
 
 1. **🔥 高优先级** (立即执行)
-   - 创建 `mcp-swagger-parser` 包结构
+   - 创建 `api-nova-parser` 包结构
    - 抽离核心解析逻辑
    - 建立基础测试套件
 
 2. **⚡ 中优先级** (2 周内)
-   - 重构 `mcp-swagger-server`
+   - 重构 `api-nova-server`
    - 更新前端集成
    - 完善文档
 

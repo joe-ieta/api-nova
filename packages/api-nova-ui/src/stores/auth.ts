@@ -125,7 +125,7 @@ export const useAuthStore = defineStore("auth", () => {
         message: t("userAuth.messages.welcomeBack", {
           username: response.user.username,
         }),
-        duration: 3000,
+        duration:9000,
       });
 
       return true;
@@ -182,7 +182,7 @@ export const useAuthStore = defineStore("auth", () => {
         type: "info",
         title: t("userAuth.messages.loggedOut"),
         message: t("userAuth.messages.logoutSuccess"),
-        duration: 3000,
+        duration:9000,
       });
     }
   };
@@ -294,7 +294,7 @@ export const useAuthStore = defineStore("auth", () => {
       type: "success",
       title: t("auth.messages.configCreated"),
       message: t("auth.messages.configCreatedDetail", { name }),
-      duration: 3000,
+      duration:9000,
     });
 
     return id;
@@ -323,7 +323,7 @@ export const useAuthStore = defineStore("auth", () => {
       type: "success",
       title: t("auth.messages.configUpdated"),
       message: t("auth.messages.configUpdatedDetail"),
-      duration: 3000,
+      duration:9000,
     });
   };
 
@@ -351,7 +351,7 @@ export const useAuthStore = defineStore("auth", () => {
       type: "success",
       title: "认证配置删除成功",
       message: "认证配置已安全删除",
-      duration: 3000,
+      duration:9000,
     });
 
     return true;
@@ -381,7 +381,7 @@ export const useAuthStore = defineStore("auth", () => {
           type: "success",
           title: "认证测试成功",
           message: result.message,
-          duration: 3000,
+          duration:9000,
         });
       } else {
         appStore.addNotification({
@@ -773,7 +773,7 @@ export const useAuthStore = defineStore("auth", () => {
         type: "info",
         title: "清理完成",
         message: "没有发现过期的认证配置",
-        duration: 3000,
+        duration:9000,
       });
       return;
     }
@@ -788,7 +788,7 @@ export const useAuthStore = defineStore("auth", () => {
         type: "success",
         title: "清理完成",
         message: `已清理 ${expired.length} 个过期的认证配置`,
-        duration: 3000,
+        duration:9000,
       });
     } catch (error) {
       appStore.addNotification({

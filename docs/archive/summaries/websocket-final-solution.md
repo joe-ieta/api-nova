@@ -20,7 +20,7 @@
 
 ### 1. 使用测试页面验证
 
-访问: `http://localhost:3001/websocket-test.html`
+访问: `http://localhost:9001/websocket-test.html`
 
 这个测试页面将帮助你：
 - 验证WebSocket连接
@@ -98,12 +98,12 @@ websocketService.emit('get-connection-status');
 ### 1. 检查网络连接
 ```bash
 # 测试WebSocket端点
-curl -I http://localhost:3001/monitoring/socket.io/
+curl -I http://localhost:9001/monitoring/socket.io/
 ```
 
 ### 2. 使用原生WebSocket测试
 ```javascript
-const ws = new WebSocket('ws://localhost:3001/monitoring');
+const ws = new WebSocket('ws://localhost:9001/monitoring');
 ws.onopen = () => console.log('原生WebSocket连接成功');
 ws.onmessage = (e) => console.log('收到消息:', e.data);
 ws.onerror = (e) => console.error('WebSocket错误:', e);
@@ -132,7 +132,7 @@ transports: ["polling"]  // 移除websocket
 
 1. **重启后端服务器** 应用所有修复
 2. **刷新前端页面** 
-3. **访问测试页面** `http://localhost:3001/websocket-test.html`
+3. **访问测试页面** `http://localhost:9001/websocket-test.html`
 4. **测试连接和订阅**
 5. **查看详细日志** 确定具体问题所在
 

@@ -1,4 +1,4 @@
-# MCP Swagger UI 架构设计文档
+# ApiNova UI 架构设计文档
 
 ## 整体架构图
 
@@ -71,7 +71,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                    后端服务 (Backend)                        │
 ├─────────────────────────────────────────────────────────────┤
-│                   MCP Swagger Server                        │
+│                   ApiNova Server                        │
 │  ┌─────────────────────────────────────────────────────────┐ │
 │  │ HTTP API 端点:                                          │ │
 │  │ ├─ POST /api/validate    - 验证 OpenAPI 规范            │ │
@@ -279,7 +279,7 @@ types/index.ts
 │  ├─ HMR (热模块替换)
 │  ├─ TypeScript 编译
 │  ├─ Vue SFC 处理
-│  └─ API 代理 (/api → localhost:3322)
+│  └─ API 代理 (/api → localhost:9022)
 │
 ├─ 自动导入
 │  ├─ Vue APIs (ref, reactive, computed...)
@@ -315,4 +315,4 @@ types/index.ts
    └─ Docker 容器化
 ```
 
-这个架构设计文档提供了 MCP Swagger UI 项目的完整架构视图，包括组件关系、数据流、状态管理和构建部署等各个方面的详细说明。
+这个架构设计文档提供了 ApiNova UI 项目的完整架构视图，包括组件关系、数据流、状态管理和构建部署等各个方面的详细说明。

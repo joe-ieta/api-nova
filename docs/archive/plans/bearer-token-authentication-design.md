@@ -2,7 +2,7 @@
 
 ## 1. 概述
 
-本文档详细描述了 mcp-swagger-server 的 Bearer Token 认证方案设计，该方案遵循企业级安全标准，具备高度的可扩展性，为后续集成其他认证机制（如OAuth 2.0、API Key、Basic Auth等）提供基础架构。
+本文档详细描述了 api-nova-server 的 Bearer Token 认证方案设计，该方案遵循企业级安全标准，具备高度的可扩展性，为后续集成其他认证机制（如OAuth 2.0、API Key、Basic Auth等）提供基础架构。
 
 ## 2. 设计目标
 
@@ -26,7 +26,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    MCP Swagger Server                           │
+│                    ApiNova Server                           │
 ├─────────────────────────────────────────────────────────────────┤
 │                 Authentication Layer                            │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
@@ -349,7 +349,7 @@ interface AuthAuditLog {
 JWT_SECRET=your-secret-key
 JWT_ALGORITHM=HS256
 JWT_EXPIRES_IN=1h
-JWT_ISSUER=mcp-swagger-server
+JWT_ISSUER=api-nova-server
 JWT_AUDIENCE=mcp-clients
 
 # 认证配置
@@ -375,7 +375,7 @@ auth:
     secret: ${JWT_SECRET}
     algorithm: HS256
     expiresIn: 1h
-    issuer: mcp-swagger-server
+    issuer: api-nova-server
     audience: mcp-clients
   
   policies:
@@ -472,4 +472,4 @@ auth:
 
 ---
 
-本设计文档为 mcp-swagger-server 的 Bearer Token 认证方案提供了完整的技术架构和实现指导。该方案不仅满足当前的安全需求，还为未来的扩展提供了坚实的基础。
+本设计文档为 api-nova-server 的 Bearer Token 认证方案提供了完整的技术架构和实现指导。该方案不仅满足当前的安全需求，还为未来的扩展提供了坚实的基础。

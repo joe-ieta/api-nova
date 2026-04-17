@@ -13,7 +13,7 @@ export class SessionManager {
   private sessions: Map<string, SessionConfig> = new Map();
   private initialized = false;
 
-  constructor(configDir: string = '.mcp-swagger') {
+  constructor(configDir: string = '.api-nova') {
     this.sessionsFile = join(homedir(), configDir, 'sessions.json');
   }
 

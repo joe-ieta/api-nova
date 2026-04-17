@@ -25,10 +25,10 @@ UI项目在建立WebSocket连接后立即断开，无法维持稳定的连接来
 ### 1. 检查服务状态
 ```bash
 # 检查API服务是否正常运行
-curl -I http://localhost:3001/api/health
+curl -I http://localhost:9001/api/health
 
 # 检查WebSocket端点是否可访问
-curl -I http://localhost:3001/monitoring/socket.io/
+curl -I http://localhost:9001/monitoring/socket.io/
 ```
 
 ### 2. 前端调试工具
@@ -100,7 +100,7 @@ transports: ["polling"]  // 只使用轮询
 ### 2. 降级到原生WebSocket
 ```javascript
 // 作为最后手段，使用原生WebSocket
-const ws = new WebSocket('ws://localhost:3001/monitoring');
+const ws = new WebSocket('ws://localhost:9001/monitoring');
 ws.onopen = () => console.log('原生WebSocket连接成功');
 ws.onclose = (e) => console.log('原生WebSocket断开:', e.reason);
 ```

@@ -65,7 +65,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
         type: "success",
         title: "WebSocket连接成功",
         message: "实时数据更新已启用",
-        duration: 3000,
+        duration:9000,
       });
 
       // 设置默认订阅
@@ -124,7 +124,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
       type: "info",
       title: "WebSocket已断开",
       message: "实时数据更新已停用",
-      duration: 3000,
+      duration:9000,
     });
   };
 
@@ -295,7 +295,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
         type: "success",
         title: "WebSocket重连成功",
         message: "实时数据更新已恢复",
-        duration: 3000,
+        duration:9000,
       });
 
       // 重连后恢复订阅
@@ -346,7 +346,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
         type: "success",
         title: "服务器已创建",
         message: `服务器 "${server.name}" 已创建`,
-        duration: 3000,
+        duration:9000,
       });
     });
 
@@ -361,7 +361,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
         type: "info",
         title: "服务器已更新",
         message: `服务器 "${server.name}" 配置已更新`,
-        duration: 3000,
+        duration:9000,
       });
     });
 
@@ -376,7 +376,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
           type: "warning",
           title: "服务器已删除",
           message: `服务器 "${serverName}" 已被删除`,
-          duration: 3000,
+          duration:9000,
         });
       }
 

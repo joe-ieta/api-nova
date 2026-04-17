@@ -21,8 +21,8 @@
 ```bash
 # 在项目根目录执行
 cd packages
-npx @nestjs/cli new mcp-swagger-server-nestjs
-cd mcp-swagger-server-nestjs
+npx @nestjs/cli new api-nova-server-nestjs
+cd api-nova-server-nestjs
 
 # 安装核心依赖
 npm install @nestjs/swagger @nestjs/config class-validator class-transformer
@@ -40,11 +40,11 @@ npm install -D @types/express @types/cors @types/swagger-parser
 export default () => ({
   port: parseInt(process.env.PORT, 10) || 3322,
   cors: {
-    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:9000'],
     credentials: true,
   },
   swagger: {
-    title: 'MCP Swagger Server API',
+    title: 'ApiNova Server API',
     description: 'API for converting OpenAPI specs to MCP format',
     version: '1.0.0',
   },
@@ -591,13 +591,13 @@ npm run start:dev
 **测试 API**:
 ```bash
 # 健康检查
-curl http://localhost:3322
+curl http://localhost:9022
 
 # 查看 API 文档
-open http://localhost:3322/docs
+open http://localhost:9022/docs
 
 # 测试验证端点
-curl -X POST http://localhost:3322/api/validate \
+curl -X POST http://localhost:9022/api/validate \
   -H "Content-Type: application/json" \
   -d '{
     "source": {
@@ -613,9 +613,9 @@ curl -X POST http://localhost:3322/api/validate \
 
 **修改前端环境配置**:
 ```bash
-# packages/mcp-swagger-ui/.env.development
-VITE_APP_TITLE=MCP Swagger Server
-VITE_API_BASE_URL=http://localhost:3322
+# packages/api-nova-ui/.env.development
+VITE_APP_TITLE=ApiNova Server
+VITE_API_BASE_URL=http://localhost:9022
 VITE_ENABLE_DEMO_MODE=false
 ```
 

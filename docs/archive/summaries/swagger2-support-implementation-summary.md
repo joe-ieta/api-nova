@@ -1,8 +1,8 @@
-# MCP Swagger Parser - Swagger 2.0 支持功能增强总结
+# ApiNova Parser - Swagger 2.0 支持功能增强总结
 
 ## 🎉 实现完成
 
-根据 [swagger2openapi 集成实现方案](./swagger2openapi-integration-plan.md)，我们已经成功为 `mcp-swagger-parser` 增加了对 **Swagger 2.0 (OpenAPI 2.0)** 的完整支持。
+根据 [swagger2openapi 集成实现方案](./swagger2openapi-integration-plan.md)，我们已经成功为 `api-nova-parser` 增加了对 **Swagger 2.0 (OpenAPI 2.0)** 的完整支持。
 
 ## ✅ 已完成的功能
 
@@ -107,14 +107,14 @@ const parser = new OpenAPIParser({
 ### 1. 安装依赖
 
 ```bash
-# 在 mcp-swagger-parser 目录下
+# 在 api-nova-parser 目录下
 npm install swagger2openapi @types/swagger2openapi
 ```
 
 ### 2. 基本使用
 
 ```typescript
-import { parseAndTransform } from 'mcp-swagger-parser';
+import { parseAndTransform } from 'api-nova-parser';
 
 // 自动检测和转换 Swagger 2.0
 const tools = await parseAndTransform('swagger2-api.json', {
@@ -127,7 +127,7 @@ const tools = await parseAndTransform('swagger2-api.json', {
 ### 3. 高级配置
 
 ```typescript
-import { OpenAPIParser } from 'mcp-swagger-parser';
+import { OpenAPIParser } from 'api-nova-parser';
 
 const parser = new OpenAPIParser({
   autoConvert: true,
@@ -250,7 +250,7 @@ const prodConfig = {
 
 ## 📋 总结
 
-我们已经成功为 `mcp-swagger-parser` 实现了完整的 **Swagger 2.0 支持功能**：
+我们已经成功为 `api-nova-parser` 实现了完整的 **Swagger 2.0 支持功能**：
 
 - ✅ **完整的架构**: 版本检测 → 自动转换 → 错误修复 → 规范验证
 - ✅ **类型安全**: 完整的 TypeScript 类型定义
@@ -263,4 +263,4 @@ const prodConfig = {
 
 ---
 
-**🎉 功能增强完成！现在 mcp-swagger-parser 已全面支持 Swagger 2.0 和 OpenAPI 3.0+ 规范！**
+**🎉 功能增强完成！现在 api-nova-parser 已全面支持 Swagger 2.0 和 OpenAPI 3.0+ 规范！**

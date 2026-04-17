@@ -2,7 +2,7 @@
 
 ## 📋 功能概述
 
-MCP Swagger Server 现已支持自定义请求头功能，使其在代理 OpenAPI 接口时，除了认证 Bearer Token 外，还能灵活配置和传递常见的自定义 HTTP 请求头。
+ApiNova Server 现已支持自定义请求头功能，使其在代理 OpenAPI 接口时，除了认证 Bearer Token 外，还能灵活配置和传递常见的自定义 HTTP 请求头。
 
 ## 🎯 核心特性
 
@@ -31,7 +31,7 @@ MCP Swagger Server 现已支持自定义请求头功能，使其在代理 OpenAP
 
 ```
 packages/
-├── mcp-swagger-parser/
+├── api-nova-parser/
 │   ├── src/
 │   │   ├── headers/
 │   │   │   ├── CustomHeadersManager.ts    # 自定义请求头管理器
@@ -44,7 +44,7 @@ packages/
 │   └── tests/
 │       └── unit/
 │           └── auth.test.ts               # 单元测试
-└── mcp-swagger-server/
+└── api-nova-server/
     ├── src/
     │   ├── cli.ts                         # CLI 参数解析
     │   ├── server.ts                      # 服务器启动
@@ -84,7 +84,7 @@ interface RequestContext {
 
 ```bash
 # 基本用法
-mcp-swagger-server \
+api-nova-server \
   --openapi ./api.json \
   --custom-header "X-Client-ID=my-client" \
   --custom-header "X-Version=1.0.0" \
@@ -92,7 +92,7 @@ mcp-swagger-server \
   --debug-headers
 
 # 完整示例
-mcp-swagger-server \
+api-nova-server \
   --openapi https://petstore.swagger.io/v2/swagger.json \
   --custom-header "X-Client-ID=mcp-client" \
   --custom-header "X-Request-Source=cli" \
@@ -106,7 +106,7 @@ mcp-swagger-server \
 ```json
 {
   "static": {
-    "X-Custom-Client": "mcp-swagger-client",
+    "X-Custom-Client": "api-nova-client",
     "X-Version": "1.0.0",
     "X-Request-Source": "config"
   },
@@ -119,7 +119,7 @@ mcp-swagger-server \
 ```
 
 ```bash
-mcp-swagger-server \
+api-nova-server \
   --openapi ./api.json \
   --custom-headers-config ./headers.json \
   --debug-headers
@@ -134,7 +134,7 @@ mcp-swagger-server \
   "openapi": "./api.json",
   "customHeaders": {
     "static": {
-      "X-MCP-Client": "mcp-swagger-server",
+      "X-MCP-Client": "api-nova-server",
       "X-Request-ID": "auto-generated"
     },
     "env": {
@@ -147,7 +147,7 @@ mcp-swagger-server \
 ```
 
 ```bash
-mcp-swagger-server --config ./mcp-config.json
+api-nova-server --config ./mcp-config.json
 ```
 
 ## 📊 测试结果
@@ -182,7 +182,7 @@ Tests:       3 passed, 3 total
 ### 1. 安装依赖
 
 ```bash
-cd /path/to/mcp-swagger-server
+cd /path/to/api-nova-server
 pnpm install
 ```
 
@@ -200,7 +200,7 @@ export API_KEY="your-api-key"
 export CLIENT_ID="your-client-id"
 
 # 启动服务器
-node packages/mcp-swagger-server/dist/cli.js \
+node packages/api-nova-server/dist/cli.js \
   --openapi https://petstore.swagger.io/v2/swagger.json \
   --custom-header "X-Client-ID=mcp-client" \
   --custom-header-env "X-API-Key=API_KEY" \
@@ -234,7 +234,7 @@ bash run-tests.sh
   },
   "customHeaders": {
     "static": {
-      "X-Client-Name": "mcp-swagger-server",
+      "X-Client-Name": "api-nova-server",
       "X-Client-Version": "1.2.2",
       "X-Request-Source": "mcp",
       "Accept": "application/json",
@@ -305,7 +305,7 @@ bash run-tests.sh
 
 如果您发现问题或有改进建议，请：
 
-1. 查看 [GitHub Issues](https://github.com/zaizaizhao/mcp-swagger-server/issues)
+1. 查看 [GitHub Issues](https://github.com/zaizaizhao/api-nova-server/issues)
 2. 创建新的 Issue 或 Pull Request
 3. 遵循项目的贡献指南
 
@@ -317,4 +317,4 @@ bash run-tests.sh
 
 **实现完成日期**: 2025年7月10日  
 **实现者**: GitHub Copilot  
-**版本**: mcp-swagger-server v1.2.2
+**版本**: api-nova-server v1.2.2

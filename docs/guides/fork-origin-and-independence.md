@@ -8,7 +8,7 @@ It exists to prevent collaboration drift, positioning drift, and confusion about
 
 ## Origin
 
-ApiNova started from the original `mcp-swagger-server` upstream project.
+ApiNova started from the original `api-nova-server` upstream project.
 
 The original repository provided a strong initial design for:
 

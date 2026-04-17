@@ -2,7 +2,7 @@
 
 ## 概述
 
-本指南提供了在mcp-swagger-server中快速实现Bearer Token认证的最简方案。
+本指南提供了在api-nova-server中快速实现Bearer Token认证的最简方案。
 
 ## 核心需求
 
@@ -16,7 +16,7 @@
 ### 1. 最小化实现架构
 
 ```
-mcp-swagger-server
+api-nova-server
 ├── 认证配置解析 (Server层)
 ├── 认证配置传递 (传递给Parser)
 ├── Parser层增强 (核心修改点)
@@ -30,7 +30,7 @@ mcp-swagger-server
 
 #### 2.1 Parser层认证支持
 
-**新增文件**: `packages/mcp-swagger-parser/src/auth/types.ts`
+**新增文件**: `packages/api-nova-parser/src/auth/types.ts`
 
 ```typescript
 export interface AuthConfig {
@@ -74,7 +74,7 @@ export class BearerAuthManager implements AuthManager {
 
 #### 2.2 扩展TransformerOptions
 
-**修改文件**: `packages/mcp-swagger-parser/src/transformer/types.ts`
+**修改文件**: `packages/api-nova-parser/src/transformer/types.ts`
 
 ```typescript
 import { AuthConfig } from '../auth/types';
@@ -99,7 +99,7 @@ export interface TransformerOptions {
 
 #### 2.3 修改Transformer类
 
-**修改文件**: `packages/mcp-swagger-parser/src/transformer/index.ts`
+**修改文件**: `packages/api-nova-parser/src/transformer/index.ts`
 
 ```typescript
 import { BearerAuthManager, AuthManager } from '../auth/types';
@@ -168,10 +168,10 @@ export class OpenAPIToMCPTransformer {
 
 #### 2.4 Server层集成
 
-**修改文件**: `packages/mcp-swagger-server/src/server/index.ts`
+**修改文件**: `packages/api-nova-server/src/server/index.ts`
 
 ```typescript
-import { OpenAPIToMCPTransformer } from 'mcp-swagger-parser';
+import { OpenAPIToMCPTransformer } from 'api-nova-parser';
 
 export class McpServer {
   constructor(private config: McpServerConfig) {}
@@ -198,14 +198,14 @@ export class McpServer {
 
 ```bash
 # 使用静态token
-mcp-swagger-server \
+api-nova-server \
   --openapi https://api.example.com/openapi.json \
   --auth-type bearer \
   --bearer-token "your-token-here"
 
 # 使用环境变量
 export API_TOKEN="your-token-here"
-mcp-swagger-server \
+api-nova-server \
   --openapi https://api.example.com/openapi.json \
   --auth-type bearer \
   --bearer-env API_TOKEN
@@ -229,8 +229,8 @@ mcp-swagger-server \
 ### 3. 编程式使用
 
 ```typescript
-import { createServer } from 'mcp-swagger-server';
-import { BearerAuth } from 'mcp-swagger-server/auth';
+import { createServer } from 'api-nova-server';
+import { BearerAuth } from 'api-nova-server/auth';
 
 const auth = new BearerAuth({
   type: 'bearer',
@@ -270,7 +270,7 @@ await server.start();
 
 ### 第4天：CLI和API集成
 - [ ] 添加CLI参数支持认证配置
-- [ ] 更新mcp-swagger-api支持认证
+- [ ] 更新api-nova-api支持认证
 - [ ] 添加配置文件支持
 - [ ] 测试不同配置方式
 
@@ -300,10 +300,10 @@ describe('BearerAuth', () => {
 ### 2. 集成测试
 ```bash
 # 启动测试服务器
-mcp-swagger-server --openapi https://httpbin.org/spec.json --auth-type bearer --bearer-token test-token
+api-nova-server --openapi https://httpbin.org/spec.json --auth-type bearer --bearer-token test-token
 
 # 验证API调用包含认证头
-curl -X GET http://localhost:3322/mcp/tools/get/headers
+curl -X GET http://localhost:9022/mcp/tools/get/headers
 ```
 
 ### 3. 手工测试

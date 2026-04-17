@@ -76,7 +76,7 @@ function buildDataSourceOptions(
     port: Number(read('DB_PORT', 5432)),
     username: read('DB_USERNAME', 'postgres'),
     password: read('DB_PASSWORD', 'password'),
-    database: String(read('DB_DATABASE', 'mcp_swagger_api')),
+    database: String(read('DB_DATABASE', 'api_nova_api')),
     entities,
     migrations: ['dist/database/migrations/*.js'],
     synchronize: read<boolean>('DB_SYNCHRONIZE', nodeEnv === 'development'),

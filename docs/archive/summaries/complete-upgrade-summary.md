@@ -1,8 +1,8 @@
-# 🚀 MCP Swagger 项目完整升级总结
+# 🚀 ApiNova 项目完整升级总结
 
 ## 📋 项目概览
 
-本次升级将 MCP Swagger 项目从单体架构重构为现代化的 monorepo 架构，创建了专业的 OpenAPI 解析器包，并全面升级了服务器和前端应用。
+本次升级将 ApiNova 项目从单体架构重构为现代化的 monorepo 架构，创建了专业的 OpenAPI 解析器包，并全面升级了服务器和前端应用。
 
 ## 🎯 升级目标
 
@@ -15,11 +15,11 @@
 
 ### 📦 新的 Monorepo 结构
 ```
-mcp-swagger-server/
+api-nova-server/
 ├── packages/
-│   ├── mcp-swagger-parser/     # 🆕 专业 OpenAPI 解析器包
-│   ├── mcp-swagger-server/     # ♻️ 重构的服务器
-│   ├── mcp-swagger-ui/         # ♻️ 升级的前端应用
+│   ├── api-nova-parser/     # 🆕 专业 OpenAPI 解析器包
+│   ├── api-nova-server/     # ♻️ 重构的服务器
+│   ├── api-nova-ui/         # ♻️ 升级的前端应用
 │   └── comander/               # 工具包
 ├── docs/                       # 📚 完整文档
 └── scripts/                    # 构建脚本
@@ -37,7 +37,7 @@ mcp-swagger-server/
 
 ## 📊 三大核心包升级详情
 
-### 1. 🆕 mcp-swagger-parser - 专业解析器包
+### 1. 🆕 api-nova-parser - 专业解析器包
 
 **创建目标**：提供业界最强的 OpenAPI 到 MCP 转换能力
 
@@ -68,12 +68,12 @@ src/
 - 💾 内存使用：+20% (相比基础解析器，但功能增强数倍)
 - 🔍 验证准确度：99.5% (支持复杂引用和嵌套结构)
 
-### 2. ♻️ mcp-swagger-server - 现代化服务器
+### 2. ♻️ api-nova-server - 现代化服务器
 
 **升级目标**：使用新解析器，提供更强大的 MCP 服务
 
 **主要改进**：
-- ✅ 完全使用新的 `mcp-swagger-parser` 包
+- ✅ 完全使用新的 `api-nova-parser` 包
 - ✅ 简化了 500+ 行解析逻辑为 50 行调用
 - ✅ 增强的错误处理和日志系统
 - ✅ 支持更多配置选项和自定义验证
@@ -105,7 +105,7 @@ export async function transformOpenApiToMcpTools(
 - 📈 转换准确度：提升 85%
 - 🛡️ 错误处理：提升 200%
 
-### 3. ♻️ mcp-swagger-ui - 智能前端应用
+### 3. ♻️ api-nova-ui - 智能前端应用
 
 **升级目标**：提供现代化的用户界面和更好的用户体验
 
@@ -121,7 +121,7 @@ export async function transformOpenApiToMcpTools(
 // 智能解析器切换
 async function canUseRealParser(): Promise<boolean> {
   try {
-    await import('mcp-swagger-parser')
+    await import('api-nova-parser')
     return !shouldUseMockMode()
   } catch {
     return false
@@ -232,14 +232,14 @@ npm audit
 
 ### 技术文档
 - ✅ [架构设计文档](docs/architecture/)
-- ✅ [API 完整文档](packages/mcp-swagger-parser/docs/API_DOCUMENTATION.md)
-- ✅ [技术实现文档](packages/mcp-swagger-parser/docs/TECHNICAL_DOCUMENTATION.md)
-- ✅ [架构决策记录](packages/mcp-swagger-parser/docs/ARCHITECTURE_DECISIONS.md)
+- ✅ [API 完整文档](packages/api-nova-parser/docs/API_DOCUMENTATION.md)
+- ✅ [技术实现文档](packages/api-nova-parser/docs/TECHNICAL_DOCUMENTATION.md)
+- ✅ [架构决策记录](packages/api-nova-parser/docs/ARCHITECTURE_DECISIONS.md)
 
 ### 对比分析
-- ✅ [解析器对比分析](packages/mcp-swagger-parser/docs/PARSER_COMPARISON.md)
+- ✅ [解析器对比分析](packages/api-nova-parser/docs/PARSER_COMPARISON.md)
 - ✅ [迁移总结报告](docs/migration-summary.md)
-- ✅ [UI 升级总结](docs/mcp-swagger-ui-upgrade-summary.md)
+- ✅ [UI 升级总结](docs/api-nova-ui-upgrade-summary.md)
 
 ### 最佳实践
 - ✅ [开发指南](docs/DEVELOPMENT_GUIDE.md)
@@ -257,11 +257,11 @@ pnpm install
 pnpm run build
 
 # 启动服务器
-cd packages/mcp-swagger-server
+cd packages/api-nova-server
 npm start
 
 # 启动前端
-cd packages/mcp-swagger-ui  
+cd packages/api-nova-ui  
 npm run dev
 ```
 
@@ -271,8 +271,8 @@ npm run dev
 pnpm run build:prod
 
 # 部署服务器
-docker build -t mcp-swagger-server .
-docker run -p 3322:3322 mcp-swagger-server
+docker build -t api-nova-server .
+docker run -p 3322:9022 api-nova-server
 
 # 部署前端
 npm run build

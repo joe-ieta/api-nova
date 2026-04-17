@@ -1,14 +1,14 @@
-# MCP Swagger 完整部署指南
+# ApiNova 完整部署指南
 
 ## 概述
 
-本指南介绍如何在不同场景下部署和使用 mcp-swagger-api 和 mcp-swagger-server。
+本指南介绍如何在不同场景下部署和使用 api-nova-api 和 api-nova-server。
 
 ## 目录
 
 1. [快速开始](#快速开始)
-2. [mcp-swagger-api 部署](#mcp-swagger-api-部署)
-3. [mcp-swagger-server 部署](#mcp-swagger-server-部署)
+2. [api-nova-api 部署](#api-nova-api-部署)
+3. [api-nova-server 部署](#api-nova-server-部署)
 4. [集成使用](#集成使用)
 5. [生产环境部署](#生产环境部署)
 6. [监控和维护](#监控和维护)
@@ -30,16 +30,16 @@ pnpm install
 pnpm run build
 ```
 
-## mcp-swagger-api 部署
+## api-nova-api 部署
 
 ### 本地开发
 
 ```bash
-cd packages/mcp-swagger-api
+cd packages/api-nova-api
 pnpm run start:dev
 ```
 
-服务将在 `http://localhost:3000` 启动，API文档可在 `http://localhost:3000/api` 查看。
+服务将在 `http://localhost:9000` 启动，API文档可在 `http://localhost:9000/api` 查看。
 
 ### 环境配置
 
@@ -55,7 +55,7 @@ MCP_DEFAULT_PORT=8765
 MCP_API_KEY=your-secure-api-key
 
 # 数据库配置（如果需要）
-DATABASE_URL=postgresql://user:password@localhost:5432/mcp_swagger
+DATABASE_URL=postgresql://user:password@localhost:5432/api_nova
 
 # 日志配置
 LOG_LEVEL=info
@@ -95,17 +95,17 @@ CMD ["pnpm", "run", "start:prod"]
 
 ```bash
 # 构建镜像
-docker build -t mcp-swagger-api .
+docker build -t api-nova-api .
 
 # 运行容器
-docker run -p 3000:3000 -e MCP_API_KEY=your-key mcp-swagger-api
+docker run -p 3000:9000 -e MCP_API_KEY=your-key api-nova-api
 ```
 
 ### 使用示例
 
 ```bash
 # 创建 MCP 服务器
-curl -X POST http://localhost:3000/api/v1/mcp/create \
+curl -X POST http://localhost:9000/api/v1/mcp/create \
   -H "Content-Type: application/json" \
   -H "x-api-key: your-key" \
   -d '{
@@ -118,20 +118,20 @@ curl -X POST http://localhost:3000/api/v1/mcp/create \
   }'
 
 # 查看状态
-curl http://localhost:3000/api/v1/mcp/status \
+curl http://localhost:9000/api/v1/mcp/status \
   -H "x-api-key: your-key"
 
 # 获取监控指标
-curl http://localhost:3000/api/v1/monitoring/metrics \
+curl http://localhost:9000/api/v1/monitoring/metrics \
   -H "x-api-key: your-key"
 ```
 
-## mcp-swagger-server 部署
+## api-nova-server 部署
 
 ### CLI 使用
 
 ```bash
-cd packages/mcp-swagger-server
+cd packages/api-nova-server
 
 # 基本使用
 pnpm run cli:help
@@ -153,7 +153,7 @@ pnpm run cli -- -c ./config.json
 ```json
 {
   "transport": "streamable",
-  "port": 3322,
+  "port":9022,
   "endpoint": "/mcp",
   "openapi": "https://api.github.com/openapi.json",
   "watch": false,
@@ -168,9 +168,9 @@ pnpm run cli -- -c ./config.json
 ```json
 {
   "mcpServers": {
-    "mcp-swagger": {
+    "api-nova": {
       "command": "node",
-      "args": ["/path/to/mcp-swagger-server/dist/cli.js", 
+      "args": ["/path/to/api-nova-server/dist/cli.js", 
                "-t", "stdio", 
                "-o", "https://api.github.com/openapi.json", 
                "-v"]
@@ -181,17 +181,17 @@ pnpm run cli -- -c ./config.json
 
 ### 系统服务部署
 
-创建 systemd 服务文件 `/etc/systemd/system/mcp-swagger.service`：
+创建 systemd 服务文件 `/etc/systemd/system/api-nova.service`：
 
 ```ini
 [Unit]
-Description=MCP Swagger Server
+Description=ApiNova Server
 After=network.target
 
 [Service]
 Type=simple
 User=mcp
-WorkingDirectory=/opt/mcp-swagger-server
+WorkingDirectory=/opt/api-nova-server
 ExecStart=/usr/bin/node dist/cli.js -t streamable -p 3322 -o https://api.github.com/openapi.json -v
 Restart=always
 RestartSec=10
@@ -204,14 +204,14 @@ WantedBy=multi-user.target
 启动服务：
 
 ```bash
-sudo systemctl enable mcp-swagger
-sudo systemctl start mcp-swagger
-sudo systemctl status mcp-swagger
+sudo systemctl enable api-nova
+sudo systemctl start api-nova
+sudo systemctl status api-nova
 ```
 
 ## 集成使用
 
-### 前端集成 (mcp-swagger-ui)
+### 前端集成 (api-nova-ui)
 
 ```typescript
 // 在前端应用中集成
@@ -250,11 +250,11 @@ const monitorStatus = async () => {
 
 ```nginx
 upstream mcp_api {
-    server localhost:3000;
+    server localhost:9000;
 }
 
 upstream mcp_server {
-    server localhost:3322;
+    server localhost:9022;
 }
 
 server {
@@ -288,10 +288,10 @@ server {
 version: '3.8'
 
 services:
-  mcp-swagger-api:
-    build: ./packages/mcp-swagger-api
+  api-nova-api:
+    build: ./packages/api-nova-api
     ports:
-      - "3000:3000"
+      - "3000:9000"
     environment:
       - NODE_ENV=production
       - MCP_API_KEY=${MCP_API_KEY}
@@ -301,10 +301,10 @@ services:
       - redis
     restart: always
 
-  mcp-swagger-server:
-    build: ./packages/mcp-swagger-server
+  api-nova-server:
+    build: ./packages/api-nova-server
     ports:
-      - "3322:3322"
+      - "3322:9022"
     environment:
       - NODE_ENV=production
     command: ["node", "dist/cli.js", "-t", "streamable", "-p", "3322", "-o", "${OPENAPI_URL}", "-v"]
@@ -313,7 +313,7 @@ services:
   postgres:
     image: postgres:15
     environment:
-      - POSTGRES_DB=mcp_swagger
+      - POSTGRES_DB=api_nova
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
@@ -333,8 +333,8 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf
       - ./ssl:/etc/ssl/certs
     depends_on:
-      - mcp-swagger-api
-      - mcp-swagger-server
+      - api-nova-api
+      - api-nova-server
 
 volumes:
   postgres_data:
@@ -349,22 +349,22 @@ volumes:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mcp-swagger-api
+  name: api-nova-api
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: mcp-swagger-api
+      app: api-nova-api
   template:
     metadata:
       labels:
-        app: mcp-swagger-api
+        app: api-nova-api
     spec:
       containers:
       - name: api
-        image: mcp-swagger-api:latest
+        image: api-nova-api:latest
         ports:
-        - containerPort: 3000
+        - containerPort:9000
         env:
         - name: MCP_API_KEY
           valueFrom:
@@ -383,13 +383,13 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: mcp-swagger-api-service
+  name: api-nova-api-service
 spec:
   selector:
-    app: mcp-swagger-api
+    app: api-nova-api
   ports:
   - port: 80
-    targetPort: 3000
+    targetPort:9000
   type: LoadBalancer
 ```
 
@@ -399,32 +399,32 @@ spec:
 
 ```bash
 # API 服务健康检查
-curl http://localhost:3000/api/v1/monitoring/health
+curl http://localhost:9000/api/v1/monitoring/health
 
 # MCP 服务器健康检查
-curl http://localhost:3322/health
+curl http://localhost:9022/health
 ```
 
 ### 日志管理
 
 ```bash
 # 查看 API 服务日志
-docker logs mcp-swagger-api
+docker logs api-nova-api
 
 # 查看 MCP 服务器日志
-sudo journalctl -u mcp-swagger -f
+sudo journalctl -u api-nova -f
 
 # 使用 ELK 栈收集日志
 # Logstash 配置示例
 input {
   file {
-    path => "/var/log/mcp-swagger/*.log"
-    type => "mcp-swagger"
+    path => "/var/log/api-nova/*.log"
+    type => "api-nova"
   }
 }
 
 filter {
-  if [type] == "mcp-swagger" {
+  if [type] == "api-nova" {
     json {
       source => "message"
     }
@@ -434,7 +434,7 @@ filter {
 output {
   elasticsearch {
     hosts => ["localhost:9200"]
-    index => "mcp-swagger-%{+YYYY.MM.dd}"
+    index => "api-nova-%{+YYYY.MM.dd}"
   }
 }
 ```
@@ -449,14 +449,14 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: 'mcp-swagger-api'
+  - job_name: 'api-nova-api'
     static_configs:
-      - targets: ['localhost:3000']
+      - targets: ['localhost:9000']
     metrics_path: '/api/v1/monitoring/metrics'
     
-  - job_name: 'mcp-swagger-server'
+  - job_name: 'api-nova-server'
     static_configs:
-      - targets: ['localhost:3322']
+      - targets: ['localhost:9022']
     metrics_path: '/metrics'
 ```
 
@@ -467,10 +467,10 @@ scrape_configs:
 # backup.sh - 备份脚本
 
 # 备份配置文件
-cp /opt/mcp-swagger/config/*.json /backup/config/
+cp /opt/api-nova/config/*.json /backup/config/
 
 # 备份数据库
-pg_dump mcp_swagger | gzip > /backup/db/mcp_swagger_$(date +%Y%m%d).sql.gz
+pg_dump api_nova | gzip > /backup/db/api_nova_$(date +%Y%m%d).sql.gz
 
 # 清理旧备份
 find /backup -name "*.gz" -mtime +7 -delete
@@ -483,11 +483,11 @@ find /backup -name "*.gz" -mtime +7 -delete
 1. **端口冲突**
    ```bash
    # 检查端口占用
-   lsof -i :3000
-   lsof -i :3322
+   lsof -i :9000
+   lsof -i :9022
    
    # 更换端口
-   export PORT=3001
+   export PORT=9001
    ```
 
 2. **OpenAPI 加载失败**
@@ -520,4 +520,4 @@ find /backup -name "*.gz" -mtime +7 -delete
    - 启用工具缓存
    - 优化 OpenAPI 解析
 
-通过以上配置，你就可以在各种环境下成功部署和使用 MCP Swagger 系统了。
+通过以上配置，你就可以在各种环境下成功部署和使用 ApiNova 系统了。

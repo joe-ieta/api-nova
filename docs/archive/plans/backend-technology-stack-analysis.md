@@ -1,4 +1,4 @@
-# MCP Swagger Server 后端技术栈选型分析
+# ApiNova Server 后端技术栈选型分析
 
 ## 📊 技术选型综合评估
 
@@ -134,7 +134,7 @@ export class AppModule {}
 
 ```typescript
 // 项目结构设计
-packages/mcp-swagger-server-nestjs/
+packages/api-nova-server-nestjs/
 ├── src/
 │   ├── app.module.ts                 # 主模块
 │   ├── config/                       # 配置管理
@@ -236,7 +236,7 @@ export class McpService {
 ```bash
 # 1. 创建 NestJS 项目
 npm i -g @nestjs/cli
-nest new mcp-swagger-server-nestjs
+nest new api-nova-server-nestjs
 
 # 2. 安装核心依赖
 npm install @nestjs/swagger @nestjs/config @nestjs/common
@@ -364,8 +364,8 @@ describe('OpenApiService', () => {
 2. **快速启动路径**：
    ```bash
    # 在当前项目中创建 NestJS 服务
-   mkdir packages/mcp-swagger-server-nestjs
-   cd packages/mcp-swagger-server-nestjs
+   mkdir packages/api-nova-server-nestjs
+   cd packages/api-nova-server-nestjs
    nest new . --package-manager npm
    ```
 

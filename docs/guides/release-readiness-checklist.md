@@ -125,7 +125,7 @@ Verify:
 
 Current verified baseline on April 16, 2026:
 
-- database `mcp_swagger_api` was dropped and recreated from a clean state
+- database `api_nova_api` was dropped and recreated from a clean state
 - API startup in `DB_TYPE=postgres` completed successfully
 - schema and seed initialization completed successfully on an empty database
 - resulting PostgreSQL schema contains 19 public tables, including `endpoint_probe_logs`

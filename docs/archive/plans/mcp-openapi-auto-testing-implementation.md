@@ -33,10 +33,10 @@
 
 3) MCP Tools 作为执行引擎
 - AI 不直接调用 HTTP 接口，而是通过现有的 MCP Client 调用 Tools
-- 充分利用 mcp-swagger-server 的转换成果
+- 充分利用 api-nova-server 的转换成果
 - 保持与现有架构的一致性
 
-## 四、数据与安全），以 mcp-swagger-server 已转换的 MCP Tools 为基础，构建 AI 智能测试系统。核心思路是让 AI 通过 MCP Client 调用现成的 Tools，而非重新解析 API 文档。
+## 四、数据与安全），以 api-nova-server 已转换的 MCP Tools 为基础，构建 AI 智能测试系统。核心思路是让 AI 通过 MCP Client 调用现成的 Tools，而非重新解析 API 文档。
 
 ## 架构概览
 
@@ -51,11 +51,11 @@
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
-## 一、后端改造（packages/mcp-swagger-api）MCP 自动进行 OpenAPI 接口测试 — 实施方案
+## 一、后端改造（packages/api-nova-api）MCP 自动进行 OpenAPI 接口测试 — 实施方案
 
 本方案依托现有三包架构（api / ui / server），补齐“执行 MCP Tool”的后端能力，并将 UI 测试器接入真实执行流。
 
-## 一、后端改造（packages/mcp-swagger-api）
+## 一、后端改造（packages/api-nova-api）
 
 1) 新增服务 MCPExecutionService
 - 作用：根据服务器传输类型与子进程句柄，代表 UI 执行指定 Tool。
@@ -86,7 +86,7 @@
 5) 类型与错误
 - 在 src/modules/servers/interfaces/process.interface.ts 中补充 ToolResult 类型定义，或在 DTO 中定义统一返回。
 
-## 二、前端改造（packages/mcp-swagger-ui）
+## 二、前端改造（packages/api-nova-ui）
 
 1) API 封装
 - 在 services/api.ts 新增 testingAPI.executeServerTool(serverId, toolId, parameters) -> 调用 /v1/servers/:id/tools/:toolId/execute。

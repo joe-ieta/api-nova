@@ -1,8 +1,8 @@
-# MCP Swagger Parser 抽离实施计划
+# ApiNova Parser 抽离实施计划
 
 ## 📋 文档信息
 
-**文档标题**: MCP Swagger Parser 抽离实施计划  
+**文档标题**: ApiNova Parser 抽离实施计划  
 **创建日期**: 2025-06-17  
 **版本**: v1.0  
 **状态**: 实施规划  
@@ -13,7 +13,7 @@
 ## 🎯 实施概览
 
 ### 核心目标
-将 OpenAPI 解析逻辑从 `mcp-swagger-server` 中抽离，形成独立的 `mcp-swagger-parser` 库，实现：
+将 OpenAPI 解析逻辑从 `api-nova-server` 中抽离，形成独立的 `api-nova-parser` 库，实现：
 - 职责分离和代码解耦
 - 提高代码复用性
 - 改善测试和维护性
@@ -35,7 +35,7 @@
 
 #### 主要文件清单
 ```
-packages/mcp-swagger-server/src/transform/
+packages/api-nova-server/src/transform/
 ├── openapi-to-mcp.ts                    🔄 需要拆分
 │   ├── parseOpenApiFromSource()         ➡️ 移至 parser
 │   ├── validateOpenApiSpec()            ➡️ 移至 parser  
@@ -63,7 +63,7 @@ import { Tool } from '@modelcontextprotocol/sdk/types.js'; // ⬅️ 保留
 
 ### 功能边界划分
 
-#### 🔍 解析库负责 (mcp-swagger-parser)
+#### 🔍 解析库负责 (api-nova-parser)
 ```typescript
 interface ParserResponsibilities {
   // 输入处理
@@ -85,7 +85,7 @@ interface ParserResponsibilities {
 }
 ```
 
-#### ⚙️ 服务器负责 (mcp-swagger-server)
+#### ⚙️ 服务器负责 (api-nova-server)
 ```typescript
 interface ServerResponsibilities {
   // MCP 转换
@@ -109,9 +109,9 @@ interface ServerResponsibilities {
 
 ### 新包结构设计
 
-#### mcp-swagger-parser 包结构
+#### api-nova-parser 包结构
 ```
-packages/mcp-swagger-parser/
+packages/api-nova-parser/
 ├── src/
 │   ├── core/                          # 核心解析器
 │   │   ├── parser.ts                  # 主解析器类
@@ -170,7 +170,7 @@ packages/mcp-swagger-parser/
 
 #### 核心 API 接口
 ```typescript
-// packages/mcp-swagger-parser/src/index.ts
+// packages/api-nova-parser/src/index.ts
 
 export class OpenApiParser {
   constructor(options?: ParserOptions) {}
@@ -196,7 +196,7 @@ export const parseOpenApiFromText = (content: string, format?: 'json' | 'yaml', 
 
 #### 类型定义系统
 ```typescript
-// packages/mcp-swagger-parser/src/types/index.ts
+// packages/api-nova-parser/src/types/index.ts
 
 export interface ParsedApiSpec {
   // OpenAPI 基础信息
@@ -260,19 +260,19 @@ export interface ApiEndpoint {
 #### 1.1 创建包结构
 ```bash
 # 创建新包目录
-mkdir -p packages/mcp-swagger-parser/src/{core,parsers,extractors,types,utils,errors}
-mkdir -p packages/mcp-swagger-parser/tests/{unit,integration,fixtures,__helpers__}
-mkdir -p packages/mcp-swagger-parser/docs/{examples}
+mkdir -p packages/api-nova-parser/src/{core,parsers,extractors,types,utils,errors}
+mkdir -p packages/api-nova-parser/tests/{unit,integration,fixtures,__helpers__}
+mkdir -p packages/api-nova-parser/docs/{examples}
 
 # 创建配置文件
-touch packages/mcp-swagger-parser/{package.json,tsconfig.json,rollup.config.js,README.md}
+touch packages/api-nova-parser/{package.json,tsconfig.json,rollup.config.js,README.md}
 ```
 
 #### 1.2 配置包管理
 ```json
-// packages/mcp-swagger-parser/package.json
+// packages/api-nova-parser/package.json
 {
-  "name": "mcp-swagger-parser",
+  "name": "api-nova-parser",
   "version": "0.1.0",
   "description": "OpenAPI/Swagger specification parser for MCP projects",
   "main": "dist/index.js",
@@ -323,7 +323,7 @@ touch packages/mcp-swagger-parser/{package.json,tsconfig.json,rollup.config.js,R
 
 #### 1.3 TypeScript 配置
 ```json
-// packages/mcp-swagger-parser/tsconfig.json
+// packages/api-nova-parser/tsconfig.json
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
@@ -342,7 +342,7 @@ touch packages/mcp-swagger-parser/{package.json,tsconfig.json,rollup.config.js,R
 
 #### 2.1 抽离解析器核心类
 ```typescript
-// packages/mcp-swagger-parser/src/core/parser.ts
+// packages/api-nova-parser/src/core/parser.ts
 
 import SwaggerParser from '@apidevtools/swagger-parser';
 import { z } from 'zod';
@@ -417,7 +417,7 @@ export class OpenApiParser {
 
 #### 2.2 抽离端点提取器
 ```typescript
-// packages/mcp-swagger-parser/src/extractors/endpoint-extractor.ts
+// packages/api-nova-parser/src/extractors/endpoint-extractor.ts
 
 import type { ParsedApiSpec, ApiEndpoint, Parameter, ResponsesObject } from '../types';
 
@@ -461,7 +461,7 @@ export class EndpointExtractor {
 
 #### 2.3 创建类型定义
 ```typescript
-// packages/mcp-swagger-parser/src/types/output.ts
+// packages/api-nova-parser/src/types/output.ts
 
 export interface ParsedApiSpec {
   openapi: string;
@@ -502,10 +502,10 @@ export interface ParseMetadata {
 
 #### 3.1 更新服务器依赖
 ```json
-// packages/mcp-swagger-server/package.json 添加依赖
+// packages/api-nova-server/package.json 添加依赖
 {
   "dependencies": {
-    "mcp-swagger-parser": "workspace:^0.1.0",
+    "api-nova-parser": "workspace:^0.1.0",
     // 移除原有的解析相关依赖
     // "@apidevtools/swagger-parser": "^10.1.0", // 删除
     // "js-yaml": "^4.1.0", // 删除
@@ -517,9 +517,9 @@ export interface ParseMetadata {
 
 #### 3.2 重构转换逻辑
 ```typescript
-// packages/mcp-swagger-server/src/converters/mcp-converter.ts
+// packages/api-nova-server/src/converters/mcp-converter.ts
 
-import { OpenApiParser, type ParsedApiSpec, type ApiEndpoint } from 'mcp-swagger-parser';
+import { OpenApiParser, type ParsedApiSpec, type ApiEndpoint } from 'api-nova-parser';
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { ConvertConfig, McpConfig } from '../types';
 
@@ -586,10 +586,10 @@ export class McpConverter {
 
 #### 3.3 更新服务器主逻辑
 ```typescript
-// packages/mcp-swagger-server/src/server.ts
+// packages/api-nova-server/src/server.ts
 
 import { McpConverter } from './converters/mcp-converter.js';
-import { OpenApiParser } from 'mcp-swagger-parser';
+import { OpenApiParser } from 'api-nova-parser';
 
 export class McpSwaggerServer {
   private converter: McpConverter;
@@ -618,7 +618,7 @@ export class McpSwaggerServer {
 
 #### 4.1 解析库单元测试
 ```typescript
-// packages/mcp-swagger-parser/tests/unit/parser.test.ts
+// packages/api-nova-parser/tests/unit/parser.test.ts
 
 import { OpenApiParser } from '../../src';
 import { readFileSync } from 'fs';
@@ -689,7 +689,7 @@ describe('OpenApiParser', () => {
 
 #### 4.2 集成测试
 ```typescript
-// packages/mcp-swagger-server/tests/integration/conversion.test.ts
+// packages/api-nova-server/tests/integration/conversion.test.ts
 
 import { McpSwaggerServer } from '../../src/server';
 import type { InputSource, ConvertConfig } from '../../src/types';
@@ -733,20 +733,20 @@ describe('MCP Conversion Integration', () => {
 
 #### 5.1 API 文档
 ```markdown
-// packages/mcp-swagger-parser/docs/API.md
+// packages/api-nova-parser/docs/API.md
 
-# MCP Swagger Parser API Documentation
+# ApiNova Parser API Documentation
 
 ## Installation
 
 ```bash
-npm install mcp-swagger-parser
+npm install api-nova-parser
 ```
 
 ## Quick Start
 
 ```typescript
-import { OpenApiParser } from 'mcp-swagger-parser';
+import { OpenApiParser } from 'api-nova-parser';
 
 const parser = new OpenApiParser();
 
@@ -795,9 +795,9 @@ new OpenApiParser(options?: ParserOptions)
 
 #### 5.2 使用示例
 ```typescript
-// packages/mcp-swagger-parser/docs/examples/basic-usage.ts
+// packages/api-nova-parser/docs/examples/basic-usage.ts
 
-import { OpenApiParser } from 'mcp-swagger-parser';
+import { OpenApiParser } from 'api-nova-parser';
 
 async function basicExample() {
   const parser = new OpenApiParser({
@@ -845,7 +845,7 @@ basicExample();
 ### 每日任务分解
 
 #### Day 1-2: 项目搭建
-- [ ] 创建 `mcp-swagger-parser` 包结构
+- [ ] 创建 `api-nova-parser` 包结构
 - [ ] 配置 TypeScript 和构建工具
 - [ ] 设置测试环境
 - [ ] 更新 workspace 配置
@@ -863,7 +863,7 @@ basicExample();
 - [ ] 添加错误处理机制
 
 #### Day 7-8: 服务器端重构
-- [ ] 重构 `mcp-swagger-server` 依赖
+- [ ] 重构 `api-nova-server` 依赖
 - [ ] 实现 `McpConverter` 类
 - [ ] 更新服务器主逻辑
 - [ ] 测试基本集成
@@ -980,10 +980,10 @@ basicExample();
    git revert <refactor-commit-hash>
 
 2. 暂时移除新的解析库包
-   rm -rf packages/mcp-swagger-parser
+   rm -rf packages/api-nova-parser
 
 3. 恢复服务器的原始依赖
-   git checkout HEAD~1 packages/mcp-swagger-server/package.json
+   git checkout HEAD~1 packages/api-nova-server/package.json
 
 4. 重新构建和测试
    pnpm install && pnpm build && pnpm test
@@ -1032,7 +1032,7 @@ export async function parseOpenApi(source: InputSource): Promise<ParsedApiSpec> 
 ### 立即行动项
 
 1. **今天开始** (Day 1)
-   - [ ] 创建 `packages/mcp-swagger-parser` 目录结构
+   - [ ] 创建 `packages/api-nova-parser` 目录结构
    - [ ] 配置基础的 `package.json` 和 `tsconfig.json`
    - [ ] 设置基础构建脚本
 

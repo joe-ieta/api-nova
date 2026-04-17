@@ -1,4 +1,4 @@
-# MCP Swagger UI 项目现状分析与后续开发规划
+# ApiNova UI 项目现状分析与后续开发规划
 
 ## 📊 项目现状评估
 
@@ -98,7 +98,7 @@
 
 ```typescript
 // 需要创建的文件和功能
-packages/mcp-swagger-server/src/
+packages/api-nova-server/src/
 ├── api/
 │   ├── server.ts           # HTTP API 服务器
 │   ├── routes/
@@ -253,7 +253,7 @@ tests/
 **创建核心 API 服务器:**
 
 ```typescript
-// packages/mcp-swagger-server/src/api/server.ts
+// packages/api-nova-server/src/api/server.ts
 import express from 'express'
 import cors from 'cors'
 import { validateRoute } from './routes/validate'
@@ -280,7 +280,7 @@ export function createHttpApiServer(port = 3322) {
 **完善转换核心逻辑:**
 
 ```typescript
-// packages/mcp-swagger-server/src/transform/openapi-parser.ts
+// packages/api-nova-server/src/transform/openapi-parser.ts
 export class OpenApiParser {
   async parseFromUrl(url: string): Promise<ParsedOpenApi>
   async parseFromText(content: string): Promise<ParsedOpenApi>
@@ -288,7 +288,7 @@ export class OpenApiParser {
   extractEndpoints(): ApiEndpoint[]
 }
 
-// packages/mcp-swagger-server/src/transform/mcp-generator.ts
+// packages/api-nova-server/src/transform/mcp-generator.ts
 export class McpToolGenerator {
   generateFromEndpoints(endpoints: ApiEndpoint[]): McpTool[]
   applyFilters(config: ConvertConfig): McpTool[]

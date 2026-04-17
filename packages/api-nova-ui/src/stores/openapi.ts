@@ -92,7 +92,7 @@ export const useOpenAPIStore = defineStore("openapi", () => {
         type: "success",
         title: "规范创建成功",
         message: `OpenAPI规范 "${config.name}" 已创建`,
-        duration: 3000,
+        duration:9000,
       });
       clearError();
       return response;
@@ -120,7 +120,7 @@ export const useOpenAPIStore = defineStore("openapi", () => {
         type: "success",
         title: "规范上传成功",
         message: `OpenAPI规范 "${config.name}" 已上传`,
-        duration: 3000,
+        duration:9000,
       });
       clearError();
       return response;
@@ -151,7 +151,7 @@ export const useOpenAPIStore = defineStore("openapi", () => {
         type: "success",
         title: "规范导入成功",
         message: `OpenAPI规范 "${config.name}" 已从URL导入`,
-        duration: 3000,
+        duration:9000,
       });
       clearError();
       return response;
@@ -181,7 +181,7 @@ export const useOpenAPIStore = defineStore("openapi", () => {
         type: "success",
         title: "规范保存成功",
         message: "规范内容已更新",
-        duration: 3000,
+        duration:9000,
       });
       clearError();
       return true;
@@ -223,7 +223,7 @@ export const useOpenAPIStore = defineStore("openapi", () => {
         type: "success",
         title: "规范复制成功",
         message: `规范 "${response.name}" 已成功复制`,
-        duration: 3000,
+        duration:9000,
       });
       clearError();
       return response;
@@ -256,7 +256,7 @@ export const useOpenAPIStore = defineStore("openapi", () => {
           type: "success",
           title: "规范删除成功",
           message: `规范 "${specName}" 已删除`,
-          duration: 3000,
+          duration:9000,
         });
       }
       clearError();
@@ -297,7 +297,7 @@ export const useOpenAPIStore = defineStore("openapi", () => {
         type: "success",
         title: "MCP转换成功",
         message: "规范已成功转换为MCP配置",
-        duration: 3000,
+        duration:9000,
       });
       clearError();
       return response;
@@ -388,7 +388,7 @@ export const useOpenAPIStore = defineStore("openapi", () => {
         type: "success",
         title: "文件解析成功",
         message: `成功解析 ${response.endpoints?.length || 0} 个接口`,
-        duration: 3000,
+        duration:9000,
       });
       clearError();
       return response;

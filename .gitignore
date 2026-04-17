@@ -1,4 +1,4 @@
-# MCP Swagger Server .gitignore
+# ApiNova Server .gitignore
 # =========================
 
 # Dependencies
@@ -43,7 +43,7 @@ out/
 !dist/**/*.js
 !dist/**/*.d.ts
 !dist/**/*.js.map
-!packages/mcp-swagger-server/scripts/*.js
+!packages/api-nova-server/scripts/*.js
 
 
 # Log files
@@ -75,7 +75,7 @@ temp/
 tmp/
 .cache/
 .temp/
-packages/mcp-swagger-server/.tmp/
+packages/api-nova-server/.tmp/
 packages/*/dist/
 *.tsbuildinfo
 .eslintcache
@@ -105,5 +105,5 @@ packages/*/.env.production
 .debug/
 debug.log
 debug/
-packages/mcp-swagger-api/.env
-packages/mcp-swagger-api/.env.development
+packages/api-nova-api/.env
+packages/api-nova-api/.env.development

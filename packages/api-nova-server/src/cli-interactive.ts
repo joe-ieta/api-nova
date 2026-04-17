@@ -10,7 +10,7 @@ import { CLIOptions } from './interactive-cli/types';
 async function main() {
   // 设置环境变量
   if (process.env.NODE_ENV !== 'production') {
-    process.env.DEBUG = process.env.DEBUG || 'mcp-swagger:*';
+    process.env.DEBUG = process.env.DEBUG || 'api-nova:*';
   }
 
   // 设置日志级别
@@ -96,7 +96,7 @@ function parseCommandLineArgs(): CLIOptions {
       case '--debug':
       case '-d':
         options.debug = true;
-        process.env.DEBUG = 'mcp-swagger:*';
+        process.env.DEBUG = 'api-nova:*';
         process.env.LOG_LEVEL = 'debug';
         break;
       case '--help':

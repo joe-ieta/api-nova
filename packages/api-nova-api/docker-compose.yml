@@ -41,4 +41,4 @@ services:
 
 networks:
   default:
-    name: mcp-swagger-network
+    name: api-nova-network

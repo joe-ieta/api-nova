@@ -1,8 +1,8 @@
-# MCP Swagger UI 技术文档
+# ApiNova UI 技术文档
 
 ## 概述
 
-MCP Swagger UI 是一个基于 Vue 3 的现代化前端应用，用于将 OpenAPI/Swagger 规范转换为 Model Context Protocol (MCP) 格式。该应用采用 Apple 风格的设计理念，提供简洁、直观的用户界面。
+ApiNova UI 是一个基于 Vue 3 的现代化前端应用，用于将 OpenAPI/Swagger 规范转换为 Model Context Protocol (MCP) 格式。该应用采用 Apple 风格的设计理念，提供简洁、直观的用户界面。
 
 ## 技术栈
 
@@ -33,7 +33,7 @@ MCP Swagger UI 是一个基于 Vue 3 的现代化前端应用，用于将 OpenAP
 ## 项目结构
 
 ```
-packages/mcp-swagger-ui/
+packages/api-nova-ui/
 ├── public/                    # 静态资源
 ├── src/
 │   ├── components/           # 可复用组件
@@ -587,11 +587,11 @@ export default defineConfig({
     }
   },
   server: {
-    port: 3000,
+    port:9000,
     host: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3322',
+        target: 'http://localhost:9022',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '/api')
       }
@@ -603,8 +603,8 @@ export default defineConfig({
 ### 环境配置
 ```bash
 # .env.development
-VITE_APP_TITLE=MCP Swagger Server
-VITE_API_BASE_URL=http://localhost:3000/api
+VITE_APP_TITLE=ApiNova Server
+VITE_API_BASE_URL=http://localhost:9000/api
 VITE_ENABLE_DEMO_MODE=true
 ```
 
@@ -650,4 +650,4 @@ npm run lint
 6. **在线编辑**: 集成 Monaco Editor 进行在线编辑
 7. **测试工具**: 集成 API 测试功能
 
-这个技术文档涵盖了 MCP Swagger UI 项目的核心架构、主要模块、关键函数和设计思路，为进一步开发提供了详细的技术指南。
+这个技术文档涵盖了 ApiNova UI 项目的核心架构、主要模块、关键函数和设计思路，为进一步开发提供了详细的技术指南。

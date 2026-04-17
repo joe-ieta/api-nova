@@ -1,13 +1,13 @@
-# MCP Swagger Server 解析器迁移总结
+# ApiNova Server 解析器迁移总结
 
 ## 🎯 迁移目标
 
-将 `mcp-swagger-server` 从内置的 OpenAPI 解析逻辑迁移到使用新创建的 `mcp-swagger-parser` 包，实现更好的模块化和代码复用。
+将 `api-nova-server` 从内置的 OpenAPI 解析逻辑迁移到使用新创建的 `api-nova-parser` 包，实现更好的模块化和代码复用。
 
 ## 📋 迁移完成的内容
 
 ### 1. 依赖更新
-- ✅ 在 `package.json` 中添加了 `mcp-swagger-parser` 依赖
+- ✅ 在 `package.json` 中添加了 `api-nova-parser` 依赖
 - ✅ 移除了对旧解析逻辑的直接依赖
 
 ### 2. 代码重构
@@ -45,8 +45,8 @@ export class OpenAPIToMCPTransformer {
 ### 迁移后
 ```typescript
 // 新的实现：使用专门的解析器包
-import { parseFromFile, transformToMCPTools } from 'mcp-swagger-parser';
-import type { MCPTool, ValidationError } from 'mcp-swagger-parser';
+import { parseFromFile, transformToMCPTools } from 'api-nova-parser';
+import type { MCPTool, ValidationError } from 'api-nova-parser';
 
 export async function transformOpenApiToMcpTools(
   swaggerFilePath?: string,
@@ -132,10 +132,10 @@ export async function transformOpenApiToMcpTools(
 
 ## 📖 相关文档
 
-- [解析器架构设计](../packages/mcp-swagger-parser/docs/ARCHITECTURE_DECISIONS.md)
-- [API 文档](../packages/mcp-swagger-parser/docs/API_DOCUMENTATION.md)
-- [解析器对比分析](../packages/mcp-swagger-parser/docs/PARSER_COMPARISON.md)
+- [解析器架构设计](../packages/api-nova-parser/docs/ARCHITECTURE_DECISIONS.md)
+- [API 文档](../packages/api-nova-parser/docs/API_DOCUMENTATION.md)
+- [解析器对比分析](../packages/api-nova-parser/docs/PARSER_COMPARISON.md)
 
 ---
 
-**✅ 迁移完成！** 新的架构为 MCP Swagger Server 提供了更强大、更灵活的 OpenAPI 解析能力。
+**✅ 迁移完成！** 新的架构为 ApiNova Server 提供了更强大、更灵活的 OpenAPI 解析能力。

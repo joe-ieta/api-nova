@@ -375,7 +375,7 @@ class GlobalNotificationManager {
     ElMessage({
       type: "success",
       message: `${message} 成功`,
-      duration: 3000,
+      duration:9000,
       showClose: true,
     });
   }
@@ -411,14 +411,14 @@ class GlobalNotificationManager {
         title: defaultType === "error" ? "错误" : "提示",
         message: options,
         type: defaultType,
-        duration: defaultType === "error" ? 5000 : 3000,
+        duration: defaultType === "error" ? 5000 :9000,
         position: "top-right",
       };
     }
 
     return {
       type: defaultType,
-      duration: defaultType === "error" ? 5000 : 3000,
+      duration: defaultType === "error" ? 5000 :9000,
       position: "top-right",
       ...options,
     };

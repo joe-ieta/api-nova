@@ -66,14 +66,14 @@ jobs:
 
           if [ "${{ matrix.db_type }}" = "sqlite" ]; then
             echo "DB_TYPE=sqlite" >> "$GITHUB_ENV"
-            echo "DB_SQLITE_PATH=tmp/ci/sqlite/mcp-swagger.db" >> "$GITHUB_ENV"
+            echo "DB_SQLITE_PATH=tmp/ci/sqlite/api-nova.db" >> "$GITHUB_ENV"
           else
             echo "DB_TYPE=postgres" >> "$GITHUB_ENV"
             echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
             echo "DB_PORT=5432" >> "$GITHUB_ENV"
             echo "DB_USERNAME=postgres" >> "$GITHUB_ENV"
             echo "DB_PASSWORD=pg" >> "$GITHUB_ENV"
-            echo "DB_DATABASE=mcp_swagger_api" >> "$GITHUB_ENV"
+            echo "DB_DATABASE=api_nova_api" >> "$GITHUB_ENV"
           fi
 
       - name: Prepare PostgreSQL database
@@ -84,8 +84,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
-          psql -h 127.0.0.1 -U postgres -d postgres -c "DROP DATABASE IF EXISTS mcp_swagger_api;"
-          psql -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE mcp_swagger_api;"
+          psql -h 127.0.0.1 -U postgres -d postgres -c "DROP DATABASE IF EXISTS api_nova_api;"
+          psql -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE api_nova_api;"
 
       - name: Run package tests
         run: pnpm --filter api-nova-api run test -- --runInBand

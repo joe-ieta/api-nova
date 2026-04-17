@@ -8,7 +8,7 @@ It is the reference point for all follow-up work. If an implementation, proposal
 
 This baseline exists to prevent architecture drift, scope drift, product-positioning drift, and active-contract drift.
 
-The repository originated from the upstream `mcp-swagger-server` project, but the current baseline is governed by this repository's own product direction and release rules rather than by upstream alignment.
+The repository originated from the upstream `api-nova-server` project, but the current baseline is governed by this repository's own product direction and release rules rather than by upstream alignment.
 
 This baseline also anchors active naming and default runtime ports so later changes do not drift back toward legacy project labels or stale port contracts.
 

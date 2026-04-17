@@ -87,7 +87,7 @@ export function resolveSqliteDatabasePath(configService?: ConfigService): string
   const configuredPath =
     configService?.get<string>('DB_SQLITE_PATH') ??
     process.env.DB_SQLITE_PATH ??
-    'data/mcp-swagger.db';
+    'data/api-nova.db';
 
   const packageRoot = resolve(__dirname, '..', '..');
   const workspaceRoot = resolve(packageRoot, '..', '..');

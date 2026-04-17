@@ -1,4 +1,4 @@
-# MCP Swagger Server 技术架构设计
+# ApiNova Server 技术架构设计
 
 ## 🏗️ 系统架构概览
 
@@ -324,22 +324,22 @@ CMD ["npm", "start"]
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mcp-swagger-server
+  name: api-nova-server
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: mcp-swagger-server
+      app: api-nova-server
   template:
     metadata:
       labels:
-        app: mcp-swagger-server
+        app: api-nova-server
     spec:
       containers:
       - name: server
-        image: mcp-swagger-server:latest
+        image: api-nova-server:latest
         ports:
-        - containerPort: 3000
+        - containerPort:9000
         env:
         - name: NODE_ENV
           value: "production"

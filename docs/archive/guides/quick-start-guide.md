@@ -1,4 +1,4 @@
-# MCP Swagger Server - 快速入门指南
+# ApiNova Server - 快速入门指南
 
 ## 项目概述
 
@@ -7,11 +7,11 @@
 ## 项目结构
 
 ```
-mcp-swagger-server/
+api-nova-server/
 ├── packages/
-│   ├── mcp-swagger-parser/    # 核心解析器包
-│   ├── mcp-swagger-server/    # MCP 服务器
-│   └── mcp-swagger-ui/        # Vue.js 前端界面
+│   ├── api-nova-parser/    # 核心解析器包
+│   ├── api-nova-server/    # MCP 服务器
+│   └── api-nova-ui/        # Vue.js 前端界面
 ├── scripts/
 │   ├── build.js              # 统一构建脚本
 │   ├── dev.js                # 开发环境脚本
@@ -61,7 +61,7 @@ corepack prepare pnpm@latest --activate
 ```bash
 # 克隆项目
 git clone <repository-url>
-cd mcp-swagger-server
+cd api-nova-server
 
 # 安装依赖（会自动构建依赖包）
 pnpm install
@@ -120,9 +120,9 @@ pnpm run diagnostic
 ### 依赖关系图
 
 ```
-mcp-swagger-ui
+api-nova-ui
     ↓ depends on
-mcp-swagger-parser
+api-nova-parser
     ↓ depends on
 External packages (axios, swagger-parser, etc.)
 ```
@@ -169,7 +169,7 @@ pnpm run dev
 pnpm run diagnostic
 
 # 2. 检查特定包的构建状态
-cd packages/mcp-swagger-parser
+cd packages/api-nova-parser
 pnpm run build
 
 # 3. 清理并重新构建
@@ -195,7 +195,7 @@ Error: EACCES: permission denied
 
 #### 2. 依赖解析失败
 ```
-Failed to resolve entry for package "mcp-swagger-parser"
+Failed to resolve entry for package "api-nova-parser"
 ```
 **解决方案**: 
 ```bash
@@ -204,7 +204,7 @@ pnpm run build:packages
 
 #### 3. 类型检查错误
 ```
-Cannot find module 'mcp-swagger-parser'
+Cannot find module 'api-nova-parser'
 ```
 **解决方案**: 确保包已构建并生成类型定义文件
 

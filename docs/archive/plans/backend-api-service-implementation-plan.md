@@ -1,4 +1,4 @@
-# MCP Swagger 后端 API 服务实施方案
+# ApiNova 后端 API 服务实施方案
 
 ## 📋 方案概述
 
@@ -59,7 +59,7 @@
                           │ 核心库调用
                           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                核心库层 (mcp-swagger-parser)               │
+│                核心库层 (api-nova-parser)               │
 │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐           │
 │  │   解析器    │ │   验证器    │ │   转换器    │           │
 │  │  多格式解析 │ │  Schema校验 │ │  格式转换   │           │
@@ -78,7 +78,7 @@
 
 ```
 packages/
-├── mcp-swagger-api/                 # 🆕 新增API服务
+├── api-nova-api/                 # 🆕 新增API服务
 │   ├── src/
 │   │   ├── app.ts                   # Express应用入口
 │   │   ├── server.ts                # 服务器启动文件
@@ -223,7 +223,7 @@ export function createApp() {
 
 ```typescript
 // src/services/parser.service.ts
-import { parseFromUrl, parseFromFile, parseFromString } from 'mcp-swagger-parser';
+import { parseFromUrl, parseFromFile, parseFromString } from 'api-nova-parser';
 import type { InputSource, ParseOptions, ParseResult } from '../types/api';
 
 export class ParserService {
@@ -332,7 +332,7 @@ class ApiClient {
   
   constructor() {
     this.client = axios.create({
-      baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1',
+      baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:9001/api/v1',
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
@@ -480,11 +480,11 @@ export const parserService = new ParserService();
 #### 4.1 开发环境配置
 
 ```typescript
-// packages/mcp-swagger-api/src/config/development.ts
+// packages/api-nova-api/src/config/development.ts
 export default {
-  port: 3001,
+  port:9001,
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    origin: ['http://localhost:5173', 'http://localhost:9000'],
     credentials: true
   },
   logging: {
@@ -500,7 +500,7 @@ export default {
 #### 4.2 生产环境配置
 
 ```typescript
-// packages/mcp-swagger-api/src/config/production.ts
+// packages/api-nova-api/src/config/production.ts
 export default {
   port: process.env.PORT || 3001,
   cors: {
@@ -521,7 +521,7 @@ export default {
 #### 4.3 Docker配置
 
 ```dockerfile
-# packages/mcp-swagger-api/Dockerfile
+# packages/api-nova-api/Dockerfile
 FROM node:18-alpine
 
 WORKDIR /app
@@ -541,7 +541,7 @@ CMD ["node", "dist/server.js"]
 #### 5.1 API测试
 
 ```typescript
-// packages/mcp-swagger-api/tests/api.test.ts
+// packages/api-nova-api/tests/api.test.ts
 import request from 'supertest';
 import { createApp } from '../src/app';
 
@@ -614,13 +614,13 @@ export function cacheMiddleware(ttl?: number) {
 ```json
 {
   "scripts": {
-    "dev:api": "pnpm --filter=mcp-swagger-api run dev",
-    "dev:ui": "pnpm --filter=mcp-swagger-ui run dev", 
+    "dev:api": "pnpm --filter=api-nova-api run dev",
+    "dev:ui": "pnpm --filter=api-nova-ui run dev", 
     "dev:full": "concurrently \"pnpm run dev:api\" \"pnpm run dev:ui\"",
-    "build:api": "pnpm --filter=mcp-swagger-api run build",
-    "build:ui": "pnpm --filter=mcp-swagger-ui run build",
-    "test:api": "pnpm --filter=mcp-swagger-api run test",
-    "test:ui": "pnpm --filter=mcp-swagger-ui run test"
+    "build:api": "pnpm --filter=api-nova-api run build",
+    "build:ui": "pnpm --filter=api-nova-ui run build",
+    "test:api": "pnpm --filter=api-nova-api run test",
+    "test:ui": "pnpm --filter=api-nova-ui run test"
   }
 }
 ```
@@ -635,7 +635,7 @@ echo "🚀 启动全栈开发环境..."
 
 # 启动API服务
 echo "📡 启动API服务..."
-pnpm --filter=mcp-swagger-api run dev &
+pnpm --filter=api-nova-api run dev &
 API_PID=$!
 
 # 等待API服务启动
@@ -643,12 +643,12 @@ sleep 3
 
 # 启动前端服务
 echo "🎨 启动前端服务..."
-pnpm --filter=mcp-swagger-ui run dev &
+pnpm --filter=api-nova-ui run dev &
 UI_PID=$!
 
 # 等待用户输入退出
 echo "✅ 开发环境已启动"
-echo "   - API服务: http://localhost:3001"
+echo "   - API服务: http://localhost:9001"
 echo "   - 前端服务: http://localhost:5173"
 echo ""
 echo "按 Ctrl+C 退出..."
@@ -664,7 +664,7 @@ wait
 ### 改造前 (当前架构)
 ```
 前端 (Vue 3)
-├── 直接引用 mcp-swagger-parser
+├── 直接引用 api-nova-parser
 ├── 浏览器中执行解析逻辑  ❌
 ├── 大量Node.js依赖打包  ❌ 
 └── 解析错误调试困难    ❌
@@ -698,4 +698,4 @@ wait
 3. **扩展能力**: 后端服务可独立扩展，支持更多客户端
 4. **用户体验**: 更快的加载速度和更稳定的解析性能
 
-这个方案充分利用了现有的 monorepo 架构和 mcp-swagger-parser 核心库，是一个既务实又具有前瞻性的技术方案。
+这个方案充分利用了现有的 monorepo 架构和 api-nova-parser 核心库，是一个既务实又具有前瞻性的技术方案。

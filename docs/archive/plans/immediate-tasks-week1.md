@@ -9,14 +9,14 @@
 
 ### 任务 1.1: 安装必要依赖
 ```bash
-cd packages/mcp-swagger-server
+cd packages/api-nova-server
 npm install express cors zod swagger-parser
 npm install -D @types/express @types/cors @types/node
 ```
 
 ### 任务 1.2: 创建 HTTP API 服务器
 
-**创建文件: `packages/mcp-swagger-server/src/api/server.ts`**
+**创建文件: `packages/api-nova-server/src/api/server.ts`**
 ```typescript
 import express from 'express'
 import cors from 'cors'
@@ -30,7 +30,7 @@ export function createHttpApiServer(port = 3322) {
   
   // 中间件
   app.use(cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: ['http://localhost:9000', 'http://127.0.0.1:9000'],
     credentials: true
   }))
   app.use(express.json({ limit: '10mb' }))
@@ -67,7 +67,7 @@ export function startHttpServer(port = 3322) {
 
 ### 任务 1.3: 创建错误处理中间件
 
-**创建文件: `packages/mcp-swagger-server/src/api/middleware/error.ts`**
+**创建文件: `packages/api-nova-server/src/api/middleware/error.ts`**
 ```typescript
 import { Request, Response, NextFunction } from 'express'
 
@@ -108,7 +108,7 @@ export function errorHandler(error: ApiError, req: Request, res: Response, next:
 
 ### 任务 2.1: 创建验证路由
 
-**创建文件: `packages/mcp-swagger-server/src/api/routes/validate.ts`**
+**创建文件: `packages/api-nova-server/src/api/routes/validate.ts`**
 ```typescript
 import { Router } from 'express'
 import { z } from 'zod'
@@ -192,7 +192,7 @@ export { router as validateRoute }
 
 ### 任务 3.1: 创建预览路由
 
-**创建文件: `packages/mcp-swagger-server/src/api/routes/preview.ts`**
+**创建文件: `packages/api-nova-server/src/api/routes/preview.ts`**
 ```typescript
 import { Router } from 'express'
 import { z } from 'zod'
@@ -293,7 +293,7 @@ export { router as previewRoute }
 
 ### 任务 4.1: 创建转换路由
 
-**创建文件: `packages/mcp-swagger-server/src/api/routes/convert.ts`**
+**创建文件: `packages/api-nova-server/src/api/routes/convert.ts`**
 ```typescript
 import { Router } from 'express'
 import { z } from 'zod'
@@ -374,7 +374,7 @@ export { router as convertRoute }
 
 ### 任务 4.2: 创建基础转换逻辑
 
-**创建文件: `packages/mcp-swagger-server/src/transform/openapi-to-mcp-converter.ts`**
+**创建文件: `packages/api-nova-server/src/transform/openapi-to-mcp-converter.ts`**
 ```typescript
 export interface ConvertConfig {
   filters: {
@@ -549,7 +549,7 @@ function toKebabCase(str: string): string {
 
 ### 任务 5.1: 修改服务器启动脚本
 
-**修改文件: `packages/mcp-swagger-server/src/index.ts`**
+**修改文件: `packages/api-nova-server/src/index.ts`**
 ```typescript
 import { Command } from 'commander'
 import { runStdioServer, runSseServer, runStreamableServer } from './server'
@@ -558,8 +558,8 @@ import { startHttpServer } from './api/server'
 const program = new Command()
 
 program
-  .name('mcp-swagger-server')
-  .description('MCP Swagger Server - Transform OpenAPI specs to MCP format')
+  .name('api-nova-server')
+  .description('ApiNova Server - Transform OpenAPI specs to MCP format')
   .version('1.0.0')
 
 program
@@ -606,7 +606,7 @@ program.parse()
 
 ### 任务 5.2: 更新 package.json 脚本
 
-**修改文件: `packages/mcp-swagger-server/package.json`**
+**修改文件: `packages/api-nova-server/package.json`**
 ```json
 {
   "scripts": {
@@ -623,11 +623,11 @@ program.parse()
 
 ### 任务 5.3: 前端禁用演示模式
 
-**修改文件: `packages/mcp-swagger-ui/.env.development`**
+**修改文件: `packages/api-nova-ui/.env.development`**
 ```bash
 # 开发环境配置
-VITE_APP_TITLE=MCP Swagger Server
-VITE_API_BASE_URL=http://localhost:3322
+VITE_APP_TITLE=ApiNova Server
+VITE_API_BASE_URL=http://localhost:9022
 VITE_ENABLE_DEMO_MODE=false
 ```
 
@@ -669,9 +669,9 @@ VITE_ENABLE_DEMO_MODE=false
       "name": "Debug Backend",
       "type": "node",
       "request": "launch",
-      "program": "${workspaceFolder}/packages/mcp-swagger-server/dist/index.js",
+      "program": "${workspaceFolder}/packages/api-nova-server/dist/index.js",
       "args": ["http"],
-      "outFiles": ["${workspaceFolder}/packages/mcp-swagger-server/dist/**/*.js"],
+      "outFiles": ["${workspaceFolder}/packages/api-nova-server/dist/**/*.js"],
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"]
     }

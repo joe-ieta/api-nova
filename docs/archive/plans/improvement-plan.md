@@ -1,10 +1,10 @@
-# MCP Swagger Server CLI 工具发布改进计划
+# ApiNova Server CLI 工具发布改进计划
 
 ## 🎯 总体评估
 
 **当前状态**: ✅ **可以发布，但需要关键配置调整**
 
-mcp-swagger-server 项目已经具备了完整的 CLI 功能实现，包括：
+api-nova-server 项目已经具备了完整的 CLI 功能实现，包括：
 - 完善的命令行参数解析
 - 多种传输协议支持 (stdio, http, sse, streamable)
 - 文件监控和自动重载
@@ -21,13 +21,13 @@ mcp-swagger-server 项目已经具备了完整的 CLI 功能实现，包括：
 
 **问题**: 缺少 NPM CLI 工具的核心配置
 
-**解决方案**: 在 `packages/mcp-swagger-server/package.json` 中添加：
+**解决方案**: 在 `packages/api-nova-server/package.json` 中添加：
 
 ```json
 {
   "bin": {
-    "mcp-swagger-server": "./dist/cli.js",
-    "mcp-swagger": "./dist/cli.js"
+    "api-nova-server": "./dist/cli.js",
+    "api-nova": "./dist/cli.js"
   }
 }
 ```
@@ -58,8 +58,8 @@ mcp-swagger-server 项目已经具备了完整的 CLI 功能实现，包括：
   "main": "dist/index.js",
   "types": "dist/types/index.d.ts",
   "bin": {
-    "mcp-swagger-server": "./dist/cli.js",
-    "mcp-swagger": "./dist/cli.js"
+    "api-nova-server": "./dist/cli.js",
+    "api-nova": "./dist/cli.js"
   },
   "files": [
     "dist/**/*",
@@ -79,7 +79,7 @@ mcp-swagger-server 项目已经具备了完整的 CLI 功能实现，包括：
 
 **问题**: 缺少包级别的 README 文档
 
-**解决方案**: 在 `packages/mcp-swagger-server/` 创建 README.md
+**解决方案**: 在 `packages/api-nova-server/` 创建 README.md
 
 ---
 
@@ -97,7 +97,7 @@ mcp-swagger-server 项目已经具备了完整的 CLI 功能实现，包括：
 
 ```bash
 # 清理重建
-cd packages/mcp-swagger-server
+cd packages/api-nova-server
 pnpm run build
 
 # 检查编译产物
@@ -112,14 +112,14 @@ cat dist/cli.js | head -1  # 应该显示 #!/usr/bin/env node
 npm pack
 
 # 临时安装测试
-npm install -g ./mcp-swagger-server-1.0.0.tgz
+npm install -g ./api-nova-server-1.0.0.tgz
 
 # 测试命令
-mcp-swagger-server --help
-mcp-swagger --help
+api-nova-server --help
+api-nova --help
 
 # 功能测试
-mcp-swagger-server --transport stdio --openapi https://petstore.swagger.io/v2/swagger.json
+api-nova-server --transport stdio --openapi https://petstore.swagger.io/v2/swagger.json
 ```
 
 ### 步骤 4: 发布
@@ -132,7 +132,7 @@ npm login
 npm publish
 
 # 验证发布
-npm info mcp-swagger-server
+npm info api-nova-server
 ```
 
 ---
@@ -143,23 +143,23 @@ npm info mcp-swagger-server
 
 ```bash
 # 用户安装
-npm install -g mcp-swagger-server
+npm install -g api-nova-server
 
 # 直接使用
-mcp-swagger-server --transport streamable --port 3322 --openapi https://api.github.com/openapi.json
+api-nova-server --transport streamable --port 3322 --openapi https://api.github.com/openapi.json
 
 # 查看帮助
-mcp-swagger-server --help
+api-nova-server --help
 ```
 
 ### 项目依赖使用
 
 ```bash
 # 项目中安装
-npm install mcp-swagger-server
+npm install api-nova-server
 
 # 编程式使用
-const { createMcpServer } = require('mcp-swagger-server');
+const { createMcpServer } = require('api-nova-server');
 ```
 
 ---
@@ -171,7 +171,7 @@ const { createMcpServer } = require('mcp-swagger-server');
 1. **配置文件支持**
    ```bash
    # 支持 .mcprc.json 配置文件
-   mcp-swagger-server  # 自动读取配置
+   api-nova-server  # 自动读取配置
    ```
 
 2. **增强的错误处理**
@@ -189,13 +189,13 @@ const { createMcpServer } = require('mcp-swagger-server');
 1. **插件系统**
    ```bash
    # 支持自定义转换插件
-   mcp-swagger-server --plugin ./my-transformer.js
+   api-nova-server --plugin ./my-transformer.js
    ```
 
 2. **多实例管理**
    ```bash
    # 管理多个 API 实例
-   mcp-swagger-server --config ./multi-api.json
+   api-nova-server --config ./multi-api.json
    ```
 
 3. **监控和日志**
@@ -251,7 +251,7 @@ const { createMcpServer } = require('mcp-swagger-server');
 ### 发布成功标准
 
 - [ ] NPM 包成功发布
-- [ ] 全局命令 `mcp-swagger-server` 可用
+- [ ] 全局命令 `api-nova-server` 可用
 - [ ] 基本功能测试通过
 - [ ] 文档完整可用
 
@@ -266,7 +266,7 @@ const { createMcpServer } = require('mcp-swagger-server');
 
 ## 🎉 结论
 
-**mcp-swagger-server 已经具备了发布到 NPM 的所有核心功能**，只需要添加 `bin` 字段配置就可以作为 CLI 工具使用。
+**api-nova-server 已经具备了发布到 NPM 的所有核心功能**，只需要添加 `bin` 字段配置就可以作为 CLI 工具使用。
 
 **推荐立即发布**，理由：
 1. ✅ 功能完整 - 支持多种传输协议

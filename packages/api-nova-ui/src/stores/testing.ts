@@ -63,7 +63,7 @@ export const useTestingStore = defineStore("testing", () => {
       type: "success",
       title: "测试用例创建成功",
       message: `测试用例 "${data.name}" 已创建`,
-      duration: 3000,
+      duration:9000,
     });
 
     return testCase;
@@ -83,7 +83,7 @@ export const useTestingStore = defineStore("testing", () => {
         type: "success",
         title: "测试用例更新成功",
         message: `测试用例已更新`,
-        duration: 3000,
+        duration:9000,
       });
     }
   };
@@ -105,7 +105,7 @@ export const useTestingStore = defineStore("testing", () => {
         type: "success",
         title: "测试用例删除成功",
         message: `测试用例 "${testCase.name}" 已删除`,
-        duration: 3000,
+        duration:9000,
       });
     }
   };

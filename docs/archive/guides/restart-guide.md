@@ -241,7 +241,7 @@ node dist/index.js --log-level debug
 
 ```bash
 # 强制停止所有进程
-pkill -f "mcp-swagger-server"
+pkill -f "api-nova-server"
 
 # 清理状态文件
 rm -f mcp-server.pid mcp-server-stats.json
@@ -316,7 +316,7 @@ npm run manager:start
 
 ```ini
 [Unit]
-Description=MCP Swagger Server
+Description=ApiNova Server
 After=network.target
 
 [Service]
