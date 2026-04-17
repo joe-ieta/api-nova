@@ -26,7 +26,10 @@ export default {
     messages: {
       loginSuccess: "Login successful",
       welcomeBack: "Welcome back, {username}",
+      loggedOut: "Logged out",
+      logoutSuccess: "Successfully signed out",
     },
+
     register: {
       title: "User Registration",
       subtitle: "Create your new account",

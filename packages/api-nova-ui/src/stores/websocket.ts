@@ -98,12 +98,18 @@ export const useWebSocketStore = defineStore("websocket", () => {
     currentSubscriptions.forEach((subscription) => {
       if (subscription.startsWith("process:info:")) {
         const serverId = subscription.replace("process:info:", "");
+        if (!serverId) {
+          return;
+        }
         console.log(
           `[WebSocketStore] Restoring process info subscription for server: ${serverId}`,
         );
         websocketService.subscribeToProcessInfo(serverId);
       } else if (subscription.startsWith("process:logs:")) {
         const serverId = subscription.replace("process:logs:", "");
+        if (!serverId) {
+          return;
+        }
         console.log(
           `[WebSocketStore] Restoring process logs subscription for server: ${serverId}`,
         );
@@ -162,7 +168,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
 
   // 订阅服务器更新
   const subscribeToServer = (serverId: string) => {
-    if (!connected.value) return;
+    if (!connected.value || !serverId) return;
 
     websocketService.subscribeToServer(serverId);
     subscriptions.value.add(`server:${serverId}`);
@@ -170,7 +176,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
 
   // 取消订阅服务器更新
   const unsubscribeFromServer = (serverId: string) => {
-    if (!connected.value) return;
+    if (!connected.value || !serverId) return;
 
     websocketService.unsubscribeFromServer(serverId);
     subscriptions.value.delete(`server:${serverId}`);
@@ -197,6 +203,10 @@ export const useWebSocketStore = defineStore("websocket", () => {
 
   // 订阅进程信息
   const subscribeToProcessInfo = (serverId: string) => {
+    if (!serverId) {
+      return;
+    }
+
     if (process.env.NODE_ENV === "development") {
       console.log(
         `[WebSocketStore] subscribeToProcessInfo called for server: ${serverId}`,
@@ -219,7 +229,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
 
   // 取消订阅进程信息
   const unsubscribeFromProcessInfo = (serverId: string) => {
-    if (!connected.value) return;
+    if (!connected.value || !serverId) return;
 
     websocketService.unsubscribeFromProcessInfo(serverId);
     subscriptions.value.delete(`process:info:${serverId}`);
@@ -227,6 +237,10 @@ export const useWebSocketStore = defineStore("websocket", () => {
 
   // 订阅进程日志
   const subscribeToProcessLogs = (serverId: string) => {
+    if (!serverId) {
+      return;
+    }
+
     if (process.env.NODE_ENV === "development") {
       console.log(
         `[WebSocketStore] subscribeToProcessLogs called for server: ${serverId}`,
@@ -249,7 +263,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
 
   // 取消订阅进程日志
   const unsubscribeFromProcessLogs = (serverId: string) => {
-    if (!connected.value) return;
+    if (!connected.value || !serverId) return;
 
     websocketService.unsubscribeFromProcessLogs(serverId);
     subscriptions.value.delete(`process:logs:${serverId}`);

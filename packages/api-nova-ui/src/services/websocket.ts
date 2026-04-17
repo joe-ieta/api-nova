@@ -597,11 +597,13 @@ export class WebSocketService {
 
   // 订阅特定服务器的更新
   subscribeToServer(serverId: string): void {
+    if (!serverId) return;
     this.emit("subscribe:server", { serverId });
   }
 
   // 取消订阅特定服务器的更新
   unsubscribeFromServer(serverId: string): void {
+    if (!serverId) return;
     this.emit("unsubscribe:server", { serverId });
   }
 
@@ -627,6 +629,7 @@ export class WebSocketService {
 
   // 订阅进程信息更新（强化版本）
   subscribeToProcessInfo(serverId: string): void {
+    if (!serverId) return;
     if (!this.socket?.connected) {
       if (this.DEBUG)
         console.warn(
@@ -645,6 +648,7 @@ export class WebSocketService {
 
   // 取消订阅进程信息更新
   unsubscribeFromProcessInfo(serverId: string): void {
+    if (!serverId) return;
     // 兼容旧通用unsubscribe & 新事件
     this.emit("unsubscribe", { room: `server-metrics-${serverId}` });
     this.emit("unsubscribe-server-metrics", { serverId });
@@ -652,11 +656,13 @@ export class WebSocketService {
 
   // 订阅进程日志更新
   subscribeToProcessLogs(serverId: string, level?: string): void {
+    if (!serverId) return;
     this.emit("subscribe-server-logs", { serverId, level });
   }
 
   // 取消订阅进程日志更新
   unsubscribeFromProcessLogs(serverId: string): void {
+    if (!serverId) return;
     this.emit("unsubscribe", { room: `server-logs-${serverId}` });
     this.emit("unsubscribe-server-logs", { serverId });
   }

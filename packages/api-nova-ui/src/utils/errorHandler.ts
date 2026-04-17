@@ -39,6 +39,9 @@ class GlobalErrorHandler {
 
   // 注册全局错误处理
   install(app: any) {
+    app.provide("$globalErrorHandler", this);
+    app.provide("$errorHandler", this);
+
     // Vue错误处理
     app.config.errorHandler = (error: any, instance: any, info: string) => {
       this.handleVueError(error, instance, info);

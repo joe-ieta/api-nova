@@ -26,7 +26,10 @@ export default {
     messages: {
       loginSuccess: "登录成功",
       welcomeBack: "欢迎回来，{username}",
+      loggedOut: "已退出登录",
+      logoutSuccess: "已成功退出登录",
     },
+
     register: {
       title: "用户注册",
       subtitle: "创建您的新账号",
