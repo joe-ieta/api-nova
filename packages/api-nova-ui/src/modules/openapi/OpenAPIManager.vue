@@ -66,7 +66,7 @@
             {{ t("openapi.importFromUrl") }}
           </el-button>
           <el-button type="warning" @click="goToEndpointRegistry" :icon="Plus">
-            Endpoint Registry
+            {{ t("endpointRegistry.title") }}
           </el-button>
           <el-button
             @click="refreshDocuments"
@@ -1176,9 +1176,6 @@ const filteredDocuments = computed(() => {
 const goToEndpointRegistry = () => {
   router.push({
     path: "/endpoint-registry",
-    query: {
-      sourceType: "imported",
-    },
   });
 };
 

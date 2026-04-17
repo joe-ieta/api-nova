@@ -22,7 +22,21 @@ Use the following documents together when planning the next development cycle:
 - `docs/guides/staged-development-plan.md`
 - `PRODUCT_CONSTRAINTS.md`
 
-The top priority after the current convergence pass is Stage 2 through Stage 5 work, not reopening already-hardened branding and release-baseline changes unless a regression is found.
+The top priority after the current convergence pass is Stage 4 through Stage 5 work, not reopening already-hardened branding, release-baseline, management-contract, or endpoint-governance changes unless a regression is found.
+
+## Stage Snapshot
+
+Completed or materially closed stages:
+
+- Stage 1: Anti-drift and release contract hardening
+- Stage 2: Management contract refactor
+- Stage 3: Endpoint governance parity
+- Stage 6: Productionization and multilingual governance baseline
+
+Remaining active stages:
+
+- Stage 4: Semantic publication layer
+- Stage 5: Production readiness polish
 
 ## Current Open Items
 
@@ -85,11 +99,12 @@ Related code:
 
 Status:
 
-- partially addressed
+- materially addressed / follow-up verification only
 
 Why it remains open:
 
-- server management now has JWT plus permission guard coverage in the controller, but the broader management surface still needs a full endpoint-by-endpoint permission review
+- management routes now have narrower controller slices plus explicit permission/observability baseline documents
+- remaining work is mostly follow-up verification and drift prevention, not large structural refactor
 
 Impact:
 
@@ -145,8 +160,8 @@ Status:
 
 Why it remains open:
 
-- placeholder CPU values in `ServerMetricsService` have been downgraded to explicit unavailable fields, but a consistent real CPU telemetry path is still not implemented across summary metrics
-- the monitoring UI surface has been restored, but several cards, tables, and resource panels now intentionally render `Unavailable` until a real telemetry source is connected
+- placeholder CPU values in `ServerMetricsService` have been downgraded to explicit unavailable fields, and operator-visible telemetry now distinguishes measured, derived, and unavailable values more clearly
+- a consistent real CPU telemetry path is still not implemented across summary metrics, so this remains a production-polish item rather than a management-contract blocker
 
 Impact:
 
@@ -161,12 +176,12 @@ Related code:
 
 Status:
 
-- partially addressed / placeholder surfaces retained
+- partially addressed / narrowed further
 
 Why it remains open:
 
-- placeholder entries such as settings/profile and non-baseline routes have been restored so operator-facing surfaces do not disappear unexpectedly
-- these routes and screens still include non-productized placeholders and should remain clearly marked until they are fully implemented or archived
+- endpoint governance and management navigation are now materially clearer than before
+- some placeholder-oriented routes and screens still exist and should remain clearly marked until they are fully implemented or archived
 
 Impact:
 
@@ -184,7 +199,8 @@ Status:
 
 Why it remains open:
 
-- the broken `CircleClosure` reference and dropdown nesting in server management were corrected, but the view still needs continued cleanup around interaction complexity and historical debug-oriented behavior
+- server management now links more coherently into endpoint governance and no longer blocks the main operator path
+- the view still needs continued cleanup around interaction complexity, historical debug-oriented behavior, and general production polish
 
 Impact:
 
@@ -237,11 +253,12 @@ Related documents:
 
 Status:
 
-- partially addressed
+- planned / not yet implemented
 
 Why it remains open:
 
-- manual and imported endpoints can now be governed at a lightweight lifecycle level, but tool publication still largely reflects upstream API semantics directly
+- manual and imported endpoints now share a lightweight governance model, which removes the biggest precondition for semantic publication work
+- tool publication still largely reflects upstream API semantics directly
 - the planned semantic layer for operator-defined endpoint meaning, naming refinement, and LLM-oriented descriptions has not been implemented yet
 
 Impact:
@@ -257,13 +274,13 @@ Related code:
 
 Status:
 
-- partially addressed
+- materially addressed / intentionally limited
 
 Why it remains open:
 
-- the current API Center and Endpoint Registry now provide a usable control path for manually registered endpoints
-- imported OpenAPI endpoints now have a lightweight registry view with probe/readiness/publish/offline controls, but they still do not have the same operator-facing editing, selective publication policy, or lifecycle review depth as the manual path
-- this is an intentional scope boundary for the current convergence pass, but it must remain visible so the product is not misrepresented as a full API governance platform
+- imported OpenAPI endpoints now have a lightweight registry view with probe/readiness/publish/offline controls, governance editing, and clearer operator-facing service-scope messaging
+- they still do not have the same selective publication policy depth or lifecycle review depth as a full API governance platform
+- this is now an intentional product-scope boundary rather than a hidden UX gap, but it should remain visible until Stage 4 and later work decide whether deeper governance is needed
 
 Impact:
 
@@ -278,12 +295,13 @@ Related code:
 
 Status:
 
-- planned / deferred
+- partially addressed / still active
 
 Why it remains open:
 
 - active locale entrypoints now use modular message overlays instead of relying only on one centralized file
 - Chinese remains the default locale and now falls back to English instead of showing corrupted operator text when coverage is incomplete
+- several operator-facing surfaces have already been re-aligned to modular locale resources during Stage 3 convergence
 - historical encoding corruption is still present in older locale payloads and some non-i18n source comments
 - more feature areas still need to migrate out of legacy centralized locale resources
 

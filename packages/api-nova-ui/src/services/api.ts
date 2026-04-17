@@ -361,6 +361,31 @@ export const serverAPI = {
     return response.data;
   },
 
+  async updateApiCenterProfile(
+    serverId: string,
+    payload: {
+      sourceType?: "imported" | "manual";
+      sourceRef?: string;
+      businessDomain?: string;
+      riskLevel?: string;
+      lifecycleStatus?:
+        | "draft"
+        | "verified"
+        | "published"
+        | "degraded"
+        | "offline"
+        | "retired";
+      publishEnabled?: boolean;
+      probeUrl?: string;
+    },
+  ): Promise<any> {
+    const response = await api.patch(
+      `/v1/servers/${serverId}/api-center/profile`,
+      payload,
+    );
+    return response.data;
+  },
+
   async probeApiCenterEndpoint(serverId: string, payload?: { path?: string }): Promise<{
     serverId: string;
     profile?: {

@@ -9,7 +9,6 @@
       </div>
       <div class="header-actions">
         <el-button
-          v-if="selectedSourceType === 'manual'"
           type="warning"
           @click="openCreateDialog"
         >
@@ -25,6 +24,9 @@
       <el-row :gutter="12">
         <el-col :xs="24" :md="12">
             <el-radio-group v-model="selectedSourceType" size="small">
+            <el-radio-button label="all">
+              {{ sourceTypeLabel.all }}
+            </el-radio-button>
             <el-radio-button label="manual">
               {{ sourceTypeLabel.manual }}
             </el-radio-button>
@@ -50,7 +52,13 @@
       show-icon
       class="mb-12"
     />
-
+    <el-alert
+      :title="activeModeHint"
+      type="info"
+      show-icon
+      :closable="false"
+      class="mb-12"
+    />
     <el-empty
       v-if="!loading && filteredGroups.length === 0"
       :description="t('endpointRegistry.empty')"
@@ -73,6 +81,17 @@
 
         <el-table :data="group.endpoints" size="small" border style="width: 100%" table-layout="auto">
           <el-table-column prop="name" :label="t('endpointRegistry.table.name')" min-width="180" />
+          <el-table-column
+            prop="sourceType"
+            :label="t('endpointRegistry.table.source')"
+            width="110"
+          >
+            <template #default="{ row }">
+              <el-tag :type="row.sourceType === 'manual' ? 'warning' : 'primary'">
+                {{ row.sourceType === "manual" ? sourceTypeLabel.manual : sourceTypeLabel.imported }}
+              </el-tag>
+            </template>
+          </el-table-column>
           <el-table-column
             prop="methodPath"
             :label="t('endpointRegistry.table.methodPath')"
@@ -160,7 +179,6 @@
                   {{ t("endpointRegistry.actions.offline") }}
                 </el-button>
                 <el-button
-                  v-if="row.sourceType === 'manual'"
                   size="small"
                   type="primary"
                   plain
@@ -169,7 +187,11 @@
                   @click="handleEdit(row)"
                   :loading="isActionLoading(row.id, 'edit')"
                 >
-                  {{ t("endpointRegistry.actions.edit") }}
+                  {{
+                    row.sourceType === "imported"
+                      ? t("endpointRegistry.actions.governance")
+                      : t("endpointRegistry.actions.edit")
+                  }}
                 </el-button>
                 <el-button
                   v-if="row.sourceType === 'manual'"
@@ -203,21 +225,38 @@
         :rules="createFormRules"
         label-width="130px"
       >
+        <el-alert
+          v-if="isImportedGovernanceEdit"
+          :title="t('endpointRegistry.messages.importedEditHint')"
+          type="info"
+          show-icon
+          :closable="false"
+          class="mb-12"
+        />
         <el-form-item :label="t('endpointRegistry.form.name')" prop="name">
           <el-input
             v-model="createForm.name"
             clearable
+            :disabled="isImportedGovernanceEdit"
             :placeholder="t('endpointRegistry.form.namePlaceholder')"
           />
         </el-form-item>
-        <el-form-item :label="t('endpointRegistry.form.baseUrl')" prop="baseUrl">
+        <el-form-item
+          v-if="!isImportedGovernanceEdit"
+          :label="t('endpointRegistry.form.baseUrl')"
+          prop="baseUrl"
+        >
           <el-input
             v-model="createForm.baseUrl"
             clearable
             :placeholder="t('endpointRegistry.form.baseUrlPlaceholder')"
           />
         </el-form-item>
-        <el-form-item :label="t('endpointRegistry.form.method')" prop="method">
+        <el-form-item
+          v-if="!isImportedGovernanceEdit"
+          :label="t('endpointRegistry.form.method')"
+          prop="method"
+        >
           <el-select v-model="createForm.method" style="width: 100%">
             <el-option label="GET" value="GET" />
             <el-option label="POST" value="POST" />
@@ -226,14 +265,18 @@
             <el-option label="DELETE" value="DELETE" />
           </el-select>
         </el-form-item>
-        <el-form-item :label="t('endpointRegistry.form.path')" prop="path">
+        <el-form-item
+          v-if="!isImportedGovernanceEdit"
+          :label="t('endpointRegistry.form.path')"
+          prop="path"
+        >
           <el-input
             v-model="createForm.path"
             clearable
             :placeholder="t('endpointRegistry.form.pathPlaceholder')"
           />
         </el-form-item>
-        <el-form-item :label="t('endpointRegistry.form.description')">
+        <el-form-item v-if="!isImportedGovernanceEdit" :label="t('endpointRegistry.form.description')">
           <el-input v-model="createForm.description" type="textarea" :rows="2" />
         </el-form-item>
         <el-form-item :label="t('endpointRegistry.form.businessDomain')">
@@ -250,6 +293,16 @@
             <el-option label="high" value="high" />
           </el-select>
         </el-form-item>
+        <el-form-item
+          v-if="isImportedGovernanceEdit"
+          :label="t('endpointRegistry.form.probeUrl')"
+        >
+          <el-input
+            v-model="createForm.probeUrl"
+            clearable
+            :placeholder="t('endpointRegistry.form.probeUrlPlaceholder')"
+          />
+        </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
@@ -257,8 +310,8 @@
           <el-button type="primary" :loading="creating" @click="submitCreateForm">
             {{
               creating
-                ? t(formMode === "edit" ? "common.updating" : "endpointRegistry.messages.submitting")
-                : t(formMode === "edit" ? "common.update" : "common.create")
+                ? t(isEditMode ? "common.updating" : "endpointRegistry.messages.submitting")
+                : t(isEditMode ? "common.update" : "common.create")
             }}
           </el-button>
         </div>
@@ -283,7 +336,7 @@ import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import { serverAPI } from "@/services/api";
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 
@@ -337,12 +390,14 @@ const errorMessage = ref("");
 const search = ref("");
 const rows = ref<EndpointRow[]>([]);
 const expandedGroupKeys = ref<string[]>([]);
-const selectedSourceType = ref<"manual" | "imported">("manual");
+const selectedSourceType = ref<"all" | "manual" | "imported">("all");
 const actionLoading = ref<Record<string, string>>({});
 const showCreateDialog = ref(false);
 const creating = ref(false);
-const formMode = ref<"create" | "edit">("create");
+type FormMode = "create" | "edit-manual" | "edit-imported";
+const formMode = ref<FormMode>("create");
 const editingRowId = ref("");
+const editingServerId = ref("");
 const editingServerConfig = ref<Record<string, any> | null>(null);
 const createFormRef = ref<FormInstance>();
 const createForm = ref({
@@ -353,53 +408,64 @@ const createForm = ref({
   description: "",
   businessDomain: "",
   riskLevel: "medium",
+  probeUrl: "",
 });
 
-const createFormRules = {
-  name: [
-    {
-      required: true,
-      message: t("endpointRegistry.validation.nameRequired"),
-      trigger: "blur",
-    },
-  ],
-  baseUrl: [
-    {
-      required: true,
-      message: t("endpointRegistry.validation.baseUrlRequired"),
-      trigger: "blur",
-    },
-    {
-      type: "url",
-      message: t("endpointRegistry.validation.baseUrlInvalid"),
-      trigger: "blur",
-    },
-  ],
-  method: [
-    {
-      required: true,
-      message: t("endpointRegistry.validation.methodRequired"),
-      trigger: "change",
-    },
-  ],
-  path: [
-    {
-      required: true,
-      message: t("endpointRegistry.validation.pathRequired"),
-      trigger: "blur",
-    },
-    {
-      validator: (_: unknown, value: string, callback: (err?: Error) => void) => {
-        if (!value || value.startsWith("/")) {
-          callback();
-          return;
-        }
-        callback(new Error(t("endpointRegistry.validation.pathSlashRequired")));
+const isImportedGovernanceEdit = computed(() => formMode.value === "edit-imported");
+const isEditMode = computed(() => formMode.value !== "create");
+
+const createFormRules = computed(() => {
+  const rules: Record<string, any[]> = {
+    name: [
+      {
+        required: true,
+        message: t("endpointRegistry.validation.nameRequired"),
+        trigger: "blur",
       },
-      trigger: "blur",
-    },
-  ],
-};
+    ],
+  };
+
+  if (!isImportedGovernanceEdit.value) {
+    rules.baseUrl = [
+      {
+        required: true,
+        message: t("endpointRegistry.validation.baseUrlRequired"),
+        trigger: "blur",
+      },
+      {
+        type: "url",
+        message: t("endpointRegistry.validation.baseUrlInvalid"),
+        trigger: "blur",
+      },
+    ];
+    rules.method = [
+      {
+        required: true,
+        message: t("endpointRegistry.validation.methodRequired"),
+        trigger: "change",
+      },
+    ];
+    rules.path = [
+      {
+        required: true,
+        message: t("endpointRegistry.validation.pathRequired"),
+        trigger: "blur",
+      },
+      {
+        validator: (_: unknown, value: string, callback: (err?: Error) => void) => {
+          if (!value || value.startsWith("/")) {
+            callback();
+            return;
+          }
+          callback(new Error(t("endpointRegistry.validation.pathSlashRequired")));
+        },
+        trigger: "blur",
+      },
+    ];
+  }
+
+  return rules;
+});
 
 const isActionLoading = (
   rowId: string,
@@ -417,29 +483,43 @@ const setActionLoading = (
   actionLoading.value[rowId] = action;
 };
 
-const dialogTitle = computed(() =>
-  t(formMode.value === "edit" ? "endpointRegistry.dialog.editTitle" : "endpointRegistry.dialog.title"),
-);
+const dialogTitle = computed(() => {
+  if (formMode.value === "edit-imported") {
+    return t("endpointRegistry.dialog.importedEditTitle");
+  }
+  if (formMode.value === "edit-manual") {
+    return t("endpointRegistry.dialog.editTitle");
+  }
+  return t("endpointRegistry.dialog.title");
+});
 
 const activeSubtitle = computed(() =>
-  locale.value.startsWith("zh")
-    ? selectedSourceType.value === "manual"
-      ? "按 Server URL 分组管理手工 Endpoint，与 OpenAPI 文档管理隔离。"
-      : "对导入 Endpoint 提供轻量生命周期治理，并与手工录入分开管理。"
-    : selectedSourceType.value === "manual"
-      ? "Manual endpoints grouped by Server URL (baseUrl), isolated from OpenAPI specs."
-      : "Imported endpoints with lightweight lifecycle governance, kept separate from manual registration.",
+  t(
+    selectedSourceType.value === "manual"
+      ? "endpointRegistry.subtitleManual"
+      : selectedSourceType.value === "imported"
+        ? "endpointRegistry.subtitleImported"
+        : "endpointRegistry.subtitleAll",
+  ),
 );
 
-const sourceTypeLabel = computed(() =>
-  locale.value.startsWith("zh")
-    ? { manual: "手工", imported: "导入" }
-    : { manual: "Manual", imported: "Imported" },
+const activeModeHint = computed(() =>
+  t(
+    selectedSourceType.value === "manual"
+      ? "endpointRegistry.modeHints.manual"
+      : selectedSourceType.value === "imported"
+        ? "endpointRegistry.modeHints.imported"
+        : "endpointRegistry.modeHints.all",
+  ),
 );
 
-const probeDetailsLabel = computed(() =>
-  locale.value.startsWith("zh") ? "探测说明" : "Probe Details",
-);
+const sourceTypeLabel = computed(() => ({
+  all: t("endpointRegistry.sourceTypes.all"),
+  manual: t("endpointRegistry.sourceTypes.manual"),
+  imported: t("endpointRegistry.sourceTypes.imported"),
+}));
+
+const probeDetailsLabel = computed(() => t("endpointRegistry.table.probeDetails"));
 
 const openCreateDialog = () => {
   resetCreateForm();
@@ -552,27 +632,28 @@ const formatProbeSummary = ({
   const normalizedStatus = probeStatus || "unknown";
 
   if (normalizedStatus === "healthy" && isValidationLikeProbe(httpStatus)) {
-    if (locale.value.startsWith("zh")) {
-      return `探测通过：服务可达（HTTP ${httpStatus}），但当前请求缺少必要参数、认证信息，或不满足该接口的调用条件。${errorMessage ? ` 详情：${errorMessage}` : ""}`;
-    }
-    return `Probe passed: endpoint is reachable (HTTP ${httpStatus}), but the current request is missing required input/authentication or does not satisfy this operation. ${errorMessage ? `Details: ${errorMessage}` : ""}`;
+    return t("endpointRegistry.probeSummary.validationLikeHealthy", {
+      httpStatus,
+      details: errorMessage
+        ? ` ${t("endpointRegistry.probeSummary.detailsPrefix", { error: errorMessage })}`
+        : "",
+    });
   }
 
   if (normalizedStatus === "healthy") {
-    if (locale.value.startsWith("zh")) {
-      return `探测通过：端点可达${httpStatus ? `（HTTP ${httpStatus}）` : ""}`;
-    }
-    return `Probe passed: endpoint is reachable${httpStatus ? ` (HTTP ${httpStatus})` : ""}`;
+    return t("endpointRegistry.probeSummary.healthy", {
+      suffix: httpStatus ? ` (HTTP ${httpStatus})` : "",
+    });
   }
 
   if (normalizedStatus === "unhealthy") {
-    if (locale.value.startsWith("zh")) {
-      return `探测失败${httpStatus ? `（HTTP ${httpStatus}）` : ""}${errorMessage ? `：${errorMessage}` : ""}`;
-    }
-    return `Probe failed${httpStatus ? ` (HTTP ${httpStatus})` : ""}${errorMessage ? `: ${errorMessage}` : ""}`;
+    return t("endpointRegistry.probeSummary.unhealthy", {
+      suffix: httpStatus ? ` (HTTP ${httpStatus})` : "",
+      details: errorMessage ? `: ${errorMessage}` : "",
+    });
   }
 
-  return locale.value.startsWith("zh") ? "尚无探测记录" : "No probe record yet";
+  return t("endpointRegistry.probeSummary.unknown");
 };
 
 const formatProbeFeedback = (result: {
@@ -596,6 +677,11 @@ const formatProbeFeedback = (result: {
 
   return t("endpointRegistry.messages.probeFinished", { status: probeStatus });
 };
+
+const withGovernanceScopeHint = (message: string, row: EndpointRow) =>
+  row.sourceType === "imported"
+    ? `${message} ${t("endpointRegistry.messages.importedScopeSuffix")}`
+    : message;
 
 const detectMethodPath = (item: ApiCenterRow) => {
   if (item.endpoint?.method && item.endpoint?.path) {
@@ -703,11 +789,11 @@ const loadOverview = async () => {
   errorMessage.value = "";
   try {
     const result = await serverAPI.getApiCenterOverview({
-      sourceType: selectedSourceType.value,
+      sourceType: selectedSourceType.value === "all" ? undefined : selectedSourceType.value,
     });
     const data = Array.isArray(result?.data) ? result.data : [];
     rows.value = data.flatMap((item) =>
-      selectedSourceType.value === "imported"
+      ((item as ApiCenterRow)?.profile?.sourceType || "imported") === "imported"
         ? mapImportedRows(item as ApiCenterRow)
         : [mapRow(item as ApiCenterRow)],
     );
@@ -724,6 +810,7 @@ const loadOverview = async () => {
 const resetCreateForm = () => {
   formMode.value = "create";
   editingRowId.value = "";
+  editingServerId.value = "";
   editingServerConfig.value = null;
   createForm.value = {
     name: "",
@@ -733,6 +820,7 @@ const resetCreateForm = () => {
     description: "",
     businessDomain: "",
     riskLevel: "medium",
+    probeUrl: "",
   };
   createFormRef.value?.clearValidate();
 };
@@ -753,7 +841,7 @@ const submitCreateForm = async () => {
       riskLevel: createForm.value.riskLevel || undefined,
     };
 
-    if (formMode.value === "edit" && editingRowId.value) {
+    if (formMode.value === "edit-manual" && editingRowId.value) {
       const existingConfig = editingServerConfig.value || {};
       const existingManagement = (existingConfig.management || {}) as Record<string, any>;
       await serverAPI.updateServer(editingRowId.value, {
@@ -779,6 +867,13 @@ const submitCreateForm = async () => {
         },
       });
       ElMessage.success(t("endpointRegistry.messages.updateSuccess"));
+    } else if (formMode.value === "edit-imported" && editingServerId.value) {
+      await serverAPI.updateApiCenterProfile(editingServerId.value, {
+        businessDomain: payload.businessDomain,
+        riskLevel: payload.riskLevel,
+        probeUrl: createForm.value.probeUrl?.trim() || undefined,
+      });
+      ElMessage.success(t("endpointRegistry.messages.importedUpdateSuccess"));
     } else {
       await serverAPI.registerManualEndpoint(payload);
       ElMessage.success(t("endpointRegistry.messages.createSuccess"));
@@ -787,12 +882,12 @@ const submitCreateForm = async () => {
     showCreateDialog.value = false;
     await loadOverview();
   } catch (error: any) {
-    ElMessage.error(
-      error?.message ||
-        t(formMode.value === "edit"
-          ? "endpointRegistry.messages.updateFailed"
-          : "endpointRegistry.messages.createFailed"),
-    );
+    const messageKey = formMode.value === "edit-imported"
+      ? "endpointRegistry.messages.importedUpdateFailed"
+      : formMode.value === "edit-manual"
+        ? "endpointRegistry.messages.updateFailed"
+        : "endpointRegistry.messages.createFailed";
+    ElMessage.error(error?.message || t(messageKey));
   } finally {
     creating.value = false;
   }
@@ -801,12 +896,14 @@ const submitCreateForm = async () => {
 const handleEdit = async (row: EndpointRow) => {
   try {
     setActionLoading(row.id, "edit");
-    const detail = await serverAPI.getServerDetails(row.id);
+    const detail = await serverAPI.getServerDetails(row.serverId);
     const openApiData = (detail as any)?.openApiData || {};
     const methodPath = extractMethodAndPath(openApiData);
     const management = ((detail as any)?.config?.management || {}) as Record<string, any>;
-    const fallbackBaseUrl =
-      openApiData?.servers?.[0]?.url || management.sourceRef || management.probeUrl || row.baseUrl;
+    const serverBaseUrl = String(
+      openApiData?.servers?.[0]?.url || management.sourceRef || "",
+    ).replace(/\/+$/, "");
+    const fallbackBaseUrl = serverBaseUrl || management.probeUrl || row.baseUrl;
 
     createForm.value = {
       name: (detail as any)?.name || row.name,
@@ -816,10 +913,14 @@ const handleEdit = async (row: EndpointRow) => {
       description: (detail as any)?.description || "",
       businessDomain: management.businessDomain || "",
       riskLevel: management.riskLevel || "medium",
+      probeUrl:
+        management.probeUrl ||
+        buildProbeUrl(serverBaseUrl, row.endpointPath || methodPath.path || "/"),
     };
-    editingRowId.value = row.id;
+    editingRowId.value = row.serverId;
+    editingServerId.value = row.serverId;
     editingServerConfig.value = ((detail as any)?.config || {}) as Record<string, any>;
-    formMode.value = "edit";
+    formMode.value = row.sourceType === "imported" ? "edit-imported" : "edit-manual";
     showCreateDialog.value = true;
   } catch (error: any) {
     ElMessage.error(error?.message || t("endpointRegistry.messages.updateFailed"));
@@ -854,7 +955,7 @@ const handleProbe = async (row: EndpointRow) => {
       path: row.sourceType === "imported" ? row.endpointPath : undefined,
     });
     const probeStatus = result?.probe?.status || "unknown";
-    const feedback = formatProbeFeedback(result);
+    const feedback = withGovernanceScopeHint(formatProbeFeedback(result), row);
     if (probeStatus === "healthy") {
       ElMessage.success(feedback);
     } else if (probeStatus === "unknown") {
@@ -875,13 +976,24 @@ const handleReadiness = async (row: EndpointRow) => {
     setActionLoading(row.id, "readiness");
     const result = await serverAPI.getApiCenterPublishReadiness(row.serverId);
     if (result.ready) {
-      ElMessage.success(t("endpointRegistry.messages.readinessReady"));
+      ElMessage.success(
+        t(
+          row.sourceType === "imported"
+            ? "endpointRegistry.messages.readinessReadyImported"
+            : "endpointRegistry.messages.readinessReady",
+        ),
+      );
       return;
     }
     ElMessage.warning(
-      t("endpointRegistry.messages.readinessBlocked", {
+      t(
+        row.sourceType === "imported"
+          ? "endpointRegistry.messages.readinessBlockedImported"
+          : "endpointRegistry.messages.readinessBlocked",
+        {
         reasons: (result.reasons || []).join("; ") || t("endpointRegistry.messages.unknownReason"),
-      }),
+        },
+      ),
     );
   } catch (error: any) {
     ElMessage.error(
@@ -895,13 +1007,24 @@ const handleReadiness = async (row: EndpointRow) => {
 const handlePublish = async (row: EndpointRow) => {
   try {
     await ElMessageBox.confirm(
-      t("endpointRegistry.messages.confirmPublishText", { name: row.name }),
+      t(
+        row.sourceType === "imported"
+          ? "endpointRegistry.messages.confirmPublishImportedText"
+          : "endpointRegistry.messages.confirmPublishText",
+        { name: row.name, methodPath: row.methodPath },
+      ),
       t("endpointRegistry.messages.confirmPublishTitle"),
       { type: "warning" },
     );
     setActionLoading(row.id, "publish");
     await serverAPI.changeApiCenterLifecycleState(row.serverId, { action: "publish" });
-    ElMessage.success(t("endpointRegistry.messages.publishSuccess"));
+    ElMessage.success(
+      t(
+        row.sourceType === "imported"
+          ? "endpointRegistry.messages.publishSuccessImported"
+          : "endpointRegistry.messages.publishSuccess",
+      ),
+    );
     await loadOverview();
   } catch (error: any) {
     if (error === "cancel" || error === "close") return;
@@ -914,13 +1037,24 @@ const handlePublish = async (row: EndpointRow) => {
 const handleOffline = async (row: EndpointRow) => {
   try {
     await ElMessageBox.confirm(
-      t("endpointRegistry.messages.confirmOfflineText", { name: row.name }),
+      t(
+        row.sourceType === "imported"
+          ? "endpointRegistry.messages.confirmOfflineImportedText"
+          : "endpointRegistry.messages.confirmOfflineText",
+        { name: row.name, methodPath: row.methodPath },
+      ),
       t("endpointRegistry.messages.confirmOfflineTitle"),
       { type: "warning" },
     );
     setActionLoading(row.id, "offline");
     await serverAPI.changeApiCenterLifecycleState(row.serverId, { action: "offline" });
-    ElMessage.success(t("endpointRegistry.messages.offlineSuccess"));
+    ElMessage.success(
+      t(
+        row.sourceType === "imported"
+          ? "endpointRegistry.messages.offlineSuccessImported"
+          : "endpointRegistry.messages.offlineSuccess",
+      ),
+    );
     await loadOverview();
   } catch (error: any) {
     if (error === "cancel" || error === "close") return;
@@ -932,8 +1066,12 @@ const handleOffline = async (row: EndpointRow) => {
 
 onMounted(async () => {
   const sourceType = route.query.sourceType;
-  if (sourceType === "imported" || sourceType === "manual") {
+  const keyword = route.query.q;
+  if (sourceType === "all" || sourceType === "imported" || sourceType === "manual") {
     selectedSourceType.value = sourceType;
+  }
+  if (typeof keyword === "string") {
+    search.value = keyword;
   }
   await loadOverview();
 });
@@ -946,6 +1084,22 @@ watch(selectedSourceType, async (value) => {
     },
   });
   await loadOverview();
+});
+
+watch(search, async (value) => {
+  const keyword = value.trim();
+  const nextQuery = {
+    ...route.query,
+    sourceType: selectedSourceType.value,
+  } as Record<string, string>;
+
+  if (keyword) {
+    nextQuery.q = keyword;
+  } else {
+    delete nextQuery.q;
+  }
+
+  await router.replace({ query: nextQuery });
 });
 </script>
 

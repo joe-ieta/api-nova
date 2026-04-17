@@ -158,13 +158,6 @@
           <!-- 设置按钮 -->
 
           <!-- 用户信息 -->
-          <el-button
-            :icon="Setting"
-            @click="openSettings"
-            text
-            :title="$t('common.settings')"
-          />
-
           <el-dropdown
             @command="handleUserAction"
             trigger="click"
@@ -185,14 +178,6 @@
             </div>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="profile">
-                  <el-icon><User /></el-icon>
-                  {{ t("userAuth.user.profile") }}
-                </el-dropdown-item>
-                <el-dropdown-item command="settings">
-                  <el-icon><Setting /></el-icon>
-                  {{ t("userAuth.user.accountSettings") }}
-                </el-dropdown-item>
                 <el-dropdown-item command="logout">
                   <el-icon><SwitchButton /></el-icon>
                   {{ t("userAuth.user.logout") }}
@@ -482,19 +467,9 @@ const showSystemStatus = () => {
 };
 
 // 处理用户操作
-const openSettings = () => {
-  ElMessage.info(t("common.info"));
-};
-
 const handleUserAction = async (command: string) => {
   try {
     switch (command) {
-      case "profile":
-        ElMessage.info(t("userAuth.messages.profileInDevelopment"));
-        break;
-      case "settings":
-        ElMessage.info(t("userAuth.messages.settingsInDevelopment"));
-        break;
       case "logout":
         await measureFunction(async () => {
           await authStore.logout();

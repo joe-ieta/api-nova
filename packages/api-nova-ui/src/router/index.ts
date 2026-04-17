@@ -50,7 +50,7 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: "Endpoint Registry",
           icon: "Document",
-          description: "Manage manually registered endpoints by Server URL",
+          description: "Manage imported and manual endpoints in one governance surface",
         },
       },
       {

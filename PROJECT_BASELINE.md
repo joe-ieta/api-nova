@@ -45,7 +45,7 @@ Legacy upstream names may appear only in archive, origin, or compatibility conte
 - API: `9001`
 - MCP runtime: `9022`
 
-These values are the active default runtime baseline. Reintroducing `3000`, `3001`, or `3322` as active defaults should be treated as baseline drift.
+These values are the active default runtime baseline. Reintroducing `9000`, `9001`, or `9022` as active defaults should be treated as baseline drift.
 
 ## Current Product Surfaces
 

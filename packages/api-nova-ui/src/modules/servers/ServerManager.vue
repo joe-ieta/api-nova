@@ -18,6 +18,9 @@
           <el-button @click="refreshServers" :loading="loading" :icon="Refresh">
             {{ t("common.refresh") }}
           </el-button>
+          <el-button @click="goToEndpointRegistry()">
+            {{ t("endpointRegistry.title") }}
+          </el-button>
         </div>
       </div>
 
@@ -165,6 +168,11 @@
                             :command="{ action: 'edit', server }"
                           >
                             {{ t("servers.editServer") }}
+                          </el-dropdown-item>
+                          <el-dropdown-item
+                            :command="{ action: 'governance', server }"
+                          >
+                            {{ t("endpointRegistry.title") }}
                           </el-dropdown-item>
                           <el-dropdown-item
                             :command="{ action: 'delete', server }"
@@ -376,6 +384,17 @@
                   />
                 </el-tooltip>
                 <el-tooltip
+                  :content="t('endpointRegistry.title')"
+                  placement="top"
+                >
+                  <el-button
+                    class="action-btn governance-btn"
+                    size="small"
+                    @click.stop="goToEndpointRegistry(row)"
+                    :icon="Connection"
+                  />
+                </el-tooltip>
+                <el-tooltip
                   :content="t('servers.editServer')"
                   placement="top"
                 >
@@ -433,6 +452,7 @@ import {
   Monitor,
   Plus,
   Refresh,
+  Connection,
   Search,
   Grid,
   List,
@@ -536,6 +556,20 @@ const refreshServers = async () => {
 
 const goToServerDetail = (serverId: string) => {
   router.push(`/servers/${serverId}`);
+};
+
+const goToEndpointRegistry = (server?: MCPServer) => {
+  const query: Record<string, string> = {};
+  const keyword = server?.name?.trim() || "";
+
+  if (keyword) {
+    query.q = keyword;
+  }
+
+  router.push({
+    path: "/endpoint-registry",
+    query,
+  });
 };
 
 const getStatusType = (status: ServerStatus) => {
@@ -676,6 +710,9 @@ const handleServerAction = async ({
       break;
     case "edit":
       editServer(server);
+      break;
+    case "governance":
+      goToEndpointRegistry(server);
       break;
     case "delete":
       deleteServer(server);
@@ -1260,6 +1297,18 @@ const handleServerMetricsUpdate = (data: any) => {
   background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%) !important;
   color: white !important;
   border: 1px solid rgba(24, 144, 255, 0.3) !important;
+}
+
+.governance-btn {
+  background: linear-gradient(135deg, #13c2c2 0%, #36cfc9 100%) !important;
+  color: white !important;
+  border: 1px solid rgba(19, 194, 194, 0.3) !important;
+}
+
+.governance-btn:hover {
+  background: linear-gradient(135deg, #36cfc9 0%, #5cdbd3 100%) !important;
+  box-shadow: 0 4px 16px rgba(19, 194, 194, 0.5);
+  border-color: rgba(19, 194, 194, 0.6) !important;
 }
 
 .edit-btn:hover {

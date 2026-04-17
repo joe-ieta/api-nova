@@ -28,6 +28,20 @@ The current codebase also shows four active structural risks:
 4. Encoding and localization discipline is still fragile  
    Multiple docs and source files still show visible encoding corruption, especially in Chinese content and older comments. This is a product-quality issue, not only a localization issue.
 
+## Current Completion Status
+
+The staged plan has progressed further than the original draft:
+
+- Stage 1 is complete enough to treat as baseline
+- Stage 2 is complete enough to treat as baseline
+- Stage 3 is complete enough to treat as baseline
+- Stage 6 multilingual governance has been materially advanced and remains a constraint, not an active mainline stage
+
+The remaining active stages are therefore:
+
+1. Stage 4: Semantic Publication Layer
+2. Stage 5: Production Readiness Polish
+
 ## Stage Design Principles
 
 - Finish convergence before broad expansion
@@ -168,13 +182,10 @@ Finish the high-value product-hardening work that makes the converged system saf
 - locale editing no longer causes large fragile diffs or encoding regressions
 - Chinese and English operator-facing content are stable enough for iterative release work
 
-## Recommended Execution Order
+## Recommended Remaining Execution Order
 
-1. Stage 1: Anti-Drift And Release Contract Hardening
-2. Stage 2: Management Contract Refactor
-3. Stage 3: Endpoint Governance Parity
-4. Stage 4: Semantic Publication Layer
-5. Stage 5: Production Readiness Polish
+1. Stage 4: Semantic Publication Layer
+2. Stage 5: Production Readiness Polish
 
 ## What Should Not Be Started Early
 

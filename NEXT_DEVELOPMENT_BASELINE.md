@@ -17,13 +17,23 @@ The following work has already been substantially advanced and should not be reo
   - default ports were aligned to `9000` / `9001` / `9022`
   - runtime helper logging was moved toward quiet-by-default behavior
   - active docs and product naming were converged toward `ApiNova`
+- Stage 2 management contract refactor
+  - oversized management controller responsibilities were split into narrower controller groups
+  - management permission and observability baselines were documented explicitly
+  - management-event logging was introduced for operator-visible actions
+  - telemetry placeholders were downgraded so API and UI do not overstate runtime quality
+- Stage 3 endpoint governance parity
+  - imported endpoints now share the same core lifecycle vocabulary as manual endpoints
+  - imported endpoints now support governance editing and service-level lifecycle operations from the registry
+  - server management, OpenAPI management, and endpoint registry surfaces are linked more coherently
+  - operator-facing labels now explain when imported endpoint actions apply to the imported service record rather than only the displayed path row
 - Stage 6 productionization and multilingual governance
   - Chinese remains the default locale
   - English fallback is active
   - locale resources have started moving to feature-level modularization
   - encoding hardening is now an explicit product constraint
 
-The remaining main delivery line is therefore Stage 2 through Stage 5.
+The remaining main delivery line is therefore Stage 4 through Stage 5.
 
 ## Architecture Baseline To Preserve
 
@@ -44,12 +54,10 @@ The next stages should reduce contract drift, not create new parallel logic path
 
 The active order is:
 
-1. Stage 2: Management Contract Refactor
-2. Stage 3: Endpoint Governance Parity
-3. Stage 4: Semantic Publication Layer
-4. Stage 5: Production Readiness Polish
+1. Stage 4: Semantic Publication Layer
+2. Stage 5: Production Readiness Polish
 
-Do not start Stage 4 materially before Stage 2 and Stage 3 are stable enough to support it.
+Do not expand Stage 4 materially beyond the documented semantic publication boundary before its persistence, review, and publication contracts are stable.
 
 ## Stage 2: Management Contract Refactor
 
@@ -120,6 +128,17 @@ Make imported endpoints and manual endpoints feel like one coherent governance p
 - imported endpoints no longer feel like a secondary hidden path
 - operators can understand endpoint state directly from UI behavior and labels
 - placeholder-driven navigation is reduced further
+
+## Remaining Stages Snapshot
+
+Only the following two stages remain on the active execution line:
+
+1. Stage 4: Semantic Publication Layer
+   - introduce semantic profile storage, versioning, review, and publish flows
+   - keep semantic drafts isolated from raw imported meaning and from public runtime output until published
+2. Stage 5: Production Readiness Polish
+   - finish deferred auth/notification boundary decisions
+   - continue UI bundle reduction, locale modularization, and cross-platform release verification
 
 ## Stage 4: Semantic Publication Layer
 

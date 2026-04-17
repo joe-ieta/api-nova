@@ -189,16 +189,34 @@ export default {
   },
   endpointRegistry: {
     title: "API Registry",
-    subtitle:
+    subtitleAll:
+      "Manage imported and manual endpoints in one governance surface, grouped by service base URL.",
+    subtitleManual:
       "Manage manual endpoints by Server URL (baseUrl), isolated from imported OpenAPI documents.",
+    subtitleImported:
+      "Imported endpoints stay grouped by source service, while lifecycle actions are governed on the managed service record.",
     searchPlaceholder: "Search by server URL, name, or path",
-    empty: "No manual endpoints yet.",
+    empty: "No endpoints yet.",
     groupCount: "{count} endpoints",
+    sourceTypes: {
+      all: "All",
+      manual: "Manual",
+      imported: "Imported",
+    },
+    modeHints: {
+      all:
+        "Unified mode shows imported and manual endpoints together so operators can work from one governance surface.",
+      manual: "Manual mode supports full create, edit, publish, offline, and delete operations.",
+      imported:
+        "Imported mode displays each path separately, but probe, publish, offline, and governance edits apply to the imported service record.",
+    },
     table: {
       name: "Name",
+      source: "Source",
       methodPath: "Method & Path",
       lifecycle: "Lifecycle",
       probe: "Probe",
+      probeDetails: "Probe Details",
       publishEnabled: "Publish Enabled",
       updatedAt: "Updated At",
       actions: "Actions",
@@ -216,6 +234,14 @@ export default {
       unhealthy: "Failed",
       unknown: "Unknown",
     },
+    probeSummary: {
+      validationLikeHealthy:
+        "Probe passed: endpoint is reachable (HTTP {httpStatus}), but the current request is missing required input or authentication, or does not satisfy this operation.{details}",
+      healthy: "Probe passed: endpoint is reachable{suffix}",
+      unhealthy: "Probe failed{suffix}{details}",
+      unknown: "No probe record yet",
+      detailsPrefix: "Details: {error}",
+    },
     actions: {
       addManualEndpoint: "Add Endpoint",
       probe: "Probe",
@@ -223,11 +249,13 @@ export default {
       publish: "Publish",
       offline: "Offline",
       edit: "Edit",
+      governance: "Governance",
       delete: "Delete",
     },
     dialog: {
       title: "Add Manual Endpoint",
       editTitle: "Edit Manual Endpoint",
+      importedEditTitle: "Edit Imported Endpoint Governance",
     },
     form: {
       name: "Service Name",
@@ -241,6 +269,8 @@ export default {
       businessDomain: "Business Domain",
       businessDomainPlaceholder: "e.g. pet/order/user",
       riskLevel: "Risk Level",
+      probeUrl: "Probe URL",
+      probeUrlPlaceholder: "Optional override for governance probes",
     },
     validation: {
       nameRequired: "Please enter service name",
@@ -257,6 +287,12 @@ export default {
       createFailed: "Create manual endpoint failed",
       updateSuccess: "Manual endpoint updated",
       updateFailed: "Update manual endpoint failed",
+      importedUpdateSuccess: "Imported endpoint governance updated",
+      importedUpdateFailed: "Update imported endpoint governance failed",
+      importedEditHint:
+        "This view edits governance metadata for the imported service record. Path-level rows are for display; the saved governance change applies to the imported server entry.",
+      importedScopeSuffix:
+        "This action applies to the imported service record, not only the displayed path row.",
       confirmDeleteTitle: "Confirm Delete",
       confirmDeleteText: 'Delete endpoint "{name}"?',
       deleteSuccess: "Manual endpoint deleted",
@@ -264,16 +300,28 @@ export default {
       probeFinished: "Probe finished: {status}",
       probeFailed: "Probe failed",
       readinessReady: "Publish readiness: ready",
+      readinessReadyImported:
+        "Publish readiness: ready for the imported service record",
       readinessBlocked: "Publish readiness: blocked ({reasons})",
+      readinessBlockedImported:
+        "Publish readiness: blocked for the imported service record ({reasons})",
       readinessFailed: "Readiness check failed",
       unknownReason: "unknown reason",
       confirmPublishTitle: "Confirm Publish",
       confirmPublishText: 'Publish endpoint "{name}" now?',
+      confirmPublishImportedText:
+        'Publish the imported service record for "{name}" now? The displayed path "{methodPath}" is only the current governance view.',
       publishSuccess: "Published successfully",
+      publishSuccessImported:
+        "Imported service record published successfully",
       publishFailed: "Publish failed",
       confirmOfflineTitle: "Confirm Offline",
       confirmOfflineText: 'Set endpoint "{name}" offline?',
+      confirmOfflineImportedText:
+        'Set the imported service record for "{name}" offline? The displayed path "{methodPath}" is only the current governance view.',
       offlineSuccess: "Set to offline",
+      offlineSuccessImported:
+        "Imported service record set to offline",
       offlineFailed: "Set offline failed",
     },
   },
