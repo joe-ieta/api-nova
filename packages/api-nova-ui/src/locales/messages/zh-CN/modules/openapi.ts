@@ -26,6 +26,8 @@ export default {
     confirmUpload: "确认上传",
     searchPlaceholder: "搜索文档...",
     importFromUrl: "从 URL 导入",
+    startImport: "开始导入",
+    importing: "导入中...",
     validationResult: "校验结果",
     conversionResult: "转换结果",
     noParseResult: "暂无解析结果",

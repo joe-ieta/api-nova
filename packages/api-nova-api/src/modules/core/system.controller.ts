@@ -9,7 +9,7 @@ import { Public } from '../security/decorators/public.decorator';
  * 提供系统初始化状态和健康检查的API端点
  */
 @ApiTags('System')
-@Controller('api/system')
+@Controller('system')
 export class SystemController {
   constructor(
     private readonly systemBootstrap: SystemBootstrap,

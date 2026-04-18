@@ -3,13 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { User, UserStatus } from './entities/user.entity';
-import { Role, SYSTEM_ROLES, RoleType } from './entities/role.entity';
+import { Role, SYSTEM_ROLES } from './entities/role.entity';
 import { Permission, SYSTEM_PERMISSIONS } from './entities/permission.entity';
 
-/**
- * 数据库种子服务
- * 负责系统启动时的数据初始化，包括角色、权限和超级用户的创建
- */
 @Injectable()
 export class SeedService implements OnModuleInit {
   private readonly logger = new Logger(SeedService.name);
@@ -26,145 +22,158 @@ export class SeedService implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      this.logger.log('🌱 开始数据库种子数据初始化...');
-      
-      // 1. 初始化系统权限
+      this.logger.log('Starting database seed initialization...');
       await this.initializePermissions();
-      
-      // 2. 初始化系统角色
       await this.initializeRoles();
-      
-      // 3. 检查并创建超级用户
       await this.initializeSuperAdmin();
-      
-      this.logger.log('✅ 数据库种子数据初始化完成');
+      this.logger.log('Database seed initialization completed');
     } catch (error) {
-      this.logger.error('❌ 数据库种子数据初始化失败:', error);
+      this.logger.error('Database seed initialization failed', error);
       throw error;
     }
   }
 
-  /**
-   * 初始化系统权限
-   */
   private async initializePermissions(): Promise<void> {
-    this.logger.log('📋 初始化系统权限...');
-    
+    this.logger.log('Initializing system permissions...');
+
     const permissions = Object.values(SYSTEM_PERMISSIONS);
     let createdCount = 0;
-    
+
     for (const permissionData of permissions) {
       const existingPermission = await this.permissionRepository.findOne({
-        where: { name: permissionData.name }
+        where: { name: permissionData.name },
       });
-      
+
       if (!existingPermission) {
         const permission = this.permissionRepository.create(permissionData);
         await this.permissionRepository.save(permission);
         createdCount++;
-        this.logger.debug(`创建权限: ${permissionData.name}`);
+        this.logger.debug(`Created permission: ${permissionData.name}`);
       }
     }
-    
-    this.logger.log(`📋 权限初始化完成，创建了 ${createdCount} 个新权限`);
+
+    this.logger.log(
+      `Permission initialization completed, created ${createdCount} permissions`,
+    );
   }
 
-  /**
-   * 初始化系统角色
-   */
   private async initializeRoles(): Promise<void> {
-    this.logger.log('👥 初始化系统角色...');
-    
+    this.logger.log('Initializing system roles...');
+
     const roles = Object.values(SYSTEM_ROLES);
     let createdCount = 0;
-    
+
     for (const roleData of roles) {
       const existingRole = await this.roleRepository.findOne({
         where: { name: roleData.name },
-        relations: ['permissions']
+        relations: ['permissions'],
       });
-      
+
       if (!existingRole) {
         const role = this.roleRepository.create(roleData);
-        
-        // 为超级管理员角色分配所有权限
-        if (roleData.name === 'super_admin') {
-          const allPermissions = await this.permissionRepository.find();
-          role.permissions = allPermissions;
-        }
-        // 为管理员角色分配用户管理权限
-        else if (roleData.name === 'admin') {
-          const adminPermissions = await this.permissionRepository.find({
-            where: [
-              { name: 'user:create' },
-              { name: 'user:read' },
-              { name: 'user:update' },
-              { name: 'user:delete' },
-              { name: 'server:read' },
-              { name: 'system:view' }
-            ]
-          });
-          role.permissions = adminPermissions;
-        }
-        // 为查看者角色分配基础查看权限
-        else if (roleData.name === 'viewer') {
-          const viewerPermissions = await this.permissionRepository.find({
-            where: [
-              { name: 'user:read' },
-              { name: 'server:read' },
-              { name: 'system:view' }
-            ]
-          });
-          role.permissions = viewerPermissions;
-        }
-        
+        role.permissions = await this.resolveSystemRolePermissions(roleData.name);
         await this.roleRepository.save(role);
         createdCount++;
-        this.logger.debug(`创建角色: ${roleData.name}`);
-      } else {
-        // 更新现有角色的权限（如果是超级管理员）
-        if (roleData.name === 'super_admin') {
-          const allPermissions = await this.permissionRepository.find();
-          existingRole.permissions = allPermissions;
-          await this.roleRepository.save(existingRole);
-          this.logger.debug(`更新超级管理员权限`);
-        }
+        this.logger.debug(`Created role: ${roleData.name}`);
+        continue;
       }
+
+      existingRole.permissions = await this.resolveSystemRolePermissions(
+        roleData.name,
+      );
+      await this.roleRepository.save(existingRole);
+      this.logger.debug(`Synchronized role permissions: ${roleData.name}`);
     }
-    
-    this.logger.log(`👥 角色初始化完成，创建了 ${createdCount} 个新角色`);
+
+    this.logger.log(
+      `Role initialization completed, created ${createdCount} roles`,
+    );
   }
 
-  /**
-   * 初始化超级用户
-   */
+  private async resolveSystemRolePermissions(
+    roleName: string,
+  ): Promise<Permission[]> {
+    if (roleName === 'super_admin') {
+      return this.permissionRepository.find();
+    }
+
+    const permissionNamesByRole: Record<string, string[]> = {
+      admin: [
+        'user:create',
+        'user:read',
+        'user:update',
+        'user:delete',
+        'server:create',
+        'server:read',
+        'server:update',
+        'server:delete',
+        'server:execute',
+        'server:manage',
+        'api:read',
+        'api:execute',
+        'api:manage',
+        'monitoring:read',
+        'audit:read',
+        'system:view',
+        'config:read',
+        'config:update',
+      ],
+      operator: [
+        'user:read',
+        'server:read',
+        'server:update',
+        'server:execute',
+        'api:read',
+        'api:execute',
+        'monitoring:read',
+        'config:read',
+      ],
+      viewer: [
+        'user:read',
+        'server:read',
+        'api:read',
+        'monitoring:read',
+        'system:view',
+        'config:read',
+      ],
+      guest: ['server:read', 'api:read'],
+    };
+
+    const permissionNames = permissionNamesByRole[roleName] || [];
+    if (permissionNames.length === 0) {
+      return [];
+    }
+
+    return this.permissionRepository.find({
+      where: permissionNames.map((name) => ({ name })),
+    });
+  }
+
   private async initializeSuperAdmin(): Promise<void> {
-    this.logger.log('👑 检查超级用户...');
-    
-    // 检查是否已存在超级管理员
+    this.logger.log('Checking super admin...');
+
     const superAdminRole = await this.roleRepository.findOne({
       where: { name: 'super_admin' },
-      relations: ['users']
+      relations: ['users'],
     });
-    
+
     if (!superAdminRole) {
-      this.logger.error('❌ 超级管理员角色不存在');
+      this.logger.error('Super admin role not found');
       throw new Error('Super admin role not found');
     }
-    
-    // 检查是否已有超级管理员用户
+
     const existingSuperAdmin = await this.userRepository
       .createQueryBuilder('user')
       .innerJoin('user.roles', 'role')
       .where('role.name = :roleName', { roleName: 'super_admin' })
       .getOne();
-    
+
     if (existingSuperAdmin) {
-      this.logger.log(`👑 超级用户已存在: ${existingSuperAdmin.username}`);
+      await this.reconcileExistingSuperAdmin(existingSuperAdmin);
+      this.logger.log(`Super admin already exists: ${existingSuperAdmin.username}`);
       return;
     }
-    
-    // 创建默认超级用户
+
     const superAdminData = {
       username: this.configService.get('SUPER_ADMIN_USERNAME', 'admin'),
       email: this.configService.get('SUPER_ADMIN_EMAIL', 'admin@example.com'),
@@ -177,42 +186,78 @@ export class SeedService implements OnModuleInit {
         isSystemUser: true,
         createdBySystem: true,
         department: 'System Administration',
-        position: 'Super Administrator'
-      }
+        position: 'Super Administrator',
+      },
     };
-    
+
     try {
       const superAdmin = this.userRepository.create(superAdminData);
       superAdmin.roles = [superAdminRole];
-      
       await this.userRepository.save(superAdmin);
-      
-      this.logger.log(`👑 超级用户创建成功:`);
-      this.logger.log(`   用户名: ${superAdminData.username}`);
-      this.logger.log(`   邮箱: ${superAdminData.email}`);
-      this.logger.log(`   ⚠️  请在首次登录后立即修改默认密码！`);
-      
+
+      this.logger.log('Super admin created successfully');
+      this.logger.log(`  Username: ${superAdminData.username}`);
+      this.logger.log(`  Email: ${superAdminData.email}`);
+      this.logger.log('  Change the default password after first login');
     } catch (error) {
-      this.logger.error('❌ 创建超级用户失败:', error);
+      this.logger.error('Failed to create super admin', error);
       throw error;
     }
   }
 
-  /**
-   * 检查系统是否已初始化
-   */
+  private async reconcileExistingSuperAdmin(user: User): Promise<void> {
+    const isDevelopment =
+      this.configService.get<string>('NODE_ENV', 'development') !== 'production';
+
+    if (!isDevelopment) {
+      return;
+    }
+
+    let dirty = false;
+
+    if (user.status !== UserStatus.ACTIVE) {
+      user.status = UserStatus.ACTIVE;
+      dirty = true;
+    }
+
+    if (!user.emailVerified) {
+      user.emailVerified = true;
+      dirty = true;
+    }
+
+    if (user.lockedUntil) {
+      user.lockedUntil = null;
+      dirty = true;
+    }
+
+    if (user.loginAttempts !== 0) {
+      user.loginAttempts = 0;
+      dirty = true;
+    }
+
+    if (!dirty) {
+      return;
+    }
+
+    await this.userRepository.save(user);
+    this.logger.warn(
+      `Reconciled development super admin state: ${user.username}`,
+    );
+  }
+
   async isSystemInitialized(): Promise<boolean> {
     const superAdminRole = await this.roleRepository.findOne({
       where: { name: 'super_admin' },
-      relations: ['users']
+      relations: ['users'],
     });
-    
-    return superAdminRole && superAdminRole.users && superAdminRole.users.length > 0;
+
+    return !!(
+      superAdminRole &&
+      superAdminRole.users &&
+      superAdminRole.users.length > 0
+    );
   }
 
-  /**
-   * 获取系统初始化状态
-   */
   async getInitializationStatus(): Promise<{
     isInitialized: boolean;
     permissionCount: number;
@@ -222,14 +267,14 @@ export class SeedService implements OnModuleInit {
     const [permissionCount, roleCount, isInitialized] = await Promise.all([
       this.permissionRepository.count(),
       this.roleRepository.count(),
-      this.isSystemInitialized()
+      this.isSystemInitialized(),
     ]);
-    
+
     return {
       isInitialized,
       permissionCount,
       roleCount,
-      superAdminExists: isInitialized
+      superAdminExists: isInitialized,
     };
   }
 }

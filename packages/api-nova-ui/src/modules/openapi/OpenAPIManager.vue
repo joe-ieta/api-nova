@@ -2126,7 +2126,10 @@ const importFromUrl = async () => {
     );
 
     const createData: CreateDocumentDto = {
-      name: urlForm.value.name || "imported_spec",
+      name:
+        urlForm.value.name?.trim() ||
+        parsedSpec.info?.title?.trim() ||
+        "imported_spec",
       description: t("openapi.importedFromUrl"),
       content: normalizedContent,
       status: "valid",

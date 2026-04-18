@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../security/guards/jwt-auth.guard';
 import { AppConfigService } from '../../config/app-config.service';
 
 @ApiTags('Configuration')
-@Controller('api/v1/config')
+@Controller('v1/config')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class ConfigController {

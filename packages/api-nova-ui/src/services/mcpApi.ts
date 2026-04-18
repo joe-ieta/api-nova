@@ -10,6 +10,7 @@ import type {
 
 class MCPApiService {
   private api: AxiosInstance;
+  private systemLogsApiAvailable = true;
 
   constructor() {
     this.api = axios.create({
@@ -134,6 +135,13 @@ class MCPApiService {
       endDate?: string;
     }
   ): Promise<ApiResponse<any>> {
+    if (!this.systemLogsApiAvailable) {
+      return {
+        success: true,
+        data: [],
+      };
+    }
+
     try {
       const queryParams = new URLSearchParams();
       if (params?.page) queryParams.append('page', params.page.toString());
@@ -148,9 +156,20 @@ class MCPApiService {
       const response = await this.api.get(url);
       return response.data;
     } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        if (status === 404 || status === 403) {
+          this.systemLogsApiAvailable = false;
+        }
+      }
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: axios.isAxiosError(error)
+          ? (error.response?.data?.error || error.response?.data || error.message)
+          : error instanceof Error
+            ? error.message
+            : "Unknown error",
       };
     }
   }

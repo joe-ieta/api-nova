@@ -26,6 +26,8 @@ export default {
     confirmUpload: "Confirm Upload",
     searchPlaceholder: "Search documents...",
     importFromUrl: "Import from URL",
+    startImport: "Start Import",
+    importing: "Importing...",
     validationResult: "Validation Result",
     conversionResult: "Conversion Result",
     noParseResult: "No parse result available",

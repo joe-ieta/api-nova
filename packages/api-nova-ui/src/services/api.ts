@@ -1307,7 +1307,7 @@ export const runtimeObservabilityAPI = {
     days?: number;
     eventLimit?: number;
   }): Promise<any> {
-    const response = await api.get("/api/v1/monitoring/management/overview", {
+    const response = await api.get("/v1/monitoring/management/overview", {
       params,
     });
     return response.data.data;
@@ -1319,7 +1319,7 @@ export const runtimeObservabilityAPI = {
     level?: string;
     runtimeAssetId?: string;
   }): Promise<any> {
-    const response = await api.get("/api/v1/monitoring/management/events", {
+    const response = await api.get("/v1/monitoring/management/events", {
       params,
     });
     return response.data.data;
@@ -1330,7 +1330,7 @@ export const runtimeObservabilityAPI = {
     limit?: number;
     status?: string;
   }): Promise<any> {
-    const response = await api.get("/api/v1/monitoring/management/audit", {
+    const response = await api.get("/v1/monitoring/management/audit", {
       params,
     });
     return response.data.data;

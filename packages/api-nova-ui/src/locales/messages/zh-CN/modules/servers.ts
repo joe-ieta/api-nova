@@ -128,6 +128,7 @@ export default {
     clientConnectionFailed: "客户端连接失败",
     logsRefreshed: "日志已刷新",
     refreshLogsFailed: "刷新日志失败",
+    logsPermissionDenied: "当前账号没有系统日志查看权限（需要 monitoring:read）",
     logSource: "来源",
     logMessage: "消息",
     logsExported: "日志已导出",

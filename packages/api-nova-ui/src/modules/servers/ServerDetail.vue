@@ -643,6 +643,14 @@
               </div>
 
               <el-card class="logs-display-card" style="margin-top: 16px">
+                <el-alert
+                  v-if="logsPermissionDenied"
+                  :title="t('servers.logsPermissionDenied')"
+                  type="warning"
+                  :closable="false"
+                  show-icon
+                  style="margin-bottom: 16px"
+                />
                 <div class="logs-container" ref="logsContainer">
                   <div
                     v-for="log in filteredLogs"
@@ -860,6 +868,7 @@ const selectedTool = ref<MCPTool | null>(null);
 const logs = ref<LogEntry[]>([]);
 const connections = ref<any[]>([]);
 const logsContainer = ref<HTMLElement>();
+const logsPermissionDenied = ref(false);
 
 // 进程监控相关数据
 const processInfo = ref<any>(null);
@@ -1229,8 +1238,8 @@ const refreshLogs = async () => {
       page: number;
       limit: number;
       eventType?: string;
-      startTime?: string;
-      endTime?: string;
+      startDate?: string;
+      endDate?: string;
     } = {
       page: 1,
       limit: 100,
@@ -1240,12 +1249,26 @@ const refreshLogs = async () => {
     
     // 如果有时间范围过滤
     if (logDateRange.value && logDateRange.value.length === 2) {
-      params.startTime = new Date(logDateRange.value[0]).toISOString();
-      params.endTime = new Date(logDateRange.value[1]).toISOString();
+      params.startDate = new Date(logDateRange.value[0]).toISOString();
+      params.endDate = new Date(logDateRange.value[1]).toISOString();
     }
     
-    const response = await mcpApiService.getSystemLogs(serverId.value, params);    
-    if (response.data) {
+    const response = await mcpApiService.getSystemLogs(serverId.value, params);
+    if (response.success === false) {
+      const errorInfo = response.error as any;
+      if (errorInfo?.code === "FORBIDDEN") {
+        logsPermissionDenied.value = true;
+        logs.value = [];
+        logStats.value = { error: 0, warn: 0, info: 0, debug: 0 };
+        ElMessage.warning(t("servers.logsPermissionDenied"));
+        return;
+      }
+      ElMessage.error(errorInfo?.message || t("servers.refreshLogsFailed"));
+      return;
+    }
+
+    if (Array.isArray(response.data)) {
+      logsPermissionDenied.value = false;
       // 转换系统日志数据格式
       const systemLogs = response.data.map((log: any) => ({
         id: log.id,
@@ -1270,7 +1293,9 @@ const refreshLogs = async () => {
       
       ElMessage.success(t("servers.logsRefreshed"));
     } else {
-      ElMessage.error(response.error || t("servers.refreshLogsFailed"));
+      logsPermissionDenied.value = false;
+      logs.value = [];
+      logStats.value = { error: 0, warn: 0, info: 0, debug: 0 };
     }
   } catch (error) {
     console.error("Failed to refresh system logs:", error);
@@ -1614,7 +1639,10 @@ const getStatusType = (status: string) => {
 const startServer = async () => {
   actionLoading.value = true;
   try {
-    await serverStore.startServer(serverId.value);
+    const success = await serverStore.startServer(serverId.value);
+    if (!success) {
+      throw new Error(serverStore.error || t("servers.startServerFailed", { error: "" }));
+    }
     ElMessage.success(t("servers.serverStartSuccess"));
   } catch (error) {
     ElMessage.error(t("servers.startServerFailed", { error }));
@@ -1626,7 +1654,10 @@ const startServer = async () => {
 const stopServer = async () => {
   actionLoading.value = true;
   try {
-    await serverStore.stopServer(serverId.value);
+    const success = await serverStore.stopServer(serverId.value);
+    if (!success) {
+      throw new Error(serverStore.error || t("servers.stopServerFailed", { error: "" }));
+    }
     ElMessage.success(t("servers.serverStopSuccess"));
   } catch (error) {
     ElMessage.error(t("servers.stopServerFailed", { error }));
@@ -1638,7 +1669,10 @@ const stopServer = async () => {
 const restartServer = async () => {
   actionLoading.value = true;
   try {
-    await serverStore.restartServer(serverId.value);
+    const success = await serverStore.restartServer(serverId.value);
+    if (!success) {
+      throw new Error(serverStore.error || t("servers.restartServerFailed", { error: "" }));
+    }
     ElMessage.success(t("servers.serverRestartSuccess"));
   } catch (error) {
     ElMessage.error(t("servers.restartServerFailed", { error }));

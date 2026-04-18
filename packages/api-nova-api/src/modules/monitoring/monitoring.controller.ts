@@ -19,7 +19,7 @@ import { JwtAuthGuard } from '../security/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../security/guards/permissions.guard';
 
 @ApiTags('Monitoring')
-@Controller('api/v1/monitoring')
+@Controller('v1/monitoring')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @ApiBearerAuth()
 export class MonitoringController {

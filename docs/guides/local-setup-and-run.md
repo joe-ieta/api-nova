@@ -199,7 +199,7 @@ Validation points:
 - startup log prints `Database mode: postgres`
 - startup log prints the target PostgreSQL host, port, and database
 - `GET http://localhost:9001/api/health/live` returns `200`
-- `GET http://localhost:9001/api/api/system/initialization` returns initialized status
+- `GET http://localhost:9001/api/system/initialization` returns initialized status
 
 Current verified baseline:
 

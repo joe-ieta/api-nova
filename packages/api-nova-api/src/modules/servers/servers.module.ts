@@ -68,10 +68,10 @@ import { SecurityModule } from '../security/security.module';
     SecurityModule,
   ],
   controllers: [
-    ServersLifecycleController,
-    ServersApiCenterController,
-    ServersProcessController,
     ServersObservabilityController,
+    ServersProcessController,
+    ServersApiCenterController,
+    ServersLifecycleController,
   ],
   providers: [
     ServerManagerService,

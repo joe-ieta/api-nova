@@ -130,6 +130,7 @@ export default {
     clientConnectionFailed: "Client connection failed",
     logsRefreshed: "Logs refreshed",
     refreshLogsFailed: "Failed to refresh logs",
+    logsPermissionDenied: "Current account does not have permission to read system logs (requires monitoring:read)",
     logSource: "Source",
     logMessage: "Message",
     logsExported: "Logs exported",

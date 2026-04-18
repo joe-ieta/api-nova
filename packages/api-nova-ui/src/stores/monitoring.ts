@@ -82,6 +82,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
   const serverMetrics = ref<Record<string, any>>({});
   const systemMetrics = ref<any | null>(null);
   const currentMetrics = ref<DetailedSystemMetrics | null>(null);
+  const managementApiAvailable = ref(true);
   const systemHealth = ref<SystemHealthView>({
     status: "unknown",
     uptime: 0,
@@ -275,24 +276,89 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     color: "#909399",
   }));
 
+  const buildFallbackOverview = (runtimeAssetList: any[]) => {
+    const assets = Array.isArray(runtimeAssetList) ? runtimeAssetList : [];
+    const totalRuntimeAssets = assets.length;
+    const activeRuntimeAssets = assets.filter((item: any) => {
+      const status = String(item?.runtimeSummary?.runtimeStatus || "").toLowerCase();
+      return status === "active" || status === "online" || item?.runtimeSummary?.healthy === true;
+    }).length;
+    const degradedRuntimeAssets = assets.filter((item: any) => {
+      const status = String(item?.runtimeSummary?.runtimeStatus || "").toLowerCase();
+      return status === "degraded";
+    }).length;
+    const unhealthyRuntimeAssets = assets.filter((item: any) => {
+      const status = String(item?.runtimeSummary?.runtimeStatus || "").toLowerCase();
+      return (
+        status === "unhealthy" ||
+        status === "error" ||
+        status === "failed" ||
+        item?.runtimeSummary?.healthy === false
+      );
+    }).length;
+    const offlineRuntimeAssets = assets.filter((item: any) => {
+      const status = String(item?.runtimeSummary?.runtimeStatus || "").toLowerCase();
+      return status === "offline";
+    }).length;
+
+    return {
+      metrics: {
+        totalRuntimeAssets,
+        activeRuntimeAssets,
+        degradedRuntimeAssets,
+        unhealthyRuntimeAssets,
+        healthyRuntimeAssets: Math.max(
+          0,
+          totalRuntimeAssets - degradedRuntimeAssets - unhealthyRuntimeAssets - offlineRuntimeAssets,
+        ),
+        offlineRuntimeAssets,
+      },
+      health: {
+        status:
+          unhealthyRuntimeAssets > 0
+            ? "critical"
+            : degradedRuntimeAssets > 0
+              ? "warning"
+              : totalRuntimeAssets > 0
+                ? "healthy"
+                : "unknown",
+      },
+      recentRuntimeEvents: [],
+      recentManagementLogs: [],
+    };
+  };
+
   async function fetchOverview() {
     loading.value = true;
     isLoading.value = true;
     error.value = null;
 
     try {
-      const [overviewData, runtimeAssetList] = await Promise.all([
-        runtimeObservabilityAPI.getManagementOverview({
-          days: 7,
-          eventLimit: 50,
-        }),
-        runtimeAssetsAPI.listRuntimeAssets(),
-      ]);
-
-      overview.value = overviewData;
+      const runtimeAssetList = await runtimeAssetsAPI.listRuntimeAssets();
       runtimeAssets.value = Array.isArray(runtimeAssetList?.data)
         ? runtimeAssetList.data
         : [];
+
+      let overviewData: any;
+      if (managementApiAvailable.value) {
+        try {
+          overviewData = await runtimeObservabilityAPI.getManagementOverview({
+            days: 7,
+            eventLimit: 50,
+          });
+        } catch (overviewError: any) {
+          if (isMissingManagementApi(overviewError)) {
+            managementApiAvailable.value = false;
+            overviewData = buildFallbackOverview(runtimeAssets.value);
+          } else {
+            throw overviewError;
+          }
+        }
+      } else {
+        overviewData = buildFallbackOverview(runtimeAssets.value);
+      }
+
+      overview.value = overviewData;
       runtimeEvents.value = Array.isArray(overviewData?.recentRuntimeEvents)
         ? overviewData.recentRuntimeEvents
         : [];
@@ -380,12 +446,31 @@ export const useMonitoringStore = defineStore("monitoring", () => {
   }) {
     loading.value = true;
     try {
-      const response = await runtimeObservabilityAPI.getManagementEvents({
-        page: 1,
-        limit: options?.limit || 50,
-        level: options?.level,
-        runtimeAssetId: options?.runtimeAssetId,
-      });
+      if (!managementApiAvailable.value) {
+        logs.value = [];
+        runtimeEvents.value = [];
+        lastUpdate.value = new Date();
+        return;
+      }
+
+      let response: any;
+      try {
+        response = await runtimeObservabilityAPI.getManagementEvents({
+          page: 1,
+          limit: options?.limit || 50,
+          level: options?.level,
+          runtimeAssetId: options?.runtimeAssetId,
+        });
+      } catch (fetchError: any) {
+        if (isMissingManagementApi(fetchError)) {
+          managementApiAvailable.value = false;
+          logs.value = [];
+          runtimeEvents.value = [];
+          lastUpdate.value = new Date();
+          return;
+        }
+        throw fetchError;
+      }
       logs.value = Array.isArray(response?.data)
         ? response.data.map(normalizeLogEntry)
         : [];
@@ -397,11 +482,26 @@ export const useMonitoringStore = defineStore("monitoring", () => {
   }
 
   async function fetchAudit(options?: { limit?: number; status?: string }) {
-    const response = await runtimeObservabilityAPI.getManagementAudit({
-      page: 1,
-      limit: options?.limit || 50,
-      status: options?.status,
-    });
+    if (!managementApiAvailable.value) {
+      runtimeAudit.value = [];
+      return runtimeAudit.value;
+    }
+
+    let response: any;
+    try {
+      response = await runtimeObservabilityAPI.getManagementAudit({
+        page: 1,
+        limit: options?.limit || 50,
+        status: options?.status,
+      });
+    } catch (fetchError: any) {
+      if (isMissingManagementApi(fetchError)) {
+        managementApiAvailable.value = false;
+        runtimeAudit.value = [];
+        return runtimeAudit.value;
+      }
+      throw fetchError;
+    }
     runtimeAudit.value = Array.isArray(response?.data) ? response.data : [];
     return runtimeAudit.value;
   }
@@ -700,4 +800,10 @@ function thisEventType(event: any): "cpu" | "memory" | "disk" | "network" | "err
     return "error";
   }
   return "error";
+}
+
+function isMissingManagementApi(error: any): boolean {
+  const status = Number(error?.status || error?.response?.status || 0);
+  const code = String(error?.code || error?.response?.data?.code || "").toUpperCase();
+  return status === 404 || code === "NOT_FOUND";
 }

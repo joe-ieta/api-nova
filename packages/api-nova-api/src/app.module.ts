@@ -28,6 +28,7 @@ import { AssetCatalogModule } from './modules/asset-catalog/asset-catalog.module
 import { PublicationModule } from './modules/publication/publication.module';
 import { GatewayRuntimeModule } from './modules/gateway-runtime/gateway-runtime.module';
 import { RuntimeAssetsModule } from './modules/runtime-assets/runtime-assets.module';
+import { MonitoringModule } from './modules/monitoring/monitoring.module';
 
 // 通用组件
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -116,6 +117,7 @@ const envFilePath = [
     PublicationModule,
     GatewayRuntimeModule,
     RuntimeAssetsModule,
+    MonitoringModule,
   ],
   controllers: [AppController],
   providers: [

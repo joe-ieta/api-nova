@@ -72,6 +72,7 @@
       >
         <template #title>
           <div class="group-title">
+            <span class="group-name">{{ group.groupName }}</span>
             <el-tag type="info">{{ group.baseUrl }}</el-tag>
             <span class="count">{{
               t("endpointRegistry.groupCount", { count: group.endpoints.length })
@@ -369,6 +370,7 @@ type EndpointRow = {
   serverId: string;
   name: string;
   baseUrl: string;
+  groupName: string;
   endpointPath: string;
   methodPath: string;
   sourceType: "manual" | "imported";
@@ -382,6 +384,7 @@ type EndpointRow = {
 type Group = {
   groupKey: string;
   baseUrl: string;
+  groupName: string;
   endpoints: EndpointRow[];
 };
 
@@ -532,6 +535,60 @@ const normalizeBaseUrl = (url?: string) => {
   return url.trim().replace(/\/+$/, "").toLowerCase();
 };
 
+const deriveEndpointBaseUrl = (item: ApiCenterRow) => {
+  const openApiServerUrl = String((item as any)?.openApiData?.servers?.[0]?.url || "").trim();
+  if (openApiServerUrl) {
+    return normalizeBaseUrl(openApiServerUrl);
+  }
+
+  const probeUrl = String(item.profile?.probeUrl || "").trim();
+  if (probeUrl) {
+    try {
+      const parsed = new URL(probeUrl);
+      return normalizeBaseUrl(`${parsed.protocol}//${parsed.host}`);
+    } catch {
+      return normalizeBaseUrl(probeUrl);
+    }
+  }
+
+  return normalizeBaseUrl(item.profile?.sourceRef);
+};
+
+const deriveDisplayName = (item: ApiCenterRow) => {
+  const openApiTitle = String((item as any)?.openApiData?.info?.title || "").trim();
+  if (openApiTitle) {
+    return openApiTitle;
+  }
+
+  const explicitName = String(item.name || "").trim();
+  if (explicitName && explicitName !== "undefined") {
+    return explicitName;
+  }
+
+  const sourceRef = String(item.profile?.sourceRef || "").trim();
+  if (sourceRef) {
+    try {
+      const parsed = new URL(sourceRef);
+      const pathname = parsed.pathname.replace(/\/+$/, "");
+      const lastSegment = pathname.split("/").filter(Boolean).pop();
+      return lastSegment || parsed.hostname || sourceRef;
+    } catch {
+      return sourceRef;
+    }
+  }
+
+  const probeUrl = String(item.profile?.probeUrl || "").trim();
+  if (probeUrl) {
+    try {
+      return new URL(probeUrl).hostname || probeUrl;
+    } catch {
+      return probeUrl;
+    }
+  }
+
+  return item.id || "unknown";
+};
+
 const extractMethodAndPath = (openApiData: any): { method: string; path: string } => {
   const paths = openApiData?.paths;
   if (!paths || typeof paths !== "object") {
@@ -678,8 +735,8 @@ const formatProbeFeedback = (result: {
   return t("endpointRegistry.messages.probeFinished", { status: probeStatus });
 };
 
-const withGovernanceScopeHint = (message: string, row: EndpointRow) =>
-  row.sourceType === "imported"
+const withGovernanceScopeHint = (message: string, row: EndpointRow, probeStatus?: string) =>
+  row.sourceType === "imported" && probeStatus !== "unknown"
     ? `${message} ${t("endpointRegistry.messages.importedScopeSuffix")}`
     : message;
 
@@ -698,12 +755,14 @@ const detectMethodPath = (item: ApiCenterRow) => {
 };
 
 const mapRow = (item: ApiCenterRow): EndpointRow => {
-  const baseUrl = normalizeBaseUrl(item.profile?.sourceRef || item.profile?.probeUrl);
+  const baseUrl = deriveEndpointBaseUrl(item);
+  const displayName = deriveDisplayName(item);
   return {
     id: item.id,
     serverId: item.id,
-    name: item.name,
+    name: displayName,
     baseUrl,
+    groupName: displayName,
     endpointPath: item.endpoint?.path || "",
     methodPath: detectMethodPath(item),
     sourceType: (item.profile?.sourceType as "manual" | "imported") || "imported",
@@ -720,7 +779,8 @@ const mapRow = (item: ApiCenterRow): EndpointRow => {
 };
 
 const mapImportedRows = (item: ApiCenterRow): EndpointRow[] => {
-  const baseUrl = normalizeBaseUrl(item.profile?.sourceRef || item.profile?.probeUrl);
+  const baseUrl = deriveEndpointBaseUrl(item);
+  const displayName = deriveDisplayName(item);
   const endpoints = Array.isArray(item.endpoints) && item.endpoints.length > 0
     ? item.endpoints
     : item.endpoint?.path
@@ -734,8 +794,9 @@ const mapImportedRows = (item: ApiCenterRow): EndpointRow[] => {
   return endpoints.map((endpoint) => ({
     id: `${item.id}::${endpoint.method}::${endpoint.path}`,
     serverId: item.id,
-    name: item.name,
+    name: displayName,
     baseUrl,
+    groupName: displayName,
     endpointPath: endpoint.path,
     methodPath: `${endpoint.method} ${endpoint.path}`,
     sourceType: (item.profile?.sourceType as "manual" | "imported") || "imported",
@@ -752,20 +813,27 @@ const mapImportedRows = (item: ApiCenterRow): EndpointRow[] => {
 };
 
 const grouped = computed<Group[]>(() => {
-  const map = new Map<string, EndpointRow[]>();
+  const map = new Map<string, Group>();
   for (const row of rows.value) {
-    if (!map.has(row.baseUrl)) {
-      map.set(row.baseUrl, []);
+    const groupKey = row.serverId || `${row.groupName}::${row.baseUrl}`;
+    if (!map.has(groupKey)) {
+      map.set(groupKey, {
+        groupKey,
+        baseUrl: row.baseUrl,
+        groupName: row.groupName,
+        endpoints: [],
+      });
     }
-    map.get(row.baseUrl)!.push(row);
+    map.get(groupKey)!.endpoints.push(row);
   }
-  return Array.from(map.entries())
-    .map(([groupKey, endpoints]) => ({
-      groupKey,
-      baseUrl: groupKey,
-      endpoints: endpoints.sort((a, b) => a.name.localeCompare(b.name)),
+  return Array.from(map.values())
+    .map((group) => ({
+      ...group,
+      endpoints: group.endpoints.sort((a, b) => a.methodPath.localeCompare(b.methodPath)),
     }))
-    .sort((a, b) => a.baseUrl.localeCompare(b.baseUrl));
+    .sort((a, b) =>
+      `${a.groupName} ${a.baseUrl}`.localeCompare(`${b.groupName} ${b.baseUrl}`),
+    );
 });
 
 const filteredGroups = computed(() => {
@@ -951,11 +1019,13 @@ const handleDelete = async (row: EndpointRow) => {
 const handleProbe = async (row: EndpointRow) => {
   try {
     setActionLoading(row.id, "probe");
-    const result = await serverAPI.probeApiCenterEndpoint(row.serverId, {
-      path: row.sourceType === "imported" ? row.endpointPath : undefined,
-    });
+    const result = await serverAPI.probeApiCenterEndpoint(row.serverId);
     const probeStatus = result?.probe?.status || "unknown";
-    const feedback = withGovernanceScopeHint(formatProbeFeedback(result), row);
+    const feedback = withGovernanceScopeHint(
+      formatProbeFeedback(result),
+      row,
+      probeStatus,
+    );
     if (probeStatus === "healthy") {
       ElMessage.success(feedback);
     } else if (probeStatus === "unknown") {
@@ -1147,6 +1217,11 @@ watch(search, async (value) => {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+.group-name {
+  font-weight: 600;
+  color: #303133;
 }
 
 .count {
