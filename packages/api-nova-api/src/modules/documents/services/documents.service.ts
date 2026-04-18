@@ -18,6 +18,7 @@ import {
   DocumentListResponseDto,
   DocumentInfoDto,
 } from '../dto/document-response.dto';
+import { AssetCatalogService } from '../../asset-catalog/services/asset-catalog.service';
 
 @Injectable()
 export class DocumentsService {
@@ -28,6 +29,7 @@ export class DocumentsService {
     private readonly documentRepository: Repository<OpenAPIDocument>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly assetCatalogService: AssetCatalogService,
   ) {}
 
   /**
@@ -44,6 +46,13 @@ export class DocumentsService {
       });
 
       const savedDocument = await this.documentRepository.save(document);
+      await this.assetCatalogService.syncDocumentToAssets({
+        documentId: savedDocument.id,
+        documentName: savedDocument.name,
+        description: savedDocument.description,
+        spec: JSON.parse(savedDocument.content),
+        metadata: savedDocument.metadata,
+      });
       
       this.logger.log(`Created document ${savedDocument.id} for user ${userId}`);
       
@@ -152,6 +161,13 @@ export class DocumentsService {
       // 更新文档
       Object.assign(document, updateDocumentDto);
       const updatedDocument = await this.documentRepository.save(document);
+      await this.assetCatalogService.syncDocumentToAssets({
+        documentId: updatedDocument.id,
+        documentName: updatedDocument.name,
+        description: updatedDocument.description,
+        spec: JSON.parse(updatedDocument.content),
+        metadata: updatedDocument.metadata,
+      });
 
       this.logger.log(`Updated document ${id} for user ${userId}`);
       

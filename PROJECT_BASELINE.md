@@ -2,104 +2,81 @@
 
 ## Purpose
 
-This document defines the current project baseline for architecture, functional scope, and development rules.
-
-It is the reference point for all follow-up work. If an implementation, proposal, or external design note conflicts with this document, this document wins unless explicitly updated.
-
-This baseline exists to prevent architecture drift, scope drift, product-positioning drift, and active-contract drift.
-
-The repository originated from the upstream `api-nova-server` project, but the current baseline is governed by this repository's own product direction and release rules rather than by upstream alignment.
-
-This baseline also anchors active naming and default runtime ports so later changes do not drift back toward legacy project labels or stale port contracts.
+This document defines the current baseline for architecture, functional scope, and development rules.
 
 ## Product Definition
 
-ApiNova is a product-oriented API Gateway and API capability platform for turning OpenAPI/Swagger-described APIs into AI-ready capabilities and exposing them through stable runtime and management surfaces.
+ApiNova is an application-internal product gateway and API capability platform with dual access paths.
 
-Its Chinese name may be written as 达雅 or Api达雅.
+It turns OpenAPI/Swagger-described APIs into governed endpoint assets and publishes them through:
 
-The product is not a demo converter, not a one-off code generator, and not only a test harness.
+- MCP tools for model and agent invocation
+- HTTP gateway routes for direct service invocation
 
 The main product chain is:
 
 - OpenAPI/Swagger input
 - parsing and normalization
-- endpoint extraction and filtering
-- MCP tool generation and capability shaping
-- MCP runtime exposure and gateway-facing service operation
-- management and operator workflows
+- source service asset cataloging
+- endpoint item extraction and governance
+- runtime asset assembly and publication shaping
+- dual publish surfaces
+- management and observability
 
-## Naming And Default Runtime Baseline
+## Naming And Ports
 
-### Product naming baseline
-
-- English primary name: `ApiNova`
-- Chinese primary name: `达雅`
-- Optional mixed Chinese form: `Api达雅`
-
-Legacy upstream names may appear only in archive, origin, or compatibility context. They are not valid current product labels for active docs or operator-facing surfaces.
-
-### Default development ports
-
+- Product name: `ApiNova`
+- Chinese name: `达雅`
+- Mixed Chinese form: `Api达雅`
 - UI: `9000`
 - API: `9001`
 - MCP runtime: `9022`
 
-These values are the active default runtime baseline. Reintroducing legacy defaults such as `3000`, `3001`, or `3322` into active product surfaces should be treated as baseline drift.
-
-## Current Product Surfaces
+## Product Surfaces
 
 ### 1. Parser layer
 
-Package:
-
-- `packages/api-nova-parser`
+Package: `packages/api-nova-parser`
 
 Responsibilities:
 
-- parse OpenAPI and Swagger inputs from URL, file, or content
-- validate specifications
-- normalize schema forms
+- parse OpenAPI and Swagger from URL, file, or content
+- validate and normalize specs
 - extract endpoints and metadata
-- provide shared model inputs for tool generation
+- provide shared inputs for publication and execution
 
-### 2. Runtime/server layer
+### 2. MCP runtime/server layer
 
-Package:
-
-- `packages/api-nova-server`
+Package: `packages/api-nova-server`
 
 Responsibilities:
 
 - transform parsed OpenAPI data into MCP tools
 - host MCP runtime surfaces
 - support `stdio`, `sse`, and `streamable`
-- handle request mapping, auth injection, and transport behavior
+- handle MCP request mapping, auth injection, and transport behavior
 
 ### 3. API/backend layer
 
-Package:
-
-- `packages/api-nova-api`
+Package: `packages/api-nova-api`
 
 Responsibilities:
 
-- orchestrate parser and runtime capabilities
-- provide management APIs
-- persist documents, server configs, and operational records
+- act as the shared control plane
+- provide management APIs and persistence
+- persist documents, endpoint definitions, publish bindings, and operational records
+- orchestrate MCP runtime lifecycle
+- host the HTTP gateway runtime for published endpoints
 - enforce security boundaries
-- expose health, management, and operator-facing workflows
 
 ### 4. UI/operator layer
 
-Package:
-
-- `packages/api-nova-ui`
+Package: `packages/api-nova-ui`
 
 Responsibilities:
 
-- provide operator workflows for import, preview, management, and monitoring
-- consume stable backend contracts
+- provide import, governance, publication, and monitoring workflows
+- expose both MCP and HTTP publication state
 - avoid re-implementing parser/runtime business logic
 
 ## Architecture Rules
@@ -107,43 +84,71 @@ Responsibilities:
 ### Single source of truth
 
 - parser owns parsing, normalization, validation, and extracted OpenAPI structure
-- server owns MCP transformation and runtime behavior
-- api owns orchestration, persistence, and security
+- server owns MCP transformation and MCP runtime behavior
+- api owns orchestration, persistence, publication control, HTTP gateway runtime, and security
 - ui owns presentation and operator flow
 
-No higher layer should silently fork core domain logic that belongs to a lower layer.
+### Shared control plane, separate runtime surfaces
 
-### Shared behavior over duplicated behavior
+Endpoint registry, publish policy, auth configuration, lifecycle, and observability converge into one shared control plane.
 
-If CLI, API, and UI produce materially different tool results from the same input, that is a product defect.
+MCP runtime and HTTP gateway runtime are parallel publish surfaces over that control plane. They share endpoint meaning and governance state, but they do not collapse into one transport implementation.
 
-### Documentation is part of the runtime contract
+### Asset hierarchy must remain explicit
 
-README, package docs, and API docs must reflect actual ports, routes, auth boundaries, and supported flows.
+ApiNova has three asset layers:
 
-## Current Functional Scope
+- source service assets
+- endpoint item assets
+- runtime assets
 
-### In scope for the current product
+Source service assets are grouped by upstream root identity, recommended as `scheme + host + port + normalized basePath`.
+
+Endpoint item assets are the single-endpoint governance entries under a source service asset.
+
+Runtime assets are the top-level usage assets. The primary runtime asset types are:
+
+- MCP Server assets
+- Gateway service assets
+
+Top-level access control, policy, and monitoring should attach to runtime assets, while endpoint-level drill-down remains available below them.
+
+## Functional Scope
+
+### In scope
 
 - import OpenAPI/Swagger from URL, file, or raw content
 - validate and normalize specs
 - generate MCP-compatible tools from parsed endpoints
 - run MCP servers on supported transports
 - manage server instances through the backend
-- expose UI workflows for existing backend capabilities
-- support auth-related runtime configuration already present in the codebase
+- govern registered endpoints through shared lifecycle vocabulary
+- manage source service assets and endpoint item assets
+- assemble MCP Server assets from one or more endpoint items
+- assemble Gateway service assets from one or more endpoint items
+- publish runtime assets to MCP tools and HTTP gateway routes
+- expose UI workflows for import, governance, publication, and monitoring
 
 ### Explicitly not the current baseline
 
 - full automatic discovery-first import from arbitrary API homepages as a required path
-- broad new feature branching before current contracts are stabilized
 - replacing current persistence architecture with a new storage model
-- treating FastAPI as a separate core input format from OpenAPI
-- large-scale architecture rewrites before a releasable baseline exists
+- turning ApiNova into an enterprise full-traffic gateway
+- taking over all internal service ingress or replacing an existing business gateway
+- implementing complex heavy layer-7 scheduling before the dual publish baseline is stable
 
-## Development Constraints
+## Gateway Boundary
 
-### 1. Stabilize before expanding
+ApiNova's gateway role is product-internal and publication-oriented.
+
+That means:
+
+- it only exposes registered, governed, and published endpoints
+- it does not aim to proxy all enterprise traffic
+- it does not replace existing business gateways, ingress layers, or service meshes
+- it can provide auth injection, route binding, observability, and policy enforcement for productized APIs
+
+## Working Principle
 
 Near-term work should prioritize:
 
@@ -151,58 +156,5 @@ Near-term work should prioritize:
 - contract consistency
 - security posture
 - runtime reliability
+- publication consistency across both access paths
 - release readiness
-
-Feature expansion is secondary until the project is releasable with a clear main path.
-
-### 2. External design notes are reference material only
-
-External documents, including Swagger-to-MCP concept notes, may inform later planning but must not be copied into implementation without adaptation to this repository's architecture and constraints.
-
-### 3. Product-first acceptance standard
-
-A change is acceptable only if it improves at least one of:
-
-- core conversion correctness
-- consistency across CLI/API/UI/docs
-- security and transport safety
-- operational reliability
-- maintainability
-- release readiness
-
-### 4. Cross-platform compatibility
-
-Windows and Linux must both remain supported, with Ubuntu treated as a first-class environment.
-
-This applies to:
-
-- runtime behavior
-- process management
-- path handling
-- file loading
-- startup commands
-- documentation examples
-
-### 5. Avoid release-hostile drift
-
-Do not introduce:
-
-- new parallel contracts without migration intent
-- temporary route aliases as permanent behavior
-- debug output on main product protocol paths
-- platform-specific assumptions in core runtime logic
-
-## Release-Oriented Working Principle
-
-The current project priority is not to maximize feature count.
-
-The current priority is to converge on a basic, usable, releasable version that can be connected to real AI applications with predictable behavior.
-
-That means follow-up work should answer:
-
-1. does this improve the main conversion path
-2. does this reduce operator confusion
-3. does this improve release confidence
-4. does this avoid new architectural drift
-
-If the answer is no, the work should be deferred.

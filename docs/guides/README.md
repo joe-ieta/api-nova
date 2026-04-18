@@ -12,6 +12,8 @@ This directory contains active operational and usage-oriented documentation for 
 - [staged-development-plan](./staged-development-plan.md)
 - [github-collaboration-workflow](./github-collaboration-workflow.md)
 - [endpoint-semantic-layer-requirements](./endpoint-semantic-layer-requirements.md)
+- [dual-publication-implementation-outline](./dual-publication-implementation-outline.md)
+- [asset-model-and-runtime-assets](./asset-model-and-runtime-assets.md)
 
 ## Guide Inclusion Rule
 

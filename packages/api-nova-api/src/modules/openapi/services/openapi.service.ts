@@ -14,6 +14,7 @@ import { ConfigureOpenAPIDto } from '../dto/configure-openapi.dto';
 import { OpenAPIResponseDto } from '../dto/openapi-response.dto';
 import { ParserService } from './parser.service';
 import { ValidatorService } from './validator.service';
+import { RuntimeAssetsService } from '../../runtime-assets/services/runtime-assets.service';
 
 @Injectable()
 export class OpenAPIService {
@@ -24,6 +25,7 @@ export class OpenAPIService {
     private readonly appConfigService: AppConfigService,
     private readonly parserService: ParserService,
     private readonly validatorService: ValidatorService,
+    private readonly runtimeAssetsService: RuntimeAssetsService,
     @InjectRepository(MCPServerEntity)
     private readonly serverRepository: Repository<MCPServerEntity>,
   ) {}
@@ -197,6 +199,12 @@ export class OpenAPIService {
       }
 
       if (!server.openApiData) {
+        const runtimeAssetId = (server.config || {})?.runtimeAssetId;
+        if (typeof runtimeAssetId === 'string' && runtimeAssetId) {
+          const assembled =
+            await this.runtimeAssetsService.assembleMcpRuntimeAssetPayload(runtimeAssetId);
+          return assembled.openApiData;
+        }
         throw new NotFoundException(`No OpenAPI document found for server ${serverId}`);
       }
 
@@ -214,6 +222,12 @@ export class OpenAPIService {
 
       throw new InternalServerErrorException(`Failed to retrieve OpenAPI document: ${error.message}`);
     }
+  }
+
+  async getOpenApiByRuntimeAssetId(runtimeAssetId: string): Promise<any> {
+    const assembled =
+      await this.runtimeAssetsService.assembleMcpRuntimeAssetPayload(runtimeAssetId);
+    return assembled.openApiData;
   }
 
   private generateParseId(): string {

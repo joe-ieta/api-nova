@@ -904,16 +904,22 @@ onMounted(async () => {
   await refreshServers();
 
   // 订阅 WebSocket 实时更新
-  websocketStore.subscribe("server-status", handleServerStatusUpdate);
-  websocketStore.subscribe("server-metrics", handleServerMetricsUpdate);
+  websocketStore.subscribe(
+    "runtime:server-status",
+    handleServerStatusUpdate,
+  );
+  websocketStore.subscribe(
+    "runtime:server-metrics",
+    handleServerMetricsUpdate,
+  );
 });
 
 onUnmounted(() => {
   // 停止性能监控
   stopMonitoring();
 
-  websocketStore.unsubscribe("server-status");
-  websocketStore.unsubscribe("server-metrics");
+  websocketStore.unsubscribe("runtime:server-status");
+  websocketStore.unsubscribe("runtime:server-metrics");
 });
 
 const handleServerStatusUpdate = (data: any) => {

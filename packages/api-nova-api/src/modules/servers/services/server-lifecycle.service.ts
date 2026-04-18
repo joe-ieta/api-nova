@@ -21,6 +21,16 @@ import {
 // 导入MCP相关模块
 import { ParserService } from '../../openapi/services/parser.service';
 import { ValidatorService } from '../../openapi/services/validator.service';
+import { RuntimeObservabilityService } from '../../runtime-observability/services/runtime-observability.service';
+import {
+  RuntimeObservabilityEventFamily,
+  RuntimeObservabilitySeverity,
+  RuntimeObservabilityStatus,
+} from '../../../database/entities/runtime-observability-event.entity';
+import {
+  RuntimeCurrentStatus,
+  RuntimeHealthStatus,
+} from '../../../database/entities/runtime-observability-state.entity';
 
 // 导入api-nova-server包中的transport实现
 import { createMcpServer, startStreamableMcpServer, startSseMcpServer } from 'api-nova-server';
@@ -47,6 +57,7 @@ export class ServerLifecycleService {
     private readonly eventEmitter: EventEmitter2,
     private readonly processManager: ProcessManagerService,
     private readonly processHealth: ProcessHealthService,
+    private readonly runtimeObservabilityService: RuntimeObservabilityService,
     // private readonly mcpService: MCPService, // TODO: 实现 MCP 服务
     private readonly parserService: ParserService,
     private readonly validatorService: ValidatorService,
@@ -155,6 +166,19 @@ export class ServerLifecycleService {
         endpoint,
         pid: processInfo.pid,
       });
+      await this.recordRuntimeLifecycleEvent(serverEntity, {
+        eventName: 'mcp.started',
+        status: RuntimeObservabilityStatus.ACTIVE,
+        severity: RuntimeObservabilitySeverity.INFO,
+        currentStatus: RuntimeCurrentStatus.ACTIVE,
+        healthStatus: RuntimeHealthStatus.UNKNOWN,
+        summary: `MCP runtime asset '${serverEntity.config?.runtimeAssetId || serverEntity.id}' started`,
+        details: {
+          endpoint,
+          pid: processInfo.pid,
+          transport: serverEntity.transport,
+        },
+      });
 
       this.logger.log(`Server '${serverEntity.name}' started successfully at ${endpoint} (PID: ${processInfo.pid})`);
 
@@ -170,6 +194,17 @@ export class ServerLifecycleService {
         serverId: serverEntity.id,
         serverName: serverEntity.name,
         error: error.message,
+      });
+      await this.recordRuntimeLifecycleEvent(serverEntity, {
+        eventName: 'mcp.start_failed',
+        status: RuntimeObservabilityStatus.FAILED,
+        severity: RuntimeObservabilitySeverity.ERROR,
+        currentStatus: RuntimeCurrentStatus.DEGRADED,
+        healthStatus: RuntimeHealthStatus.UNHEALTHY,
+        summary: `MCP runtime start failed for '${serverEntity.config?.runtimeAssetId || serverEntity.id}'`,
+        details: {
+          errorMessage: error.message,
+        },
       });
       
       throw error;
@@ -195,7 +230,11 @@ export class ServerLifecycleService {
 
     // OpenAPI数据源（使用API URL）
     const apiBaseUrl = this.configService.get('API_BASE_URL', 'http://localhost:9001');
-    const openApiUrl = `${apiBaseUrl}/api/openapi/by-server/${serverEntity.id}`;
+    const runtimeAssetId = serverEntity.config?.runtimeAssetId;
+    const openApiUrl =
+      typeof runtimeAssetId === 'string' && runtimeAssetId
+        ? `${apiBaseUrl}/api/openapi/by-runtime-asset/${runtimeAssetId}`
+        : `${apiBaseUrl}/api/openapi/by-server/${serverEntity.id}`;
     args.push('--openapi', openApiUrl);
 
     // 认证配置
@@ -284,6 +323,14 @@ export class ServerLifecycleService {
         serverId: instance.id,
         serverName: instance.entity.name,
       });
+      await this.recordRuntimeLifecycleEvent(instance.entity, {
+        eventName: 'mcp.stopped',
+        status: RuntimeObservabilityStatus.OFFLINE,
+        severity: RuntimeObservabilitySeverity.INFO,
+        currentStatus: RuntimeCurrentStatus.OFFLINE,
+        healthStatus: RuntimeHealthStatus.UNKNOWN,
+        summary: `MCP runtime asset '${instance.entity.config?.runtimeAssetId || instance.id}' stopped`,
+      });
 
       this.logger.log(`Server '${instance.entity.name}' stopped successfully`);
     } catch (error) {
@@ -293,6 +340,17 @@ export class ServerLifecycleService {
         serverId: instance.id,
         serverName: instance.entity.name,
         error: error.message,
+      });
+      await this.recordRuntimeLifecycleEvent(instance.entity, {
+        eventName: 'mcp.stop_failed',
+        status: RuntimeObservabilityStatus.FAILED,
+        severity: RuntimeObservabilitySeverity.ERROR,
+        currentStatus: RuntimeCurrentStatus.DEGRADED,
+        healthStatus: RuntimeHealthStatus.UNHEALTHY,
+        summary: `MCP runtime stop failed for '${instance.entity.config?.runtimeAssetId || instance.id}'`,
+        details: {
+          errorMessage: error.message,
+        },
       });
       
       throw error;
@@ -542,6 +600,36 @@ export class ServerLifecycleService {
     } catch (error) {
       return false;
     }
+  }
+
+  private async recordRuntimeLifecycleEvent(
+    serverEntity: MCPServerEntity,
+    input: {
+      eventName: string;
+      status: RuntimeObservabilityStatus;
+      severity: RuntimeObservabilitySeverity;
+      currentStatus: RuntimeCurrentStatus;
+      healthStatus: RuntimeHealthStatus;
+      summary: string;
+      details?: Record<string, unknown>;
+    },
+  ) {
+    const runtimeAssetId = serverEntity.config?.runtimeAssetId;
+    if (typeof runtimeAssetId !== 'string' || !runtimeAssetId) {
+      return;
+    }
+
+    await this.runtimeObservabilityService.recordRuntimeControlEvent({
+      runtimeAssetId,
+      eventFamily: RuntimeObservabilityEventFamily.RUNTIME_LIFECYCLE,
+      eventName: input.eventName,
+      status: input.status,
+      severity: input.severity,
+      currentStatus: input.currentStatus,
+      healthStatus: input.healthStatus,
+      summary: input.summary,
+      details: input.details,
+    });
   }
 
   

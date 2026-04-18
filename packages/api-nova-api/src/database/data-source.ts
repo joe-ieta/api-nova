@@ -11,6 +11,17 @@ import { AuditLog } from './entities/audit-log.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { SystemLogEntity } from './entities/system-log.entity';
 import { OpenAPIDocument } from './entities/openapi-document.entity';
+import { SourceServiceAssetEntity } from './entities/source-service-asset.entity';
+import { EndpointDefinitionEntity } from './entities/endpoint-definition.entity';
+import { RuntimeAssetEntity } from './entities/runtime-asset.entity';
+import { RuntimeAssetEndpointBindingEntity } from './entities/runtime-asset-endpoint-binding.entity';
+import { PublicationProfileEntity } from './entities/publication-profile.entity';
+import { PublicationProfileHistoryEntity } from './entities/publication-profile-history.entity';
+import { EndpointPublishBindingEntity } from './entities/endpoint-publish-binding.entity';
+import { GatewayRouteBindingEntity } from './entities/gateway-route-binding.entity';
+import { RuntimeMetricSeriesEntity } from './entities/runtime-metric-series.entity';
+import { RuntimeObservabilityEventEntity } from './entities/runtime-observability-event.entity';
+import { RuntimeObservabilityStateEntity } from './entities/runtime-observability-state.entity';
 import { AiAssistantTemplateEntity } from '../modules/ai-assistant/entities/ai-assistant-template.entity';
 import { AiAssistantConfigEntity } from '../modules/ai-assistant/entities/ai-assistant-config.entity';
 import { verifySqliteDatabasePath, getDatabaseType } from './db-compat';
@@ -27,6 +38,17 @@ const entities = [
   RefreshToken,
   SystemLogEntity,
   OpenAPIDocument,
+  SourceServiceAssetEntity,
+  EndpointDefinitionEntity,
+  RuntimeAssetEntity,
+  RuntimeAssetEndpointBindingEntity,
+  PublicationProfileEntity,
+  PublicationProfileHistoryEntity,
+  EndpointPublishBindingEntity,
+  GatewayRouteBindingEntity,
+  RuntimeObservabilityEventEntity,
+  RuntimeMetricSeriesEntity,
+  RuntimeObservabilityStateEntity,
   AiAssistantTemplateEntity,
   AiAssistantConfigEntity,
 ];

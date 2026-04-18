@@ -7,8 +7,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
-import { SystemLogLevel } from '../../database/entities/system-log.entity';
-import { MCPMonitoringService } from '../../services/monitoring.service';
+import { RuntimeObservabilityService } from '../runtime-observability/services/runtime-observability.service';
 import {
   ManagementAuditResponseDto,
   ManagementEventsResponseDto,
@@ -18,8 +17,6 @@ import {
 import { RequirePermissions } from '../security/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../security/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../security/guards/permissions.guard';
-import { AuditService } from '../security/services/audit.service';
-import { SystemLogService } from '../servers/services/system-log.service';
 
 @ApiTags('Monitoring')
 @Controller('api/v1/monitoring')
@@ -27,19 +24,22 @@ import { SystemLogService } from '../servers/services/system-log.service';
 @ApiBearerAuth()
 export class MonitoringController {
   constructor(
-    private readonly monitoringService: MCPMonitoringService,
-    private readonly auditService: AuditService,
-    private readonly systemLogService: SystemLogService,
+    private readonly runtimeObservabilityService: RuntimeObservabilityService,
   ) {}
 
   @Get('metrics')
   @RequirePermissions('monitoring:read')
   @ApiOperation({ summary: 'Get monitoring metrics' })
   @ApiResponse({ status: 200, description: 'Monitoring metrics', type: MonitoringApiEnvelopeDto })
-  getMetrics() {
+  async getMetrics() {
+    const overview = await this.runtimeObservabilityService.getManagementOverview({
+      days: 7,
+      limit: 20,
+    });
+
     return {
       status: 'success',
-      data: this.monitoringService.getMetrics(),
+      data: overview.metrics,
     };
   }
 
@@ -47,10 +47,15 @@ export class MonitoringController {
   @RequirePermissions('monitoring:read')
   @ApiOperation({ summary: 'Get monitoring health status' })
   @ApiResponse({ status: 200, description: 'Monitoring health status', type: MonitoringApiEnvelopeDto })
-  getHealth() {
+  async getHealth() {
+    const overview = await this.runtimeObservabilityService.getManagementOverview({
+      days: 7,
+      limit: 20,
+    });
+
     return {
       status: 'success',
-      data: this.monitoringService.getHealthStatus(),
+      data: overview.health,
     };
   }
 
@@ -59,10 +64,12 @@ export class MonitoringController {
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of events' })
   @ApiOperation({ summary: 'Get recent runtime events' })
   @ApiResponse({ status: 200, description: 'Recent runtime events', type: MonitoringApiEnvelopeDto })
-  getEvents(@Query('limit') limit?: number) {
+  async getEvents(@Query('limit') limit?: number) {
     return {
       status: 'success',
-      data: this.monitoringService.getRecentEvents(limit ? Number(limit) : 50),
+      data: await this.runtimeObservabilityService.getRecentManagementEvents(
+        limit ? Number(limit) : 50,
+      ),
     };
   }
 
@@ -71,10 +78,12 @@ export class MonitoringController {
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of events' })
   @ApiOperation({ summary: 'Get recent error events' })
   @ApiResponse({ status: 200, description: 'Recent error events', type: MonitoringApiEnvelopeDto })
-  getErrorEvents(@Query('limit') limit?: number) {
+  async getErrorEvents(@Query('limit') limit?: number) {
     return {
       status: 'success',
-      data: this.monitoringService.getEventsByType('error', limit ? Number(limit) : 50),
+      data: await this.runtimeObservabilityService.getRecentManagementErrorEvents(
+        limit ? Number(limit) : 50,
+      ),
     };
   }
 
@@ -88,31 +97,12 @@ export class MonitoringController {
     @Query('days') days?: number,
     @Query('eventLimit') eventLimit?: number,
   ) {
-    const rangeDays = days ? Number(days) : 7;
-    const listLimit = eventLimit ? Number(eventLimit) : 20;
-
-    const [auditStats, systemEvents] = await Promise.all([
-      this.auditService.getAuditStats({
-        startDate: this.getStartDate(rangeDays),
-        endDate: new Date(),
-      }),
-      this.systemLogService.queryLogs({
-        page: 1,
-        limit: listLimit,
-        sortBy: 'createdAt',
-        sortOrder: 'DESC',
-      }),
-    ]);
-
     return {
       status: 'success',
-      data: {
-        metrics: this.monitoringService.getMetrics(),
-        health: this.monitoringService.getHealthStatus(),
-        auditStats,
-        recentRuntimeEvents: this.monitoringService.getRecentEvents(listLimit),
-        recentManagementLogs: systemEvents.logs,
-      },
+      data: await this.runtimeObservabilityService.getManagementOverview({
+        days: days ? Number(days) : 7,
+        limit: eventLimit ? Number(eventLimit) : 20,
+      }),
     };
   }
 
@@ -120,23 +110,21 @@ export class MonitoringController {
   @RequirePermissions('monitoring:read')
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Page size' })
-  @ApiQuery({ name: 'level', required: false, enum: SystemLogLevel, description: 'Log level filter' })
-  @ApiQuery({ name: 'serverId', required: false, type: String, description: 'Server ID filter' })
+  @ApiQuery({ name: 'level', required: false, type: String, description: 'Event severity filter' })
+  @ApiQuery({ name: 'runtimeAssetId', required: false, type: String, description: 'Runtime asset filter' })
   @ApiOperation({ summary: 'Query management events' })
   @ApiResponse({ status: 200, description: 'Management event stream', type: ManagementEventsResponseDto })
   async getManagementEvents(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
-    @Query('level') level?: SystemLogLevel,
-    @Query('serverId') serverId?: string,
+    @Query('level') level?: string,
+    @Query('runtimeAssetId') runtimeAssetId?: string,
   ) {
-    const result = await this.systemLogService.queryLogs({
+    const result = await this.runtimeObservabilityService.queryManagementEvents({
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 20,
-      level,
-      serverId,
-      sortBy: 'createdAt',
-      sortOrder: 'DESC',
+      severity: level,
+      runtimeAssetId,
     });
 
     return {
@@ -157,24 +145,17 @@ export class MonitoringController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('status') status?: string,
-    @Query('resource') resource?: string,
+    @Query('resource') _resource?: string,
   ) {
-    const result = await this.auditService.findLogs({
+    const result = await this.runtimeObservabilityService.queryManagementAudit({
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 20,
       status,
-      resource,
-    } as any);
+    });
 
     return {
       status: 'success',
       data: result,
     };
-  }
-
-  private getStartDate(days: number): Date {
-    const start = new Date();
-    start.setDate(start.getDate() - days);
-    return start;
   }
 }

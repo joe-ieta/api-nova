@@ -978,14 +978,16 @@ export const openApiAPI = {
 
 export const monitoringAPI = {
   // 获取系统指标
-  async getMetrics(): Promise<SystemMetrics> {
-    const response = await api.get("/metrics");
-    return response.data;
+  async getMetrics(): Promise<any> {
+    return runtimeObservabilityAPI.getManagementOverview({
+      days: 7,
+      eventLimit: 20,
+    });
   },
 
   // 获取服务器指标
-  async getServerMetrics(serverId: string): Promise<SystemMetrics> {
-    const response = await api.get(`/metrics/servers/${serverId}`);
+  async getServerMetrics(serverId: string): Promise<any> {
+    const response = await api.get(`/v1/servers/${serverId}/metrics/summary`);
     return response.data;
   },
 };
@@ -1299,6 +1301,57 @@ export async function batchAPICall<T>(
     return results;
   }
 }
+
+export const runtimeObservabilityAPI = {
+  async getManagementOverview(params?: {
+    days?: number;
+    eventLimit?: number;
+  }): Promise<any> {
+    const response = await api.get("/api/v1/monitoring/management/overview", {
+      params,
+    });
+    return response.data.data;
+  },
+
+  async getManagementEvents(params?: {
+    page?: number;
+    limit?: number;
+    level?: string;
+    runtimeAssetId?: string;
+  }): Promise<any> {
+    const response = await api.get("/api/v1/monitoring/management/events", {
+      params,
+    });
+    return response.data.data;
+  },
+
+  async getManagementAudit(params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+  }): Promise<any> {
+    const response = await api.get("/api/v1/monitoring/management/audit", {
+      params,
+    });
+    return response.data.data;
+  },
+};
+
+export const runtimeAssetsAPI = {
+  async listRuntimeAssets(params?: {
+    type?: string;
+    status?: string;
+    search?: string;
+  }): Promise<any> {
+    const response = await api.get("/v1/runtime-assets", { params });
+    return response.data;
+  },
+
+  async getRuntimeAssetObservability(id: string): Promise<any> {
+    const response = await api.get(`/v1/runtime-assets/${id}/observability`);
+    return response.data;
+  },
+};
 
 /**
  * 健康检查 API

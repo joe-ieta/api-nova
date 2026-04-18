@@ -10,6 +10,16 @@ import { LogEntryEntity, LogLevel, LogSource } from '../../../database/entities/
 import { ServerManagerService, ServerInstance } from './server-manager.service';
 import { TelemetryModeMap, TelemetryMode } from '../interfaces/observability.interface';
 import { ServerLifecycleService } from './server-lifecycle.service';
+import { RuntimeObservabilityService } from '../../runtime-observability/services/runtime-observability.service';
+import {
+  RuntimeObservabilityEventFamily,
+  RuntimeObservabilitySeverity,
+  RuntimeObservabilityStatus,
+} from '../../../database/entities/runtime-observability-event.entity';
+import {
+  RuntimeCurrentStatus,
+  RuntimeHealthStatus,
+} from '../../../database/entities/runtime-observability-state.entity';
 
 export interface HealthCheckResult {
   serverId: string;
@@ -54,6 +64,7 @@ export class ServerHealthService {
     private readonly eventEmitter: EventEmitter2,
     private readonly serverManager: ServerManagerService,
     private readonly lifecycleService: ServerLifecycleService,
+    private readonly runtimeObservabilityService: RuntimeObservabilityService,
   ) {
     this.initializeHealthChecks();
   }
@@ -154,6 +165,10 @@ export class ServerHealthService {
           timestamp: new Date(),
         });
       }
+      await this.recordRuntimeHealth(instance.entity, {
+        healthy,
+        responseTime,
+      });
 
       // 记录健康检查日志
       if (!healthy) {
@@ -181,6 +196,14 @@ export class ServerHealthService {
 
       // 记录错误日志
       await this.logHealthCheckFailure(serverId, result.serverName, error.message, error);
+      const serverEntity = await this.serverRepository.findOne({ where: { id: serverId } });
+      if (serverEntity) {
+        await this.recordRuntimeHealth(serverEntity, {
+          healthy: false,
+          responseTime,
+          errorMessage: error.message,
+        });
+      }
 
       this.logger.warn(`Health check failed for server ${serverId}: ${error.message}`);
     }
@@ -421,5 +444,45 @@ export class ServerHealthService {
     
     this.healthCheckIntervals.clear();
     this.healthCheckHistory.clear();
+  }
+
+  private async recordRuntimeHealth(
+    serverEntity: MCPServerEntity,
+    input: {
+      healthy: boolean;
+      responseTime?: number;
+      errorMessage?: string;
+    },
+  ) {
+    const runtimeAssetId = serverEntity.config?.runtimeAssetId;
+    if (typeof runtimeAssetId !== 'string' || !runtimeAssetId) {
+      return;
+    }
+
+    await this.runtimeObservabilityService.recordRuntimeControlEvent({
+      runtimeAssetId,
+      eventFamily: RuntimeObservabilityEventFamily.RUNTIME_HEALTH,
+      eventName: input.healthy ? 'mcp.health_check_passed' : 'mcp.health_check_failed',
+      status: input.healthy
+        ? RuntimeObservabilityStatus.SUCCESS
+        : RuntimeObservabilityStatus.FAILED,
+      severity: input.healthy
+        ? RuntimeObservabilitySeverity.INFO
+        : RuntimeObservabilitySeverity.ERROR,
+      currentStatus: input.healthy
+        ? RuntimeCurrentStatus.ACTIVE
+        : RuntimeCurrentStatus.DEGRADED,
+      healthStatus: input.healthy
+        ? RuntimeHealthStatus.HEALTHY
+        : RuntimeHealthStatus.UNHEALTHY,
+      summary: input.healthy
+        ? `MCP runtime asset '${runtimeAssetId}' passed health check`
+        : `MCP runtime asset '${runtimeAssetId}' failed health check`,
+      details: {
+        responseTime: input.responseTime,
+        errorMessage: input.errorMessage,
+        serverId: serverEntity.id,
+      },
+    });
   }
 }

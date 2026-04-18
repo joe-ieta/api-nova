@@ -23,6 +23,7 @@ import {
 import { ServerManagerService } from './server-manager.service';
 import { ManagedTransportType } from '../dto/server.dto';
 import { DocumentsService } from '../../documents/services/documents.service';
+import { AssetCatalogService } from '../../asset-catalog/services/asset-catalog.service';
 
 type ApiManagementProfile = {
   sourceType: EndpointSourceType;
@@ -56,6 +57,21 @@ type EndpointDescriptor = {
   path: string;
 };
 
+type AssetMetadataSummary = {
+  sourceServiceAsset: {
+    id: string;
+    sourceKey: string;
+    displayName?: string;
+  } | null;
+  endpointDefinitionCount: number;
+  primaryEndpointDefinition?: {
+    id: string;
+    method: string;
+    path: string;
+    status: string;
+  } | null;
+};
+
 @Injectable()
 export class ApiManagementCenterService {
   private readonly logger = new Logger(ApiManagementCenterService.name);
@@ -68,6 +84,7 @@ export class ApiManagementCenterService {
     private readonly httpService: HttpService,
     private readonly serverManager: ServerManagerService,
     private readonly documentsService: DocumentsService,
+    private readonly assetCatalogService: AssetCatalogService,
   ) {}
 
   async getOverview(query: ApiCenterQueryDto) {
@@ -86,13 +103,13 @@ export class ApiManagementCenterService {
       return true;
     });
 
-    return {
-      total: filtered.length,
-      data: filtered.map((server) => {
+    const data = await Promise.all(
+      filtered.map(async (server) => {
         try {
           const profile = this.getProfile(server);
           const endpoint = this.extractPrimaryEndpoint(server.openApiData);
           const endpoints = this.extractEndpoints(server.openApiData);
+          const assetMetadata = await this.resolveAssetMetadata(server, profile);
           return {
             id: server.id,
             name: server.name,
@@ -100,6 +117,8 @@ export class ApiManagementCenterService {
             profile,
             endpoint,
             endpoints,
+            sourceServiceAsset: assetMetadata?.sourceServiceAsset,
+            endpointDefinitionCount: assetMetadata?.endpointDefinitionCount ?? 0,
             toolsCount: server.toolsCount || 0,
             healthy: server.healthy,
             updatedAt: server.updatedAt,
@@ -115,12 +134,19 @@ export class ApiManagementCenterService {
             profile: this.getProfile(server),
             endpoint: {},
             endpoints: [],
+            sourceServiceAsset: null,
+            endpointDefinitionCount: 0,
             toolsCount: server.toolsCount || 0,
             healthy: server.healthy,
             updatedAt: server.updatedAt,
           };
         }
       }),
+    );
+
+    return {
+      total: filtered.length,
+      data,
     };
   }
 
@@ -328,11 +354,25 @@ export class ApiManagementCenterService {
     profile.probeUrl = this.buildProbeUrl(dto.baseUrl, dto.path);
     this.saveProfile(server, profile);
     await this.serverRepository.save(server);
+    const catalogResult = await this.assetCatalogService.registerManualEndpointAsset({
+      name: dto.name,
+      baseUrl: dto.baseUrl,
+      method: dto.method,
+      path: dto.path,
+      description: dto.description,
+      metadata: {
+        businessDomain: dto.businessDomain,
+        riskLevel: dto.riskLevel,
+        mcpServerId: server.id,
+      },
+    });
 
     return {
       serverId: server.id,
       name: server.name,
       profile,
+      sourceServiceAssetId: catalogResult.sourceServiceAsset.id,
+      endpointDefinitionId: catalogResult.endpoint.id,
     };
   }
 
@@ -507,6 +547,58 @@ export class ApiManagementCenterService {
     }
 
     return profile.sourceRef;
+  }
+
+  private async resolveAssetMetadata(
+    server: MCPServerEntity,
+    profile: ApiManagementProfile,
+  ): Promise<AssetMetadataSummary | null> {
+    const documentMetadata = await this.resolveAssetDocumentMetadata(server, profile);
+    const sourceServiceAsset = await this.assetCatalogService.findSourceServiceAssetForSpec(
+      server.openApiData,
+      documentMetadata,
+    );
+
+    if (!sourceServiceAsset) {
+      return null;
+    }
+
+    const endpointDefinitionCount =
+      await this.assetCatalogService.countEndpointsBySourceServiceAssetId(sourceServiceAsset.id);
+    const primaryEndpoint = this.extractPrimaryEndpoint(server.openApiData);
+    const primaryEndpointDefinition =
+      await this.assetCatalogService.findEndpointDefinitionByMethodAndPath({
+        sourceServiceAssetId: sourceServiceAsset.id,
+        method: primaryEndpoint.method,
+        path: primaryEndpoint.path,
+      });
+
+    return {
+      sourceServiceAsset: {
+        id: sourceServiceAsset.id,
+        sourceKey: sourceServiceAsset.sourceKey,
+        displayName: sourceServiceAsset.displayName,
+      },
+      endpointDefinitionCount,
+      primaryEndpointDefinition: primaryEndpointDefinition
+        ? {
+            id: primaryEndpointDefinition.id,
+            method: primaryEndpointDefinition.method,
+            path: primaryEndpointDefinition.path,
+            status: primaryEndpointDefinition.status,
+          }
+        : null,
+    };
+  }
+
+  private async resolveAssetDocumentMetadata(
+    server: MCPServerEntity,
+    profile: ApiManagementProfile,
+  ) {
+    const sourceRef = await this.resolveImportedSourceRef(server, profile);
+    return {
+      originalUrl: sourceRef,
+    };
   }
 
   private isAbsoluteHttpUrl(value?: string): boolean {

@@ -1,13 +1,13 @@
+import { computed, ref } from "vue";
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
 import type {
-  DetailedSystemMetrics,
-  PerformanceAlert,
-  MonitoringConfig,
   ChartSeries,
+  DetailedSystemMetrics,
+  MonitoringConfig,
+  PerformanceAlert,
 } from "@/types";
+import { runtimeAssetsAPI, runtimeObservabilityAPI } from "@/services/api";
 
-// 日志相关类型定义
 interface LogEntry {
   id: string;
   timestamp: Date;
@@ -33,649 +33,545 @@ interface LogStats {
   debug: number;
 }
 
-interface SystemHealth {
+interface SystemHealthView {
   status: "healthy" | "warning" | "critical" | "unknown";
   uptime: number;
   lastCheck: Date;
   issues: string[];
 }
 
+type RuntimeMetricsSnapshot = {
+  timestamp: Date;
+  totalRuntimeAssets: number;
+  activeRuntimeAssets: number;
+  degradedRuntimeAssets: number;
+  unhealthyRuntimeAssets: number;
+};
+
+const DEFAULT_CONFIG: MonitoringConfig = {
+  refreshInterval: 15000,
+  alerts: {
+    cpu: { warning: 1, critical: 2 },
+    memory: { warning: 1, critical: 2 },
+    disk: { warning: 1, critical: 2 },
+    network: { warning: 1, critical: 2 },
+  },
+  enableAlerts: true,
+  enableSound: false,
+};
+
 export const useMonitoringStore = defineStore("monitoring", () => {
-  // 状态
-  const metrics = ref<DetailedSystemMetrics[]>([]);
-  const currentMetrics = ref<DetailedSystemMetrics | null>(null);
-  const alerts = ref<PerformanceAlert[]>([]);
-  const config = ref<MonitoringConfig>({
-    refreshInterval: 5000, // 5秒
-    alerts: {
-      cpu: { warning: 70, critical: 90 },
-      memory: { warning: 80, critical: 95 },
-      disk: { warning: 85, critical: 95 },
-      network: { warning: 1000000, critical: 10000000 }, // bytes/sec
-    },
-    enableAlerts: true,
-    enableSound: false,
-  });
+  const config = ref<MonitoringConfig>({ ...DEFAULT_CONFIG });
   const isConnected = ref(false);
   const isLoading = ref(false);
+  const loading = ref(false);
   const error = ref<string | null>(null);
+  const realTimeEnabled = ref(true);
+  const lastUpdate = ref<Date>(new Date());
+  const isMonitoring = ref(false);
 
-  // 新增状态
-  const systemMetrics = ref<DetailedSystemMetrics | null>(null);
-  const serverMetrics = ref<any>(null);
-  const systemHealth = ref<SystemHealth>({
+  const overview = ref<any | null>(null);
+  const runtimeAssets = ref<any[]>([]);
+  const runtimeEvents = ref<any[]>([]);
+  const runtimeAudit = ref<any[]>([]);
+  const acknowledgedAlertIds = ref<Set<string>>(new Set());
+  const dismissedAlertIds = ref<Set<string>>(new Set());
+  const metricsHistory = ref<RuntimeMetricsSnapshot[]>([]);
+  const logs = ref<LogEntry[]>([]);
+  const logFilter = ref<LogFilter>({});
+  const serverMetrics = ref<Record<string, any>>({});
+  const systemMetrics = ref<any | null>(null);
+  const currentMetrics = ref<DetailedSystemMetrics | null>(null);
+  const systemHealth = ref<SystemHealthView>({
     status: "unknown",
     uptime: 0,
     lastCheck: new Date(),
     issues: [],
   });
-  const metricsHistory = ref<DetailedSystemMetrics[]>([]);
-  const logs = ref<LogEntry[]>([]);
-  const logFilter = ref<LogFilter>({});
-  const realTimeEnabled = ref(true);
-  const lastUpdate = ref<Date>(new Date());
-  const loading = ref(false);
-  const isMonitoring = ref(false);
 
-  // 计算属性
-  const cpuSeries = computed<ChartSeries>(() => ({
-    name: "CPU使用率",
-    data: metrics.value.slice(-50).map((m) => ({
-      timestamp: m.timestamp,
-      value: m.cpu.usage,
+  let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  let pollingTimer: ReturnType<typeof setInterval> | null = null;
+
+  const metrics = computed(() =>
+    metricsHistory.value.map(snapshot => ({
+      timestamp: snapshot.timestamp,
+      cpu: {
+        usage:
+          snapshot.totalRuntimeAssets > 0
+            ? (snapshot.activeRuntimeAssets / snapshot.totalRuntimeAssets) * 100
+            : 0,
+        cores: snapshot.totalRuntimeAssets,
+        temperature: 0,
+        frequency: 0,
+      },
+      memory: {
+        total: snapshot.totalRuntimeAssets,
+        used: snapshot.degradedRuntimeAssets,
+        free: Math.max(
+          0,
+          snapshot.totalRuntimeAssets - snapshot.degradedRuntimeAssets,
+        ),
+        usage:
+          snapshot.totalRuntimeAssets > 0
+            ? (snapshot.degradedRuntimeAssets / snapshot.totalRuntimeAssets) * 100
+            : 0,
+      },
+      network: {
+        bytesIn: snapshot.activeRuntimeAssets,
+        bytesOut: snapshot.degradedRuntimeAssets,
+        packetsIn: snapshot.totalRuntimeAssets,
+        packetsOut: snapshot.unhealthyRuntimeAssets,
+        connections: snapshot.totalRuntimeAssets,
+      },
+      disk: {
+        total: snapshot.totalRuntimeAssets,
+        used: snapshot.unhealthyRuntimeAssets,
+        free: Math.max(
+          0,
+          snapshot.totalRuntimeAssets - snapshot.unhealthyRuntimeAssets,
+        ),
+        usage:
+          snapshot.totalRuntimeAssets > 0
+            ? (snapshot.unhealthyRuntimeAssets / snapshot.totalRuntimeAssets) * 100
+            : 0,
+        readOps: snapshot.activeRuntimeAssets,
+        writeOps: snapshot.degradedRuntimeAssets,
+      },
+      process: {
+        pid: 0,
+        uptime: 0,
+        memory: snapshot.degradedRuntimeAssets,
+        cpu: snapshot.activeRuntimeAssets,
+      },
     })),
-    color: "#409EFF",
-  }));
-
-  const memorySeries = computed<ChartSeries>(() => ({
-    name: "内存使用率",
-    data: metrics.value.slice(-50).map((m) => ({
-      timestamp: m.timestamp,
-      value: m.memory.usage,
-    })),
-    color: "#67C23A",
-  }));
-
-  const networkInSeries = computed<ChartSeries>(() => ({
-    name: "网络入流量",
-    data: metrics.value.slice(-50).map((m) => ({
-      timestamp: m.timestamp,
-      value: m.network.bytesIn,
-    })),
-    color: "#E6A23C",
-  }));
-
-  const networkOutSeries = computed<ChartSeries>(() => ({
-    name: "网络出流量",
-    data: metrics.value.slice(-50).map((m) => ({
-      timestamp: m.timestamp,
-      value: m.network.bytesOut,
-    })),
-    color: "#F56C6C",
-  }));
-
-  const diskSeries = computed<ChartSeries>(() => ({
-    name: "磁盘使用率",
-    data: metrics.value.slice(-50).map((m) => ({
-      timestamp: m.timestamp,
-      value: m.disk.usage,
-    })),
-    color: "#909399",
-  }));
-
-  const activeAlerts = computed(() =>
-    alerts.value.filter((alert) => !alert.acknowledged),
   );
 
-  const criticalAlerts = computed(() =>
-    activeAlerts.value.filter((alert) => alert.level === "critical"),
-  );
-
-  const warningAlerts = computed(() =>
-    activeAlerts.value.filter((alert) => alert.level === "warning"),
-  );
-
-  const systemStatus = computed(() => {
-    if (!currentMetrics.value) return "unknown";
-
-    const cpu = currentMetrics.value.cpu.usage;
-    const memory = currentMetrics.value.memory.usage;
-    const disk = currentMetrics.value.disk.usage;
-
-    if (
-      cpu >= config.value.alerts.cpu.critical ||
-      memory >= config.value.alerts.memory.critical ||
-      disk >= config.value.alerts.disk.critical
-    ) {
-      return "critical";
+  const alerts = computed<PerformanceAlert[]>(() => {
+    if (!config.value.enableAlerts) {
+      return [];
     }
 
-    if (
-      cpu >= config.value.alerts.cpu.warning ||
-      memory >= config.value.alerts.memory.warning ||
-      disk >= config.value.alerts.disk.warning
-    ) {
-      return "warning";
-    }
-
-    return "healthy";
+    return runtimeEvents.value
+      .filter(event => {
+        if (dismissedAlertIds.value.has(String(event?.id))) {
+          return false;
+        }
+        const severity = String(event?.severity || "");
+        const status = String(event?.status || "");
+        return (
+          severity === "warning" ||
+          severity === "error" ||
+          severity === "critical" ||
+          status === "failed" ||
+          status === "degraded"
+        );
+      })
+      .slice(0, 50)
+      .map(event => ({
+        id: String(event.id),
+        type: thisEventType(event),
+        level: thisAlertLevel(event),
+        message: event.summary || event.description || event.eventName || "Runtime alert",
+        value: Number(event.details?.statusCode || event.details?.latencyMs || 1),
+        threshold: 1,
+        timestamp: new Date(event.occurredAt || event.createdAt || Date.now()),
+        acknowledged: acknowledgedAlertIds.value.has(String(event.id)),
+      }));
   });
 
-  // 新增计算属性
+  const activeAlerts = computed(() =>
+    alerts.value.filter(alert => !alert.acknowledged),
+  );
+  const criticalAlerts = computed(() =>
+    activeAlerts.value.filter(alert => alert.level === "critical"),
+  );
+  const warningAlerts = computed(() =>
+    activeAlerts.value.filter(alert => alert.level === "warning"),
+  );
+
+  const systemStatus = computed(() => systemHealth.value.status);
+
   const filteredLogs = computed(() => {
-    let filtered = logs.value;
+    let filtered = logs.value.slice();
 
     if (logFilter.value.level) {
-      filtered = filtered.filter((log) => log.level === logFilter.value.level);
+      filtered = filtered.filter(log => log.level === logFilter.value.level);
     }
-
     if (logFilter.value.source) {
-      filtered = filtered.filter(
-        (log) => log.source === logFilter.value.source,
-      );
+      filtered = filtered.filter(log => log.source === logFilter.value.source);
     }
-
     if (logFilter.value.search) {
       const search = logFilter.value.search.toLowerCase();
-      filtered = filtered.filter((log) =>
+      filtered = filtered.filter(log =>
         log.message.toLowerCase().includes(search),
       );
     }
-
     if (logFilter.value.startTime) {
-      filtered = filtered.filter(
-        (log) => log.timestamp >= logFilter.value.startTime!,
-      );
+      filtered = filtered.filter(log => log.timestamp >= logFilter.value.startTime!);
     }
-
     if (logFilter.value.endTime) {
-      filtered = filtered.filter(
-        (log) => log.timestamp <= logFilter.value.endTime!,
-      );
+      filtered = filtered.filter(log => log.timestamp <= logFilter.value.endTime!);
     }
 
-    return filtered.sort(
-      (a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
-    );
+    return filtered.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   });
 
   const logStats = computed<LogStats>(() => {
-    const stats = {
+    const stats: LogStats = {
       total: logs.value.length,
       info: 0,
       warn: 0,
       error: 0,
       debug: 0,
     };
-
-    logs.value.forEach((log) => {
-      stats[log.level]++;
+    logs.value.forEach(log => {
+      stats[log.level] += 1;
     });
-
     return stats;
   });
 
-  // WebSocket连接
-  let ws: WebSocket | null = null;
-  let reconnectTimer: NodeJS.Timeout | null = null;
+  const cpuSeries = computed<ChartSeries>(() => ({
+    name: "Active Runtime Assets",
+    data: metricsHistory.value.map(item => ({
+      timestamp: item.timestamp,
+      value: item.activeRuntimeAssets,
+    })),
+    color: "#409EFF",
+  }));
 
-  // 方法
-  const connectWebSocket = () => {
-    try {
-      // 假设WebSocket端点，实际项目中应该从配置获取
-      ws = new WebSocket("ws://localhost:9001/ws/monitoring");
+  const memorySeries = computed<ChartSeries>(() => ({
+    name: "Degraded Runtime Assets",
+    data: metricsHistory.value.map(item => ({
+      timestamp: item.timestamp,
+      value: item.degradedRuntimeAssets,
+    })),
+    color: "#E6A23C",
+  }));
 
-      ws.onopen = () => {
-        isConnected.value = true;
-        error.value = null;
-        console.log("Monitoring WebSocket connected");
-      };
+  const networkInSeries = computed<ChartSeries>(() => ({
+    name: "Total Runtime Assets",
+    data: metricsHistory.value.map(item => ({
+      timestamp: item.timestamp,
+      value: item.totalRuntimeAssets,
+    })),
+    color: "#67C23A",
+  }));
 
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === "metrics") {
-            updateMetrics(data.payload);
-          } else if (data.type === "alert") {
-            addAlert(data.payload);
-          }
-        } catch (err) {
-          console.error("Failed to parse WebSocket message:", err);
-        }
-      };
+  const networkOutSeries = computed<ChartSeries>(() => ({
+    name: "Unhealthy Runtime Assets",
+    data: metricsHistory.value.map(item => ({
+      timestamp: item.timestamp,
+      value: item.unhealthyRuntimeAssets,
+    })),
+    color: "#F56C6C",
+  }));
 
-      ws.onclose = () => {
-        isConnected.value = false;
-        console.log("Monitoring WebSocket disconnected");
-        // 尝试重连
-        if (!reconnectTimer) {
-          reconnectTimer = setTimeout(() => {
-            reconnectTimer = null;
-            connectWebSocket();
-          }, 5000);
-        }
-      };
+  const diskSeries = computed<ChartSeries>(() => ({
+    name: "Degraded Runtime Assets",
+    data: metricsHistory.value.map(item => ({
+      timestamp: item.timestamp,
+      value: item.degradedRuntimeAssets,
+    })),
+    color: "#909399",
+  }));
 
-      ws.onerror = (err) => {
-        error.value = "WebSocket连接错误";
-        console.error("Monitoring WebSocket error:", err);
-      };
-    } catch (err) {
-      error.value = "WebSocket连接失败";
-      console.error("Failed to connect WebSocket:", err);
-    }
-  };
-
-  const disconnectWebSocket = () => {
-    if (ws) {
-      ws.close();
-      ws = null;
-    }
-    if (reconnectTimer) {
-      clearTimeout(reconnectTimer);
-      reconnectTimer = null;
-    }
-    isConnected.value = false;
-  };
-
-  const updateMetrics = (newMetrics: DetailedSystemMetrics) => {
-    currentMetrics.value = newMetrics;
-    metrics.value.push(newMetrics);
-
-    // 保持最近1000个数据点
-    if (metrics.value.length > 1000) {
-      metrics.value = metrics.value.slice(-1000);
-    }
-
-    // 检查告警
-    checkAlerts(newMetrics);
-  };
-
-  const checkAlerts = (metrics: DetailedSystemMetrics) => {
-    if (!config.value.enableAlerts) return;
-
-    const now = new Date();
-
-    // CPU告警
-    if (metrics.cpu.usage >= config.value.alerts.cpu.critical) {
-      addAlert({
-        id: `cpu-critical-${now.getTime()}`,
-        type: "cpu",
-        level: "critical",
-        message: `CPU使用率过高: ${metrics.cpu.usage.toFixed(1)}%`,
-        value: metrics.cpu.usage,
-        threshold: config.value.alerts.cpu.critical,
-        timestamp: now,
-        acknowledged: false,
-      });
-    } else if (metrics.cpu.usage >= config.value.alerts.cpu.warning) {
-      addAlert({
-        id: `cpu-warning-${now.getTime()}`,
-        type: "cpu",
-        level: "warning",
-        message: `CPU使用率较高: ${metrics.cpu.usage.toFixed(1)}%`,
-        value: metrics.cpu.usage,
-        threshold: config.value.alerts.cpu.warning,
-        timestamp: now,
-        acknowledged: false,
-      });
-    }
-
-    // 内存告警
-    if (metrics.memory.usage >= config.value.alerts.memory.critical) {
-      addAlert({
-        id: `memory-critical-${now.getTime()}`,
-        type: "memory",
-        level: "critical",
-        message: `内存使用率过高: ${metrics.memory.usage.toFixed(1)}%`,
-        value: metrics.memory.usage,
-        threshold: config.value.alerts.memory.critical,
-        timestamp: now,
-        acknowledged: false,
-      });
-    } else if (metrics.memory.usage >= config.value.alerts.memory.warning) {
-      addAlert({
-        id: `memory-warning-${now.getTime()}`,
-        type: "memory",
-        level: "warning",
-        message: `内存使用率较高: ${metrics.memory.usage.toFixed(1)}%`,
-        value: metrics.memory.usage,
-        threshold: config.value.alerts.memory.warning,
-        timestamp: now,
-        acknowledged: false,
-      });
-    }
-
-    // 磁盘告警
-    if (metrics.disk.usage >= config.value.alerts.disk.critical) {
-      addAlert({
-        id: `disk-critical-${now.getTime()}`,
-        type: "disk",
-        level: "critical",
-        message: `磁盘使用率过高: ${metrics.disk.usage.toFixed(1)}%`,
-        value: metrics.disk.usage,
-        threshold: config.value.alerts.disk.critical,
-        timestamp: now,
-        acknowledged: false,
-      });
-    } else if (metrics.disk.usage >= config.value.alerts.disk.warning) {
-      addAlert({
-        id: `disk-warning-${now.getTime()}`,
-        type: "disk",
-        level: "warning",
-        message: `磁盘使用率较高: ${metrics.disk.usage.toFixed(1)}%`,
-        value: metrics.disk.usage,
-        threshold: config.value.alerts.disk.warning,
-        timestamp: now,
-        acknowledged: false,
-      });
-    }
-  };
-
-  const addAlert = (alert: PerformanceAlert) => {
-    alerts.value.unshift(alert);
-
-    // 保持最近100个告警
-    if (alerts.value.length > 100) {
-      alerts.value = alerts.value.slice(0, 100);
-    }
-  };
-
-  const acknowledgeAlert = (alertId: string) => {
-    const alert = alerts.value.find((a) => a.id === alertId);
-    if (alert) {
-      alert.acknowledged = true;
-    }
-  };
-
-  const clearAcknowledgedAlerts = () => {
-    alerts.value = alerts.value.filter((alert) => !alert.acknowledged);
-  };
-
-  const dismissAlert = (alertId: string) => {
-    const index = alerts.value.findIndex((a) => a.id === alertId);
-    if (index !== -1) {
-      alerts.value.splice(index, 1);
-    }
-  };
-
-  const refreshMetrics = async () => {
+  async function fetchOverview() {
+    loading.value = true;
     isLoading.value = true;
-    try {
-      // 模拟刷新数据
-      const mockMetrics = generateMockMetrics();
-      mockMetrics.memory.free =
-        mockMetrics.memory.total - mockMetrics.memory.used;
-      mockMetrics.memory.usage =
-        (mockMetrics.memory.used / mockMetrics.memory.total) * 100;
-      mockMetrics.disk.free = mockMetrics.disk.total - mockMetrics.disk.used;
-      mockMetrics.disk.usage =
-        (mockMetrics.disk.used / mockMetrics.disk.total) * 100;
+    error.value = null;
 
-      updateMetrics(mockMetrics);
+    try {
+      const [overviewData, runtimeAssetList] = await Promise.all([
+        runtimeObservabilityAPI.getManagementOverview({
+          days: 7,
+          eventLimit: 50,
+        }),
+        runtimeAssetsAPI.listRuntimeAssets(),
+      ]);
+
+      overview.value = overviewData;
+      runtimeAssets.value = Array.isArray(runtimeAssetList?.data)
+        ? runtimeAssetList.data
+        : [];
+      runtimeEvents.value = Array.isArray(overviewData?.recentRuntimeEvents)
+        ? overviewData.recentRuntimeEvents
+        : [];
+      runtimeAudit.value = [];
+
+      const nextLogs = Array.isArray(overviewData?.recentManagementLogs)
+        ? overviewData.recentManagementLogs.map(normalizeLogEntry)
+        : [];
+      logs.value = nextLogs;
+
+      const metricsSnapshot: RuntimeMetricsSnapshot = {
+        timestamp: new Date(),
+        totalRuntimeAssets: Number(overviewData?.metrics?.totalRuntimeAssets || 0),
+        activeRuntimeAssets: Number(overviewData?.metrics?.activeRuntimeAssets || 0),
+        degradedRuntimeAssets: Number(
+          overviewData?.metrics?.degradedRuntimeAssets || 0,
+        ),
+        unhealthyRuntimeAssets: Number(
+          overviewData?.metrics?.unhealthyRuntimeAssets || 0,
+        ),
+      };
+
+      metricsHistory.value.push(metricsSnapshot);
+      if (metricsHistory.value.length > 200) {
+        metricsHistory.value = metricsHistory.value.slice(-200);
+      }
+
+      systemMetrics.value = {
+        ...metricsSnapshot,
+        healthyRuntimeAssets: Number(
+          overviewData?.metrics?.healthyRuntimeAssets || 0,
+        ),
+        offlineRuntimeAssets: Number(
+          overviewData?.metrics?.offlineRuntimeAssets || 0,
+        ),
+      };
+
+      systemHealth.value = {
+        status: mapOverviewHealthStatus(overviewData?.health?.status),
+        uptime: 0,
+        lastCheck: new Date(),
+        issues: runtimeEvents.value
+          .filter((event: any) =>
+            ["warning", "error", "critical"].includes(String(event?.severity || "")),
+          )
+          .slice(0, 5)
+          .map((event: any) => String(event.summary || event.eventName || "Runtime issue")),
+      };
+
+      lastUpdate.value = new Date();
+    } catch (fetchError: any) {
+      error.value = fetchError?.message || "Failed to fetch monitoring overview";
+      throw fetchError;
     } finally {
+      loading.value = false;
       isLoading.value = false;
     }
-  };
+  }
 
-  const startMonitoring = (interval?: number) => {
+  async function fetchSystemMetrics() {
+    await fetchOverview();
+  }
+
+  async function fetchServerMetrics(serverId?: string) {
+    if (!serverId) {
+      return systemMetrics.value;
+    }
+    const runtimeAsset = runtimeAssets.value.find(
+      item => item?.managedServer?.id === serverId,
+    );
+    if (!runtimeAsset?.asset?.id) {
+      return null;
+    }
+    const response = await runtimeAssetsAPI.getRuntimeAssetObservability(
+      runtimeAsset.asset.id,
+    );
+    serverMetrics.value[serverId] = response.normalizedObservability?.metricsSummary || null;
+    return serverMetrics.value[serverId];
+  }
+
+  async function fetchLogs(options?: {
+    limit?: number;
+    level?: string;
+    runtimeAssetId?: string;
+  }) {
+    loading.value = true;
+    try {
+      const response = await runtimeObservabilityAPI.getManagementEvents({
+        page: 1,
+        limit: options?.limit || 50,
+        level: options?.level,
+        runtimeAssetId: options?.runtimeAssetId,
+      });
+      logs.value = Array.isArray(response?.data)
+        ? response.data.map(normalizeLogEntry)
+        : [];
+      runtimeEvents.value = Array.isArray(response?.data) ? response.data : [];
+      lastUpdate.value = new Date();
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function fetchAudit(options?: { limit?: number; status?: string }) {
+    const response = await runtimeObservabilityAPI.getManagementAudit({
+      page: 1,
+      limit: options?.limit || 50,
+      status: options?.status,
+    });
+    runtimeAudit.value = Array.isArray(response?.data) ? response.data : [];
+    return runtimeAudit.value;
+  }
+
+  function scheduleRefresh(reason = "websocket") {
+    if (!realTimeEnabled.value) {
+      return;
+    }
+    if (refreshTimer) {
+      clearTimeout(refreshTimer);
+    }
+    refreshTimer = setTimeout(() => {
+      refreshTimer = null;
+      void refreshAll(reason);
+    }, 1200);
+  }
+
+  async function refreshAll(_reason = "manual") {
+    await Promise.all([fetchOverview(), fetchAudit({ limit: 50 })]);
+  }
+
+  function connectWebSocket() {
+    isConnected.value = true;
+  }
+
+  function disconnectWebSocket() {
+    isConnected.value = false;
+  }
+
+  function updateMetrics(_newMetrics: DetailedSystemMetrics) {
+    lastUpdate.value = new Date();
+  }
+
+  function addAlert(_alert: PerformanceAlert) {
+    lastUpdate.value = new Date();
+  }
+
+  function acknowledgeAlert(alertId: string) {
+    acknowledgedAlertIds.value = new Set(acknowledgedAlertIds.value).add(alertId);
+  }
+
+  function clearAcknowledgedAlerts() {
+    const nextDismissed = new Set(dismissedAlertIds.value);
+    alerts.value.forEach(alert => {
+      if (alert.acknowledged) {
+        nextDismissed.add(alert.id);
+      }
+    });
+    dismissedAlertIds.value = nextDismissed;
+  }
+
+  function dismissAlert(alertId: string) {
+    dismissedAlertIds.value = new Set(dismissedAlertIds.value).add(alertId);
+  }
+
+  async function refreshMetrics() {
+    await fetchOverview();
+  }
+
+  function startMonitoring(interval?: number) {
     if (interval) {
       config.value.refreshInterval = interval;
     }
-    isConnected.value = true;
-    return startMockData();
-  };
-
-  const stopMonitoring = () => {
-    isConnected.value = false;
-    // 实际应用中这里会清除定时器
-  };
-
-  const updateConfig = (newConfig: Partial<MonitoringConfig>) => {
-    config.value = { ...config.value, ...newConfig };
-  };
-
-  // 新增方法
-  const fetchSystemMetrics = async () => {
-    loading.value = true;
-    try {
-      // 模拟获取系统指标
-      const mockMetrics = generateMockMetrics();
-      mockMetrics.memory.free =
-        mockMetrics.memory.total - mockMetrics.memory.used;
-      mockMetrics.memory.usage =
-        (mockMetrics.memory.used / mockMetrics.memory.total) * 100;
-      mockMetrics.disk.free = mockMetrics.disk.total - mockMetrics.disk.used;
-      mockMetrics.disk.usage =
-        (mockMetrics.disk.used / mockMetrics.disk.total) * 100;
-
-      systemMetrics.value = mockMetrics;
-      metricsHistory.value.push(mockMetrics);
-
-      // 保持最近1000个数据点
-      if (metricsHistory.value.length > 1000) {
-        metricsHistory.value = metricsHistory.value.slice(-1000);
+    isMonitoring.value = true;
+    if (pollingTimer) {
+      clearInterval(pollingTimer);
+    }
+    pollingTimer = setInterval(() => {
+      if (realTimeEnabled.value) {
+        void refreshAll("polling");
       }
+    }, config.value.refreshInterval);
+  }
 
-      lastUpdate.value = new Date();
-
-      // 更新系统健康状态
-      systemHealth.value = {
-        status: systemStatus.value as any,
-        uptime: Math.floor(Date.now() / 1000) - 86400,
-        lastCheck: new Date(),
-        issues: criticalAlerts.value.map((alert) => alert.message),
-      };
-    } finally {
-      loading.value = false;
+  function stopMonitoring() {
+    isMonitoring.value = false;
+    if (pollingTimer) {
+      clearInterval(pollingTimer);
+      pollingTimer = null;
     }
-  };
+  }
 
-  const fetchServerMetrics = async () => {
-    loading.value = true;
-    try {
-      // 模拟获取服务器指标
-      serverMetrics.value = {
-        requests: Math.floor(Math.random() * 1000),
-        responses: Math.floor(Math.random() * 1000),
-        errors: Math.floor(Math.random() * 10),
-        avgResponseTime: Math.random() * 100,
-        activeConnections: Math.floor(Math.random() * 50),
-      };
-      lastUpdate.value = new Date();
-    } finally {
-      loading.value = false;
-    }
-  };
-
-  const fetchLogs = async (options?: { limit?: number; level?: string }) => {
-    loading.value = true;
-    try {
-      // 模拟获取日志
-      const mockLogs: LogEntry[] = [];
-      const levels: LogEntry["level"][] = ["info", "warn", "error", "debug"];
-      const sources = ["system", "api", "database", "auth"];
-
-      for (let i = 0; i < (options?.limit || 50); i++) {
-        const level =
-          (options?.level as LogEntry["level"]) ||
-          levels[Math.floor(Math.random() * levels.length)];
-        mockLogs.push({
-          id: `log-${Date.now()}-${i}`,
-          timestamp: new Date(Date.now() - Math.random() * 86400000),
-          level,
-          message: `Sample ${level} message ${i + 1}`,
-          source: sources[Math.floor(Math.random() * sources.length)],
-          data:
-            level === "error" ? { stack: "Error stack trace..." } : undefined,
-        });
-      }
-
-      logs.value = [...mockLogs, ...logs.value].slice(0, 1000);
-      lastUpdate.value = new Date();
-    } finally {
-      loading.value = false;
-    }
-  };
-
-  const setLogFilter = (filter: Partial<LogFilter>) => {
-    logFilter.value = { ...logFilter.value, ...filter };
-  };
-
-  const clearLogFilter = () => {
-    logFilter.value = {};
-  };
-
-  const exportLogs = async (format: "json" | "csv" = "json") => {
-    const logsToExport = filteredLogs.value;
-
-    if (format === "json") {
-      const dataStr = JSON.stringify(logsToExport, null, 2);
-      const dataBlob = new Blob([dataStr], { type: "application/json" });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `logs-${new Date().toISOString().split("T")[0]}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-    } else {
-      const csvHeader = "Timestamp,Level,Source,Message\n";
-      const csvContent = logsToExport
-        .map(
-          (log) =>
-            `${log.timestamp.toISOString()},${log.level},${log.source || ""},"${log.message.replace(/"/g, '""')}"`,
-        )
-        .join("\n");
-
-      const dataBlob = new Blob([csvHeader + csvContent], { type: "text/csv" });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `logs-${new Date().toISOString().split("T")[0]}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
-    }
-  };
-
-  const clearLogs = () => {
-    logs.value = [];
-  };
-
-  const toggleRealTime = () => {
-    realTimeEnabled.value = !realTimeEnabled.value;
-  };
-
-  const refreshAll = async () => {
-    await Promise.all([
-      fetchSystemMetrics(),
-      fetchServerMetrics(),
-      fetchLogs({ limit: 20 }),
-    ]);
-  };
-
-  const updateServerMetrics = (serverId: string, metrics: any) => {
-    // Update server-specific metrics
-    if (serverMetrics.value[serverId]) {
-      serverMetrics.value[serverId] = {
-        ...serverMetrics.value[serverId],
-        ...metrics,
-      };
-    } else {
-      serverMetrics.value[serverId] = metrics;
-    }
-    lastUpdate.value = new Date();
-  };
-
-  const addLogEntry = (entry: LogEntry) => {
-    logs.value.unshift(entry);
-    // Keep only the latest 1000 logs
-    if (logs.value.length > 1000) {
-      logs.value = logs.value.slice(0, 1000);
-    }
-  };
-
-  const addLogEntries = (entries: LogEntry[]) => {
-    logs.value.unshift(...entries);
-    // Keep only the latest 1000 logs
-    if (logs.value.length > 1000) {
-      logs.value = logs.value.slice(0, 1000);
-    }
-  };
-
-  const updateSystemMetrics = (metrics: any) => {
-    systemMetrics.value = { ...systemMetrics.value, ...metrics };
-    lastUpdate.value = new Date();
-  };
-
-  // 模拟数据生成器（用于演示）
-  const generateMockMetrics = (): DetailedSystemMetrics => {
-    const now = new Date();
-    const baseLoad = 0.3 + Math.sin(now.getTime() / 60000) * 0.2;
-
-    return {
-      timestamp: now,
-      cpu: {
-        usage: Math.max(
-          0,
-          Math.min(100, baseLoad * 100 + (Math.random() - 0.5) * 30),
-        ),
-        cores: 8,
-        temperature: 45 + Math.random() * 20,
-        frequency: 2400 + Math.random() * 800, // 2.4-3.2 GHz
-      },
-      memory: {
-        total: 16 * 1024 * 1024 * 1024, // 16GB
-        used:
-          baseLoad * 16 * 1024 * 1024 * 1024 +
-          Math.random() * 2 * 1024 * 1024 * 1024,
-        free: 0,
-        usage: 0,
-      },
-      network: {
-        bytesIn: Math.random() * 1000000,
-        bytesOut: Math.random() * 1000000,
-        packetsIn: Math.random() * 1000,
-        packetsOut: Math.random() * 1000,
-        connections: Math.floor(Math.random() * 100),
-      },
-      disk: {
-        total: 500 * 1024 * 1024 * 1024, // 500GB
-        used: baseLoad * 400 * 1024 * 1024 * 1024,
-        free: 0,
-        usage: 0,
-        readOps: Math.random() * 100,
-        writeOps: Math.random() * 50,
-      },
-      process: {
-        pid: 1234,
-        uptime: Math.floor(Date.now() / 1000) - 86400, // 1天前启动
-        memory: baseLoad * 1024 * 1024 * 1024,
-        cpu: baseLoad * 100,
+  function updateConfig(newConfig: Partial<MonitoringConfig>) {
+    config.value = {
+      ...config.value,
+      ...newConfig,
+      alerts: {
+        ...config.value.alerts,
+        ...(newConfig.alerts || {}),
       },
     };
-  };
+  }
 
-  const startMockData = () => {
-    const interval = setInterval(() => {
-      const mockMetrics = generateMockMetrics();
+  function startMockData() {
+    return () => undefined;
+  }
 
-      // 计算派生值
-      mockMetrics.memory.free =
-        mockMetrics.memory.total - mockMetrics.memory.used;
-      mockMetrics.memory.usage =
-        (mockMetrics.memory.used / mockMetrics.memory.total) * 100;
-      mockMetrics.disk.free = mockMetrics.disk.total - mockMetrics.disk.used;
-      mockMetrics.disk.usage =
-        (mockMetrics.disk.used / mockMetrics.disk.total) * 100;
+  function setLogFilter(filter: Partial<LogFilter>) {
+    logFilter.value = { ...logFilter.value, ...filter };
+  }
 
-      updateMetrics(mockMetrics);
-    }, config.value.refreshInterval);
+  function clearLogFilter() {
+    logFilter.value = {};
+  }
 
-    return () => clearInterval(interval);
-  };
+  async function exportLogs(format: "json" | "csv" = "json") {
+    const logsToExport = filteredLogs.value;
+    if (format === "json") {
+      const dataBlob = new Blob([JSON.stringify(logsToExport, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `runtime-monitoring-${new Date().toISOString().split("T")[0]}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    const csvHeader = "Timestamp,Level,Source,Message\n";
+    const csvContent = logsToExport
+      .map(
+        log =>
+          `${log.timestamp.toISOString()},${log.level},${log.source || ""},"${log.message.replace(/"/g, '""')}"`,
+      )
+      .join("\n");
+
+    const dataBlob = new Blob([csvHeader + csvContent], {
+      type: "text/csv",
+    });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `runtime-monitoring-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function clearLogs() {
+    logs.value = [];
+  }
+
+  function toggleRealTime() {
+    realTimeEnabled.value = !realTimeEnabled.value;
+  }
+
+  function updateServerMetrics(serverId: string, metricsPayload: any) {
+    serverMetrics.value[serverId] = metricsPayload;
+    lastUpdate.value = new Date();
+  }
+
+  function updateSystemMetrics(metricsPayload: any) {
+    serverMetrics.value.__websocket_system__ = metricsPayload;
+    lastUpdate.value = new Date();
+  }
+
+  function addLogEntry(entry: any) {
+    logs.value.unshift(normalizeLogEntry(entry));
+    logs.value = logs.value.slice(0, 200);
+    scheduleRefresh("log-entry");
+  }
+
+  function addLogEntries(entries: any[]) {
+    logs.value.unshift(...entries.map(normalizeLogEntry));
+    logs.value = logs.value.slice(0, 200);
+    scheduleRefresh("log-batch");
+  }
 
   return {
-    // 状态
     metrics,
     currentMetrics,
     alerts,
@@ -693,8 +589,10 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     lastUpdate,
     loading,
     isMonitoring,
-
-    // 计算属性
+    overview,
+    runtimeAssets,
+    runtimeEvents,
+    runtimeAudit,
     cpuSeries,
     memorySeries,
     networkInSeries,
@@ -706,8 +604,6 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     systemStatus,
     filteredLogs,
     logStats,
-
-    // 方法
     connectWebSocket,
     disconnectWebSocket,
     updateMetrics,
@@ -723,15 +619,85 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     fetchSystemMetrics,
     fetchServerMetrics,
     fetchLogs,
+    fetchAudit,
+    fetchOverview,
     setLogFilter,
     clearLogFilter,
     exportLogs,
     clearLogs,
     toggleRealTime,
     refreshAll,
+    scheduleRefresh,
     updateServerMetrics,
     updateSystemMetrics,
     addLogEntry,
     addLogEntries,
   };
 });
+
+function normalizeLogEntry(entry: any): LogEntry {
+  return {
+    id: String(entry?.id || `${entry?.eventName || "event"}-${entry?.occurredAt || Date.now()}`),
+    timestamp: new Date(entry?.occurredAt || entry?.createdAt || Date.now()),
+    level: mapSeverityToLogLevel(entry?.level || entry?.severity),
+    message: String(entry?.description || entry?.summary || entry?.eventName || "Runtime event"),
+    source: String(entry?.capability || entry?.eventFamily || "runtime_observability"),
+    data: entry?.details || entry?.dimensions || null,
+  };
+}
+
+function mapSeverityToLogLevel(
+  severity?: string,
+): "info" | "warn" | "error" | "debug" {
+  switch (String(severity || "").toLowerCase()) {
+    case "critical":
+    case "error":
+      return "error";
+    case "warning":
+      return "warn";
+    case "debug":
+      return "debug";
+    default:
+      return "info";
+  }
+}
+
+function mapOverviewHealthStatus(
+  status?: string,
+): "healthy" | "warning" | "critical" | "unknown" {
+  switch (String(status || "").toLowerCase()) {
+    case "healthy":
+      return "healthy";
+    case "degraded":
+    case "warning":
+      return "warning";
+    case "critical":
+    case "error":
+    case "failed":
+      return "critical";
+    default:
+      return "unknown";
+  }
+}
+
+function thisAlertLevel(event: any): "info" | "warning" | "critical" {
+  const severity = String(event?.severity || "").toLowerCase();
+  if (severity === "critical" || severity === "error") {
+    return "critical";
+  }
+  if (severity === "warning" || String(event?.status || "") === "degraded") {
+    return "warning";
+  }
+  return "info";
+}
+
+function thisEventType(event: any): "cpu" | "memory" | "disk" | "network" | "error" {
+  const family = String(event?.eventFamily || "").toLowerCase();
+  if (family.includes("request") || family.includes("route")) {
+    return "network";
+  }
+  if (family.includes("error")) {
+    return "error";
+  }
+  return "error";
+}

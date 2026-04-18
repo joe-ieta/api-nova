@@ -11,6 +11,12 @@ import { MCPServerEntity } from '../../../database/entities/mcp-server.entity';
 import { LogEntryEntity, LogLevel, LogSource } from '../../../database/entities/log-entry.entity';
 import { TelemetryMode, TelemetryModeMap } from '../interfaces/observability.interface';
 import { ServerManagerService } from './server-manager.service';
+import { RuntimeObservabilityService } from '../../runtime-observability/services/runtime-observability.service';
+import {
+  RuntimeObservabilityEventFamily,
+  RuntimeObservabilitySeverity,
+  RuntimeObservabilityStatus,
+} from '../../../database/entities/runtime-observability-event.entity';
 
 export interface ServerMetrics {
   serverId: string;
@@ -99,6 +105,7 @@ export class ServerMetricsService {
     private readonly configService: ConfigService,
     private readonly eventEmitter: EventEmitter2,
     private readonly serverManager: ServerManagerService,
+    private readonly runtimeObservabilityService: RuntimeObservabilityService,
   ) {
     this.initializeMetricsCollection();
   }
@@ -177,6 +184,8 @@ export class ServerMetricsService {
     if (stats.toolResponseTimes.length > 1000) {
       stats.toolResponseTimes = stats.toolResponseTimes.slice(-1000);
     }
+
+    void this.recordToolCallObservability(serverId, responseTime, isError);
   }
 
   /**
@@ -551,6 +560,45 @@ export class ServerMetricsService {
   /**
    * 服务器创建时的事件处理
    */
+  private async recordToolCallObservability(
+    serverId: string,
+    responseTime: number,
+    isError: boolean,
+  ) {
+    try {
+      const server = await this.serverRepository.findOne({ where: { id: serverId } });
+      const runtimeAssetId = server?.config?.runtimeAssetId;
+      if (typeof runtimeAssetId !== 'string' || !runtimeAssetId) {
+        return;
+      }
+
+      await this.runtimeObservabilityService.recordRuntimeControlEvent({
+        runtimeAssetId,
+        eventFamily: isError
+          ? RuntimeObservabilityEventFamily.RUNTIME_ERROR
+          : RuntimeObservabilityEventFamily.RUNTIME_REQUEST,
+        eventName: isError ? 'mcp.tool_call_failed' : 'mcp.tool_call_completed',
+        status: isError
+          ? RuntimeObservabilityStatus.FAILED
+          : RuntimeObservabilityStatus.SUCCESS,
+        severity: isError
+          ? RuntimeObservabilitySeverity.ERROR
+          : RuntimeObservabilitySeverity.INFO,
+        summary: isError
+          ? `MCP tool call failed for runtime asset '${runtimeAssetId}'`
+          : `MCP tool call completed for runtime asset '${runtimeAssetId}'`,
+        details: {
+          responseTime,
+          serverId,
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to record MCP tool-call observability for server ${serverId}: ${(error as Error).message}`,
+      );
+    }
+  }
+
   onServerCreated(serverId: string): void {
     this.initializeServerStats(serverId);
   }

@@ -512,4 +512,33 @@ export class OpenAPIController {
       throw new InternalServerErrorException('Failed to retrieve OpenAPI document');
     }
   }
+
+  @Get('by-runtime-asset/:runtimeAssetId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get assembled OpenAPI document by runtime asset ID',
+    description: 'Retrieve assembled OpenAPI document from MCP runtime asset memberships',
+  })
+  @ApiParam({
+    name: 'runtimeAssetId',
+    description: 'Runtime Asset ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  async getOpenApiByRuntimeAssetId(@Param('runtimeAssetId') runtimeAssetId: string) {
+    try {
+      this.logger.log(`Retrieving assembled OpenAPI document for runtime asset ID: ${runtimeAssetId}`);
+      return await this.openApiService.getOpenApiByRuntimeAssetId(runtimeAssetId);
+    } catch (error) {
+      this.logger.error(
+        `Failed to retrieve assembled OpenAPI document for runtime asset ID ${runtimeAssetId}: ${error.message}`,
+        error.stack,
+      );
+
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException('Failed to retrieve assembled OpenAPI document');
+    }
+  }
 }

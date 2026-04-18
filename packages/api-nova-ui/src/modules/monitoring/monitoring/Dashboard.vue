@@ -1,35 +1,22 @@
 <template>
   <div class="monitoring-dashboard">
     <div class="dashboard-header">
-      <div class="header-left">
+      <div>
         <h2 class="dashboard-title">
           <el-icon><Monitor /></el-icon>
-          Process Monitoring
+          Runtime Asset Monitoring
         </h2>
-        <el-tag type="warning" size="small">Placeholder Surface</el-tag>
+        <p class="dashboard-subtitle">
+          Runtime-asset-first observability for MCP and Gateway assets.
+        </p>
       </div>
 
       <div class="header-actions">
-        <el-select
-          v-model="timeRange"
-          size="small"
-          style="width: 120px"
-          @change="handleTimeRangeChange"
-        >
-          <el-option label="Last 5m" value="5m" />
-          <el-option label="Last 15m" value="15m" />
-          <el-option label="Last 30m" value="30m" />
-          <el-option label="Last 1h" value="1h" />
-          <el-option label="Last 6h" value="6h" />
-          <el-option label="Last 24h" value="24h" />
-        </el-select>
-
         <el-switch
           v-model="autoRefresh"
           active-text="Auto refresh"
           @change="handleAutoRefreshChange"
         />
-
         <el-button
           type="primary"
           :icon="Refresh"
@@ -38,329 +25,372 @@
         >
           Refresh
         </el-button>
-
-        <el-button :icon="Setting" @click="showSettings = true">
-          Settings
-        </el-button>
       </div>
     </div>
 
-    <el-alert
-      class="availability-alert"
-      type="warning"
-      :closable="false"
-      title="Live monitoring metrics are not wired to a product telemetry source yet. The monitoring surface is preserved, but unavailable values are shown instead of simulated runtime data."
-    />
+    <el-row :gutter="16" class="summary-row">
+      <el-col :span="6">
+        <MetricCard
+          title="Runtime Assets"
+          :value="summaryMetrics.totalRuntimeAssets"
+          icon="server"
+          :show-chart="true"
+          :chart-data="networkInSeriesData"
+        />
+      </el-col>
+      <el-col :span="6">
+        <MetricCard
+          title="Active Assets"
+          :value="summaryMetrics.activeRuntimeAssets"
+          icon="network"
+          :show-chart="true"
+          :chart-data="cpuSeriesData"
+        />
+      </el-col>
+      <el-col :span="6">
+        <MetricCard
+          title="Degraded Assets"
+          :value="summaryMetrics.degradedRuntimeAssets"
+          icon="memory"
+          :show-chart="true"
+          :chart-data="memorySeriesData"
+        />
+      </el-col>
+      <el-col :span="6">
+        <MetricCard
+          title="Unhealthy Assets"
+          :value="summaryMetrics.unhealthyRuntimeAssets"
+          icon="disk"
+          :show-chart="true"
+          :chart-data="diskSeriesData"
+        />
+      </el-col>
+    </el-row>
 
-    <div class="dashboard-content">
-      <div class="overview-section">
-        <el-row :gutter="16">
-          <el-col :span="6">
-            <SystemStatusCard v-bind="systemStatusData" />
-          </el-col>
-          <el-col :span="18">
-            <el-row :gutter="16">
-              <el-col :span="6">
-                <MetricCard title="CPU Usage" value="Unavailable" icon="cpu" :show-chart="false" />
-              </el-col>
-              <el-col :span="6">
-                <MetricCard title="Memory Usage" value="Unavailable" icon="memory" :show-chart="false" />
-              </el-col>
-              <el-col :span="6">
-                <MetricCard title="Disk Usage" value="Unavailable" icon="disk" :show-chart="false" />
-              </el-col>
-              <el-col :span="6">
-                <MetricCard title="Network I/O" value="Unavailable" icon="network" :show-chart="false" />
-              </el-col>
-            </el-row>
-          </el-col>
-        </el-row>
-      </div>
+    <div class="overview-section">
+      <el-row :gutter="16">
+        <el-col :span="8">
+          <SystemStatusCard v-bind="systemStatusData" />
+        </el-col>
+        <el-col :span="16">
+          <AlertsPanel
+            :alerts="alerts"
+            @acknowledge="handleAcknowledgeAlert"
+            @dismiss="handleDismissAlert"
+            @refresh="handleRefresh"
+            @clearAcknowledged="handleClearAcknowledgedAlerts"
+          />
+        </el-col>
+      </el-row>
+    </div>
 
-      <div class="charts-section">
-        <el-row :gutter="16">
-          <el-col :span="16">
-            <RealtimeChart
-              title="System Performance"
-              :series="chartSeries"
-              :time-range="timeRange"
-              :is-realtime="autoRefresh"
-              @time-range-change="handleTimeRangeChange"
-              @realtime-toggle="handleRealtimeToggle"
-            />
-          </el-col>
-
-          <el-col :span="8">
-            <AlertsPanel
-              :alerts="alerts"
-              @acknowledge="handleAcknowledgeAlert"
-              @dismiss="handleDismissAlert"
-              @refresh="handleRefreshAlerts"
-              @clearAcknowledged="handleClearAcknowledgedAlerts"
-            />
-          </el-col>
-        </el-row>
-      </div>
-
-      <div class="metrics-table-section">
+    <el-row :gutter="16" class="tables-row">
+      <el-col :span="12">
         <el-card>
           <template #header>
             <div class="section-header">
-              <span class="section-title">Detailed Metrics</span>
-              <el-button size="small" :icon="Download" @click="handleExportMetrics">
-                Export
-              </el-button>
+              <span>Recent Runtime Events</span>
+              <el-tag size="small" type="info">{{ runtimeEvents.length }}</el-tag>
             </div>
           </template>
 
-          <el-table :data="metricsTableData" stripe size="small" style="width: 100%">
-            <el-table-column prop="timestamp" label="Time" width="180" />
-            <el-table-column prop="cpu" label="CPU" width="120" />
-            <el-table-column prop="memory" label="Memory" width="120" />
-            <el-table-column prop="disk" label="Disk" width="120" />
-            <el-table-column prop="network" label="Network" width="140" />
-            <el-table-column prop="processes" label="Processes" width="120" />
-            <el-table-column prop="connections" label="Connections" width="120" />
-            <el-table-column prop="uptime" label="Uptime" min-width="140" />
-            <el-table-column prop="note" label="Note" min-width="260" />
+          <el-table :data="runtimeEvents" stripe size="small" height="360">
+            <el-table-column prop="occurredAt" label="Time" min-width="160">
+              <template #default="{ row }">
+                {{ formatDateTime(row.occurredAt || row.createdAt) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="eventName" label="Event" min-width="150" />
+            <el-table-column prop="severity" label="Severity" width="100">
+              <template #default="{ row }">
+                <el-tag :type="severityTagType(row.severity)" size="small">
+                  {{ row.severity || "info" }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="summary" label="Summary" min-width="220" />
           </el-table>
         </el-card>
-      </div>
+      </el-col>
 
-      <div class="advanced-monitoring">
+      <el-col :span="12">
         <el-card>
           <template #header>
-            <span class="section-title">Advanced Monitoring</span>
+            <div class="section-header">
+              <span>Runtime Assets</span>
+              <el-tag size="small" type="success">{{ runtimeAssets.length }}</el-tag>
+            </div>
           </template>
 
-          <el-tabs v-model="activeAdvancedTab" type="border-card">
-            <el-tab-pane label="Performance" name="performance">
-              <PerformanceCharts @period-change="handlePeriodChange" @refresh="handleRefresh" />
-            </el-tab-pane>
-            <el-tab-pane label="Alerts" name="alerts">
-              <AlertManagement />
-            </el-tab-pane>
-            <el-tab-pane label="Resources" name="resources">
-              <ResourceMonitor />
-            </el-tab-pane>
-          </el-tabs>
+          <el-table :data="runtimeAssets" stripe size="small" height="360">
+            <el-table-column label="Asset" min-width="180">
+              <template #default="{ row }">
+                <div class="asset-name">
+                  <strong>{{ row.asset?.displayName || row.asset?.name }}</strong>
+                  <span>{{ row.asset?.type }}</span>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="Status" width="120">
+              <template #default="{ row }">
+                <el-tag :type="runtimeStatusTagType(row.runtimeSummary?.runtimeStatus)" size="small">
+                  {{ row.runtimeSummary?.runtimeStatus || "unknown" }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="Healthy" width="100">
+              <template #default="{ row }">
+                <el-tag
+                  size="small"
+                  :type="row.runtimeSummary?.healthy === false ? 'danger' : 'success'"
+                >
+                  {{ row.runtimeSummary?.healthy === false ? "No" : "Yes" }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="Members" width="100">
+              <template #default="{ row }">
+                {{ row.runtimeSummary?.membershipCount || row.membershipCount || 0 }}
+              </template>
+            </el-table-column>
+          </el-table>
         </el-card>
-      </div>
-    </div>
+      </el-col>
+    </el-row>
 
-    <el-dialog v-model="showSettings" title="Monitoring Settings" width="500px">
-      <el-form :model="settings" label-width="140px">
-        <el-form-item label="Refresh interval">
-          <el-select v-model="settings.refreshInterval">
-            <el-option label="1 second" :value="1000" />
-            <el-option label="5 seconds" :value="5000" />
-            <el-option label="10 seconds" :value="10000" />
-            <el-option label="30 seconds" :value="30000" />
-            <el-option label="1 minute" :value="60000" />
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="CPU alert threshold">
-          <el-input-number v-model="settings.cpuThreshold" :min="1" :max="100" :step="5" />
-        </el-form-item>
-
-        <el-form-item label="Memory alert threshold">
-          <el-input-number v-model="settings.memoryThreshold" :min="1" :max="100" :step="5" />
-        </el-form-item>
-
-        <el-form-item label="Disk alert threshold">
-          <el-input-number v-model="settings.diskThreshold" :min="1" :max="100" :step="5" />
-        </el-form-item>
-
-        <el-form-item label="Enable notifications">
-          <el-switch v-model="settings.enableNotifications" />
-        </el-form-item>
-
-        <el-form-item label="Data retention">
-          <el-select v-model="settings.dataRetention">
-            <el-option label="1 hour" value="1h" />
-            <el-option label="6 hours" value="6h" />
-            <el-option label="24 hours" value="24h" />
-            <el-option label="7 days" value="7d" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-
-      <template #footer>
-        <el-button @click="showSettings = false">Cancel</el-button>
-        <el-button type="primary" @click="handleSaveSettings">Save</el-button>
+    <el-card class="logs-card">
+      <template #header>
+        <div class="section-header">
+          <span>Normalized Management Logs</span>
+          <el-button size="small" @click="exportLogs">Export</el-button>
+        </div>
       </template>
-    </el-dialog>
+
+      <el-table :data="logs" stripe size="small">
+        <el-table-column label="Time" min-width="160">
+          <template #default="{ row }">
+            {{ formatDateTime(row.timestamp) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="level" label="Level" width="100">
+          <template #default="{ row }">
+            <el-tag :type="logLevelTagType(row.level)" size="small">
+              {{ row.level }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="source" label="Source" min-width="140" />
+        <el-table-column prop="message" label="Message" min-width="320" />
+      </el-table>
+    </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import {
-  Monitor,
-  Refresh,
-  Setting,
-  Download,
-  Connection,
-  Service as Server,
-  Coin,
-} from "@element-plus/icons-vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { ElMessage } from "element-plus";
-import { useMonitoringStore } from "@/stores/monitoring";
+import { Monitor, Refresh, Connection, Service, Grid, Promotion } from "@element-plus/icons-vue";
 import MetricCard from "../components/monitoring/MetricCard.vue";
 import SystemStatusCard from "../components/monitoring/SystemStatusCard.vue";
-import RealtimeChart from "../components/monitoring/RealtimeChart.vue";
 import AlertsPanel from "../components/monitoring/AlertsPanel.vue";
-import PerformanceCharts from "../components/monitoring/PerformanceCharts.vue";
-import AlertManagement from "../components/monitoring/AlertManagement.vue";
-import ResourceMonitor from "../components/monitoring/ResourceMonitor.vue";
-import type { ServiceStatus } from "@/types";
+import { useMonitoringStore } from "@/stores/monitoring";
+import { useWebSocketStore } from "@/stores/websocket";
 
 const monitoringStore = useMonitoringStore();
-const timeRange = ref("30m");
+const websocketStore = useWebSocketStore();
 const autoRefresh = ref(true);
 const isRefreshing = ref(false);
-const showSettings = ref(false);
-const activeAdvancedTab = ref("performance");
 
-const settings = ref({
-  refreshInterval: 5000,
-  cpuThreshold: 80,
-  memoryThreshold: 85,
-  diskThreshold: 90,
-  enableNotifications: true,
-  dataRetention: "24h",
-});
+let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
 const alerts = computed(() => monitoringStore.alerts);
+const runtimeEvents = computed(() => monitoringStore.runtimeEvents.slice(0, 20));
+const runtimeAssets = computed(() => monitoringStore.runtimeAssets.slice(0, 20));
+const logs = computed(() => monitoringStore.filteredLogs.slice(0, 20));
 
-const systemStatusData = computed(() => ({
-  status: "warning" as const,
-  services: [
-    { name: "ApiNova Gateway", status: "degraded", icon: Server },
-    { name: "Database", status: "degraded", icon: Coin },
-    { name: "Notification Pipeline", status: "degraded", icon: Monitor },
-    {
-      name: "Management WebSocket",
-      status: monitoringStore.isConnected ? "online" : "degraded",
-      icon: Connection,
-    },
-  ] as ServiceStatus[],
-  uptime: undefined,
-  lastUpdate: new Date(),
+const summaryMetrics = computed(() => ({
+  totalRuntimeAssets: Number(monitoringStore.systemMetrics?.totalRuntimeAssets || 0),
+  activeRuntimeAssets: Number(monitoringStore.systemMetrics?.activeRuntimeAssets || 0),
+  degradedRuntimeAssets: Number(
+    monitoringStore.systemMetrics?.degradedRuntimeAssets || 0,
+  ),
+  unhealthyRuntimeAssets: Number(
+    monitoringStore.systemMetrics?.unhealthyRuntimeAssets || 0,
+  ),
 }));
 
-const chartSeries = computed(() => []);
+const systemStatusData = computed(() => ({
+  status: monitoringStore.systemHealth.status,
+  services: [
+    {
+      name: "Gateway Runtime Assets",
+      status: toServiceStatus(
+        summaryMetrics.value.degradedRuntimeAssets > 0 ? "degraded" : "online",
+      ),
+      icon: Promotion,
+    },
+    {
+      name: "MCP Runtime Assets",
+      status: toServiceStatus(
+        summaryMetrics.value.activeRuntimeAssets > 0 ? "online" : "offline",
+      ),
+      icon: Service,
+    },
+    {
+      name: "Runtime Observability",
+      status: toServiceStatus(
+        monitoringStore.runtimeEvents.length > 0 ? "online" : "degraded",
+      ),
+      icon: Grid,
+    },
+    {
+      name: "Management WebSocket",
+      status: toServiceStatus(websocketStore.connected ? "online" : "degraded"),
+      icon: Connection,
+    },
+  ],
+  uptime: monitoringStore.systemHealth.uptime || undefined,
+  lastUpdate: monitoringStore.lastUpdate,
+}));
 
-const metricsTableData = computed(() => [
-  {
-    timestamp: new Date().toLocaleString(),
-    cpu: "Unavailable",
-    memory: "Unavailable",
-    disk: "Unavailable",
-    network: "Unavailable",
-    processes: "Unavailable",
-    connections: "Unavailable",
-    uptime: "Unavailable",
-    note: "Live telemetry path is not wired in the current release baseline.",
-  },
-]);
+const cpuSeriesData = computed(() => monitoringStore.cpuSeries.data);
+const memorySeriesData = computed(() => monitoringStore.memorySeries.data);
+const networkInSeriesData = computed(() => monitoringStore.networkInSeries.data);
+const diskSeriesData = computed(() => monitoringStore.diskSeries.data);
 
-const handleTimeRangeChange = (value: string) => {
-  timeRange.value = value;
-};
+function severityTagType(severity?: string) {
+  switch (String(severity || "").toLowerCase()) {
+    case "critical":
+    case "error":
+      return "danger";
+    case "warning":
+      return "warning";
+    default:
+      return "info";
+  }
+}
 
-const handleAutoRefreshChange = (enabled: boolean) => {
-  autoRefresh.value = enabled;
-};
+function runtimeStatusTagType(status?: string) {
+  switch (String(status || "").toLowerCase()) {
+    case "active":
+      return "success";
+    case "degraded":
+      return "warning";
+    case "offline":
+      return "info";
+    default:
+      return "info";
+  }
+}
 
-const handleRealtimeToggle = () => {
-  autoRefresh.value = !autoRefresh.value;
-};
+function toServiceStatus(status: "online" | "offline" | "degraded" | "connecting") {
+  return status;
+}
 
-const handleRefresh = async () => {
+function logLevelTagType(level?: string) {
+  switch (String(level || "").toLowerCase()) {
+    case "error":
+      return "danger";
+    case "warn":
+      return "warning";
+    case "debug":
+      return "info";
+    default:
+      return "success";
+  }
+}
+
+function formatDateTime(value: Date | string) {
+  return new Date(value).toLocaleString("zh-CN");
+}
+
+async function handleRefresh() {
   isRefreshing.value = true;
   try {
-    ElMessage.info("Live monitoring telemetry is currently unavailable.");
+    await monitoringStore.refreshAll("dashboard");
+  } catch (error) {
+    ElMessage.error("Failed to refresh runtime monitoring.");
   } finally {
     isRefreshing.value = false;
   }
-};
+}
 
-const handleAcknowledgeAlert = (alertId: string) => {
+function handleAutoRefreshChange(enabled: boolean) {
+  autoRefresh.value = enabled;
+  monitoringStore.toggleRealTime();
+  resetAutoRefresh();
+}
+
+function handleAcknowledgeAlert(alertId: string) {
   monitoringStore.acknowledgeAlert(alertId);
-};
+}
 
-const handleDismissAlert = (alertId: string) => {
+function handleDismissAlert(alertId: string) {
   monitoringStore.dismissAlert(alertId);
-};
+}
 
-const handleRefreshAlerts = () => {
-  ElMessage.info("Alert list refreshed.");
-};
-
-const handleClearAcknowledgedAlerts = () => {
+function handleClearAcknowledgedAlerts() {
   monitoringStore.clearAcknowledgedAlerts();
-};
+}
 
-const handleExportMetrics = () => {
-  const csvContent = [
-    "timestamp,cpu,memory,disk,network,processes,connections,uptime,note",
-    `${new Date().toISOString()},Unavailable,Unavailable,Unavailable,Unavailable,Unavailable,Unavailable,Unavailable,Live telemetry path not wired`,
-  ].join("\n");
+function exportLogs() {
+  void monitoringStore.exportLogs("csv");
+}
 
-  const blob = new Blob([csvContent], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `monitoring-placeholder-${new Date().toISOString().split("T")[0]}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-};
+function resetAutoRefresh() {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+  if (autoRefresh.value) {
+    autoRefreshTimer = setInterval(() => {
+      void monitoringStore.refreshAll("auto");
+    }, monitoringStore.config.refreshInterval);
+  }
+}
 
-const handleSaveSettings = () => {
-  localStorage.setItem("monitoring-settings", JSON.stringify(settings.value));
-  showSettings.value = false;
-  ElMessage.success("Settings saved.");
-};
+onMounted(async () => {
+  await websocketStore.initialize();
+  await monitoringStore.refreshAll("mount");
+  resetAutoRefresh();
+});
 
-const handlePeriodChange = (period: string) => {
-  ElMessage.info(`Switched to ${period}.`);
-};
+onBeforeUnmount(() => {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+});
 </script>
 
 <style scoped>
 .monitoring-dashboard {
   padding: 20px;
-  background: var(--el-bg-color-page);
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding: 16px 20px;
-  background: var(--el-bg-color);
-  border-radius: 8px;
-  box-shadow: var(--el-box-shadow-light);
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  padding: 20px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f4f8ff 0%, #eef7f2 100%);
+  border: 1px solid #d8e6f7;
 }
 
 .dashboard-title {
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
+}
+
+.dashboard-subtitle {
+  margin: 8px 0 0;
+  color: var(--el-text-color-secondary);
 }
 
 .header-actions {
@@ -369,54 +399,33 @@ const handlePeriodChange = (period: string) => {
   gap: 12px;
 }
 
-.availability-alert {
-  margin-bottom: 20px;
-}
-
-.dashboard-content {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+.summary-row,
+.tables-row,
+.overview-section {
+  width: 100%;
 }
 
 .section-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
 }
 
-.section-title {
-  font-weight: 600;
-  color: var(--el-text-color-primary);
+.asset-name {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.advanced-monitoring :deep(.el-tabs__content) {
-  padding: 20px 0;
+.logs-card {
+  margin-bottom: 24px;
 }
 
-.advanced-monitoring :deep(.el-tab-pane) {
-  min-height: 400px;
-}
-
-@media (max-width: 1200px) {
+@media (max-width: 960px) {
   .dashboard-header {
     flex-direction: column;
-    gap: 12px;
-  }
-
-  .header-actions {
-    flex-wrap: wrap;
-  }
-}
-
-@media (max-width: 768px) {
-  .monitoring-dashboard {
-    padding: 10px;
-  }
-
-  .overview-section :deep(.el-col),
-  .charts-section :deep(.el-col) {
-    margin-bottom: 16px;
+    align-items: flex-start;
+    gap: 16px;
   }
 }
 </style>

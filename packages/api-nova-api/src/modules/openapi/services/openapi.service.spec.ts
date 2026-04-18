@@ -21,6 +21,7 @@ describe('OpenAPIService', () => {
       parserService as any,
       validatorService as any,
       {} as any,
+      {} as any,
     );
 
     return { service, parserService, validatorService };

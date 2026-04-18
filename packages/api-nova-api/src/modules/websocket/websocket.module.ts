@@ -5,6 +5,8 @@ import { ConfigModule } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
 
 import { DocumentsModule } from '../documents/documents.module';
+import { RuntimeAssetsModule } from '../runtime-assets/runtime-assets.module';
+import { RuntimeObservabilityModule } from '../runtime-observability/runtime-observability.module';
 import { ServersModule } from '../servers/servers.module';
 
 import { MonitoringGateway } from './websocket.gateway';
@@ -22,6 +24,8 @@ import { LogEntryEntity } from '../../database/entities/log-entry.entity';
     ConfigModule,
     HttpModule,
     DocumentsModule,
+    RuntimeAssetsModule,
+    RuntimeObservabilityModule,
     ServersModule,
   ],
   providers: [

@@ -8,6 +8,7 @@ import { EndpointProbeLogEntity } from '../entities/endpoint-probe-log.entity';
 import { EndpointSourceType } from '../dto/api-management.dto';
 import { ServerManagerService } from './server-manager.service';
 import { DocumentsService } from '../../documents/services/documents.service';
+import { AssetCatalogService } from '../../asset-catalog/services/asset-catalog.service';
 
 describe('ApiManagementCenterService', () => {
   let service: ApiManagementCenterService;
@@ -37,6 +38,13 @@ describe('ApiManagementCenterService', () => {
     findOne: jest.fn(),
   };
 
+  const assetCatalogService = {
+    registerManualEndpointAsset: jest.fn(),
+    findSourceServiceAssetForSpec: jest.fn(),
+    countEndpointsBySourceServiceAssetId: jest.fn(),
+    findEndpointDefinitionByMethodAndPath: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
@@ -62,6 +70,10 @@ describe('ApiManagementCenterService', () => {
           provide: DocumentsService,
           useValue: documentsService,
         },
+        {
+          provide: AssetCatalogService,
+          useValue: assetCatalogService,
+        },
       ],
     }).compile();
 
@@ -76,6 +88,10 @@ describe('ApiManagementCenterService', () => {
       config: {},
     });
     serverRepository.save.mockImplementation(async (value) => value);
+    assetCatalogService.registerManualEndpointAsset.mockResolvedValue({
+      sourceServiceAsset: { id: 'ssa-1' },
+      endpoint: { id: 'endpoint-1' },
+    });
 
     const result = await service.registerManualEndpoint({
       name: 'health-endpoint',
@@ -169,6 +185,7 @@ describe('ApiManagementCenterService', () => {
   });
 
   it('filters overview results by source type for lightweight governance views', async () => {
+    assetCatalogService.findSourceServiceAssetForSpec.mockResolvedValue(null);
     serverRepository.find.mockResolvedValue([
       {
         id: 'manual-1',

@@ -4,11 +4,13 @@ import { DocumentsService } from './services/documents.service';
 import { DocumentsController } from './documents.controller';
 import { OpenAPIDocument } from '../../database/entities/openapi-document.entity';
 import { User } from '../../database/entities/user.entity';
+import { AssetCatalogModule } from '../asset-catalog/asset-catalog.module';
 import { SecurityModule } from '../security/security.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([OpenAPIDocument, User]),
+    AssetCatalogModule,
     SecurityModule,
   ],
   controllers: [DocumentsController],

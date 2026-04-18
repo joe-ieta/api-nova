@@ -2122,163 +2122,61 @@ onMounted(async () => {
   // 订阅事件
   subscriptionIds.processInfo =
     websocketStore.subscribe(
-      "process:info",
+      "runtime:process-info",
       (data: any) => {
-        if (data.serverId === serverId.value) {
-          // 确保数据结构正确
-          if (data.processInfo) {
-            processInfo.value = data.processInfo;
-            // 验证数据结构
-            if (processInfo.value.process) {
-              console.log(
-                "[ServerDetail] Process data:",
-                processInfo.value.process,
-              );
-            }
-            if (processInfo.value.resourceMetrics) {
-              console.log(
-                "[ServerDetail] Resource metrics after update:",
-                JSON.stringify(processInfo.value.resourceMetrics, null, 2),
-              );
-            } else {
-              console.warn("[ServerDetail] 更新后resourceMetrics仍为空!");
-            }
-
-            // updateResourceCharts 将通过 watch 监听器自动调用
-          } else {
-            console.warn(
-              "[ServerDetail] Received process:info event but processInfo is null/undefined",
-            );
-          }
-        } else {
-          console.log(
-            "[ServerDetail] Ignoring process:info for different serverId:",
-            data.serverId,
-            "current:",
-            serverId.value,
-          );
+        if (data.serverId !== serverId.value) {
+          return;
         }
-        console.log("=== [ServerDetail] process:info 调试结束 ===");
+        if (data.processInfo) {
+          processInfo.value = data.processInfo;
+        }
       },
       `process-info-${serverId.value}`,
     ) || "";
   subscriptionIds.processLogs =
     websocketStore.subscribe(
-      "process:logs",
+      "runtime:process-log",
       (data: any) => {
-        console.log("=== [ServerDetail] process:logs 事件调试开始 ===");
-        console.log(
-          "[ServerDetail] 接收到的原始数据:",
-          JSON.stringify(data, null, 2),
-        );
-        console.log("[ServerDetail] 数据类型:", typeof data);
-        console.log("[ServerDetail] 数据结构检查:");
-        console.log(
-          "  - serverId:",
-          data.serverId,
-          "(类型:",
-          typeof data.serverId,
-          ")",
-        );
-        console.log(
-          "  - logData:",
-          data.logData,
-          "(类型:",
-          typeof data.logData,
-          ")",
-        );
-        console.log(
-          "  - timestamp:",
-          data.timestamp,
-          "(类型:",
-          typeof data.timestamp,
-          ")",
-        );
-
-        if (data.serverId === serverId.value) {
-          console.log("[ServerDetail] serverId匹配，开始处理日志");
-          console.log("[ServerDetail] 当前serverId:", serverId.value);
-
-          // 确保有日志数据
-          const logData = data.logData || data;
-          console.log(
-            "[ServerDetail] 提取的logData:",
-            JSON.stringify(logData, null, 2),
-          );
-
-          if (logData && (logData.message || logData.level)) {
-            const logEntry = {
-              id:
-                logData.id ||
-                Date.now().toString() + Math.random().toString(36).substr(2, 9),
-              level: logData.level || "info",
-              message: logData.message || "No message",
-              timestamp: logData.timestamp || new Date().toISOString(),
-              source: logData.source || "process",
-              metadata: logData.metadata,
-            };
-
-            // 检查是否已存在相同的日志（避免重复）
-            const isDuplicate = processLogs.value.some(
-              (existingLog) =>
-                existingLog.id === logEntry.id ||
-                (existingLog.timestamp === logEntry.timestamp &&
-                  existingLog.message === logEntry.message &&
-                  existingLog.level === logEntry.level),
-            );
-
-            if (!isDuplicate) {
-              console.log(
-                "[ServerDetail] 创建的日志条目:",
-                JSON.stringify(logEntry, null, 2),
-              );
-              console.log(
-                "[ServerDetail] 添加前processLogs数量:",
-                processLogs.value.length,
-              );
-
-              processLogs.value.push(logEntry);
-
-              console.log(
-                "[ServerDetail] 添加后processLogs数量:",
-                processLogs.value.length,
-              );
-
-              processLogsMaxTrim();
-              console.log(
-                "[ServerDetail] trim后processLogs数量:",
-                processLogs.value.length,
-              );
-
-              // 自动滚动到底部
-              nextTick(() => {
-                const container = document.querySelector(".log-container");
-                if (container) {
-                  console.log("[ServerDetail] 找到日志容器，执行自动滚动");
-                  container.scrollTop = container.scrollHeight;
-                } else {
-                  console.warn("[ServerDetail] 未找到日志容器 .log-container");
-                }
-              });
-            } else {
-              console.log("[ServerDetail] 跳过重复日志:", logEntry.message);
-            }
-          } else {
-            console.warn("[ServerDetail] 日志数据无效:");
-            console.warn("  - logData:", logData);
-            console.warn("  - logData.message:", logData?.message);
-            console.warn("  - logData.level:", logData?.level);
-            console.warn(
-              "[ServerDetail] 完整接收数据:",
-              JSON.stringify(data, null, 2),
-            );
-          }
-        } else {
-          console.log("[ServerDetail] serverId不匹配，忽略此日志");
-          console.log("  - 接收到的serverId:", data.serverId);
-          console.log("  - 当前页面serverId:", serverId.value);
+        if (data.serverId !== serverId.value) {
+          return;
         }
-        console.log("=== [ServerDetail] process:logs 事件调试结束 ===");
+
+        const logData = data.logData || data;
+        if (!logData || (!logData.message && !logData.level)) {
+          return;
+        }
+
+        const logEntry = {
+          id:
+            logData.id ||
+            Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          level: logData.level || "info",
+          message: logData.message || "No message",
+          timestamp: logData.timestamp || new Date().toISOString(),
+          source: logData.source || "process",
+          metadata: logData.metadata,
+        };
+
+        const isDuplicate = processLogs.value.some(
+          (existingLog) =>
+            existingLog.id === logEntry.id ||
+            (existingLog.timestamp === logEntry.timestamp &&
+              existingLog.message === logEntry.message &&
+              existingLog.level === logEntry.level),
+        );
+
+        if (isDuplicate) {
+          return;
+        }
+
+        processLogs.value.push(logEntry);
+        processLogsMaxTrim();
+        nextTick(() => {
+          const container = document.querySelector(".log-container");
+          if (container) {
+            container.scrollTop = container.scrollHeight;
+          }
+        });
       },
       `process-logs-${serverId.value}`,
     ) || "";
@@ -2286,9 +2184,15 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (subscriptionIds.processInfo)
-    websocketStore.unsubscribe("process:info", subscriptionIds.processInfo);
+    websocketStore.unsubscribe(
+      "runtime:process-info",
+      subscriptionIds.processInfo,
+    );
   if (subscriptionIds.processLogs)
-    websocketStore.unsubscribe("process:logs", subscriptionIds.processLogs);
+    websocketStore.unsubscribe(
+      "runtime:process-log",
+      subscriptionIds.processLogs,
+    );
   websocketStore.unsubscribeFromProcessInfo(serverId.value);
   websocketStore.unsubscribeFromProcessLogs(serverId.value);
 });

@@ -24,6 +24,10 @@ import { ConfigModule as AppConfigModule } from './modules/config/config.module'
 import { WebSocketModule } from './modules/websocket/websocket.module';
 import { AiAssistantModule } from './modules/ai-assistant/ai-assistant.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { AssetCatalogModule } from './modules/asset-catalog/asset-catalog.module';
+import { PublicationModule } from './modules/publication/publication.module';
+import { GatewayRuntimeModule } from './modules/gateway-runtime/gateway-runtime.module';
+import { RuntimeAssetsModule } from './modules/runtime-assets/runtime-assets.module';
 
 // 通用组件
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -108,6 +112,10 @@ const envFilePath = [
     WebSocketModule,
     AiAssistantModule,
     DocumentsModule,
+    AssetCatalogModule,
+    PublicationModule,
+    GatewayRuntimeModule,
+    RuntimeAssetsModule,
   ],
   controllers: [AppController],
   providers: [

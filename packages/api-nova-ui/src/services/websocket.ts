@@ -1,75 +1,51 @@
 import { io, Socket } from "socket.io-client";
-import type { SystemMetrics, LogEntry, MCPServer } from "@/types";
+import type { SystemMetrics, MCPServer } from "@/types";
 
 // 临时移除调试器导入，避免模块问题
 // import { wsDebugger } from "@/utils/websocket-debug";
 
 export interface WebSocketEvents {
-  // 系统指标更新
-  "metrics:system": (metrics: SystemMetrics) => void;
-  "metrics:server": (data: {
+  "runtime:overview": (payload: any) => void;
+  "runtime:asset": (payload: any) => void;
+  "runtime:event": (payload: any) => void;
+  "runtime:log": (payload: any) => void;
+  "runtime:alert": (payload: any) => void;
+  "runtime:system-metrics": (metrics: SystemMetrics) => void;
+  "runtime:server-metrics": (data: {
     serverId: string;
     metrics: SystemMetrics;
+    summary?: any;
   }) => void;
-
-  // 服务器状态更新
-  "server:status": (data: {
+  "runtime:server-status": (data: {
     serverId: string;
     status: MCPServer["status"];
     error?: string;
   }) => void;
+  "runtime:process-info": (data: {
+    serverId: string;
+    processInfo: any;
+  }) => void;
+  "runtime:process-log": (data: {
+    serverId: string;
+    logData?: {
+      id?: string;
+      level?: string;
+      message?: string;
+      timestamp?: string | Date;
+      source?: string;
+      metadata?: Record<string, any>;
+    };
+    timestamp?: string | Date;
+  }) => void;
   "server:created": (server: MCPServer) => void;
   "server:updated": (server: MCPServer) => void;
   "server:deleted": (serverId: string) => void;
-
-  // 进程信息更新
-  "process:info": (data: {
-    serverId: string;
-    processInfo: {
-      process: {
-        pid: number;
-        name: string;
-        status: string;
-        startTime: Date;
-        uptime: number;
-      };
-      resources: {
-        cpu: number;
-        memory: number;
-        handles?: number;
-        threads?: number;
-      };
-      system: {
-        platform: string;
-        arch: string;
-        nodeVersion: string;
-      };
-      details: any;
-    };
-  }) => void;
-  "process:logs": (data: {
-    serverId: string;
-    logs: Array<{
-      serverId: string;
-      pid: number;
-      timestamp: Date;
-      level: string;
-      source: string;
-      message: string;
-      metadata?: Record<string, any>;
-    }>;
-  }) => void;
-
-  // 日志更新
-  "logs:new": (entry: LogEntry) => void;
-  "logs:batch": (entries: LogEntry[]) => void;
-
-  // 连接状态事件
   connect: () => void;
   disconnect: () => void;
   reconnect: () => void;
   connect_error: (error: Error) => void;
 }
+
 
 export class WebSocketService {
   private socket: Socket | null = null;
@@ -85,6 +61,119 @@ export class WebSocketService {
   private readonly DEBUG = (import.meta as any).env?.VITE_WS_DEBUG === "true";
   private d(...args: any[]) {
     if (this.DEBUG) console.log("[WebSocketService]", ...args);
+  }
+
+  private mapRuntimeEventToServerStatus(payload: any): MCPServer["status"] | null {
+    const family = String(payload?.family || "");
+    const status = String(payload?.status || "").toLowerCase();
+
+    if (family === "runtime.health") {
+      return status === "failed" ? "error" : "running";
+    }
+    if (family === "runtime.lifecycle") {
+      if (status === "failed") return "error";
+      if (status === "offline") return "stopped";
+      if (status === "degraded") return "starting";
+      return "running";
+    }
+
+    return null;
+  }
+
+  private emitLegacyMetricsFromRuntimeOverview(payload: any): void {
+    const metrics = payload?.data?.metrics;
+    if (metrics) {
+      this.emitEvent("runtime:system-metrics", metrics as SystemMetrics);
+    }
+  }
+
+  private emitLegacyServerMetricsFromRuntimeAsset(payload: any): void {
+    const observability = payload?.data?.normalizedObservability;
+    const managedServerId =
+      observability?.currentState?.managedServer?.id ||
+      payload?.data?.runtimeSummary?.managedServer?.id;
+    if (!managedServerId) {
+      return;
+    }
+
+    const summary = observability?.metricsSummary || {};
+    const eventPayload = {
+      serverId: managedServerId,
+      metrics: {
+        totalRequests: Number(summary?.counters?.requestCount || 0),
+        successfulRequests: Number(summary?.counters?.successCount || 0),
+        failedRequests: Number(summary?.counters?.errorCount || 0),
+        averageResponseTime: Number(summary?.latency?.averageMs || 0),
+        activeConnections: 0,
+        errorRate: 0,
+        uptime: 0,
+      } as any,
+      summary,
+    };
+
+    this.emitEvent("runtime:server-metrics", eventPayload);
+  }
+
+  private emitLegacyProcessInfoFromRuntimeAsset(payload: any): void {
+    const managedServerId =
+      payload?.managedServerId ||
+      payload?.data?.normalizedObservability?.currentState?.managedServer?.id ||
+      payload?.data?.runtimeSummary?.managedServer?.id;
+    const processInfo = payload?.liveProcessInfo;
+
+    if (!managedServerId || !processInfo) {
+      return;
+    }
+
+    const eventPayload = {
+      serverId: managedServerId,
+      processInfo,
+    };
+
+    this.emitEvent("runtime:process-info", eventPayload);
+  }
+
+  private emitLegacyServerStatusFromRuntimeEvent(payload: any): void {
+    if (!payload?.managedServerId) {
+      return;
+    }
+
+    const mappedStatus = this.mapRuntimeEventToServerStatus(payload);
+    if (!mappedStatus) {
+      return;
+    }
+
+    const eventPayload = {
+      serverId: payload.managedServerId,
+      status: mappedStatus,
+      error:
+        mappedStatus === "error"
+          ? payload?.details?.errorMessage || payload?.summary
+          : undefined,
+    };
+
+    this.emitEvent("runtime:server-status", eventPayload);
+  }
+
+  private emitLegacyProcessLogFromRuntimeLog(payload: any): void {
+    if (!payload?.managedServerId) {
+      return;
+    }
+
+    const eventPayload = {
+      serverId: payload.managedServerId,
+      logData: {
+        id: payload.id,
+        level: payload.level,
+        message: payload.message,
+        timestamp: payload.timestamp,
+        source: payload.source,
+        metadata: payload.details || undefined,
+      },
+      timestamp: payload.timestamp,
+    };
+
+    this.emitEvent("runtime:process-log", eventPayload);
   }
 
   constructor(private url: string = "/monitoring") {
@@ -203,20 +292,6 @@ export class WebSocketService {
         this.socket.on("reconnect_failed", () => {
           console.error("[WebSocketService] Reconnect failed");
         });
-
-        // 添加连接状态事件监听
-        this.socket.on(
-          "connection-stats",
-          (data: {
-            totalClients: number;
-            activeRooms: string[];
-            timestamp: string;
-          }) => {
-            if (process.env.NODE_ENV === "development") {
-              console.log(`[WebSocketService] Connection stats:`, data);
-            }
-          },
-        );
       } catch (error) {
         console.error("[WebSocketService] Error creating socket:", error);
         this.isConnecting = false;
@@ -326,49 +401,38 @@ export class WebSocketService {
       this.emitEvent("reconnect");
     });
 
-    // 系统指标事件（修复事件名称不匹配问题）
-    this.socket.on(
-      "system-metrics-update",
-      (data: { data: SystemMetrics; timestamp: string }) => {
-        this.emitEvent("metrics:system", data.data);
-      },
-    );
+    this.socket.on("runtime-overview", (data: any) => {
+      this.emitEvent("runtime:overview", data);
+      this.emitLegacyMetricsFromRuntimeOverview(data);
+    });
 
-    this.socket.on(
-      "initial-system-metrics",
-      (data: { data: SystemMetrics; timestamp: string }) => {
-        this.emitEvent("metrics:system", data.data);
-      },
-    );
+    this.socket.on("runtime-asset-observability", (data: any) => {
+      this.emitEvent("runtime:asset", data);
+      this.emitLegacyServerMetricsFromRuntimeAsset(data);
+      this.emitLegacyProcessInfoFromRuntimeAsset(data);
+    });
+
+    this.socket.on("runtime-event", (data: any) => {
+      this.emitEvent("runtime:event", data);
+      this.emitLegacyServerStatusFromRuntimeEvent(data);
+    });
+
+    this.socket.on("runtime-log", (data: any) => {
+      this.emitEvent("runtime:log", data);
+      this.emitLegacyProcessLogFromRuntimeLog(data);
+    });
+
+    this.socket.on("runtime-alert", (data: any) => {
+      this.emitEvent("runtime:alert", data);
+    });
+
+    // 系统指标事件（修复事件名称不匹配问题）
+
 
     // 服务器指标事件已在下方处理
 
     // 服务器状态事件（修复事件名称不匹配问题）
-    this.socket.on(
-      "server-status-changed",
-      (data: { serverId: string; status: string; timestamp: string }) => {
-        this.emitEvent("server:status", {
-          serverId: data.serverId,
-          status: data.status as MCPServer["status"],
-        });
-      },
-    );
 
-    this.socket.on(
-      "server-health-changed",
-      (data: {
-        serverId: string;
-        healthy: boolean;
-        error?: string;
-        timestamp: string;
-      }) => {
-        this.emitEvent("server:status", {
-          serverId: data.serverId,
-          status: data.healthy ? "running" : ("error" as MCPServer["status"]),
-          error: data.error,
-        });
-      },
-    );
 
     // 服务器CRUD事件（这些可能需要后端添加支持）
     this.socket.on("server:created", (server: MCPServer) => {
@@ -382,35 +446,6 @@ export class WebSocketService {
     this.socket.on("server:deleted", (serverId: string) => {
       this.emitEvent("server:deleted", serverId);
     });
-
-    // 进程信息事件
-    this.socket.on(
-      "process:info",
-      (data: { serverId: string; processInfo: any }) => {
-        this.emitEvent("process:info", data);
-      },
-    );
-
-    this.socket.on(
-      "process:logs",
-      (data: { serverId: string; logs: any[] }) => {
-        this.emitEvent("process:logs", data);
-      },
-    );
-
-    // 移除server-metrics-update事件监听器，因为后端现在直接发送process:info事件
-    // 保留注释以备将来参考
-    // this.socket.on("server-metrics-update", (data: {
-    //   serverId: string;
-    //   data: any;
-    //   timestamp: string;
-    // }) => {
-    //   this.d('server-metrics-update <-', data.serverId, 'ts', data.timestamp);
-    //   this.emitEvent("process:info", {
-    //     serverId: data.serverId,
-    //     processInfo: data.data
-    //   });
-    // });
 
     // 订阅确认事件（修复事件名称不匹配问题）
     this.socket.on(
@@ -435,60 +470,8 @@ export class WebSocketService {
         }
       },
     );
-
-    // 日志事件（修复事件名称不匹配问题）
-    this.socket.on(
-      "server-log",
-      (data: {
-        serverId: string;
-        level: string;
-        message: string;
-        source: string;
-        timestamp: string;
-      }) => {
-        const logEntry: LogEntry = {
-          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          timestamp: new Date(data.timestamp),
-          level: data.level as LogEntry["level"],
-          message: data.message,
-          source: data.source,
-          serverId: data.serverId,
-        };
-        this.emitEvent("logs:new", logEntry);
-      },
-    );
-
-    // 告警事件
-    this.socket.on(
-      "alert",
-      (data: {
-        id: string;
-        type: string;
-        severity: string;
-        serverId?: string;
-        message: string;
-        source?: string;
-        timestamp: string;
-      }) => {
-        const logEntry: LogEntry = {
-          id: data.id,
-          timestamp: new Date(data.timestamp),
-          level: data.severity as LogEntry["level"],
-          message: data.message,
-          source: data.source || "alert",
-          serverId: data.serverId,
-        };
-        this.emitEvent("logs:new", logEntry);
-      },
-    );
-
-    // 保留原有的批量日志事件（如果后端有发送）
-    this.socket.on("logs:batch", (entries: LogEntry[]) => {
-      this.emitEvent("logs:batch", entries);
-    });
   }
 
-  // 尝试重连
   private attemptReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error("Max reconnection attempts reached");
@@ -515,16 +498,19 @@ export class WebSocketService {
   private setupEventHandlers(): void {
     // 初始化事件处理器映射
     const eventKeys: (keyof WebSocketEvents)[] = [
-      "metrics:system",
-      "metrics:server",
-      "server:status",
+      "runtime:overview",
+      "runtime:asset",
+      "runtime:event",
+      "runtime:log",
+      "runtime:alert",
+      "runtime:system-metrics",
+      "runtime:server-metrics",
+      "runtime:server-status",
+      "runtime:process-info",
+      "runtime:process-log",
       "server:created",
       "server:updated",
       "server:deleted",
-      "process:info",
-      "process:logs",
-      "logs:new",
-      "logs:batch",
       "connect",
       "disconnect",
       "reconnect",
@@ -598,33 +584,36 @@ export class WebSocketService {
   // 订阅特定服务器的更新
   subscribeToServer(serverId: string): void {
     if (!serverId) return;
-    this.emit("subscribe:server", { serverId });
+    this.emit("subscribe-runtime-asset", { serverId, interval: 5000 });
   }
 
   // 取消订阅特定服务器的更新
   unsubscribeFromServer(serverId: string): void {
     if (!serverId) return;
-    this.emit("unsubscribe:server", { serverId });
+    this.emit("unsubscribe-runtime-asset", { serverId });
   }
 
   // 订阅系统指标更新
   subscribeToMetrics(): void {
-    this.emit("subscribe:metrics");
+    this.emit("subscribe-runtime-overview", { interval: 5000 });
   }
 
   // 取消订阅系统指标更新
   unsubscribeFromMetrics(): void {
-    this.emit("unsubscribe:metrics");
+    this.emit("unsubscribe-runtime-overview");
   }
 
   // 订阅日志更新
   subscribeToLogs(filter?: { level?: string[]; serverId?: string }): void {
-    this.emit("subscribe:logs", filter);
+    this.emit("subscribe-runtime-events", filter);
+    this.emit("subscribe-runtime-alerts", {
+      severity: ["warning", "error", "critical"],
+    });
   }
 
   // 取消订阅日志更新
   unsubscribeFromLogs(): void {
-    this.emit("unsubscribe:logs");
+    this.emit("unsubscribe-runtime-events");
   }
 
   // 订阅进程信息更新（强化版本）
@@ -643,28 +632,29 @@ export class WebSocketService {
         .catch(() => {});
       return;
     }
-    this.emit("subscribe-server-metrics", { serverId, interval: 5000 });
+    this.emit("subscribe-runtime-asset", { serverId, interval: 5000 });
   }
 
   // 取消订阅进程信息更新
   unsubscribeFromProcessInfo(serverId: string): void {
     if (!serverId) return;
     // 兼容旧通用unsubscribe & 新事件
-    this.emit("unsubscribe", { room: `server-metrics-${serverId}` });
-    this.emit("unsubscribe-server-metrics", { serverId });
+    this.emit("unsubscribe-runtime-asset", { serverId });
   }
 
   // 订阅进程日志更新
   subscribeToProcessLogs(serverId: string, level?: string): void {
     if (!serverId) return;
-    this.emit("subscribe-server-logs", { serverId, level });
+    this.emit("subscribe-runtime-events", {
+      serverId,
+      level: level ? [level] : undefined,
+    });
   }
 
   // 取消订阅进程日志更新
   unsubscribeFromProcessLogs(serverId: string): void {
     if (!serverId) return;
-    this.emit("unsubscribe", { room: `server-logs-${serverId}` });
-    this.emit("unsubscribe-server-logs", { serverId });
+    this.emit("unsubscribe-runtime-events", { serverId });
   }
 
   // 获取连接状态信息

@@ -4,130 +4,85 @@
 
 This document defines the top-level constraints for all follow-up optimization and upgrade work in this repository.
 
-These constraints override local implementation preferences. Future changes must be evaluated as product work, not as isolated demos, scripts, or test-only patches.
-
 ## Product Positioning
 
-ApiNova is an AI-ready API capabilities product positioned as an API gateway and management platform.
+ApiNova is an AI-ready API capabilities product positioned as an application-internal product gateway and management platform with dual access paths.
 
-It turns OpenAPI/Swagger-described APIs into usable MCP capabilities and other AI-facing integration surfaces for clients, agents, and management workflows.
+It turns OpenAPI/Swagger-described APIs into governed endpoint assets and publishes them through:
+
+- MCP tools for model-driven invocation
+- HTTP gateway routes for direct service invocation
 
 The repository contains four product layers:
 
 - `packages/api-nova-parser`: parsing, normalization, validation, spec compatibility
-- `packages/api-nova-server`: MCP tool generation and transport runtime
-- `packages/api-nova-api`: product backend, orchestration, persistence, security
+- `packages/api-nova-server`: MCP tool generation and MCP transport runtime
+- `packages/api-nova-api`: product backend, shared control plane, persistence, security, HTTP gateway runtime
 - `packages/api-nova-ui`: product frontend and operator workflow
-
-The core product value is the stable chain:
-
-- `OpenAPI input -> parser -> capability model -> runtime transport -> operator/client integration`
 
 ## Top-Level Constraints
 
-### 1. Product-first, not test-first
+### 1. Single source of truth for core behavior
 
-- Do not optimize the project as a sample app or temporary test harness.
-- Do not add features that only improve demos while weakening the production path.
-- Do not introduce implementation shortcuts that make later productization harder.
+- Parsing, normalization, validation, Swagger 2 conversion, and shared request-shaping logic must converge toward shared core implementations.
+- API and UI must orchestrate core capabilities, not maintain competing transformation logic.
 
-### 2. Single source of truth for core behavior
+### 2. Shared control plane, dual runtime surfaces
 
-- Parsing, normalization, validation, Swagger 2 conversion, and MCP tool generation must converge toward shared core implementations.
-- API and UI layers must orchestrate core capabilities, not maintain competing transformation logic.
-- Duplicate domain logic across `parser`, `server`, and `api` should be treated as architectural debt.
+- Endpoint registry, publication policy, auth configuration, lifecycle, and observability belong to one shared control plane.
+- MCP publication and HTTP gateway publication are parallel surfaces over the same governed endpoint assets.
+- The two runtime surfaces may differ in protocol behavior, but they must not diverge in endpoint identity, governance state, or publication source of truth.
 
-### 3. CLI, API, and UI must remain behaviorally aligned
-
-- A user should get materially consistent results from CLI, programmatic usage, API endpoints, and UI workflows.
-- Input semantics, auth behavior, filtering, base URL resolution, and generated tool structure must not drift between surfaces.
-
-### 4. Documentation is part of the product
+### 3. Documentation is part of the product
 
 - README, package docs, API docs, CLI help, and UI guidance must reflect actual runtime behavior.
-- Documentation drift is treated as a product defect, not a documentation-only issue.
+- Documentation drift is treated as a product defect.
 
-### 5. Security defaults must be explicit
+### 4. Security defaults must be explicit
 
 - Management and mutation flows should default to protected access unless intentionally exposed.
-- Debug output must not leak secrets or break transport protocols.
-- Transport security behavior must be deliberate and documented.
+- HTTP gateway publication must not silently bypass the auth and lifecycle constraints applied to the same endpoint on the MCP path.
 
-### 6. Transport safety is a product requirement
+### 5. Transport safety is a product requirement
 
-- `stdio`, `sse`, and `streamable` are product surfaces, not internal experiments.
+- `stdio`, `sse`, and `streamable` are product surfaces.
 - Library/runtime code must avoid uncontrolled stdout noise that can corrupt protocol streams.
-- Logging must be controllable by environment or configuration.
-- Runtime helper paths that can execute on MCP transports should stay quiet by default and use stderr-only debug or error logging when observability is needed.
 
-### 7. Observability without pollution
+### 6. Observability without pollution
 
 - Operational visibility is required, but logging must be structured and gated.
-- Debug-only traces must not be emitted in normal product flows.
+- Management metrics, MCP runtime metrics, and HTTP gateway metrics should be distinguishable.
 
-### 8. Compatibility and upgrade discipline
+### 7. Cross-platform runtime compatibility
 
-- Version metadata exposed by packages and runtimes must stay consistent with published package versions.
-- Backward compatibility must be considered when changing public CLI flags, API contracts, exports, or generated tool shapes.
+- Product changes must preserve support for Windows and Linux, with Ubuntu treated as a first-class target.
+- Avoid hard-coded shell behavior, paths, separators, signals, encodings, or process assumptions that only work on one platform.
 
-### 9. Cross-platform runtime compatibility
+### 8. Brand, naming, and port invariants must not drift
 
-- Product changes must preserve support for Windows and Linux, with Ubuntu treated as a first-class target environment.
-- Avoid hard-coding shell behavior, paths, separators, signals, encodings, or process assumptions that only work on one platform.
-- CLI, runtime management, file loading, and documentation examples should be reviewed from a cross-platform perspective.
-- Platform-specific scripts are allowed only as operational helpers, not as the only supported product path.
+- Active product identity: `ApiNova`
+- Chinese name: `达雅`
+- `Api达雅` may be used as a mixed-form expression in Chinese contexts
+- Default ports remain `9000` / `9001` / `9022`
 
-### 10. Stage delivery around product increments
+### 9. Localization and encoding discipline must not drift
 
-- Work should be shipped in coherent product increments, each with clear scope and user-visible value.
-- Each increment should strengthen the main path before adding adjacent features.
+- Chinese is the default operator locale.
+- Active docs and operator copy must be stored with stable UTF-8 encoding.
+- Readable fallback text is acceptable; corrupted text is not.
 
-### 11. Brand, naming, and port invariants must not drift
+### 10. Gateway boundary discipline must not drift
 
-- The active product identity is `ApiNova`; the Chinese name is `达雅`, and `Api达雅` may be used as a secondary mixed-form expression in Chinese contexts.
-- Active docs, UI copy, API descriptions, CLI help, examples, and default configuration must not regress to legacy product labels such as `api-nova-server`, `api-nova-parser`, or similar old project names unless the text is explicitly marked as historical origin, archive material, or compatibility context.
-- Historical origin references are allowed only when clearly framed as background. They must not appear as the current product name.
-- The active default external development ports are part of the product contract:
-  - UI: `9000`
-  - API: `9001`
-  - MCP runtime default: `9022`
-- New docs, examples, tests, scripts, environment defaults, Docker manifests, and operator-facing surfaces must use these ports unless a deliberate top-level baseline change is made.
-- Reintroducing old default ports such as `3000`, `3001`, or `3322` into active product surfaces should be treated as contract drift and a product defect.
-
-### 12. Localization and encoding discipline must not drift
-
-- Chinese is the default operator locale, but fallback behavior must remain available so UI text never regresses into garbled output.
-- Operator-facing locale resources should move toward feature-level modularization instead of regrowing into one fragile monolithic file.
-- Active docs, locale resources, and operator copy must be edited and stored with stable UTF-8 encoding.
-- When translation coverage is incomplete, readable fallback text is acceptable; corrupted text is not.
+- ApiNova is not an enterprise heavy gateway for full traffic takeover.
+- It should not replace an existing business gateway, edge gateway, or service mesh.
+- It may provide route binding, auth injection, policy checks, observability, and controlled HTTP forwarding for governed and published endpoints.
+- Complex layer-7 routing and organization-wide traffic governance are outside the current baseline.
 
 ## Delivery Priorities
 
-All future optimization should prioritize work in this order:
-
-1. Correctness of the core conversion chain
+1. Correctness of the governed endpoint main path
 2. Contract consistency across CLI/API/UI/docs
-3. Security and transport safety
-4. Operational reliability and maintainability
-5. Feature expansion
-
-## Explicit Non-Goals For Current Upgrades
-
-Until the main path is stabilized, avoid prioritizing:
-
-- cosmetic-only UI expansion
-- broad feature branching without contract cleanup
-- duplicate parser/transformer logic in higher layers
-- adding management features that rely on unstable core semantics
-
-## Acceptance Standard For Future Changes
-
-A change should be considered acceptable only if it improves at least one of:
-
-- main-path correctness
-- contract consistency
-- security posture
-- runtime reliability
-- maintainability of shared product architecture
-
-If a change improves local convenience but increases divergence between layers, it should be rejected or redesigned.
+3. Publication consistency across MCP and HTTP gateway surfaces
+4. Security and transport safety
+5. Operational reliability and maintainability
+6. Feature expansion

@@ -35,6 +35,9 @@ import { ApiManagementCenterService } from './services/api-management-center.ser
 import { MCPModule } from '../mcp/mcp.module';
 import { OpenAPIModule } from '../openapi/openapi.module';
 import { DocumentsModule } from '../documents/documents.module';
+import { AssetCatalogModule } from '../asset-catalog/asset-catalog.module';
+import { RuntimeAssetsModule } from '../runtime-assets/runtime-assets.module';
+import { RuntimeObservabilityModule } from '../runtime-observability/runtime-observability.module';
 import { SecurityModule } from '../security/security.module';
 
 @Module({
@@ -59,6 +62,9 @@ import { SecurityModule } from '../security/security.module';
     MCPModule,
     OpenAPIModule,
     DocumentsModule,
+    AssetCatalogModule,
+    RuntimeAssetsModule,
+    RuntimeObservabilityModule,
     SecurityModule,
   ],
   controllers: [

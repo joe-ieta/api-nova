@@ -48,6 +48,23 @@ export const useWebSocketStore = defineStore("websocket", () => {
     lastError.value = error;
   };
 
+  const normalizeEventType = (eventType: string) => {
+    switch (eventType) {
+      case "runtime:server-status":
+        return "runtime:server-status";
+      case "runtime:server-metrics":
+        return "runtime:server-metrics";
+      case "runtime:system-metrics":
+        return "runtime:system-metrics";
+      case "runtime:process-info":
+        return "runtime:process-info";
+      case "runtime:process-log":
+        return "runtime:process-log";
+      default:
+        return eventType;
+    }
+  };
+
   // 连接WebSocket
   const connect = async (): Promise<boolean> => {
     if (connected.value || connecting.value) {
@@ -96,8 +113,8 @@ export const useWebSocketStore = defineStore("websocket", () => {
     const currentSubscriptions = Array.from(subscriptions.value);
 
     currentSubscriptions.forEach((subscription) => {
-      if (subscription.startsWith("process:info:")) {
-        const serverId = subscription.replace("process:info:", "");
+      if (subscription.startsWith("runtime:process-info:")) {
+        const serverId = subscription.replace("runtime:process-info:", "");
         if (!serverId) {
           return;
         }
@@ -105,8 +122,8 @@ export const useWebSocketStore = defineStore("websocket", () => {
           `[WebSocketStore] Restoring process info subscription for server: ${serverId}`,
         );
         websocketService.subscribeToProcessInfo(serverId);
-      } else if (subscription.startsWith("process:logs:")) {
-        const serverId = subscription.replace("process:logs:", "");
+      } else if (subscription.startsWith("runtime:process-log:")) {
+        const serverId = subscription.replace("runtime:process-log:", "");
         if (!serverId) {
           return;
         }
@@ -220,7 +237,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
       return;
     }
 
-    const subscriptionKey = `process:info:${serverId}`;
+    const subscriptionKey = `runtime:process-info:${serverId}`;
 
     // 暂时移除重复订阅检查，确保订阅请求能够发送
     websocketService.subscribeToProcessInfo(serverId);
@@ -232,7 +249,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
     if (!connected.value || !serverId) return;
 
     websocketService.unsubscribeFromProcessInfo(serverId);
-    subscriptions.value.delete(`process:info:${serverId}`);
+    subscriptions.value.delete(`runtime:process-info:${serverId}`);
   };
 
   // 订阅进程日志
@@ -254,7 +271,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
       return;
     }
 
-    const subscriptionKey = `process:logs:${serverId}`;
+    const subscriptionKey = `runtime:process-log:${serverId}`;
 
     // 暂时移除重复订阅检查，确保订阅请求能够发送
     websocketService.subscribeToProcessLogs(serverId);
@@ -266,7 +283,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
     if (!connected.value || !serverId) return;
 
     websocketService.unsubscribeFromProcessLogs(serverId);
-    subscriptions.value.delete(`process:logs:${serverId}`);
+    subscriptions.value.delete(`runtime:process-log:${serverId}`);
   };
 
   // 设置事件监听器
@@ -280,6 +297,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
       setConnecting(false);
       setReconnectAttempts(0);
       setLastError(null);
+      monitoringStore.connectWebSocket();
 
       if (process.env.NODE_ENV === "development") {
         console.log(
@@ -295,6 +313,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
     websocketService.on("disconnect", () => {
       setConnected(false);
       setConnecting(false);
+      monitoringStore.disconnectWebSocket();
 
       if (process.env.NODE_ENV === "development") {
         console.log("[WebSocketStore] WebSocket disconnected");
@@ -305,6 +324,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
       setConnected(true);
       setConnecting(false);
       setReconnectAttempts(0);
+      monitoringStore.connectWebSocket();
 
       appStore.addNotification({
         type: "success",
@@ -327,12 +347,41 @@ export const useWebSocketStore = defineStore("websocket", () => {
     });
 
     // 系统指标事件
-    websocketService.on("metrics:system", (metrics) => {
+    websocketService.on("runtime:system-metrics", (metrics) => {
       monitoringStore.updateSystemMetrics(metrics);
+      monitoringStore.scheduleRefresh("ws-metrics-system");
     });
 
-    websocketService.on("metrics:server", (data) => {
+    websocketService.on("runtime:overview", () => {
+      monitoringStore.scheduleRefresh("ws-runtime-overview");
+    });
+
+    websocketService.on("runtime:asset", () => {
+      monitoringStore.scheduleRefresh("ws-runtime-asset");
+    });
+
+    websocketService.on("runtime:event", () => {
+      monitoringStore.scheduleRefresh("ws-runtime-event");
+    });
+
+    websocketService.on("runtime:log", (entry: any) => {
+      monitoringStore.addLogEntry({
+        id: entry.id,
+        timestamp: new Date(entry.timestamp || Date.now()),
+        level: entry.level || "info",
+        message: entry.message,
+        source: entry.source || "runtime",
+        data: entry.details || null,
+      } as any);
+    });
+
+    websocketService.on("runtime:alert", () => {
+      monitoringStore.scheduleRefresh("ws-runtime-alert");
+    });
+
+    websocketService.on("runtime:server-metrics", (data) => {
       monitoringStore.updateServerMetrics(data.serverId, data.metrics);
+      monitoringStore.scheduleRefresh("ws-metrics-server");
       serverStore.updateServerMetrics(data.serverId, {
         totalRequests: data.metrics.totalRequests,
         averageResponseTime: data.metrics.averageResponseTime,
@@ -340,8 +389,9 @@ export const useWebSocketStore = defineStore("websocket", () => {
     });
 
     // 服务器状态事件
-    websocketService.on("server:status", (data) => {
+    websocketService.on("runtime:server-status", (data) => {
       serverStore.updateServerStatus(data.serverId, data.status, data.error);
+      monitoringStore.scheduleRefresh("ws-server-status");
 
       if (data.status === "error" && data.error) {
         appStore.addNotification({
@@ -400,13 +450,6 @@ export const useWebSocketStore = defineStore("websocket", () => {
     });
 
     // 日志事件
-    websocketService.on("logs:new", (entry) => {
-      monitoringStore.addLogEntry(entry);
-    });
-
-    websocketService.on("logs:batch", (entries) => {
-      monitoringStore.addLogEntries(entries);
-    });
   };
 
   // 重连
@@ -452,107 +495,100 @@ export const useWebSocketStore = defineStore("websocket", () => {
     callback: (data: any) => void,
     subscriptionId?: string,
   ) => {
+    const normalizedEventType = normalizeEventType(eventType);
     // 生成唯一的订阅ID
     const id =
       subscriptionId ||
-      `${eventType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      `${normalizedEventType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     // 存储回调函数
-    if (!subscriptionCallbacks.has(eventType)) {
-      subscriptionCallbacks.set(eventType, new Map());
+    if (!subscriptionCallbacks.has(normalizedEventType)) {
+      subscriptionCallbacks.set(normalizedEventType, new Map());
     }
-    subscriptionCallbacks.get(eventType)!.set(id, callback);
+    subscriptionCallbacks.get(normalizedEventType)!.set(id, callback);
 
-    switch (eventType) {
-      case "server-status":
-        websocketService.on("server:status", callback);
+    switch (normalizedEventType) {
+      case "runtime:server-status":
+        websocketService.on("runtime:server-status", callback);
         break;
-      case "server-metrics":
-        websocketService.on("metrics:server", callback);
+      case "runtime:server-metrics":
+        websocketService.on("runtime:server-metrics", callback);
         break;
-      case "system-metrics":
-        websocketService.on("metrics:system", callback);
+      case "runtime:system-metrics":
+        websocketService.on("runtime:system-metrics", callback);
         break;
-      case "logs":
-        websocketService.on("logs:new", callback);
+      case "runtime:process-info":
+        websocketService.on("runtime:process-info", callback);
         break;
-      case "process:info":
-        websocketService.on("process:info", callback);
-        break;
-      case "process:logs":
-        websocketService.on("process:logs", callback);
+      case "runtime:process-log":
+        websocketService.on("runtime:process-log", callback);
         break;
       default:
         // 对于其他事件类型，暂时不处理
-        console.warn(`Unsupported event type: ${eventType}`);
+        console.warn(`Unsupported event type: ${normalizedEventType}`);
         return null;
     }
-    subscriptions.value.add(eventType);
+    subscriptions.value.add(normalizedEventType);
     return id; // 返回订阅ID，用于后续取消订阅
   };
 
   // 通用取消订阅方法
   const unsubscribe = (eventType: string, subscriptionId?: string) => {
-    const callbacks = subscriptionCallbacks.get(eventType);
+    const normalizedEventType = normalizeEventType(eventType);
+    const callbacks = subscriptionCallbacks.get(normalizedEventType);
 
     if (subscriptionId && callbacks) {
       // 精确取消特定的订阅
       const callback = callbacks.get(subscriptionId);
       if (callback) {
-        switch (eventType) {
-          case "server-status":
-            websocketService.off("server:status", callback);
+        switch (normalizedEventType) {
+          case "runtime:server-status":
+            websocketService.off("runtime:server-status", callback);
             break;
-          case "server-metrics":
-            websocketService.off("metrics:server", callback);
+          case "runtime:server-metrics":
+            websocketService.off("runtime:server-metrics", callback);
             break;
-          case "system-metrics":
-            websocketService.off("metrics:system", callback);
+          case "runtime:system-metrics":
+            websocketService.off("runtime:system-metrics", callback);
             break;
-          case "logs":
-            websocketService.off("logs:new", callback);
+          case "runtime:process-info":
+            websocketService.off("runtime:process-info", callback);
             break;
-          case "process:info":
-            websocketService.off("process:info", callback);
-            break;
-          case "process:logs":
-            websocketService.off("process:logs", callback);
+          case "runtime:process-log":
+            websocketService.off("runtime:process-log", callback);
             break;
         }
         callbacks.delete(subscriptionId);
 
         // 如果该事件类型没有更多回调，从订阅集合中移除
         if (callbacks.size === 0) {
-          subscriptions.value.delete(eventType);
-          subscriptionCallbacks.delete(eventType);
+          subscriptions.value.delete(normalizedEventType);
+          subscriptionCallbacks.delete(normalizedEventType);
         }
       }
     } else {
       // 取消该事件类型的所有订阅（保持原有行为）
-      switch (eventType) {
-        case "server-status":
-          websocketService.off("server:status");
+      switch (normalizedEventType) {
+        case "runtime:server-status":
+          websocketService.off("runtime:server-status");
           break;
-        case "server-metrics":
-          websocketService.off("metrics:server");
+        case "runtime:server-metrics":
+          websocketService.off("runtime:server-metrics");
           break;
-        case "system-metrics":
-          websocketService.off("metrics:system");
+        case "runtime:system-metrics":
+          websocketService.off("runtime:system-metrics");
           break;
-        case "logs":
-          websocketService.off("logs:new");
+        case "runtime:process-info":
+          websocketService.off("runtime:process-info");
           break;
-        case "process:info":
-          websocketService.off("process:info");
-          break;
-        case "process:logs":
-          websocketService.off("process:logs");
+        case "runtime:process-log":
+          websocketService.off("runtime:process-log");
           break;
         default:
-          console.warn(`Unsupported event type: ${eventType}`);
+          console.warn(`Unsupported event type: ${normalizedEventType}`);
       }
-      subscriptions.value.delete(eventType);
-      subscriptionCallbacks.delete(eventType);
+      subscriptions.value.delete(normalizedEventType);
+      subscriptionCallbacks.delete(normalizedEventType);
     }
   };
 

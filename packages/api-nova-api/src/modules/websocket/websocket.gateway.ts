@@ -17,6 +17,8 @@ import { ServerHealthService } from '../servers/services/server-health.service';
 import { AlertService } from './services/alert.service';
 import { NotificationService } from './services/notification.service';
 import { WebSocketMetricsService } from './services/websocket-metrics.service';
+import { RuntimeAssetsService } from '../runtime-assets/services/runtime-assets.service';
+import { RuntimeObservabilityService } from '../runtime-observability/services/runtime-observability.service';
 
 interface ClientInfo {
   id: string;
@@ -80,6 +82,22 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
     }
   }
 
+  private removeSubscription(client: Socket, room: string) {
+    client.leave(room);
+    this.removeRoomMember(room, client.id);
+
+    const clientInfo = this.clients.get(client.id);
+    if (clientInfo) {
+      clientInfo.subscribedRooms.delete(room);
+      clientInfo.lastActivity = new Date();
+    }
+
+    client.emit('unsubscription-confirmed', {
+      room,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   private getRoomInternalSize(room: string) {
     return this.roomMembers.get(room)?.size || 0;
   }
@@ -111,6 +129,8 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
     private readonly alertService: AlertService,
     private readonly notificationService: NotificationService,
     private readonly wsMetricsService: WebSocketMetricsService,
+    private readonly runtimeAssetsService: RuntimeAssetsService,
+    private readonly runtimeObservabilityService: RuntimeObservabilityService,
   ) {}
 
   afterInit(server: Server) {
@@ -179,26 +199,24 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
     this.wsMetricsService.recordDisconnection(client.id, 'client_disconnect');
   }
 
-  /**
-   * 订阅系统指标推送
-   */
-  @SubscribeMessage('subscribe-system-metrics')
-  handleSubscribeSystemMetrics(
+  @SubscribeMessage('subscribe-runtime-overview')
+  handleSubscribeRuntimeOverview(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { interval?: number }
+    @MessageBody() data: { interval?: number } = {},
   ) {
-    const room = 'system-metrics';
+    const room = 'runtime-overview';
     client.join(room);
     this.rooms.add(room);
     this.addRoomMember(room, client.id);
+
     const clientInfo = this.clients.get(client.id);
     if (clientInfo) {
       clientInfo.subscribedRooms.add(room);
       clientInfo.lastActivity = new Date();
     }
-    this.logger.log(`Client ${client.id} subscribed system metrics`);
+
     this.wsMetricsService.recordSubscription(client.id, room);
-    this.sendSystemMetrics(client);
+    void this.sendRuntimeOverview(client);
     client.emit('subscription-confirmed', {
       room,
       interval: data.interval || 5000,
@@ -206,20 +224,23 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
     });
   }
 
-  /**
-   * 订阅服务器指标推送
-   */
-  @SubscribeMessage('subscribe-server-metrics')
-  handleSubscribeServerMetrics(
+  @SubscribeMessage('subscribe-runtime-asset')
+  async handleSubscribeRuntimeAsset(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { serverId: string; interval?: number }
+    @MessageBody() data: { serverId?: string; runtimeAssetId?: string; interval?: number },
   ) {
-    const room = `server-metrics-${data.serverId}`;
     try {
+      const runtimeAssetId =
+        data.runtimeAssetId ||
+        (data.serverId ? await this.resolveRuntimeAssetIdByServerId(data.serverId) : undefined);
+      if (!runtimeAssetId) {
+        return;
+      }
+
+      const room = `runtime-asset-${runtimeAssetId}`;
       client.join(room);
       this.rooms.add(room);
       this.addRoomMember(room, client.id);
-      this.wsMetricsService.recordSubscription(client.id, room);
 
       const clientInfo = this.clients.get(client.id);
       if (clientInfo) {
@@ -227,419 +248,64 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
         clientInfo.lastActivity = new Date();
       }
 
-      // 仅输出一次成功日志
-      this.logger.log(`Client ${client.id} subscribed server metrics ${data.serverId}`);
-
+      this.wsMetricsService.recordSubscription(client.id, room);
+      await this.sendRuntimeAssetObservability(client, runtimeAssetId);
       client.emit('subscription-confirmed', {
         room,
-        serverId: data.serverId,
+        runtimeAssetId,
         interval: data.interval || 5000,
         timestamp: new Date().toISOString(),
       });
-
-      this.sendServerMetrics(client, data.serverId);
-    } catch (e) {
-      this.logger.error('subscribe-server-metrics error', e);
+    } catch (error) {
+      this.logger.error('subscribe-runtime-asset error', error);
     }
   }
 
-  /**
-   * 订阅服务器日志推送
-   */
-  @SubscribeMessage('subscribe-server-logs')
-  handleSubscribeServerLogs(
+  @SubscribeMessage('subscribe-runtime-events')
+  async handleSubscribeRuntimeEvents(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { serverId: string; level?: string }
+    @MessageBody() data: { level?: string[]; serverId?: string; runtimeAssetId?: string } = {},
   ) {
-    const room = `server-logs-${data.serverId}`;
+    const runtimeAssetId =
+      data.runtimeAssetId ||
+      (data.serverId ? await this.resolveRuntimeAssetIdByServerId(data.serverId) : undefined);
+    const room = runtimeAssetId ? `runtime-events-${runtimeAssetId}` : 'runtime-events';
+
     client.join(room);
     this.rooms.add(room);
     this.addRoomMember(room, client.id);
-    
+
     const clientInfo = this.clients.get(client.id);
     if (clientInfo) {
       clientInfo.subscribedRooms.add(room);
       clientInfo.lastActivity = new Date();
     }
 
-    this.logger.log(`Client ${client.id} subscribed to server ${data.serverId} logs`);
-    
-    // 记录订阅指标
     this.wsMetricsService.recordSubscription(client.id, room);
-    
     client.emit('subscription-confirmed', {
       room,
-      serverId: data.serverId,
-      level: data.level || 'info',
+      runtimeAssetId,
+      level: data.level || ['info', 'warning', 'error', 'critical'],
       timestamp: new Date().toISOString(),
     });
   }
 
-  /**
-   * 订阅告警通知
-   */
-  @SubscribeMessage('subscribe-alerts')
-  handleSubscribeAlerts(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { severity?: string[] }
-  ) {
-    const room = 'alerts';
-    client.join(room);
-    this.rooms.add(room);
-    this.addRoomMember(room, client.id);
-    
-    const clientInfo = this.clients.get(client.id);
-    if (clientInfo) {
-      clientInfo.subscribedRooms.add(room);
-      clientInfo.lastActivity = new Date();
-    }
-
-    this.logger.log(`Client ${client.id} subscribed to alerts`);
-    
-    // 记录订阅指标
-    this.wsMetricsService.recordSubscription(client.id, room);
-    
-    client.emit('subscription-confirmed', {
-      room,
-      severity: data.severity || ['warning', 'error', 'critical'],
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  /**
-   * 订阅MCP连接事件
-   */
-  @SubscribeMessage('subscribe-mcp-connections')
-  handleSubscribeMCPConnections(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { serverId?: string }
-  ) {
-    const room = data.serverId ? `mcp-connections-${data.serverId}` : 'mcp-connections-all';
-    client.join(room);
-    this.rooms.add(room);
-    this.addRoomMember(room, client.id);
-    
-    const clientInfo = this.clients.get(client.id);
-    if (clientInfo) {
-      clientInfo.subscribedRooms.add(room);
-      clientInfo.lastActivity = new Date();
-    }
-
-    this.logger.log(`Client ${client.id} subscribed to MCP connections ${data.serverId || 'all'}`);
-    
-    // 记录订阅指标
-    this.wsMetricsService.recordSubscription(client.id, room);
-    
-    client.emit('subscription-confirmed', {
-      room,
-      serverId: data.serverId,
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  /**
-   * 获取MCP连接统计
-   */
-  @SubscribeMessage('get-mcp-connection-stats')
-  async handleGetMCPConnectionStats(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { serverId: string }
-  ) {
+  private async sendRuntimeOverview(client: Socket) {
     try {
-      // 这里需要从ProcessManagerService获取MCP连接统计
-      // 由于依赖注入的限制，我们通过事件发射器来获取数据
-      this.eventEmitter.emit('mcp.connection.stats.request', {
-        serverId: data.serverId,
-        clientId: client.id
-      });
+      client.emit('runtime-overview', await this.buildRuntimeOverviewPayload());
     } catch (error) {
-      this.logger.error(`Failed to get MCP connection stats for ${data.serverId}:`, error);
-      client.emit('error', {
-        message: 'Failed to get MCP connection stats',
-        error: error.message
-      });
+      this.logger.error('Failed to send runtime overview:', error);
     }
   }
 
-  /**
-   * 获取所有MCP连接统计
-   */
-  @SubscribeMessage('get-all-mcp-connection-stats')
-  async handleGetAllMCPConnectionStats(@ConnectedSocket() client: Socket) {
+  private async sendRuntimeAssetObservability(client: Socket, runtimeAssetId: string) {
     try {
-      // 通过事件发射器获取所有MCP连接统计
-      this.eventEmitter.emit('mcp.connection.stats.request.all', {
-        clientId: client.id
-      });
+      client.emit(
+        'runtime-asset-observability',
+        await this.buildRuntimeAssetPayload(runtimeAssetId),
+      );
     } catch (error) {
-      this.logger.error('Failed to get all MCP connection stats:', error);
-      client.emit('error', {
-        message: 'Failed to get all MCP connection stats',
-        error: error.message
-      });
-    }
-  }
-
-  /**
-   * 取消订阅
-   */
-  @SubscribeMessage('unsubscribe')
-  handleUnsubscribe(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() data: { room: string }
-  ) {
-    client.leave(data.room);
-    this.removeRoomMember(data.room, client.id);
-    
-    const clientInfo = this.clients.get(client.id);
-    if (clientInfo) {
-      clientInfo.subscribedRooms.delete(data.room);
-      clientInfo.lastActivity = new Date();
-    }
-
-    this.logger.log(`Client ${client.id} unsubscribed from ${data.room}`);
-    
-    // 记录取消订阅指标
-    this.wsMetricsService.recordUnsubscription(client.id, data.room);
-    
-    client.emit('unsubscription-confirmed', {
-      room: data.room,
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  /**
-   * 获取连接状态
-   */
-  @SubscribeMessage('get-connection-status')
-  handleGetConnectionStatus(@ConnectedSocket() client: Socket) {
-    const clientInfo = this.clients.get(client.id);
-    
-    client.emit('connection-status', {
-      clientId: client.id,
-      connectedAt: clientInfo?.connectedAt,
-      subscribedRooms: Array.from(clientInfo?.subscribedRooms || []),
-      lastActivity: clientInfo?.lastActivity,
-      totalClients: this.clients.size,
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  /**
-   * 处理心跳ping
-   */
-  @SubscribeMessage('ping')
-  handlePing(@ConnectedSocket() client: Socket, @MessageBody() data: { timestamp: number }) {
-    // 不再记录详细 ping 日志
-    const clientInfo = this.clients.get(client.id);
-    if (clientInfo) clientInfo.lastActivity = new Date();
-    client.emit('pong', {
-      timestamp: data.timestamp,
-      serverTime: Date.now(),
-      latency: Date.now() - data.timestamp
-    });
-  }
-
-  /**
-   * 定时推送系统指标
-   */
-  @Cron(CronExpression.EVERY_5_SECONDS)
-  async pushSystemMetrics() {
-    // 检查server和adapter是否可用
-    if (!this.server || !this.server.sockets || !this.server.sockets.adapter || !this.server.sockets.adapter.rooms) {
-      return;
-    }
-
-    if (this.server.sockets.adapter.rooms.has('system-metrics')) {
-      try {
-        const metrics = await this.serverMetrics.collectSystemMetrics();
-        this.server.to('system-metrics').emit('system-metrics-update', {
-          data: metrics,
-          timestamp: new Date().toISOString(),
-        });
-      } catch (error) {
-        this.logger.error('Failed to push system metrics:', error);
-      }
-    }
-  }
-
-  /**
-   * 定时推送服务器指标
-   */
-  @Cron(CronExpression.EVERY_10_SECONDS)
-  async pushServerMetrics() {
-    const ns = this.getNamespace();
-    for (const [room, members] of this.roomMembers.entries()) {
-      if (!room.startsWith('server-metrics-')) continue;
-      const activeMembers = Array.from(members).filter(id => ns.sockets?.get?.(id));
-      if (activeMembers.length === 0) continue;
-      const serverId = room.replace('server-metrics-', '');
-      try {
-        const metrics = await this.serverMetrics.collectServerMetrics(serverId);
-        this.emitToRoom(room, 'server-metrics-update', {
-          serverId,
-          data: metrics,
-          timestamp: new Date().toISOString(),
-        });
-      } catch (error) {
-        this.logger.error(`pushServerMetrics ${serverId} error`, error);
-      }
-    }
-  }
-
-  /**
-   * 监听服务器状态变化事件
-   */
-  @OnEvent('server.status.changed')
-  handleServerStatusChanged(payload: { serverId: string; status: string; timestamp?: Date }) {
-    const timestamp = payload.timestamp || new Date();
-    this.server.emit('server-status-changed', {
-      serverId: payload.serverId,
-      status: payload.status,
-      timestamp: timestamp.toISOString(),
-    });
-
-    // 发送到特定服务器的订阅者
-    const room = `server-metrics-${payload.serverId}`;
-    if (this.server && this.server.sockets && this.server.sockets.adapter && this.server.sockets.adapter.rooms && this.server.sockets.adapter.rooms.has(room)) {
-      this.server.to(room).emit('server-status-changed', {
-        serverId: payload.serverId,
-        status: payload.status,
-        timestamp: timestamp.toISOString(),
-      });
-    }
-  }
-
-  /**
-   * 监听服务器健康状态变化事件
-   */
-  @OnEvent('server.health.changed')
-  handleServerHealthChanged(payload: { serverId: string; healthy: boolean; error?: string; timestamp?: Date }) {
-    const timestamp = payload.timestamp || new Date();
-    this.server.emit('server-health-changed', {
-      serverId: payload.serverId,
-      healthy: payload.healthy,
-      error: payload.error,
-      timestamp: timestamp.toISOString(),
-    });
-
-    // 如果健康状态变为不健康，发送告警
-    if (!payload.healthy) {
-      this.sendAlert({
-        type: 'server-unhealthy',
-        severity: 'warning',
-        serverId: payload.serverId,
-        message: `Server ${payload.serverId} is unhealthy: ${payload.error || 'Unknown error'}`,
-        timestamp: timestamp,
-      });
-    }
-  }
-
-  /**
-   * 监听日志事件
-   */
-  @OnEvent('server.log')
-  handleServerLog(payload: { serverId: string; level: string; message: string; timestamp?: Date; source: string }) {
-    const timestamp = payload.timestamp || new Date();
-    const room = `server-logs-${payload.serverId}`;
-    if (this.server && this.server.sockets && this.server.sockets.adapter && this.server.sockets.adapter.rooms && this.server.sockets.adapter.rooms.has(room)) {
-      this.server.to(room).emit('server-log', {
-        serverId: payload.serverId,
-        level: payload.level,
-        message: payload.message,
-        source: payload.source,
-        timestamp: timestamp.toISOString(),
-      });
-    }
-
-    // 如果是错误或警告级别，发送告警
-    if (['error', 'warn', 'fatal'].includes(payload.level.toLowerCase())) {
-      this.sendAlert({
-        type: 'log-alert',
-        severity: payload.level === 'fatal' ? 'critical' : payload.level === 'error' ? 'error' : 'warning',
-        serverId: payload.serverId,
-        message: payload.message,
-        source: payload.source,
-        timestamp: timestamp,
-      });
-    }
-  }
-
-  /**
-   * 发送告警
-   */
-  private sendAlert(alert: {
-    type: string;
-    severity: string;
-    serverId?: string;
-    message: string;
-    source?: string;
-    timestamp: Date;
-  }) {
-    if (this.server && this.server.sockets && this.server.sockets.adapter && this.server.sockets.adapter.rooms && this.server.sockets.adapter.rooms.has('alerts')) {
-      this.server.to('alerts').emit('alert', {
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        type: alert.type,
-        severity: alert.severity,
-        serverId: alert.serverId,
-        message: alert.message,
-        source: alert.source,
-        timestamp: alert.timestamp.toISOString(),
-      });
-    }
-  }
-
-  /**
-   * 发送初始数据
-   */
-  private async sendInitialData(client: Socket) {
-    try {
-      // 发送系统概览
-      const systemMetrics = await this.serverMetrics.collectSystemMetrics();
-      client.emit('initial-system-metrics', {
-        data: systemMetrics,
-        timestamp: new Date().toISOString(),
-      });
-
-      // 发送连接统计
-      client.emit('connection-stats', {
-        totalClients: this.clients.size,
-        activeRooms: Array.from(this.rooms),
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      this.logger.error('Failed to send initial data:', error);
-    }
-  }
-
-  /**
-   * 发送系统指标
-   */
-  private async sendSystemMetrics(client: Socket) {
-    try {
-      const metrics = await this.serverMetrics.collectSystemMetrics();
-      client.emit('system-metrics-update', {
-        data: metrics,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      this.logger.error('Failed to send system metrics:', error);
-    }
-  }
-
-  /**
-   * 发送服务器指标
-   */
-  private async sendServerMetrics(client: Socket, serverId: string) {
-    try {
-      const metrics = await this.serverMetrics.collectServerMetrics(serverId);
-      client.emit('server-metrics-update', {
-        serverId,
-        data: metrics,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      this.logger.error(`Failed to send server metrics for ${serverId}:`, error);
+      this.logger.error(`Failed to send runtime asset observability for ${runtimeAssetId}:`, error);
     }
   }
 
@@ -647,30 +313,25 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
    * 监听进程信息变化事件
    */
   @OnEvent('process.info.updated')
-  handleProcessInfoUpdated(payload: { serverId: string; processInfo: any; timestamp?: Date }) {
-    const room = `server-metrics-${payload.serverId}`;
-    const internalSize = this.getRoomInternalSize(room);
-    
-    // 添加调试日志
+  async handleProcessInfoUpdated(payload: { serverId: string; processInfo: any; timestamp?: Date }) {
     this.logger.debug(`[handleProcessInfoUpdated] Processing event for server ${payload.serverId}`);
-    this.logger.debug(`[handleProcessInfoUpdated] Room: ${room}, clients: ${internalSize}`);
     this.logger.debug(`[handleProcessInfoUpdated] ProcessInfo data:`, {
       hasResourceMetrics: !!payload.processInfo?.resourceMetrics,
       resourceMetrics: payload.processInfo?.resourceMetrics,
-      processInfoKeys: payload.processInfo ? Object.keys(payload.processInfo) : []
+      processInfoKeys: payload.processInfo ? Object.keys(payload.processInfo) : [],
     });
-    
-    if (internalSize > 0) {
-      // 修改事件名称从 'server-metrics-update' 改为 'process:info'
-      this.emitToRoom(room, 'process:info', {
-        serverId: payload.serverId,
-        processInfo: payload.processInfo, // 确保数据结构包含 processInfo 字段
-        timestamp: (payload.timestamp || new Date()).toISOString(),
-      });
-      
-      this.logger.debug(`[handleProcessInfoUpdated] Emitted 'process:info' event to room ${room}`);
-    } else {
-      this.logger.debug(`[handleProcessInfoUpdated] No clients in room ${room}, skipping emit`);
+
+    const runtimeAssetId = await this.resolveRuntimeAssetIdByServerId(payload.serverId);
+    if (runtimeAssetId && this.getRoomInternalSize(`runtime-asset-${runtimeAssetId}`) > 0) {
+      this.emitToRoom(
+        `runtime-asset-${runtimeAssetId}`,
+        'runtime-asset-observability',
+        await this.buildRuntimeAssetPayload(runtimeAssetId, {
+          managedServerId: payload.serverId,
+          liveProcessInfo: payload.processInfo,
+          liveProcessTimestamp: (payload.timestamp || new Date()).toISOString(),
+        }),
+      );
     }
   }
 
@@ -678,70 +339,95 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
    * 监听进程日志事件
    */
   @OnEvent('process.logs.updated')
-  handleProcessLogsUpdated(payload: { serverId: string; logData: any; timestamp?: Date }) {
+  async handleProcessLogsUpdated(payload: { serverId: string; logData: any; timestamp?: Date }) {
     const timestamp = payload.timestamp || new Date();
-    const room = `server-logs-${payload.serverId}`;
-    const internalSize = this.getRoomInternalSize(room);
-    
-    // 添加调试日志
     this.logger.debug(`[handleProcessLogsUpdated] Processing log event for server ${payload.serverId}`);
-    this.logger.debug(`[handleProcessLogsUpdated] Room: ${room}, clients: ${internalSize}`);
     this.logger.debug(`[handleProcessLogsUpdated] LogData:`, {
       hasLogData: !!payload.logData,
       logDataKeys: payload.logData ? Object.keys(payload.logData) : [],
-      logDataType: typeof payload.logData
+      logDataType: typeof payload.logData,
     });
-    
-    // 检查是否为MCP连接日志
+
     if (payload.logData && payload.logData.isMCPConnectionLog) {
-      // 发送MCP连接日志到专门的房间
       const mcpRoom = `mcp-connections-${payload.serverId}`;
       const mcpAllRoom = 'mcp-connections-all';
-      
+
       const mcpLogData = {
         serverId: payload.serverId,
         connectionEvent: payload.logData.connectionEvent,
         timestamp: timestamp.toISOString(),
       };
-      
-      // 发送到特定服务器的MCP连接订阅者
+
       if (this.getRoomInternalSize(mcpRoom) > 0) {
         this.emitToRoom(mcpRoom, 'mcpConnectionLog', mcpLogData);
         this.logger.debug(`[handleProcessLogsUpdated] Emitted MCP connection log to room ${mcpRoom}`);
       }
-      
-      // 发送到所有MCP连接订阅者
+
       if (this.getRoomInternalSize(mcpAllRoom) > 0) {
         this.emitToRoom(mcpAllRoom, 'mcpConnectionLog', mcpLogData);
         this.logger.debug(`[handleProcessLogsUpdated] Emitted MCP connection log to room ${mcpAllRoom}`);
       }
     }
-    
-    if (internalSize > 0) {
-      this.emitToRoom(room, 'process:logs', {
-        serverId: payload.serverId,
-        logData: payload.logData,
-        timestamp: timestamp.toISOString(),
-      });
-      
-      this.logger.debug(`[handleProcessLogsUpdated] Emitted 'process:logs' event to room ${room}`);
-    } else {
-      this.logger.debug(`[handleProcessLogsUpdated] No clients in room ${room}, skipping emit`);
-    }
+
+    await this.emitRuntimeNativeLog(payload.serverId, {
+      level: String(payload.logData?.level || 'info'),
+      message: String(payload.logData?.message || 'Process log updated'),
+      source: String(payload.logData?.source || 'process'),
+      timestamp,
+      details: payload.logData,
+    });
   }
 
   /**
    * 设置事件监听器
    */
+  private async sendAlert(alert: {
+    type: string;
+    severity: string;
+    serverId?: string;
+    message: string;
+    source?: string;
+    timestamp: Date;
+  }) {
+    const socketContext = alert.serverId
+      ? await this.getRuntimeAssetSocketContextByServerId(alert.serverId)
+      : null;
+
+    if (this.getRoomInternalSize('runtime-alerts') > 0) {
+      this.emitToRoom('runtime-alerts', 'runtime-alert', {
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        type: alert.type,
+        severity: alert.severity,
+        runtimeAssetId: socketContext?.runtimeAssetId,
+        runtimeAssetName:
+          socketContext?.runtimeAsset?.displayName || socketContext?.runtimeAsset?.name,
+        runtimeAssetType: socketContext?.runtimeAsset?.type,
+        managedServerId: alert.serverId,
+        managedServerName: socketContext?.managedServerName,
+        message: alert.message,
+        source: alert.source,
+        timestamp: alert.timestamp.toISOString(),
+      });
+    }
+  }
+
+  private async sendInitialData(client: Socket) {
+    try {
+      await this.sendRuntimeOverview(client);
+    } catch (error) {
+      this.logger.error('Failed to send initial data:', error);
+    }
+  }
+
   private setupEventListeners() {
     // 监听系统级别的事件
     this.eventEmitter.on('system.alert', (alert) => {
-      this.sendAlert(alert);
+      void this.sendAlert(alert);
     });
 
     // 监听性能阈值告警
     this.eventEmitter.on('performance.threshold.exceeded', (data) => {
-      this.sendAlert({
+      void this.sendAlert({
         type: 'performance-threshold',
         severity: 'warning',
         serverId: data.serverId,
@@ -765,6 +451,135 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
       this.handleAllMCPConnectionStatsResponse(data);
     });
 
+  }
+
+  private async buildRuntimeOverviewPayload() {
+    return {
+      data: await this.runtimeObservabilityService.getManagementOverview({
+        days: 7,
+        limit: 20,
+      }),
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  private async buildRuntimeAssetPayload(
+    runtimeAssetId: string,
+    extras?: Record<string, unknown>,
+  ) {
+    return {
+      runtimeAssetId,
+      data: await this.runtimeAssetsService.getRuntimeAssetObservability(runtimeAssetId),
+      ...(extras || {}),
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  private async resolveRuntimeAssetIdByServerId(serverId: string) {
+    const context = await this.getRuntimeAssetSocketContextByServerId(serverId);
+    return context?.runtimeAssetId;
+  }
+
+  private async getRuntimeAssetSocketContextByServerId(serverId: string) {
+    try {
+      const runtimeAsset = await this.runtimeAssetsService.getManagedServerRuntimeAsset(serverId);
+      const observability = await this.runtimeAssetsService.getManagedServerObservability(serverId);
+      return {
+        runtimeAssetId: runtimeAsset.id,
+        runtimeAsset,
+        managedServerName:
+          observability?.normalizedObservability?.currentState?.managedServer?.name ||
+          undefined,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private async emitRuntimeNativeServerEvent(
+    serverId: string,
+    input: {
+      eventName: string;
+      status: string;
+      summary: string;
+      timestamp: Date;
+      details?: Record<string, unknown>;
+    },
+  ) {
+    const socketContext = await this.getRuntimeAssetSocketContextByServerId(serverId);
+    const runtimeAssetId = socketContext?.runtimeAssetId;
+    const payload = {
+      runtimeAssetId,
+      runtimeAssetName: socketContext?.runtimeAsset?.displayName || socketContext?.runtimeAsset?.name,
+      runtimeAssetType: socketContext?.runtimeAsset?.type,
+      managedServerId: serverId,
+      managedServerName: socketContext?.managedServerName,
+      eventName: input.eventName,
+      severity:
+        input.status === 'failed'
+          ? 'error'
+          : input.status === 'degraded'
+            ? 'warning'
+            : 'info',
+      family: input.eventName.includes('.health')
+        ? 'runtime.health'
+        : input.eventName.includes('.status')
+          ? 'runtime.lifecycle'
+          : 'runtime.control',
+      status: input.status,
+      summary: input.summary,
+      details: input.details || null,
+      timestamp: input.timestamp.toISOString(),
+    };
+
+    this.server.emit('runtime-event', payload);
+    if (runtimeAssetId) {
+      this.emitToRoom(`runtime-events-${runtimeAssetId}`, 'runtime-event', payload);
+      if (this.getRoomInternalSize(`runtime-asset-${runtimeAssetId}`) > 0) {
+        this.emitToRoom(
+          `runtime-asset-${runtimeAssetId}`,
+          'runtime-asset-observability',
+          await this.buildRuntimeAssetPayload(runtimeAssetId),
+        );
+      }
+    }
+    if (this.getRoomInternalSize('runtime-events') > 0) {
+      this.emitToRoom('runtime-events', 'runtime-event', payload);
+    }
+  }
+
+  private async emitRuntimeNativeLog(
+    serverId: string,
+    input: {
+      level: string;
+      message: string;
+      source: string;
+      timestamp: Date;
+      details?: Record<string, unknown>;
+    },
+  ) {
+    const socketContext = await this.getRuntimeAssetSocketContextByServerId(serverId);
+    const runtimeAssetId = socketContext?.runtimeAssetId;
+    const payload = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      runtimeAssetId,
+      runtimeAssetName: socketContext?.runtimeAsset?.displayName || socketContext?.runtimeAsset?.name,
+      runtimeAssetType: socketContext?.runtimeAsset?.type,
+      managedServerId: serverId,
+      managedServerName: socketContext?.managedServerName,
+      level: input.level,
+      message: input.message,
+      source: input.source,
+      details: input.details || null,
+      timestamp: input.timestamp.toISOString(),
+    };
+
+    if (this.getRoomInternalSize('runtime-events') > 0) {
+      this.emitToRoom('runtime-events', 'runtime-log', payload);
+    }
+    if (runtimeAssetId && this.getRoomInternalSize(`runtime-events-${runtimeAssetId}`) > 0) {
+      this.emitToRoom(`runtime-events-${runtimeAssetId}`, 'runtime-log', payload);
+    }
   }
 
   /**

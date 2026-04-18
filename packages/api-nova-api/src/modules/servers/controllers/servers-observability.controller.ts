@@ -32,6 +32,8 @@ import { ServerManagerService } from '../services/server-manager.service';
 import { ServerMetricsService } from '../services/server-metrics.service';
 import { ProcessResourceMonitorService } from '../services/process-resource-monitor.service';
 import { SystemLogService } from '../services/system-log.service';
+import { RuntimeAssetsService } from '../../runtime-assets/services/runtime-assets.service';
+import { RuntimeObservabilityService } from '../../runtime-observability/services/runtime-observability.service';
 
 @ApiTags('Servers')
 @Controller('v1/servers')
@@ -46,6 +48,8 @@ export class ServersObservabilityController {
     private readonly serverHealth: ServerHealthService,
     private readonly serverMetrics: ServerMetricsService,
     private readonly processResourceMonitor: ProcessResourceMonitorService,
+    private readonly runtimeAssetsService: RuntimeAssetsService,
+    private readonly runtimeObservabilityService: RuntimeObservabilityService,
   ) {}
 
   @Get('health/overview')
@@ -109,15 +113,22 @@ export class ServersObservabilityController {
   @ApiResponse({ status: 200, description: 'System logs fetched successfully', type: PaginatedSystemLogResponseDto })
   async getSystemLogs(@Query() query: SystemLogQueryDto): Promise<PaginatedSystemLogResponseDto> {
     try {
-      this.logger.log(`Querying system logs with filters: ${JSON.stringify(query)}`);
-      const queryParams = {
-        ...query,
-        startDate: query.startDate ? new Date(query.startDate) : undefined,
-        endDate: query.endDate ? new Date(query.endDate) : undefined,
-      };
-      const result = await this.systemLogService.queryLogs(queryParams);
+      const result = await this.runtimeObservabilityService.queryManagementEvents({
+        page: query.page || 1,
+        limit: query.limit || 20,
+        severity: query.level,
+      });
       return {
-        data: result.logs,
+        data: result.data.map((log: any) => ({
+          id: log.id,
+          serverId: log.runtimeAssetId || '',
+          eventType: log.eventType,
+          description: log.description,
+          level: log.level,
+          details: log.details,
+          createdAt: log.occurredAt || log.createdAt,
+          updatedAt: log.occurredAt || log.createdAt,
+        })),
         total: result.total,
         page: result.page,
         limit: result.limit,
@@ -138,7 +149,8 @@ export class ServersObservabilityController {
   @ApiResponse({ status: 200, description: 'Server health fetched successfully' })
   async getServerHealth(@Param('id') id: string) {
     try {
-      return await this.serverHealth.getServerHealth(id);
+      const observability = await this.runtimeAssetsService.getManagedServerObservability(id);
+      return observability.normalizedObservability.currentState;
     } catch (error) {
       this.logger.error(`Failed to get server health ${id}: ${error.message}`, error.stack);
       if (error.message.includes('not found')) {
@@ -156,7 +168,13 @@ export class ServersObservabilityController {
   @ApiResponse({ status: 200, description: 'Health history fetched successfully' })
   async getHealthCheckHistory(@Param('id') id: string, @Query() query: HealthCheckQueryDto) {
     try {
-      return this.serverHealth.getHealthCheckHistory(id, query.limit);
+      const observability = await this.runtimeAssetsService.getManagedServerObservability(id);
+      return observability.normalizedObservability.timeline
+        .filter(
+          (event: any) =>
+            event.family === 'runtime.health' || event.family === 'runtime.lifecycle',
+        )
+        .slice(0, query.limit || 50);
     } catch (error) {
       this.logger.error(`Failed to get health check history ${id}: ${error.message}`, error.stack);
       throw new HttpException(`Failed to get health check history: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -188,7 +206,15 @@ export class ServersObservabilityController {
   @ApiResponse({ status: 200, description: 'Server metrics fetched successfully' })
   async getServerMetrics(@Param('id') id: string, @Query() query: MetricsQueryDto) {
     try {
-      return await this.serverMetrics.getServerMetrics(id, query);
+      const observability = await this.runtimeAssetsService.getManagedServerObservability(id);
+      const metrics = Array.isArray(observability.observability?.recentMetrics)
+        ? observability.observability.recentMetrics
+        : [];
+      return {
+        runtimeAssetId: observability.runtimeAsset.id,
+        metrics: metrics.slice(0, query.limit || 100),
+        summary: observability.normalizedObservability.metricsSummary,
+      };
     } catch (error) {
       this.logger.error(`Failed to get server metrics ${id}: ${error.message}`, error.stack);
       throw new HttpException(`Failed to get server metrics: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -202,7 +228,8 @@ export class ServersObservabilityController {
   @ApiResponse({ status: 200, description: 'Server metric summary fetched successfully' })
   async getServerPerformanceSummary(@Param('id') id: string) {
     try {
-      return await this.serverMetrics.getServerPerformanceSummary(id);
+      const observability = await this.runtimeAssetsService.getManagedServerObservability(id);
+      return observability.normalizedObservability.metricsSummary;
     } catch (error) {
       this.logger.error(`Failed to get server performance summary ${id}: ${error.message}`, error.stack);
       throw new HttpException(`Failed to get server performance summary: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -216,23 +243,34 @@ export class ServersObservabilityController {
   @ApiResponse({ status: 200, description: 'Server system logs fetched successfully', type: PaginatedSystemLogResponseDto })
   async getServerSystemLogs(@Param('id') id: string, @Query() query: SystemLogQueryDto): Promise<PaginatedSystemLogResponseDto> {
     try {
-      await this.serverManager.getServerById(id);
-      this.logger.log(`Querying system logs for server ${id} with filters: ${JSON.stringify(query)}`);
-      const queryParams = {
-        ...query,
+      const observability = await this.runtimeAssetsService.getManagedServerObservability(id);
+      const logs = this.filterNormalizedSystemLogs(
+        observability.normalizedObservability.capabilities.systemLogs || [],
+        query,
+      );
+      const page = query.page || 1;
+      const limit = query.limit || 20;
+      const offset = (page - 1) * limit;
+      const data = logs.slice(offset, offset + limit).map((log: any) => ({
+        id: log.id,
         serverId: id,
-        startDate: query.startDate ? new Date(query.startDate) : undefined,
-        endDate: query.endDate ? new Date(query.endDate) : undefined,
-      };
-      const result = await this.systemLogService.queryLogs(queryParams);
+        eventType: log.eventType,
+        description: log.description,
+        level: log.level,
+        details: log.details,
+        createdAt: log.occurredAt,
+        updatedAt: log.occurredAt,
+      }));
+      const total = logs.length;
+      const totalPages = Math.max(1, Math.ceil(total / limit));
       return {
-        data: result.logs,
-        total: result.total,
-        page: result.page,
-        limit: result.limit,
-        totalPages: result.totalPages,
-        hasNext: result.page < result.totalPages,
-        hasPrev: result.page > 1,
+        data,
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
       };
     } catch (error) {
       this.logger.error(`Failed to query system logs for server ${id}: ${error.message}`, error.stack);
@@ -251,9 +289,19 @@ export class ServersObservabilityController {
   @ApiResponse({ status: 200, description: 'Latest system logs fetched successfully', type: [SystemLogResponseDto] })
   async getLatestSystemLogs(@Param('id') id: string, @Query('limit') limit?: number): Promise<SystemLogResponseDto[]> {
     try {
-      await this.serverManager.getServerById(id);
-      this.logger.log(`Getting latest system logs for server ${id}, limit: ${limit || 10}`);
-      return await this.systemLogService.getLatestLogs(id, limit || 10);
+      const observability = await this.runtimeAssetsService.getManagedServerObservability(id);
+      return (observability.normalizedObservability.capabilities.systemLogs || [])
+        .slice(0, limit || 10)
+        .map((log: any) => ({
+          id: log.id,
+          serverId: id,
+          eventType: log.eventType,
+          description: log.description,
+          level: log.level,
+          details: log.details,
+          createdAt: log.occurredAt,
+          updatedAt: log.occurredAt,
+        }));
     } catch (error) {
       this.logger.error(`Failed to get latest system logs for server ${id}: ${error.message}`, error.stack);
       if (error.message.includes('not found')) {
@@ -261,5 +309,27 @@ export class ServersObservabilityController {
       }
       throw new HttpException(`Failed to get latest system logs: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+  }
+
+  private filterNormalizedSystemLogs(logs: any[], query: SystemLogQueryDto) {
+    const startDate = query.startDate ? new Date(query.startDate).getTime() : null;
+    const endDate = query.endDate ? new Date(query.endDate).getTime() : null;
+
+    return logs.filter(log => {
+      const occurredAt = new Date(log.occurredAt || 0).getTime();
+      if (query.eventType && log.eventType !== query.eventType) {
+        return false;
+      }
+      if (query.level && log.level !== query.level) {
+        return false;
+      }
+      if (startDate && occurredAt < startDate) {
+        return false;
+      }
+      if (endDate && occurredAt > endDate) {
+        return false;
+      }
+      return true;
+    });
   }
 }
