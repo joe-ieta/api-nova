@@ -78,6 +78,16 @@
         </div>
       </div>
 
+      <OperationTimeline
+        :entries="operationTimelineEntries"
+        v-model:visible="operationTimelineVisible"
+        v-model:expanded="operationTimelineExpanded"
+        :title="t('openapi.operationFeed.title')"
+        :subtitle="t('openapi.operationFeed.subtitle')"
+        :labels="operationTimelineLabels"
+        @clear="clearOperationTimeline"
+      />
+
       <!-- 涓昏鍐呭鍖哄煙 -->
       <div class="manager-content">
         <el-row :gutter="24" style="height: calc(100vh - 80px)">
@@ -939,6 +949,7 @@ import {
 import type { UploadFile, FormInstance } from "element-plus";
 import MonacoEditor from "../../shared/components/monaco/MonacoEditor.vue";
 import DocumentStatusProgress from "../../components/DocumentStatusProgress.vue";
+import OperationTimeline from "../../shared/components/ui/OperationTimeline.vue";
 
 import MCPToolPreview from "./components/openapi/MCPToolPreview.vue";
 import type { OpenAPISpec, ValidationResult, MCPTool } from "../../types";
@@ -960,6 +971,7 @@ import { openApiAPI, serverAPI } from "../../services/api";
 import { useConfirmation } from "../../composables/useConfirmation";
 import { useFormValidation } from "../../composables/useFormValidation";
 import { usePerformanceMonitor } from "../../composables/usePerformance";
+import { useOperationTimeline } from "../../composables/useOperationTimeline";
 
 // 鍥介檯鍖?
 const { t } = useI18n();
@@ -978,6 +990,13 @@ const {
 
 const { startMonitoring, stopMonitoring, measureFunction } =
   usePerformanceMonitor();
+const {
+  entries: operationTimelineEntries,
+  visible: operationTimelineVisible,
+  expanded: operationTimelineExpanded,
+  addEntry: addOperationTimelineEntry,
+  clearEntries: clearOperationTimeline,
+} = useOperationTimeline(12);
 
 // 鍝嶅簲寮忔暟鎹?
 const specsLoading = ref(false);
@@ -1046,6 +1065,40 @@ const editForm = ref({
   name: "",
   description: "",
 });
+
+const operationTimelineLabels = computed(() => ({
+  clear: t("openapi.operationFeed.clear"),
+  hide: t("openapi.operationFeed.hide"),
+  restore: t("openapi.operationFeed.restore"),
+  showAll: t("openapi.operationFeed.showAll"),
+  showLatest: t("openapi.operationFeed.showLatest"),
+  showDetails: t("openapi.operationFeed.showDetails"),
+  hideDetails: t("openapi.operationFeed.hideDetails"),
+  empty: t("openapi.operationFeed.empty"),
+  levels: {
+    success: t("openapi.operationFeed.levels.success"),
+    warning: t("openapi.operationFeed.levels.warning"),
+    error: t("openapi.operationFeed.levels.error"),
+    info: t("openapi.operationFeed.levels.info"),
+  },
+}));
+
+const formatOperationError = (error: unknown) => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof (error as any).response?.data?.message === "string"
+  ) {
+    return (error as any).response.data.message;
+  }
+
+  return t("common.unknownError");
+};
 
 // 琛ㄥ崟楠岃瘉瑙勫垯
 const createFormRules = {
@@ -1691,6 +1744,16 @@ const saveDocumentContent = async () => {
     selectedDocument.value = updatedDoc;
 
     ElMessage.success(t("openapi.saveSuccess"));
+    addOperationTimelineEntry({
+      level: "success",
+      title: t("openapi.saveSuccess"),
+      summary: updatedDoc.name,
+      details: [
+        `Document: ${updatedDoc.name}`,
+        `Status: ${updatedDoc.status}`,
+        `Updated At: ${updatedDoc.updatedAt}`,
+      ].join("\n"),
+    });
   } catch (error: any) {
     console.error("淇濆瓨鏂囨。鍐呭澶辫触:", error);
 
@@ -1716,6 +1779,16 @@ const saveDocumentContent = async () => {
       }
 
       ElMessage.error(errorMessage);
+      addOperationTimelineEntry({
+        level: "error",
+        title: t("openapi.saveFailed", { error: "" }).replace(/:\s*$/, ""),
+        summary: errorMessage,
+        details: [
+          `Document: ${selectedDocument.value?.name || "unknown"}`,
+          `HTTP Status: ${error.response?.status || "unknown"}`,
+          `Message: ${errorMessage}`,
+        ].join("\n"),
+      });
     } else {
       // 鍏朵粬閿欒浣跨敤鍘熸湁閫昏緫
       ElMessage.error(
@@ -1724,6 +1797,15 @@ const saveDocumentContent = async () => {
             error instanceof Error ? error.message : t("common.unknownError"),
         }),
       );
+      addOperationTimelineEntry({
+        level: "error",
+        title: t("openapi.saveFailed", { error: "" }).replace(/:\s*$/, ""),
+        summary: formatOperationError(error),
+        details: [
+          `Document: ${selectedDocument.value?.name || "unknown"}`,
+          `Message: ${formatOperationError(error)}`,
+        ].join("\n"),
+      });
     }
   } finally {
     saving.value = false;
@@ -1795,7 +1877,8 @@ const validateSpec = async () => {
 
     // 鏄剧ず楠岃瘉缁撴灉娑堟伅
     if (result.valid) {
-      const warningCount = result.warnings?.length || 0;
+      const warnings = result.warnings || [];
+      const warningCount = warnings.length;
       const apiCount = parsedApis.value.length;
       if (warningCount > 0) {
         ElMessage.success(
@@ -1807,9 +1890,31 @@ const validateSpec = async () => {
       } else {
         ElMessage.success(t("openapi.validationSuccessDetail", { apiCount }));
       }
+      addOperationTimelineEntry({
+        level: warningCount > 0 ? "warning" : "success",
+        title: t("openapi.validateSpec"),
+        summary:
+          warningCount > 0
+            ? t("openapi.validationSuccessWithWarnings", {
+                apiCount,
+                warningCount,
+              })
+            : t("openapi.validationSuccessDetail", { apiCount }),
+        details: [
+          `Document: ${selectedDocument.value?.name || "unknown"}`,
+          `Valid: true`,
+          `API Count: ${apiCount}`,
+          `Warning Count: ${warningCount}`,
+          warningCount > 0 ? `Warnings:\n${warnings.join("\n")}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      });
     } else {
-      const errorCount = result.errors?.length || 0;
-      const warningCount = result.warnings?.length || 0;
+      const errors = result.errors || [];
+      const warnings = result.warnings || [];
+      const errorCount = errors.length;
+      const warningCount = warnings.length;
       if (warningCount > 0) {
         ElMessage.error(
           t("openapi.validationFailedWithWarnings", {
@@ -1823,6 +1928,27 @@ const validateSpec = async () => {
 
       // 濡傛灉鏈夐獙璇侀敊璇紝鍒囨崲鍒扮紪杈戝櫒鏍囩椤垫樉绀洪敊璇俊鎭?
       activeTab.value = "editor";
+      addOperationTimelineEntry({
+        level: "error",
+        title: t("openapi.validateSpec"),
+        summary:
+          warningCount > 0
+            ? t("openapi.validationFailedWithWarnings", {
+                errorCount,
+                warningCount,
+              })
+            : t("openapi.validationFailedDetail", { errorCount }),
+        details: [
+          `Document: ${selectedDocument.value?.name || "unknown"}`,
+          `Valid: false`,
+          `Error Count: ${errorCount}`,
+          `Warning Count: ${warningCount}`,
+          errorCount > 0 ? `Errors:\n${errors.join("\n")}` : "",
+          warningCount > 0 ? `Warnings:\n${warnings.join("\n")}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      });
     }
   } catch (error) {
     console.error("楠岃瘉澶辫触:", error);
@@ -1831,6 +1957,17 @@ const validateSpec = async () => {
         error: error instanceof Error ? error.message : String(error),
       }),
     );
+    addOperationTimelineEntry({
+      level: "error",
+      title: t("openapi.validateSpec"),
+      summary: t("openapi.validationError", {
+        error: error instanceof Error ? error.message : String(error),
+      }),
+      details: [
+        `Document: ${selectedDocument.value?.name || "unknown"}`,
+        `Message: ${formatOperationError(error)}`,
+      ].join("\n"),
+    });
     validationResults.value = null;
     parsedApis.value = [];
     if (selectedDocument.value) {
@@ -1887,6 +2024,16 @@ const createNewSpec = async () => {
     };
 
     ElMessage.success(t("openapi.createSuccess"));
+    addOperationTimelineEntry({
+      level: "success",
+      title: t("openapi.createSuccess"),
+      summary: newDoc.name,
+      details: [
+        `Document: ${newDoc.name}`,
+        `Version: ${newDoc.version || "unknown"}`,
+        `Status: ${newDoc.status}`,
+      ].join("\n"),
+    });
   } catch (error) {
     console.error("鍒涘缓鏂囨。澶辫触:", error);
     ElMessage.error(
@@ -1895,6 +2042,12 @@ const createNewSpec = async () => {
           error instanceof Error ? error.message : t("common.unknownError"),
       }),
     );
+    addOperationTimelineEntry({
+      level: "error",
+      title: t("openapi.createFailed", { error: "" }).replace(/:\s*$/, ""),
+      summary: formatOperationError(error),
+      details: `Message: ${formatOperationError(error)}`,
+    });
   } finally {
     creating.value = false;
   }
@@ -2010,6 +2163,16 @@ const confirmUpload = async () => {
     handleUploadDialogClose();
 
     ElMessage.success(t("openapi.uploadSuccessValidate"));
+    addOperationTimelineEntry({
+      level: "success",
+      title: t("openapi.uploadSuccessValidate"),
+      summary: newDoc.name,
+      details: [
+        `Document: ${newDoc.name}`,
+        `Status: ${newDoc.status}`,
+        `Source File: ${uploadFile.value?.name || "unknown"}`,
+      ].join("\n"),
+    });
   } catch (error) {
     console.error("涓婁紶鏂囨。澶辫触:", error);
     ElMessage.error(
@@ -2017,6 +2180,15 @@ const confirmUpload = async () => {
         error: error instanceof Error ? error.message : String(error),
       }),
     );
+    addOperationTimelineEntry({
+      level: "error",
+      title: t("openapi.uploadFailed", { error: "" }).replace(/:\s*$/, ""),
+      summary: formatOperationError(error),
+      details: [
+        `File: ${uploadFile.value?.name || "unknown"}`,
+        `Message: ${formatOperationError(error)}`,
+      ].join("\n"),
+    });
   } finally {
     uploading.value = false;
   }
@@ -2070,6 +2242,22 @@ const convertToMCP = async () => {
     ElMessage.success(
       t("openapi.convertSuccess", { count: mcpTools.value.length }),
     );
+    addOperationTimelineEntry({
+      level: "success",
+      title: t("openapi.convertToMcp"),
+      summary: t("openapi.convertSuccess", { count: mcpTools.value.length }),
+      details: [
+        `Document: ${selectedDocument.value?.name || "unknown"}`,
+        `Tool Count: ${mcpTools.value.length}`,
+        mcpTools.value.length > 0
+          ? `Tools:\n${mcpTools.value
+              .map((tool: any) => tool.name || tool.id || "unknown")
+              .join("\n")}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
   } catch (error) {
     console.error("Converting to MCP failed:", error);
     ElMessage.error(
@@ -2077,6 +2265,15 @@ const convertToMCP = async () => {
         error: error instanceof Error ? error.message : String(error),
       }),
     );
+    addOperationTimelineEntry({
+      level: "error",
+      title: t("openapi.convertToMcp"),
+      summary: formatOperationError(error),
+      details: [
+        `Document: ${selectedDocument.value?.name || "unknown"}`,
+        `Message: ${formatOperationError(error)}`,
+      ].join("\n"),
+    });
   } finally {
     converting.value = false;
   }
@@ -2093,6 +2290,7 @@ const importFromUrl = async () => {
   try {
     await urlFormRef.value.validate();
     importing.value = true;
+    const sourceUrl = urlForm.value.url;
 
     const authHeaders: Record<string, string> = {};
     if (urlForm.value.authType === "bearer" && urlForm.value.token) {
@@ -2163,6 +2361,17 @@ const importFromUrl = async () => {
     showUrlDialog.value = false;
 
     ElMessage.success(t("openapi.importSuccessValidate"));
+    addOperationTimelineEntry({
+      level: "success",
+      title: t("openapi.importSuccessValidate"),
+      summary: newDoc.name,
+      details: [
+        `Document: ${newDoc.name}`,
+        `Source URL: ${sourceUrl}`,
+        `Version: ${newDoc.version || "unknown"}`,
+        `Status: ${newDoc.status}`,
+      ].join("\n"),
+    });
   } catch (error) {
     console.error("Importing document from URL failed:", error);
     ElMessage.error(
@@ -2170,6 +2379,15 @@ const importFromUrl = async () => {
         error: error instanceof Error ? error.message : String(error),
       }),
     );
+    addOperationTimelineEntry({
+      level: "error",
+      title: t("openapi.importFailed", { error: "" }).replace(/:\s*$/, ""),
+      summary: formatOperationError(error),
+      details: [
+        `URL: ${urlForm.value.url || "unknown"}`,
+        `Message: ${formatOperationError(error)}`,
+      ].join("\n"),
+    });
   } finally {
     importing.value = false;
   }

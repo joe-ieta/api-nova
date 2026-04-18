@@ -70,6 +70,16 @@
       </el-page-header>
     </div>
 
+    <OperationTimeline
+      :entries="operationTimelineEntries"
+      v-model:visible="operationTimelineVisible"
+      v-model:expanded="operationTimelineExpanded"
+      :title="t('servers.operationTimeline.title')"
+      :subtitle="t('servers.operationTimeline.subtitle')"
+      :labels="operationTimelineLabels"
+      @clear="clearOperationTimeline"
+    />
+
     <!-- 主要内容区域 -->
     <div class="detail-content" v-loading="loading">
       <el-card v-if="serverInfo" class="tabs-container">
@@ -839,9 +849,11 @@ import { useServerStore } from "@/stores/server";
 import { useWebSocketStore } from "@/stores/websocket";
 import { serverAPI } from "@/services/api";
 import { mcpApiService } from "@/services/mcpApi";
+import { useOperationTimeline } from "@/composables/useOperationTimeline";
 import ServerFormDialog from "./components/ServerFormDialog.vue";
 import ToolDetailDialog from "@/modules/testing/components/ToolDetailDialog.vue";
 import MCPToolPreview from "@/modules/openapi/components/openapi/MCPToolPreview.vue";
+import OperationTimeline from "@/shared/components/ui/OperationTimeline.vue";
 
 // 路由和状态
 const route = useRoute();
@@ -849,6 +861,13 @@ const router = useRouter();
 const { t } = useI18n();
 const serverStore = useServerStore();
 const websocketStore = useWebSocketStore();
+const {
+  entries: operationTimelineEntries,
+  visible: operationTimelineVisible,
+  expanded: operationTimelineExpanded,
+  addEntry: addOperationTimelineEntry,
+  clearEntries: clearOperationTimeline,
+} = useOperationTimeline(12);
 
 // 响应式数据
 const loading = ref(true);
@@ -924,6 +943,40 @@ const customHeadersArray = computed(() => {
     ([key, value]) => ({ key, value }),
   );
 });
+
+const operationTimelineLabels = computed(() => ({
+  clear: t("servers.operationTimeline.clear"),
+  hide: t("servers.operationTimeline.hide"),
+  restore: t("servers.operationTimeline.restore"),
+  showAll: t("servers.operationTimeline.showAll"),
+  showLatest: t("servers.operationTimeline.showLatest"),
+  showDetails: t("servers.operationTimeline.showDetails"),
+  hideDetails: t("servers.operationTimeline.hideDetails"),
+  empty: t("servers.operationTimeline.empty"),
+  levels: {
+    success: t("servers.operationTimeline.levels.success"),
+    warning: t("servers.operationTimeline.levels.warning"),
+    error: t("servers.operationTimeline.levels.error"),
+    info: t("servers.operationTimeline.levels.info"),
+  },
+}));
+
+const formatOperationError = (error: unknown) => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof (error as any).response?.data?.message === "string"
+  ) {
+    return (error as any).response.data.message;
+  }
+
+  return t("common.unknownError");
+};
 
 
 
@@ -1261,9 +1314,28 @@ const refreshLogs = async () => {
         logs.value = [];
         logStats.value = { error: 0, warn: 0, info: 0, debug: 0 };
         ElMessage.warning(t("servers.logsPermissionDenied"));
+        addOperationTimelineEntry({
+          level: "warning",
+          title: t("servers.systemLogs"),
+          summary: t("servers.logsPermissionDenied"),
+          details: [
+            `Server: ${serverInfo.value?.name || serverId.value}`,
+            `HTTP Status: 403`,
+            `Permission: monitoring:read`,
+          ].join("\n"),
+        });
         return;
       }
       ElMessage.error(errorInfo?.message || t("servers.refreshLogsFailed"));
+      addOperationTimelineEntry({
+        level: "error",
+        title: t("servers.systemLogs"),
+        summary: errorInfo?.message || t("servers.refreshLogsFailed"),
+        details: [
+          `Server: ${serverInfo.value?.name || serverId.value}`,
+          `Message: ${errorInfo?.message || t("servers.refreshLogsFailed")}`,
+        ].join("\n"),
+      });
       return;
     }
 
@@ -1292,6 +1364,15 @@ const refreshLogs = async () => {
       };
       
       ElMessage.success(t("servers.logsRefreshed"));
+      addOperationTimelineEntry({
+        level: "success",
+        title: t("servers.systemLogs"),
+        summary: t("servers.logsRefreshed"),
+        details: [
+          `Server: ${serverInfo.value?.name || serverId.value}`,
+          `Log Count: ${logs.value.length}`,
+        ].join("\n"),
+      });
     } else {
       logsPermissionDenied.value = false;
       logs.value = [];
@@ -1300,6 +1381,15 @@ const refreshLogs = async () => {
   } catch (error) {
     console.error("Failed to refresh system logs:", error);
     ElMessage.error(t("servers.refreshLogsFailed"));
+    addOperationTimelineEntry({
+      level: "error",
+      title: t("servers.systemLogs"),
+      summary: t("servers.refreshLogsFailed"),
+      details: [
+        `Server: ${serverInfo.value?.name || serverId.value}`,
+        `Message: ${formatOperationError(error)}`,
+      ].join("\n"),
+    });
   }
 };
 
@@ -1644,8 +1734,25 @@ const startServer = async () => {
       throw new Error(serverStore.error || t("servers.startServerFailed", { error: "" }));
     }
     ElMessage.success(t("servers.serverStartSuccess"));
+    addOperationTimelineEntry({
+      level: "success",
+      title: t("servers.startServer"),
+      summary: t("servers.serverStartSuccess"),
+      details: `Server: ${serverInfo.value?.name || serverId.value}`,
+    });
   } catch (error) {
     ElMessage.error(t("servers.startServerFailed", { error }));
+    addOperationTimelineEntry({
+      level: "error",
+      title: t("servers.startServer"),
+      summary: t("servers.startServerFailed", {
+        error: formatOperationError(error),
+      }),
+      details: [
+        `Server: ${serverInfo.value?.name || serverId.value}`,
+        `Message: ${formatOperationError(error)}`,
+      ].join("\n"),
+    });
   } finally {
     actionLoading.value = false;
   }
@@ -1659,8 +1766,25 @@ const stopServer = async () => {
       throw new Error(serverStore.error || t("servers.stopServerFailed", { error: "" }));
     }
     ElMessage.success(t("servers.serverStopSuccess"));
+    addOperationTimelineEntry({
+      level: "success",
+      title: t("servers.stopServer"),
+      summary: t("servers.serverStopSuccess"),
+      details: `Server: ${serverInfo.value?.name || serverId.value}`,
+    });
   } catch (error) {
     ElMessage.error(t("servers.stopServerFailed", { error }));
+    addOperationTimelineEntry({
+      level: "error",
+      title: t("servers.stopServer"),
+      summary: t("servers.stopServerFailed", {
+        error: formatOperationError(error),
+      }),
+      details: [
+        `Server: ${serverInfo.value?.name || serverId.value}`,
+        `Message: ${formatOperationError(error)}`,
+      ].join("\n"),
+    });
   } finally {
     actionLoading.value = false;
   }
@@ -1674,8 +1798,25 @@ const restartServer = async () => {
       throw new Error(serverStore.error || t("servers.restartServerFailed", { error: "" }));
     }
     ElMessage.success(t("servers.serverRestartSuccess"));
+    addOperationTimelineEntry({
+      level: "success",
+      title: t("servers.restartServer"),
+      summary: t("servers.serverRestartSuccess"),
+      details: `Server: ${serverInfo.value?.name || serverId.value}`,
+    });
   } catch (error) {
     ElMessage.error(t("servers.restartServerFailed", { error }));
+    addOperationTimelineEntry({
+      level: "error",
+      title: t("servers.restartServer"),
+      summary: t("servers.restartServerFailed", {
+        error: formatOperationError(error),
+      }),
+      details: [
+        `Server: ${serverInfo.value?.name || serverId.value}`,
+        `Message: ${formatOperationError(error)}`,
+      ].join("\n"),
+    });
   } finally {
     actionLoading.value = false;
   }
@@ -1686,9 +1827,26 @@ const deleteServer = async () => {
   try {
     await serverStore.deleteServer(serverId.value);
     ElMessage.success(t("servers.serverDeleteSuccess"));
+    addOperationTimelineEntry({
+      level: "success",
+      title: t("servers.deleteServer"),
+      summary: t("servers.serverDeleteSuccess"),
+      details: `Server: ${serverInfo.value?.name || serverId.value}`,
+    });
     router.push("/servers");
   } catch (error) {
     ElMessage.error(t("servers.deleteServerFailed", { error }));
+    addOperationTimelineEntry({
+      level: "error",
+      title: t("servers.deleteServer"),
+      summary: t("servers.deleteServerFailed", {
+        error: formatOperationError(error),
+      }),
+      details: [
+        `Server: ${serverInfo.value?.name || serverId.value}`,
+        `Message: ${formatOperationError(error)}`,
+      ].join("\n"),
+    });
   } finally {
     deleteLoading.value = false;
     showDeleteConfirm.value = false;

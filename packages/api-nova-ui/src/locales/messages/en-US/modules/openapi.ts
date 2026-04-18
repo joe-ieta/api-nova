@@ -311,6 +311,7 @@ export default {
       readinessBlocked: "Publish readiness: blocked ({reasons})",
       readinessBlockedImported:
         "Publish readiness: blocked for the imported service record ({reasons})",
+      readinessBlockedBrief: "Publish readiness: blocked",
       readinessFailed: "Readiness check failed",
       unknownReason: "unknown reason",
       confirmPublishTitle: "Confirm Publish",
@@ -329,6 +330,25 @@ export default {
       offlineSuccessImported:
         "Imported service record set to offline",
       offlineFailed: "Set offline failed",
+    },
+    operationFeed: {
+      title: "Operation Timeline",
+      subtitle:
+        "Detailed results stay here so transient toasts can remain short and unobtrusive.",
+      clear: "Clear",
+      hide: "Hide",
+      restore: "Show operation timeline",
+      showAll: "Show all",
+      showLatest: "Show latest",
+      showDetails: "View details",
+      hideDetails: "Hide details",
+      empty: "No operation records",
+      levels: {
+        success: "Success",
+        warning: "Warning",
+        error: "Error",
+        info: "Info",
+      },
     },
   },
 };

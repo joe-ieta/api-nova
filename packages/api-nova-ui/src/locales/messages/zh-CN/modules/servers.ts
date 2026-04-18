@@ -197,5 +197,23 @@ export default {
       serverRestarted: "服务已重启",
       serverEdited: "服务已编辑",
     },
+    operationTimeline: {
+      title: "操作时间线",
+      subtitle: "详细结果驻留在这里，顶部提示只保留简短成功或失败状态。",
+      clear: "清空",
+      hide: "隐藏",
+      restore: "显示操作时间线",
+      showAll: "显示全部",
+      showLatest: "仅看最新",
+      showDetails: "查看详情",
+      hideDetails: "收起详情",
+      empty: "暂无操作记录",
+      levels: {
+        success: "成功",
+        warning: "警告",
+        error: "失败",
+        info: "信息",
+      },
+    },
   },
 };

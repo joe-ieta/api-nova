@@ -59,6 +59,15 @@
       :closable="false"
       class="mb-12"
     />
+    <OperationTimeline
+      v-model:visible="operationFeedVisible"
+      v-model:expanded="operationFeedExpanded"
+      :entries="operationFeed"
+      :title="t('endpointRegistry.operationFeed.title')"
+      :subtitle="t('endpointRegistry.operationFeed.subtitle')"
+      :labels="operationFeedLabels"
+      @clear="clearOperationFeed"
+    />
     <el-empty
       v-if="!loading && filteredGroups.length === 0"
       :description="t('endpointRegistry.empty')"
@@ -336,6 +345,8 @@ import {
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import { serverAPI } from "@/services/api";
+import { useOperationTimeline } from "@/composables/useOperationTimeline";
+import OperationTimeline from "@/shared/components/ui/OperationTimeline.vue";
 
 const { t } = useI18n();
 const route = useRoute();
@@ -395,6 +406,13 @@ const rows = ref<EndpointRow[]>([]);
 const expandedGroupKeys = ref<string[]>([]);
 const selectedSourceType = ref<"all" | "manual" | "imported">("all");
 const actionLoading = ref<Record<string, string>>({});
+const {
+  entries: operationFeed,
+  visible: operationFeedVisible,
+  expanded: operationFeedExpanded,
+  addEntry: pushOperationFeedEntry,
+  clearEntries: clearOperationFeed,
+} = useOperationTimeline(12);
 const showCreateDialog = ref(false);
 const creating = ref(false);
 type FormMode = "create" | "edit-manual" | "edit-imported";
@@ -413,6 +431,20 @@ const createForm = ref({
   riskLevel: "medium",
   probeUrl: "",
 });
+
+const operationFeedLabels = computed(() => ({
+  clear: t("endpointRegistry.operationFeed.clear"),
+  hide: t("endpointRegistry.operationFeed.hide"),
+  restore: t("endpointRegistry.operationFeed.restore"),
+  collapse: t("endpointRegistry.operationFeed.collapse"),
+  expand: t("endpointRegistry.operationFeed.expand"),
+  levels: {
+    success: t("endpointRegistry.operationFeed.levels.success"),
+    warning: t("endpointRegistry.operationFeed.levels.warning"),
+    error: t("endpointRegistry.operationFeed.levels.error"),
+    info: t("endpointRegistry.operationFeed.levels.info"),
+  },
+}));
 
 const isImportedGovernanceEdit = computed(() => formMode.value === "edit-imported");
 const isEditMode = computed(() => formMode.value !== "create");
@@ -1019,22 +1051,55 @@ const handleDelete = async (row: EndpointRow) => {
 const handleProbe = async (row: EndpointRow) => {
   try {
     setActionLoading(row.id, "probe");
-    const result = await serverAPI.probeApiCenterEndpoint(row.serverId);
+    const result = await serverAPI.probeApiCenterEndpoint(row.serverId, {
+      path: row.endpointPath,
+    });
     const probeStatus = result?.probe?.status || "unknown";
     const feedback = withGovernanceScopeHint(
       formatProbeFeedback(result),
       row,
       probeStatus,
     );
+    pushOperationFeedEntry({
+      level:
+        probeStatus === "healthy"
+          ? "success"
+          : probeStatus === "unknown"
+            ? "info"
+            : "error",
+      title: `${t("endpointRegistry.actions.probe")} · ${row.methodPath}`,
+      summary: t("endpointRegistry.messages.probeFinished", {
+        status: getProbeLabel(probeStatus),
+      }),
+      details: feedback,
+    });
     if (probeStatus === "healthy") {
-      ElMessage.success(feedback);
+      ElMessage.success(
+        t("endpointRegistry.messages.probeFinished", {
+          status: getProbeLabel(probeStatus),
+        }),
+      );
     } else if (probeStatus === "unknown") {
-      ElMessage.warning(feedback);
+      ElMessage.warning(
+        t("endpointRegistry.messages.probeFinished", {
+          status: getProbeLabel(probeStatus),
+        }),
+      );
     } else {
-      ElMessage.error(feedback);
+      ElMessage.error(
+        t("endpointRegistry.messages.probeFinished", {
+          status: getProbeLabel(probeStatus),
+        }),
+      );
     }
     await loadOverview();
   } catch (error: any) {
+    pushOperationFeedEntry({
+      level: "error",
+      title: `${t("endpointRegistry.actions.probe")} · ${row.methodPath}`,
+      summary: t("endpointRegistry.messages.probeFailed"),
+      details: error?.message || t("endpointRegistry.messages.probeFailed"),
+    });
     ElMessage.error(error?.message || t("endpointRegistry.messages.probeFailed"));
   } finally {
     setActionLoading(row.id, "");
@@ -1046,6 +1111,15 @@ const handleReadiness = async (row: EndpointRow) => {
     setActionLoading(row.id, "readiness");
     const result = await serverAPI.getApiCenterPublishReadiness(row.serverId);
     if (result.ready) {
+      pushOperationFeedEntry({
+        level: "success",
+        title: `${t("endpointRegistry.actions.readiness")} · ${row.methodPath}`,
+        summary: t(
+          row.sourceType === "imported"
+            ? "endpointRegistry.messages.readinessReadyImported"
+            : "endpointRegistry.messages.readinessReady",
+        ),
+      });
       ElMessage.success(
         t(
           row.sourceType === "imported"
@@ -1055,17 +1129,22 @@ const handleReadiness = async (row: EndpointRow) => {
       );
       return;
     }
+    pushOperationFeedEntry({
+      level: "warning",
+      title: `${t("endpointRegistry.actions.readiness")} · ${row.methodPath}`,
+      summary: t("endpointRegistry.messages.readinessBlockedBrief"),
+      details: (result.reasons || []).join("; ") || t("endpointRegistry.messages.unknownReason"),
+    });
     ElMessage.warning(
-      t(
-        row.sourceType === "imported"
-          ? "endpointRegistry.messages.readinessBlockedImported"
-          : "endpointRegistry.messages.readinessBlocked",
-        {
-        reasons: (result.reasons || []).join("; ") || t("endpointRegistry.messages.unknownReason"),
-        },
-      ),
+      t("endpointRegistry.messages.readinessBlockedBrief"),
     );
   } catch (error: any) {
+    pushOperationFeedEntry({
+      level: "error",
+      title: `${t("endpointRegistry.actions.readiness")} · ${row.methodPath}`,
+      summary: t("endpointRegistry.messages.readinessFailed"),
+      details: error?.message || t("endpointRegistry.messages.readinessFailed"),
+    });
     ElMessage.error(
       error?.message || t("endpointRegistry.messages.readinessFailed"),
     );
@@ -1088,6 +1167,19 @@ const handlePublish = async (row: EndpointRow) => {
     );
     setActionLoading(row.id, "publish");
     await serverAPI.changeApiCenterLifecycleState(row.serverId, { action: "publish" });
+    pushOperationFeedEntry({
+      level: "success",
+      title: `${t("endpointRegistry.actions.publish")} · ${row.methodPath}`,
+      summary: t(
+        row.sourceType === "imported"
+          ? "endpointRegistry.messages.publishSuccessImported"
+          : "endpointRegistry.messages.publishSuccess",
+      ),
+      details:
+        row.sourceType === "imported"
+          ? t("endpointRegistry.messages.importedScopeSuffix")
+          : undefined,
+    });
     ElMessage.success(
       t(
         row.sourceType === "imported"
@@ -1098,6 +1190,12 @@ const handlePublish = async (row: EndpointRow) => {
     await loadOverview();
   } catch (error: any) {
     if (error === "cancel" || error === "close") return;
+    pushOperationFeedEntry({
+      level: "error",
+      title: `${t("endpointRegistry.actions.publish")} · ${row.methodPath}`,
+      summary: t("endpointRegistry.messages.publishFailed"),
+      details: error?.message || t("endpointRegistry.messages.publishFailed"),
+    });
     ElMessage.error(error?.message || t("endpointRegistry.messages.publishFailed"));
   } finally {
     setActionLoading(row.id, "");
@@ -1118,6 +1216,19 @@ const handleOffline = async (row: EndpointRow) => {
     );
     setActionLoading(row.id, "offline");
     await serverAPI.changeApiCenterLifecycleState(row.serverId, { action: "offline" });
+    pushOperationFeedEntry({
+      level: "success",
+      title: `${t("endpointRegistry.actions.offline")} · ${row.methodPath}`,
+      summary: t(
+        row.sourceType === "imported"
+          ? "endpointRegistry.messages.offlineSuccessImported"
+          : "endpointRegistry.messages.offlineSuccess",
+      ),
+      details:
+        row.sourceType === "imported"
+          ? t("endpointRegistry.messages.importedScopeSuffix")
+          : undefined,
+    });
     ElMessage.success(
       t(
         row.sourceType === "imported"
@@ -1128,6 +1239,12 @@ const handleOffline = async (row: EndpointRow) => {
     await loadOverview();
   } catch (error: any) {
     if (error === "cancel" || error === "close") return;
+    pushOperationFeedEntry({
+      level: "error",
+      title: `${t("endpointRegistry.actions.offline")} · ${row.methodPath}`,
+      summary: t("endpointRegistry.messages.offlineFailed"),
+      details: error?.message || t("endpointRegistry.messages.offlineFailed"),
+    });
     ElMessage.error(error?.message || t("endpointRegistry.messages.offlineFailed"));
   } finally {
     setActionLoading(row.id, "");

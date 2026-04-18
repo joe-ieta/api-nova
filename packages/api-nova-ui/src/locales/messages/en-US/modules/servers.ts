@@ -200,5 +200,24 @@ export default {
       serverRestarted: "Server Restarted",
       serverEdited: "Server Edited",
     },
+    operationTimeline: {
+      title: "Operation Timeline",
+      subtitle:
+        "Detailed results stay here so toast messages can remain short.",
+      clear: "Clear",
+      hide: "Hide",
+      restore: "Show operation timeline",
+      showAll: "Show all",
+      showLatest: "Show latest",
+      showDetails: "View details",
+      hideDetails: "Hide details",
+      empty: "No operation records",
+      levels: {
+        success: "Success",
+        warning: "Warning",
+        error: "Error",
+        info: "Info",
+      },
+    },
   },
 };
