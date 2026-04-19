@@ -109,7 +109,8 @@ Notes:
 
 - if `DB_TYPE` is omitted, the API defaults to `sqlite`
 - if `packages/api-nova-api/.env` only contains `DB_HOST` / `DB_PORT` / `DB_DATABASE` but omits `DB_TYPE`, runtime still uses SQLite instead of PostgreSQL
-- `DB_SQLITE_PATH` may be relative to the workspace or absolute
+- `DB_SQLITE_PATH` may be absolute, or relative to the repository root
+- with the default setting, the SQLite file resolves to `data/api-nova.db` under the repository root
 - startup logs should report `Database mode: sqlite`
 
 ### 3.2 PostgreSQL optional mode

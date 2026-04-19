@@ -24,7 +24,7 @@ async function testWebSocketConnection() {
   });
 
   // 测试订阅
-  const testServerId = "test-server-id";
+  const testRuntimeAssetId = "test-runtime-asset-id";
 
   try {
     // 连接
@@ -41,7 +41,7 @@ async function testWebSocketConnection() {
 
     // 测试订阅
     console.log("📥 测试订阅功能...");
-    websocketService.subscribeToProcessInfo(testServerId);
+    websocketService.subscribeToProcessInfo(testRuntimeAssetId);
 
     // 等待订阅确认
     await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -94,8 +94,8 @@ function startConnectionMonitoring() {
   connect: () => websocketService.connect(),
   disconnect: () => websocketService.disconnect(),
   status: () => websocketService.getConnectionInfo(),
-  subscribe: (serverId: string) =>
-    websocketService.subscribeToProcessInfo(serverId),
+  subscribe: (runtimeAssetId: string) =>
+    websocketService.subscribeToProcessInfo(runtimeAssetId),
 };
 
 console.log("🛠️ WebSocket测试工具已加载");
@@ -105,4 +105,4 @@ console.log("- wsTest.monitor() - 开始连接监控");
 console.log("- wsTest.connect() - 手动连接");
 console.log("- wsTest.disconnect() - 手动断开");
 console.log("- wsTest.status() - 查看连接状态");
-console.log("- wsTest.subscribe(serverId) - 订阅服务器指标");
+console.log("- wsTest.subscribe(runtimeAssetId) - 订阅运行时资产进程信息");

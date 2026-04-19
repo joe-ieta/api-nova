@@ -17,8 +17,12 @@ The main product chain is:
 
 - OpenAPI/Swagger input
 - parsing and normalization
+- API registration
+- API testing
+- API governance
+- API publication
 - source service asset cataloging
-- endpoint item extraction and governance
+- endpoint item extraction and readiness shaping
 - runtime asset assembly and publication shaping
 - dual publish surfaces
 - management and observability
@@ -75,7 +79,7 @@ Package: `packages/api-nova-ui`
 
 Responsibilities:
 
-- provide import, governance, publication, and monitoring workflows
+- provide registration, testing, governance, publication, and monitoring workflows
 - expose both MCP and HTTP publication state
 - avoid re-implementing parser/runtime business logic
 
@@ -115,14 +119,34 @@ Top-level access control, policy, and monitoring should attach to runtime assets
 
 ## Functional Scope
 
+## Product Workflow Spine
+
+The active product workflow should be structured as:
+
+1. API Registration
+2. API Testing
+3. API Governance
+4. API Publication
+
+Meaning:
+
+- registration introduces API assets into the catalog
+- testing verifies functional callability
+- governance determines endpoint readiness
+- publication turns ready endpoints into MCP or Gateway runtime assets
+
+Registration must not implicitly mean runtime publication.
+
 ### In scope
 
 - import OpenAPI/Swagger from URL, file, or raw content
+- register APIs through both import and manual endpoint entry
+- test registered endpoints before publication readiness
 - validate and normalize specs
 - generate MCP-compatible tools from parsed endpoints
 - run MCP servers on supported transports
-- manage server instances through the backend
-- govern registered endpoints through shared lifecycle vocabulary
+- manage runtime instances through the backend
+- govern registered endpoints through shared lifecycle and readiness vocabulary
 - manage source service assets and endpoint item assets
 - assemble MCP Server assets from one or more endpoint items
 - assemble Gateway service assets from one or more endpoint items

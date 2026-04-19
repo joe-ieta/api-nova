@@ -6,7 +6,7 @@ export class Stage3PublicationMembershipShift1760000002000 implements MigrationI
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP INDEX "public"."IDX_7796f331f7a3f73b4d4896e2e8"`);
     await queryRunner.query(
-      `CREATE INDEX "IDX_7796f331f7a3f73b4d4896e2e8" ON "publication_profiles" ("endpointId", "version") `,
+      `CREATE INDEX "IDX_7796f331f7a3f73b4d4896e2e8" ON "publication_profiles" ("endpointDefinitionId", "version") `,
     );
     await queryRunner.query(
       `ALTER TABLE "publication_profiles" ADD "runtimeAssetEndpointBindingId" character varying(36)`,
@@ -27,7 +27,7 @@ export class Stage3PublicationMembershipShift1760000002000 implements MigrationI
 
     await queryRunner.query(`DROP INDEX "public"."IDX_3758b0d70392fbfaeabf1853ef"`);
     await queryRunner.query(
-      `CREATE INDEX "IDX_3758b0d70392fbfaeabf1853ef" ON "endpoint_publish_bindings" ("endpointId") `,
+      `CREATE INDEX "IDX_3758b0d70392fbfaeabf1853ef" ON "endpoint_publish_bindings" ("endpointDefinitionId") `,
     );
     await queryRunner.query(
       `ALTER TABLE "endpoint_publish_bindings" ADD "runtimeAssetEndpointBindingId" character varying(36)`,
@@ -52,7 +52,7 @@ export class Stage3PublicationMembershipShift1760000002000 implements MigrationI
     await queryRunner.query(`ALTER TABLE "endpoint_publish_bindings" DROP COLUMN "runtimeAssetEndpointBindingId"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_3758b0d70392fbfaeabf1853ef"`);
     await queryRunner.query(
-      `CREATE UNIQUE INDEX "IDX_3758b0d70392fbfaeabf1853ef" ON "endpoint_publish_bindings" ("endpointId") `,
+      `CREATE UNIQUE INDEX "IDX_3758b0d70392fbfaeabf1853ef" ON "endpoint_publish_bindings" ("endpointDefinitionId") `,
     );
 
     await queryRunner.query(`DROP INDEX "public"."IDX_071de4f15510453559b8287598"`);
@@ -63,7 +63,7 @@ export class Stage3PublicationMembershipShift1760000002000 implements MigrationI
     await queryRunner.query(`ALTER TABLE "publication_profiles" DROP COLUMN "runtimeAssetEndpointBindingId"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_7796f331f7a3f73b4d4896e2e8"`);
     await queryRunner.query(
-      `CREATE UNIQUE INDEX "IDX_7796f331f7a3f73b4d4896e2e8" ON "publication_profiles" ("endpointId", "version") `,
+      `CREATE UNIQUE INDEX "IDX_7796f331f7a3f73b4d4896e2e8" ON "publication_profiles" ("endpointDefinitionId", "version") `,
     );
   }
 }

@@ -28,6 +28,7 @@ describe('db-compat', () => {
 
     expect(resolvedPath.endsWith('tmp\\db-compat-spec\\test.sqlite') || resolvedPath.endsWith('tmp/db-compat-spec/test.sqlite')).toBe(true);
     expect(existsSync(dirname(resolvedPath))).toBe(true);
+    expect(resolvedPath.includes(`${join('packages', 'data')}${resolvedPath.includes('\\') ? '\\' : '/'}`)).toBe(false);
   });
 
   it('should verify sqlite path and create the database file when missing', () => {

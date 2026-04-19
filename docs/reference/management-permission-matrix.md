@@ -60,12 +60,13 @@ Recommended mapping:
 - high-risk lifecycle actions may additionally accept:
   - `server:manage`
 
-### 2. API Center and endpoint governance
+### 2. Asset catalog, governance, and publication
 
 Route family:
 
-- `/v1/servers/api-center/*`
-- `/v1/servers/:id/api-center/*`
+- `/v1/assets/source-services/*`
+- `/v1/assets/endpoints/*`
+- `/v1/publication/endpoints/runtime-memberships/*`
 
 Primary permissions:
 
@@ -75,11 +76,11 @@ Primary permissions:
 
 Recommended mapping:
 
-- overview / probe history / publish readiness:
+- source-service and endpoint catalog reads:
   - `server:read`
-- profile update / endpoint probe:
+- endpoint governance edit / probe / test execution:
   - `server:update`
-- manual endpoint registration / publish / offline / lifecycle change:
+- manual endpoint registration / publication profile change / publish / offline:
   - `server:manage`
 
 ### 3. Process operations
@@ -164,7 +165,6 @@ Recommended mapping:
 Stage 2 should split the current oversized server management controller into:
 
 - `ServersLifecycleController`
-- `ServersApiCenterController`
 - `ServersProcessController`
 - `ServersObservabilityController`
 

@@ -17,6 +17,8 @@ import { RuntimeAssetEntity } from './entities/runtime-asset.entity';
 import { RuntimeAssetEndpointBindingEntity } from './entities/runtime-asset-endpoint-binding.entity';
 import { PublicationProfileEntity } from './entities/publication-profile.entity';
 import { PublicationProfileHistoryEntity } from './entities/publication-profile-history.entity';
+import { PublicationBatchRunEntity } from './entities/publication-batch-run.entity';
+import { PublicationAuditEventEntity } from './entities/publication-audit-event.entity';
 import { EndpointPublishBindingEntity } from './entities/endpoint-publish-binding.entity';
 import { GatewayRouteBindingEntity } from './entities/gateway-route-binding.entity';
 import { RuntimeMetricSeriesEntity } from './entities/runtime-metric-series.entity';
@@ -44,6 +46,8 @@ const entities = [
   RuntimeAssetEndpointBindingEntity,
   PublicationProfileEntity,
   PublicationProfileHistoryEntity,
+  PublicationBatchRunEntity,
+  PublicationAuditEventEntity,
   EndpointPublishBindingEntity,
   GatewayRouteBindingEntity,
   RuntimeObservabilityEventEntity,

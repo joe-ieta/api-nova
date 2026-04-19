@@ -312,6 +312,11 @@ export class MetricsQueryDto {
   @IsString()
   serverId?: string;
 
+  @ApiPropertyOptional({ description: 'Runtime asset ID' })
+  @IsOptional()
+  @IsString()
+  runtimeAssetId?: string;
+
   @ApiPropertyOptional({ description: '开始时间' })
   @IsOptional()
   @Type(() => Date)
@@ -349,6 +354,11 @@ export class HealthCheckQueryDto {
   @IsString()
   serverId?: string;
 
+  @ApiPropertyOptional({ description: 'Runtime asset ID' })
+  @IsOptional()
+  @IsString()
+  runtimeAssetId?: string;
+
   @ApiPropertyOptional({ description: '限制数量', example: 50, minimum: 1, maximum: 200 })
   @IsOptional()
   @Type(() => Number)
@@ -366,6 +376,11 @@ export class LogQueryDto {
   @IsOptional()
   @IsString()
   serverId?: string;
+
+  @ApiPropertyOptional({ description: 'Runtime asset ID' })
+  @IsOptional()
+  @IsString()
+  runtimeAssetId?: string;
 
   @ApiPropertyOptional({ description: '日志级别', enum: ['DEBUG', 'INFO', 'WARN', 'ERROR'], example: 'INFO' })
   @IsOptional()

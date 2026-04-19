@@ -1,14 +1,13 @@
 <template>
   <div class="api-tester">
-    <!-- 页面头部 -->
     <div class="header-section">
       <div class="header-content">
         <h1>
           <el-icon><Tools /></el-icon>
-          API测试工具
+          {{ t("apiTester.title") }}
         </h1>
         <p class="header-description">
-          测试转换后的MCP工具，验证API调用和参数配置
+          {{ t("apiTester.description") }}
         </p>
       </div>
 
@@ -19,59 +18,148 @@
           @click="showCreateTestCaseDialog"
           :disabled="!selectedTool"
         >
-          创建测试用例
+          {{ t("apiTester.actions.createTestCase") }}
         </el-button>
         <el-button :icon="Refresh" @click="refreshData" :loading="loading">
-          刷新
+          {{ t("apiTester.actions.refresh") }}
         </el-button>
       </div>
     </div>
-
-    <!-- 主要内容区域 -->
     <div class="main-content">
-      <!-- 左侧工具列表 -->
-      <div class="tools-panel">
+      <div class="catalog-panel">
         <div class="panel-header">
-          <h3>可用工具</h3>
+          <h3>{{ t("apiTester.catalogTitle") }}</h3>
           <el-input
-            v-model="toolSearchText"
-            placeholder="搜索工具..."
+            v-model="catalogSearchText"
+            :placeholder="t('apiTester.searchGroups')"
             :prefix-icon="Search"
             clearable
             size="small"
           />
         </div>
 
-        <div class="tools-list" v-loading="loadingTools">
-          <div
-            v-for="tool in filteredTools"
-            :key="tool.id"
-            class="tool-item"
-            :class="{ active: selectedTool?.id === tool.id }"
-            @click="selectTool(tool)"
-          >
-            <div class="tool-info">
-              <div class="tool-name">{{ tool.name }}</div>
-              <div class="tool-method">{{ tool.method.toUpperCase() }}</div>
-            </div>
-            <div class="tool-description">{{ tool.description }}</div>
+        <div class="catalog-list" v-loading="loadingTools">
+          <div class="catalog-section">
+            <div class="catalog-section-title">{{ t("apiTester.manualRegistration") }}</div>
+            <button
+              v-for="group in filteredManualGroups"
+              :key="group.groupKey"
+              type="button"
+              class="catalog-item"
+              :class="{ active: selectedGroupKey === group.groupKey }"
+              @click="selectCatalogGroup(group.groupKey)"
+            >
+              <div class="catalog-item-title">{{ group.groupName }}</div>
+              <div class="catalog-item-subtitle">{{ group.hostPort }}</div>
+              <div class="catalog-item-path">{{ group.basePath }}</div>
+              <div class="catalog-item-meta">{{ group.endpoints.length }} ? endpoint</div>
+              <div class="catalog-item-progress">
+                {{ t("apiTester.progressCompleted", { count: group.completedTests }) }} / {{ group.endpoints.length }}
+                <span>{{ t("apiTester.progressPending", { count: group.pendingTests }) }}</span>
+                <span>{{ group.progressPercent }}%</span>
+              </div>
+            </button>
           </div>
 
-          <div v-if="filteredTools.length === 0" class="empty-state">
-            <el-empty description="暂无可用工具">
-              <el-button type="primary" @click="$router.push('/openapi')">
-                去创建工具
+          <div class="catalog-section">
+            <div class="catalog-section-title">{{ t("apiTester.importedRegistration") }}</div>
+            <button
+              v-for="group in filteredImportedGroups"
+              :key="group.groupKey"
+              type="button"
+              class="catalog-item"
+              :class="{ active: selectedGroupKey === group.groupKey }"
+              @click="selectCatalogGroup(group.groupKey)"
+            >
+              <div class="catalog-item-title">{{ group.groupName }}</div>
+              <div class="catalog-item-subtitle">{{ group.hostPort }}</div>
+              <div class="catalog-item-path">{{ group.basePath }}</div>
+              <div class="catalog-item-meta">{{ group.endpoints.length }} ? endpoint</div>
+              <div class="catalog-item-progress">
+                {{ t("apiTester.progressCompleted", { count: group.completedTests }) }} / {{ group.endpoints.length }}
+                <span>{{ t("apiTester.progressPending", { count: group.pendingTests }) }}</span>
+                <span>{{ group.progressPercent }}%</span>
+              </div>
+            </button>
+          </div>
+
+          <div
+            v-if="filteredManualGroups.length === 0 && filteredImportedGroups.length === 0"
+            class="empty-state"
+          >
+            <el-empty :description="t('apiTester.noGroups')">
+              <el-button type="primary" @click="$router.push('/registration/batch')">
+                {{ t("apiTester.goRegistration") }}
               </el-button>
             </el-empty>
           </div>
         </div>
       </div>
 
-      <!-- 右侧测试区域 -->
+      <div class="endpoints-panel">
+        <div class="panel-header">
+          <h3>{{ selectedGroup ? selectedGroup.groupName : t("apiTester.endpointsTitle") }}</h3>
+          <el-input
+            v-model="endpointSearchText"
+            :placeholder="t('apiTester.searchEndpoints')"
+            :prefix-icon="Search"
+            clearable
+            size="small"
+          />
+        </div>
+
+        <div class="endpoint-list" v-loading="loadingTools">
+          <div v-if="selectedGroup" class="endpoint-group-summary">
+            <div class="catalog-item-subtitle">{{ selectedGroup.hostPort }}</div>
+            <div class="catalog-item-path">{{ selectedGroup.basePath }}</div>
+            <div class="catalog-item-meta">{{ selectedGroup.endpoints.length }} ? endpoint</div>
+            <div class="catalog-item-progress">
+              {{ t("apiTester.progressCompleted", { count: selectedGroup.completedTests }) }} / {{ selectedGroup.endpoints.length }}
+              <span>{{ t("apiTester.progressPending", { count: selectedGroup.pendingTests }) }}</span>
+              <span>{{ selectedGroup.progressPercent }}%</span>
+            </div>
+          </div>
+
+          <button
+            v-for="endpoint in filteredSelectedGroupEndpoints"
+            :key="endpoint.id"
+            type="button"
+            class="endpoint-item"
+            :class="{ active: selectedEndpointId === endpoint.id }"
+            @click="selectEndpoint(endpoint.id)"
+          >
+            <div class="tool-info">
+              <div class="tool-name">{{ endpoint.name }}</div>
+              <div class="tool-method">{{ endpoint.method }}</div>
+            </div>
+            <div class="tool-description">{{ endpoint.path }}</div>
+            <div class="endpoint-item-meta">
+              <el-tag size="small" :type="getEndpointStatusTagType(endpoint.status)" effect="plain">
+                {{ getEndpointStatusLabel(endpoint.status) }}
+              </el-tag>
+              <el-tag
+                size="small"
+                :type="getTestStatusTagType(endpoint.testStatus, endpoint.qualificationState)"
+                effect="plain"
+              >
+                {{ getTestStatusLabel(endpoint.testStatus, endpoint.qualificationState) }}
+              </el-tag>
+            </div>
+          </button>
+
+          <div v-if="selectedGroup && filteredSelectedGroupEndpoints.length === 0" class="empty-state">
+            <el-empty :description="t('apiTester.noMatchingEndpoints')" />
+          </div>
+
+          <div v-if="!selectedGroup" class="empty-state">
+            <el-empty :description="t('apiTester.selectGroup')" />
+          </div>
+        </div>
+      </div>
+
       <div class="testing-panel" v-if="selectedTool">
         <el-tabs v-model="activeTab" class="testing-tabs">
-          <!-- 手动测试标签页 -->
-          <el-tab-pane label="手动测试" name="manual">
+          <el-tab-pane :label="t('apiTester.tabs.manual')" name="manual">
             <div class="manual-test-form">
               <div class="form-header">
                 <h4>{{ selectedTool.name }}</h4>
@@ -84,9 +172,8 @@
                 {{ selectedTool.description }}
               </div>
 
-              <!-- 参数表单 -->
               <div class="parameters-section">
-                <h5>参数配置</h5>
+                <h5>{{ t("apiTester.requestParameters") }}</h5>
                 <el-form
                   ref="parametersFormRef"
                   :model="testParameters"
@@ -94,14 +181,12 @@
                   class="parameters-form"
                 >
                   <div v-if="!hasParameters" class="no-parameters">
-                    此工具无需参数
+                    {{ t("apiTester.noParameters") }}
                   </div>
 
                   <template v-else>
                     <el-form-item
-                      v-for="[paramName, paramSchema] in Object.entries(
-                        toolParameters,
-                      )"
+                      v-for="[paramName, paramSchema] in Object.entries(toolParameters)"
                       :key="paramName"
                       :label="paramName"
                       :prop="paramName"
@@ -116,20 +201,11 @@
                           v-bind="getParameterProps(paramSchema)"
                         />
                         <div class="parameter-info">
-                          <span class="parameter-type">{{
-                            paramSchema.type
-                          }}</span>
-                          <span
-                            v-if="isRequired(paramName)"
-                            class="required-mark"
-                            >*</span
-                          >
+                          <span class="parameter-type">{{ paramSchema.type }}</span>
+                          <span v-if="isRequired(paramName)" class="required-mark">*</span>
                         </div>
                       </div>
-                      <div
-                        v-if="paramSchema.description"
-                        class="parameter-description"
-                      >
+                      <div v-if="paramSchema.description" class="parameter-description">
                         {{ paramSchema.description }}
                       </div>
                     </el-form-item>
@@ -137,7 +213,6 @@
                 </el-form>
               </div>
 
-              <!-- 测试按钮 -->
               <div class="test-actions">
                 <el-button
                   type="primary"
@@ -146,32 +221,31 @@
                   @click="executeTest"
                   :icon="CaretRight"
                 >
-                  {{ testing ? "测试中..." : "执行测试" }}
+                  {{ testing ? t("apiTester.actions.running") : t("apiTester.actions.runTest") }}
                 </el-button>
                 <el-button @click="resetParameters" :disabled="testing">
-                  重置参数
+                  {{ t("apiTester.actions.resetParameters") }}
                 </el-button>
                 <el-button @click="fillSampleData" :disabled="testing">
-                  填充示例数据
+                  {{ t("apiTester.actions.fillSampleData") }}
                 </el-button>
               </div>
 
-              <!-- 测试结果 -->
               <div v-if="testResult" class="result-section">
                 <div class="result-header">
-                  <h5>测试结果</h5>
+                  <h5>{{ t("apiTester.resultTitle") }}</h5>
                   <el-tag :type="testResult.success ? 'success' : 'danger'">
-                    {{ testResult.success ? "成功" : "失败" }}
+                    {{ testResult.success ? t("apiTester.status.success") : t("apiTester.status.failed") }}
                   </el-tag>
                   <span class="execution-time">
-                    执行时间: {{ testResult.executionTime }}ms
+                    {{ t("apiTester.duration") }}: {{ testResult.executionTime }}ms
                   </span>
                 </div>
 
                 <div class="result-content">
                   <el-alert
                     v-if="!testResult.success"
-                    :title="testResult.error"
+                    :title="testResult.error || t('apiTester.messages.executionFailed')"
                     type="error"
                     show-icon
                   />
@@ -189,36 +263,31 @@
                 <div class="result-actions">
                   <el-button size="small" @click="copyResult">
                     <el-icon><CopyDocument /></el-icon>
-                    复制结果
+                    {{ t("apiTester.actions.copyResult") }}
                   </el-button>
-                  <el-button
-                    size="small"
-                    @click="saveAsTestCase"
-                    v-if="testResult.success"
-                  >
+                  <el-button size="small" @click="saveAsTestCase" v-if="testResult.success">
                     <el-icon><Plus /></el-icon>
-                    保存为测试用例
+                    {{ t("apiTester.actions.saveAsTestCase") }}
                   </el-button>
                 </div>
               </div>
             </div>
           </el-tab-pane>
 
-          <!-- 测试用例标签页 -->
-          <el-tab-pane label="测试用例" name="testcases">
+          <el-tab-pane :label="t('apiTester.tabs.testCases')" name="testcases">
             <div class="test-cases-section">
               <div class="test-cases-header">
                 <div class="search-filters">
                   <el-input
                     v-model="testCaseSearchText"
-                    placeholder="搜索测试用例..."
+                    :placeholder="t('apiTester.searchTestCases')"
                     :prefix-icon="Search"
                     clearable
                     style="width: 200px"
                   />
                   <el-select
                     v-model="selectedTag"
-                    placeholder="筛选标签"
+                    :placeholder="t('apiTester.filterTags')"
                     clearable
                     style="width: 150px"
                   >
@@ -256,31 +325,22 @@
                   </div>
 
                   <div class="test-case-actions">
-                    <el-button size="small" @click="runTestCase(testCase)">
-                      运行
-                    </el-button>
-                    <el-button size="small" @click="editTestCase(testCase)">
-                      编辑
-                    </el-button>
-                    <el-button
-                      size="small"
-                      type="danger"
-                      @click="deleteTestCase(testCase.id)"
-                    >
-                      删除
+                    <el-button size="small" @click="runTestCase(testCase)">{{ t("apiTester.actions.execute") }}</el-button>
+                    <el-button size="small" @click="editTestCase(testCase)">{{ t("apiTester.actions.load") }}</el-button>
+                    <el-button size="small" type="danger" @click="deleteTestCase(testCase.id)">
+                      {{ t("apiTester.actions.delete") }}
                     </el-button>
                   </div>
                 </div>
 
                 <div v-if="filteredTestCases.length === 0" class="empty-state">
-                  <el-empty description="暂无测试用例" />
+                  <el-empty :description="t('apiTester.noTestCases')" />
                 </div>
               </div>
             </div>
           </el-tab-pane>
 
-          <!-- 测试历史标签页 -->
-          <el-tab-pane label="测试历史" name="history">
+          <el-tab-pane :label="t('apiTester.tabs.history')" name="history">
             <div class="test-history-section">
               <div class="history-list">
                 <div
@@ -298,10 +358,8 @@
                   </div>
 
                   <div class="history-result">
-                    <el-tag
-                      :type="historyItem.result.success ? 'success' : 'danger'"
-                    >
-                      {{ historyItem.result.success ? "成功" : "失败" }}
+                    <el-tag :type="historyItem.result.success ? 'success' : 'danger'">
+                      {{ historyItem.result.success ? t("apiTester.status.success") : t("apiTester.status.failed") }}
                     </el-tag>
                     <span class="execution-time">
                       {{ historyItem.result.executionTime }}ms
@@ -309,23 +367,17 @@
                   </div>
 
                   <div class="history-actions">
-                    <el-button
-                      size="small"
-                      @click="viewHistoryDetails(historyItem)"
-                    >
-                      查看详情
+                    <el-button size="small" @click="viewHistoryDetails(historyItem)">
+                      {{ t("apiTester.actions.viewDetail") }}
                     </el-button>
-                    <el-button
-                      size="small"
-                      @click="rerunFromHistory(historyItem)"
-                    >
-                      重新运行
+                    <el-button size="small" @click="rerunFromHistory(historyItem)">
+                      {{ t("apiTester.actions.rerun") }}
                     </el-button>
                   </div>
                 </div>
 
                 <div v-if="recentHistory.length === 0" class="empty-state">
-                  <el-empty description="暂无测试历史" />
+                  <el-empty :description="t('apiTester.noHistory')" />
                 </div>
               </div>
             </div>
@@ -333,13 +385,10 @@
         </el-tabs>
       </div>
 
-      <!-- 未选择工具时的提示 -->
       <div v-else class="no-tool-selected">
-        <el-empty description="请选择一个工具开始测试" />
+        <el-empty :description="t('apiTester.selectEndpoint')" />
       </div>
     </div>
-
-    <!-- 创建测试用例对话框 -->
     <el-dialog
       v-model="createTestCaseDialogVisible"
       title="创建测试用例"
@@ -444,59 +493,100 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from "vue";
-import {
-  ElMessage,
-  ElMessageBox,
-  type FormInstance,
-  type FormRules,
-} from "element-plus";
-import {
-  Tools,
-  Plus,
-  Refresh,
-  Search,
-  CaretRight,
-  CopyDocument,
-} from "@element-plus/icons-vue";
+import { ref, computed, onMounted, nextTick, watch } from "vue";
+import { ElMessage, type FormInstance, type FormRules } from "element-plus";
+import { Tools, Plus, Refresh, Search, CaretRight, CopyDocument } from "@element-plus/icons-vue";
+import { useI18n } from "vue-i18n";
+import { useRoute, useRouter } from "vue-router";
 
 import { useTestingStore } from "@/stores/testing";
-import { useOpenAPIStore } from "@/stores/openapi";
-import { convertOpenAPIToMCPTools } from "@/utils/openapi";
 import type { MCPTool, TestCase, ToolResult } from "@/types";
-
-// 导入全局功能
+import { serverAPI } from "@/services/api";
 import { useConfirmation } from "@/composables/useConfirmation";
-import { useFormValidation } from "@/composables/useFormValidation";
 import { usePerformanceMonitor } from "@/composables/usePerformance";
-import LoadingOverlay from "@/shared/components/ui/LoadingOverlay.vue";
 
-// Stores
 const testingStore = useTestingStore();
-const openApiStore = useOpenAPIStore();
+const { t, locale } = useI18n();
+const route = useRoute();
+const router = useRouter();
 
-// 全局功能
-const { confirmDelete: globalConfirmDelete, confirmSave } = useConfirmation();
+const { confirmDelete: globalConfirmDelete } = useConfirmation();
+const { measureFunction } = usePerformanceMonitor();
 
-const { startMonitoring, stopMonitoring, measureFunction } =
-  usePerformanceMonitor();
+type SourceServiceAssetRecord = {
+  id: string;
+  sourceKey: string;
+  scheme: string;
+  host: string;
+  port: number;
+  normalizedBasePath: string;
+  displayName?: string;
+  description?: string;
+  metadata?: Record<string, any>;
+  updatedAt?: string;
+};
 
-// Reactive data
+type EndpointAssetRecord = {
+  id: string;
+  sourceServiceAssetId: string;
+  method: string;
+  path: string;
+  operationId?: string;
+  summary?: string;
+  description?: string;
+  status: string;
+  publishEnabled: boolean;
+  metadata?: Record<string, any>;
+  updatedAt?: string;
+};
+
+type EndpointCatalogEndpoint = {
+  id: string;
+  groupKey: string;
+  sourceType: "manual" | "imported";
+  sourceServiceAssetId: string;
+  name: string;
+  method: string;
+  path: string;
+  status: string;
+  testStatus: string;
+  qualificationState: string;
+  description: string;
+  baseUrl: string;
+};
+
+type EndpointCatalogGroup = {
+  groupKey: string;
+  sourceType: "manual" | "imported";
+  groupName: string;
+  baseUrl: string;
+  hostPort: string;
+  basePath: string;
+  completedTests: number;
+  pendingTests: number;
+  progressPercent: number;
+  endpoints: EndpointCatalogEndpoint[];
+};
+
 const loading = ref(false);
 const loadingTools = ref(false);
 const testing = ref(false);
 const activeTab = ref("manual");
-
-// 工具选择和搜索
+const endpointAssetTool = ref<MCPTool | null>(null);
+const endpointAssetId = ref("");
+const endpointTestingState = ref<any>(null);
 const selectedTool = ref<MCPTool | null>(null);
-const toolSearchText = ref("");
+const selectedGroupKey = ref("");
+const selectedEndpointId = ref("");
+const catalogSearchText = ref("");
+const endpointSearchText = ref("");
+const catalogGroups = ref<EndpointCatalogGroup[]>([]);
+const toolCache = ref<Record<string, MCPTool>>({});
 
-// 测试参数
 const testParameters = ref<Record<string, any>>({});
 const testResult = ref<ToolResult | null>(null);
 const parametersFormRef = ref<FormInstance>();
 
-// 测试用例管理
 const createTestCaseDialogVisible = ref(false);
 const newTestCase = ref({
   name: "",
@@ -508,35 +598,133 @@ const createTestCaseFormRef = ref<FormInstance>();
 const testCaseSearchText = ref("");
 const selectedTag = ref("");
 
-// 历史记录
 const historyDetailsDialogVisible = ref(false);
 const selectedHistoryItem = ref<any>(null);
 
-// Computed properties
-const tools = computed(() => {
-  const allTools: MCPTool[] = [];
-
-  for (const spec of openApiStore.validSpecs) {
-    try {
-      const specTools = convertOpenAPIToMCPTools(spec.content);
-      allTools.push(...specTools);
-    } catch (error) {
-      console.warn(`Failed to convert spec ${spec.name} to MCP tools:`, error);
-    }
+const getGroupHostPort = (sourceAsset?: SourceServiceAssetRecord, baseUrl?: string): string => {
+  if (sourceAsset?.host) {
+    return sourceAsset.port ? `${sourceAsset.host}:${sourceAsset.port}` : sourceAsset.host;
   }
+  if (!baseUrl) return "-";
+  try {
+    const parsed = new URL(baseUrl);
+    return parsed.port ? `${parsed.hostname}:${parsed.port}` : parsed.hostname;
+  } catch {
+    return baseUrl;
+  }
+};
 
-  return allTools;
+const getGroupBasePath = (sourceAsset?: SourceServiceAssetRecord): string =>
+  sourceAsset?.normalizedBasePath || "/";
+
+const isEndpointTestCompleted = (endpoint: EndpointCatalogEndpoint): boolean =>
+  endpoint.testStatus !== "untested";
+
+const deriveBaseUrlFromAsset = (asset?: SourceServiceAssetRecord) => {
+  if (!asset) return "unknown";
+  const isDefaultPort =
+    (asset.scheme === "http" && asset.port === 80) ||
+    (asset.scheme === "https" && asset.port === 443);
+  const authority = isDefaultPort
+    ? `${asset.scheme}://${asset.host}`
+    : `${asset.scheme}://${asset.host}:${asset.port}`;
+  return asset.normalizedBasePath === "/" ? authority : `${authority}${asset.normalizedBasePath}`;
+};
+
+const mapEndpointCatalogEndpoint = (
+  endpoint: EndpointAssetRecord,
+  sourceAsset?: SourceServiceAssetRecord,
+): EndpointCatalogEndpoint => {
+  const metadata = (endpoint.metadata || {}) as Record<string, any>;
+  const sourceType = metadata.source === "manual-registration" ? "manual" : "imported";
+  const baseUrl = deriveBaseUrlFromAsset(sourceAsset);
+  return {
+    id: endpoint.id,
+    groupKey: endpoint.sourceServiceAssetId || `${sourceType}:${baseUrl}`,
+    sourceType,
+    sourceServiceAssetId: endpoint.sourceServiceAssetId,
+    name: String(metadata.displayName || sourceAsset?.displayName || endpoint.summary || endpoint.path),
+    method: String(endpoint.method || "GET").toUpperCase(),
+    path: endpoint.path,
+    status: endpoint.status || "draft",
+    testStatus: String(metadata.testStatus || "untested"),
+    qualificationState: String(metadata.qualificationState || "registered"),
+    description: endpoint.description || `${endpoint.method || "GET"} ${endpoint.path}`,
+    baseUrl,
+  };
+};
+
+const buildCatalogGroups = (
+  endpoints: EndpointAssetRecord[],
+  sourceAssets: SourceServiceAssetRecord[],
+): EndpointCatalogGroup[] => {
+  const sourceMap = new Map(sourceAssets.map((item) => [item.id, item]));
+  const groupMap = new Map<string, EndpointCatalogGroup>();
+
+  endpoints.forEach((endpoint) => {
+    const sourceAsset = sourceMap.get(endpoint.sourceServiceAssetId);
+    const mapped = mapEndpointCatalogEndpoint(endpoint, sourceAsset);
+    const key = mapped.groupKey;
+    if (!groupMap.has(key)) {
+      groupMap.set(key, {
+        groupKey: key,
+        sourceType: mapped.sourceType,
+        groupName: sourceAsset?.displayName || mapped.name || mapped.baseUrl,
+        baseUrl: mapped.baseUrl,
+        hostPort: getGroupHostPort(sourceAsset, mapped.baseUrl),
+        basePath: getGroupBasePath(sourceAsset),
+        completedTests: 0,
+        pendingTests: 0,
+        progressPercent: 0,
+        endpoints: [],
+      });
+    }
+    groupMap.get(key)!.endpoints.push(mapped);
+  });
+
+  return Array.from(groupMap.values())
+    .map((group) => ({
+      ...group,
+      endpoints: group.endpoints.sort((a, b) => `${a.method} ${a.path}`.localeCompare(`${b.method} ${b.path}`)),
+      completedTests: group.endpoints.filter((endpoint) => isEndpointTestCompleted(endpoint)).length,
+      pendingTests: group.endpoints.filter((endpoint) => !isEndpointTestCompleted(endpoint)).length,
+      progressPercent: group.endpoints.length
+        ? Math.round(
+            (group.endpoints.filter((endpoint) => isEndpointTestCompleted(endpoint)).length /
+              group.endpoints.length) *
+              100,
+          )
+        : 0,
+    }))
+    .sort((a, b) => `${a.sourceType}:${a.groupName}:${a.baseUrl}`.localeCompare(`${b.sourceType}:${b.groupName}:${b.baseUrl}`));
+};
+
+const filteredGroups = computed(() => {
+  const keyword = catalogSearchText.value.trim().toLowerCase();
+  if (!keyword) return catalogGroups.value;
+  return catalogGroups.value.filter((group) =>
+    [group.groupName, group.baseUrl].some((value) => value.toLowerCase().includes(keyword)),
+  );
 });
 
-const filteredTools = computed(() => {
-  if (!toolSearchText.value) return tools.value;
+const filteredManualGroups = computed(() =>
+  filteredGroups.value.filter((group) => group.sourceType === "manual"),
+);
+const filteredImportedGroups = computed(() =>
+  filteredGroups.value.filter((group) => group.sourceType === "imported"),
+);
 
-  const searchLower = toolSearchText.value.toLowerCase();
-  return tools.value.filter(
-    (tool: MCPTool) =>
-      tool.name.toLowerCase().includes(searchLower) ||
-      tool.description.toLowerCase().includes(searchLower) ||
-      tool.method.toLowerCase().includes(searchLower),
+const selectedGroup = computed(() =>
+  filteredGroups.value.find((group) => group.groupKey === selectedGroupKey.value) || null,
+);
+
+const filteredSelectedGroupEndpoints = computed(() => {
+  if (!selectedGroup.value) return [] as EndpointCatalogEndpoint[];
+  const keyword = endpointSearchText.value.trim().toLowerCase();
+  if (!keyword) return selectedGroup.value.endpoints;
+  return selectedGroup.value.endpoints.filter((endpoint) =>
+    [endpoint.name, endpoint.method, endpoint.path, endpoint.status, endpoint.testStatus]
+      .some((value) => String(value).toLowerCase().includes(keyword)),
   );
 });
 
@@ -545,9 +733,7 @@ const toolParameters = computed(() => {
   return selectedTool.value.parameters.properties;
 });
 
-const hasParameters = computed(() => {
-  return Object.keys(toolParameters.value).length > 0;
-});
+const hasParameters = computed(() => Object.keys(toolParameters.value).length > 0);
 
 const testCases = computed(() => {
   if (!selectedTool.value) return [];
@@ -556,66 +742,217 @@ const testCases = computed(() => {
 
 const filteredTestCases = computed(() => {
   let filtered = testCases.value;
-
   if (testCaseSearchText.value) {
     const searchLower = testCaseSearchText.value.toLowerCase();
-    filtered = filtered.filter((tc) =>
-      tc.name.toLowerCase().includes(searchLower),
-    );
+    filtered = filtered.filter((tc) => tc.name.toLowerCase().includes(searchLower));
   }
-
   if (selectedTag.value) {
     filtered = filtered.filter((tc) => tc.tags.includes(selectedTag.value));
   }
-
   return filtered;
 });
 
 const availableTags = computed(() => {
   const tags = new Set<string>();
-  testCases.value.forEach((tc) => {
-    tc.tags.forEach((tag) => tags.add(tag));
-  });
+  testCases.value.forEach((tc) => tc.tags.forEach((tag) => tags.add(tag)));
   return Array.from(tags);
 });
 
-const recentHistory = computed(() => {
-  return testingStore.getRecentTestHistory(20);
+const recentHistory = computed(() => testingStore.getRecentTestHistory(20));
+
+const knownTools = computed(() => {
+  const values = Object.values(toolCache.value);
+  if (selectedTool.value && !toolCache.value[selectedTool.value.id]) {
+    return [selectedTool.value, ...values];
+  }
+  return values;
 });
 
-// 表单验证规则
 const testCaseRules: FormRules = {
   name: [
-    { required: true, message: "请输入测试用例名称", trigger: "blur" },
-    { min: 2, max: 50, message: "长度在 2 到 50 个字符", trigger: "blur" },
+    { required: true, message: "Please enter a test case name", trigger: "blur" },
+    { min: 2, max: 50, message: "Length must be between 2 and 50 characters", trigger: "blur" },
   ],
 };
 
-// Methods
-const selectTool = (tool: MCPTool) => {
-  selectedTool.value = tool;
-  resetParameters();
-  testResult.value = null;
+const toPropertySchema = (schema: any): any => {
+  if (!schema || typeof schema !== "object") {
+    return { type: "string" };
+  }
+
+  const schemaType = schema.type || "string";
+  const normalized: Record<string, any> = {
+    type: schemaType,
+    description: schema.description,
+    format: schema.format,
+    enum: schema.enum,
+    default: schema.default,
+    minimum: schema.minimum,
+    maximum: schema.maximum,
+    minLength: schema.minLength,
+    maxLength: schema.maxLength,
+    pattern: schema.pattern,
+  };
+
+  if (schemaType === "array" && schema.items) {
+    normalized.items = toPropertySchema(schema.items);
+  }
+  if (schemaType === "object" && schema.properties) {
+    normalized.properties = Object.fromEntries(
+      Object.entries(schema.properties).map(([key, value]) => [key, toPropertySchema(value)]),
+    );
+    normalized.required = Array.isArray(schema.required) ? schema.required : [];
+  }
+
+  return normalized;
+};
+
+const buildToolFromEndpointAsset = (detail: any): MCPTool => {
+  const endpoint = detail?.endpoint || {};
+  const rawOperation = endpoint.rawOperation || {};
+  const rawParameters = Array.isArray(rawOperation.parameters) ? rawOperation.parameters : [];
+  const properties: Record<string, any> = {};
+  const required = new Set<string>();
+
+  const pathMatches = String(endpoint.path || "").matchAll(/\{([^}]+)\}/g);
+  for (const match of pathMatches) {
+    const name = match[1];
+    properties[name] = { type: "string", description: `Path parameter: ${name}` };
+    required.add(name);
+  }
+
+  rawParameters.forEach((param: any) => {
+    const name = param?.name;
+    if (!name) return;
+    properties[name] = {
+      type: param?.schema?.type || "string",
+      description: param?.description || `${param?.in || "query"} parameter`,
+    };
+    if (param?.required) {
+      required.add(name);
+    }
+  });
+
+  const requestBodySchema = rawOperation?.requestBody?.content?.["application/json"]?.schema || null;
+  if (requestBodySchema?.properties) {
+    Object.entries(requestBodySchema.properties).forEach(([name, schema]) => {
+      properties[name] = toPropertySchema(schema);
+    });
+    (requestBodySchema.required || []).forEach((name: string) => required.add(name));
+  }
+
+  return {
+    id: `endpoint-asset:${endpoint.id}`,
+    name: endpoint.summary || `${endpoint.method} ${endpoint.path}`,
+    description: endpoint.description || `Endpoint asset ${endpoint.method} ${endpoint.path}`,
+    parameters: { type: "object", properties, required: Array.from(required) },
+    serverId: endpoint.id,
+    endpoint: endpoint.path,
+    method: endpoint.method || "GET",
+    path: endpoint.path,
+  };
 };
 
 const resetParameters = () => {
   testParameters.value = {};
-  // 设置默认值
   Object.entries(toolParameters.value).forEach(([name, schema]) => {
     testParameters.value[name] = getDefaultValue(schema);
   });
 };
 
-const fillSampleData = () => {
-  Object.entries(toolParameters.value).forEach(([name, schema]) => {
-    testParameters.value[name] = getSampleValue(schema);
+const loadEndpointAssetTestingContext = async (endpointId: string) => {
+  const detail = await serverAPI.getEndpointAssetDetails(endpointId);
+  endpointAssetId.value = endpointId;
+  endpointAssetTool.value = buildToolFromEndpointAsset(detail);
+  endpointTestingState.value = await serverAPI.getEndpointAssetTestingState(endpointId);
+  selectedTool.value = endpointAssetTool.value;
+  toolCache.value = {
+    ...toolCache.value,
+    [endpointAssetTool.value.id]: endpointAssetTool.value,
+  };
+  resetParameters();
+  testResult.value = null;
+};
+
+const selectCatalogGroup = async (groupKey: string) => {
+  selectedGroupKey.value = groupKey;
+  endpointSearchText.value = "";
+  selectedEndpointId.value = "";
+  endpointAssetId.value = "";
+  endpointAssetTool.value = null;
+  endpointTestingState.value = null;
+  selectedTool.value = null;
+  testResult.value = null;
+  await router.replace({
+    query: {
+      ...route.query,
+      endpointId: undefined,
+    },
   });
-  ElMessage.success("已填充示例数据");
+};
+
+const selectEndpoint = async (endpointId: string) => {
+  selectedEndpointId.value = endpointId;
+  await router.replace({
+    query: {
+      ...route.query,
+      endpointId,
+    },
+  });
+  await loadEndpointAssetTestingContext(endpointId);
+};
+
+const syncSelectionWithCatalog = async (endpointId?: string) => {
+  const allGroups = catalogGroups.value;
+  if (allGroups.length === 0) {
+    selectedGroupKey.value = "";
+    selectedEndpointId.value = "";
+    selectedTool.value = null;
+    endpointAssetTool.value = null;
+    endpointTestingState.value = null;
+    endpointAssetId.value = "";
+    return;
+  }
+
+  if (endpointId) {
+    const matchedGroup = allGroups.find((group) => group.endpoints.some((item) => item.id === endpointId));
+    if (matchedGroup) {
+      selectedGroupKey.value = matchedGroup.groupKey;
+      selectedEndpointId.value = endpointId;
+      await loadEndpointAssetTestingContext(endpointId);
+      return;
+    }
+  }
+
+  if (!allGroups.some((group) => group.groupKey === selectedGroupKey.value)) {
+    selectedGroupKey.value = allGroups[0].groupKey;
+  }
+
+  if (
+    selectedEndpointId.value &&
+    !allGroups.some((group) => group.endpoints.some((item) => item.id === selectedEndpointId.value))
+  ) {
+    selectedEndpointId.value = "";
+    selectedTool.value = null;
+    endpointAssetTool.value = null;
+    endpointTestingState.value = null;
+    endpointAssetId.value = "";
+  }
+};
+
+const loadCatalogData = async (endpointId?: string) => {
+  const [endpointResult, sourceResult] = await Promise.all([
+    serverAPI.listEndpointAssets(),
+    serverAPI.listSourceServiceAssets(),
+  ]);
+  const endpoints = Array.isArray(endpointResult?.data) ? (endpointResult.data as EndpointAssetRecord[]) : [];
+  const sourceAssets = Array.isArray(sourceResult?.data) ? (sourceResult.data as SourceServiceAssetRecord[]) : [];
+  catalogGroups.value = buildCatalogGroups(endpoints, sourceAssets);
+  await syncSelectionWithCatalog(endpointId);
 };
 
 const getDefaultValue = (schema: any): any => {
   if (schema.default !== undefined) return schema.default;
-
   switch (schema.type) {
     case "string":
       return "";
@@ -635,13 +972,11 @@ const getDefaultValue = (schema: any): any => {
 
 const getSampleValue = (schema: any): any => {
   if (schema.default !== undefined) return schema.default;
-
   switch (schema.type) {
     case "string":
       if (schema.enum) return schema.enum[0];
       if (schema.format === "email") return "test@example.com";
-      if (schema.format === "date")
-        return new Date().toISOString().split("T")[0];
+      if (schema.format === "date") return new Date().toISOString().split("T")[0];
       if (schema.format === "date-time") return new Date().toISOString();
       return "sample text";
     case "number":
@@ -660,36 +995,47 @@ const getSampleValue = (schema: any): any => {
 };
 
 const executeTest = async () => {
-  if (!selectedTool.value) return;
-
-  // 验证表单
+  if (!selectedTool.value || !endpointAssetId.value) return;
   if (parametersFormRef.value) {
     const valid = await parametersFormRef.value.validate().catch(() => false);
     if (!valid) {
-      ElMessage.error("请检查参数输入");
+      ElMessage.error(t("apiTester.messages.parameterInvalid"));
       return;
     }
   }
 
   testing.value = true;
   testResult.value = null;
-
   try {
     const result = await measureFunction("executeTest", async () => {
-      return await testingStore.executeToolTest(
-        selectedTool.value!,
-        testParameters.value,
-      );
+      const response = await serverAPI.executeEndpointAssetTest(endpointAssetId.value, {
+        parameters: testParameters.value,
+      });
+      endpointTestingState.value = response.testingState;
+      return {
+        success: response.test.passed,
+        data: response.test.passed
+          ? {
+              httpStatus: response.test.httpStatus,
+              method: response.test.method,
+              url: response.test.url,
+              qualificationState: response.testingState.qualificationState,
+            }
+          : undefined,
+        error: response.test.errorMessage,
+        executionTime: response.test.durationMs,
+        timestamp: new Date(),
+      } as ToolResult;
     });
     testResult.value = result;
-
-    if (result.success) {
-      ElMessage.success("测试执行成功");
-    } else {
-      ElMessage.error(`测试执行失败: ${result.error}`);
-    }
+    await loadCatalogData(endpointAssetId.value);
+    ElMessage.success(
+      result.success
+        ? t("apiTester.messages.testCompleted")
+        : t("apiTester.messages.testFailed", { reason: result.error || "-" }),
+    );
   } catch (error) {
-    ElMessage.error(`测试执行异常: ${error}`);
+    ElMessage.error(t("apiTester.messages.executeError", { reason: String(error) }));
   } finally {
     testing.value = false;
   }
@@ -709,66 +1055,46 @@ const getParameterComponent = (type: string) => {
 
 const getParameterProps = (schema: any) => {
   const props: any = {};
-
   if (schema.type === "number" || schema.type === "integer") {
     if (schema.minimum !== undefined) props.min = schema.minimum;
     if (schema.maximum !== undefined) props.max = schema.maximum;
     if (schema.type === "integer") props.precision = 0;
   }
-
   if (schema.type === "string") {
     if (schema.minLength !== undefined) props.minlength = schema.minLength;
     if (schema.maxLength !== undefined) props.maxlength = schema.maxLength;
   }
-
   return props;
 };
 
 const getParameterPlaceholder = (schema: any): string => {
   if (schema.description) return schema.description;
-  if (schema.example) return `例如: ${schema.example}`;
-
+  if (schema.example) return `Example: ${schema.example}`;
   switch (schema.type) {
     case "string":
-      return "请输入字符串";
+      return "Please enter a string";
     case "number":
-      return "请输入数字";
+      return "Please enter an integer";
     case "integer":
-      return "请输入整数";
+      return "Please enter an integer";
     case "boolean":
-      return "选择是否";
+      return "Please enter a value";
     default:
-      return "请输入值";
+      return "Please enter a value";
   }
 };
 
 const getParameterRules = (paramName: string, schema: any) => {
   const rules: any[] = [];
-
   if (isRequired(paramName)) {
-    rules.push({
-      required: true,
-      message: `${paramName} 是必需参数`,
-      trigger: "blur",
-    });
+    rules.push({ required: true, message: `${paramName} is required`, trigger: "blur" });
   }
-
   if (schema.type === "string" && schema.minLength) {
-    rules.push({
-      min: schema.minLength,
-      message: `最少 ${schema.minLength} 个字符`,
-      trigger: "blur",
-    });
+    rules.push({ min: schema.minLength, message: `At least ${schema.minLength} characters`, trigger: "blur" });
   }
-
   if (schema.type === "string" && schema.maxLength) {
-    rules.push({
-      max: schema.maxLength,
-      message: `最多 ${schema.maxLength} 个字符`,
-      trigger: "blur",
-    });
+    rules.push({ max: schema.maxLength, message: `At most ${schema.maxLength} characters`, trigger: "blur" });
   }
-
   return rules;
 };
 
@@ -787,26 +1113,86 @@ const getMethodTagType = (method: string) => {
   return types[method.toUpperCase()] || "info";
 };
 
+const getEndpointStatusLabel = (status: string): string => {
+  const labels: Record<string, string> = {
+    draft: "草稿",
+    ready: "就绪",
+    verified: "已校验",
+    active: "启用",
+    published: "已发布",
+    degraded: "异常",
+    offline: "已下线",
+    disabled: "已禁用",
+    retired: "已退役",
+    archived: "已归档",
+  };
+  return labels[String(status || "").toLowerCase()] || status || "未知状态";
+};
+
+const getEndpointStatusTagType = (status: string): string => {
+  const types: Record<string, string> = {
+    draft: "info",
+    ready: "primary",
+    verified: "primary",
+    active: "success",
+    published: "success",
+    degraded: "danger",
+    offline: "warning",
+    disabled: "danger",
+    retired: "info",
+    archived: "info",
+  };
+  return types[String(status || "").toLowerCase()] || "info";
+};
+
+const getTestStatusLabel = (testStatus: string, qualificationState?: string): string => {
+  const normalizedTestStatus = String(testStatus || "").toLowerCase();
+  const normalizedQualification = String(qualificationState || "").toLowerCase();
+  if (normalizedQualification === "tested") {
+    return normalizedTestStatus === "passed" ? "已测试（通过）" : "已测试";
+  }
+  if (normalizedQualification === "test_blocked") {
+    return normalizedTestStatus === "failed" ? "测试阻塞（未通过）" : "测试阻塞";
+  }
+  if (normalizedTestStatus === "passed") return "已测试（通过）";
+  if (normalizedTestStatus === "failed") return "测试阻塞（未通过）";
+  return "未测试";
+};
+
+const getTestStatusTagType = (testStatus: string, qualificationState?: string): string => {
+  const normalized = String(testStatus || "").toLowerCase();
+  const normalizedQualification = String(qualificationState || "").toLowerCase();
+  if (normalizedQualification === "tested") return "success";
+  if (normalizedQualification === "test_blocked") return "danger";
+  if (normalized === "passed") return "success";
+  if (normalized === "failed") return "danger";
+  return "info";
+};
+
 const copyResult = async () => {
   if (!testResult.value) return;
-
   const text = testResult.value.success
     ? JSON.stringify(testResult.value.data, null, 2)
-    : testResult.value.error || "未知错误";
-
+    : testResult.value.error || t("apiTester.messages.executionFailed");
   try {
     await navigator.clipboard.writeText(text);
-    ElMessage.success("结果已复制到剪贴板");
-  } catch (error) {
-    ElMessage.error("复制失败");
+    ElMessage.success(t("apiTester.messages.resultCopied"));
+  } catch {
+    ElMessage.error(t("apiTester.messages.copyFailed"));
   }
+};
+
+const fillSampleData = () => {
+  Object.entries(toolParameters.value).forEach(([name, schema]) => {
+    testParameters.value[name] = getSampleValue(schema);
+  });
+  ElMessage.success(t("apiTester.messages.sampleFilled"));
 };
 
 const saveAsTestCase = () => {
   if (!selectedTool.value || !testResult.value?.success) return;
-
   newTestCase.value = {
-    name: `${selectedTool.value.name} 测试用例`,
+    name: `${selectedTool.value.name} ${t("apiTester.naming.testCaseSuffix")}`,
     expectedResult: JSON.stringify(testResult.value.data, null, 2),
     tags: [selectedTool.value.method.toUpperCase(), "from-manual-test"],
   };
@@ -816,7 +1202,6 @@ const saveAsTestCase = () => {
 
 const showCreateTestCaseDialog = () => {
   if (!selectedTool.value) return;
-
   const template = testingStore.generateTestCaseTemplate(selectedTool.value);
   newTestCase.value = {
     name: template.name || "",
@@ -829,16 +1214,9 @@ const showCreateTestCaseDialog = () => {
 
 const createTestCase = async () => {
   if (!createTestCaseFormRef.value || !selectedTool.value) return;
-
   const valid = await createTestCaseFormRef.value.validate().catch(() => false);
   if (!valid) return;
-
-  // 解析标签
-  const tags = tagsInput.value
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter((tag) => tag);
-
+  const tags = tagsInput.value.split(",").map((tag) => tag.trim()).filter(Boolean);
   testingStore.createTestCase({
     name: newTestCase.value.name,
     toolId: selectedTool.value.id,
@@ -846,7 +1224,6 @@ const createTestCase = async () => {
     expectedResult: newTestCase.value.expectedResult || undefined,
     tags,
   });
-
   createTestCaseDialogVisible.value = false;
   newTestCase.value = { name: "", expectedResult: "", tags: [] };
   tagsInput.value = "";
@@ -854,34 +1231,27 @@ const createTestCase = async () => {
 
 const runTestCase = async (testCase: TestCase) => {
   if (!selectedTool.value) return;
-
-  // 设置参数
   testParameters.value = { ...testCase.parameters };
-
-  // 等待DOM更新后执行测试
   await nextTick();
   await executeTest();
 };
 
 const editTestCase = (testCase: TestCase) => {
-  // 设置为当前测试用例的参数
   testParameters.value = { ...testCase.parameters };
   activeTab.value = "manual";
-  ElMessage.info("测试用例参数已加载到手动测试表单");
+  ElMessage.info(t("apiTester.messages.testCaseLoaded"));
 };
 
 const deleteTestCase = async (testCaseId: string) => {
   const testCase = testingStore.testCases.find((tc) => tc.id === testCaseId);
-  const testCaseName = testCase?.name || "测试用例";
-
+  const testCaseName = testCase?.name || t("apiTester.naming.fallbackTestCase");
   const confirmed = await globalConfirmDelete(testCaseName);
   if (!confirmed) return;
-
   try {
     testingStore.deleteTestCase(testCaseId);
-    ElMessage.success("测试用例删除成功");
+    ElMessage.success(t("apiTester.messages.testCaseDeleted"));
   } catch (error) {
-    ElMessage.error(`删除失败: ${error}`);
+    ElMessage.error(t("apiTester.messages.deleteFailed", { reason: String(error) }));
   }
 };
 
@@ -891,30 +1261,25 @@ const viewHistoryDetails = (historyItem: any) => {
 };
 
 const rerunFromHistory = async (historyItem: any) => {
-  // 找到对应的工具
-  const tool = tools.value.find((t: MCPTool) => t.id === historyItem.toolId);
+  const tool = knownTools.value.find((t: MCPTool) => t.id === historyItem.toolId);
   if (!tool) {
-    ElMessage.error("工具不存在");
+    ElMessage.error(t("apiTester.messages.historyContextMissing"));
     return;
   }
-
-  // 切换到该工具并设置参数
-  selectTool(tool);
+  selectedTool.value = tool;
   testParameters.value = { ...historyItem.parameters };
   activeTab.value = "manual";
-
-  // 执行测试
   await nextTick();
   await executeTest();
 };
 
 const getToolName = (toolId: string): string => {
-  const tool = tools.value.find((t: MCPTool) => t.id === toolId);
-  return tool?.name || "未知工具";
+  const tool = knownTools.value.find((t: MCPTool) => t.id === toolId);
+  return tool?.name || t("apiTester.messages.unknownEndpoint");
 };
 
 const formatDate = (date: Date): string => {
-  return new Intl.DateTimeFormat("zh-CN", {
+  return new Intl.DateTimeFormat(locale.value || "zh-CN", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -922,7 +1287,7 @@ const formatDate = (date: Date): string => {
 };
 
 const formatDateTime = (date: Date): string => {
-  return new Intl.DateTimeFormat("zh-CN", {
+  return new Intl.DateTimeFormat(locale.value || "zh-CN", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -935,26 +1300,43 @@ const formatDateTime = (date: Date): string => {
 const refreshData = async () => {
   loading.value = true;
   try {
-    await openApiStore.fetchSpecs();
-    ElMessage.success("数据刷新成功");
-  } catch (error) {
-    ElMessage.error("数据刷新失败");
+    const endpointId = typeof route.query.endpointId === "string" ? route.query.endpointId : undefined;
+    await loadCatalogData(endpointId);
+    ElMessage.success(t("apiTester.messages.catalogRefreshed"));
+  } catch {
+    ElMessage.error(t("apiTester.messages.refreshFailed"));
   } finally {
     loading.value = false;
   }
 };
 
-// 生命周期
 onMounted(async () => {
   loadingTools.value = true;
   try {
-    await openApiStore.fetchSpecs();
-  } catch (error) {
-    ElMessage.error("加载工具列表失败");
+    const endpointId = typeof route.query.endpointId === "string" ? route.query.endpointId : undefined;
+    await loadCatalogData(endpointId);
+  } catch {
+    ElMessage.error(t("apiTester.messages.loadCatalogFailed"));
   } finally {
     loadingTools.value = false;
   }
 });
+
+watch(
+  () => route.query.endpointId,
+  async (endpointId) => {
+    if (typeof endpointId === "string" && endpointId) {
+      await loadCatalogData(endpointId);
+      return;
+    }
+    selectedEndpointId.value = "";
+    endpointAssetId.value = "";
+    endpointAssetTool.value = null;
+    endpointTestingState.value = null;
+    selectedTool.value = null;
+    testResult.value = null;
+  },
+);
 </script>
 
 <style scoped>
@@ -1003,7 +1385,8 @@ onMounted(async () => {
   min-height: 0;
 }
 
-.tools-panel {
+.catalog-panel,
+.endpoints-panel {
   width: 300px;
   background: white;
   border-radius: 8px;
@@ -1011,6 +1394,7 @@ onMounted(async () => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .panel-header {
@@ -1024,28 +1408,93 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-.tools-list {
+.catalog-list,
+.endpoint-list {
   flex: 1;
   overflow-y: auto;
 }
 
-.tool-item {
+.catalog-item,
+.endpoint-item {
+  width: 100%;
+  text-align: left;
   padding: 12px;
   border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   margin-bottom: 8px;
   cursor: pointer;
   transition: all 0.2s;
+  background: white;
 }
 
-.tool-item:hover {
+.catalog-item:hover,
+.endpoint-item:hover {
   border-color: var(--el-color-primary);
   background-color: var(--el-color-primary-light-9);
 }
 
-.tool-item.active {
+.catalog-item.active,
+.endpoint-item.active {
   border-color: var(--el-color-primary);
   background-color: var(--el-color-primary-light-8);
+}
+
+.catalog-section + .catalog-section {
+  margin-top: 16px;
+}
+
+.catalog-section-title {
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--el-text-color-secondary);
+  text-transform: uppercase;
+}
+
+.catalog-item-title {
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.catalog-item-subtitle {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--el-text-color-regular);
+  word-break: break-all;
+}
+
+.catalog-item-path {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  font-family: var(--el-font-family-monospace, Consolas, "Courier New", monospace);
+  word-break: break-all;
+}
+
+.catalog-item-meta,
+.endpoint-item-meta {
+  margin-top: 8px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.catalog-item-progress {
+  margin-top: 6px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--el-color-primary);
+}
+
+.endpoint-group-summary {
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--el-bg-color-page);
 }
 
 .tool-info {
@@ -1312,7 +1761,9 @@ onMounted(async () => {
     flex-direction: column;
   }
 
-  .tools-panel {
+  .catalog-panel,
+  .endpoints-panel,
+  .testing-panel {
     width: 100%;
   }
 

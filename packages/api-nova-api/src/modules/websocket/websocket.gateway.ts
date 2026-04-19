@@ -227,12 +227,10 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
   @SubscribeMessage('subscribe-runtime-asset')
   async handleSubscribeRuntimeAsset(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { serverId?: string; runtimeAssetId?: string; interval?: number },
+    @MessageBody() data: { runtimeAssetId?: string; interval?: number },
   ) {
     try {
-      const runtimeAssetId =
-        data.runtimeAssetId ||
-        (data.serverId ? await this.resolveRuntimeAssetIdByServerId(data.serverId) : undefined);
+      const runtimeAssetId = data.runtimeAssetId;
       if (!runtimeAssetId) {
         return;
       }
@@ -264,11 +262,9 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
   @SubscribeMessage('subscribe-runtime-events')
   async handleSubscribeRuntimeEvents(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { level?: string[]; serverId?: string; runtimeAssetId?: string } = {},
+    @MessageBody() data: { level?: string[]; runtimeAssetId?: string } = {},
   ) {
-    const runtimeAssetId =
-      data.runtimeAssetId ||
-      (data.serverId ? await this.resolveRuntimeAssetIdByServerId(data.serverId) : undefined);
+    const runtimeAssetId = data.runtimeAssetId;
     const room = runtimeAssetId ? `runtime-events-${runtimeAssetId}` : 'runtime-events';
 
     client.join(room);

@@ -115,15 +115,6 @@ export class ManagementEventService {
         return AuditAction.SERVER_STOPPED;
       case 'server.restart':
         return AuditAction.SERVER_RESTARTED;
-      case 'api-center.profile.update':
-        return AuditAction.CONFIG_UPDATED;
-      case 'api-center.manual-endpoint.register':
-        return AuditAction.API_CONFIGURED;
-      case 'api-center.endpoint.publish':
-      case 'api-center.endpoint.offline':
-        return AuditAction.API_CONFIGURED;
-      case 'api-center.endpoint.probe':
-        return AuditAction.API_TESTED;
       default:
         return null;
     }
@@ -156,9 +147,6 @@ export class ManagementEventService {
   private toAuditResource(action: string): string {
     if (action.startsWith('server.')) {
       return 'server';
-    }
-    if (action.startsWith('api-center.')) {
-      return 'api-center';
     }
     return 'management';
   }

@@ -4,17 +4,17 @@
       <div>
         <h2 class="dashboard-title">
           <el-icon><Monitor /></el-icon>
-          Runtime Asset Monitoring
+          {{ t("monitoring.dashboard.title") }}
         </h2>
         <p class="dashboard-subtitle">
-          Runtime-asset-first observability for MCP and Gateway assets.
+          {{ t("monitoring.dashboard.subtitle") }}
         </p>
       </div>
 
       <div class="header-actions">
         <el-switch
           v-model="autoRefresh"
-          active-text="Auto refresh"
+          :active-text="t('monitoring.dashboard.autoRefresh')"
           @change="handleAutoRefreshChange"
         />
         <el-button
@@ -23,7 +23,7 @@
           :loading="isRefreshing"
           @click="handleRefresh"
         >
-          Refresh
+          {{ t("common.refresh") }}
         </el-button>
       </div>
     </div>
@@ -31,7 +31,7 @@
     <el-row :gutter="16" class="summary-row">
       <el-col :span="6">
         <MetricCard
-          title="Runtime Assets"
+          :title="t('monitoring.dashboard.summary.runtimeAssets')"
           :value="summaryMetrics.totalRuntimeAssets"
           icon="server"
           :show-chart="true"
@@ -40,7 +40,7 @@
       </el-col>
       <el-col :span="6">
         <MetricCard
-          title="Active Assets"
+          :title="t('monitoring.dashboard.summary.activeAssets')"
           :value="summaryMetrics.activeRuntimeAssets"
           icon="network"
           :show-chart="true"
@@ -49,7 +49,7 @@
       </el-col>
       <el-col :span="6">
         <MetricCard
-          title="Degraded Assets"
+          :title="t('monitoring.dashboard.summary.degradedAssets')"
           :value="summaryMetrics.degradedRuntimeAssets"
           icon="memory"
           :show-chart="true"
@@ -58,7 +58,7 @@
       </el-col>
       <el-col :span="6">
         <MetricCard
-          title="Unhealthy Assets"
+          :title="t('monitoring.dashboard.summary.unhealthyAssets')"
           :value="summaryMetrics.unhealthyRuntimeAssets"
           icon="disk"
           :show-chart="true"
@@ -89,26 +89,26 @@
         <el-card>
           <template #header>
             <div class="section-header">
-              <span>Recent Runtime Events</span>
+              <span>{{ t("monitoring.dashboard.recentRuntimeEvents") }}</span>
               <el-tag size="small" type="info">{{ runtimeEvents.length }}</el-tag>
             </div>
           </template>
 
           <el-table :data="runtimeEvents" stripe size="small" height="360">
-            <el-table-column prop="occurredAt" label="Time" min-width="160">
+            <el-table-column prop="occurredAt" :label="t('monitoring.dashboard.time')" min-width="160">
               <template #default="{ row }">
                 {{ formatDateTime(row.occurredAt || row.createdAt) }}
               </template>
             </el-table-column>
-            <el-table-column prop="eventName" label="Event" min-width="150" />
-            <el-table-column prop="severity" label="Severity" width="100">
+            <el-table-column prop="eventName" :label="t('monitoring.dashboard.event')" min-width="150" />
+            <el-table-column prop="severity" :label="t('monitoring.dashboard.severity')" width="100">
               <template #default="{ row }">
                 <el-tag :type="severityTagType(row.severity)" size="small">
-                  {{ row.severity || "info" }}
+                  {{ row.severity || t("monitoring.dashboard.info") }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="summary" label="Summary" min-width="220" />
+            <el-table-column prop="summary" :label="t('monitoring.dashboard.summaryLabel')" min-width="220" />
           </el-table>
         </el-card>
       </el-col>
@@ -117,13 +117,13 @@
         <el-card>
           <template #header>
             <div class="section-header">
-              <span>Runtime Assets</span>
+              <span>{{ t("monitoring.dashboard.runtimeAssets") }}</span>
               <el-tag size="small" type="success">{{ runtimeAssets.length }}</el-tag>
             </div>
           </template>
 
           <el-table :data="runtimeAssets" stripe size="small" height="360">
-            <el-table-column label="Asset" min-width="180">
+            <el-table-column :label="t('monitoring.dashboard.asset')" min-width="180">
               <template #default="{ row }">
                 <div class="asset-name">
                   <strong>{{ row.asset?.displayName || row.asset?.name }}</strong>
@@ -131,24 +131,24 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="Status" width="120">
+            <el-table-column :label="t('monitoring.dashboard.status')" width="120">
               <template #default="{ row }">
                 <el-tag :type="runtimeStatusTagType(row.runtimeSummary?.runtimeStatus)" size="small">
-                  {{ row.runtimeSummary?.runtimeStatus || "unknown" }}
+                  {{ row.runtimeSummary?.runtimeStatus || t("monitoring.dashboard.unknown") }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="Healthy" width="100">
+            <el-table-column :label="t('monitoring.dashboard.healthy')" width="100">
               <template #default="{ row }">
                 <el-tag
                   size="small"
                   :type="row.runtimeSummary?.healthy === false ? 'danger' : 'success'"
                 >
-                  {{ row.runtimeSummary?.healthy === false ? "No" : "Yes" }}
+                  {{ row.runtimeSummary?.healthy === false ? t("common.no") : t("common.yes") }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="Members" width="100">
+            <el-table-column :label="t('monitoring.dashboard.members')" width="100">
               <template #default="{ row }">
                 {{ row.runtimeSummary?.membershipCount || row.membershipCount || 0 }}
               </template>
@@ -161,26 +161,26 @@
     <el-card class="logs-card">
       <template #header>
         <div class="section-header">
-          <span>Normalized Management Logs</span>
-          <el-button size="small" @click="exportLogs">Export</el-button>
+          <span>{{ t("monitoring.dashboard.normalizedManagementLogs") }}</span>
+          <el-button size="small" @click="exportLogs">{{ t("monitoring.dashboard.export") }}</el-button>
         </div>
       </template>
 
       <el-table :data="logs" stripe size="small">
-        <el-table-column label="Time" min-width="160">
+        <el-table-column :label="t('monitoring.dashboard.time')" min-width="160">
           <template #default="{ row }">
             {{ formatDateTime(row.timestamp) }}
           </template>
         </el-table-column>
-        <el-table-column prop="level" label="Level" width="100">
+        <el-table-column prop="level" :label="t('monitoring.dashboard.level')" width="100">
           <template #default="{ row }">
             <el-tag :type="logLevelTagType(row.level)" size="small">
               {{ row.level }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="source" label="Source" min-width="140" />
-        <el-table-column prop="message" label="Message" min-width="320" />
+        <el-table-column prop="source" :label="t('monitoring.dashboard.source')" min-width="140" />
+        <el-table-column prop="message" :label="t('monitoring.dashboard.message')" min-width="320" />
       </el-table>
     </el-card>
   </div>
@@ -190,6 +190,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { Monitor, Refresh, Connection, Service, Grid, Promotion } from "@element-plus/icons-vue";
+import { useI18n } from "vue-i18n";
 import MetricCard from "../components/monitoring/MetricCard.vue";
 import SystemStatusCard from "../components/monitoring/SystemStatusCard.vue";
 import AlertsPanel from "../components/monitoring/AlertsPanel.vue";
@@ -198,6 +199,7 @@ import { useWebSocketStore } from "@/stores/websocket";
 
 const monitoringStore = useMonitoringStore();
 const websocketStore = useWebSocketStore();
+const { t, locale } = useI18n();
 const autoRefresh = ref(true);
 const isRefreshing = ref(false);
 
@@ -223,28 +225,28 @@ const systemStatusData = computed(() => ({
   status: monitoringStore.systemHealth.status,
   services: [
     {
-      name: "Gateway Runtime Assets",
+      name: t("monitoring.dashboard.services.gatewayAssets"),
       status: toServiceStatus(
         summaryMetrics.value.degradedRuntimeAssets > 0 ? "degraded" : "online",
       ),
       icon: Promotion,
     },
     {
-      name: "MCP Runtime Assets",
+      name: t("monitoring.dashboard.services.mcpAssets"),
       status: toServiceStatus(
         summaryMetrics.value.activeRuntimeAssets > 0 ? "online" : "offline",
       ),
       icon: Service,
     },
     {
-      name: "Runtime Observability",
+      name: t("monitoring.dashboard.services.observability"),
       status: toServiceStatus(
         monitoringStore.runtimeEvents.length > 0 ? "online" : "degraded",
       ),
       icon: Grid,
     },
     {
-      name: "Management WebSocket",
+      name: t("monitoring.dashboard.services.managementWebSocket"),
       status: toServiceStatus(websocketStore.connected ? "online" : "degraded"),
       icon: Connection,
     },
@@ -301,7 +303,7 @@ function logLevelTagType(level?: string) {
 }
 
 function formatDateTime(value: Date | string) {
-  return new Date(value).toLocaleString("zh-CN");
+  return new Date(value).toLocaleString(locale.value);
 }
 
 async function handleRefresh() {
@@ -309,7 +311,7 @@ async function handleRefresh() {
   try {
     await monitoringStore.refreshAll("dashboard");
   } catch (error) {
-    ElMessage.error("Failed to refresh runtime monitoring.");
+    ElMessage.error(t("monitoring.dashboard.refreshFailed"));
   } finally {
     isRefreshing.value = false;
   }

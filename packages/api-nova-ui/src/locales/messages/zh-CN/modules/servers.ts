@@ -191,6 +191,21 @@ export default {
     toolCount: "工具数量",
     autoStart: "自动启动",
     errorRate: "错误率",
+    runtimeAssetsLabels: {
+      pageTitle: "运行时资产",
+      runtimeStatus: "运行时状态",
+      runtimeEndpoint: "运行时端点",
+      runtimeType: "运行时类型",
+      members: "成员数",
+      activeMembers: "活跃成员",
+      tools: "工具数",
+    },
+    runtimeAssetsActions: {
+      goToPublication: "API 发布",
+      startRuntime: "启动运行时",
+      stopRuntime: "停止运行时",
+      redeployRuntime: "重新部署运行时",
+    },
     eventTypes: {
       serverStarted: "服务已启动",
       serverStopped: "服务已停止",

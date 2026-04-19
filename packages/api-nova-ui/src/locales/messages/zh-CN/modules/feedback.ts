@@ -40,6 +40,13 @@ export default {
     testSuccess: "\u6d4b\u8bd5\u6210\u529f",
     validationSuccess: "\u9a8c\u8bc1\u6210\u529f",
     configurationSuccess: "\u914d\u7f6e\u6210\u529f",
+    welcomeBack: "\u6b22\u8fce\u56de\u6765\uff0c{username}\uff01",
+    checkEmailVerification:
+      "\u6ce8\u518c\u6210\u529f\uff0c\u8bf7\u68c0\u67e5\u90ae\u7bb1\u5b8c\u6210\u9a8c\u8bc1",
+    loggedOut: "\u5df2\u9000\u51fa\u767b\u5f55",
+    logoutSuccess: "\u60a8\u5df2\u6210\u529f\u9000\u51fa\u767b\u5f55",
+    profileInDevelopment: "\u4e2a\u4eba\u8d44\u6599\u529f\u80fd\u5f00\u53d1\u4e2d",
+    settingsInDevelopment: "\u8d26\u6237\u8bbe\u7f6e\u529f\u80fd\u5f00\u53d1\u4e2d",
   },
   validation: {
     required: "\u6b64\u5b57\u6bb5\u4e3a\u5fc5\u586b\u9879",

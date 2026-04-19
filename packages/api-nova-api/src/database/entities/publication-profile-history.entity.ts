@@ -8,7 +8,7 @@ import {
 import { getJsonColumnOptions } from '../db-compat';
 
 @Entity('publication_profile_history')
-@Index(['endpointId'])
+@Index(['endpointDefinitionId'])
 @Index(['runtimeAssetEndpointBindingId'])
 @Index(['publicationProfileId'])
 export class PublicationProfileHistoryEntity {
@@ -16,7 +16,7 @@ export class PublicationProfileHistoryEntity {
   id: string;
 
   @Column({ type: 'varchar', length: 36 })
-  endpointId: string;
+  endpointDefinitionId: string;
 
   @Column({ type: 'varchar', length: 36, nullable: true })
   runtimeAssetEndpointBindingId?: string;

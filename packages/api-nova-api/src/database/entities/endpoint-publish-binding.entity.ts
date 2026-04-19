@@ -24,7 +24,7 @@ export enum PublicationBindingStatus {
 }
 
 @Entity('endpoint_publish_bindings')
-@Index(['endpointId'])
+@Index(['endpointDefinitionId'])
 @Index(['runtimeAssetEndpointBindingId'], { unique: true })
 @Index(['publishStatus'])
 export class EndpointPublishBindingEntity {
@@ -32,7 +32,7 @@ export class EndpointPublishBindingEntity {
   id: string;
 
   @Column({ type: 'varchar', length: 36 })
-  endpointId: string;
+  endpointDefinitionId: string;
 
   @Column({ type: 'varchar', length: 36, nullable: true })
   runtimeAssetEndpointBindingId?: string;

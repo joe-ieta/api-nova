@@ -3,7 +3,7 @@
     <template #header>
       <div class="panel-header">
         <div class="header-left">
-          <span class="panel-title">系统告警</span>
+          <span class="panel-title">{{ t("monitoring.alertsPanel.title") }}</span>
           <el-badge
             :value="activeAlerts.length"
             :type="badgeType"
@@ -12,80 +12,77 @@
         </div>
         <div class="header-actions">
           <el-button size="small" :icon="Refresh" @click="$emit('refresh')">
-            刷新
+            {{ t("monitoring.alertsPanel.refresh") }}
           </el-button>
           <el-button
             size="small"
             :icon="Delete"
-            @click="$emit('clearAcknowledged')"
             :disabled="acknowledgedCount === 0"
+            @click="$emit('clearAcknowledged')"
           >
-            清除已确认
+            {{ t("monitoring.alertsPanel.clearAcknowledged") }}
           </el-button>
         </div>
       </div>
     </template>
 
-    <div class="alerts-summary" v-if="alerts.length > 0">
+    <div v-if="alerts.length > 0" class="alerts-summary">
       <div class="summary-item critical">
         <el-icon><Warning /></el-icon>
-        <span>严重: {{ criticalCount }}</span>
+        <span>{{ t("monitoring.alertsPanel.summary.critical") }}: {{ criticalCount }}</span>
       </div>
       <div class="summary-item warning">
         <el-icon><InfoFilled /></el-icon>
-        <span>警告: {{ warningCount }}</span>
+        <span>{{ t("monitoring.alertsPanel.summary.warning") }}: {{ warningCount }}</span>
       </div>
       <div class="summary-item info">
         <el-icon><SuccessFilled /></el-icon>
-        <span>信息: {{ infoCount }}</span>
+        <span>{{ t("monitoring.alertsPanel.summary.info") }}: {{ infoCount }}</span>
       </div>
     </div>
 
-    <div class="alerts-filters" v-if="alerts.length > 0">
+    <div v-if="alerts.length > 0" class="alerts-filters">
       <el-select
         v-model="selectedLevel"
-        placeholder="筛选级别"
+        :placeholder="t('monitoring.alertsPanel.filters.level')"
         size="small"
         clearable
         style="width: 120px"
       >
-        <el-option label="严重" value="critical" />
-        <el-option label="警告" value="warning" />
-        <el-option label="信息" value="info" />
+        <el-option :label="t('monitoring.alertsPanel.levels.critical')" value="critical" />
+        <el-option :label="t('monitoring.alertsPanel.levels.warning')" value="warning" />
+        <el-option :label="t('monitoring.alertsPanel.levels.info')" value="info" />
       </el-select>
 
       <el-select
         v-model="selectedType"
-        placeholder="筛选类型"
+        :placeholder="t('monitoring.alertsPanel.filters.type')"
         size="small"
         clearable
         style="width: 120px"
       >
-        <el-option label="CPU" value="cpu" />
-        <el-option label="内存" value="memory" />
-        <el-option label="磁盘" value="disk" />
-        <el-option label="网络" value="network" />
-        <el-option label="错误" value="error" />
+        <el-option :label="t('monitoring.alertsPanel.types.cpu')" value="cpu" />
+        <el-option :label="t('monitoring.alertsPanel.types.memory')" value="memory" />
+        <el-option :label="t('monitoring.alertsPanel.types.disk')" value="disk" />
+        <el-option :label="t('monitoring.alertsPanel.types.network')" value="network" />
+        <el-option :label="t('monitoring.alertsPanel.types.error')" value="error" />
       </el-select>
 
       <el-checkbox v-model="showAcknowledged" size="small">
-        显示已确认
+        {{ t("monitoring.alertsPanel.filters.showAcknowledged") }}
       </el-checkbox>
     </div>
 
     <div class="alerts-list">
       <div v-if="filteredAlerts.length === 0" class="empty-state">
-        <el-empty :image-size="80" description="暂无告警信息" />
+        <el-empty :image-size="80" :description="t('monitoring.alertsPanel.empty')" />
       </div>
 
       <div
         v-for="alert in filteredAlerts"
         :key="alert.id"
         class="alert-item"
-        :class="[
-          `alert-${alert.level}`,
-          { 'alert-acknowledged': alert.acknowledged },
-        ]"
+        :class="[`alert-${alert.level}`, { 'alert-acknowledged': alert.acknowledged }]"
       >
         <div class="alert-icon">
           <el-icon>
@@ -101,9 +98,9 @@
             <span class="alert-time">{{ formatTime(alert.timestamp) }}</span>
           </div>
           <div class="alert-message">{{ alert.message }}</div>
-          <div class="alert-details" v-if="alert.value !== undefined">
-            <span>当前值: {{ alert.value.toFixed(1) }}</span>
-            <span>阈值: {{ alert.threshold.toFixed(1) }}</span>
+          <div v-if="alert.value !== undefined" class="alert-details">
+            <span>{{ t("monitoring.alertsPanel.currentValue", { value: alert.value.toFixed(1) }) }}</span>
+            <span>{{ t("monitoring.alertsPanel.threshold", { value: alert.threshold.toFixed(1) }) }}</span>
           </div>
         </div>
 
@@ -114,13 +111,9 @@
             type="primary"
             @click="$emit('acknowledge', alert.id)"
           >
-            确认
+            {{ t("monitoring.alertsPanel.acknowledge") }}
           </el-button>
-          <el-button
-            size="small"
-            :icon="Delete"
-            @click="$emit('dismiss', alert.id)"
-          />
+          <el-button size="small" :icon="Delete" @click="$emit('dismiss', alert.id)" />
         </div>
       </div>
     </div>
@@ -128,7 +121,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import {
   Warning,
   InfoFilled,
@@ -150,15 +144,14 @@ interface Emits {
 }
 
 const props = defineProps<Props>();
-const emit = defineEmits<Emits>();
+defineEmits<Emits>();
+const { t, locale } = useI18n();
 
 const selectedLevel = ref<string>("");
 const selectedType = ref<string>("");
 const showAcknowledged = ref(false);
 
-const activeAlerts = computed(() =>
-  props.alerts.filter((alert) => !alert.acknowledged),
-);
+const activeAlerts = computed(() => props.alerts.filter((alert) => !alert.acknowledged));
 
 const criticalCount = computed(
   () => activeAlerts.value.filter((alert) => alert.level === "critical").length,
@@ -197,46 +190,48 @@ const filteredAlerts = computed(() => {
     filtered = filtered.filter((alert) => alert.type === selectedType.value);
   }
 
+  const levelOrder: Record<string, number> = { critical: 0, warning: 1, info: 2 };
+
   return filtered.sort((a, b) => {
-    // 先按确认状态排序
     if (a.acknowledged !== b.acknowledged) {
       return a.acknowledged ? 1 : -1;
     }
 
-    // 再按级别排序
-    const levelOrder = { critical: 0, warning: 1, info: 2 };
-    const levelDiff = levelOrder[a.level] - levelOrder[b.level];
-    if (levelDiff !== 0) return levelDiff;
+    const levelDiff = (levelOrder[a.level] ?? 99) - (levelOrder[b.level] ?? 99);
+    if (levelDiff !== 0) {
+      return levelDiff;
+    }
 
-    // 最后按时间排序（新的在前）
     return b.timestamp.getTime() - a.timestamp.getTime();
   });
 });
 
 const getTypeLabel = (type: string) => {
-  const typeMap: Record<string, string> = {
-    cpu: "CPU",
-    memory: "内存",
-    disk: "磁盘",
-    network: "网络",
-    error: "错误",
-  };
-  return typeMap[type] || type;
+  const knownTypes = ["cpu", "memory", "disk", "network", "error"];
+  return knownTypes.includes(type) ? t(`monitoring.alertsPanel.types.${type}`) : type;
 };
 
 const formatTime = (date: Date) => {
   const now = new Date();
   const diff = now.getTime() - date.getTime();
 
-  if (diff < 60000) {
-    return "刚刚";
-  } else if (diff < 3600000) {
-    return `${Math.floor(diff / 60000)}分钟前`;
-  } else if (diff < 86400000) {
-    return `${Math.floor(diff / 3600000)}小时前`;
-  } else {
-    return date.toLocaleDateString("zh-CN");
+  if (diff < 60_000) {
+    return t("monitoring.alertsPanel.justNow");
   }
+
+  if (diff < 3_600_000) {
+    return t("monitoring.alertsPanel.minutesAgo", {
+      count: Math.floor(diff / 60_000),
+    });
+  }
+
+  if (diff < 86_400_000) {
+    return t("monitoring.alertsPanel.hoursAgo", {
+      count: Math.floor(diff / 3_600_000),
+    });
+  }
+
+  return date.toLocaleDateString(locale.value);
 };
 </script>
 

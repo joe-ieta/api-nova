@@ -103,19 +103,10 @@ Notes:
 - actual available endpoints are defined by the current controller implementation
 - incomplete management capabilities should not be treated as released product commitments
 
-Current API-management endpoints in active use include:
-
-- `GET /api/v1/servers/api-center/overview`
-- `POST /api/v1/servers/api-center/manual-endpoint`
-- `POST /api/v1/servers/:id/api-center/probe`
-- `GET /api/v1/servers/:id/api-center/publish-readiness`
-- `POST /api/v1/servers/:id/api-center/state`
-
 Current scope note:
 
-- the API Center implementation is intentionally lightweight
-- it currently covers manual endpoint registration plus lightweight governance views for imported endpoints
-- grouping, probe status, readiness checks, and publish/offline lifecycle controls are available in the current governance surface
+- the older API Center compatibility controller is no longer mounted as an active public API surface
+- current registration, governance, publication, and runtime-asset flows use the corrected asset-catalog, publication, and runtime-asset endpoints instead
 - semantic endpoint enrichment and broader imported-endpoint governance are still deferred and tracked in `docs/reference/open-items.md`
 
 ## Responsibility Boundary

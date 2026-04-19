@@ -5,7 +5,6 @@ import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 
-import { ServersApiCenterController } from './controllers/servers-api-center.controller';
 import { ServersLifecycleController } from './controllers/servers-lifecycle.controller';
 import { ServersObservabilityController } from './controllers/servers-observability.controller';
 import { ServersProcessController } from './controllers/servers-process.controller';
@@ -28,8 +27,6 @@ import { ProcessInfoEntity } from './entities/process-info.entity';
 import { HealthCheckResultEntity } from './entities/health-check-result.entity';
 import { ProcessLogEntity } from './entities/process-log.entity';
 import { SystemLogEntity } from '../../database/entities/system-log.entity';
-import { EndpointProbeLogEntity } from './entities/endpoint-probe-log.entity';
-import { ApiManagementCenterService } from './services/api-management-center.service';
 
 // 导入其他模块的服务
 import { MCPModule } from '../mcp/mcp.module';
@@ -50,7 +47,6 @@ import { SecurityModule } from '../security/security.module';
       HealthCheckResultEntity,
       ProcessLogEntity,
       SystemLogEntity,
-      EndpointProbeLogEntity,
     ]),
     EventEmitterModule,
     HttpModule.register({
@@ -70,7 +66,6 @@ import { SecurityModule } from '../security/security.module';
   controllers: [
     ServersObservabilityController,
     ServersProcessController,
-    ServersApiCenterController,
     ServersLifecycleController,
   ],
   providers: [
@@ -85,7 +80,6 @@ import { SecurityModule } from '../security/security.module';
     ProcessLogMonitorService,
     SystemLogService,
     ManagementEventService,
-    ApiManagementCenterService,
   ],
   exports: [
     ServerManagerService,
@@ -99,7 +93,6 @@ import { SecurityModule } from '../security/security.module';
     ProcessLogMonitorService,
     SystemLogService,
     ManagementEventService,
-    ApiManagementCenterService,
   ],
 })
 export class ServersModule {}

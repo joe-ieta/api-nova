@@ -194,6 +194,21 @@ export default {
     toolCount: "Tool Count",
     autoStart: "Auto Start",
     errorRate: "Error Rate",
+    runtimeAssetsLabels: {
+      pageTitle: "Runtime Assets",
+      runtimeStatus: "Runtime Status",
+      runtimeEndpoint: "Runtime Endpoint",
+      runtimeType: "Runtime Type",
+      members: "Members",
+      activeMembers: "Active Members",
+      tools: "Tools",
+    },
+    runtimeAssetsActions: {
+      goToPublication: "API Publication",
+      startRuntime: "Start Runtime",
+      stopRuntime: "Stop Runtime",
+      redeployRuntime: "Redeploy Runtime",
+    },
     eventTypes: {
       serverStarted: "Server Started",
       serverStopped: "Server Stopped",

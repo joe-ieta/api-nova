@@ -2,7 +2,7 @@
   <el-card class="system-status-card">
     <template #header>
       <div class="card-header">
-        <span class="header-title">系统状态</span>
+        <span class="header-title">{{ t("monitoring.systemStatus.title") }}</span>
         <el-tag :type="statusType" effect="dark">
           {{ statusText }}
         </el-tag>
@@ -10,7 +10,7 @@
     </template>
 
     <div class="status-grid">
-      <div class="status-item" v-for="service in services" :key="service.name">
+      <div v-for="service in services" :key="service.name" class="status-item">
         <div class="service-info">
           <div class="service-icon" :class="service.statusClass">
             <component :is="service.icon" />
@@ -26,28 +26,22 @@
       </div>
     </div>
 
-    <div class="uptime-info" v-if="uptime">
-      <div class="uptime-label">系统运行时间</div>
+    <div v-if="uptime" class="uptime-info">
+      <div class="uptime-label">{{ t("monitoring.systemStatus.uptime") }}</div>
       <div class="uptime-value">{{ formatUptime(uptime) }}</div>
     </div>
 
-    <div class="last-update" v-if="lastUpdate">
+    <div v-if="lastUpdate" class="last-update">
       <el-icon><Clock /></el-icon>
-      <span>最后更新：{{ formatTime(lastUpdate) }}</span>
+      <span>{{ t("monitoring.systemStatus.lastUpdate", { time: formatTime(lastUpdate) }) }}</span>
     </div>
   </el-card>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import {
-  Clock,
-  Monitor,
-  Connection,
-  Coin,
-  Service,
-  Link,
-} from "@element-plus/icons-vue";
+import { Clock } from "@element-plus/icons-vue";
+import { useI18n } from "vue-i18n";
 
 interface ServiceStatus {
   name: string;
@@ -63,6 +57,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { t, locale } = useI18n();
 
 const statusType = computed(() => {
   switch (props.status) {
@@ -80,23 +75,23 @@ const statusType = computed(() => {
 const statusText = computed(() => {
   switch (props.status) {
     case "healthy":
-      return "正常";
+      return t("monitoring.systemStatus.overallStatus.healthy");
     case "warning":
-      return "警告";
+      return t("monitoring.systemStatus.overallStatus.warning");
     case "critical":
-      return "严重";
+      return t("monitoring.systemStatus.overallStatus.critical");
     default:
-      return "未知";
+      return t("monitoring.systemStatus.overallStatus.unknown");
   }
 });
 
-const services = computed(() => {
-  return props.services.map((service) => ({
+const services = computed(() =>
+  props.services.map((service) => ({
     ...service,
     statusClass: getStatusClass(service.status),
     statusText: getStatusText(service.status),
-  }));
-});
+  })),
+);
 
 const getStatusClass = (status: string) => {
   switch (status) {
@@ -116,15 +111,15 @@ const getStatusClass = (status: string) => {
 const getStatusText = (status: string) => {
   switch (status) {
     case "online":
-      return "在线";
+      return t("monitoring.systemStatus.serviceStatus.online");
     case "offline":
-      return "离线";
+      return t("monitoring.systemStatus.serviceStatus.offline");
     case "degraded":
-      return "降级";
+      return t("monitoring.systemStatus.serviceStatus.degraded");
     case "connecting":
-      return "连接中";
+      return t("monitoring.systemStatus.serviceStatus.connecting");
     default:
-      return "未知";
+      return t("monitoring.systemStatus.serviceStatus.unknown");
   }
 };
 
@@ -134,16 +129,18 @@ const formatUptime = (seconds: number) => {
   const minutes = Math.floor((seconds % 3600) / 60);
 
   if (days > 0) {
-    return `${days}天 ${hours}小时 ${minutes}分钟`;
-  } else if (hours > 0) {
-    return `${hours}小时 ${minutes}分钟`;
-  } else {
-    return `${minutes}分钟`;
+    return t("monitoring.systemStatus.uptimeFormat.days", { days, hours, minutes });
   }
+
+  if (hours > 0) {
+    return t("monitoring.systemStatus.uptimeFormat.hours", { hours, minutes });
+  }
+
+  return t("monitoring.systemStatus.uptimeFormat.minutes", { minutes });
 };
 
-const formatTime = (date: Date) => {
-  return date.toLocaleString("zh-CN", {
+const formatTime = (date: Date) =>
+  date.toLocaleString(locale.value, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -151,7 +148,6 @@ const formatTime = (date: Date) => {
     minute: "2-digit",
     second: "2-digit",
   });
-};
 </script>
 
 <style scoped>
@@ -234,6 +230,7 @@ const formatTime = (date: Date) => {
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }

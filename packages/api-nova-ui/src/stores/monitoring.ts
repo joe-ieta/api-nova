@@ -79,7 +79,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
   const metricsHistory = ref<RuntimeMetricsSnapshot[]>([]);
   const logs = ref<LogEntry[]>([]);
   const logFilter = ref<LogFilter>({});
-  const serverMetrics = ref<Record<string, any>>({});
+  const runtimeAssetMetrics = ref<Record<string, any>>({});
   const systemMetrics = ref<any | null>(null);
   const currentMetrics = ref<DetailedSystemMetrics | null>(null);
   const managementApiAvailable = ref(true);
@@ -422,21 +422,16 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     await fetchOverview();
   }
 
-  async function fetchServerMetrics(serverId?: string) {
-    if (!serverId) {
+  async function fetchRuntimeAssetMetrics(runtimeAssetId?: string) {
+    if (!runtimeAssetId) {
       return systemMetrics.value;
     }
-    const runtimeAsset = runtimeAssets.value.find(
-      item => item?.managedServer?.id === serverId,
-    );
-    if (!runtimeAsset?.asset?.id) {
-      return null;
-    }
     const response = await runtimeAssetsAPI.getRuntimeAssetObservability(
-      runtimeAsset.asset.id,
+      runtimeAssetId,
     );
-    serverMetrics.value[serverId] = response.normalizedObservability?.metricsSummary || null;
-    return serverMetrics.value[serverId];
+    runtimeAssetMetrics.value[runtimeAssetId] =
+      response.normalizedObservability?.metricsSummary || null;
+    return runtimeAssetMetrics.value[runtimeAssetId];
   }
 
   async function fetchLogs(options?: {
@@ -649,13 +644,13 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     realTimeEnabled.value = !realTimeEnabled.value;
   }
 
-  function updateServerMetrics(serverId: string, metricsPayload: any) {
-    serverMetrics.value[serverId] = metricsPayload;
+  function updateRuntimeAssetMetrics(runtimeAssetId: string, metricsPayload: any) {
+    runtimeAssetMetrics.value[runtimeAssetId] = metricsPayload;
     lastUpdate.value = new Date();
   }
 
   function updateSystemMetrics(metricsPayload: any) {
-    serverMetrics.value.__websocket_system__ = metricsPayload;
+    runtimeAssetMetrics.value.__websocket_system__ = metricsPayload;
     lastUpdate.value = new Date();
   }
 
@@ -680,7 +675,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     isLoading,
     error,
     systemMetrics,
-    serverMetrics,
+    runtimeAssetMetrics,
     systemHealth,
     metricsHistory,
     logs,
@@ -717,7 +712,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     updateConfig,
     startMockData,
     fetchSystemMetrics,
-    fetchServerMetrics,
+    fetchRuntimeAssetMetrics,
     fetchLogs,
     fetchAudit,
     fetchOverview,
@@ -728,7 +723,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     toggleRealTime,
     refreshAll,
     scheduleRefresh,
-    updateServerMetrics,
+    updateRuntimeAssetMetrics,
     updateSystemMetrics,
     addLogEntry,
     addLogEntries,

@@ -72,6 +72,59 @@ export interface UpdateDocumentDto {
   };
 }
 
+export interface QuickPublishProcessLog {
+  step: string;
+  level: "info" | "success" | "warning" | "error";
+  summary: string;
+  details?: string;
+  timestamp: string;
+}
+
+export interface QuickPublishDocumentMcpResponse {
+  document: Document;
+  sourceServiceAsset: {
+    id: string;
+    sourceKey: string;
+    displayName?: string;
+    host: string;
+    port: number;
+    normalizedBasePath: string;
+  };
+  runtimeAsset: {
+    id: string;
+    name: string;
+    type: string;
+    status: string;
+    displayName?: string;
+  };
+  managedServer?: {
+    id: string;
+    name: string;
+    status: string;
+    port?: number;
+    transport?: string;
+    runtimeAssetId?: string;
+  };
+  runtimeSummary?: Record<string, any>;
+  publicationBatchRun?: {
+    id: string;
+    status: string;
+    totalCount: number;
+    successCount: number;
+    failedCount: number;
+  };
+  memberships: Array<{
+    membershipId: string;
+    endpointDefinitionId: string;
+    status: "success" | "failed";
+    message?: string;
+  }>;
+  tools: Array<Record<string, any>>;
+  toolsCount: number;
+  endpointCount: number;
+  processLogs: QuickPublishProcessLog[];
+}
+
 // API基础配置
 const API_BASE_URL = "/api";
 
@@ -211,6 +264,23 @@ export const documentsApi = {
         sessionStorage.removeItem("auth_token");
       }
       return false;
+    }
+  },
+
+  async quickPublishDocumentToMcp(
+    id: string,
+    data: {
+      content?: string;
+      replaceExisting?: boolean;
+    },
+  ): Promise<QuickPublishDocumentMcpResponse> {
+    try {
+      const response: AxiosResponse<QuickPublishDocumentMcpResponse> =
+        await apiClient.post(`/documents/${id}/quick-publish-mcp`, data);
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to quick publish document ${id} to MCP:`, error);
+      throw error;
     }
   },
 };

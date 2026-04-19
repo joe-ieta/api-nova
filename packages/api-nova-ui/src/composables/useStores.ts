@@ -40,7 +40,6 @@ export function useAppState() {
 
     // 服务器状态
     servers: server.servers,
-    selectedServer: server.selectedServer,
     serverStats: server.serversByStatus,
 
     // 监控状态
@@ -70,7 +69,6 @@ export function useServerManagement() {
   return {
     // 状态
     servers: server.servers,
-    selectedServer: server.selectedServer,
     loading: server.loading,
     error: server.error,
 
@@ -83,11 +81,10 @@ export function useServerManagement() {
     updateServer: server.updateServer,
     deleteServer: server.deleteServer,
     performServerAction: server.performServerAction,
-    selectServer: server.selectServer,
 
     // WebSocket 订阅
-    subscribeToServer: websocket.subscribeToServer,
-    unsubscribeFromServer: websocket.unsubscribeFromServer,
+    subscribeToRuntimeAsset: websocket.subscribeToRuntimeAsset,
+    unsubscribeFromRuntimeAsset: websocket.unsubscribeFromRuntimeAsset,
   };
 }
 
@@ -100,7 +97,7 @@ export function useMonitoring() {
   return {
     // 指标数据
     systemMetrics: monitoring.systemMetrics,
-    serverMetrics: monitoring.serverMetrics,
+    runtimeAssetMetrics: monitoring.runtimeAssetMetrics,
     systemHealth: monitoring.systemHealth,
     metricsHistory: monitoring.metricsHistory,
 
@@ -117,7 +114,7 @@ export function useMonitoring() {
 
     // 操作
     fetchSystemMetrics: monitoring.fetchSystemMetrics,
-    fetchServerMetrics: monitoring.fetchServerMetrics,
+    fetchRuntimeAssetMetrics: monitoring.fetchRuntimeAssetMetrics,
     fetchLogs: monitoring.fetchLogs,
     setLogFilter: monitoring.setLogFilter,
     clearLogFilter: monitoring.clearLogFilter,
@@ -152,10 +149,10 @@ export function useWebSocket() {
 
     // 订阅管理
     subscribeToMetrics: websocketStore.subscribeToMetrics,
-    subscribeToServer: websocketStore.subscribeToServer,
+    subscribeToRuntimeAsset: websocketStore.subscribeToRuntimeAsset,
     subscribeToLogs: websocketStore.subscribeToLogs,
     unsubscribeFromMetrics: websocketStore.unsubscribeFromMetrics,
-    unsubscribeFromServer: websocketStore.unsubscribeFromServer,
+    unsubscribeFromRuntimeAsset: websocketStore.unsubscribeFromRuntimeAsset,
     unsubscribeFromLogs: websocketStore.unsubscribeFromLogs,
 
     // 统计信息

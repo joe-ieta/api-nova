@@ -360,6 +360,7 @@ export interface LogEntry {
   level: LogLevel;
   message: string;
   serverId?: string;
+  runtimeAssetId?: string;
   metadata?: Record<string, any>;
   source?: string;
   eventType?: string;
@@ -368,6 +369,7 @@ export interface LogEntry {
 export interface LogFilter {
   level?: LogLevel[];
   serverId?: string;
+  runtimeAssetId?: string;
   searchTerm?: string;
   timeRange?: TimeRange;
 }

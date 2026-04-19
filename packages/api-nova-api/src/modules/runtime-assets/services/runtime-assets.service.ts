@@ -28,7 +28,6 @@ import {
   RuntimeHealthStatus,
 } from '../../../database/entities/runtime-observability-state.entity';
 import { RuntimeObservabilityService } from '../../runtime-observability/services/runtime-observability.service';
-import { ServerManagerService } from '../../servers/services/server-manager.service';
 
 @Injectable()
 export class RuntimeAssetsService {
@@ -820,6 +819,7 @@ export class RuntimeAssetsService {
   }
 
   private getServerManager() {
+    const { ServerManagerService } = require('../../servers/services/server-manager.service');
     const service = this.moduleRef.get(ServerManagerService, { strict: false });
     if (!service) {
       throw new NotFoundException('ServerManagerService is not available');

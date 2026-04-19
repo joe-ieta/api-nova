@@ -9,6 +9,11 @@ export class SystemLogQueryDto {
   @IsUUID()
   serverId?: string;
 
+  @ApiPropertyOptional({ description: 'Runtime asset ID' })
+  @IsOptional()
+  @IsUUID()
+  runtimeAssetId?: string;
+
   @ApiPropertyOptional({ 
     description: '操作类型', 
     enum: SystemLogEventType,
@@ -67,8 +72,11 @@ export class SystemLogResponseDto {
   @ApiProperty({ description: '日志ID' })
   id: string;
 
-  @ApiProperty({ description: '服务器ID' })
-  serverId: string;
+  @ApiPropertyOptional({ description: 'Server ID' })
+  serverId?: string;
+
+  @ApiPropertyOptional({ description: 'Runtime asset ID' })
+  runtimeAssetId?: string;
 
   @ApiProperty({ 
     description: '操作类型', 

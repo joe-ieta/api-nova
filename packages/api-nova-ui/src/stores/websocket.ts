@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { websocketService, type WebSocketEvents } from "@/services/websocket";
+import type { MCPServer } from "@/types";
 import { useAppStore } from "./app";
 import { useServerStore } from "./server";
 import { useMonitoringStore } from "./monitoring";
@@ -50,6 +51,16 @@ export const useWebSocketStore = defineStore("websocket", () => {
 
   const normalizeEventType = (eventType: string) => {
     switch (eventType) {
+      case "runtime:overview":
+        return "runtime:overview";
+      case "runtime:asset":
+        return "runtime:asset";
+      case "runtime:event":
+        return "runtime:event";
+      case "runtime:log":
+        return "runtime:log";
+      case "runtime:alert":
+        return "runtime:alert";
       case "runtime:server-status":
         return "runtime:server-status";
       case "runtime:server-metrics":
@@ -114,23 +125,23 @@ export const useWebSocketStore = defineStore("websocket", () => {
 
     currentSubscriptions.forEach((subscription) => {
       if (subscription.startsWith("runtime:process-info:")) {
-        const serverId = subscription.replace("runtime:process-info:", "");
-        if (!serverId) {
+        const runtimeAssetId = subscription.replace("runtime:process-info:", "");
+        if (!runtimeAssetId) {
           return;
         }
         console.log(
-          `[WebSocketStore] Restoring process info subscription for server: ${serverId}`,
+          `[WebSocketStore] Restoring process info subscription for runtime asset: ${runtimeAssetId}`,
         );
-        websocketService.subscribeToProcessInfo(serverId);
+        websocketService.subscribeToProcessInfo(runtimeAssetId);
       } else if (subscription.startsWith("runtime:process-log:")) {
-        const serverId = subscription.replace("runtime:process-log:", "");
-        if (!serverId) {
+        const runtimeAssetId = subscription.replace("runtime:process-log:", "");
+        if (!runtimeAssetId) {
           return;
         }
         console.log(
-          `[WebSocketStore] Restoring process logs subscription for server: ${serverId}`,
+          `[WebSocketStore] Restoring process logs subscription for runtime asset: ${runtimeAssetId}`,
         );
-        websocketService.subscribeToProcessLogs(serverId);
+        websocketService.subscribeToProcessLogs(runtimeAssetId);
       }
     });
   };
@@ -161,10 +172,6 @@ export const useWebSocketStore = defineStore("websocket", () => {
     subscribeToLogs();
 
     // 如果有选中的服务器，订阅其更新
-    const serverStore = useServerStore();
-    if (serverStore.selectedServerId) {
-      subscribeToServer(serverStore.selectedServerId);
-    }
   };
 
   // 订阅系统指标
@@ -184,25 +191,25 @@ export const useWebSocketStore = defineStore("websocket", () => {
   };
 
   // 订阅服务器更新
-  const subscribeToServer = (serverId: string) => {
-    if (!connected.value || !serverId) return;
+  const subscribeToRuntimeAsset = (runtimeAssetId: string) => {
+    if (!connected.value || !runtimeAssetId) return;
 
-    websocketService.subscribeToServer(serverId);
-    subscriptions.value.add(`server:${serverId}`);
+    websocketService.subscribeToRuntimeAsset(runtimeAssetId);
+    subscriptions.value.add(`runtime-asset:${runtimeAssetId}`);
   };
 
   // 取消订阅服务器更新
-  const unsubscribeFromServer = (serverId: string) => {
-    if (!connected.value || !serverId) return;
+  const unsubscribeFromRuntimeAsset = (runtimeAssetId: string) => {
+    if (!connected.value || !runtimeAssetId) return;
 
-    websocketService.unsubscribeFromServer(serverId);
-    subscriptions.value.delete(`server:${serverId}`);
+    websocketService.unsubscribeFromRuntimeAsset(runtimeAssetId);
+    subscriptions.value.delete(`runtime-asset:${runtimeAssetId}`);
   };
 
   // 订阅日志
   const subscribeToLogs = (filter?: {
     level?: string[];
-    serverId?: string;
+    runtimeAssetId?: string;
   }) => {
     if (!connected.value) return;
 
@@ -219,14 +226,14 @@ export const useWebSocketStore = defineStore("websocket", () => {
   };
 
   // 订阅进程信息
-  const subscribeToProcessInfo = (serverId: string) => {
-    if (!serverId) {
+  const subscribeToProcessInfo = (runtimeAssetId: string) => {
+    if (!runtimeAssetId) {
       return;
     }
 
     if (process.env.NODE_ENV === "development") {
       console.log(
-        `[WebSocketStore] subscribeToProcessInfo called for server: ${serverId}`,
+        `[WebSocketStore] subscribeToProcessInfo called for runtime asset: ${runtimeAssetId}`,
       );
     }
 
@@ -237,30 +244,30 @@ export const useWebSocketStore = defineStore("websocket", () => {
       return;
     }
 
-    const subscriptionKey = `runtime:process-info:${serverId}`;
+    const subscriptionKey = `runtime:process-info:${runtimeAssetId}`;
 
     // 暂时移除重复订阅检查，确保订阅请求能够发送
-    websocketService.subscribeToProcessInfo(serverId);
+    websocketService.subscribeToProcessInfo(runtimeAssetId);
     subscriptions.value.add(subscriptionKey);
   };
 
   // 取消订阅进程信息
-  const unsubscribeFromProcessInfo = (serverId: string) => {
-    if (!connected.value || !serverId) return;
+  const unsubscribeFromProcessInfo = (runtimeAssetId: string) => {
+    if (!connected.value || !runtimeAssetId) return;
 
-    websocketService.unsubscribeFromProcessInfo(serverId);
-    subscriptions.value.delete(`runtime:process-info:${serverId}`);
+    websocketService.unsubscribeFromProcessInfo(runtimeAssetId);
+    subscriptions.value.delete(`runtime:process-info:${runtimeAssetId}`);
   };
 
   // 订阅进程日志
-  const subscribeToProcessLogs = (serverId: string) => {
-    if (!serverId) {
+  const subscribeToProcessLogs = (runtimeAssetId: string) => {
+    if (!runtimeAssetId) {
       return;
     }
 
     if (process.env.NODE_ENV === "development") {
       console.log(
-        `[WebSocketStore] subscribeToProcessLogs called for server: ${serverId}`,
+        `[WebSocketStore] subscribeToProcessLogs called for runtime asset: ${runtimeAssetId}`,
       );
     }
 
@@ -271,19 +278,19 @@ export const useWebSocketStore = defineStore("websocket", () => {
       return;
     }
 
-    const subscriptionKey = `runtime:process-log:${serverId}`;
+    const subscriptionKey = `runtime:process-log:${runtimeAssetId}`;
 
     // 暂时移除重复订阅检查，确保订阅请求能够发送
-    websocketService.subscribeToProcessLogs(serverId);
+    websocketService.subscribeToProcessLogs(runtimeAssetId);
     subscriptions.value.add(subscriptionKey);
   };
 
   // 取消订阅进程日志
-  const unsubscribeFromProcessLogs = (serverId: string) => {
-    if (!connected.value || !serverId) return;
+  const unsubscribeFromProcessLogs = (runtimeAssetId: string) => {
+    if (!connected.value || !runtimeAssetId) return;
 
-    websocketService.unsubscribeFromProcessLogs(serverId);
-    subscriptions.value.delete(`runtime:process-log:${serverId}`);
+    websocketService.unsubscribeFromProcessLogs(runtimeAssetId);
+    subscriptions.value.delete(`runtime:process-log:${runtimeAssetId}`);
   };
 
   // 设置事件监听器
@@ -380,7 +387,9 @@ export const useWebSocketStore = defineStore("websocket", () => {
     });
 
     websocketService.on("runtime:server-metrics", (data) => {
-      monitoringStore.updateServerMetrics(data.serverId, data.metrics);
+      if (data.runtimeAssetId) {
+        monitoringStore.updateRuntimeAssetMetrics(data.runtimeAssetId, data.metrics);
+      }
       monitoringStore.scheduleRefresh("ws-metrics-server");
       serverStore.updateServerMetrics(data.serverId, {
         totalRequests: data.metrics.totalRequests,
@@ -417,7 +426,9 @@ export const useWebSocketStore = defineStore("websocket", () => {
 
     websocketService.on("server:updated", (server) => {
       // 更新本地服务器数据
-      const index = serverStore.servers.findIndex((s) => s.id === server.id);
+      const index = serverStore.servers.findIndex(
+        (s: MCPServer) => s.id === server.id,
+      );
       if (index > -1) {
         serverStore.servers[index] = server;
       }
@@ -432,7 +443,9 @@ export const useWebSocketStore = defineStore("websocket", () => {
 
     websocketService.on("server:deleted", (serverId) => {
       // 从本地列表中移除
-      const index = serverStore.servers.findIndex((s) => s.id === serverId);
+      const index = serverStore.servers.findIndex(
+        (s: MCPServer) => s.id === serverId,
+      );
       if (index > -1) {
         const serverName = serverStore.servers[index].name;
         serverStore.servers.splice(index, 1);
@@ -446,7 +459,6 @@ export const useWebSocketStore = defineStore("websocket", () => {
       }
 
       // 取消订阅
-      unsubscribeFromServer(serverId);
     });
 
     // 日志事件
@@ -508,6 +520,21 @@ export const useWebSocketStore = defineStore("websocket", () => {
     subscriptionCallbacks.get(normalizedEventType)!.set(id, callback);
 
     switch (normalizedEventType) {
+      case "runtime:overview":
+        websocketService.on("runtime:overview", callback);
+        break;
+      case "runtime:asset":
+        websocketService.on("runtime:asset", callback);
+        break;
+      case "runtime:event":
+        websocketService.on("runtime:event", callback);
+        break;
+      case "runtime:log":
+        websocketService.on("runtime:log", callback);
+        break;
+      case "runtime:alert":
+        websocketService.on("runtime:alert", callback);
+        break;
       case "runtime:server-status":
         websocketService.on("runtime:server-status", callback);
         break;
@@ -542,6 +569,21 @@ export const useWebSocketStore = defineStore("websocket", () => {
       const callback = callbacks.get(subscriptionId);
       if (callback) {
         switch (normalizedEventType) {
+          case "runtime:overview":
+            websocketService.off("runtime:overview", callback);
+            break;
+          case "runtime:asset":
+            websocketService.off("runtime:asset", callback);
+            break;
+          case "runtime:event":
+            websocketService.off("runtime:event", callback);
+            break;
+          case "runtime:log":
+            websocketService.off("runtime:log", callback);
+            break;
+          case "runtime:alert":
+            websocketService.off("runtime:alert", callback);
+            break;
           case "runtime:server-status":
             websocketService.off("runtime:server-status", callback);
             break;
@@ -569,6 +611,21 @@ export const useWebSocketStore = defineStore("websocket", () => {
     } else {
       // 取消该事件类型的所有订阅（保持原有行为）
       switch (normalizedEventType) {
+        case "runtime:overview":
+          websocketService.off("runtime:overview");
+          break;
+        case "runtime:asset":
+          websocketService.off("runtime:asset");
+          break;
+        case "runtime:event":
+          websocketService.off("runtime:event");
+          break;
+        case "runtime:log":
+          websocketService.off("runtime:log");
+          break;
+        case "runtime:alert":
+          websocketService.off("runtime:alert");
+          break;
         case "runtime:server-status":
           websocketService.off("runtime:server-status");
           break;
@@ -615,8 +672,8 @@ export const useWebSocketStore = defineStore("websocket", () => {
     unsubscribe,
     subscribeToMetrics,
     unsubscribeFromMetrics,
-    subscribeToServer,
-    unsubscribeFromServer,
+    subscribeToRuntimeAsset,
+    unsubscribeFromRuntimeAsset,
     subscribeToLogs,
     unsubscribeFromLogs,
     subscribeToProcessInfo,

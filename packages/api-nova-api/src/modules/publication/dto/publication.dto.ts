@@ -1,5 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayNotEmpty,
+  IsArray,
   IsBoolean,
   IsInt,
   IsOptional,
@@ -7,17 +9,151 @@ import {
   Min,
 } from 'class-validator';
 import { PublicationProfileStatus } from '../../../database/entities/publication-profile.entity';
+import { PublicationBatchAction } from '../../../database/entities/publication-batch-run.entity';
+import { RuntimeAssetType } from '../../../database/entities/runtime-asset.entity';
 
-export class PublicationMembershipQueryDto {
-  @ApiPropertyOptional({ description: 'Legacy endpoint/server id' })
+export class PublicationCandidateQueryDto {
+  @ApiPropertyOptional({ description: 'Source service asset id' })
   @IsOptional()
   @IsString()
-  endpointId?: string;
+  sourceServiceAssetId?: string;
+
+  @ApiPropertyOptional({ description: 'Search by name, method, path, or source key' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({ description: 'Include blocked candidates', default: false })
+  @IsOptional()
+  @IsBoolean()
+  includeBlocked?: boolean;
+}
+
+export class PublicationMembershipQueryDto {
+  @ApiPropertyOptional({ description: 'Endpoint definition id' })
+  @IsOptional()
+  @IsString()
+  endpointDefinitionId?: string;
 
   @ApiPropertyOptional({ description: 'Runtime asset id' })
   @IsOptional()
   @IsString()
   runtimeAssetId?: string;
+}
+
+export class PublicationAuditQueryDto {
+  @ApiPropertyOptional({ description: 'Runtime asset id' })
+  @IsOptional()
+  @IsString()
+  runtimeAssetId?: string;
+
+  @ApiPropertyOptional({ description: 'Runtime membership id' })
+  @IsOptional()
+  @IsString()
+  runtimeAssetEndpointBindingId?: string;
+
+  @ApiPropertyOptional({ description: 'Batch run id' })
+  @IsOptional()
+  @IsString()
+  publicationBatchRunId?: string;
+
+  @ApiPropertyOptional({ description: 'Max events to return', default: 20 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  limit?: number;
+}
+
+export class PublicationBatchRunQueryDto {
+  @ApiPropertyOptional({ description: 'Runtime asset id' })
+  @IsOptional()
+  @IsString()
+  runtimeAssetId?: string;
+
+  @ApiPropertyOptional({ enum: PublicationBatchAction })
+  @IsOptional()
+  @IsString()
+  action?: PublicationBatchAction;
+
+  @ApiPropertyOptional({ description: 'Max batch runs to return', default: 20 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  limit?: number;
+}
+
+export class CreatePublicationRuntimeAssetDto {
+  @ApiPropertyOptional({ enum: RuntimeAssetType })
+  @IsString()
+  type: RuntimeAssetType;
+
+  @ApiPropertyOptional()
+  @IsString()
+  name: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  displayName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  policyBindingRef?: string;
+}
+
+export class AddPublicationRuntimeMembershipsDto {
+  @ApiPropertyOptional({ type: [String] })
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  endpointDefinitionIds: string[];
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+}
+
+export class BatchPublishRuntimeMembershipsDto {
+  @ApiPropertyOptional({ type: [String] })
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  membershipIds: string[];
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  publishToMcp?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  publishToHttp?: boolean;
+}
+
+export class BatchOfflineRuntimeMembershipsDto {
+  @ApiPropertyOptional({ type: [String] })
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  membershipIds: string[];
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  offlineMcp?: boolean;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  offlineHttp?: boolean;
 }
 
 export class UpdatePublicationProfileDto {

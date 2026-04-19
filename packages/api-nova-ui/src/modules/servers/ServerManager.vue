@@ -5,10 +5,11 @@
       <div class="title-bar">
         <h1>
           <el-icon><Monitor /></el-icon>
-          {{ t("servers.title") }}
+          {{ pageTitle }}
         </h1>
         <div class="header-actions">
           <el-button
+            v-if="!isRuntimeAssetsSurface"
             type="primary"
             @click="showCreateDialog = true"
             :icon="Plus"
@@ -18,8 +19,8 @@
           <el-button @click="refreshServers" :loading="loading" :icon="Refresh">
             {{ t("common.refresh") }}
           </el-button>
-          <el-button @click="goToEndpointRegistry()">
-            {{ t("endpointRegistry.title") }}
+          <el-button @click="goToPublication()">
+            {{ secondaryActionLabel }}
           </el-button>
         </div>
       </div>
@@ -132,7 +133,7 @@
             <el-card
               class="server-card"
               :class="[`status-${server.status}`]"
-              @click="goToServerDetail(server.id)"
+              @click="goToServerDetail(server)"
             >
               <template #header>
                 <div class="card-header">
@@ -172,7 +173,7 @@
                           <el-dropdown-item
                             :command="{ action: 'governance', server }"
                           >
-                            {{ t("endpointRegistry.title") }}
+                            {{ secondaryActionLabel }}
                           </el-dropdown-item>
                           <el-dropdown-item
                             :command="{ action: 'delete', server }"
@@ -203,22 +204,26 @@
 
                 <div class="server-info">
                   <div class="info-item" v-if="server.endpoint">
-                    <span class="label">{{ t("servers.serverUrl") }}:</span>
+                    <span class="label">{{ isRuntimeAssetsSurface ? `${t("servers.runtimeAssetsLabels.runtimeEndpoint")}:` : `${t("servers.serverUrl")}:` }}</span>
                     <span class="value">{{ server.endpoint || "N/A" }}</span>
                   </div>
                   <div class="info-item">
-                    <span class="label">{{ t('servers.port') }}:</span>
-                    <span class="value">{{ server.port }}</span>
+                    <span class="label">{{ isRuntimeAssetsSurface ? `${t("servers.runtimeAssetsLabels.members")}:` : `${t('servers.port')}:` }}</span>
+                    <span class="value">{{ getMembershipCount(server) }}</span>
                   </div>
                   <div class="info-item">
-                    <span class="label">{{ t('servers.transportType') }}:</span>
-                    <span class="value">{{ server.transport }}</span>
+                    <span class="label">{{ isRuntimeAssetsSurface ? `${t("servers.runtimeAssetsLabels.runtimeType")}:` : `${t('servers.transportType')}:` }}</span>
+                    <span class="value">{{ isRuntimeAssetsSurface ? server.transport : server.transport }}</span>
                   </div>
                   <div class="info-item">
-                    <span class="label">{{ t('servers.toolCount') }}:</span>
+                    <span class="label">{{ isRuntimeAssetsSurface ? `${t("servers.runtimeAssetsLabels.tools")}:` : `${t('servers.toolCount')}:` }}</span>
                     <span class="value">{{ server.toolCount || 0 }}</span>
                   </div>
-                  <div class="info-item" v-if="server.autoStart !== undefined">
+                  <div class="info-item" v-if="isRuntimeAssetsSurface">
+                    <span class="label">{{ t("servers.runtimeAssetsLabels.activeMembers") }}:</span>
+                    <span class="value">{{ getActiveMembershipCount(server) }}</span>
+                  </div>
+                  <div class="info-item" v-if="!isRuntimeAssetsSurface && server.autoStart !== undefined">
                     <span class="label">{{ t('servers.autoStart') }}:</span>
                     <span class="value">{{
                       server.autoStart ? t("common.yes") : t("common.no")
@@ -251,7 +256,7 @@
         <el-table
           :data="filteredServers"
           v-loading="loading"
-          @row-click="(row: MCPServer) => goToServerDetail(row.id)"
+          @row-click="(row: any) => goToServerDetail(row)"
           row-class-name="server-row"
         >
           <el-table-column
@@ -269,7 +274,7 @@
 
           <el-table-column
             prop="status"
-            :label="t('servers.serverStatus')"
+            :label="isRuntimeAssetsSurface ? t('servers.runtimeAssetsLabels.runtimeStatus') : t('servers.serverStatus')"
             width="120"
           >
             <template #default="{ row }">
@@ -285,7 +290,7 @@
 
           <el-table-column
             prop="endpoint"
-            :label="t('servers.serverUrl')"
+            :label="isRuntimeAssetsSurface ? t('servers.runtimeAssetsLabels.runtimeEndpoint') : t('servers.serverUrl')"
             min-width="200"
           >
             <template #default="{ row }">
@@ -298,19 +303,19 @@
 
           <el-table-column
             prop="transport"
-            :label="t('servers.transportType')"
+            :label="isRuntimeAssetsSurface ? t('servers.runtimeAssetsLabels.runtimeType') : t('servers.transportType')"
             width="100"
           />
 
           <el-table-column
             prop="port"
-            :label="t('servers.serverPort')"
+            :label="isRuntimeAssetsSurface ? t('servers.runtimeAssetsLabels.members') : t('servers.serverPort')"
             width="80"
           />
 
           <el-table-column
             prop="toolCount"
-            :label="t('servers.toolCount')"
+            :label="isRuntimeAssetsSurface ? t('servers.runtimeAssetsLabels.tools') : t('servers.toolCount')"
             width="100"
           >
             <template #default="{ row }">
@@ -319,6 +324,7 @@
           </el-table-column>
 
           <el-table-column
+            v-if="!isRuntimeAssetsSurface"
             prop="autoStart"
             :label="t('servers.autoStart')"
             width="100"
@@ -348,8 +354,8 @@
             <template #default="{ row }">
               <div class="action-buttons-container">
                 <el-tooltip
-                  v-if="row.status === 'stopped'"
-                  :content="t('servers.startServer')"
+                  v-if="canStart(row)"
+                  :content="isRuntimeAssetsSurface ? t('servers.runtimeAssetsActions.startRuntime') : t('servers.startServer')"
                   placement="top"
                 >
                   <el-button
@@ -360,8 +366,8 @@
                   />
                 </el-tooltip>
                 <el-tooltip
-                  v-else-if="row.status === 'running'"
-                  :content="t('servers.stopServer')"
+                  v-else-if="canStop(row)"
+                  :content="isRuntimeAssetsSurface ? t('servers.runtimeAssetsActions.stopRuntime') : t('servers.stopServer')"
                   placement="top"
                 >
                   <el-button
@@ -372,8 +378,8 @@
                   />
                 </el-tooltip>
                 <el-tooltip
-                  v-if="row.status === 'running'"
-                  :content="t('servers.restartServer')"
+                  v-if="canRedeploy(row)"
+                  :content="isRuntimeAssetsSurface ? t('servers.runtimeAssetsActions.redeployRuntime') : t('servers.restartServer')"
                   placement="top"
                 >
                   <el-button
@@ -384,17 +390,18 @@
                   />
                 </el-tooltip>
                 <el-tooltip
-                  :content="t('endpointRegistry.title')"
+                  :content="secondaryActionLabel"
                   placement="top"
                 >
                   <el-button
                     class="action-btn governance-btn"
                     size="small"
-                    @click.stop="goToEndpointRegistry(row)"
+                    @click.stop="goToPublication(row)"
                     :icon="Connection"
                   />
                 </el-tooltip>
                 <el-tooltip
+                  v-if="!isRuntimeAssetsSurface"
                   :content="t('servers.editServer')"
                   placement="top"
                 >
@@ -406,6 +413,7 @@
                   />
                 </el-tooltip>
                 <el-tooltip
+                  v-if="!isRuntimeAssetsSurface"
                   :content="t('servers.deleteServer')"
                   placement="top"
                 >
@@ -428,7 +436,7 @@
         :description="t('servers.noServers')"
         :image-size="200"
       >
-        <el-button type="primary" @click="showCreateDialog = true" :icon="Plus">
+        <el-button v-if="!isRuntimeAssetsSurface" type="primary" @click="showCreateDialog = true" :icon="Plus">
           {{ t("servers.createFirstServer") }}
         </el-button>
       </el-empty>
@@ -436,6 +444,7 @@
 
     <!-- 创建/编辑服务器对话框 -->
     <ServerFormDialog
+      v-if="!isRuntimeAssetsSurface"
       v-model="showCreateDialog"
       :server="editingServer"
       @success="handleFormSuccess"
@@ -444,8 +453,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
-import { useRouter } from "vue-router";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useI18n } from "vue-i18n";
 import {
@@ -468,6 +477,7 @@ import {
   MoreFilled,
 } from "@element-plus/icons-vue";
 import type { MCPServer, ServerStatus } from "@/types";
+import { runtimeAssetsAPI } from "@/services/api";
 import { useServerStore } from "@/stores/server";
 import { useWebSocketStore } from "@/stores/websocket";
 import ServerFormDialog from "./components/ServerFormDialog.vue";
@@ -478,7 +488,17 @@ import { useFormValidation } from "@/composables/useFormValidation";
 import { usePerformanceMonitor } from "@/composables/usePerformance";
 import LoadingOverlay from "@/shared/components/ui/LoadingOverlay.vue";
 
+type RuntimeAssetListRow = MCPServer & {
+  runtimeAssetId: string;
+  runtimeAssetType: string;
+  membershipCount: number;
+  activeMembershipCount: number;
+  managedServerId?: string;
+  rawRuntimeStatus?: string;
+};
+
 // 路由和状态
+const route = useRoute();
 const router = useRouter();
 const serverStore = useServerStore();
 const websocketStore = useWebSocketStore();
@@ -501,9 +521,15 @@ const statusFilter = ref<ServerStatus | "">("");
 const viewMode = ref<"grid" | "list">("grid");
 const showCreateDialog = ref(false);
 const editingServer = ref<MCPServer | null>(null);
+const runtimeAssets = ref<RuntimeAssetListRow[]>([]);
+const isRuntimeAssetsSurface = computed(
+  () => route.meta?.productSurface === "runtime-assets",
+);
 
 // 计算属性
-const servers = computed(() => serverStore.servers);
+const servers = computed(() =>
+  isRuntimeAssetsSurface.value ? runtimeAssets.value : serverStore.servers,
+);
 
 const filteredServers = computed(() => {
   let filtered = servers.value;
@@ -512,17 +538,22 @@ const filteredServers = computed(() => {
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
     filtered = filtered.filter(
-      (server) =>
+      (server: MCPServer | RuntimeAssetListRow) =>
         server.name.toLowerCase().includes(query) ||
         (server.endpoint || "").toLowerCase().includes(query) ||
-        (server.config?.description || "").toLowerCase().includes(query),
+        (server.config?.description || "").toLowerCase().includes(query) ||
+        (isRuntimeAssetsSurface.value &&
+          String((server as RuntimeAssetListRow).runtimeAssetType || "")
+            .toLowerCase()
+            .includes(query)),
     );
   }
 
   // 状态过滤
   if (statusFilter.value) {
     filtered = filtered.filter(
-      (server) => server.status === statusFilter.value,
+      (server: MCPServer | RuntimeAssetListRow) =>
+        server.status === statusFilter.value,
     );
   }
 
@@ -531,20 +562,118 @@ const filteredServers = computed(() => {
 
 const totalServers = computed(() => servers.value.length);
 const runningServers = computed(
-  () => servers.value.filter((s) => s.status === "running").length,
+  () =>
+    servers.value.filter(
+      (s: MCPServer | RuntimeAssetListRow) => s.status === "running",
+    ).length,
 );
 const stoppedServers = computed(
-  () => servers.value.filter((s) => s.status === "stopped").length,
+  () =>
+    servers.value.filter(
+      (s: MCPServer | RuntimeAssetListRow) => s.status === "stopped",
+    ).length,
 );
 const errorServers = computed(
-  () => servers.value.filter((s) => s.status === "error").length,
+  () =>
+    servers.value.filter(
+      (s: MCPServer | RuntimeAssetListRow) => s.status === "error",
+    ).length,
 );
+
+const pageTitle = computed(() =>
+  route.meta?.productSurface === "runtime-assets"
+    ? t("servers.runtimeAssetsLabels.pageTitle")
+    : t("servers.title"),
+);
+
+const secondaryActionLabel = computed(() =>
+  route.meta?.productSurface === "runtime-assets"
+    ? t("servers.runtimeAssetsActions.goToPublication")
+    : t("endpointRegistry.title"),
+);
+
+const normalizeRuntimeAssetStatus = (status?: string): ServerStatus => {
+  switch (status) {
+    case "running":
+    case "active":
+      return "running";
+    case "starting":
+      return "starting";
+    case "stopping":
+      return "stopping";
+    case "error":
+    case "degraded":
+      return "error";
+    case "stopped":
+    case "offline":
+    case "draft":
+    default:
+      return "stopped";
+  }
+};
+
+const mapRuntimeAssetRow = (item: any): RuntimeAssetListRow => {
+  const asset = item?.asset || {};
+  const managedServer = item?.managedServer || null;
+  const summary = item?.runtimeSummary || {};
+  const membershipCount = Number(item?.membershipCount || summary.membershipCount || 0);
+  const activeMembershipCount = Number(
+    item?.activeMembershipCount || summary.activeMembershipCount || 0,
+  );
+
+  return {
+    id: asset.id,
+    runtimeAssetId: asset.id,
+    runtimeAssetType: String(asset.type || ""),
+    name: asset.displayName || asset.name || asset.id,
+    version: "1.0.0",
+    description: asset.description || "",
+    port: membershipCount,
+    transport:
+      asset.type === "gateway_service" ? ("gateway" as any) : managedServer?.transport || "streamable",
+    status: normalizeRuntimeAssetStatus(summary.runtimeStatus || asset.status),
+    healthy: Boolean(summary.healthy),
+    endpoint: summary.endpoint || managedServer?.endpoint || "",
+    toolCount: Number(summary.toolsCount || managedServer?.toolsCount || 0),
+    autoStart: false,
+    tags: ["runtime-asset", String(asset.type || "unknown")],
+    createdAt: asset.createdAt || asset.updatedAt || new Date().toISOString(),
+    updatedAt: asset.updatedAt || new Date().toISOString(),
+    config: {
+      description: asset.description || "",
+    },
+    managedServerId: managedServer?.id,
+    membershipCount,
+    activeMembershipCount,
+    rawRuntimeStatus: String(summary.runtimeStatus || asset.status || "draft"),
+  } as RuntimeAssetListRow;
+};
+
+const canStart = (server: MCPServer | RuntimeAssetListRow) => server.status !== "running";
+const canStop = (server: MCPServer | RuntimeAssetListRow) => server.status === "running";
+const canRedeploy = (server: MCPServer | RuntimeAssetListRow) =>
+  isRuntimeAssetsSurface.value ? true : server.status === "running";
+const getMembershipCount = (server: MCPServer | RuntimeAssetListRow) =>
+  isRuntimeAssetsSurface.value ? (server as RuntimeAssetListRow).membershipCount || 0 : server.port;
+const getActiveMembershipCount = (server: MCPServer | RuntimeAssetListRow) =>
+  isRuntimeAssetsSurface.value
+    ? (server as RuntimeAssetListRow).activeMembershipCount || 0
+    : server.toolCount || 0;
 
 // 方法
 const refreshServers = async () => {
   loading.value = true;
   try {
     await measureFunction("refreshServers", async () => {
+      if (isRuntimeAssetsSurface.value) {
+        const response = await runtimeAssetsAPI.listRuntimeAssets({
+          search: searchQuery.value.trim() || undefined,
+        });
+        runtimeAssets.value = Array.isArray(response?.data)
+          ? response.data.map((item: any) => mapRuntimeAssetRow(item))
+          : [];
+        return;
+      }
       await serverStore.fetchServers();
     });
   } catch (error) {
@@ -554,11 +683,15 @@ const refreshServers = async () => {
   }
 };
 
-const goToServerDetail = (serverId: string) => {
-  router.push(`/servers/${serverId}`);
+const goToServerDetail = (server: MCPServer | RuntimeAssetListRow) => {
+  if (isRuntimeAssetsSurface.value) {
+    router.push(`/runtime-assets/${server.id}`);
+    return;
+  }
+  router.push("/runtime-assets");
 };
 
-const goToEndpointRegistry = (server?: MCPServer) => {
+const goToPublication = (server?: MCPServer | RuntimeAssetListRow) => {
   const query: Record<string, string> = {};
   const keyword = server?.name?.trim() || "";
 
@@ -567,7 +700,7 @@ const goToEndpointRegistry = (server?: MCPServer) => {
   }
 
   router.push({
-    path: "/endpoint-registry",
+    path: "/publication",
     query,
   });
 };
@@ -691,7 +824,7 @@ const handleServerAction = async ({
   server,
 }: {
   action: string;
-  server: MCPServer;
+  server: MCPServer | RuntimeAssetListRow;
 }) => {
   console.log(action, server);
 
@@ -712,7 +845,7 @@ const handleServerAction = async ({
       editServer(server);
       break;
     case "governance":
-      goToEndpointRegistry(server);
+      goToPublication(server);
       break;
     case "delete":
       deleteServer(server);
@@ -720,20 +853,31 @@ const handleServerAction = async ({
   }
 };
 
-const startServer = async (server: MCPServer) => {
+const startServer = async (server: MCPServer | RuntimeAssetListRow) => {
   try {
     await measureFunction("startServer", async () => {
-      await serverStore.startServer(server.id);
+      if (isRuntimeAssetsSurface.value) {
+        await runtimeAssetsAPI.startRuntimeAsset(server.id);
+      } else {
+        await serverStore.startServer(server.id);
+      }
     });
     ElMessage.success(
-      t("servers.messages.startSuccess", { name: server.name }),
+      isRuntimeAssetsSurface.value
+        ? `Runtime asset "${server.name}" started`
+        : t("servers.messages.startSuccess", { name: server.name }),
     );
+    await refreshServers();
   } catch (error) {
-    ElMessage.error(t("servers.messages.startError", { error }));
+    ElMessage.error(
+      isRuntimeAssetsSurface.value
+        ? `Failed to start runtime asset: ${error}`
+        : t("servers.messages.startError", { error }),
+    );
   }
 };
 
-const stopServer = async (server: MCPServer) => {
+const stopServer = async (server: MCPServer | RuntimeAssetListRow) => {
   console.log("🛑 [FRONTEND DEBUG] stopServer called with server:", {
     id: server.id,
     name: server.name,
@@ -754,19 +898,32 @@ const stopServer = async (server: MCPServer) => {
       server.id,
     );
     await measureFunction("stopServer", async () => {
-      await serverStore.stopServer(server.id);
+      if (isRuntimeAssetsSurface.value) {
+        await runtimeAssetsAPI.stopRuntimeAsset(server.id);
+      } else {
+        await serverStore.stopServer(server.id);
+      }
     });
     console.log(
       "🛑 [FRONTEND DEBUG] serverStore.stopServer completed successfully",
     );
-    ElMessage.success(t("servers.messages.stopSuccess", { name: server.name }));
+    ElMessage.success(
+      isRuntimeAssetsSurface.value
+        ? `Runtime asset "${server.name}" stopped`
+        : t("servers.messages.stopSuccess", { name: server.name }),
+    );
+    await refreshServers();
   } catch (error) {
     console.error("🛑 [FRONTEND DEBUG] stopServer failed:", error);
-    ElMessage.error(t("servers.messages.stopError", { error }));
+    ElMessage.error(
+      isRuntimeAssetsSurface.value
+        ? `Failed to stop runtime asset: ${error}`
+        : t("servers.messages.stopError", { error }),
+    );
   }
 };
 
-const restartServer = async (server: MCPServer) => {
+const restartServer = async (server: MCPServer | RuntimeAssetListRow) => {
   const confirmed = await confirmDangerousAction(
     t("servers.messages.confirmRestart", { name: server.name }),
   );
@@ -774,18 +931,30 @@ const restartServer = async (server: MCPServer) => {
 
   try {
     await measureFunction("restartServer", async () => {
-      await serverStore.restartServer(server.id);
+      if (isRuntimeAssetsSurface.value) {
+        await runtimeAssetsAPI.redeployRuntimeAsset(server.id);
+      } else {
+        await serverStore.restartServer(server.id);
+      }
     });
     ElMessage.success(
-      t("servers.messages.restartSuccess", { name: server.name }),
+      isRuntimeAssetsSurface.value
+        ? `Runtime asset "${server.name}" redeployed`
+        : t("servers.messages.restartSuccess", { name: server.name }),
     );
+    await refreshServers();
   } catch (error) {
-    ElMessage.error(t("servers.messages.restartError", { error }));
+    ElMessage.error(
+      isRuntimeAssetsSurface.value
+        ? `Failed to redeploy runtime asset: ${error}`
+        : t("servers.messages.restartError", { error }),
+    );
   }
 };
 
-const editServer = (server: MCPServer) => {
-  editingServer.value = server;
+const editServer = (server: MCPServer | RuntimeAssetListRow) => {
+  if (isRuntimeAssetsSurface.value) return;
+  editingServer.value = server as MCPServer;
   showCreateDialog.value = true;
 };
 
@@ -839,7 +1008,8 @@ const checkServerRunning = async (server: MCPServer): Promise<boolean> => {
   }
 };
 
-const deleteServer = async (server: MCPServer) => {
+const deleteServer = async (server: MCPServer | RuntimeAssetListRow) => {
+  if (isRuntimeAssetsSurface.value) return;
   try {
     // 检查服务器是否正在运行
     const isRunning = await checkServerRunning(server);
@@ -901,25 +1071,40 @@ onMounted(async () => {
   // 启动性能监控
   startMonitoring();
 
+  if (typeof route.query.q === "string") {
+    searchQuery.value = route.query.q;
+  }
+
   await refreshServers();
 
   // 订阅 WebSocket 实时更新
-  websocketStore.subscribe(
-    "runtime:server-status",
-    handleServerStatusUpdate,
-  );
-  websocketStore.subscribe(
-    "runtime:server-metrics",
-    handleServerMetricsUpdate,
-  );
+  if (!isRuntimeAssetsSurface.value) {
+    websocketStore.subscribe(
+      "runtime:server-status",
+      handleServerStatusUpdate,
+    );
+    websocketStore.subscribe(
+      "runtime:server-metrics",
+      handleServerMetricsUpdate,
+    );
+  }
 });
+
+watch(
+  () => route.query.q,
+  (value) => {
+    searchQuery.value = typeof value === "string" ? value : "";
+  },
+);
 
 onUnmounted(() => {
   // 停止性能监控
   stopMonitoring();
 
-  websocketStore.unsubscribe("runtime:server-status");
-  websocketStore.unsubscribe("runtime:server-metrics");
+  if (!isRuntimeAssetsSurface.value) {
+    websocketStore.unsubscribe("runtime:server-status");
+    websocketStore.unsubscribe("runtime:server-metrics");
+  }
 });
 
 const handleServerStatusUpdate = (data: any) => {

@@ -14,6 +14,7 @@ This directory contains active operational and usage-oriented documentation for 
 - [endpoint-semantic-layer-requirements](./endpoint-semantic-layer-requirements.md)
 - [dual-publication-implementation-outline](./dual-publication-implementation-outline.md)
 - [asset-model-and-runtime-assets](./asset-model-and-runtime-assets.md)
+- [publication-resource-baseline](./publication-resource-baseline.md)
 
 ## Guide Inclusion Rule
 

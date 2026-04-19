@@ -61,10 +61,10 @@ describe('ManagementEventService', () => {
     expect(auditService.log).not.toHaveBeenCalled();
   });
 
-  it('maps failed status into failed audit entries', async () => {
+  it('maps failed status into failed audit entries for server actions', async () => {
     await service.record({
-      action: 'api-center.endpoint.publish',
-      message: 'Publish failed',
+      action: 'server.update',
+      message: 'Server update failed',
       source: 'test',
       eventType: SystemLogEventType.SERVER_CONFIG_CHANGED,
       serverId: 'server-2',
@@ -73,9 +73,9 @@ describe('ManagementEventService', () => {
 
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
-        action: AuditAction.API_CONFIGURED,
+        action: AuditAction.SERVER_UPDATED,
         status: AuditStatus.FAILED,
-        resource: 'api-center',
+        resource: 'server',
       }),
     );
   });

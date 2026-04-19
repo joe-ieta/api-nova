@@ -3,14 +3,13 @@
     <template #header>
       <div class="monitor-header">
         <div>
-          <span class="monitor-title">Runtime Resource View</span>
+          <span class="monitor-title">{{ t("monitoring.resourceMonitor.title") }}</span>
           <p class="monitor-subtitle">
-            Process-level placeholder telemetry has been downgraded. This panel now
-            shows runtime-asset status and bindings.
+            {{ t("monitoring.resourceMonitor.subtitle") }}
           </p>
         </div>
         <el-button size="small" :icon="Refresh" @click="refreshData" :loading="loading">
-          Refresh
+          {{ t("common.refresh") }}
         </el-button>
       </div>
     </template>
@@ -19,25 +18,25 @@
       class="resource-alert"
       type="info"
       :closable="false"
-      title="The baseline monitoring model is runtime-asset-first. Fine-grained process telemetry remains a separate non-baseline capability."
+      :title="t('monitoring.resourceMonitor.alert')"
     />
 
     <el-row :gutter="16" class="resource-summary">
       <el-col :span="8">
         <div class="summary-card">
-          <div class="summary-label">Runtime Assets</div>
+          <div class="summary-label">{{ t("monitoring.resourceMonitor.summary.runtimeAssets") }}</div>
           <div class="summary-value">{{ metrics.totalRuntimeAssets }}</div>
         </div>
       </el-col>
       <el-col :span="8">
         <div class="summary-card warning">
-          <div class="summary-label">Degraded Assets</div>
+          <div class="summary-label">{{ t("monitoring.resourceMonitor.summary.degradedAssets") }}</div>
           <div class="summary-value">{{ metrics.degradedRuntimeAssets }}</div>
         </div>
       </el-col>
       <el-col :span="8">
         <div class="summary-card danger">
-          <div class="summary-label">Unhealthy Assets</div>
+          <div class="summary-label">{{ t("monitoring.resourceMonitor.summary.unhealthyAssets") }}</div>
           <div class="summary-value">{{ metrics.unhealthyRuntimeAssets }}</div>
         </div>
       </el-col>
@@ -48,9 +47,9 @@
       class="runtime-assets-table"
       size="small"
       max-height="420"
-      empty-text="No runtime assets available"
+      :empty-text="t('monitoring.resourceMonitor.empty')"
     >
-      <el-table-column label="Runtime Asset" min-width="220">
+      <el-table-column :label="t('monitoring.resourceMonitor.columns.runtimeAsset')" min-width="220">
         <template #default="{ row }">
           <div class="asset-name">
             <strong>{{ row.name }}</strong>
@@ -58,25 +57,25 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="Status" width="120">
+      <el-table-column :label="t('monitoring.resourceMonitor.columns.status')" width="120">
         <template #default="{ row }">
           <el-tag :type="runtimeStatusType(row.runtimeStatus)" size="small">
             {{ row.runtimeStatus }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="Health" width="100">
+      <el-table-column :label="t('monitoring.resourceMonitor.columns.health')" width="100">
         <template #default="{ row }">
           <el-tag :type="row.healthy === false ? 'danger' : 'success'" size="small">
-            {{ row.healthy === false ? "Unhealthy" : "Healthy" }}
+            {{ row.healthy === false ? t("monitoring.resourceMonitor.unhealthy") : t("monitoring.resourceMonitor.healthy") }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="membershipCount" label="Members" width="100" />
-      <el-table-column prop="managedServerName" label="Managed Server" min-width="160" />
-      <el-table-column prop="lastEventAt" label="Last Event" min-width="180">
+      <el-table-column prop="membershipCount" :label="t('monitoring.resourceMonitor.columns.members')" width="100" />
+      <el-table-column prop="managedServerName" :label="t('monitoring.resourceMonitor.columns.managedServer')" min-width="160" />
+      <el-table-column prop="lastEventAt" :label="t('monitoring.resourceMonitor.columns.lastEvent')" min-width="180">
         <template #default="{ row }">
-          {{ row.lastEventAt ? formatDateTime(row.lastEventAt) : "N/A" }}
+          {{ row.lastEventAt ? formatDateTime(row.lastEventAt) : t("monitoring.resourceMonitor.na") }}
         </template>
       </el-table-column>
     </el-table>
@@ -87,9 +86,11 @@
 import { computed, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { Refresh } from "@element-plus/icons-vue";
+import { useI18n } from "vue-i18n";
 import { useMonitoringStore } from "@/stores/monitoring";
 
 const monitoringStore = useMonitoringStore();
+const { t, locale } = useI18n();
 const loading = ref(false);
 
 const metrics = computed(() => ({
@@ -105,12 +106,12 @@ const metrics = computed(() => ({
 const runtimeAssetRows = computed(() =>
   (monitoringStore.runtimeAssets || []).map((item: any) => ({
     id: item.asset?.id,
-    name: item.asset?.displayName || item.asset?.name || "Unnamed runtime asset",
-    type: item.asset?.type || "unknown",
-    runtimeStatus: item.runtimeSummary?.runtimeStatus || "unknown",
+    name: item.asset?.displayName || item.asset?.name || t("monitoring.resourceMonitor.unnamed"),
+    type: item.asset?.type || t("monitoring.resourceMonitor.unknown"),
+    runtimeStatus: item.runtimeSummary?.runtimeStatus || t("monitoring.resourceMonitor.unknown"),
     healthy: item.runtimeSummary?.healthy,
     membershipCount: item.runtimeSummary?.membershipCount || item.membershipCount || 0,
-    managedServerName: item.managedServer?.name || "N/A",
+    managedServerName: item.managedServer?.name || t("monitoring.resourceMonitor.na"),
     lastEventAt: item.runtimeSummary?.observabilityState?.lastEventAt || null,
   })),
 );
@@ -120,7 +121,7 @@ async function refreshData() {
   try {
     await monitoringStore.refreshAll("resource-monitor");
   } catch {
-    ElMessage.error("Failed to refresh runtime resource view.");
+    ElMessage.error(t("monitoring.resourceMonitor.refreshFailed"));
   } finally {
     loading.value = false;
   }
@@ -140,7 +141,7 @@ function runtimeStatusType(status?: string) {
 }
 
 function formatDateTime(value: string | Date) {
-  return new Date(value).toLocaleString("zh-CN");
+  return new Date(value).toLocaleString(locale.value);
 }
 </script>
 

@@ -14,7 +14,7 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 
 const goHome = () => {
-  router.push("/servers");
+  router.push("/registration/batch");
 };
 </script>
 

@@ -20,7 +20,7 @@ export enum GatewayRouteBindingStatus {
 
 @Entity('gateway_route_bindings')
 @Index(['routePath', 'routeMethod'], { unique: true })
-@Index(['endpointId'])
+@Index(['endpointDefinitionId'])
 @Index(['runtimeAssetEndpointBindingId'])
 @Index(['status'])
 export class GatewayRouteBindingEntity {
@@ -28,7 +28,7 @@ export class GatewayRouteBindingEntity {
   id: string;
 
   @Column({ type: 'varchar', length: 36 })
-  endpointId: string;
+  endpointDefinitionId: string;
 
   @Column({ type: 'varchar', length: 36, nullable: true })
   runtimeAssetEndpointBindingId?: string;

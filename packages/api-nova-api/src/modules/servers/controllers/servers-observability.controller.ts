@@ -113,15 +113,21 @@ export class ServersObservabilityController {
   @ApiResponse({ status: 200, description: 'System logs fetched successfully', type: PaginatedSystemLogResponseDto })
   async getSystemLogs(@Query() query: SystemLogQueryDto): Promise<PaginatedSystemLogResponseDto> {
     try {
+      const runtimeAssetId = await this.resolveRuntimeAssetFilter(
+        query.runtimeAssetId,
+        query.serverId,
+      );
       const result = await this.runtimeObservabilityService.queryManagementEvents({
         page: query.page || 1,
         limit: query.limit || 20,
         severity: query.level,
+        runtimeAssetId,
       });
       return {
         data: result.data.map((log: any) => ({
           id: log.id,
-          serverId: log.runtimeAssetId || '',
+          serverId: query.serverId,
+          runtimeAssetId: log.runtimeAssetId,
           eventType: log.eventType,
           description: log.description,
           level: log.level,
@@ -254,6 +260,7 @@ export class ServersObservabilityController {
       const data = logs.slice(offset, offset + limit).map((log: any) => ({
         id: log.id,
         serverId: id,
+        runtimeAssetId: observability.runtimeAsset.id,
         eventType: log.eventType,
         description: log.description,
         level: log.level,
@@ -295,6 +302,7 @@ export class ServersObservabilityController {
         .map((log: any) => ({
           id: log.id,
           serverId: id,
+          runtimeAssetId: observability.runtimeAsset.id,
           eventType: log.eventType,
           description: log.description,
           level: log.level,
@@ -331,5 +339,24 @@ export class ServersObservabilityController {
       }
       return true;
     });
+  }
+
+  private async resolveRuntimeAssetFilter(
+    runtimeAssetId?: string,
+    serverId?: string,
+  ): Promise<string | undefined> {
+    if (runtimeAssetId) {
+      return runtimeAssetId;
+    }
+    if (!serverId) {
+      return undefined;
+    }
+
+    try {
+      const runtimeAsset = await this.runtimeAssetsService.getManagedServerRuntimeAsset(serverId);
+      return runtimeAsset.id;
+    } catch {
+      return undefined;
+    }
   }
 }

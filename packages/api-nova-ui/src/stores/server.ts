@@ -9,15 +9,10 @@ export const useServerStore = defineStore("server", () => {
 
   // 状态
   const servers = ref<MCPServer[]>([]);
-  const selectedServerId = ref<string | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
   // 计算属性
-  const selectedServer = computed(
-    () => servers.value.find((s) => s.id === selectedServerId.value) || null,
-  );
-
   const runningServers = computed(() =>
     servers.value.filter((s) => s.status === "running"),
   );
@@ -150,9 +145,6 @@ export const useServerStore = defineStore("server", () => {
         servers.value.splice(index, 1);
 
         // 如果删除的是当前选中的服务器，清除选择
-        if (selectedServerId.value === id) {
-          selectedServerId.value = null;
-        }
 
         appStore.addNotification({
           type: "success",
@@ -266,10 +258,6 @@ export const useServerStore = defineStore("server", () => {
   };
 
   // 选择服务器
-  const selectServer = (id: string | null) => {
-    selectedServerId.value = id;
-  };
-
   // 更新服务器状态（用于WebSocket实时更新）
   const updateServerStatus = (
     id: string,
@@ -499,12 +487,10 @@ export const useServerStore = defineStore("server", () => {
   return {
     // 状态
     servers,
-    selectedServerId,
     loading,
     error,
 
     // 计算属性
-    selectedServer,
     runningServers,
     stoppedServers,
     errorServers,
@@ -524,7 +510,6 @@ export const useServerStore = defineStore("server", () => {
     stopServer,
     restartServer,
     fetchServerDetails,
-    selectServer,
     updateServerStatus,
     updateServerMetrics,
     batchUpdateServers,

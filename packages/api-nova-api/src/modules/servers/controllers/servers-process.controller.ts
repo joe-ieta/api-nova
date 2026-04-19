@@ -28,6 +28,7 @@ import { ProcessHealthService } from '../services/process-health.service';
 import { ProcessLogMonitorService } from '../services/process-log-monitor.service';
 import { ProcessManagerService } from '../services/process-manager.service';
 import { ProcessResourceMonitorService } from '../services/process-resource-monitor.service';
+import { RuntimeAssetsService } from '../../runtime-assets/services/runtime-assets.service';
 
 @ApiTags('Servers')
 @Controller('v1/servers')
@@ -42,6 +43,7 @@ export class ServersProcessController {
     private readonly processErrorHandler: ProcessErrorHandlerService,
     private readonly processResourceMonitor: ProcessResourceMonitorService,
     private readonly processLogMonitor: ProcessLogMonitorService,
+    private readonly runtimeAssetsService: RuntimeAssetsService,
   ) {}
 
   @Get(':id/process')
@@ -51,7 +53,11 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Process info fetched successfully' })
   async getProcessInfo(@Param('id') id: string) {
     try {
-      return await this.processManager.getProcessInfo(id);
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
+      return this.attachRuntimeAssetId(
+        await this.processManager.getProcessInfo(id),
+        runtimeAssetId,
+      );
     } catch (error) {
       this.logger.error(`Failed to get process info ${id}: ${error.message}`, error.stack);
       if (error.message.includes('not found')) {
@@ -70,7 +76,11 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Process logs fetched successfully' })
   async getProcessLogs(@Param('id') id: string, @Query() query: LogQueryDto) {
     try {
-      return await this.processErrorHandler.getProcessLogs(id, query.level as LogLevel, query.limit || 100);
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
+      return this.attachRuntimeAssetId(
+        await this.processErrorHandler.getProcessLogs(id, query.level as LogLevel, query.limit || 100),
+        runtimeAssetId,
+      );
     } catch (error) {
       this.logger.error(`Failed to get process logs ${id}: ${error.message}`, error.stack);
       throw new HttpException(`Failed to get process logs: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -85,7 +95,11 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Process health history fetched successfully' })
   async getProcessHealthHistory(@Param('id') id: string, @Query() query: HealthCheckQueryDto) {
     try {
-      return await this.processHealth.getHealthCheckHistory(id, query.limit);
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
+      return this.attachRuntimeAssetId(
+        await this.processHealth.getHealthCheckHistory(id, query.limit),
+        runtimeAssetId,
+      );
     } catch (error) {
       this.logger.error(`Failed to get process health history ${id}: ${error.message}`, error.stack);
       throw new HttpException(`Failed to get process health history: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -100,7 +114,11 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Process health stats fetched successfully' })
   async getProcessHealthStats(@Param('id') id: string, @Query('period') period?: string) {
     try {
-      return await this.processHealth.getHealthStats(id, period ? parseInt(period, 10) : 24);
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
+      return this.attachRuntimeAssetId(
+        await this.processHealth.getHealthStats(id, period ? parseInt(period, 10) : 24),
+        runtimeAssetId,
+      );
     } catch (error) {
       this.logger.error(`Failed to get process health stats ${id}: ${error.message}`, error.stack);
       throw new HttpException(`Failed to get process health stats: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -115,7 +133,11 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Process error stats fetched successfully' })
   async getProcessErrorStats(@Param('id') id: string, @Query('period') period?: string) {
     try {
-      return await this.processErrorHandler.getErrorStats(id, period ? parseInt(period, 10) : 24);
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
+      return this.attachRuntimeAssetId(
+        await this.processErrorHandler.getErrorStats(id, period ? parseInt(period, 10) : 24),
+        runtimeAssetId,
+      );
     } catch (error) {
       this.logger.error(`Failed to get process error stats ${id}: ${error.message}`, error.stack);
       throw new HttpException(`Failed to get process error stats: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -129,8 +151,9 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Restart counter reset successfully', type: OperationResultDto })
   async resetRestartCounter(@Param('id') id: string): Promise<OperationResultDto> {
     try {
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
       await this.processErrorHandler.resetRestartCounter(id);
-      return { success: true, message: 'Restart counter reset successfully' };
+      return this.buildOperationResult('Restart counter reset successfully', runtimeAssetId);
     } catch (error) {
       this.logger.error(`Failed to reset restart counter ${id}: ${error.message}`, error.stack);
       throw new HttpException(`Failed to reset restart counter: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -144,8 +167,9 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Restart cancelled successfully', type: OperationResultDto })
   async cancelRestart(@Param('id') id: string): Promise<OperationResultDto> {
     try {
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
       await this.processErrorHandler.cancelRestart(id);
-      return { success: true, message: 'Process restart cancelled successfully' };
+      return this.buildOperationResult('Process restart cancelled successfully', runtimeAssetId);
     } catch (error) {
       this.logger.error(`Failed to cancel restart ${id}: ${error.message}`, error.stack);
       throw new HttpException(`Failed to cancel restart: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -159,11 +183,15 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Process resource metrics fetched successfully' })
   async getProcessResources(@Param('id') id: string) {
     try {
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
       const processInfo = await this.processManager.getProcessInfo(id);
       if (!processInfo || !processInfo.pid) {
         throw new HttpException('Process not found or not running', HttpStatus.NOT_FOUND);
       }
-      return await this.processResourceMonitor.getProcessResourceMetrics(processInfo.pid);
+      return this.attachRuntimeAssetId(
+        await this.processResourceMonitor.getProcessResourceMetrics(processInfo.pid),
+        runtimeAssetId,
+      );
     } catch (error) {
       this.logger.error(`Failed to get process resources ${id}: ${error.message}`, error.stack);
       if (error.message.includes('not found') || error.message.includes('not running')) {
@@ -181,11 +209,15 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Process resource history fetched successfully' })
   async getProcessResourceHistory(@Param('id') id: string, @Query('limit') limit?: number) {
     try {
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
       const processInfo = await this.processManager.getProcessInfo(id);
       if (!processInfo || !processInfo.pid) {
         throw new HttpException('Process not found or not running', HttpStatus.NOT_FOUND);
       }
-      return await this.processResourceMonitor.getResourceHistory(id, limit || 100);
+      return this.attachRuntimeAssetId(
+        await this.processResourceMonitor.getResourceHistory(id, limit || 100),
+        runtimeAssetId,
+      );
     } catch (error) {
       this.logger.error(`Failed to get process resource history ${id}: ${error.message}`, error.stack);
       if (error.message.includes('not found') || error.message.includes('not running')) {
@@ -203,12 +235,13 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Resource monitoring started successfully', type: OperationResultDto })
   async startResourceMonitoring(@Param('id') id: string, @Query('interval') interval?: number): Promise<OperationResultDto> {
     try {
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
       const processInfo = await this.processManager.getProcessInfo(id);
       if (!processInfo || !processInfo.pid) {
         throw new HttpException('Process not found or not running', HttpStatus.NOT_FOUND);
       }
       await this.processResourceMonitor.startMonitoring(id, processInfo.pid, interval || 5000);
-      return { success: true, message: 'Resource monitoring started successfully' };
+      return this.buildOperationResult('Resource monitoring started successfully', runtimeAssetId);
     } catch (error) {
       this.logger.error(`Failed to start resource monitoring ${id}: ${error.message}`, error.stack);
       if (error.message.includes('not found') || error.message.includes('not running')) {
@@ -225,12 +258,13 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Resource monitoring stopped successfully', type: OperationResultDto })
   async stopResourceMonitoring(@Param('id') id: string): Promise<OperationResultDto> {
     try {
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
       const processInfo = await this.processManager.getProcessInfo(id);
       if (!processInfo || !processInfo.pid) {
         throw new HttpException('Process not found or not running', HttpStatus.NOT_FOUND);
       }
       await this.processResourceMonitor.stopMonitoring(id);
-      return { success: true, message: 'Resource monitoring stopped successfully' };
+      return this.buildOperationResult('Resource monitoring stopped successfully', runtimeAssetId);
     } catch (error) {
       this.logger.error(`Failed to stop resource monitoring ${id}: ${error.message}`, error.stack);
       if (error.message.includes('not found') || error.message.includes('not running')) {
@@ -247,7 +281,11 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Full process info fetched successfully' })
   async getProcessFullInfo(@Param('id') id: string) {
     try {
-      return await this.processManager.getProcessFullInfo(id);
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
+      return this.attachRuntimeAssetId(
+        await this.processManager.getProcessFullInfo(id),
+        runtimeAssetId,
+      );
     } catch (error) {
       this.logger.error(`Failed to get process full info ${id}: ${error.message}`, error.stack);
       if (error.message.includes('not found')) {
@@ -265,11 +303,15 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Process log history fetched successfully' })
   async getProcessLogHistory(@Param('id') id: string, @Query('limit') limit?: number) {
     try {
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
       const processInfo = await this.processManager.getProcessInfo(id);
       if (!processInfo || !processInfo.pid) {
         throw new HttpException('Process not found or not running', HttpStatus.NOT_FOUND);
       }
-      return await this.processLogMonitor.getLogHistory(id, limit || 100);
+      return this.attachRuntimeAssetId(
+        await this.processLogMonitor.getLogHistory(id, limit || 100),
+        runtimeAssetId,
+      );
     } catch (error) {
       this.logger.error(`Failed to get process log history ${id}: ${error.message}`, error.stack);
       if (error.message.includes('not found') || error.message.includes('not running')) {
@@ -288,11 +330,15 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Process log search completed successfully' })
   async searchProcessLogs(@Param('id') id: string, @Query('keyword') keyword: string, @Query('limit') limit?: number) {
     try {
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
       const processInfo = await this.processManager.getProcessInfo(id);
       if (!processInfo || !processInfo.pid) {
         throw new HttpException('Process not found or not running', HttpStatus.NOT_FOUND);
       }
-      return await this.processLogMonitor.searchLogs(id, { keyword, limit: limit || 50 });
+      return this.attachRuntimeAssetId(
+        await this.processLogMonitor.searchLogs(id, { keyword, limit: limit || 50 }),
+        runtimeAssetId,
+      );
     } catch (error) {
       this.logger.error(`Failed to search process logs ${id}: ${error.message}`, error.stack);
       if (error.message.includes('not found') || error.message.includes('not running')) {
@@ -310,12 +356,13 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Log monitoring started successfully', type: OperationResultDto })
   async startLogMonitoring(@Param('id') id: string, @Query('logFile') logFile?: string): Promise<OperationResultDto> {
     try {
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
       const processInfo = await this.processManager.getProcessInfo(id);
       if (!processInfo || !processInfo.pid) {
         throw new HttpException('Process not found or not running', HttpStatus.NOT_FOUND);
       }
       await this.processLogMonitor.startLogMonitoring(id, processInfo.pid, logFile);
-      return { success: true, message: 'Log monitoring started successfully' };
+      return this.buildOperationResult('Log monitoring started successfully', runtimeAssetId);
     } catch (error) {
       this.logger.error(`Failed to start log monitoring ${id}: ${error.message}`, error.stack);
       if (error.message.includes('not found') || error.message.includes('not running')) {
@@ -332,12 +379,13 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Log monitoring stopped successfully', type: OperationResultDto })
   async stopLogMonitoring(@Param('id') id: string): Promise<OperationResultDto> {
     try {
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
       const processInfo = await this.processManager.getProcessInfo(id);
       if (!processInfo || !processInfo.pid) {
         throw new HttpException('Process not found or not running', HttpStatus.NOT_FOUND);
       }
       await this.processLogMonitor.stopLogMonitoring(id);
-      return { success: true, message: 'Log monitoring stopped successfully' };
+      return this.buildOperationResult('Log monitoring stopped successfully', runtimeAssetId);
     } catch (error) {
       this.logger.error(`Failed to stop log monitoring ${id}: ${error.message}`, error.stack);
       if (error.message.includes('not found') || error.message.includes('not running')) {
@@ -354,12 +402,13 @@ export class ServersProcessController {
   @ApiResponse({ status: 200, description: 'Log buffer cleared successfully', type: OperationResultDto })
   async clearProcessLogBuffer(@Param('id') id: string): Promise<OperationResultDto> {
     try {
+      const runtimeAssetId = await this.resolveRuntimeAssetId(id);
       const processInfo = await this.processManager.getProcessInfo(id);
       if (!processInfo || !processInfo.pid) {
         throw new HttpException('Process not found or not running', HttpStatus.NOT_FOUND);
       }
       await this.processLogMonitor.clearLogBuffer(id);
-      return { success: true, message: 'Log buffer cleared successfully' };
+      return this.buildOperationResult('Log buffer cleared successfully', runtimeAssetId);
     } catch (error) {
       this.logger.error(`Failed to clear log buffer ${id}: ${error.message}`, error.stack);
       if (error.message.includes('not found') || error.message.includes('not running')) {
@@ -367,5 +416,43 @@ export class ServersProcessController {
       }
       throw new HttpException(`Failed to clear log buffer: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+  }
+
+  private async resolveRuntimeAssetId(serverId: string): Promise<string | undefined> {
+    try {
+      const runtimeAsset = await this.runtimeAssetsService.getManagedServerRuntimeAsset(serverId);
+      return runtimeAsset.id;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private attachRuntimeAssetId<T>(data: T, runtimeAssetId?: string): T {
+    if (!runtimeAssetId || data == null) {
+      return data;
+    }
+
+    if (Array.isArray(data)) {
+      return data.map(item =>
+        item && typeof item === 'object' ? { ...item, runtimeAssetId } : item,
+      ) as T;
+    }
+
+    if (typeof data === 'object') {
+      return { ...(data as Record<string, unknown>), runtimeAssetId } as T;
+    }
+
+    return data;
+  }
+
+  private buildOperationResult(
+    message: string,
+    runtimeAssetId?: string,
+  ): OperationResultDto {
+    return {
+      success: true,
+      message,
+      data: runtimeAssetId ? { runtimeAssetId } : undefined,
+    };
   }
 }

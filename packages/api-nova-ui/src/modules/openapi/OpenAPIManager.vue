@@ -50,9 +50,9 @@
         <div class="header-content">
           <h1>
             <el-icon><Document /></el-icon>
-            {{ t("openapi.title") }}
+            {{ pageTitle }}
           </h1>
-          <p class="header-description">{{ t("openapi.description") }}</p>
+          <p class="header-description">{{ pageDescription }}</p>
         </div>
         <div class="header-actions">
           <el-button
@@ -64,9 +64,6 @@
           </el-button>
           <el-button type="success" @click="showUrlDialog = true" :icon="Link">
             {{ t("openapi.importFromUrl") }}
-          </el-button>
-          <el-button type="warning" @click="goToEndpointRegistry" :icon="Plus">
-            {{ t("endpointRegistry.title") }}
           </el-button>
           <el-button
             @click="refreshDocuments"
@@ -925,9 +922,8 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useI18n } from "vue-i18n";
-import { useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import {
-  Plus,
   Upload,
   Link,
   Search,
@@ -964,6 +960,7 @@ import {
   type Document,
   type CreateDocumentDto,
   type UpdateDocumentDto,
+  type QuickPublishProcessLog,
 } from "../../api/documents";
 import { openApiAPI, serverAPI } from "../../services/api";
 
@@ -975,7 +972,7 @@ import { useOperationTimeline } from "../../composables/useOperationTimeline";
 
 // 鍥介檯鍖?
 const { t } = useI18n();
-const router = useRouter();
+const route = useRoute();
 // import LoadingOverlay from '@/shared/components/ui/LoadingOverlay.vue' // 鏆傛椂娉ㄩ噴鎺夛紝濡傛灉闇€瑕佸彲浠ュ垱寤鸿繖涓粍浠?
 
 // 鐘舵€佺鐞?
@@ -1098,6 +1095,39 @@ const formatOperationError = (error: unknown) => {
   }
 
   return t("common.unknownError");
+};
+
+const getOperationLogsFromError = (error: unknown): QuickPublishProcessLog[] => {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    Array.isArray((error as any).response?.data?.processLogs)
+  ) {
+    return (error as any).response.data.processLogs as QuickPublishProcessLog[];
+  }
+
+  return [];
+};
+
+const appendQuickPublishProcessLogs = (
+  logs: QuickPublishProcessLog[],
+  fallbackTitle?: string,
+) => {
+  logs.forEach((entry) => {
+    addOperationTimelineEntry({
+      level: entry.level,
+      title: fallbackTitle || t("openapi.convertToMcp"),
+      summary: entry.summary,
+      details: [
+        `Step: ${entry.step}`,
+        `Timestamp: ${entry.timestamp}`,
+        entry.details || "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+  });
 };
 
 // 琛ㄥ崟楠岃瘉瑙勫垯
@@ -1226,11 +1256,17 @@ const filteredDocuments = computed(() => {
   );
 });
 
-const goToEndpointRegistry = () => {
-  router.push({
-    path: "/endpoint-registry",
-  });
-};
+const pageTitle = computed(() =>
+  route.meta?.productSurface === "registration"
+    ? t("menu.registration-batch")
+    : t("openapi.title"),
+);
+
+const pageDescription = computed(() =>
+  route.meta?.productSurface === "registration"
+    ? t("menuDescription.registration-batch")
+    : t("openapi.description"),
+);
 
 // 璁＄畻缂栬緫鍣ㄩ珮搴?
 const editorHeight = computed(() => {
@@ -2213,7 +2249,7 @@ const readFileContent = (file: File): Promise<string> => {
 
 // MCP鐩稿叧鏂规硶
 const convertToMCP = async () => {
-  if (!editorContent.value) {
+  if (!editorContent.value || !selectedDocument.value?.id) {
     ElMessage.warning(t("openapi.selectDocumentFirst"));
     return;
   }
@@ -2238,10 +2274,6 @@ const convertToMCP = async () => {
     const parseResult = await openApiStore.parseOpenAPIContent(sanitizedContent);
     mcpTools.value = parseResult.tools || [];
     activeTab.value = "tools";
-
-    ElMessage.success(
-      t("openapi.convertSuccess", { count: mcpTools.value.length }),
-    );
     addOperationTimelineEntry({
       level: "success",
       title: t("openapi.convertToMcp"),
@@ -2258,11 +2290,63 @@ const convertToMCP = async () => {
         .filter(Boolean)
         .join("\n"),
     });
+
+    const quickPublishResult = await documentsApi.quickPublishDocumentToMcp(
+      selectedDocument.value.id,
+      {
+        content: sanitizedContent,
+        replaceExisting: true,
+      },
+    );
+
+    const docIndex = documents.value.findIndex(
+      (doc) => doc.id === quickPublishResult.document.id,
+    );
+    if (docIndex > -1) {
+      documents.value[docIndex] = quickPublishResult.document;
+    }
+    selectedDocument.value = quickPublishResult.document;
+
+    appendQuickPublishProcessLogs(
+      quickPublishResult.processLogs,
+      t("openapi.convertToMcp"),
+    );
+
+    ElMessage.success(
+      t("openapi.quickPublishSuccess", {
+        count: mcpTools.value.length,
+        asset:
+          quickPublishResult.runtimeAsset.displayName ||
+          quickPublishResult.runtimeAsset.name,
+      }),
+    );
+    addOperationTimelineEntry({
+      level: "success",
+      title: t("openapi.convertToMcp"),
+      summary: t("openapi.quickPublishSummary"),
+      details: [
+        `Runtime Asset: ${quickPublishResult.runtimeAsset.name}`,
+        `Runtime Asset ID: ${quickPublishResult.runtimeAsset.id}`,
+        `Managed Server: ${quickPublishResult.managedServer?.name || "n/a"}`,
+        `Managed Server ID: ${quickPublishResult.managedServer?.id || "n/a"}`,
+        `Memberships: ${
+          quickPublishResult.publicationBatchRun?.successCount || 0
+        }/${
+          quickPublishResult.publicationBatchRun?.totalCount ||
+          quickPublishResult.memberships.length
+        }`,
+        `Tool Count: ${quickPublishResult.toolsCount}`,
+      ].join("\n"),
+    });
   } catch (error) {
     console.error("Converting to MCP failed:", error);
+    appendQuickPublishProcessLogs(
+      getOperationLogsFromError(error),
+      t("openapi.convertToMcp"),
+    );
     ElMessage.error(
-      t("openapi.convertFailed", {
-        error: error instanceof Error ? error.message : String(error),
+      t("openapi.quickPublishFailed", {
+        error: formatOperationError(error),
       }),
     );
     addOperationTimelineEntry({

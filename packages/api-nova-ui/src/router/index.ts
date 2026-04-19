@@ -5,62 +5,99 @@ import {
 } from "vue-router";
 import MainLayout from "@/layout/MainLayout.vue";
 import Login from "@/views/Login.vue";
+import { i18n } from "@/locales";
 
 const routes: RouteRecordRaw[] = [
   {
     path: "/",
     component: MainLayout,
-    redirect: "/servers",
+    redirect: "/registration/batch",
     children: [
       {
-        path: "/servers",
-        name: "servers",
-        component: () => import("@/modules/servers/ServerManager.vue"),
+        path: "/registration",
+        redirect: "/registration/batch",
         meta: {
-          title: "Server Management",
-          icon: "Server",
-          description: "Manage MCP server instances",
-        },
-      },
-      {
-        path: "/servers/:id",
-        name: "server-detail",
-        component: () => import("@/modules/servers/ServerDetail.vue"),
-        meta: {
-          title: "Server Detail",
           hidden: true,
-          parent: "servers",
         },
       },
       {
-        path: "/openapi",
-        name: "openapi",
+        path: "/registration/batch",
+        name: "registration-batch",
         component: () => import("@/modules/openapi/OpenAPIManager.vue"),
         meta: {
-          title: "OpenAPI Management",
+          title: "Batch Registration",
           icon: "Document",
-          description: "Manage and convert OpenAPI specs",
+          description: "Register APIs in batch through OpenAPI import and document normalization",
+          productSurface: "registration",
         },
       },
       {
-        path: "/endpoint-registry",
-        name: "endpoint-registry",
+        path: "/registration/manual",
+        name: "registration-manual",
         component: () =>
           import("@/modules/endpoint-registry/EndpointRegistry.vue"),
         meta: {
-          title: "Endpoint Registry",
-          icon: "Document",
-          description: "Manage imported and manual endpoints in one governance surface",
+          title: "Manual Registration",
+          icon: "Plus",
+          description: "Register and maintain API endpoints manually",
+          productSurface: "registration",
         },
       },
       {
-        path: "/tester",
-        name: "tester",
+        path: "/testing",
+        name: "testing",
         component: () => import("@/modules/testing/APITester.vue"),
         meta: {
           title: "API Testing",
           icon: "Tools",
-          description: "Test and debug MCP tools",
+          description: "Validate registered APIs before governance and publication",
+          productSurface: "testing",
+        },
+      },
+      {
+        path: "/governance",
+        name: "governance",
+        component: () =>
+          import("@/modules/endpoint-registry/EndpointRegistry.vue"),
+        meta: {
+          title: "API Governance",
+          icon: "Document",
+          description: "Probe, review, and qualify endpoints into ready assets",
+          productSurface: "governance",
+        },
+      },
+      {
+        path: "/publication",
+        name: "publication",
+        component: () =>
+          import("@/modules/endpoint-registry/EndpointRegistry.vue"),
+        meta: {
+          title: "API Publication",
+          icon: "Document",
+          description: "Publish ready endpoints to MCP and Gateway runtime paths",
+          productSurface: "publication",
+        },
+      },
+      {
+        path: "/runtime-assets",
+        name: "runtime-assets",
+        component: () => import("@/modules/servers/ServerManager.vue"),
+        meta: {
+          title: "Runtime Assets",
+          icon: "Server",
+          description: "Operate published MCP and Gateway runtime assets",
+          productSurface: "runtime-assets",
+        },
+      },
+      {
+        path: "/runtime-assets/:id",
+        name: "runtime-asset-detail",
+        component: () => import("@/modules/runtime-assets/RuntimeAssetDetail.vue"),
+        meta: {
+          title: "Runtime Asset Detail",
+          hidden: true,
+          parent: "/runtime-assets",
+          productSurface: "runtime-assets",
         },
       },
       {
@@ -117,6 +154,22 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: "/servers",
+    redirect: "/runtime-assets",
+  },
+  {
+    path: "/openapi",
+    redirect: "/registration/batch",
+  },
+  {
+    path: "/endpoint-registry",
+    redirect: "/governance",
+  },
+  {
+    path: "/tester",
+    redirect: "/testing",
+  },
+  {
     path: "/login",
     name: "login",
     component: Login,
@@ -156,14 +209,14 @@ router.beforeEach(async (to, _from, next) => {
       try {
         await authStore.initializeAuth();
         if (authStore.currentUser) {
-          next("/servers");
+          next("/registration/batch");
           return;
         }
       } catch (_error) {
         // Keep login route reachable even if auth init fails
       }
     } else if (authStore.currentUser) {
-      next("/servers");
+      next("/registration/batch");
       return;
     }
     next();
@@ -192,8 +245,16 @@ router.beforeEach(async (to, _from, next) => {
     return;
   }
 
-  if (to.meta?.title) {
-    document.title = `${to.meta.title} - ApiNova`;
+  const routeName = to.name ? String(to.name) : "";
+  const menuKey = routeName ? `menu.${routeName}` : "";
+  const translatedTitle = menuKey ? i18n.global.t(menuKey) : "";
+  const pageTitle =
+    translatedTitle && translatedTitle !== menuKey
+      ? translatedTitle
+      : String(to.meta?.title || "");
+
+  if (pageTitle) {
+    document.title = `${pageTitle} - ApiNova`;
   }
 
   next();

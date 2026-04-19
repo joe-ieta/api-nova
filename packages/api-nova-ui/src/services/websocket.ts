@@ -13,6 +13,7 @@ export interface WebSocketEvents {
   "runtime:system-metrics": (metrics: SystemMetrics) => void;
   "runtime:server-metrics": (data: {
     serverId: string;
+    runtimeAssetId?: string;
     metrics: SystemMetrics;
     summary?: any;
   }) => void;
@@ -23,10 +24,12 @@ export interface WebSocketEvents {
   }) => void;
   "runtime:process-info": (data: {
     serverId: string;
+    runtimeAssetId?: string;
     processInfo: any;
   }) => void;
   "runtime:process-log": (data: {
     serverId: string;
+    runtimeAssetId?: string;
     logData?: {
       id?: string;
       level?: string;
@@ -92,6 +95,7 @@ export class WebSocketService {
     const managedServerId =
       observability?.currentState?.managedServer?.id ||
       payload?.data?.runtimeSummary?.managedServer?.id;
+    const runtimeAssetId = payload?.runtimeAssetId;
     if (!managedServerId) {
       return;
     }
@@ -99,6 +103,7 @@ export class WebSocketService {
     const summary = observability?.metricsSummary || {};
     const eventPayload = {
       serverId: managedServerId,
+      runtimeAssetId,
       metrics: {
         totalRequests: Number(summary?.counters?.requestCount || 0),
         successfulRequests: Number(summary?.counters?.successCount || 0),
@@ -127,6 +132,7 @@ export class WebSocketService {
 
     const eventPayload = {
       serverId: managedServerId,
+      runtimeAssetId: payload?.runtimeAssetId,
       processInfo,
     };
 
@@ -162,6 +168,7 @@ export class WebSocketService {
 
     const eventPayload = {
       serverId: payload.managedServerId,
+      runtimeAssetId: payload?.runtimeAssetId,
       logData: {
         id: payload.id,
         level: payload.level,
@@ -452,7 +459,7 @@ export class WebSocketService {
       "subscription-confirmed",
       (data: {
         room: string;
-        serverId?: string;
+        runtimeAssetId?: string;
         interval?: number;
         timestamp: string;
       }) => {
@@ -582,15 +589,15 @@ export class WebSocketService {
   }
 
   // 订阅特定服务器的更新
-  subscribeToServer(serverId: string): void {
-    if (!serverId) return;
-    this.emit("subscribe-runtime-asset", { serverId, interval: 5000 });
+  subscribeToRuntimeAsset(runtimeAssetId: string): void {
+    if (!runtimeAssetId) return;
+    this.emit("subscribe-runtime-asset", { runtimeAssetId, interval: 5000 });
   }
 
   // 取消订阅特定服务器的更新
-  unsubscribeFromServer(serverId: string): void {
-    if (!serverId) return;
-    this.emit("unsubscribe-runtime-asset", { serverId });
+  unsubscribeFromRuntimeAsset(runtimeAssetId: string): void {
+    if (!runtimeAssetId) return;
+    this.emit("unsubscribe-runtime-asset", { runtimeAssetId });
   }
 
   // 订阅系统指标更新
@@ -604,7 +611,7 @@ export class WebSocketService {
   }
 
   // 订阅日志更新
-  subscribeToLogs(filter?: { level?: string[]; serverId?: string }): void {
+  subscribeToLogs(filter?: { level?: string[]; runtimeAssetId?: string }): void {
     this.emit("subscribe-runtime-events", filter);
     this.emit("subscribe-runtime-alerts", {
       severity: ["warning", "error", "critical"],
@@ -617,44 +624,44 @@ export class WebSocketService {
   }
 
   // 订阅进程信息更新（强化版本）
-  subscribeToProcessInfo(serverId: string): void {
-    if (!serverId) return;
+  subscribeToProcessInfo(runtimeAssetId: string): void {
+    if (!runtimeAssetId) return;
     if (!this.socket?.connected) {
       if (this.DEBUG)
         console.warn(
           "[WebSocketService] Socket not connected, defer subscribeToProcessInfo",
-          serverId,
+          runtimeAssetId,
         );
       this.connect()
         .then(() =>
-          setTimeout(() => this.subscribeToProcessInfo(serverId), 500),
+          setTimeout(() => this.subscribeToProcessInfo(runtimeAssetId), 500),
         )
         .catch(() => {});
       return;
     }
-    this.emit("subscribe-runtime-asset", { serverId, interval: 5000 });
+    this.emit("subscribe-runtime-asset", { runtimeAssetId, interval: 5000 });
   }
 
   // 取消订阅进程信息更新
-  unsubscribeFromProcessInfo(serverId: string): void {
-    if (!serverId) return;
+  unsubscribeFromProcessInfo(runtimeAssetId: string): void {
+    if (!runtimeAssetId) return;
     // 兼容旧通用unsubscribe & 新事件
-    this.emit("unsubscribe-runtime-asset", { serverId });
+    this.emit("unsubscribe-runtime-asset", { runtimeAssetId });
   }
 
   // 订阅进程日志更新
-  subscribeToProcessLogs(serverId: string, level?: string): void {
-    if (!serverId) return;
+  subscribeToProcessLogs(runtimeAssetId: string, level?: string): void {
+    if (!runtimeAssetId) return;
     this.emit("subscribe-runtime-events", {
-      serverId,
+      runtimeAssetId,
       level: level ? [level] : undefined,
     });
   }
 
   // 取消订阅进程日志更新
-  unsubscribeFromProcessLogs(serverId: string): void {
-    if (!serverId) return;
-    this.emit("unsubscribe-runtime-events", { serverId });
+  unsubscribeFromProcessLogs(runtimeAssetId: string): void {
+    if (!runtimeAssetId) return;
+    this.emit("unsubscribe-runtime-events", { runtimeAssetId });
   }
 
   // 获取连接状态信息

@@ -16,8 +16,8 @@ export enum PublicationProfileStatus {
 }
 
 @Entity('publication_profiles')
-@Index(['endpointId', 'version'])
-@Index(['endpointId'])
+@Index(['endpointDefinitionId', 'version'])
+@Index(['endpointDefinitionId'])
 @Index(['runtimeAssetEndpointBindingId', 'version'], { unique: true })
 @Index(['runtimeAssetEndpointBindingId'])
 @Index(['status'])
@@ -26,7 +26,7 @@ export class PublicationProfileEntity {
   id: string;
 
   @Column({ type: 'varchar', length: 36 })
-  endpointId: string;
+  endpointDefinitionId: string;
 
   @Column({ type: 'varchar', length: 36, nullable: true })
   runtimeAssetEndpointBindingId?: string;

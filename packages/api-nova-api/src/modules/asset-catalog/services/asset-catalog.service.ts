@@ -1,6 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like, Repository } from 'typeorm';
+import { firstValueFrom } from 'rxjs';
+import { AxiosError } from 'axios';
 import {
   EndpointDefinitionEntity,
   EndpointDefinitionStatus,
@@ -8,9 +11,13 @@ import {
 import { SourceServiceAssetEntity } from '../../../database/entities/source-service-asset.entity';
 import {
   AssetCatalogQueryDto,
+  ExecuteEndpointDefinitionTestDto,
   EndpointCatalogQueryDto,
+  RegisterManualEndpointAssetDto,
   UpdateEndpointDefinitionGovernanceDto,
+  UpdateManualEndpointAssetDto,
 } from '../dto/asset-catalog.dto';
+import { evaluateEndpointGovernanceReadiness } from '../endpoint-readiness.policy';
 
 @Injectable()
 export class AssetCatalogService {
@@ -21,6 +28,7 @@ export class AssetCatalogService {
     private readonly sourceServiceRepository: Repository<SourceServiceAssetEntity>,
     @InjectRepository(EndpointDefinitionEntity)
     private readonly endpointDefinitionRepository: Repository<EndpointDefinitionEntity>,
+    private readonly httpService: HttpService,
   ) {}
 
   normalizeSourceKey(input: {
@@ -178,6 +186,247 @@ export class AssetCatalogService {
     };
   }
 
+  async probeEndpointDefinition(id: string) {
+    const detail = await this.getEndpointDefinitionDetail(id);
+    const endpoint = detail.endpoint;
+    const sourceServiceAsset = detail.sourceServiceAsset;
+    if (!sourceServiceAsset) {
+      throw new NotFoundException(`Source service asset '${endpoint.sourceServiceAssetId}' not found`);
+    }
+
+    const metadata = (endpoint.metadata || {}) as Record<string, unknown>;
+    const sourceType = this.inferSourceType(endpoint);
+    const defaultProbeUrl =
+      sourceType === 'imported'
+        ? this.buildBaseUrlFromSourceServiceAsset(sourceServiceAsset)
+        : `${this.buildBaseUrlFromSourceServiceAsset(sourceServiceAsset)}${endpoint.path}`;
+    const probeUrl =
+      typeof metadata.probeUrl === 'string' && metadata.probeUrl
+        ? metadata.probeUrl
+        : defaultProbeUrl;
+    if (!probeUrl) {
+      throw new BadRequestException(`Probe URL cannot be resolved for endpoint '${id}'`);
+    }
+
+    const rawResult = await this.runProbe(probeUrl);
+    const result =
+      sourceType === 'imported'
+        ? this.normalizeSourceServiceProbeResult(rawResult)
+        : rawResult;
+    endpoint.metadata = {
+      ...(endpoint.metadata || {}),
+      lastProbeStatus: result.status,
+      lastProbeAt: new Date().toISOString(),
+      lastProbeError: result.errorMessage,
+      lastProbeHttpStatus: result.httpStatus,
+      probeUrl: result.probeUrl,
+      probeScope: sourceType === 'imported' ? 'source_service' : 'endpoint',
+    };
+
+    if (result.status === 'healthy') {
+      if (
+        endpoint.status === EndpointDefinitionStatus.DRAFT ||
+        endpoint.status === EndpointDefinitionStatus.DEGRADED
+      ) {
+        endpoint.status = EndpointDefinitionStatus.VERIFIED;
+      }
+      endpoint.publishEnabled = true;
+    } else if (endpoint.status === EndpointDefinitionStatus.PUBLISHED) {
+      endpoint.status = EndpointDefinitionStatus.DEGRADED;
+    }
+
+    const saved = await this.endpointDefinitionRepository.save(endpoint);
+    return {
+      endpoint: saved,
+      sourceServiceAsset,
+      probe: result,
+    };
+  }
+
+  async getEndpointDefinitionReadiness(id: string) {
+    const detail = await this.getEndpointDefinitionDetail(id);
+    const readiness = evaluateEndpointGovernanceReadiness(detail.endpoint);
+
+    return {
+      endpointDefinitionId: detail.endpoint.id,
+      ready: readiness.ready,
+      reasons: readiness.reasons,
+      checks: readiness.checks,
+    };
+  }
+
+  async getEndpointDefinitionTestingState(id: string) {
+    const detail = await this.getEndpointDefinitionDetail(id);
+    return this.buildTestingState(detail.endpoint);
+  }
+
+  async executeEndpointDefinitionTest(
+    id: string,
+    input: ExecuteEndpointDefinitionTestDto = {},
+  ) {
+    const detail = await this.getEndpointDefinitionDetail(id);
+    const endpoint = detail.endpoint;
+    const sourceServiceAsset = detail.sourceServiceAsset;
+    if (!sourceServiceAsset) {
+      throw new NotFoundException(`Source service asset '${endpoint.sourceServiceAssetId}' not found`);
+    }
+
+    const testUrl = `${this.buildBaseUrlFromSourceServiceAsset(sourceServiceAsset)}${endpoint.path}`;
+    const method = String(endpoint.method || 'GET').toUpperCase();
+    const parameters =
+      input.parameters && typeof input.parameters === 'object' ? input.parameters : {};
+    const startedAt = Date.now();
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.request({
+          url: testUrl,
+          method: method as any,
+          timeout: 12000,
+          validateStatus: () => true,
+          ...(this.isQueryOnlyMethod(method)
+            ? { params: parameters }
+            : { data: parameters }),
+        }),
+      );
+
+      const passed = response.status >= 200 && response.status < 400;
+      endpoint.metadata = this.mergeTestingMetadata(endpoint, {
+        testStatus: passed ? 'passed' : 'failed',
+        qualificationState: passed ? 'tested' : 'test_blocked',
+        lastTestAt: new Date().toISOString(),
+        lastTestMethod: method,
+        lastTestUrl: testUrl,
+        lastTestHttpStatus: response.status,
+        lastTestDurationMs: Date.now() - startedAt,
+        lastTestError: passed ? undefined : `HTTP ${response.status}`,
+      });
+      await this.endpointDefinitionRepository.save(endpoint);
+
+      return {
+        endpointDefinitionId: endpoint.id,
+        test: {
+          passed,
+          httpStatus: response.status,
+          durationMs: Date.now() - startedAt,
+          method,
+          url: testUrl,
+        },
+        testingState: this.buildTestingState(endpoint),
+      };
+    } catch (error) {
+      const axiosErr = error as AxiosError;
+      endpoint.metadata = this.mergeTestingMetadata(endpoint, {
+        testStatus: 'failed',
+        qualificationState: 'test_blocked',
+        lastTestAt: new Date().toISOString(),
+        lastTestMethod: method,
+        lastTestUrl: testUrl,
+        lastTestHttpStatus: axiosErr.response?.status,
+        lastTestDurationMs: Date.now() - startedAt,
+        lastTestError:
+          axiosErr.response?.status != null
+            ? `HTTP ${axiosErr.response.status}`
+            : axiosErr.message || 'Test request failed',
+      });
+      await this.endpointDefinitionRepository.save(endpoint);
+
+      return {
+        endpointDefinitionId: endpoint.id,
+        test: {
+          passed: false,
+          httpStatus: axiosErr.response?.status,
+          durationMs: Date.now() - startedAt,
+          method,
+          url: testUrl,
+          errorMessage:
+            axiosErr.response?.status != null
+              ? `HTTP ${axiosErr.response.status}`
+              : axiosErr.message || 'Test request failed',
+        },
+        testingState: this.buildTestingState(endpoint),
+      };
+    }
+  }
+
+  async registerManualEndpointAssetRecord(input: RegisterManualEndpointAssetDto) {
+    const result = await this.registerManualEndpointAsset({
+      name: input.name,
+      baseUrl: input.baseUrl,
+      method: input.method,
+      path: input.path,
+      description: input.description,
+      metadata: {
+        source: 'manual-registration',
+        businessDomain: input.businessDomain,
+        riskLevel: input.riskLevel,
+      },
+    });
+
+    return this.buildEndpointAssetRecord(result.endpoint.id);
+  }
+
+  async updateManualEndpointAssetRecord(id: string, input: UpdateManualEndpointAssetDto) {
+    const endpoint = await this.requireEndpointDefinition(id);
+    this.ensureManualEndpoint(endpoint);
+    const previousSourceServiceAssetId = endpoint.sourceServiceAssetId;
+
+    const parsed = new URL(input.baseUrl);
+    const sourceServiceAsset = await this.upsertSourceServiceAsset({
+      scheme: parsed.protocol.replace(':', ''),
+      host: parsed.hostname,
+      port: this.resolvePort(parsed),
+      normalizedBasePath: this.normalizeBasePath(parsed.pathname || '/'),
+      displayName: input.name,
+      description: input.description,
+      metadata: {
+        source: 'manual-registration',
+        baseUrl: input.baseUrl,
+        businessDomain: input.businessDomain,
+        riskLevel: input.riskLevel,
+      },
+    });
+
+    endpoint.sourceServiceAssetId = sourceServiceAsset.id;
+    endpoint.method = input.method.toUpperCase();
+    endpoint.path = this.normalizeBasePath(input.path);
+    endpoint.summary = input.description || `${input.method.toUpperCase()} ${input.path}`;
+    endpoint.description = input.description;
+    endpoint.metadata = {
+      ...(endpoint.metadata || {}),
+      source: 'manual-registration',
+      businessDomain: input.businessDomain,
+      riskLevel: input.riskLevel,
+      displayName: input.name,
+      baseUrl: input.baseUrl,
+      testStatus: 'untested',
+      qualificationState: 'registered',
+      lastTestAt: undefined,
+      lastTestMethod: undefined,
+      lastTestUrl: undefined,
+      lastTestHttpStatus: undefined,
+      lastTestDurationMs: undefined,
+      lastTestError: undefined,
+    };
+
+    await this.endpointDefinitionRepository.save(endpoint);
+    await this.cleanupOrphanSourceServiceAsset(previousSourceServiceAssetId);
+    return this.buildEndpointAssetRecord(endpoint.id);
+  }
+
+  async deleteManualEndpointAssetRecord(id: string) {
+    const endpoint = await this.requireEndpointDefinition(id);
+    this.ensureManualEndpoint(endpoint);
+    const sourceServiceAssetId = endpoint.sourceServiceAssetId;
+    await this.endpointDefinitionRepository.remove(endpoint);
+    await this.cleanupOrphanSourceServiceAsset(sourceServiceAssetId);
+
+    return {
+      success: true,
+      endpointId: id,
+    };
+  }
+
   async findSourceServiceAssetForSpec(spec: any, metadata?: Record<string, any>) {
     const descriptor = this.resolveSourceDescriptor(spec, metadata);
     const sourceKey = this.normalizeSourceKey(descriptor);
@@ -245,6 +494,8 @@ export class AssetCatalogService {
         metadata: {
           documentId: input.documentId,
           source: 'document-import',
+          testStatus: 'untested',
+          qualificationState: 'registered',
         },
       });
       syncedEndpoints.push(saved);
@@ -293,6 +544,11 @@ export class AssetCatalogService {
       publishEnabled: false,
       metadata: {
         source: 'manual-registration',
+        displayName: input.name,
+        probeUrl: `${input.baseUrl.replace(/\/+$/, '')}${this.normalizeBasePath(input.path)}`,
+        testStatus: 'untested',
+        qualificationState: 'registered',
+        ...(input.metadata || {}),
       },
     });
 
@@ -337,6 +593,207 @@ export class AssetCatalogService {
     }
 
     return this.sourceServiceRepository.save(asset);
+  }
+
+  private async buildEndpointAssetRecord(id: string) {
+    const detail = await this.getEndpointDefinitionDetail(id);
+    const endpoint = detail.endpoint;
+    const sourceServiceAsset = detail.sourceServiceAsset;
+    const metadata = (endpoint.metadata || {}) as Record<string, unknown>;
+
+    return {
+      id: endpoint.id,
+      endpoint,
+      sourceServiceAsset,
+      registration: {
+        sourceType: this.inferSourceType(endpoint),
+        name:
+          String(metadata.displayName || sourceServiceAsset?.displayName || endpoint.summary || endpoint.path),
+        baseUrl: this.buildBaseUrlFromSourceServiceAsset(sourceServiceAsset),
+        businessDomain:
+          typeof metadata.businessDomain === 'string' ? metadata.businessDomain : undefined,
+        riskLevel: typeof metadata.riskLevel === 'string' ? metadata.riskLevel : undefined,
+      },
+    };
+  }
+
+  private async runProbe(probeUrl: string) {
+    const startedAt = Date.now();
+    try {
+      const head = await firstValueFrom(
+        this.httpService.head(probeUrl, {
+          timeout: 8000,
+          validateStatus: () => true,
+        }),
+      );
+      const responseTimeMs = Date.now() - startedAt;
+      const healthy = this.isReachableProbeStatus(head.status);
+      if (!healthy && this.shouldFallbackToGet(head.status)) {
+        return this.runGetProbe(probeUrl, startedAt);
+      }
+      return {
+        status: healthy ? 'healthy' : 'unhealthy',
+        httpStatus: head.status,
+        responseTimeMs,
+        errorMessage: healthy ? undefined : `HTTP ${head.status}`,
+        probeUrl,
+      };
+    } catch (headError) {
+      return this.runGetProbe(probeUrl, startedAt, headError);
+    }
+  }
+
+  private async runGetProbe(probeUrl: string, startedAt: number, headError?: unknown) {
+    try {
+      const getResp = await firstValueFrom(
+        this.httpService.get(probeUrl, {
+          timeout: 8000,
+          validateStatus: () => true,
+        }),
+      );
+      const responseTimeMs = Date.now() - startedAt;
+      const healthy = this.isReachableProbeStatus(getResp.status);
+      return {
+        status: healthy ? 'healthy' : 'unhealthy',
+        httpStatus: getResp.status,
+        responseTimeMs,
+        errorMessage: healthy ? undefined : `HTTP ${getResp.status}`,
+        probeUrl,
+      };
+    } catch (getError) {
+      const axiosErr = getError as AxiosError;
+      return {
+        status: 'unhealthy',
+        responseTimeMs: Date.now() - startedAt,
+        errorMessage:
+          axiosErr.response?.status != null
+            ? `HTTP ${axiosErr.response.status}`
+            : axiosErr.message || (headError as Error | undefined)?.message || 'Probe request failed',
+        probeUrl,
+      };
+    }
+  }
+
+  private isReachableProbeStatus(status?: number) {
+    if (status == null) return false;
+    if (status >= 200 && status < 300) return true;
+    return [400, 401, 403, 405, 409, 415, 422, 429].includes(status);
+  }
+
+  private isQueryOnlyMethod(method: string) {
+    return ['GET', 'DELETE', 'HEAD'].includes(method.toUpperCase());
+  }
+
+  private shouldFallbackToGet(status?: number) {
+    if (status == null) return true;
+    return status === 404 || status === 405 || status >= 500;
+  }
+
+  private mergeTestingMetadata(
+    endpoint: EndpointDefinitionEntity,
+    metadata: Record<string, unknown>,
+  ) {
+    return {
+      ...(endpoint.metadata || {}),
+      ...metadata,
+    };
+  }
+
+  private buildTestingState(endpoint: EndpointDefinitionEntity) {
+    const metadata = (endpoint.metadata || {}) as Record<string, unknown>;
+    const testStatus = String(metadata.testStatus || 'untested');
+    const qualificationState = String(
+      metadata.qualificationState ||
+        (testStatus === 'passed'
+          ? 'tested'
+          : testStatus === 'failed'
+            ? 'test_blocked'
+            : 'registered'),
+    );
+    const reasons: string[] = [];
+
+    if (testStatus !== 'passed') {
+      reasons.push(`testStatus is ${testStatus}, expected passed`);
+    }
+
+    return {
+      endpointDefinitionId: endpoint.id,
+      testStatus,
+      qualificationState,
+      qualified: testStatus === 'passed',
+      reasons,
+      lastTestAt: metadata.lastTestAt,
+      lastTestMethod: metadata.lastTestMethod,
+      lastTestUrl: metadata.lastTestUrl,
+      lastTestHttpStatus: metadata.lastTestHttpStatus,
+      lastTestDurationMs: metadata.lastTestDurationMs,
+      lastTestError: metadata.lastTestError,
+    };
+  }
+
+  private inferSourceType(endpoint: EndpointDefinitionEntity): 'manual' | 'imported' {
+    const source = (endpoint.metadata || {}).source;
+    return source === 'manual-registration' ? 'manual' : 'imported';
+  }
+
+  private normalizeSourceServiceProbeResult(result: {
+    status: string;
+    httpStatus?: number;
+    responseTimeMs?: number;
+    errorMessage?: string;
+    probeUrl: string;
+  }) {
+    if (result.status === 'healthy') {
+      return result;
+    }
+
+    if (result.httpStatus != null && [404, 405].includes(result.httpStatus)) {
+      return {
+        ...result,
+        status: 'healthy',
+        errorMessage: undefined,
+      };
+    }
+
+    return result;
+  }
+
+  private buildBaseUrlFromSourceServiceAsset(sourceServiceAsset?: SourceServiceAssetEntity | null) {
+    if (!sourceServiceAsset) {
+      return '';
+    }
+
+    const defaultPort =
+      (sourceServiceAsset.scheme === 'http' && sourceServiceAsset.port === 80) ||
+      (sourceServiceAsset.scheme === 'https' && sourceServiceAsset.port === 443);
+    const authority = defaultPort
+      ? `${sourceServiceAsset.scheme}://${sourceServiceAsset.host}`
+      : `${sourceServiceAsset.scheme}://${sourceServiceAsset.host}:${sourceServiceAsset.port}`;
+    const basePath = this.normalizeBasePath(sourceServiceAsset.normalizedBasePath);
+    return basePath === '/' ? authority : `${authority}${basePath}`;
+  }
+
+  private async requireEndpointDefinition(id: string) {
+    const endpoint = await this.endpointDefinitionRepository.findOne({ where: { id } });
+    if (!endpoint) {
+      throw new NotFoundException(`Endpoint definition '${id}' not found`);
+    }
+    return endpoint;
+  }
+
+  private ensureManualEndpoint(endpoint: EndpointDefinitionEntity) {
+    if (this.inferSourceType(endpoint) !== 'manual') {
+      throw new NotFoundException(`Manual endpoint definition '${endpoint.id}' not found`);
+    }
+  }
+
+  private async cleanupOrphanSourceServiceAsset(sourceServiceAssetId: string) {
+    const count = await this.countEndpointsBySourceServiceAssetId(sourceServiceAssetId);
+    if (count > 0) {
+      return;
+    }
+
+    await this.sourceServiceRepository.delete({ id: sourceServiceAssetId });
   }
 
   private async upsertEndpointDefinition(

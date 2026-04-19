@@ -206,3 +206,52 @@ The corrected target is:
 - source service assets at the catalog layer
 - endpoint items at the governance layer
 - MCP and Gateway runtime assets at the usage layer
+
+## 10. Consequence For Product Workflow
+
+The product workflow must reflect the asset layers instead of hiding runtime creation inside registration.
+
+The correct product spine is:
+
+1. API Registration
+2. API Testing
+3. API Governance
+4. API Publication
+
+Mapped to asset layers:
+
+- registration creates or updates catalog assets
+- testing verifies endpoint function
+- governance determines endpoint readiness
+- publication creates runtime identity and runtime membership
+
+This means:
+
+- manual endpoint registration should not be presented as MCP Server creation
+- OpenAPI import should not remain the only product-feeling path
+- runtime assets should appear only inside publication and downstream runtime operations
+
+## 11. Product-Lifecycle Constraint
+
+The top-level product flow is not just navigation. It is a control-plane contract:
+
+1. `API Registration`
+2. `API Testing`
+3. `API Governance`
+4. `API Publication`
+5. `Runtime Assets / Monitoring`
+
+The corresponding state flow is:
+
+1. endpoint is introduced as `registered`
+2. testing moves it to `tested` or `test_blocked`
+3. governance moves it to `ready` or `blocked`
+4. publication creates runtime memberships and runtime assets, then manages runtime-side publish state such as `active` or `offline`
+
+Important boundary rules:
+
+- registration must not imply runtime creation
+- testing must remain endpoint-granular
+- governance must remain the only place that decides readiness
+- publication must consume readiness instead of redefining it
+- runtime monitoring must attach to runtime assets after publication, not to registration-time catalog entries

@@ -614,6 +614,273 @@ export const serverAPI = {
     const response = await api.get(`/v1/servers/${id}/process/full-info`);
     return response.data;
   },
+
+  // ============================================================================
+  // 璧勪骇鐩綍 / 鍙戝竷 / 娴嬭瘯鍏煎 API
+  // ============================================================================
+
+  async listSourceServiceAssets(params?: {
+    sourceKey?: string;
+    host?: string;
+  }): Promise<any> {
+    const response = await api.get("/v1/assets/source-services", { params });
+    return response.data;
+  },
+
+  async listEndpointAssets(params?: {
+    sourceServiceAssetId?: string;
+    status?: string;
+    search?: string;
+  }): Promise<any> {
+    const response = await api.get("/v1/assets/endpoints", { params });
+    return response.data;
+  },
+
+  async getEndpointAssetDetails(id: string): Promise<any> {
+    const response = await api.get(`/v1/assets/endpoints/${id}`);
+    return response.data;
+  },
+
+  async registerManualEndpointAsset(payload: {
+    name: string;
+    baseUrl: string;
+    method: string;
+    path: string;
+    description?: string;
+    businessDomain?: string;
+    riskLevel?: string;
+  }): Promise<any> {
+    const response = await api.post("/v1/assets/endpoints/manual", payload);
+    return response.data;
+  },
+
+  async updateManualEndpointAsset(
+    id: string,
+    payload: {
+      name: string;
+      baseUrl: string;
+      method: string;
+      path: string;
+      description?: string;
+      businessDomain?: string;
+      riskLevel?: string;
+    },
+  ): Promise<any> {
+    const response = await api.patch(`/v1/assets/endpoints/${id}/manual`, payload);
+    return response.data;
+  },
+
+  async deleteManualEndpointAsset(id: string): Promise<any> {
+    const response = await api.delete(`/v1/assets/endpoints/${id}/manual`);
+    return response.data;
+  },
+
+  async updateEndpointGovernance(
+    id: string,
+    payload: {
+      status?: string;
+      publishEnabled?: boolean;
+      summary?: string;
+      description?: string;
+      metadata?: Record<string, unknown>;
+    },
+  ): Promise<any> {
+    const response = await api.patch(`/v1/assets/endpoints/${id}/governance`, payload);
+    return response.data;
+  },
+
+  async probeEndpointAsset(id: string): Promise<any> {
+    const response = await api.post(`/v1/assets/endpoints/${id}/probe`);
+    return response.data;
+  },
+
+  async getEndpointAssetReadiness(id: string): Promise<any> {
+    const response = await api.get(`/v1/assets/endpoints/${id}/readiness`);
+    return response.data;
+  },
+
+  async getEndpointAssetTestingState(id: string): Promise<any> {
+    const response = await api.get(`/v1/assets/endpoints/${id}/testing-state`);
+    return response.data;
+  },
+
+  async executeEndpointAssetTest(
+    id: string,
+    payload: {
+      parameters?: Record<string, unknown>;
+    },
+  ): Promise<any> {
+    const response = await api.post(`/v1/assets/endpoints/${id}/test`, payload);
+    return response.data;
+  },
+
+  async listPublicationRuntimeMemberships(params?: {
+    endpointDefinitionId?: string;
+    runtimeAssetId?: string;
+  }): Promise<any> {
+    const response = await api.get("/v1/publication/endpoints/runtime-memberships", {
+      params,
+    });
+    return response.data;
+  },
+
+  async listPublicationAuditEvents(params?: {
+    runtimeAssetId?: string;
+    runtimeAssetEndpointBindingId?: string;
+    publicationBatchRunId?: string;
+    limit?: number;
+  }): Promise<any> {
+    const response = await api.get("/v1/publication/endpoints/audit-events", {
+      params,
+    });
+    return response.data;
+  },
+
+  async listPublicationBatchRuns(params?: {
+    runtimeAssetId?: string;
+    action?: "publish" | "offline";
+    limit?: number;
+  }): Promise<any> {
+    const response = await api.get("/v1/publication/endpoints/batch-runs", {
+      params,
+    });
+    return response.data;
+  },
+
+  async listPublicationCandidates(params?: {
+    sourceServiceAssetId?: string;
+    search?: string;
+    includeBlocked?: boolean;
+  }): Promise<any> {
+    const response = await api.get("/v1/publication/endpoints/candidates", {
+      params,
+    });
+    return response.data;
+  },
+
+  async createPublicationRuntimeAsset(payload: {
+    type: "mcp_server" | "gateway_service";
+    name: string;
+    displayName?: string;
+    description?: string;
+    policyBindingRef?: string;
+  }): Promise<any> {
+    const response = await api.post("/v1/publication/endpoints/runtime-assets", payload);
+    return response.data;
+  },
+
+  async addPublicationRuntimeMemberships(
+    runtimeAssetId: string,
+    payload: {
+      endpointDefinitionIds: string[];
+      enabled?: boolean;
+    },
+  ): Promise<any> {
+    const response = await api.post(
+      `/v1/publication/endpoints/runtime-assets/${runtimeAssetId}/memberships`,
+      payload,
+    );
+    return response.data;
+  },
+
+  async getPublicationRuntimeMembershipState(membershipId: string): Promise<any> {
+    const response = await api.get(
+      `/v1/publication/endpoints/runtime-memberships/${membershipId}`,
+    );
+    return response.data;
+  },
+
+  async updatePublicationRuntimeMembershipProfile(
+    membershipId: string,
+    payload: {
+      intentName?: string;
+      descriptionForLlm?: string;
+      operatorNotes?: string;
+      inputAliases?: Record<string, string>;
+      constraints?: Record<string, unknown>;
+      examples?: Array<Record<string, unknown>>;
+      visibility?: string;
+      status?: string;
+    },
+  ): Promise<any> {
+    const response = await api.put(
+      `/v1/publication/endpoints/runtime-memberships/${membershipId}/profile`,
+      payload,
+    );
+    return response.data;
+  },
+
+  async configurePublicationRuntimeMembershipGatewayRoute(
+    membershipId: string,
+    payload: {
+      routePath?: string;
+      upstreamPath?: string;
+      routeMethod?: string;
+      upstreamMethod?: string;
+      routeVisibility?: string;
+      authPolicyRef?: string;
+      trafficPolicyRef?: string;
+      timeoutMs?: number;
+    },
+  ): Promise<any> {
+    const response = await api.put(
+      `/v1/publication/endpoints/runtime-memberships/${membershipId}/gateway-route`,
+      payload,
+    );
+    return response.data;
+  },
+
+  async publishRuntimeMembership(
+    membershipId: string,
+    payload: {
+      publishToMcp?: boolean;
+      publishToHttp?: boolean;
+    },
+  ): Promise<any> {
+    const response = await api.post(
+      `/v1/publication/endpoints/runtime-memberships/${membershipId}/publish`,
+      payload,
+    );
+    return response.data;
+  },
+
+  async offlineRuntimeMembership(
+    membershipId: string,
+    payload: {
+      offlineMcp?: boolean;
+      offlineHttp?: boolean;
+    },
+  ): Promise<any> {
+    const response = await api.post(
+      `/v1/publication/endpoints/runtime-memberships/${membershipId}/offline`,
+      payload,
+    );
+    return response.data;
+  },
+
+  async batchPublishRuntimeMemberships(payload: {
+    membershipIds: string[];
+    publishToMcp?: boolean;
+    publishToHttp?: boolean;
+  }): Promise<any> {
+    const response = await api.post(
+      "/v1/publication/endpoints/runtime-memberships/batch/publish",
+      payload,
+    );
+    return response.data;
+  },
+
+  async batchOfflineRuntimeMemberships(payload: {
+    membershipIds: string[];
+    offlineMcp?: boolean;
+    offlineHttp?: boolean;
+  }): Promise<any> {
+    const response = await api.post(
+      "/v1/publication/endpoints/runtime-memberships/batch/offline",
+      payload,
+    );
+    return response.data;
+  },
 };
 
 // ============================================================================
@@ -986,9 +1253,13 @@ export const monitoringAPI = {
   },
 
   // 获取服务器指标
-  async getServerMetrics(serverId: string): Promise<any> {
+  async getManagedServerMetrics(serverId: string): Promise<any> {
     const response = await api.get(`/v1/servers/${serverId}/metrics/summary`);
     return response.data;
+  },
+
+  async getServerMetrics(serverId: string): Promise<any> {
+    return this.getManagedServerMetrics(serverId);
   },
 };
 
@@ -1351,6 +1622,36 @@ export const runtimeAssetsAPI = {
     const response = await api.get(`/v1/runtime-assets/${id}/observability`);
     return response.data;
   },
+
+  async getRuntimeAssetDetail(id: string): Promise<any> {
+    const response = await api.get(`/v1/runtime-assets/${id}`);
+    return response.data;
+  },
+
+  async startRuntimeAsset(id: string): Promise<any> {
+    const response = await api.post(`/v1/runtime-assets/${id}/start`);
+    return response.data;
+  },
+
+  async deployMcpRuntimeAsset(id: string, payload?: Record<string, unknown>): Promise<any> {
+    const response = await api.post(`/v1/runtime-assets/${id}/deploy-mcp`, payload || {});
+    return response.data;
+  },
+
+  async deployGatewayRuntimeAsset(id: string, payload?: Record<string, unknown>): Promise<any> {
+    const response = await api.post(`/v1/runtime-assets/${id}/deploy-gateway`, payload || {});
+    return response.data;
+  },
+
+  async stopRuntimeAsset(id: string): Promise<any> {
+    const response = await api.post(`/v1/runtime-assets/${id}/stop`);
+    return response.data;
+  },
+
+  async redeployRuntimeAsset(id: string, payload?: Record<string, unknown>): Promise<any> {
+    const response = await api.post(`/v1/runtime-assets/${id}/redeploy`, payload || {});
+    return response.data;
+  },
 };
 
 /**
@@ -1412,9 +1713,14 @@ export const retryableMonitoringAPI = {
     () => monitoringAPI.getMetrics(),
     "getMetrics",
   ),
+  getManagedServerMetrics: (serverId: string) =>
+    createRetryableAPI(
+      () => monitoringAPI.getManagedServerMetrics(serverId),
+      "getManagedServerMetrics",
+    )(),
   getServerMetrics: (serverId: string) =>
     createRetryableAPI(
-      () => monitoringAPI.getServerMetrics(serverId),
+      () => monitoringAPI.getManagedServerMetrics(serverId),
       "getServerMetrics",
     )(),
 };

@@ -1,6 +1,5 @@
 // Servers module exports
 export { default as ServerManager } from "./ServerManager.vue";
-export { default as ServerDetail } from "./ServerDetail.vue";
 
 // Server components
 export { default as ServerFormDialog } from "./components/ServerFormDialog.vue";

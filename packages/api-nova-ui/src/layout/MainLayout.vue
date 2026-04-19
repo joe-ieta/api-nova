@@ -45,8 +45,8 @@
                   getMenuLabel(route)
                 }}</span>
                 <el-tooltip
-                  v-if="route.meta?.description && !sidebarCollapsed"
-                  :content="route.meta.description"
+                  v-if="getMenuDescription(route) && !sidebarCollapsed"
+                  :content="getMenuDescription(route)"
                   placement="right"
                 >
                   <el-icon class="menu-info">
@@ -211,6 +211,7 @@ import {
   HelpFilled as Server,
   Document,
   Tools,
+  Plus,
   Lock,
   Setting,
   List,
@@ -327,6 +328,7 @@ const iconComponents = {
   Server,
   Document,
   Tools,
+  Plus,
   Lock,
   Setting,
   List,
@@ -360,6 +362,21 @@ const getMenuLabel = (
   return translated;
 };
 
+const getMenuDescription = (
+  routeItem:
+    | RouteLocationNormalizedLoaded
+    | RouteRecordNormalized
+    | { name?: RouteRecordName | null; meta?: Record<string, any> },
+) => {
+  const routeName = routeItem?.name ? String(routeItem.name) : "";
+  const key = routeName ? `menuDescription.${routeName}` : "";
+  const translated = key ? t(key) : "";
+  if (!translated || translated === key) {
+    return String(routeItem?.meta?.description || "");
+  }
+  return translated;
+};
+
 const toggleSidebar = () => {
   sidebarCollapsed.value = !sidebarCollapsed.value;
   // 在移动端，保存侧边栏状态到本地存储
@@ -374,8 +391,8 @@ const toggleSidebar = () => {
 };
 
 const goHome = () => {
-  if (route.path !== "/servers") {
-    router.push("/servers");
+  if (route.path !== "/registration/batch") {
+    router.push("/registration/batch");
   }
 };
 
