@@ -1,138 +1,98 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
-import { Request } from 'express';
-import { PublicationService } from '../../publication/services/publication.service';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { Request, Response } from 'express';
+import { GatewayAccessLogService } from './gateway-access-log.service';
 import { GatewayRuntimeMetricsService } from './gateway-runtime-metrics.service';
-
-type GatewayForwardResult = {
-  status: number;
-  headers: Record<string, string | string[] | undefined>;
-  data: unknown;
-};
+import { GatewayRouteSnapshotService } from './gateway-route-snapshot.service';
+import { GatewayProxyEngineService } from './gateway-proxy-engine.service';
 
 @Injectable()
 export class GatewayRuntimeService {
-  // Transitional implementation: route resolution still depends on endpoint-direct bindings
-  // and will move to gateway runtime assets in the corrected model.
   constructor(
-    private readonly httpService: HttpService,
-    private readonly publicationService: PublicationService,
+    private readonly gatewayRouteSnapshotService: GatewayRouteSnapshotService,
+    private readonly gatewayProxyEngineService: GatewayProxyEngineService,
+    private readonly gatewayAccessLogService: GatewayAccessLogService,
     private readonly gatewayRuntimeMetricsService: GatewayRuntimeMetricsService,
   ) {}
 
-  async forwardRequest(routePath: string, req: Request): Promise<GatewayForwardResult> {
+  async forwardRequest(routePath: string, req: Request, res: Response): Promise<void> {
     const startedAt = Date.now();
-    const target = await this.publicationService.resolveActiveGatewayTarget(
-      routePath,
+    const target = this.gatewayRouteSnapshotService.resolve(
+      req.headers.host,
       req.method,
+      routePath,
     );
 
     if (!target) {
       throw new NotFoundException(`No active gateway route for ${req.method} ${routePath}`);
     }
-    const { binding, params, publishBinding, upstreamBaseUrl } = target;
-    if (!publishBinding.publishedToHttp) {
-      throw new BadRequestException('HTTP publication is not active for this endpoint');
-    }
+
     try {
-      const targetUrl = this.buildTargetUrl(
-        upstreamBaseUrl,
-        binding.upstreamPath,
-        req.originalUrl,
-        params,
-      );
-      const upstreamResponse = await firstValueFrom(
-        this.httpService.request({
-          method: binding.upstreamMethod,
-          url: targetUrl,
-          data: req.body,
-          headers: this.buildForwardHeaders(req.headers),
-          validateStatus: () => true,
-          timeout: binding.timeoutMs ?? 30000,
-        }),
-      );
+      const upstreamResponse = await this.gatewayProxyEngineService.forward(target, req, res);
+      const latencyMs = Date.now() - startedAt;
 
       await this.gatewayRuntimeMetricsService.recordForwardResult({
         runtimeAssetId: target.runtimeAsset.id,
         runtimeMembershipId: target.membership.id,
-        routePath: binding.routePath,
-        routeMethod: binding.routeMethod,
-        latencyMs: Date.now() - startedAt,
-        statusCode: upstreamResponse.status,
-        success: upstreamResponse.status < 500,
+        routePath: target.routeBinding.routePath,
+        routeMethod: target.routeBinding.routeMethod,
+        requestId: this.resolveRequestId(req, res),
+        correlationId: this.resolveCorrelationId(req),
+        latencyMs,
+        statusCode: upstreamResponse.statusCode,
+        success: upstreamResponse.statusCode < 500,
       });
-
-      return {
-        status: upstreamResponse.status,
-        headers: this.normalizeResponseHeaders(upstreamResponse.headers as Record<string, unknown>),
-        data: upstreamResponse.data,
-      };
+      await this.gatewayAccessLogService.recordRequest({
+        resolvedRoute: target,
+        requestId: this.resolveRequestId(req, res),
+        correlationId: this.resolveCorrelationId(req),
+        req,
+        upstreamUrl: upstreamResponse.targetUrl,
+        proxyResult: upstreamResponse,
+        latencyMs,
+      });
     } catch (error) {
+      const latencyMs = Date.now() - startedAt;
       await this.gatewayRuntimeMetricsService.recordForwardResult({
         runtimeAssetId: target.runtimeAsset.id,
         runtimeMembershipId: target.membership.id,
-        routePath: binding.routePath,
-        routeMethod: binding.routeMethod,
-        latencyMs: Date.now() - startedAt,
+        routePath: target.routeBinding.routePath,
+        routeMethod: target.routeBinding.routeMethod,
+        requestId: this.resolveRequestId(req, res),
+        correlationId: this.resolveCorrelationId(req),
+        latencyMs,
         success: false,
+        errorMessage: (error as Error).message,
+      });
+      await this.gatewayAccessLogService.recordRequest({
+        resolvedRoute: target,
+        requestId: this.resolveRequestId(req, res),
+        correlationId: this.resolveCorrelationId(req),
+        req,
+        latencyMs,
         errorMessage: (error as Error).message,
       });
       throw error;
     }
   }
 
-  private buildTargetUrl(
-    baseUrl: string,
-    upstreamPath: string,
-    originalUrl: string,
-    params: Record<string, string>,
-  ) {
-    const normalizedPath = this.applyPathParams(upstreamPath, params);
-    const queryIndex = originalUrl.indexOf('?');
-    const queryString = queryIndex >= 0 ? originalUrl.slice(queryIndex) : '';
-    return `${baseUrl}${normalizedPath}${queryString}`;
-  }
-
-  private buildForwardHeaders(headers: Request['headers']) {
-    const nextHeaders: Record<string, string> = {};
-    for (const [key, value] of Object.entries(headers)) {
-      if (!value) {
-        continue;
-      }
-      const normalizedKey = key.toLowerCase();
-      if (['host', 'content-length', 'connection'].includes(normalizedKey)) {
-        continue;
-      }
-      nextHeaders[key] = Array.isArray(value) ? value.join(',') : String(value);
+  private resolveRequestId(req: Request, res: Response) {
+    const responseValue =
+      typeof res.getHeader === 'function' ? res.getHeader('x-request-id') : undefined;
+    if (typeof responseValue === 'string') {
+      return responseValue;
     }
-    return nextHeaders;
-  }
-
-  private normalizeResponseHeaders(headers: Record<string, unknown>) {
-    const nextHeaders: Record<string, string | string[] | undefined> = {};
-    for (const [key, value] of Object.entries(headers || {})) {
-      if (value === undefined || value === null) {
-        continue;
-      }
-      nextHeaders[key] = Array.isArray(value)
-        ? value.map(item => String(item))
-        : String(value);
+    const requestValue = req.headers['x-request-id'];
+    if (Array.isArray(requestValue)) {
+      return requestValue[0];
     }
-    return nextHeaders;
+    return String(requestValue || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
   }
 
-  private applyPathParams(pathTemplate: string, params: Record<string, string>) {
-    const normalizedPath = pathTemplate.startsWith('/') ? pathTemplate : `/${pathTemplate}`;
-    return normalizedPath.replace(/\{([^}]+)\}/g, (_, key: string) => {
-      if (!(key in params)) {
-        throw new BadRequestException(`Missing path parameter '${key}' for upstream route`);
-      }
-      return encodeURIComponent(params[key]);
-    });
+  private resolveCorrelationId(req: Request) {
+    const value = req.headers['x-correlation-id'];
+    if (Array.isArray(value)) {
+      return value[0];
+    }
+    return value ? String(value) : undefined;
   }
 }

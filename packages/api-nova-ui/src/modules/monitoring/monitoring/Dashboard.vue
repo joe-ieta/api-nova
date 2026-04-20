@@ -183,6 +183,36 @@
         <el-table-column prop="message" :label="t('monitoring.dashboard.message')" min-width="320" />
       </el-table>
     </el-card>
+
+    <el-card class="logs-card">
+      <template #header>
+        <div class="section-header">
+          <span>{{ t("monitoring.dashboard.gatewayAccessLogs") }}</span>
+          <el-tag size="small" type="info">{{ gatewayAccessLogs.length }}</el-tag>
+        </div>
+      </template>
+
+      <el-table :data="gatewayAccessLogs" stripe size="small">
+        <el-table-column :label="t('monitoring.dashboard.time')" min-width="160">
+          <template #default="{ row }">
+            {{ formatDateTime(row.createdAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="method" :label="t('monitoring.dashboard.method')" width="100" />
+        <el-table-column prop="routePath" :label="t('monitoring.dashboard.routePath')" min-width="220" />
+        <el-table-column :label="t('monitoring.dashboard.statusCode')" width="110">
+          <template #default="{ row }">
+            {{ row.statusCode ?? "-" }}
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('monitoring.dashboard.latency')" width="120">
+          <template #default="{ row }">
+            {{ row.latencyMs != null ? `${row.latencyMs} ms` : "-" }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="requestBodyPreview" :label="t('monitoring.dashboard.requestPreview')" min-width="280" show-overflow-tooltip />
+      </el-table>
+    </el-card>
   </div>
 </template>
 
@@ -209,6 +239,7 @@ const alerts = computed(() => monitoringStore.alerts);
 const runtimeEvents = computed(() => monitoringStore.runtimeEvents.slice(0, 20));
 const runtimeAssets = computed(() => monitoringStore.runtimeAssets.slice(0, 20));
 const logs = computed(() => monitoringStore.filteredLogs.slice(0, 20));
+const gatewayAccessLogs = computed(() => monitoringStore.gatewayAccessLogs.slice(0, 20));
 
 const summaryMetrics = computed(() => ({
   totalRuntimeAssets: Number(monitoringStore.systemMetrics?.totalRuntimeAssets || 0),

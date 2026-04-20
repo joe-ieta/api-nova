@@ -74,6 +74,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
   const runtimeAssets = ref<any[]>([]);
   const runtimeEvents = ref<any[]>([]);
   const runtimeAudit = ref<any[]>([]);
+  const gatewayAccessLogs = ref<any[]>([]);
   const acknowledgedAlertIds = ref<Set<string>>(new Set());
   const dismissedAlertIds = ref<Set<string>>(new Set());
   const metricsHistory = ref<RuntimeMetricsSnapshot[]>([]);
@@ -501,6 +502,45 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     return runtimeAudit.value;
   }
 
+  async function fetchGatewayAccessLogs(options?: {
+    page?: number;
+    limit?: number;
+    runtimeAssetId?: string;
+    runtimeMembershipId?: string;
+    routeBindingId?: string;
+    requestId?: string;
+    statusCode?: number;
+    method?: string;
+  }) {
+    if (!managementApiAvailable.value) {
+      gatewayAccessLogs.value = [];
+      return gatewayAccessLogs.value;
+    }
+
+    let response: any;
+    try {
+      response = await runtimeObservabilityAPI.getGatewayAccessLogs({
+        page: options?.page || 1,
+        limit: options?.limit || 20,
+        runtimeAssetId: options?.runtimeAssetId,
+        runtimeMembershipId: options?.runtimeMembershipId,
+        routeBindingId: options?.routeBindingId,
+        requestId: options?.requestId,
+        statusCode: options?.statusCode,
+        method: options?.method,
+      });
+    } catch (fetchError: any) {
+      if (isMissingManagementApi(fetchError)) {
+        managementApiAvailable.value = false;
+        gatewayAccessLogs.value = [];
+        return gatewayAccessLogs.value;
+      }
+      throw fetchError;
+    }
+    gatewayAccessLogs.value = Array.isArray(response?.data) ? response.data : [];
+    return gatewayAccessLogs.value;
+  }
+
   function scheduleRefresh(reason = "websocket") {
     if (!realTimeEnabled.value) {
       return;
@@ -515,7 +555,11 @@ export const useMonitoringStore = defineStore("monitoring", () => {
   }
 
   async function refreshAll(_reason = "manual") {
-    await Promise.all([fetchOverview(), fetchAudit({ limit: 50 })]);
+    await Promise.all([
+      fetchOverview(),
+      fetchAudit({ limit: 50 }),
+      fetchGatewayAccessLogs({ limit: 20 }),
+    ]);
   }
 
   function connectWebSocket() {
@@ -688,6 +732,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     runtimeAssets,
     runtimeEvents,
     runtimeAudit,
+    gatewayAccessLogs,
     cpuSeries,
     memorySeries,
     networkInSeries,
@@ -715,6 +760,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     fetchRuntimeAssetMetrics,
     fetchLogs,
     fetchAudit,
+    fetchGatewayAccessLogs,
     fetchOverview,
     setLogFilter,
     clearLogFilter,

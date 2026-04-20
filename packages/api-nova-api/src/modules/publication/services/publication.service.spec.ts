@@ -59,6 +59,9 @@ describe('PublicationService', () => {
     save: jest.fn(),
     create: jest.fn(),
   };
+  const eventEmitter = {
+    emit: jest.fn(),
+  };
 
   const service = new PublicationService(
     endpointDefinitionRepository as any,
@@ -71,6 +74,7 @@ describe('PublicationService', () => {
     auditEventRepository as any,
     bindingRepository as any,
     routeBindingRepository as any,
+    eventEmitter as any,
   );
 
   const sourceServiceAsset = {
@@ -114,10 +118,28 @@ describe('PublicationService', () => {
       ...value,
     }));
     runtimeBindingRepository.save.mockImplementation(async (value: unknown) => value);
+    profileRepository.findOne.mockResolvedValue(null);
+    profileRepository.create.mockImplementation((value: Record<string, unknown>) => ({
+      id: 'profile-1',
+      ...value,
+    }));
+    profileRepository.save.mockImplementation(async (value: unknown) => value);
+    historyRepository.create.mockImplementation((value: unknown) => value);
+    historyRepository.save.mockImplementation(async (value: unknown) => value);
+    bindingRepository.findOne.mockResolvedValue(null);
+    bindingRepository.create.mockImplementation((value: Record<string, unknown>) => value);
+    bindingRepository.save.mockImplementation(async (value: unknown) => value);
+    routeBindingRepository.findOne.mockResolvedValue(null);
+    routeBindingRepository.create.mockImplementation((value: Record<string, unknown>) => ({
+      id: 'route-1',
+      ...value,
+    }));
+    routeBindingRepository.save.mockImplementation(async (value: unknown) => value);
     sourceServiceRepository.findByIds.mockResolvedValue([sourceServiceAsset]);
     sourceServiceRepository.findOne.mockResolvedValue(sourceServiceAsset);
     auditEventRepository.create.mockImplementation((value: unknown) => value);
     auditEventRepository.save.mockImplementation(async (value: unknown) => value);
+    eventEmitter.emit.mockReset();
   });
 
   it('filters blocked publication candidates unless explicitly requested', async () => {
@@ -175,6 +197,73 @@ describe('PublicationService', () => {
         status: PublicationAuditStatus.SUCCESS,
         runtimeAssetId: 'runtime-1',
         operatorId: 'operator-1',
+      }),
+    );
+  });
+
+  it('emits a gateway snapshot refresh after configuring a gateway route', async () => {
+    runtimeAssetRepository.findOne.mockResolvedValue({
+      id: 'runtime-gateway-1',
+      type: RuntimeAssetType.GATEWAY_SERVICE,
+      name: 'orders-gateway',
+      displayName: 'Orders Gateway',
+      status: RuntimeAssetStatus.ACTIVE,
+    });
+    runtimeBindingRepository.findOne.mockResolvedValue({
+      id: 'membership-1',
+      runtimeAssetId: 'runtime-gateway-1',
+      endpointDefinitionId: 'endpoint-1',
+      status: 'active',
+      publicationRevision: 1,
+      enabled: true,
+    });
+    profileRepository.findOne.mockResolvedValue({
+      id: 'profile-1',
+      endpointDefinitionId: 'endpoint-1',
+      runtimeAssetEndpointBindingId: 'membership-1',
+      version: 1,
+      intentName: 'List orders',
+      status: 'reviewed',
+    });
+    bindingRepository.findOne.mockResolvedValue({
+      id: 'binding-1',
+      runtimeAssetEndpointBindingId: 'membership-1',
+      endpointDefinitionId: 'endpoint-1',
+      publishedToHttp: true,
+      publishStatus: 'active',
+      publicationRevision: 1,
+    });
+    routeBindingRepository.findOne.mockImplementation(async ({ where }: any) => {
+      if (where?.runtimeAssetEndpointBindingId) {
+        return {
+          id: 'route-1',
+          runtimeAssetEndpointBindingId: 'membership-1',
+          routePath: '/orders',
+          upstreamPath: '/orders',
+          routeMethod: 'GET',
+          upstreamMethod: 'GET',
+        };
+      }
+      return null;
+    });
+
+    await service.configureRuntimeMembershipGatewayRoute(
+      'membership-1',
+      {
+        routePath: '/orders',
+        upstreamPath: '/orders',
+        routeMethod: 'GET',
+        upstreamMethod: 'GET',
+      },
+      'operator-1',
+    );
+
+    expect(eventEmitter.emit).toHaveBeenCalledWith(
+      'gateway.snapshot.refresh_requested',
+      expect.objectContaining({
+        reason: 'publication.gateway_route_configured',
+        runtimeAssetId: 'runtime-gateway-1',
+        runtimeMembershipId: 'membership-1',
       }),
     );
   });

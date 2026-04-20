@@ -29,6 +29,7 @@ import { PublicationBatchRunEntity } from './entities/publication-batch-run.enti
 import { PublicationAuditEventEntity } from './entities/publication-audit-event.entity';
 import { EndpointPublishBindingEntity } from './entities/endpoint-publish-binding.entity';
 import { GatewayRouteBindingEntity } from './entities/gateway-route-binding.entity';
+import { GatewayAccessLogEntity } from './entities/gateway-access-log.entity';
 import { RuntimeMetricSeriesEntity } from './entities/runtime-metric-series.entity';
 import { RuntimeObservabilityEventEntity } from './entities/runtime-observability-event.entity';
 import { RuntimeObservabilityStateEntity } from './entities/runtime-observability-state.entity';
@@ -65,6 +66,7 @@ import { SeedService } from './seed.service';
           PublicationAuditEventEntity,
           EndpointPublishBindingEntity,
           GatewayRouteBindingEntity,
+          GatewayAccessLogEntity,
           RuntimeObservabilityEventEntity,
           RuntimeMetricSeriesEntity,
           RuntimeObservabilityStateEntity,
@@ -136,6 +138,7 @@ import { SeedService } from './seed.service';
       PublicationAuditEventEntity,
       EndpointPublishBindingEntity,
       GatewayRouteBindingEntity,
+      GatewayAccessLogEntity,
       RuntimeObservabilityEventEntity,
       RuntimeMetricSeriesEntity,
       RuntimeObservabilityStateEntity,

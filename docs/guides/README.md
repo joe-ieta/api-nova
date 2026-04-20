@@ -15,6 +15,10 @@ This directory contains active operational and usage-oriented documentation for 
 - [dual-publication-implementation-outline](./dual-publication-implementation-outline.md)
 - [asset-model-and-runtime-assets](./asset-model-and-runtime-assets.md)
 - [publication-resource-baseline](./publication-resource-baseline.md)
+- [api-gateway-architecture-and-requirements](./api-gateway-architecture-and-requirements.md)
+- [api-gateway-phase1-technical-design](./api-gateway-phase1-technical-design.md)
+- [api-gateway-phase1-task-breakdown](./api-gateway-phase1-task-breakdown.md)
+- [api-gateway-phase2-task-breakdown](./api-gateway-phase2-task-breakdown.md)
 
 ## Guide Inclusion Rule
 

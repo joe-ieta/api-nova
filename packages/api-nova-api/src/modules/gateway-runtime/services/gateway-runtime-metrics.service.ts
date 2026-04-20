@@ -41,6 +41,8 @@ export class GatewayRuntimeMetricsService {
     runtimeMembershipId: string;
     routePath: string;
     routeMethod: string;
+    requestId?: string;
+    correlationId?: string;
     latencyMs: number;
     statusCode?: number;
     success: boolean;

@@ -1606,6 +1606,22 @@ export const runtimeObservabilityAPI = {
     });
     return response.data.data;
   },
+
+  async getGatewayAccessLogs(params?: {
+    page?: number;
+    limit?: number;
+    runtimeAssetId?: string;
+    runtimeMembershipId?: string;
+    routeBindingId?: string;
+    requestId?: string;
+    statusCode?: number;
+    method?: string;
+  }): Promise<any> {
+    const response = await api.get("/v1/monitoring/management/gateway-access-logs", {
+      params,
+    });
+    return response.data.data;
+  },
 };
 
 export const runtimeAssetsAPI = {
@@ -1625,6 +1641,13 @@ export const runtimeAssetsAPI = {
 
   async getRuntimeAssetDetail(id: string): Promise<any> {
     const response = await api.get(`/v1/runtime-assets/${id}`);
+    return response.data;
+  },
+
+  async getRuntimeAssetAccessLogs(id: string, limit?: number): Promise<any> {
+    const response = await api.get(`/v1/runtime-assets/${id}/access-logs`, {
+      params: { limit },
+    });
     return response.data;
   },
 

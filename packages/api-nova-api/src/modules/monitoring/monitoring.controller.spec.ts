@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { MonitoringController } from './monitoring.controller';
+import { GatewayAccessLogService } from '../gateway-runtime/services/gateway-access-log.service';
 import { RuntimeObservabilityService } from '../runtime-observability/services/runtime-observability.service';
 import { JwtAuthGuard } from '../security/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../security/guards/permissions.guard';
@@ -15,6 +16,9 @@ describe('MonitoringController', () => {
     queryManagementEvents: jest.fn(),
     queryManagementAudit: jest.fn(),
   };
+  const gatewayAccessLogService = {
+    queryLogs: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -23,6 +27,7 @@ describe('MonitoringController', () => {
       controllers: [MonitoringController],
       providers: [
         { provide: RuntimeObservabilityService, useValue: runtimeObservabilityService },
+        { provide: GatewayAccessLogService, useValue: gatewayAccessLogService },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -120,6 +125,23 @@ describe('MonitoringController', () => {
     await expect(controller.getManagementAudit(1, 20, 'success', 'server')).resolves.toEqual({
       status: 'success',
       data: { data: [], total: 0 },
+    });
+  });
+
+  it('returns gateway access logs', async () => {
+    gatewayAccessLogService.queryLogs.mockResolvedValue({
+      data: [{ id: 'log-1' }],
+      total: 1,
+    });
+
+    await expect(
+      controller.getGatewayAccessLogs(1, 20, 'runtime-1', undefined, undefined, undefined, 200, 'GET'),
+    ).resolves.toEqual({
+      status: 'success',
+      data: {
+        data: [{ id: 'log-1' }],
+        total: 1,
+      },
     });
   });
 });

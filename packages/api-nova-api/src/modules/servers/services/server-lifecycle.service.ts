@@ -229,7 +229,11 @@ export class ServerLifecycleService {
     }
 
     // OpenAPI数据源（使用API URL）
-    const apiBaseUrl = this.configService.get('API_BASE_URL', 'http://localhost:9001');
+    const apiPort = this.configService.get<number>('PORT', 9001);
+    const apiBaseUrl = this.configService.get(
+      'API_BASE_URL',
+      `http://127.0.0.1:${apiPort}`,
+    );
     const runtimeAssetId = serverEntity.config?.runtimeAssetId;
     const openApiUrl =
       typeof runtimeAssetId === 'string' && runtimeAssetId

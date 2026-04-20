@@ -71,6 +71,19 @@ export class RuntimeAssetsController {
     return this.runtimeAssetsService.getRuntimeAssetObservability(id);
   }
 
+  @Get(':id/access-logs')
+  @RequirePermissions('monitoring:read')
+  @ApiOperation({ summary: 'List gateway access logs for one runtime asset' })
+  async listRuntimeAssetAccessLogs(
+    @Param('id') id: string,
+    @Query('limit') limit?: number,
+  ) {
+    return this.runtimeAssetsService.listRuntimeAssetAccessLogs(
+      id,
+      limit ? Number(limit) : 20,
+    );
+  }
+
   @Post(':id/deploy-mcp')
   @RequirePermissions('server:manage')
   @ApiOperation({ summary: 'Deploy MCP runtime asset into one managed server record' })

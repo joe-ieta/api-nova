@@ -1,26 +1,16 @@
-import { of } from 'rxjs';
 import { GatewayRuntimeService } from './gateway-runtime.service';
 
 describe('GatewayRuntimeService', () => {
-  it('forwards request with matched path params to upstream path', async () => {
-    const httpService = {
-      request: jest.fn().mockReturnValue(
-        of({
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-          data: { ok: true },
-        }),
-      ),
-    };
-    const publicationService = {
-      resolveActiveGatewayTarget: jest.fn().mockResolvedValue({
+  it('forwards request with matched path params through proxy engine', async () => {
+    const gatewayRouteSnapshotService = {
+      resolve: jest.fn().mockReturnValue({
         runtimeAsset: {
           id: 'gateway-asset-1',
         },
         membership: {
           id: 'membership-1',
         },
-        binding: {
+        routeBinding: {
           endpointId: 'endpoint-1',
           routePath: '/pets/{id}',
           routeMethod: 'GET',
@@ -37,39 +27,55 @@ describe('GatewayRuntimeService', () => {
         upstreamBaseUrl: 'https://api.example.com',
       }),
     };
+    const gatewayProxyEngineService = {
+      forward: jest.fn().mockResolvedValue({
+        statusCode: 200,
+        headers: { 'content-type': 'application/json' },
+        targetUrl: 'https://api.example.com/pets/123?include=owner',
+      }),
+    };
+    const gatewayAccessLogService = {
+      recordRequest: jest.fn(),
+    };
     const gatewayRuntimeMetricsService = {
       recordForwardResult: jest.fn(),
     };
 
     const service = new GatewayRuntimeService(
-      httpService as any,
-      publicationService as any,
+      gatewayRouteSnapshotService as any,
+      gatewayProxyEngineService as any,
+      gatewayAccessLogService as any,
       gatewayRuntimeMetricsService as any,
     );
 
-    const result = await service.forwardRequest('/pets/123', {
+    const req = {
       method: 'GET',
       originalUrl: '/v1/gateway/pets/123?include=owner',
-      body: undefined,
       headers: {
         authorization: 'Bearer token',
         host: 'localhost:9001',
+        'x-request-id': 'req-123',
+        'x-correlation-id': 'corr-123',
       },
-    } as any);
+    } as any;
+    const res = {} as any;
 
-    expect(publicationService.resolveActiveGatewayTarget).toHaveBeenCalledWith(
-      '/pets/123',
+    await service.forwardRequest('/pets/123', req, res);
+
+    expect(gatewayRouteSnapshotService.resolve).toHaveBeenCalledWith(
+      'localhost:9001',
       'GET',
+      '/pets/123',
     );
-    expect(httpService.request).toHaveBeenCalledWith(
+    expect(gatewayProxyEngineService.forward).toHaveBeenCalledWith(
       expect.objectContaining({
-        method: 'GET',
-        url: 'https://api.example.com/pets/123?include=owner',
-        timeout: 5000,
-        headers: {
-          authorization: 'Bearer token',
+        upstreamBaseUrl: 'https://api.example.com',
+        params: {
+          id: '123',
         },
       }),
+      req,
+      res,
     );
     expect(gatewayRuntimeMetricsService.recordForwardResult).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -77,22 +83,31 @@ describe('GatewayRuntimeService', () => {
         runtimeMembershipId: 'membership-1',
         routePath: '/pets/{id}',
         routeMethod: 'GET',
+        requestId: 'req-123',
+        correlationId: 'corr-123',
         statusCode: 200,
         success: true,
       }),
     );
-    expect(result).toEqual({
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-      data: { ok: true },
-    });
+    expect(gatewayAccessLogService.recordRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: expect.any(String),
+        upstreamUrl: 'https://api.example.com/pets/123?include=owner',
+        correlationId: 'corr-123',
+      }),
+    );
   });
 
   it('returns not found when the route is not published to gateway runtime', async () => {
     const service = new GatewayRuntimeService(
-      { request: jest.fn() } as any,
       {
-        resolveActiveGatewayTarget: jest.fn().mockResolvedValue(null),
+        resolve: jest.fn().mockReturnValue(null),
+      } as any,
+      {
+        forward: jest.fn(),
+      } as any,
+      {
+        recordRequest: jest.fn(),
       } as any,
       {
         recordForwardResult: jest.fn(),
@@ -104,7 +119,67 @@ describe('GatewayRuntimeService', () => {
         method: 'GET',
         originalUrl: '/v1/gateway/pets/123',
         headers: {},
-      } as any),
+      } as any, {} as any),
     ).rejects.toThrow('No active gateway route for GET /pets/123');
+  });
+
+  it('records failed proxy attempts into metrics and access logs', async () => {
+    const gatewayAccessLogService = {
+      recordRequest: jest.fn(),
+    };
+    const gatewayRuntimeMetricsService = {
+      recordForwardResult: jest.fn(),
+    };
+
+    const service = new GatewayRuntimeService(
+      {
+        resolve: jest.fn().mockReturnValue({
+          runtimeAsset: { id: 'runtime-1' },
+          membership: { id: 'membership-1' },
+          routeBinding: {
+            routePath: '/pets/{id}',
+            routeMethod: 'GET',
+          },
+        }),
+      } as any,
+      {
+        forward: jest.fn().mockRejectedValue(new Error('upstream timeout')),
+      } as any,
+      gatewayAccessLogService as any,
+      gatewayRuntimeMetricsService as any,
+    );
+
+    const req = {
+      method: 'GET',
+      originalUrl: '/v1/gateway/pets/123',
+      headers: {
+        host: 'localhost:9001',
+        'x-request-id': 'req-error',
+        'x-correlation-id': 'corr-error',
+      },
+    } as any;
+    const res = {} as any;
+
+    await expect(service.forwardRequest('/pets/123', req, res)).rejects.toThrow(
+      'upstream timeout',
+    );
+
+    expect(gatewayRuntimeMetricsService.recordForwardResult).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runtimeAssetId: 'runtime-1',
+        runtimeMembershipId: 'membership-1',
+        requestId: 'req-error',
+        correlationId: 'corr-error',
+        success: false,
+        errorMessage: 'upstream timeout',
+      }),
+    );
+    expect(gatewayAccessLogService.recordRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: 'req-error',
+        correlationId: 'corr-error',
+        errorMessage: 'upstream timeout',
+      }),
+    );
   });
 });

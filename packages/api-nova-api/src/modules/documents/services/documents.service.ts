@@ -337,6 +337,7 @@ export class DocumentsService {
       );
 
       const replaceExisting = input.replaceExisting ?? true;
+      const startAfterPublish = input.startAfterPublish ?? true;
       const existingRuntimeAsset = await this.runtimeAssetRepository.findOne({
         where: { name: publicationName },
       });
@@ -496,6 +497,7 @@ export class DocumentsService {
             document.description ||
             parseResult.info?.description ||
             `Quick published from document '${document.name}'`,
+          autoStart: startAfterPublish,
         },
       );
       logStep(
@@ -505,15 +507,35 @@ export class DocumentsService {
         `Managed server ID: ${deployment.managedServer?.id || 'n/a'}`,
       );
 
+      let runtimeAsset = deployment.runtimeAsset;
+      let managedServer = deployment.managedServer;
+      let runtimeSummary = deployment.runtimeSummary;
+      if (startAfterPublish) {
+        const startedRuntime = await this.runtimeAssetsService.startRuntimeAsset(
+          createdAsset.runtimeAsset.id,
+        );
+        runtimeAsset = startedRuntime.runtimeAsset;
+        managedServer = startedRuntime.managedServer;
+        runtimeSummary = startedRuntime.runtimeSummary;
+        logStep(
+          'runtime.started',
+          'success',
+          `Started MCP runtime asset '${publicationName}'`,
+          `Endpoint: ${managedServer?.endpoint || 'n/a'}`,
+        );
+      }
+
       document.status = DocumentStatus.PUBLISHED;
       document.metadata = {
         ...(document.metadata || {}),
         quickPublishMcp: {
           runtimeAssetId: createdAsset.runtimeAsset.id,
-          managedServerId: deployment.managedServer?.id,
+          managedServerId: managedServer?.id,
           batchRunId: publishResult.batchRun.id,
           toolsCount: parseResult.tools?.length || 0,
           endpointCount: matchedEndpoints.length,
+          endpoint: managedServer?.endpoint,
+          runtimeStatus: managedServer?.status || runtimeAsset?.status,
           publishedAt: new Date().toISOString(),
         },
       };
@@ -527,14 +549,15 @@ export class DocumentsService {
       return {
         document: this.toDetailResponseDto(updatedDocument),
         sourceServiceAsset: synced.sourceServiceAsset,
-        runtimeAsset: deployment.runtimeAsset,
-        managedServer: deployment.managedServer,
-        runtimeSummary: deployment.runtimeSummary,
+        runtimeAsset,
+        managedServer,
+        runtimeSummary,
         publicationBatchRun: publishResult.batchRun,
         memberships: publishResult.items,
         tools: parseResult.tools || [],
         toolsCount: parseResult.tools?.length || 0,
         endpointCount: matchedEndpoints.length,
+        serviceEndpoint: managedServer?.endpoint,
         processLogs,
       };
     } catch (error) {

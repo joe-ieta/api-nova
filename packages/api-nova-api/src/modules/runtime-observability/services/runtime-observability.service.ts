@@ -56,6 +56,8 @@ export class RuntimeObservabilityService {
     runtimeMembershipId: string;
     routePath: string;
     routeMethod: string;
+    requestId?: string;
+    correlationId?: string;
     latencyMs: number;
     statusCode?: number;
     success: boolean;
@@ -195,6 +197,8 @@ export class RuntimeObservabilityService {
         status: RuntimeObservabilityStatus.FAILED,
         summary: `${input.routeMethod} ${input.routePath} failed`,
         details: {
+          requestId: input.requestId,
+          correlationId: input.correlationId,
           statusCode: input.statusCode,
           latencyMs: input.latencyMs,
           errorMessage: input.errorMessage,

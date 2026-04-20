@@ -1,6 +1,8 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ModuleRef } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
+import * as http from 'node:http';
 import { Like, Repository } from 'typeorm';
 import { transformOpenApiToMcpTools } from 'api-nova-server';
 import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
@@ -18,6 +20,7 @@ import {
   UpdateRuntimeAssetPolicyDto,
 } from '../dto/runtime-assets.dto';
 import { GatewayRuntimeMetricsService } from '../../gateway-runtime/services/gateway-runtime-metrics.service';
+import { GatewayAccessLogService } from '../../gateway-runtime/services/gateway-access-log.service';
 import {
   RuntimeObservabilityEventFamily,
   RuntimeObservabilitySeverity,
@@ -28,11 +31,16 @@ import {
   RuntimeHealthStatus,
 } from '../../../database/entities/runtime-observability-state.entity';
 import { RuntimeObservabilityService } from '../../runtime-observability/services/runtime-observability.service';
+import {
+  GATEWAY_SNAPSHOT_REFRESH_REQUESTED,
+  type GatewaySnapshotRefreshPayload,
+} from '../../gateway-runtime/gateway-runtime.events';
 
 @Injectable()
 export class RuntimeAssetsService {
   constructor(
     private readonly moduleRef: ModuleRef,
+    private readonly eventEmitter: EventEmitter2,
     @InjectRepository(RuntimeAssetEntity)
     private readonly runtimeAssetRepository: Repository<RuntimeAssetEntity>,
     @InjectRepository(MCPServerEntity)
@@ -50,6 +58,7 @@ export class RuntimeAssetsService {
     @InjectRepository(GatewayRouteBindingEntity)
     private readonly gatewayRouteRepository: Repository<GatewayRouteBindingEntity>,
     private readonly gatewayRuntimeMetricsService: GatewayRuntimeMetricsService,
+    private readonly gatewayAccessLogService: GatewayAccessLogService,
     private readonly runtimeObservabilityService: RuntimeObservabilityService,
   ) {}
 
@@ -361,6 +370,10 @@ export class RuntimeAssetsService {
         publishedOnly: dto.publishedOnly ?? true,
       },
     });
+    this.emitGatewaySnapshotRefresh({
+      reason: 'runtime_assets.gateway_deployed',
+      runtimeAssetId,
+    });
 
     return {
       runtimeAsset: await this.requireRuntimeAsset(runtimeAssetId),
@@ -399,6 +412,10 @@ export class RuntimeAssetsService {
       details: {
         policyBindingRef: dto.policyBindingRef,
       },
+    });
+    this.emitGatewaySnapshotRefresh({
+      reason: 'runtime_assets.gateway_policy_updated',
+      runtimeAssetId,
     });
 
     return {
@@ -495,6 +512,8 @@ export class RuntimeAssetsService {
     }
 
     if (!server) {
+      const targetPort =
+        dto.port || (await this.findAvailableManagedServerPort());
       server = this.mcpServerRepository.create({
         name: desiredName,
         version: '1.0.0',
@@ -502,7 +521,7 @@ export class RuntimeAssetsService {
           dto.description ||
           runtimeAsset.description ||
           'Managed MCP runtime asset deployment',
-        port: dto.port || 9022,
+        port: targetPort,
         transport: desiredTransport,
         status: ServerStatus.STOPPED,
         openApiData: assembled.openApiData,
@@ -613,6 +632,10 @@ export class RuntimeAssetsService {
         healthStatus: RuntimeHealthStatus.UNKNOWN,
         summary: `Gateway runtime asset '${runtimeAssetId}' started`,
       });
+      this.emitGatewaySnapshotRefresh({
+        reason: 'runtime_assets.gateway_started',
+        runtimeAssetId,
+      });
       return {
         runtimeAsset,
         managedServer: null,
@@ -676,6 +699,10 @@ export class RuntimeAssetsService {
         currentStatus: RuntimeCurrentStatus.OFFLINE,
         healthStatus: RuntimeHealthStatus.UNKNOWN,
         summary: `Gateway runtime asset '${runtimeAssetId}' stopped`,
+      });
+      this.emitGatewaySnapshotRefresh({
+        reason: 'runtime_assets.gateway_stopped',
+        runtimeAssetId,
       });
       return {
         runtimeAsset,
@@ -837,6 +864,47 @@ export class RuntimeAssetsService {
         : '';
     const normalizedBasePath = sourceServiceAsset.normalizedBasePath || '/';
     return `${protocol}://${sourceServiceAsset.host}${portSegment}${normalizedBasePath}`;
+  }
+
+  async listRuntimeAssetAccessLogs(runtimeAssetId: string, limit: number = 20) {
+    await this.requireRuntimeAsset(runtimeAssetId);
+    return this.gatewayAccessLogService.listRuntimeAssetLogs(runtimeAssetId, limit);
+  }
+
+  private emitGatewaySnapshotRefresh(payload: GatewaySnapshotRefreshPayload) {
+    this.eventEmitter.emit(GATEWAY_SNAPSHOT_REFRESH_REQUESTED, payload);
+  }
+
+  private async findAvailableManagedServerPort(startPort = 9022): Promise<number> {
+    for (let port = startPort; port < startPort + 1000; port += 1) {
+      const existingServer = await this.mcpServerRepository.findOne({
+        where: { port },
+      });
+      if (existingServer) {
+        continue;
+      }
+
+      const available = await this.isPortAvailable(port);
+      if (available) {
+        return port;
+      }
+    }
+
+    throw new ConflictException('No available managed MCP server port found');
+  }
+
+  private async isPortAvailable(port: number): Promise<boolean> {
+    return new Promise(resolve => {
+      const server = http.createServer();
+
+      server.once('error', () => {
+        resolve(false);
+      });
+
+      server.listen(port, () => {
+        server.close(() => resolve(true));
+      });
+    });
   }
 
   private async findManagedServerSummary(runtimeAsset: RuntimeAssetEntity) {

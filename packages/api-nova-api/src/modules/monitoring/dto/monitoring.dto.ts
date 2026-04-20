@@ -58,3 +58,8 @@ export class ManagementAuditResponseDto extends MonitoringApiEnvelopeDto {
   @ApiProperty({ type: 'object' })
   data: any;
 }
+
+export class ManagementGatewayAccessLogsResponseDto extends MonitoringApiEnvelopeDto {
+  @ApiProperty({ type: 'object' })
+  data: any;
+}

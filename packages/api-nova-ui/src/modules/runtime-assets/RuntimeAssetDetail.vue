@@ -149,6 +149,36 @@
           <el-table-column prop="profile.intentName" :label="t('monitoring.runtimeAssets.detail.intent')" min-width="180" />
         </el-table>
       </el-card>
+
+      <el-card shadow="never" class="detail-card detail-section">
+        <template #header>{{ t("monitoring.runtimeAssets.detail.accessLogs") }}</template>
+        <el-empty
+          v-if="!accessLogs.length"
+          :description="t('monitoring.runtimeAssets.detail.noAccessLogs')"
+          :image-size="120"
+        />
+        <el-table v-else :data="accessLogs" border size="small">
+          <el-table-column :label="t('monitoring.runtimeAssets.detail.accessTime')" min-width="170">
+            <template #default="{ row }">
+              {{ formatDateTime(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="method" :label="t('monitoring.runtimeAssets.detail.method')" width="100" />
+          <el-table-column prop="routePath" :label="t('monitoring.runtimeAssets.detail.path')" min-width="220" />
+          <el-table-column :label="t('monitoring.runtimeAssets.detail.accessStatus')" width="120">
+            <template #default="{ row }">
+              {{ row.statusCode ?? "-" }}
+            </template>
+          </el-table-column>
+          <el-table-column :label="t('monitoring.runtimeAssets.detail.latency')" width="120">
+            <template #default="{ row }">
+              {{ row.latencyMs != null ? `${row.latencyMs} ms` : "-" }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="requestContentType" :label="t('monitoring.runtimeAssets.detail.contentType')" min-width="180" />
+          <el-table-column prop="requestBodyPreview" :label="t('monitoring.runtimeAssets.detail.requestPreview')" min-width="260" show-overflow-tooltip />
+        </el-table>
+      </el-card>
     </div>
   </div>
 </template>
@@ -172,6 +202,7 @@ const actionLoading = ref(false);
 const errorMessage = ref("");
 const detail = ref<any>(null);
 const observability = ref<any>(null);
+const accessLogs = ref<any[]>([]);
 const websocketReady = ref(false);
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 let assetSubscriptionId: string | null = null;
@@ -287,12 +318,14 @@ const loadDetail = async () => {
   loading.value = true;
   errorMessage.value = "";
   try {
-    const [detailResult, observabilityResult] = await Promise.all([
+    const [detailResult, observabilityResult, accessLogResult] = await Promise.all([
       runtimeAssetsAPI.getRuntimeAssetDetail(runtimeAssetId.value),
       runtimeAssetsAPI.getRuntimeAssetObservability(runtimeAssetId.value),
+      runtimeAssetsAPI.getRuntimeAssetAccessLogs(runtimeAssetId.value, 20),
     ]);
     detail.value = detailResult;
     observability.value = observabilityResult;
+    accessLogs.value = Array.isArray(accessLogResult) ? accessLogResult : [];
   } catch (error: any) {
     errorMessage.value = error?.message || t("monitoring.runtimeAssets.detail.loadFailed");
   } finally {

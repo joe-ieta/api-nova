@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -58,6 +59,10 @@ import {
   PublishEndpointDto,
   UpdatePublicationProfileDto,
 } from '../dto/publication.dto';
+import {
+  GATEWAY_SNAPSHOT_REFRESH_REQUESTED,
+  type GatewaySnapshotRefreshPayload,
+} from '../../gateway-runtime/gateway-runtime.events';
 
 type EndpointSummary = {
   path?: string;
@@ -99,6 +104,7 @@ export class PublicationService {
     private readonly bindingRepository: Repository<EndpointPublishBindingEntity>,
     @InjectRepository(GatewayRouteBindingEntity)
     private readonly routeBindingRepository: Repository<GatewayRouteBindingEntity>,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async listPublicationCandidates(query: PublicationCandidateQueryDto = {}) {
@@ -521,6 +527,12 @@ export class PublicationService {
         upstreamMethod: binding.upstreamMethod,
       },
     });
+    this.emitGatewaySnapshotRefresh({
+      reason: 'publication.gateway_route_configured',
+      runtimeAssetId: context.runtimeAsset.id,
+      runtimeMembershipId: membershipId,
+      routeBindingId: binding.id,
+    });
     return this.buildMembershipPublicationState(context);
   }
 
@@ -539,11 +551,17 @@ export class PublicationService {
       );
     }
 
-    return this.publishMembershipContext(
+    const result = await this.publishMembershipContext(
       context,
       dto.publishToHttp ?? true,
       { actorId },
     );
+    this.emitGatewaySnapshotRefresh({
+      reason: 'publication.membership_published',
+      runtimeAssetId: context.runtimeAsset.id,
+      runtimeMembershipId: membershipId,
+    });
+    return result;
   }
 
   async offlineRuntimeMembership(
@@ -561,18 +579,24 @@ export class PublicationService {
       );
     }
 
-    return this.offlineMembershipContext(
+    const result = await this.offlineMembershipContext(
       context,
       dto.offlineHttp ?? true,
       { actorId },
     );
+    this.emitGatewaySnapshotRefresh({
+      reason: 'publication.membership_offlined',
+      runtimeAssetId: context.runtimeAsset.id,
+      runtimeMembershipId: membershipId,
+    });
+    return result;
   }
 
   async batchPublishRuntimeMemberships(
     dto: BatchPublishRuntimeMembershipsDto,
     actorId?: string,
   ) {
-    return this.executeBatchMembershipAction(
+    const result = await this.executeBatchMembershipAction(
       PublicationBatchAction.PUBLISH,
       dto.membershipIds,
       async (context, batchRunId) =>
@@ -586,13 +610,18 @@ export class PublicationService {
       actorId,
       dto,
     );
+    this.emitGatewaySnapshotRefresh({
+      reason: 'publication.batch_memberships_published',
+      runtimeAssetId: result.batchRun.runtimeAssetId,
+    });
+    return result;
   }
 
   async batchOfflineRuntimeMemberships(
     dto: BatchOfflineRuntimeMembershipsDto,
     actorId?: string,
   ) {
-    return this.executeBatchMembershipAction(
+    const result = await this.executeBatchMembershipAction(
       PublicationBatchAction.OFFLINE,
       dto.membershipIds,
       async (context, batchRunId) =>
@@ -606,6 +635,11 @@ export class PublicationService {
       actorId,
       dto,
     );
+    this.emitGatewaySnapshotRefresh({
+      reason: 'publication.batch_memberships_offlined',
+      runtimeAssetId: result.batchRun.runtimeAssetId,
+    });
+    return result;
   }
 
   async findActiveGatewayBinding(routePath: string, routeMethod: string) {
@@ -1349,5 +1383,9 @@ export class PublicationService {
 
   private buildGovernanceReadiness(endpointDefinition: EndpointDefinitionEntity) {
     return evaluateEndpointGovernanceReadiness(endpointDefinition);
+  }
+
+  private emitGatewaySnapshotRefresh(payload: GatewaySnapshotRefreshPayload) {
+    this.eventEmitter.emit(GATEWAY_SNAPSHOT_REFRESH_REQUESTED, payload);
   }
 }

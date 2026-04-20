@@ -24,8 +24,20 @@ async function bootstrap() {
 
     // 配置请求体大小限制
     const maxPayloadSize = configService.get<string>('MAX_PAYLOAD_SIZE', '50mb');
-    app.use(express.json({ limit: maxPayloadSize }));
-    app.use(express.urlencoded({ limit: maxPayloadSize, extended: true }));
+    const jsonParser = express.json({ limit: maxPayloadSize });
+    const urlencodedParser = express.urlencoded({ limit: maxPayloadSize, extended: true });
+    app.use((req, res, next) => {
+      if (req.path.startsWith('/api/v1/gateway/')) {
+        return next();
+      }
+      return jsonParser(req, res, next);
+    });
+    app.use((req, res, next) => {
+      if (req.path.startsWith('/api/v1/gateway/')) {
+        return next();
+      }
+      return urlencodedParser(req, res, next);
+    });
 
     // 安全中间件
     app.use(helmet.default({

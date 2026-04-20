@@ -14,11 +14,7 @@ export class GatewayRuntimeController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    const result = await this.gatewayRuntimeService.forwardRequest(`/${routePath}`, req);
-    const contentType = result.headers['content-type'];
-    if (contentType) {
-      res.setHeader('content-type', contentType);
-    }
-    return res.status(result.status).send(result.data);
+    await this.gatewayRuntimeService.forwardRequest(`/${routePath}`, req, res);
+    return res;
   }
 }

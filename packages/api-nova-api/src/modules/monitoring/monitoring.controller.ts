@@ -11,12 +11,14 @@ import { RuntimeObservabilityService } from '../runtime-observability/services/r
 import {
   ManagementAuditResponseDto,
   ManagementEventsResponseDto,
+  ManagementGatewayAccessLogsResponseDto,
   ManagementOverviewResponseDto,
   MonitoringApiEnvelopeDto,
 } from './dto/monitoring.dto';
 import { RequirePermissions } from '../security/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../security/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../security/guards/permissions.guard';
+import { GatewayAccessLogService } from '../gateway-runtime/services/gateway-access-log.service';
 
 @ApiTags('Monitoring')
 @Controller('v1/monitoring')
@@ -25,6 +27,7 @@ import { PermissionsGuard } from '../security/guards/permissions.guard';
 export class MonitoringController {
   constructor(
     private readonly runtimeObservabilityService: RuntimeObservabilityService,
+    private readonly gatewayAccessLogService: GatewayAccessLogService,
   ) {}
 
   @Get('metrics')
@@ -151,6 +154,45 @@ export class MonitoringController {
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 20,
       status,
+    });
+
+    return {
+      status: 'success',
+      data: result,
+    };
+  }
+
+  @Get('management/gateway-access-logs')
+  @RequirePermissions('monitoring:read')
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Page size' })
+  @ApiQuery({ name: 'runtimeAssetId', required: false, type: String, description: 'Runtime asset filter' })
+  @ApiQuery({ name: 'runtimeMembershipId', required: false, type: String, description: 'Runtime membership filter' })
+  @ApiQuery({ name: 'routeBindingId', required: false, type: String, description: 'Route binding filter' })
+  @ApiQuery({ name: 'requestId', required: false, type: String, description: 'Request id filter' })
+  @ApiQuery({ name: 'statusCode', required: false, type: Number, description: 'Status code filter' })
+  @ApiQuery({ name: 'method', required: false, type: String, description: 'HTTP method filter' })
+  @ApiOperation({ summary: 'Query gateway access logs' })
+  @ApiResponse({ status: 200, description: 'Gateway access log stream', type: ManagementGatewayAccessLogsResponseDto })
+  async getGatewayAccessLogs(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('runtimeAssetId') runtimeAssetId?: string,
+    @Query('runtimeMembershipId') runtimeMembershipId?: string,
+    @Query('routeBindingId') routeBindingId?: string,
+    @Query('requestId') requestId?: string,
+    @Query('statusCode') statusCode?: number,
+    @Query('method') method?: string,
+  ) {
+    const result = await this.gatewayAccessLogService.queryLogs({
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 20,
+      runtimeAssetId,
+      runtimeMembershipId,
+      routeBindingId,
+      requestId,
+      statusCode: statusCode ? Number(statusCode) : undefined,
+      method,
     });
 
     return {

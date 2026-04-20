@@ -16,4 +16,12 @@ export class QuickPublishDocumentMcpDto {
   @IsOptional()
   @IsBoolean()
   replaceExisting?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Start the MCP runtime immediately after deployment',
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  startAfterPublish?: boolean;
 }
