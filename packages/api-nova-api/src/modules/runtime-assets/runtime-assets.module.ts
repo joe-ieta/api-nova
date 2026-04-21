@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EndpointDefinitionEntity } from '../../database/entities/endpoint-definition.entity';
 import { EndpointPublishBindingEntity } from '../../database/entities/endpoint-publish-binding.entity';
+import { GatewayConsumerCredentialEntity } from '../../database/entities/gateway-consumer-credential.entity';
 import { GatewayRouteBindingEntity } from '../../database/entities/gateway-route-binding.entity';
 import { MCPServerEntity } from '../../database/entities/mcp-server.entity';
 import { PublicationProfileEntity } from '../../database/entities/publication-profile.entity';
@@ -24,6 +25,7 @@ import { RuntimeAssetsService } from './services/runtime-assets.service';
       RuntimeAssetEndpointBindingEntity,
       PublicationProfileEntity,
       EndpointPublishBindingEntity,
+      GatewayConsumerCredentialEntity,
       GatewayRouteBindingEntity,
     ]),
     GatewayRuntimeModule,

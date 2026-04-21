@@ -2,20 +2,36 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ModuleRef } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
+import { createHash, randomBytes } from 'node:crypto';
 import * as http from 'node:http';
-import { Like, Repository } from 'typeorm';
+import { In, Like, Repository } from 'typeorm';
 import { transformOpenApiToMcpTools } from 'api-nova-server';
 import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
 import { GatewayRouteBindingEntity } from '../../../database/entities/gateway-route-binding.entity';
+import {
+  GatewayConsumerCredentialEntity,
+  GatewayConsumerCredentialStatus,
+} from '../../../database/entities/gateway-consumer-credential.entity';
 import { MCPServerEntity, ServerStatus, TransportType } from '../../../database/entities/mcp-server.entity';
 import { PublicationProfileEntity } from '../../../database/entities/publication-profile.entity';
+import { PublicationProfileHistoryEntity } from '../../../database/entities/publication-profile-history.entity';
 import { RuntimeAssetEndpointBindingEntity } from '../../../database/entities/runtime-asset-endpoint-binding.entity';
 import { RuntimeAssetEntity, RuntimeAssetType } from '../../../database/entities/runtime-asset.entity';
 import { SourceServiceAssetEntity } from '../../../database/entities/source-service-asset.entity';
 import { EndpointPublishBindingEntity } from '../../../database/entities/endpoint-publish-binding.entity';
+import { PublicationAuditEventEntity } from '../../../database/entities/publication-audit-event.entity';
+import { PublicationBatchRunEntity } from '../../../database/entities/publication-batch-run.entity';
 import {
+  AuditAction,
+  AuditLevel,
+  AuditStatus,
+} from '../../../database/entities/audit-log.entity';
+import {
+  CreateGatewayConsumerCredentialDto,
   DeployRuntimeAssetGatewayDto,
   DeployRuntimeAssetMcpDto,
+  GatewayConsumerCredentialQueryDto,
+  RevokeGatewayConsumerCredentialDto,
   RuntimeAssetQueryDto,
   UpdateRuntimeAssetPolicyDto,
 } from '../dto/runtime-assets.dto';
@@ -30,11 +46,21 @@ import {
   RuntimeCurrentStatus,
   RuntimeHealthStatus,
 } from '../../../database/entities/runtime-observability-state.entity';
+import { RuntimeObservabilityStateEntity } from '../../../database/entities/runtime-observability-state.entity';
+import { RuntimeObservabilityEventEntity } from '../../../database/entities/runtime-observability-event.entity';
+import { RuntimeMetricSeriesEntity } from '../../../database/entities/runtime-metric-series.entity';
 import { RuntimeObservabilityService } from '../../runtime-observability/services/runtime-observability.service';
 import {
   GATEWAY_SNAPSHOT_REFRESH_REQUESTED,
   type GatewaySnapshotRefreshPayload,
 } from '../../gateway-runtime/gateway-runtime.events';
+import { AuditService } from '../../security/services/audit.service';
+
+type GatewayCredentialAuditContext = {
+  actorId?: string;
+  ipAddress?: string;
+  userAgent?: string;
+};
 
 @Injectable()
 export class RuntimeAssetsService {
@@ -57,9 +83,12 @@ export class RuntimeAssetsService {
     private readonly publishBindingRepository: Repository<EndpointPublishBindingEntity>,
     @InjectRepository(GatewayRouteBindingEntity)
     private readonly gatewayRouteRepository: Repository<GatewayRouteBindingEntity>,
+    @InjectRepository(GatewayConsumerCredentialEntity)
+    private readonly gatewayConsumerCredentialRepository: Repository<GatewayConsumerCredentialEntity>,
     private readonly gatewayRuntimeMetricsService: GatewayRuntimeMetricsService,
     private readonly gatewayAccessLogService: GatewayAccessLogService,
     private readonly runtimeObservabilityService: RuntimeObservabilityService,
+    private readonly auditService: AuditService,
   ) {}
 
   async listRuntimeAssets(query: RuntimeAssetQueryDto = {}) {
@@ -96,11 +125,19 @@ export class RuntimeAssetsService {
           where: { runtimeAssetId: asset.id },
           order: { updatedAt: 'DESC' },
         });
+        const persistedObservability =
+          await this.runtimeObservabilityService.getRuntimeAssetObservability(asset.id);
 
         return {
           asset,
           managedServer: await this.findManagedServerSummary(asset),
-          runtimeSummary: await this.buildRuntimeSummary(asset, memberships),
+          runtimeSummary: persistedObservability
+            ? await this.buildRuntimeSummaryFromPersistedObservability(
+                asset,
+                memberships,
+                persistedObservability,
+              )
+            : await this.buildRuntimeSummary(asset, memberships),
           membershipCount: memberships.length,
           activeMembershipCount: memberships.filter(m => m.status === 'active').length,
         };
@@ -303,6 +340,8 @@ export class RuntimeAssetsService {
       );
     });
 
+    const routes = includedMemberships.map(item => this.toGatewayRouteView(item));
+
     return {
       runtimeAsset: asset,
       runtimeSummary: await this.buildRuntimeSummary(
@@ -311,21 +350,8 @@ export class RuntimeAssetsService {
       ),
       membershipCount: memberships.total,
       includedMembershipCount: includedMemberships.length,
-      routes: includedMemberships.map(item => ({
-        runtimeMembershipId: item.membership.id,
-        endpointDefinitionId: item.endpointDefinition!.id,
-        sourceServiceAssetId: item.sourceServiceAsset!.id,
-        sourceServiceKey: item.sourceServiceAsset!.sourceKey,
-        routePath: item.gatewayRouteBinding!.routePath,
-        routeMethod: item.gatewayRouteBinding!.routeMethod,
-        upstreamPath: item.gatewayRouteBinding!.upstreamPath,
-        upstreamMethod: item.gatewayRouteBinding!.upstreamMethod,
-        upstreamBaseUrl: this.buildSourceServiceUrl(item.sourceServiceAsset!),
-        timeoutMs: item.gatewayRouteBinding!.timeoutMs ?? 30000,
-        status: item.gatewayRouteBinding!.status,
-        authPolicyRef: item.gatewayRouteBinding!.authPolicyRef,
-        trafficPolicyRef: item.gatewayRouteBinding!.trafficPolicyRef,
-      })),
+      gatewayGovernance: this.buildGatewayGovernanceSummary(routes),
+      routes,
     };
   }
 
@@ -425,6 +451,92 @@ export class RuntimeAssetsService {
         await this.runtimeBindingRepository.find({ where: { runtimeAssetId } }),
       ),
       action: 'update-policy-binding',
+    };
+  }
+
+  async deleteRuntimeAsset(runtimeAssetId: string) {
+    const runtimeAsset = await this.requireRuntimeAsset(runtimeAssetId);
+    const memberships = await this.runtimeBindingRepository.find({
+      where: { runtimeAssetId },
+    });
+    const membershipIds = memberships.map(item => item.id);
+    const managedServer = await this.findManagedServerForRuntimeAsset(runtimeAsset);
+
+    if (managedServer) {
+      const serverManager = this.getServerManager();
+      await serverManager.deleteServer(managedServer.id);
+    }
+
+    await this.runtimeAssetRepository.manager.transaction(async manager => {
+      const gatewayConsumerCredentialRepository =
+        manager.getRepository(GatewayConsumerCredentialEntity);
+      const publishBindingRepository = manager.getRepository(EndpointPublishBindingEntity);
+      const gatewayRouteRepository = manager.getRepository(GatewayRouteBindingEntity);
+      const profileRepository = manager.getRepository(PublicationProfileEntity);
+      const profileHistoryRepository =
+        manager.getRepository(PublicationProfileHistoryEntity);
+      const publicationAuditRepository =
+        manager.getRepository(PublicationAuditEventEntity);
+      const publicationBatchRunRepository =
+        manager.getRepository(PublicationBatchRunEntity);
+      const runtimeObservabilityStateRepository =
+        manager.getRepository(RuntimeObservabilityStateEntity);
+      const runtimeObservabilityEventRepository =
+        manager.getRepository(RuntimeObservabilityEventEntity);
+      const runtimeMetricSeriesRepository =
+        manager.getRepository(RuntimeMetricSeriesEntity);
+      const runtimeBindingRepository =
+        manager.getRepository(RuntimeAssetEndpointBindingEntity);
+      const runtimeAssetRepository = manager.getRepository(RuntimeAssetEntity);
+
+      await gatewayConsumerCredentialRepository.delete({ runtimeAssetId });
+      await publicationBatchRunRepository.delete({ runtimeAssetId });
+      await publicationAuditRepository.delete({ runtimeAssetId });
+      await runtimeObservabilityStateRepository.delete({ runtimeAssetId });
+      await runtimeObservabilityEventRepository.delete({ runtimeAssetId });
+      await runtimeMetricSeriesRepository.delete({ runtimeAssetId });
+
+      if (membershipIds.length > 0) {
+        await publicationAuditRepository.delete({
+          runtimeAssetEndpointBindingId: In(membershipIds),
+        });
+        await gatewayRouteRepository.delete({
+          runtimeAssetEndpointBindingId: In(membershipIds),
+        });
+        await publishBindingRepository.delete({
+          runtimeAssetEndpointBindingId: In(membershipIds),
+        });
+        await profileHistoryRepository.delete({
+          runtimeAssetEndpointBindingId: In(membershipIds),
+        });
+        await profileRepository.delete({
+          runtimeAssetEndpointBindingId: In(membershipIds),
+        });
+        await runtimeObservabilityStateRepository.delete({
+          runtimeAssetEndpointBindingId: In(membershipIds),
+        });
+        await runtimeObservabilityEventRepository.delete({
+          runtimeAssetEndpointBindingId: In(membershipIds),
+        });
+        await runtimeMetricSeriesRepository.delete({
+          runtimeAssetEndpointBindingId: In(membershipIds),
+        });
+      }
+
+      await runtimeBindingRepository.delete({ runtimeAssetId });
+      await runtimeAssetRepository.delete({ id: runtimeAssetId });
+    });
+
+    if (runtimeAsset.type === RuntimeAssetType.GATEWAY_SERVICE) {
+      this.emitGatewaySnapshotRefresh({
+        reason: 'runtime_assets.gateway_deleted',
+        runtimeAssetId,
+      });
+    }
+
+    return {
+      runtimeAssetId,
+      deleted: true,
     };
   }
 
@@ -716,8 +828,28 @@ export class RuntimeAssetsService {
     }
     const managedServer = await this.requireManagedServerForRuntimeAsset(runtimeAsset);
     const serverManager = this.getServerManager();
+    if (
+      managedServer.status === ServerStatus.STOPPED ||
+      managedServer.status === ServerStatus.STOPPING
+    ) {
+      const memberships = await this.runtimeBindingRepository.find({
+        where: { runtimeAssetId },
+      });
+      return {
+        runtimeAsset,
+        managedServer: this.toManagedServerSummary(managedServer),
+        runtimeSummary: await this.buildRuntimeSummary(runtimeAsset, memberships, managedServer),
+        action: 'stop',
+      };
+    }
 
-    await serverManager.stopServer(managedServer.id);
+    try {
+      await serverManager.stopServer(managedServer.id);
+    } catch (error: any) {
+      if (!this.isStopAlreadySettledError(error)) {
+        throw error;
+      }
+    }
     const nextManagedServer = await this.mcpServerRepository.findOne({
       where: { id: managedServer.id },
     });
@@ -854,6 +986,17 @@ export class RuntimeAssetsService {
     return service;
   }
 
+  private isStopAlreadySettledError(error: unknown) {
+    if (!error || typeof error !== 'object') {
+      return false;
+    }
+    const message =
+      'message' in error && typeof (error as { message?: unknown }).message === 'string'
+        ? ((error as { message: string }).message || '').toLowerCase()
+        : '';
+    return message.includes('already stopped') || message.includes('already stopping');
+  }
+
   private buildSourceServiceUrl(sourceServiceAsset: SourceServiceAssetEntity) {
     const protocol = sourceServiceAsset.scheme || 'http';
     const defaultPort =
@@ -871,8 +1014,222 @@ export class RuntimeAssetsService {
     return this.gatewayAccessLogService.listRuntimeAssetLogs(runtimeAssetId, limit);
   }
 
+  async listGatewayConsumerCredentials(
+    runtimeAssetId: string,
+    query: GatewayConsumerCredentialQueryDto = {},
+  ) {
+    const asset = await this.requireRuntimeAsset(runtimeAssetId);
+    if (asset.type !== RuntimeAssetType.GATEWAY_SERVICE) {
+      throw new NotFoundException(
+        `Runtime asset '${runtimeAssetId}' is not a gateway runtime asset`,
+      );
+    }
+
+    const where: Record<string, unknown> = { runtimeAssetId };
+    if (query.routeBindingId) {
+      where.routeBindingId = query.routeBindingId;
+    }
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    const items = await this.gatewayConsumerCredentialRepository.find({
+      where,
+      order: { updatedAt: 'DESC' },
+    });
+
+    return {
+      total: items.length,
+      data: items.map(item => this.toGatewayConsumerCredentialSummary(item)),
+    };
+  }
+
+  async createGatewayConsumerCredential(
+    runtimeAssetId: string,
+    dto: CreateGatewayConsumerCredentialDto,
+    auditContext: GatewayCredentialAuditContext = {},
+  ) {
+    const asset = await this.requireRuntimeAsset(runtimeAssetId);
+    if (asset.type !== RuntimeAssetType.GATEWAY_SERVICE) {
+      throw new NotFoundException(
+        `Runtime asset '${runtimeAssetId}' is not a gateway runtime asset`,
+      );
+    }
+
+    await this.ensureCredentialRouteScope(runtimeAssetId, dto.routeBindingId);
+
+    const keyId = dto.keyId?.trim() || this.generateKeyId();
+    const existing = await this.gatewayConsumerCredentialRepository.findOne({
+      where: { keyId },
+    });
+    if (existing) {
+      throw new ConflictException(`Gateway consumer credential key '${keyId}' already exists`);
+    }
+
+    const secret = randomBytes(24).toString('base64url');
+    const entity = this.gatewayConsumerCredentialRepository.create({
+      name: dto.name,
+      label: dto.label,
+      keyId,
+      secretHash: createHash('sha256').update(secret).digest('hex'),
+      status: GatewayConsumerCredentialStatus.ACTIVE,
+      runtimeAssetId,
+      routeBindingId: dto.routeBindingId,
+      metadata: dto.metadata,
+    });
+    const saved = await this.gatewayConsumerCredentialRepository.save(entity);
+    await this.recordGatewayCredentialAudit({
+      action: AuditAction.API_KEY_CREATED,
+      actorId: auditContext.actorId,
+      ipAddress: auditContext.ipAddress,
+      userAgent: auditContext.userAgent,
+      runtimeAssetId,
+      credential: saved,
+      details: {
+        after: this.toGatewayConsumerCredentialSummary(saved),
+      },
+    });
+
+    return {
+      credential: this.toGatewayConsumerCredentialSummary(saved),
+      apiKey: `${saved.keyId}.${secret}`,
+    };
+  }
+
+  async revokeGatewayConsumerCredential(
+    runtimeAssetId: string,
+    credentialId: string,
+    dto: RevokeGatewayConsumerCredentialDto = {},
+    auditContext: GatewayCredentialAuditContext = {},
+  ) {
+    const asset = await this.requireRuntimeAsset(runtimeAssetId);
+    if (asset.type !== RuntimeAssetType.GATEWAY_SERVICE) {
+      throw new NotFoundException(
+        `Runtime asset '${runtimeAssetId}' is not a gateway runtime asset`,
+      );
+    }
+
+    const credential = await this.gatewayConsumerCredentialRepository.findOne({
+      where: {
+        id: credentialId,
+        runtimeAssetId,
+      },
+    });
+    if (!credential) {
+      throw new NotFoundException(
+        `Gateway consumer credential '${credentialId}' was not found for runtime asset '${runtimeAssetId}'`,
+      );
+    }
+
+    const before = this.toGatewayConsumerCredentialSummary(credential);
+    credential.status = GatewayConsumerCredentialStatus.REVOKED;
+    credential.metadata = {
+      ...(credential.metadata || {}),
+      revokedReason: dto.reason,
+      revokedAt: new Date().toISOString(),
+    };
+    const saved = await this.gatewayConsumerCredentialRepository.save(credential);
+    await this.recordGatewayCredentialAudit({
+      action: AuditAction.API_KEY_DELETED,
+      actorId: auditContext.actorId,
+      ipAddress: auditContext.ipAddress,
+      userAgent: auditContext.userAgent,
+      runtimeAssetId,
+      credential: saved,
+      details: {
+        before,
+        after: this.toGatewayConsumerCredentialSummary(saved),
+      },
+    });
+    return this.toGatewayConsumerCredentialSummary(saved);
+  }
+
   private emitGatewaySnapshotRefresh(payload: GatewaySnapshotRefreshPayload) {
     this.eventEmitter.emit(GATEWAY_SNAPSHOT_REFRESH_REQUESTED, payload);
+  }
+
+  private async ensureCredentialRouteScope(runtimeAssetId: string, routeBindingId?: string) {
+    if (!routeBindingId) {
+      return;
+    }
+
+    const routeBinding = await this.gatewayRouteRepository.findOne({
+      where: { id: routeBindingId },
+    });
+    if (!routeBinding?.runtimeAssetEndpointBindingId) {
+      throw new NotFoundException(`Gateway route binding '${routeBindingId}' was not found`);
+    }
+
+    const membership = await this.runtimeBindingRepository.findOne({
+      where: {
+        id: routeBinding.runtimeAssetEndpointBindingId,
+        runtimeAssetId,
+      },
+    });
+    if (!membership) {
+      throw new NotFoundException(
+        `Gateway route binding '${routeBindingId}' does not belong to runtime asset '${runtimeAssetId}'`,
+      );
+    }
+  }
+
+  private async recordGatewayCredentialAudit(input: {
+    action: AuditAction;
+    actorId?: string;
+    ipAddress?: string;
+    userAgent?: string;
+    runtimeAssetId: string;
+    credential: GatewayConsumerCredentialEntity;
+    details?: Record<string, unknown>;
+  }) {
+    try {
+      await this.auditService.log({
+        action: input.action,
+        level: AuditLevel.INFO,
+        status: AuditStatus.SUCCESS,
+        userId: input.actorId,
+        resource: 'gateway_consumer_credential',
+        resourceId: input.credential.id,
+        ipAddress: input.ipAddress,
+        userAgent: input.userAgent,
+        details: {
+          ...(input.details || {}),
+          context: {
+            runtimeAssetId: input.runtimeAssetId,
+            routeBindingId: input.credential.routeBindingId,
+            keyId: input.credential.keyId,
+            status: input.credential.status,
+          },
+        },
+        metadata: {
+          runtimeAssetId: input.runtimeAssetId,
+          routeBindingId: input.credential.routeBindingId,
+          keyId: input.credential.keyId,
+        },
+      });
+    } catch {
+      // Audit persistence must not break the credential management flow.
+    }
+  }
+
+  private toGatewayConsumerCredentialSummary(entity: GatewayConsumerCredentialEntity) {
+    return {
+      id: entity.id,
+      name: entity.name,
+      keyId: entity.keyId,
+      label: entity.label,
+      status: entity.status,
+      runtimeAssetId: entity.runtimeAssetId,
+      routeBindingId: entity.routeBindingId,
+      metadata: entity.metadata,
+      lastUsedAt: entity.lastUsedAt,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    };
+  }
+
+  private generateKeyId() {
+    return `gk_${randomBytes(8).toString('hex')}`;
   }
 
   private async findAvailableManagedServerPort(startPort = 9022): Promise<number> {
@@ -942,6 +1299,10 @@ export class RuntimeAssetsService {
         ? await this.findManagedServerForRuntimeAsset(runtimeAsset)
         : managedServer;
     const managedServerSummary = this.toManagedServerSummary(resolvedManagedServerEntity);
+    const gatewayGovernance =
+      runtimeAsset.type === RuntimeAssetType.GATEWAY_SERVICE
+        ? await this.buildRuntimeAssetGatewayGovernanceSummary(memberships)
+        : null;
 
     return {
       runtimeAssetId: runtimeAsset.id,
@@ -963,7 +1324,124 @@ export class RuntimeAssetsService {
         runtimeAsset.type === RuntimeAssetType.GATEWAY_SERVICE
           ? this.gatewayRuntimeMetricsService.getRuntimeAssetMetrics(runtimeAsset.id)
           : null,
+      gatewayGovernance,
     };
+  }
+
+  private async buildRuntimeAssetGatewayGovernanceSummary(
+    memberships: RuntimeAssetEndpointBindingEntity[],
+  ) {
+    const membershipIds = memberships.map(item => item.id).filter(Boolean);
+    if (membershipIds.length === 0) {
+      return this.buildGatewayGovernanceSummary([]);
+    }
+
+    const routeBindings = await this.gatewayRouteRepository.find({
+      where: membershipIds.map(id => ({ runtimeAssetEndpointBindingId: id })),
+      order: { updatedAt: 'DESC' },
+    });
+
+    return this.buildGatewayGovernanceSummary(
+      routeBindings.map(routeBinding => ({
+        authPolicyRef: routeBinding.authPolicyRef,
+        trafficPolicyRef: routeBinding.trafficPolicyRef,
+        loggingPolicyRef: routeBinding.loggingPolicyRef,
+        cachePolicyRef: routeBinding.cachePolicyRef,
+        rateLimitPolicyRef: routeBinding.rateLimitPolicyRef,
+        circuitBreakerPolicyRef: routeBinding.circuitBreakerPolicyRef,
+        upstreamConfig: routeBinding.upstreamConfig,
+      })),
+    );
+  }
+
+  private buildGatewayGovernanceSummary(routes: Array<Record<string, any>>) {
+    const authModes = {
+      anonymous: 0,
+      jwt: 0,
+      apiKey: 0,
+    };
+
+    for (const route of routes) {
+      const authMode = this.resolveGatewayAuthMode(route.authPolicyRef);
+      if (authMode === 'jwt') {
+        authModes.jwt += 1;
+      } else if (authMode === 'api_key') {
+        authModes.apiKey += 1;
+      } else {
+        authModes.anonymous += 1;
+      }
+    }
+
+    return {
+      totalRoutes: routes.length,
+      authModes,
+      cacheEnabledRoutes: routes.filter(route => Boolean(route.cachePolicyRef)).length,
+      rateLimitedRoutes: routes.filter(
+        route =>
+          Boolean(route.rateLimitPolicyRef) ||
+          Boolean((route.upstreamConfig || {})?.trafficControl?.rateLimit),
+      ).length,
+      breakerProtectedRoutes: routes.filter(
+        route =>
+          Boolean(route.circuitBreakerPolicyRef) ||
+          Boolean((route.upstreamConfig || {})?.trafficControl?.breaker),
+      ).length,
+      refs: {
+        authPolicyRefs: this.uniqueRefs(routes.map(route => route.authPolicyRef)),
+        trafficPolicyRefs: this.uniqueRefs(routes.map(route => route.trafficPolicyRef)),
+        loggingPolicyRefs: this.uniqueRefs(routes.map(route => route.loggingPolicyRef)),
+        cachePolicyRefs: this.uniqueRefs(routes.map(route => route.cachePolicyRef)),
+        rateLimitPolicyRefs: this.uniqueRefs(routes.map(route => route.rateLimitPolicyRef)),
+        circuitBreakerPolicyRefs: this.uniqueRefs(routes.map(route => route.circuitBreakerPolicyRef)),
+      },
+    };
+  }
+
+  private toGatewayRouteView(item: any) {
+    return {
+      runtimeMembershipId: item.membership.id,
+      endpointDefinitionId: item.endpointDefinition!.id,
+      sourceServiceAssetId: item.sourceServiceAsset!.id,
+      sourceServiceKey: item.sourceServiceAsset!.sourceKey,
+      matchHost: item.gatewayRouteBinding!.matchHost,
+      routePath: item.gatewayRouteBinding!.routePath,
+      pathMatchMode: item.gatewayRouteBinding!.pathMatchMode,
+      priority: item.gatewayRouteBinding!.priority ?? 0,
+      routeMethod: item.gatewayRouteBinding!.routeMethod,
+      upstreamPath: item.gatewayRouteBinding!.upstreamPath,
+      upstreamMethod: item.gatewayRouteBinding!.upstreamMethod,
+      upstreamBaseUrl: this.buildSourceServiceUrl(item.sourceServiceAsset!),
+      timeoutMs: item.gatewayRouteBinding!.timeoutMs ?? 30000,
+      status: item.gatewayRouteBinding!.status,
+      authPolicyRef: item.gatewayRouteBinding!.authPolicyRef,
+      trafficPolicyRef: item.gatewayRouteBinding!.trafficPolicyRef,
+      loggingPolicyRef: item.gatewayRouteBinding!.loggingPolicyRef,
+      cachePolicyRef: item.gatewayRouteBinding!.cachePolicyRef,
+      rateLimitPolicyRef: item.gatewayRouteBinding!.rateLimitPolicyRef,
+      circuitBreakerPolicyRef: item.gatewayRouteBinding!.circuitBreakerPolicyRef,
+      upstreamConfig: item.gatewayRouteBinding!.upstreamConfig,
+      routeStatusReason: item.gatewayRouteBinding!.routeStatusReason,
+    };
+  }
+
+  private resolveGatewayAuthMode(ref?: string) {
+    const normalized = String(ref || '').trim().toLowerCase();
+    if (!normalized) {
+      return 'anonymous';
+    }
+    if (normalized.includes('api-key') || normalized.includes('apikey') || normalized.includes('key')) {
+      return 'api_key';
+    }
+    if (normalized.includes('jwt') || normalized.includes('bearer') || normalized.includes('token')) {
+      return 'jwt';
+    }
+    return 'anonymous';
+  }
+
+  private uniqueRefs(values: Array<string | undefined>) {
+    return Array.from(
+      new Set(values.map(value => String(value || '').trim()).filter(Boolean)),
+    ).sort((left, right) => left.localeCompare(right));
   }
 
   private async buildRuntimeSummaryFromPersistedObservability(
@@ -995,9 +1473,83 @@ export class RuntimeAssetsService {
         : 0,
       gatewayMetrics:
         runtimeAsset.type === RuntimeAssetType.GATEWAY_SERVICE
-          ? persistedObservability?.state?.counters || baseSummary.gatewayMetrics
+          ? this.normalizeGatewayMetrics(
+              baseSummary.gatewayMetrics,
+              persistedObservability?.state,
+              persistedObservability?.recentMetrics,
+            )
           : baseSummary.gatewayMetrics,
     };
+  }
+
+  private normalizeGatewayMetrics(baseMetrics: any, state?: any, recentMetrics?: any[]) {
+    const fallback = baseMetrics || {
+      requestCount: 0,
+      successCount: 0,
+      errorCount: 0,
+      cacheHitCount: 0,
+      cacheMissCount: 0,
+      policyCounts: {},
+      successRate: 0,
+      avgLatencyMs: 0,
+      lastStatusCode: undefined,
+      lastRequestAt: undefined,
+      lastErrorAt: undefined,
+      lastErrorMessage: undefined,
+      routes: [],
+    };
+    const counters = state?.counters || {};
+    const gauges = state?.gauges || {};
+    const persistedMetrics = Array.isArray(recentMetrics) ? recentMetrics : [];
+    const latestAverageLatency = persistedMetrics.find(
+      (metric: any) => metric.metricName === 'gateway.latency.avg_ms',
+    )?.value;
+    const persistedPolicyCounts = Object.fromEntries(
+      Object.entries(counters).filter(([key]) => this.isGatewayPolicyCounterKey(key)),
+    );
+
+    const requestCount = Number(counters.requestCount ?? fallback.requestCount ?? 0);
+    const successCount = Number(counters.successCount ?? fallback.successCount ?? 0);
+    const errorCount = Number(counters.errorCount ?? fallback.errorCount ?? 0);
+
+    return {
+      ...fallback,
+      requestCount,
+      successCount,
+      errorCount,
+      cacheHitCount: Number(counters['gateway.cache.hit'] ?? fallback.cacheHitCount ?? 0),
+      cacheMissCount: Number(counters['gateway.cache.miss'] ?? fallback.cacheMissCount ?? 0),
+      policyCounts: {
+        ...(fallback.policyCounts || {}),
+        ...persistedPolicyCounts,
+      },
+      successRate: requestCount > 0 ? successCount / requestCount : fallback.successRate ?? 0,
+      avgLatencyMs:
+        latestAverageLatency != null
+          ? Math.round(Number(latestAverageLatency) * 100) / 100
+          : fallback.avgLatencyMs ?? 0,
+      lastStatusCode: gauges.lastStatusCode ?? fallback.lastStatusCode,
+      lastRequestAt: state?.lastEventAt ?? fallback.lastRequestAt,
+      lastErrorAt: state?.lastFailureAt ?? fallback.lastErrorAt,
+      lastErrorMessage: state?.lastErrorMessage ?? fallback.lastErrorMessage,
+      routes: Array.isArray(fallback.routes) ? fallback.routes : [],
+    };
+  }
+
+  private isGatewayPolicyCounterKey(key: string) {
+    if (!key.startsWith('gateway.')) {
+      return false;
+    }
+    if (
+      key === 'gateway.cache.hit' ||
+      key === 'gateway.cache.miss' ||
+      key === 'gateway.requests.total' ||
+      key === 'gateway.requests.success' ||
+      key === 'gateway.requests.error'
+    ) {
+      return false;
+    }
+    return true;
   }
 
   private buildNormalizedObservabilityView(

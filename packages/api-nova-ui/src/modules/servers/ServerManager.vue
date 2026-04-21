@@ -148,35 +148,38 @@
                         <el-dropdown-menu>
                           <el-dropdown-item
                             :command="{ action: 'start', server }"
-                            :disabled="server.status === 'running'"
+                            :disabled="!canStart(server)"
                           >
                             {{ t("servers.startServer") }}
                           </el-dropdown-item>
                           <el-dropdown-item
                             :command="{ action: 'stop', server }"
-                            :disabled="server.status === 'stopped'"
+                            :disabled="!canStop(server)"
                           >
                             {{ t("servers.stopServer") }}
                           </el-dropdown-item>
                           <el-dropdown-item
                             :command="{ action: 'restart', server }"
-                            :disabled="server.status !== 'running'"
+                            :disabled="!canRedeploy(server)"
                           >
                             {{ t("servers.restartServer") }}
                           </el-dropdown-item>
                           <el-dropdown-item
                             divided
                             :command="{ action: 'edit', server }"
+                            :disabled="!canEdit(server)"
                           >
                             {{ t("servers.editServer") }}
                           </el-dropdown-item>
                           <el-dropdown-item
                             :command="{ action: 'governance', server }"
+                            :disabled="!canGoToPublication(server)"
                           >
                             {{ secondaryActionLabel }}
                           </el-dropdown-item>
                           <el-dropdown-item
                             :command="{ action: 'delete', server }"
+                            :disabled="!canDelete(server)"
                             class="danger-action"
                           >
                             {{ t("servers.deleteServer") }}
@@ -390,6 +393,7 @@
                   />
                 </el-tooltip>
                 <el-tooltip
+                  v-if="canGoToPublication(row)"
                   :content="secondaryActionLabel"
                   placement="top"
                 >
@@ -401,7 +405,7 @@
                   />
                 </el-tooltip>
                 <el-tooltip
-                  v-if="!isRuntimeAssetsSurface"
+                  v-if="canEdit(row)"
                   :content="t('servers.editServer')"
                   placement="top"
                 >
@@ -413,7 +417,7 @@
                   />
                 </el-tooltip>
                 <el-tooltip
-                  v-if="!isRuntimeAssetsSurface"
+                  v-if="canDelete(row)"
                   :content="t('servers.deleteServer')"
                   placement="top"
                 >
@@ -649,10 +653,37 @@ const mapRuntimeAssetRow = (item: any): RuntimeAssetListRow => {
   } as RuntimeAssetListRow;
 };
 
-const canStart = (server: MCPServer | RuntimeAssetListRow) => server.status !== "running";
-const canStop = (server: MCPServer | RuntimeAssetListRow) => server.status === "running";
+const isRuntimeAssetRowDeployed = (server: MCPServer | RuntimeAssetListRow) => {
+  if (!isRuntimeAssetsSurface.value) {
+    return true;
+  }
+
+  const runtimeAsset = server as RuntimeAssetListRow;
+  if (runtimeAsset.runtimeAssetType === "gateway_service") {
+    return true;
+  }
+
+  return Boolean(runtimeAsset.managedServerId);
+};
+
+const isTransitioning = (server: MCPServer | RuntimeAssetListRow) =>
+  server.status === "starting" || server.status === "stopping";
+const isRunning = (server: MCPServer | RuntimeAssetListRow) =>
+  server.status === "running";
+const canOperateAfterStop = (server: MCPServer | RuntimeAssetListRow) =>
+  !isRunning(server) && !isTransitioning(server);
+const canStart = (server: MCPServer | RuntimeAssetListRow) =>
+  isRuntimeAssetRowDeployed(server) && canOperateAfterStop(server);
+const canStop = (server: MCPServer | RuntimeAssetListRow) =>
+  isRuntimeAssetRowDeployed(server) && isRunning(server);
 const canRedeploy = (server: MCPServer | RuntimeAssetListRow) =>
-  isRuntimeAssetsSurface.value ? true : server.status === "running";
+  isRuntimeAssetRowDeployed(server) && isRunning(server);
+const canGoToPublication = (server: MCPServer | RuntimeAssetListRow) =>
+  canOperateAfterStop(server);
+const canEdit = (server: MCPServer | RuntimeAssetListRow) =>
+  !isRuntimeAssetsSurface.value && canOperateAfterStop(server);
+const canDelete = (server: MCPServer | RuntimeAssetListRow) =>
+  canOperateAfterStop(server);
 const getMembershipCount = (server: MCPServer | RuntimeAssetListRow) =>
   isRuntimeAssetsSurface.value ? (server as RuntimeAssetListRow).membershipCount || 0 : server.port;
 const getActiveMembershipCount = (server: MCPServer | RuntimeAssetListRow) =>
@@ -848,12 +879,19 @@ const handleServerAction = async ({
       goToPublication(server);
       break;
     case "delete":
-      deleteServer(server);
+      await deleteServer(server);
       break;
   }
 };
 
 const startServer = async (server: MCPServer | RuntimeAssetListRow) => {
+  if (isRuntimeAssetsSurface.value && !isRuntimeAssetRowDeployed(server)) {
+    ElMessage.warning(
+      t("servers.runtimeAssetsMessages.deploymentRequired", { name: server.name }),
+    );
+    return;
+  }
+
   try {
     await measureFunction("startServer", async () => {
       if (isRuntimeAssetsSurface.value) {
@@ -878,6 +916,12 @@ const startServer = async (server: MCPServer | RuntimeAssetListRow) => {
 };
 
 const stopServer = async (server: MCPServer | RuntimeAssetListRow) => {
+  if (isRuntimeAssetsSurface.value && !isRuntimeAssetRowDeployed(server)) {
+    ElMessage.warning(
+      t("servers.runtimeAssetsMessages.deploymentRequired", { name: server.name }),
+    );
+    return;
+  }
   console.log("🛑 [FRONTEND DEBUG] stopServer called with server:", {
     id: server.id,
     name: server.name,
@@ -924,6 +968,12 @@ const stopServer = async (server: MCPServer | RuntimeAssetListRow) => {
 };
 
 const restartServer = async (server: MCPServer | RuntimeAssetListRow) => {
+  if (isRuntimeAssetsSurface.value && !isRuntimeAssetRowDeployed(server)) {
+    ElMessage.warning(
+      t("servers.runtimeAssetsMessages.deploymentRequired", { name: server.name }),
+    );
+    return;
+  }
   const confirmed = await confirmDangerousAction(
     t("servers.messages.confirmRestart", { name: server.name }),
   );
@@ -953,7 +1003,6 @@ const restartServer = async (server: MCPServer | RuntimeAssetListRow) => {
 };
 
 const editServer = (server: MCPServer | RuntimeAssetListRow) => {
-  if (isRuntimeAssetsSurface.value) return;
   editingServer.value = server as MCPServer;
   showCreateDialog.value = true;
 };
@@ -1009,10 +1058,11 @@ const checkServerRunning = async (server: MCPServer): Promise<boolean> => {
 };
 
 const deleteServer = async (server: MCPServer | RuntimeAssetListRow) => {
-  if (isRuntimeAssetsSurface.value) return;
   try {
     // 检查服务器是否正在运行
-    const isRunning = await checkServerRunning(server);
+    const isRunning = isRuntimeAssetsSurface.value
+      ? server.status === "running" || server.status === "starting"
+      : await checkServerRunning(server as MCPServer);
 
     if (isRunning) {
       // 服务器正在运行，提示用户需要先停止服务器
@@ -1031,7 +1081,11 @@ const deleteServer = async (server: MCPServer | RuntimeAssetListRow) => {
 
       // 先停止服务器
       try {
-        await serverStore.stopServer(server.id);
+        if (isRuntimeAssetsSurface.value) {
+          await runtimeAssetsAPI.stopRuntimeAsset(server.id);
+        } else {
+          await serverStore.stopServer(server.id);
+        }
         ElMessage.success(
           t("servers.messages.stopSuccess", { name: server.name }),
         );
@@ -1050,11 +1104,16 @@ const deleteServer = async (server: MCPServer | RuntimeAssetListRow) => {
 
     // 执行删除操作
     await measureFunction("deleteServer", async () => {
-      await serverStore.deleteServer(server.id);
+      if (isRuntimeAssetsSurface.value) {
+        await runtimeAssetsAPI.deleteRuntimeAsset(server.id);
+      } else {
+        await serverStore.deleteServer(server.id);
+      }
     });
     ElMessage.success(
       t("servers.messages.deleteSuccess", { name: server.name }),
     );
+    await refreshServers();
   } catch (error) {
     ElMessage.error(t("servers.messages.deleteError", { error }));
   }

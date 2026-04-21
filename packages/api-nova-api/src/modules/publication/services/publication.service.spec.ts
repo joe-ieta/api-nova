@@ -55,12 +55,16 @@ describe('PublicationService', () => {
     create: jest.fn(),
   };
   const routeBindingRepository = {
+    find: jest.fn(),
     findOne: jest.fn(),
     save: jest.fn(),
     create: jest.fn(),
   };
   const eventEmitter = {
     emit: jest.fn(),
+  };
+  const runtimeAssetsService = {
+    deployMcpRuntimeAsset: jest.fn(),
   };
 
   const service = new PublicationService(
@@ -74,6 +78,7 @@ describe('PublicationService', () => {
     auditEventRepository as any,
     bindingRepository as any,
     routeBindingRepository as any,
+    runtimeAssetsService as any,
     eventEmitter as any,
   );
 
@@ -130,6 +135,7 @@ describe('PublicationService', () => {
     bindingRepository.create.mockImplementation((value: Record<string, unknown>) => value);
     bindingRepository.save.mockImplementation(async (value: unknown) => value);
     routeBindingRepository.findOne.mockResolvedValue(null);
+    routeBindingRepository.find.mockResolvedValue([]);
     routeBindingRepository.create.mockImplementation((value: Record<string, unknown>) => ({
       id: 'route-1',
       ...value,
@@ -139,6 +145,11 @@ describe('PublicationService', () => {
     sourceServiceRepository.findOne.mockResolvedValue(sourceServiceAsset);
     auditEventRepository.create.mockImplementation((value: unknown) => value);
     auditEventRepository.save.mockImplementation(async (value: unknown) => value);
+    runtimeAssetsService.deployMcpRuntimeAsset.mockResolvedValue({
+      managedServer: {
+        id: 'managed-server-1',
+      },
+    });
     eventEmitter.emit.mockReset();
   });
 
@@ -264,6 +275,159 @@ describe('PublicationService', () => {
         reason: 'publication.gateway_route_configured',
         runtimeAssetId: 'runtime-gateway-1',
         runtimeMembershipId: 'membership-1',
+      }),
+    );
+  });
+
+  it('persists phase-two route policy fields when configuring a gateway route', async () => {
+    runtimeAssetRepository.findOne.mockResolvedValue({
+      id: 'runtime-gateway-1',
+      type: RuntimeAssetType.GATEWAY_SERVICE,
+      name: 'orders-gateway',
+      displayName: 'Orders Gateway',
+      status: RuntimeAssetStatus.ACTIVE,
+    });
+    runtimeBindingRepository.findOne.mockResolvedValue({
+      id: 'membership-1',
+      runtimeAssetId: 'runtime-gateway-1',
+      endpointDefinitionId: 'endpoint-1',
+      status: 'active',
+      publicationRevision: 1,
+      enabled: true,
+    });
+    profileRepository.findOne.mockResolvedValue({
+      id: 'profile-1',
+      endpointDefinitionId: 'endpoint-1',
+      runtimeAssetEndpointBindingId: 'membership-1',
+      version: 1,
+      intentName: 'List orders',
+      status: 'reviewed',
+    });
+    bindingRepository.findOne.mockResolvedValue({
+      id: 'binding-1',
+      runtimeAssetEndpointBindingId: 'membership-1',
+      endpointDefinitionId: 'endpoint-1',
+      publishedToHttp: true,
+      publishStatus: 'active',
+      publicationRevision: 1,
+    });
+    routeBindingRepository.findOne.mockResolvedValue(null);
+
+    await service.configureRuntimeMembershipGatewayRoute(
+      'membership-1',
+      {
+        matchHost: 'gateway.internal',
+        routePath: '/orders',
+        routeMethod: 'GET',
+        upstreamPath: '/orders',
+        upstreamMethod: 'GET',
+        loggingPolicyRef: 'body-preview',
+        cachePolicyRef: 'cache-readonly',
+        rateLimitPolicyRef: 'limit-standard',
+        circuitBreakerPolicyRef: 'breaker-default',
+        routeStatusReason: 'phase2-seeded',
+        upstreamConfig: {
+          preserveHost: true,
+        },
+      },
+      'operator-1',
+    );
+
+    expect(routeBindingRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        matchHost: 'gateway.internal',
+        loggingPolicyRef: 'body-preview',
+        cachePolicyRef: 'cache-readonly',
+        rateLimitPolicyRef: 'limit-standard',
+        circuitBreakerPolicyRef: 'breaker-default',
+        routeStatusReason: 'phase2-seeded',
+        upstreamConfig: {
+          preserveHost: true,
+        },
+      }),
+    );
+  });
+
+  it('auto deploys manual MCP publication after publish succeeds', async () => {
+    runtimeBindingRepository.findOne.mockResolvedValue({
+      id: 'membership-1',
+      runtimeAssetId: 'runtime-1',
+      endpointDefinitionId: 'endpoint-1',
+      status: 'draft',
+      publicationRevision: 0,
+      enabled: true,
+    });
+    profileRepository.findOne.mockResolvedValue({
+      id: 'profile-1',
+      endpointDefinitionId: 'endpoint-1',
+      runtimeAssetEndpointBindingId: 'membership-1',
+      version: 1,
+      intentName: 'List orders',
+      descriptionForLlm: 'List orders',
+      status: 'reviewed',
+    });
+    endpointDefinitionRepository.findOne.mockResolvedValue({
+      ...readyEndpoint,
+      metadata: {
+        ...readyEndpoint.metadata,
+        source: 'manual-registration',
+      },
+    });
+
+    const result = await service.publishRuntimeMembership(
+      'membership-1',
+      { publishToMcp: true },
+      'operator-1',
+    );
+
+    expect(runtimeAssetsService.deployMcpRuntimeAsset).toHaveBeenCalledWith('runtime-1');
+    expect(result.deployment).toEqual(
+      expect.objectContaining({
+        status: 'deployed',
+        autoTriggered: true,
+        attempted: true,
+      }),
+    );
+  });
+
+  it('marks imported MCP publication as requiring deployment without auto deploy', async () => {
+    runtimeBindingRepository.findOne.mockResolvedValue({
+      id: 'membership-1',
+      runtimeAssetId: 'runtime-1',
+      endpointDefinitionId: 'endpoint-1',
+      status: 'draft',
+      publicationRevision: 0,
+      enabled: true,
+    });
+    profileRepository.findOne.mockResolvedValue({
+      id: 'profile-1',
+      endpointDefinitionId: 'endpoint-1',
+      runtimeAssetEndpointBindingId: 'membership-1',
+      version: 1,
+      intentName: 'List orders',
+      descriptionForLlm: 'List orders',
+      status: 'reviewed',
+    });
+    endpointDefinitionRepository.findOne.mockResolvedValue({
+      ...readyEndpoint,
+      metadata: {
+        ...readyEndpoint.metadata,
+        source: 'openapi-import',
+      },
+    });
+
+    const result = await service.publishRuntimeMembership(
+      'membership-1',
+      { publishToMcp: true },
+      'operator-1',
+    );
+
+    expect(runtimeAssetsService.deployMcpRuntimeAsset).not.toHaveBeenCalled();
+    expect(result.deployment).toEqual(
+      expect.objectContaining({
+        status: 'required',
+        autoTriggered: false,
+        attempted: false,
       }),
     );
   });

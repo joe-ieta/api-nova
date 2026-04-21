@@ -1,4 +1,5 @@
 import {
+  GatewayRoutePathMatchMode,
   GatewayRouteBindingStatus,
 } from '../../../database/entities/gateway-route-binding.entity';
 import {
@@ -103,8 +104,33 @@ describe('GatewayRouteSnapshotService', () => {
         },
       ]),
     };
+    const gatewayPolicyService = {
+      compileForRoute: jest.fn().mockImplementation(routeBinding => ({
+        auth: {
+          ref: routeBinding.authPolicyRef,
+          mode: routeBinding.authPolicyRef ? 'jwt' : 'anonymous',
+        },
+        traffic: {
+          ref: routeBinding.trafficPolicyRef,
+          timeoutMs: routeBinding.timeoutMs ?? 30000,
+        },
+        logging: {
+          ref: routeBinding.loggingPolicyRef,
+          captureMode: 'meta_only',
+        },
+        cache: {
+          ref: routeBinding.cachePolicyRef,
+          enabled: Boolean(routeBinding.cachePolicyRef),
+          methods: ['GET', 'HEAD'],
+        },
+        upstream: {
+          raw: routeBinding.upstreamConfig,
+        },
+      })),
+    };
 
     return new GatewayRouteSnapshotService(
+      gatewayPolicyService as any,
       routeBindingRepository as any,
       runtimeBindingRepository as any,
       publishBindingRepository as any,
@@ -132,6 +158,7 @@ describe('GatewayRouteSnapshotService', () => {
     expect(result?.routeBinding.id).toBe('route-param');
     expect(result?.params).toEqual({ id: '123' });
     expect(result?.upstreamBaseUrl).toBe('https://api.example.com/base');
+    expect(result?.policies.traffic.timeoutMs).toBe(30000);
   });
 
   it('respects matchHost when the binding is host-specific', async () => {
@@ -161,5 +188,21 @@ describe('GatewayRouteSnapshotService', () => {
 
     await Promise.resolve();
     expect(reloadSpy).toHaveBeenCalled();
+  });
+
+  it('matches prefix routes when pathMatchMode is prefix', async () => {
+    const service = buildService();
+    await service.reload();
+
+    const routeBindings = (service as any).snapshot as any[];
+    const parameterRoute = routeBindings.find(
+      entry => entry.routeBinding.id === 'route-param',
+    );
+    parameterRoute.routeBinding.pathMatchMode = GatewayRoutePathMatchMode.PREFIX;
+    parameterRoute.normalizedRoutePath = '/pets';
+
+    expect(service.resolve('localhost:9001', 'GET', '/pets/123/owner')?.routeBinding.id).toBe(
+      'route-param',
+    );
   });
 });

@@ -1960,6 +1960,7 @@ type SourceServiceAssetRecord = {
 };
 
 type PublicationMembershipRecord = {
+  sourceType?: "manual" | "imported";
   membership: {
     id: string;
     runtimeAssetId: string;
@@ -2764,6 +2765,86 @@ const getPublicationNextStepHint = (
   return t("endpointRegistry.publicationFlow.next.observeRuntime");
 };
 
+const formatOperationNextStep = (hint?: string | null) =>
+  hint && hint !== "-"
+    ? t("endpointRegistry.messages.nextStepDetail", { hint })
+    : undefined;
+
+const getPublishDeploymentFeedback = (
+  deployment: Record<string, any> | undefined,
+  nextStepHint?: string | null,
+) => {
+  const status = String(deployment?.status || "");
+  if (status === "deployed") {
+    return {
+      feedLevel: "success" as const,
+      toastType: "success" as const,
+      toastMessage: t("endpointRegistry.messages.publishAutoDeployed"),
+      detail: formatOperationNextStep(nextStepHint),
+    };
+  }
+  if (status === "failed") {
+    return {
+      feedLevel: "warning" as const,
+      toastType: "warning" as const,
+      toastMessage: t("endpointRegistry.messages.publishAutoDeployFailed"),
+      detail: t("endpointRegistry.messages.publishAutoDeployFailedDetail", {
+        reason:
+          deployment?.message || t("endpointRegistry.messages.publishAutoDeployFailed"),
+      }),
+    };
+  }
+  if (status === "required") {
+    return {
+      feedLevel: "success" as const,
+      toastType: "success" as const,
+      toastMessage: t("endpointRegistry.messages.publishDeploymentRequired"),
+      detail: formatOperationNextStep(nextStepHint),
+    };
+  }
+  return {
+    feedLevel: "success" as const,
+    toastType: "success" as const,
+    toastMessage: t("endpointRegistry.messages.publishCompleted", {
+      action: t("endpointRegistry.actions.publish"),
+    }),
+    detail: formatOperationNextStep(nextStepHint),
+  };
+};
+
+const getBatchPublishDeploymentFeedback = (deployment: Record<string, any> | undefined) => {
+  const status = String(deployment?.status || "");
+  if (status === "deployed") {
+    return {
+      feedLevel: "success" as const,
+      detail: t("endpointRegistry.messages.batchPublishAutoDeployed"),
+      toastMessage: t("endpointRegistry.messages.batchPublishAutoDeployed"),
+    };
+  }
+  if (status === "failed") {
+    return {
+      feedLevel: "warning" as const,
+      detail: t("endpointRegistry.messages.publishAutoDeployFailedDetail", {
+        reason:
+          deployment?.message || t("endpointRegistry.messages.publishAutoDeployFailed"),
+      }),
+      toastMessage: t("endpointRegistry.messages.batchPublishAutoDeployFailed"),
+    };
+  }
+  if (status === "required") {
+    return {
+      feedLevel: "success" as const,
+      detail: t("endpointRegistry.messages.batchPublishDeploymentRequired"),
+      toastMessage: t("endpointRegistry.messages.batchPublishDeploymentRequired"),
+    };
+  }
+  return {
+    feedLevel: "success" as const,
+    detail: undefined,
+    toastMessage: "",
+  };
+};
+
 const classifyPublicationReason = (reason: string) => {
   if (
     reason.includes("profile status") ||
@@ -3148,7 +3229,7 @@ const mapPublicationMembershipRow = (item: PublicationMembershipRecord): Endpoin
     groupName: item.runtimeAsset.displayName || item.runtimeAsset.name || runtimeLabel,
     endpointPath: item.endpointDefinition.path,
     methodPath: routeSummary || `${item.endpointDefinition.method} ${item.endpointDefinition.path}`,
-    sourceType: "imported",
+    sourceType: item.sourceType || "imported",
     lifecycleStatus:
       item.publishBinding?.publishStatus || item.membership.status || item.endpointDefinition.status || "draft",
     publicationState,
@@ -3960,6 +4041,18 @@ const handleBatchPublicationAction = async (action: "publish" | "offline") => {
     const failures = items
       .filter((item: any) => item.status === "failed")
       .map((item: any) => `${item.membershipId}: ${item.message || "-"}`);
+    const deploymentFeedback =
+      action === "publish"
+        ? getBatchPublishDeploymentFeedback(result?.deployment)
+        : {
+            feedLevel: (failedCount === 0
+              ? "success"
+              : successCount > 0
+                ? "warning"
+                : "error") as OperationTimelineLevel,
+            detail: undefined,
+            toastMessage: "",
+          };
 
     lastPublicationBatchRun.value = {
       id: batchRun.id,
@@ -3972,7 +4065,12 @@ const handleBatchPublicationAction = async (action: "publish" | "offline") => {
       at: batchRun.finishedAt || batchRun.createdAt || new Date().toISOString(),
     };
     pushOperationFeedEntry({
-      level: failedCount === 0 ? "success" : successCount > 0 ? "warning" : "error",
+      level:
+        failedCount === 0
+          ? (deploymentFeedback.feedLevel as OperationTimelineLevel)
+          : successCount > 0
+            ? "warning"
+            : "error",
       title: t(
         action === "publish"
           ? "endpointRegistry.batchActions.publish"
@@ -3985,17 +4083,25 @@ const handleBatchPublicationAction = async (action: "publish" | "offline") => {
           failed: failedCount,
         },
       ),
-      details: failures.length > 0 ? failures.join("; ") : undefined,
+      details: [failures.length > 0 ? failures.join("; ") : undefined, deploymentFeedback.detail]
+        .filter(Boolean)
+        .join("; ") || undefined,
     });
 
     await loadOverview();
     clearPublicationMembershipSelection();
-    ElMessage.success(
-      t("endpointRegistry.batchActions.completed", {
-        success: successCount,
-        failed: failedCount,
-      }),
-    );
+    if (action === "publish" && deploymentFeedback.toastMessage) {
+      const toastMethod =
+        deploymentFeedback.feedLevel === "warning" ? ElMessage.warning : ElMessage.success;
+      toastMethod(deploymentFeedback.toastMessage);
+    } else {
+      ElMessage.success(
+        t("endpointRegistry.batchActions.completed", {
+          success: successCount,
+          failed: failedCount,
+        }),
+      );
+    }
   } catch (error: any) {
     if (error === "cancel" || error === "close") {
       return;
@@ -4554,9 +4660,10 @@ const handlePublish = async (row: EndpointRow) => {
       { type: "warning" },
     );
     setActionLoading(row.id, "publish");
+    let publishResult: any;
     if (currentSurface.value === "publication") {
       const membershipId = requirePublicationMembershipRow(row);
-      await serverAPI.publishRuntimeMembership(membershipId, {
+      publishResult = await serverAPI.publishRuntimeMembership(membershipId, {
         publishToHttp: row.runtimeAssetType === "gateway_service" ? true : undefined,
         publishToMcp: row.runtimeAssetType === "gateway_service" ? undefined : true,
       });
@@ -4582,6 +4689,17 @@ const handlePublish = async (row: EndpointRow) => {
               ? "endpointRegistry.messages.publishSuccessImported"
               : "endpointRegistry.messages.publishSuccess",
           );
+    const deploymentFeedback =
+      currentSurface.value === "publication"
+        ? getPublishDeploymentFeedback(
+            publishResult?.deployment,
+            publishResult?.deployment?.status === "required"
+              ? t("endpointRegistry.publicationFlow.next.deployRuntime")
+              : publishResult?.deployment?.status === "deployed"
+                ? t("endpointRegistry.publicationFlow.next.startRuntime")
+                : undefined,
+          )
+        : null;
     pushOperationFeedEntry({
       level: "success",
       title:
@@ -4591,13 +4709,24 @@ const handlePublish = async (row: EndpointRow) => {
       summary: publishSuccessSummary,
       details:
         currentSurface.value === "publication"
-          ? `runtimeAssetId=${row.runtimeAssetId || "-"}; membershipId=${row.runtimeMembershipId || "-"}; target=${row.runtimeAssetName || row.baseUrl}; revision=${row.publicationRevision || 0}`
+          ? [
+              `runtimeAssetId=${row.runtimeAssetId || "-"}; membershipId=${row.runtimeMembershipId || "-"}; target=${row.runtimeAssetName || row.baseUrl}; revision=${row.publicationRevision || 0}`,
+              deploymentFeedback?.detail,
+            ]
+              .filter(Boolean)
+              .join("; ")
           : row.sourceType === "imported"
             ? t("endpointRegistry.messages.importedScopeSuffix")
             : undefined,
     });
-    ElMessage.success(publishSuccessToast);
     await loadOverview();
+    if (deploymentFeedback) {
+      const toastMethod =
+        deploymentFeedback.toastType === "warning" ? ElMessage.warning : ElMessage.success;
+      toastMethod(deploymentFeedback.toastMessage);
+    } else {
+      ElMessage.success(publishSuccessToast);
+    }
   } catch (error: any) {
     if (error === "cancel" || error === "close") return;
     pushOperationFeedEntry({

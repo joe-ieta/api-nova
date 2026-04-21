@@ -10,6 +10,7 @@ import { PublicationAuditEventEntity } from '../../database/entities/publication
 import { RuntimeAssetEndpointBindingEntity } from '../../database/entities/runtime-asset-endpoint-binding.entity';
 import { RuntimeAssetEntity } from '../../database/entities/runtime-asset.entity';
 import { SourceServiceAssetEntity } from '../../database/entities/source-service-asset.entity';
+import { RuntimeAssetsModule } from '../runtime-assets/runtime-assets.module';
 import { SecurityModule } from '../security/security.module';
 import { PublicationController } from './publication.controller';
 import { PublicationService } from './services/publication.service';
@@ -28,6 +29,7 @@ import { PublicationService } from './services/publication.service';
       EndpointPublishBindingEntity,
       GatewayRouteBindingEntity,
     ]),
+    RuntimeAssetsModule,
     SecurityModule,
   ],
   controllers: [PublicationController],

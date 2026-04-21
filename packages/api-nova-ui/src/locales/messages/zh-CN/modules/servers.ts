@@ -206,6 +206,9 @@ export default {
       stopRuntime: "停止运行时",
       redeployRuntime: "重新部署运行时",
     },
+    runtimeAssetsMessages: {
+      deploymentRequired: '运行时资产“{name}”必须先部署到托管 MCP Server，之后才能执行运行时操作。',
+    },
     eventTypes: {
       serverStarted: "服务已启动",
       serverStopped: "服务已停止",

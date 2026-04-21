@@ -260,7 +260,117 @@ export class RuntimeObservabilityService {
         input.status === RuntimeObservabilityStatus.FAILED
           ? String(input.details?.errorMessage || input.summary || '')
           : undefined,
+      countersDelta:
+        input.eventFamily === RuntimeObservabilityEventFamily.RUNTIME_POLICY
+          ? { [input.eventName]: 1 }
+          : undefined,
       dimensionsPatch: input.dimensions,
+    });
+  }
+
+  async recordGatewayRouteMiss(input: {
+    method: string;
+    routePath: string;
+    host?: string;
+    requestId?: string;
+    correlationId?: string;
+    clientIp?: string;
+  }) {
+    await this.writeEvent({
+      eventFamily: RuntimeObservabilityEventFamily.RUNTIME_ROUTE,
+      eventName: 'gateway.route_not_found',
+      severity: RuntimeObservabilitySeverity.WARNING,
+      status: RuntimeObservabilityStatus.FAILED,
+      summary: `${input.method} ${input.routePath} did not match any active gateway route`,
+      details: {
+        host: input.host,
+        requestId: input.requestId,
+        correlationId: input.correlationId,
+        clientIp: input.clientIp,
+      },
+      dimensions: {
+        host: input.host,
+        routePath: input.routePath,
+        routeMethod: input.method,
+      },
+      retentionClass: RuntimeObservabilityRetentionClass.STANDARD,
+    });
+  }
+
+  async recordGatewayCacheResult(input: {
+    runtimeAssetId: string;
+    runtimeMembershipId: string;
+    routePath: string;
+    routeMethod: string;
+    cacheStatus: 'hit' | 'miss';
+    requestId?: string;
+    correlationId?: string;
+  }) {
+    const refs = await this.resolveRuntimeRefs(
+      input.runtimeAssetId,
+      input.runtimeMembershipId,
+    );
+    const now = new Date();
+    const minuteWindow = this.toMinuteWindow(now);
+    const metricName =
+      input.cacheStatus === 'hit' ? 'gateway.cache.hit' : 'gateway.cache.miss';
+
+    await Promise.all([
+      this.incrementMetricCounter(
+        refs,
+        RuntimeMetricScope.RUNTIME_ASSET,
+        metricName,
+        minuteWindow,
+        1,
+        {
+          routePath: input.routePath,
+          routeMethod: input.routeMethod,
+        },
+      ),
+      this.incrementMetricCounter(
+        refs,
+        RuntimeMetricScope.RUNTIME_MEMBERSHIP,
+        metricName,
+        minuteWindow,
+        1,
+        {
+          routePath: input.routePath,
+          routeMethod: input.routeMethod,
+        },
+      ),
+      this.upsertState({
+        refs,
+        scopeType: RuntimeObservabilityScopeType.RUNTIME_ASSET,
+        lastEventAt: now,
+        countersDelta: {
+          [metricName]: 1,
+        },
+        dimensionsPatch: {
+          lastRoutePath: input.routePath,
+          lastRouteMethod: input.routeMethod,
+          lastCacheStatus: input.cacheStatus,
+        },
+      }),
+    ]);
+
+    await this.writeEvent({
+      ...refs,
+      eventFamily: RuntimeObservabilityEventFamily.RUNTIME_REQUEST,
+      eventName: `gateway.cache_${input.cacheStatus}`,
+      severity: RuntimeObservabilitySeverity.INFO,
+      status: RuntimeObservabilityStatus.SUCCESS,
+      summary: `${input.routeMethod} ${input.routePath} cache ${input.cacheStatus}`,
+      details: {
+        requestId: input.requestId,
+        correlationId: input.correlationId,
+        cacheStatus: input.cacheStatus,
+      },
+      dimensions: {
+        routePath: input.routePath,
+        routeMethod: input.routeMethod,
+        cacheStatus: input.cacheStatus,
+      },
+      retentionClass: RuntimeObservabilityRetentionClass.STANDARD,
     });
   }
 
@@ -530,7 +640,7 @@ export class RuntimeObservabilityService {
   }
 
   private async writeEvent(input: {
-    runtimeAssetId: string;
+    runtimeAssetId?: string;
     runtimeAssetEndpointBindingId?: string;
     endpointDefinitionId?: string;
     sourceServiceAssetId?: string;

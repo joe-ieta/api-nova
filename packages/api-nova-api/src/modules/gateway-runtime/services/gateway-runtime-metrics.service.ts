@@ -1,4 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import {
+  RuntimeObservabilityEventFamily,
+  RuntimeObservabilitySeverity,
+  RuntimeObservabilityStatus,
+} from '../../../database/entities/runtime-observability-event.entity';
 import { RuntimeObservabilityService } from '../../runtime-observability/services/runtime-observability.service';
 
 type RuntimeAssetRouteMetrics = {
@@ -8,6 +13,9 @@ type RuntimeAssetRouteMetrics = {
   requestCount: number;
   successCount: number;
   errorCount: number;
+  cacheHitCount: number;
+  cacheMissCount: number;
+  policyCounts: Record<string, number>;
   avgLatencyMs: number;
   lastStatusCode?: number;
   lastRequestAt?: string;
@@ -20,6 +28,9 @@ type RuntimeAssetMetricsState = {
   requestCount: number;
   successCount: number;
   errorCount: number;
+  cacheHitCount: number;
+  cacheMissCount: number;
+  policyCounts: Record<string, number>;
   avgLatencyMs: number;
   lastStatusCode?: number;
   lastRequestAt?: string;
@@ -74,6 +85,9 @@ export class GatewayRuntimeMetricsService {
         requestCount: 0,
         successCount: 0,
         errorCount: 0,
+        cacheHitCount: 0,
+        cacheMissCount: 0,
+        policyCounts: {},
         avgLatencyMs: 0,
       } as RuntimeAssetRouteMetrics);
 
@@ -105,6 +119,9 @@ export class GatewayRuntimeMetricsService {
         requestCount: 0,
         successCount: 0,
         errorCount: 0,
+        cacheHitCount: 0,
+        cacheMissCount: 0,
+        policyCounts: {},
         successRate: 0,
         avgLatencyMs: 0,
         lastStatusCode: undefined,
@@ -120,6 +137,9 @@ export class GatewayRuntimeMetricsService {
       requestCount: state.requestCount,
       successCount: state.successCount,
       errorCount: state.errorCount,
+      cacheHitCount: state.cacheHitCount,
+      cacheMissCount: state.cacheMissCount,
+      policyCounts: { ...state.policyCounts },
       successRate:
         state.requestCount > 0 ? state.successCount / state.requestCount : 0,
       avgLatencyMs: Math.round(state.avgLatencyMs * 100) / 100,
@@ -144,6 +164,9 @@ export class GatewayRuntimeMetricsService {
         requestCount: 0,
         successCount: 0,
         errorCount: 0,
+        cacheHitCount: 0,
+        cacheMissCount: 0,
+        policyCounts: {},
         avgLatencyMs: 0,
         routes: new Map<string, RuntimeAssetRouteMetrics>(),
       };
@@ -157,5 +180,130 @@ export class GatewayRuntimeMetricsService {
       return nextValue;
     }
     return previousAverage + (nextValue - previousAverage) / nextCount;
+  }
+
+  async recordCacheResult(input: {
+    runtimeAssetId: string;
+    runtimeMembershipId: string;
+    routePath: string;
+    routeMethod: string;
+    cacheStatus: 'hit' | 'miss';
+    requestId?: string;
+    correlationId?: string;
+  }) {
+    const state = this.ensureState(input.runtimeAssetId);
+    if (input.cacheStatus === 'hit') {
+      state.cacheHitCount += 1;
+    } else {
+      state.cacheMissCount += 1;
+    }
+
+    const routeKey = `${input.runtimeMembershipId}:${input.routeMethod}:${input.routePath}`;
+    const routeState =
+      state.routes.get(routeKey) ||
+      ({
+        runtimeMembershipId: input.runtimeMembershipId,
+        routePath: input.routePath,
+        routeMethod: input.routeMethod,
+        requestCount: 0,
+        successCount: 0,
+        errorCount: 0,
+        cacheHitCount: 0,
+        cacheMissCount: 0,
+        avgLatencyMs: 0,
+      } as RuntimeAssetRouteMetrics);
+
+    if (input.cacheStatus === 'hit') {
+      routeState.cacheHitCount += 1;
+    } else {
+      routeState.cacheMissCount += 1;
+    }
+    state.routes.set(routeKey, routeState);
+
+    await this.runtimeObservabilityService.recordGatewayCacheResult(input);
+  }
+
+  recordPolicyEvent(input: {
+    runtimeAssetId: string;
+    runtimeMembershipId: string;
+    routePath: string;
+    routeMethod: string;
+    policyName: string;
+  }) {
+    const state = this.ensureState(input.runtimeAssetId);
+    state.policyCounts[input.policyName] = Number(state.policyCounts[input.policyName] || 0) + 1;
+
+    const routeKey = `${input.runtimeMembershipId}:${input.routeMethod}:${input.routePath}`;
+    const routeState =
+      state.routes.get(routeKey) ||
+      ({
+        runtimeMembershipId: input.runtimeMembershipId,
+        routePath: input.routePath,
+        routeMethod: input.routeMethod,
+        requestCount: 0,
+        successCount: 0,
+        errorCount: 0,
+        cacheHitCount: 0,
+        cacheMissCount: 0,
+        policyCounts: {},
+        avgLatencyMs: 0,
+      } as RuntimeAssetRouteMetrics);
+
+    routeState.policyCounts[input.policyName] =
+      Number(routeState.policyCounts[input.policyName] || 0) + 1;
+    state.routes.set(routeKey, routeState);
+  }
+
+  async recordRouteMiss(input: {
+    method: string;
+    routePath: string;
+    host?: string;
+    requestId?: string;
+    correlationId?: string;
+    clientIp?: string;
+  }) {
+    try {
+      await this.runtimeObservabilityService.recordGatewayRouteMiss(input);
+    } catch {
+      // Route-miss observability must not alter the 404 response path.
+    }
+  }
+
+  async recordPolicyObservabilityEvent(input: {
+    runtimeAssetId: string;
+    runtimeMembershipId: string;
+    routePath: string;
+    routeMethod: string;
+    policyName: string;
+    requestId?: string;
+    correlationId?: string;
+    clientIp?: string;
+    status?: RuntimeObservabilityStatus;
+    severity?: RuntimeObservabilitySeverity;
+    errorMessage?: string;
+  }) {
+    try {
+      await this.runtimeObservabilityService.recordRuntimeControlEvent({
+        runtimeAssetId: input.runtimeAssetId,
+        runtimeMembershipId: input.runtimeMembershipId,
+        eventFamily: RuntimeObservabilityEventFamily.RUNTIME_POLICY,
+        eventName: input.policyName,
+        status: input.status || RuntimeObservabilityStatus.FAILED,
+        severity: input.severity || RuntimeObservabilitySeverity.WARNING,
+        summary: `${input.routeMethod} ${input.routePath} ${input.policyName}`,
+        details: {
+          requestId: input.requestId,
+          correlationId: input.correlationId,
+          clientIp: input.clientIp,
+          errorMessage: input.errorMessage,
+        },
+        dimensions: {
+          routePath: input.routePath,
+          routeMethod: input.routeMethod,
+        },
+      });
+    } catch {
+      // Policy observability is best-effort and must not block request completion.
+    }
   }
 }

@@ -11,6 +11,7 @@ import {
 import { PublicationProfileStatus } from '../../../database/entities/publication-profile.entity';
 import { PublicationBatchAction } from '../../../database/entities/publication-batch-run.entity';
 import { RuntimeAssetType } from '../../../database/entities/runtime-asset.entity';
+import { GatewayRoutePathMatchMode } from '../../../database/entities/gateway-route-binding.entity';
 
 export class PublicationCandidateQueryDto {
   @ApiPropertyOptional({ description: 'Source service asset id' })
@@ -196,10 +197,25 @@ export class UpdatePublicationProfileDto {
 }
 
 export class ConfigureGatewayRouteBindingDto {
+  @ApiPropertyOptional({ example: 'gateway.internal' })
+  @IsOptional()
+  @IsString()
+  matchHost?: string;
+
   @ApiPropertyOptional({ example: '/pets/{id}' })
   @IsOptional()
   @IsString()
   routePath?: string;
+
+  @ApiPropertyOptional({ enum: GatewayRoutePathMatchMode, default: GatewayRoutePathMatchMode.EXACT })
+  @IsOptional()
+  @IsString()
+  pathMatchMode?: GatewayRoutePathMatchMode;
+
+  @ApiPropertyOptional({ default: 0 })
+  @IsOptional()
+  @IsInt()
+  priority?: number;
 
   @ApiPropertyOptional({ example: '/pets/{id}' })
   @IsOptional()
@@ -233,9 +249,38 @@ export class ConfigureGatewayRouteBindingDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  loggingPolicyRef?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  cachePolicyRef?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  rateLimitPolicyRef?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  circuitBreakerPolicyRef?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsInt()
   @Min(1)
   timeoutMs?: number;
+
+  @ApiPropertyOptional({ type: 'object' })
+  @IsOptional()
+  upstreamConfig?: Record<string, unknown>;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  routeStatusReason?: string;
 }
 
 export class PublishEndpointDto {

@@ -22,6 +22,9 @@ export class GatewayProxyEngineService {
     resolvedRoute: GatewayResolvedRoute,
     req: Request,
     res: Response,
+    options?: {
+      captureResponseBodyMaxBytes?: number;
+    },
   ): Promise<GatewayProxyResult & { targetUrl: string }> {
     const targetUrl = this.buildTargetUrl(
       resolvedRoute.upstreamBaseUrl,
@@ -31,7 +34,10 @@ export class GatewayProxyEngineService {
     );
     const url = new URL(targetUrl);
     const transport = url.protocol === 'https:' ? https : http;
-    const timeoutMs = resolvedRoute.routeBinding.timeoutMs ?? 30000;
+    const timeoutMs =
+      resolvedRoute.policies?.traffic?.timeoutMs ??
+      resolvedRoute.routeBinding.timeoutMs ??
+      30000;
     const headers = this.buildForwardHeaders(req.headers, url, req);
     const requestCapture = this.gatewayRequestCaptureService.createTracker(
       req.headers['content-type'],
@@ -66,6 +72,9 @@ export class GatewayProxyEngineService {
             upstreamRes.headers['content-type'] as string | string[] | undefined,
           );
           const responseTap = new PassThrough();
+          const responseBodyChunks: Buffer[] = [];
+          let responseBodyBytes = 0;
+          let responseBodyOverflow = false;
           let responseCaptureFinalized = false;
           let finalizedResponseCapture = responseCapture.finalize();
           const normalizedHeaders = this.normalizeResponseHeaders(
@@ -86,6 +95,24 @@ export class GatewayProxyEngineService {
           });
           responseTap.on('data', chunk => {
             responseCapture.observeChunk(chunk);
+            if (
+              responseBodyOverflow ||
+              !options?.captureResponseBodyMaxBytes ||
+              options.captureResponseBodyMaxBytes <= 0
+            ) {
+              return;
+            }
+
+            const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+            const remaining = options.captureResponseBodyMaxBytes - responseBodyBytes;
+            if (buffer.byteLength > remaining) {
+              responseBodyOverflow = true;
+              responseBodyChunks.length = 0;
+              return;
+            }
+
+            responseBodyChunks.push(buffer);
+            responseBodyBytes += buffer.byteLength;
           });
           res.on('close', () => {
             if (!res.writableEnded) {
@@ -103,6 +130,10 @@ export class GatewayProxyEngineService {
               headers: normalizedHeaders,
               requestCapture: requestCapture.finalize(),
               responseCapture: finalizedResponseCapture,
+              responseBodyBuffer:
+                options?.captureResponseBodyMaxBytes && !responseBodyOverflow
+                  ? Buffer.concat(responseBodyChunks)
+                  : undefined,
               targetUrl,
             });
           });

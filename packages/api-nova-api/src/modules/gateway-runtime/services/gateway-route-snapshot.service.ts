@@ -12,6 +12,7 @@ import {
 } from '../../../database/entities/endpoint-publish-binding.entity';
 import {
   GatewayRouteBindingEntity,
+  GatewayRoutePathMatchMode,
   GatewayRouteBindingStatus,
 } from '../../../database/entities/gateway-route-binding.entity';
 import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
@@ -33,6 +34,7 @@ import {
   GATEWAY_SNAPSHOT_REFRESH_REQUESTED,
   type GatewaySnapshotRefreshPayload,
 } from '../gateway-runtime.events';
+import { GatewayPolicyService } from './gateway-policy.service';
 
 @Injectable()
 export class GatewayRouteSnapshotService implements OnModuleInit {
@@ -42,6 +44,7 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
   private reloadQueued = false;
 
   constructor(
+    private readonly gatewayPolicyService: GatewayPolicyService,
     @InjectRepository(GatewayRouteBindingEntity)
     private readonly routeBindingRepository: Repository<GatewayRouteBindingEntity>,
     @InjectRepository(RuntimeAssetEndpointBindingEntity)
@@ -196,7 +199,8 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
         upstreamBaseUrl: this.buildSourceServiceUrl(sourceServiceAsset),
         normalizedRoutePath: this.normalizeRoutePath(routeBinding.routePath),
         routeMethod: this.normalizeMethod(routeBinding.routeMethod),
-        priorityScore: this.computePriorityScore(routeBinding.routePath),
+        priorityScore: this.computePriorityScore(routeBinding),
+        policies: this.gatewayPolicyService.compileForRoute(routeBinding),
       });
     }
 
@@ -226,7 +230,7 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
         continue;
       }
 
-      const match = this.matchRoute(route.normalizedRoutePath, normalizedPath);
+      const match = this.matchRoute(route, normalizedPath);
       if (!match.matched) {
         continue;
       }
@@ -240,23 +244,54 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
         sourceServiceAsset: route.sourceServiceAsset,
         upstreamBaseUrl: route.upstreamBaseUrl,
         params: match.params,
+        policies: route.policies,
       };
     }
 
     return null;
   }
 
-  private computePriorityScore(routePath: string) {
-    const segments = this.normalizeRoutePath(routePath).split('/').filter(Boolean);
+  private computePriorityScore(routeBinding: GatewayRouteBindingEntity) {
+    const segments = this.normalizeRoutePath(routeBinding.routePath).split('/').filter(Boolean);
     return segments.reduce((score, segment) => {
       if (/^\{.+\}$/.test(segment)) {
         return score + 1;
       }
       return score + 10;
-    }, 0);
+    }, routeBinding.priority || 0);
   }
 
-  private matchRoute(template: string, actualPath: string) {
+  private matchRoute(route: GatewaySnapshotRouteEntry, actualPath: string) {
+    const pathMatchMode = this.resolvePathMatchMode(route.routeBinding);
+    if (pathMatchMode === GatewayRoutePathMatchMode.PREFIX) {
+      return this.matchPrefixRoute(route.normalizedRoutePath, actualPath);
+    }
+    if (pathMatchMode === GatewayRoutePathMatchMode.EXACT) {
+      return this.matchExactRoute(route.normalizedRoutePath, actualPath);
+    }
+
+    return this.matchParameterizedRoute(route.normalizedRoutePath, actualPath);
+  }
+
+  private matchExactRoute(template: string, actualPath: string) {
+    return {
+      matched: template === actualPath,
+      params: {} as Record<string, string>,
+    };
+  }
+
+  private matchPrefixRoute(template: string, actualPath: string) {
+    if (template === '/') {
+      return { matched: true, params: {} as Record<string, string> };
+    }
+
+    return {
+      matched: actualPath === template || actualPath.startsWith(`${template}/`),
+      params: {} as Record<string, string>,
+    };
+  }
+
+  private matchParameterizedRoute(template: string, actualPath: string) {
     const templateSegments = template.split('/').filter(Boolean);
     const actualSegments = actualPath.split('/').filter(Boolean);
 
@@ -298,6 +333,16 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
       .trim()
       .toLowerCase();
     return value.replace(/:\d+$/, '');
+  }
+
+  private resolvePathMatchMode(routeBinding: GatewayRouteBindingEntity) {
+    return routeBinding.pathMatchMode || this.inferPathMatchMode(routeBinding.routePath);
+  }
+
+  private inferPathMatchMode(routePath?: string) {
+    return /\{[^}]+\}/.test(String(routePath || ''))
+      ? GatewayRoutePathMatchMode.PARAMETER
+      : GatewayRoutePathMatchMode.EXACT;
   }
 
   private buildSourceServiceUrl(sourceServiceAsset: SourceServiceAssetEntity) {

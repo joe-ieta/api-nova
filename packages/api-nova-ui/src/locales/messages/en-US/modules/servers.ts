@@ -209,6 +209,10 @@ export default {
       stopRuntime: "Stop Runtime",
       redeployRuntime: "Redeploy Runtime",
     },
+    runtimeAssetsMessages: {
+      deploymentRequired:
+        'Runtime asset "{name}" must be deployed to a managed MCP server before runtime actions are available.',
+    },
     eventTypes: {
       serverStarted: "Server Started",
       serverStopped: "Server Stopped",

@@ -500,6 +500,14 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
    */
   async updateServer(id: string, updateDto: UpdateServerDto): Promise<ServerResponseDto> {
     const server = await this.getServerEntityById(id);
+    const existingInstance = this.serverInstances.get(id);
+    if (!existingInstance?.entity) {
+      this.serverInstances.set(id, {
+        ...(existingInstance || {}),
+        id,
+        entity: server,
+      });
+    }
 
     // 如果服务器正在运行，某些字段不能修改
     if (server.status === ServerStatus.RUNNING) {
@@ -625,8 +633,11 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
       const instance = await this.lifecycleService.startServer(server);
       
       // 更新内存中的实例
+      const currentInstance = this.serverInstances.get(id);
       this.serverInstances.set(id, {
-        ...this.serverInstances.get(id)!,
+        ...(currentInstance || {}),
+        id,
+        entity: currentInstance?.entity || server,
         mcpServer: instance.mcpServer,
         httpServer: instance.httpServer,
         startTime: new Date(),
@@ -715,6 +726,9 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
     
     try {
       const instance = this.serverInstances.get(id);
+      if (instance && !instance.entity) {
+        instance.entity = server;
+      }
       this.logger.log(`🛑 [DEBUG] Memory instance found: ${!!instance}`);
       
       if (instance) {
@@ -942,6 +956,9 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
       // 更新内存中的实例
       const instance = this.serverInstances.get(id);
       if (instance) {
+        if (!instance.entity) {
+          instance.entity = currentServer;
+        }
         instance.entity.status = status;
         instance.entity.endpoint = endpoint;
         instance.entity.errorMessage = errorMessage;

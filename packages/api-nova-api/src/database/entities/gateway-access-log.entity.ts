@@ -57,6 +57,15 @@ export class GatewayAccessLogEntity {
   @Column(getUuidColumnOptions(process.env.DB_TYPE, { nullable: true }))
   actorId?: string;
 
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  authMode?: string;
+
+  @Column(getUuidColumnOptions(process.env.DB_TYPE, { nullable: true }))
+  consumerId?: string;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  credentialKeyId?: string;
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   requestContentType?: string;
 
