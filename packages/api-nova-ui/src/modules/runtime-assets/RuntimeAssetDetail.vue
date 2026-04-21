@@ -9,6 +9,15 @@
             </el-tag>
             <el-button-group>
               <el-button
+                v-if="canDeploy"
+                type="primary"
+                :icon="Refresh"
+                :loading="actionLoading"
+                @click="deployRuntimeAsset"
+              >
+                {{ t("monitoring.runtimeAssets.actions.deploy") }}
+              </el-button>
+              <el-button
                 v-if="canStart"
                 type="success"
                 :icon="VideoPlay"
@@ -456,6 +465,12 @@ const hasManagedDeployment = computed(
 const isRunning = computed(() => ["running", "active"].includes(runtimeStatus.value));
 const isTransitioning = computed(() => ["starting", "stopping"].includes(runtimeStatus.value));
 const canOperateAfterStop = computed(() => !isRunning.value && !isTransitioning.value);
+const canDeploy = computed(
+  () =>
+    asset.value?.type === "mcp_server" &&
+    !hasManagedDeployment.value &&
+    canOperateAfterStop.value,
+);
 const canStart = computed(() => hasManagedDeployment.value && canOperateAfterStop.value);
 const canStop = computed(() => hasManagedDeployment.value && isRunning.value);
 const canRedeploy = computed(() => hasManagedDeployment.value && isRunning.value);
@@ -577,7 +592,7 @@ const loadDetail = async () => {
 };
 
 const runAction = async (
-  action: "start" | "stop" | "redeploy",
+  action: "deploy" | "start" | "stop" | "redeploy",
   executor: () => Promise<any>,
   successMessage: string,
 ) => {
@@ -592,6 +607,16 @@ const runAction = async (
     actionLoading.value = false;
   }
 };
+
+const deployRuntimeAsset = async () =>
+  runAction(
+    "deploy",
+    () =>
+      asset.value?.type === "gateway_service"
+        ? runtimeAssetsAPI.deployGatewayRuntimeAsset(runtimeAssetId.value)
+        : runtimeAssetsAPI.deployMcpRuntimeAsset(runtimeAssetId.value),
+    t("monitoring.runtimeAssets.actions.deploySuccess", { name: assetTitle.value }),
+  );
 
 const startRuntimeAsset = async () =>
   runAction(

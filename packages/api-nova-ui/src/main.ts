@@ -67,9 +67,11 @@ async function initializeApp() {
   });
 }
 
-app.mount("#app");
-
-// 应用挂载后初始化
-initializeApp().catch((error) => {
-  console.error("App initialization failed:", error);
-});
+initializeApp()
+  .then(() => {
+    app.mount("#app");
+  })
+  .catch((error) => {
+    console.error("App initialization failed:", error);
+    app.mount("#app");
+  });

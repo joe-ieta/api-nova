@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -31,6 +32,7 @@ export class RuntimeAssetsController {
   constructor(private readonly runtimeAssetsService: RuntimeAssetsService) {}
 
   @Get()
+  @SkipThrottle()
   @RequirePermissions('server:read')
   @ApiOperation({ summary: 'List runtime assets' })
   async listRuntimeAssets(@Query() query: RuntimeAssetQueryDto) {
@@ -38,6 +40,7 @@ export class RuntimeAssetsController {
   }
 
   @Get(':id')
+  @SkipThrottle()
   @RequirePermissions('server:read')
   @ApiOperation({ summary: 'Get runtime asset detail' })
   async getRuntimeAssetDetail(@Param('id') id: string) {
@@ -45,6 +48,7 @@ export class RuntimeAssetsController {
   }
 
   @Get(':id/memberships')
+  @SkipThrottle()
   @RequirePermissions('server:read')
   @ApiOperation({ summary: 'List runtime asset memberships' })
   async listRuntimeAssetMemberships(@Param('id') id: string) {
@@ -52,6 +56,7 @@ export class RuntimeAssetsController {
   }
 
   @Get(':id/mcp-assembly')
+  @SkipThrottle()
   @RequirePermissions('server:read')
   @ApiOperation({ summary: 'Assemble MCP payload for one runtime asset' })
   async getMcpAssembly(@Param('id') id: string) {
@@ -59,6 +64,7 @@ export class RuntimeAssetsController {
   }
 
   @Get(':id/gateway-assembly')
+  @SkipThrottle()
   @RequirePermissions('server:read')
   @ApiOperation({ summary: 'Assemble gateway payload for one runtime asset' })
   async getGatewayAssembly(
@@ -72,6 +78,7 @@ export class RuntimeAssetsController {
   }
 
   @Get(':id/observability')
+  @SkipThrottle()
   @RequirePermissions('monitoring:read')
   @ApiOperation({ summary: 'Get runtime asset observability summary' })
   async getRuntimeAssetObservability(@Param('id') id: string) {
@@ -79,6 +86,7 @@ export class RuntimeAssetsController {
   }
 
   @Get(':id/access-logs')
+  @SkipThrottle()
   @RequirePermissions('monitoring:read')
   @ApiOperation({ summary: 'List gateway access logs for one runtime asset' })
   async listRuntimeAssetAccessLogs(
@@ -92,6 +100,7 @@ export class RuntimeAssetsController {
   }
 
   @Get(':id/gateway-consumer-credentials')
+  @SkipThrottle()
   @RequirePermissions('server:read')
   @ApiOperation({ summary: 'List gateway consumer credentials for one runtime asset' })
   async listGatewayConsumerCredentials(

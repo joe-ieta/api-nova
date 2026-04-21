@@ -264,6 +264,7 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { level?: string[]; runtimeAssetId?: string } = {},
   ) {
+    data = data || {};
     const runtimeAssetId = data.runtimeAssetId;
     const room = runtimeAssetId ? `runtime-events-${runtimeAssetId}` : 'runtime-events';
 

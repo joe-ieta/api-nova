@@ -10,6 +10,7 @@ import openapi from "./modules/openapi";
 import servers from "./modules/servers";
 import tester from "./modules/tester";
 import time from "./modules/time";
+import uiOverrides from "./modules/ui-overrides";
 import userAuth from "./modules/user-auth";
 
 const enUS = mergeLocaleMessages(
@@ -24,6 +25,7 @@ const enUS = mergeLocaleMessages(
   openapi,
   tester,
   time,
+  uiOverrides,
   userAuth,
 );
 

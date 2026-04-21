@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUserId } from '../security/decorators/current-user.decorator';
 import { RequirePermissions } from '../security/decorators/permissions.decorator';
@@ -28,6 +29,7 @@ export class PublicationController {
   constructor(private readonly publicationService: PublicationService) {}
 
   @Get('candidates')
+  @SkipThrottle()
   @RequirePermissions('server:read')
   @ApiOperation({ summary: 'List publication candidates from governance-ready endpoint catalog' })
   async listPublicationCandidates(@Query() query: PublicationCandidateQueryDto) {
@@ -35,6 +37,7 @@ export class PublicationController {
   }
 
   @Get('runtime-memberships')
+  @SkipThrottle()
   @RequirePermissions('server:read')
   @ApiOperation({ summary: 'List publication runtime memberships' })
   async listRuntimeMemberships(@Query() query: PublicationMembershipQueryDto) {
@@ -42,6 +45,7 @@ export class PublicationController {
   }
 
   @Get('audit-events')
+  @SkipThrottle()
   @RequirePermissions('audit:read')
   @ApiOperation({ summary: 'List publication audit events' })
   async listPublicationAuditEvents(@Query() query: PublicationAuditQueryDto) {
@@ -49,6 +53,7 @@ export class PublicationController {
   }
 
   @Get('batch-runs')
+  @SkipThrottle()
   @RequirePermissions('audit:read')
   @ApiOperation({ summary: 'List publication batch runs' })
   async listPublicationBatchRuns(@Query() query: PublicationBatchRunQueryDto) {
@@ -81,6 +86,7 @@ export class PublicationController {
   }
 
   @Get('runtime-memberships/:membershipId')
+  @SkipThrottle()
   @RequirePermissions('server:read')
   @ApiOperation({ summary: 'Get runtime membership publication state' })
   async getRuntimeMembershipPublicationState(@Param('membershipId') membershipId: string) {

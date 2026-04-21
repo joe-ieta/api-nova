@@ -16,7 +16,7 @@ import {
   ProcessManagerConfig,
   DEFAULT_PROCESS_CONFIG
 } from '../interfaces/process.interface';
-import { MCPServerEntity, TransportType } from '../../../database/entities/mcp-server.entity';
+import { MCPServerEntity, ServerStatus, TransportType } from '../../../database/entities/mcp-server.entity';
 import { TelemetryModeMap, TelemetryMode } from '../interfaces/observability.interface';
 
 @Injectable()
@@ -102,7 +102,13 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`Starting health check for server ${serverId}`);
 
     // 立即执行一次健康检查
-    await this.performHealthCheck(serverId);
+    const initialResult = await this.performHealthCheck(serverId);
+    if (!this.shouldKeepHealthCheckRunning(initialResult)) {
+      this.logger.warn(
+        `Skipping recurring health checks for server ${serverId} because the process is unavailable`,
+      );
+      return;
+    }
 
     // 设置定期健康检查
     const interval = setInterval(async () => {
@@ -134,42 +140,41 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
     let result: HealthCheckResult;
 
     try {
-      // 获取进程信息
-      const processInfo = this.processManager.getProcessInfo(serverId);
-      if (!processInfo || processInfo.status !== ProcessStatus.RUNNING) {
-        this.stopHealthCheck(serverId);
-        throw new Error(`Process not running for server ${serverId}`);
-      }
-
-      // 获取服务器配置
       const server = await this.serverRepository.findOne({ where: { id: serverId } });
-      
       if (!server) {
         throw new Error(`Server configuration not found for ${serverId}`);
       }
 
-      // 根据传输类型执行不同的健康检查
-      const healthCheckResult = await this.checkServerHealth(server, processInfo);
-      const responseTime = Date.now() - startTime;
+      // 获取进程信息
+      const processInfo = this.processManager.getProcessInfo(serverId);
+      if (!processInfo || processInfo.status !== ProcessStatus.RUNNING) {
+        this.stopHealthCheck(serverId);
+        result = await this.performDetachedHealthCheck(server, startTime);
+      } else {
+        // 根据传输类型执行不同的健康检查
+        const healthCheckResult = await this.checkServerHealth(server, processInfo);
+        const responseTime = Date.now() - startTime;
 
-      result = {
-        healthy: healthCheckResult.healthy,
-        responseTime,
-        status: healthCheckResult.status,
-        data: healthCheckResult.data,
-        lastCheck: new Date(),
-        memoryUsage: processInfo.memoryUsage,
-        cpuUsage: processInfo.cpuUsage,
-        telemetry: {
-          healthy: TelemetryMode.DERIVED,
-          responseTime: TelemetryMode.MEASURED,
-          memoryUsage: processInfo.memoryUsage ? TelemetryMode.DERIVED : TelemetryMode.UNAVAILABLE,
-          cpuUsage: processInfo.cpuUsage ? TelemetryMode.DERIVED : TelemetryMode.UNAVAILABLE,
-        },
-      };
+        result = {
+          healthy: healthCheckResult.healthy,
+          responseTime,
+          status: healthCheckResult.status,
+          data: healthCheckResult.data,
+          lastCheck: new Date(),
+          memoryUsage: processInfo.memoryUsage,
+          cpuUsage: processInfo.cpuUsage,
+          error: healthCheckResult.error,
+          telemetry: {
+            healthy: TelemetryMode.DERIVED,
+            responseTime: TelemetryMode.MEASURED,
+            memoryUsage: processInfo.memoryUsage ? TelemetryMode.DERIVED : TelemetryMode.UNAVAILABLE,
+            cpuUsage: processInfo.cpuUsage ? TelemetryMode.DERIVED : TelemetryMode.UNAVAILABLE,
+          },
+        };
 
-      // 更新进程内存和CPU使用情况
-      await this.updateProcessMetrics(processInfo);
+        // 更新进程内存和CPU使用情况
+        await this.updateProcessMetrics(processInfo);
+      }
 
     } catch (error) {
       const responseTime = Date.now() - startTime;
@@ -187,7 +192,11 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
         },
       };
 
-      this.logger.error(`Health check failed for server ${serverId}:`, error);
+      if (this.isProcessUnavailableMessage(error.message)) {
+        this.logger.warn(`Health check skipped for server ${serverId}: ${error.message}`);
+      } else {
+        this.logger.error(`Health check failed for server ${serverId}:`, error);
+      }
     }
 
     // 保存健康检查结果
@@ -219,6 +228,56 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
     }
 
     return result;
+  }
+
+  private shouldKeepHealthCheckRunning(result: HealthCheckResult) {
+    return !this.isProcessUnavailableMessage(result.error);
+  }
+
+  private isProcessUnavailableMessage(message?: string) {
+    if (!message) {
+      return false;
+    }
+
+    return message.includes('Process not running') || message.includes('No PID found');
+  }
+
+  private async performDetachedHealthCheck(
+    server: MCPServerEntity,
+    startTime: number,
+  ): Promise<HealthCheckResult> {
+    const endpoint = server.endpoint || `http://localhost:${server.port}/health`;
+    const fallbackResult = await this.httpHealthCheck(endpoint);
+
+    if (fallbackResult.healthy) {
+      this.logger.warn(
+        `Process info missing for server ${server.id}, but endpoint health check passed at ${endpoint}`,
+      );
+      return {
+        ...fallbackResult,
+        responseTime: Date.now() - startTime,
+      };
+    }
+
+    await this.serverRepository.update(server.id, {
+      status: ServerStatus.STOPPED,
+      healthy: false,
+      errorMessage: 'Process not running',
+      lastHealthCheck: new Date(),
+    });
+
+    return {
+      healthy: false,
+      responseTime: Date.now() - startTime,
+      error: `Process not running for server ${server.id}`,
+      lastCheck: new Date(),
+      telemetry: {
+        healthy: TelemetryMode.DERIVED,
+        responseTime: TelemetryMode.MEASURED,
+        memoryUsage: TelemetryMode.UNAVAILABLE,
+        cpuUsage: TelemetryMode.UNAVAILABLE,
+      },
+    };
   }
 
   /**

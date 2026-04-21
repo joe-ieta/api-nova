@@ -1,4 +1,5 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -31,6 +32,7 @@ export class MonitoringController {
   ) {}
 
   @Get('metrics')
+  @SkipThrottle()
   @RequirePermissions('monitoring:read')
   @ApiOperation({ summary: 'Get monitoring metrics' })
   @ApiResponse({ status: 200, description: 'Monitoring metrics', type: MonitoringApiEnvelopeDto })
@@ -47,6 +49,7 @@ export class MonitoringController {
   }
 
   @Get('health')
+  @SkipThrottle()
   @RequirePermissions('monitoring:read')
   @ApiOperation({ summary: 'Get monitoring health status' })
   @ApiResponse({ status: 200, description: 'Monitoring health status', type: MonitoringApiEnvelopeDto })
@@ -63,6 +66,7 @@ export class MonitoringController {
   }
 
   @Get('events')
+  @SkipThrottle()
   @RequirePermissions('monitoring:read')
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of events' })
   @ApiOperation({ summary: 'Get recent runtime events' })
@@ -77,6 +81,7 @@ export class MonitoringController {
   }
 
   @Get('events/errors')
+  @SkipThrottle()
   @RequirePermissions('monitoring:read')
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Maximum number of events' })
   @ApiOperation({ summary: 'Get recent error events' })
@@ -91,6 +96,7 @@ export class MonitoringController {
   }
 
   @Get('management/overview')
+  @SkipThrottle()
   @RequirePermissions('monitoring:read')
   @ApiQuery({ name: 'days', required: false, type: Number, description: 'Audit statistics range in days' })
   @ApiQuery({ name: 'eventLimit', required: false, type: Number, description: 'Maximum number of recent items' })
@@ -110,6 +116,7 @@ export class MonitoringController {
   }
 
   @Get('management/events')
+  @SkipThrottle()
   @RequirePermissions('monitoring:read')
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Page size' })
@@ -137,6 +144,7 @@ export class MonitoringController {
   }
 
   @Get('management/audit')
+  @SkipThrottle()
   @RequirePermissions('audit:read')
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Page size' })
@@ -163,6 +171,7 @@ export class MonitoringController {
   }
 
   @Get('management/gateway-access-logs')
+  @SkipThrottle()
   @RequirePermissions('monitoring:read')
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Page size' })

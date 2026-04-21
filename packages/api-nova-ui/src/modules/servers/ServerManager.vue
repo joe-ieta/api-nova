@@ -147,6 +147,13 @@
                       <template #dropdown>
                         <el-dropdown-menu>
                           <el-dropdown-item
+                            v-if="isRuntimeAssetsSurface"
+                            :command="{ action: 'deploy', server }"
+                            :disabled="!canDeploy(server)"
+                          >
+                            {{ t("servers.runtimeAssetsActions.deployRuntime") }}
+                          </el-dropdown-item>
+                          <el-dropdown-item
                             :command="{ action: 'start', server }"
                             :disabled="!canStart(server)"
                           >
@@ -356,6 +363,18 @@
           >
             <template #default="{ row }">
               <div class="action-buttons-container">
+                <el-tooltip
+                  v-if="canDeploy(row)"
+                  :content="t('servers.runtimeAssetsActions.deployRuntime')"
+                  placement="top"
+                >
+                  <el-button
+                    class="action-btn start-btn"
+                    size="small"
+                    @click.stop="deployRuntime(row)"
+                    :icon="Refresh"
+                  />
+                </el-tooltip>
                 <el-tooltip
                   v-if="canStart(row)"
                   :content="isRuntimeAssetsSurface ? t('servers.runtimeAssetsActions.startRuntime') : t('servers.startServer')"
@@ -672,6 +691,10 @@ const isRunning = (server: MCPServer | RuntimeAssetListRow) =>
   server.status === "running";
 const canOperateAfterStop = (server: MCPServer | RuntimeAssetListRow) =>
   !isRunning(server) && !isTransitioning(server);
+const canDeploy = (server: MCPServer | RuntimeAssetListRow) =>
+  isRuntimeAssetsSurface.value &&
+  !isRuntimeAssetRowDeployed(server) &&
+  canOperateAfterStop(server);
 const canStart = (server: MCPServer | RuntimeAssetListRow) =>
   isRuntimeAssetRowDeployed(server) && canOperateAfterStop(server);
 const canStop = (server: MCPServer | RuntimeAssetListRow) =>
@@ -860,6 +883,9 @@ const handleServerAction = async ({
   console.log(action, server);
 
   switch (action) {
+    case "deploy":
+      await deployRuntime(server);
+      break;
     case "start":
       await startServer(server);
       break;
@@ -881,6 +907,27 @@ const handleServerAction = async ({
     case "delete":
       await deleteServer(server);
       break;
+  }
+};
+
+const deployRuntime = async (server: MCPServer | RuntimeAssetListRow) => {
+  if (!isRuntimeAssetsSurface.value) {
+    return;
+  }
+
+  try {
+    await measureFunction("deployRuntime", async () => {
+      const runtimeAsset = server as RuntimeAssetListRow;
+      if (runtimeAsset.runtimeAssetType === "gateway_service") {
+        await runtimeAssetsAPI.deployGatewayRuntimeAsset(server.id);
+      } else {
+        await runtimeAssetsAPI.deployMcpRuntimeAsset(server.id);
+      }
+    });
+    ElMessage.success(`Runtime asset "${server.name}" deployed`);
+    await refreshServers();
+  } catch (error) {
+    ElMessage.error(`Failed to deploy runtime asset: ${error}`);
   }
 };
 

@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -26,6 +27,7 @@ export class AssetCatalogController {
   constructor(private readonly assetCatalogService: AssetCatalogService) {}
 
   @Get('source-services')
+  @SkipThrottle()
   @RequirePermissions('server:read')
   @ApiOperation({ summary: 'List source service assets' })
   @ApiResponse({ status: 200, description: 'Source service assets fetched successfully' })
@@ -34,6 +36,7 @@ export class AssetCatalogController {
   }
 
   @Get('source-services/:id')
+  @SkipThrottle()
   @RequirePermissions('server:read')
   @ApiOperation({ summary: 'Get source service asset detail' })
   async getSourceServiceAsset(@Param('id') id: string) {
@@ -41,6 +44,7 @@ export class AssetCatalogController {
   }
 
   @Get('endpoints')
+  @SkipThrottle()
   @RequirePermissions('server:read')
   @ApiOperation({ summary: 'List endpoint definitions' })
   async listEndpointDefinitions(@Query() query: EndpointCatalogQueryDto) {
@@ -48,6 +52,7 @@ export class AssetCatalogController {
   }
 
   @Get('endpoints/:id')
+  @SkipThrottle()
   @RequirePermissions('server:read')
   @ApiOperation({ summary: 'Get endpoint definition detail' })
   async getEndpointDefinition(@Param('id') id: string) {
@@ -62,6 +67,7 @@ export class AssetCatalogController {
   }
 
   @Get('endpoints/:id/readiness')
+  @SkipThrottle()
   @RequirePermissions('server:read')
   @ApiOperation({ summary: 'Get endpoint definition readiness' })
   async getEndpointDefinitionReadiness(@Param('id') id: string) {
@@ -69,6 +75,7 @@ export class AssetCatalogController {
   }
 
   @Get('endpoints/:id/testing-state')
+  @SkipThrottle()
   @RequirePermissions('server:read')
   @ApiOperation({ summary: 'Get endpoint definition testing state' })
   async getEndpointDefinitionTestingState(@Param('id') id: string) {

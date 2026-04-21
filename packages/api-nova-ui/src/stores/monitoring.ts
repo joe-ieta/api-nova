@@ -93,6 +93,10 @@ export const useMonitoringStore = defineStore("monitoring", () => {
 
   let refreshTimer: ReturnType<typeof setTimeout> | null = null;
   let pollingTimer: ReturnType<typeof setInterval> | null = null;
+  let refreshInFlight: Promise<void> | null = null;
+  let lastRefreshAt = 0;
+
+  const hasAuthToken = () => Boolean(localStorage.getItem("auth_token"));
 
   const metrics = computed(() =>
     metricsHistory.value.map(snapshot => ({
@@ -330,6 +334,14 @@ export const useMonitoringStore = defineStore("monitoring", () => {
   };
 
   async function fetchOverview() {
+    if (!hasAuthToken()) {
+      runtimeAssets.value = [];
+      overview.value = null;
+      runtimeEvents.value = [];
+      runtimeAudit.value = [];
+      logs.value = [];
+      return;
+    }
     loading.value = true;
     isLoading.value = true;
     error.value = null;
@@ -478,6 +490,10 @@ export const useMonitoringStore = defineStore("monitoring", () => {
   }
 
   async function fetchAudit(options?: { limit?: number; status?: string }) {
+    if (!hasAuthToken()) {
+      runtimeAudit.value = [];
+      return runtimeAudit.value;
+    }
     if (!managementApiAvailable.value) {
       runtimeAudit.value = [];
       return runtimeAudit.value;
@@ -512,6 +528,10 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     statusCode?: number;
     method?: string;
   }) {
+    if (!hasAuthToken()) {
+      gatewayAccessLogs.value = [];
+      return gatewayAccessLogs.value;
+    }
     if (!managementApiAvailable.value) {
       gatewayAccessLogs.value = [];
       return gatewayAccessLogs.value;
@@ -551,15 +571,32 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     refreshTimer = setTimeout(() => {
       refreshTimer = null;
       void refreshAll(reason);
-    }, 1200);
+    }, 4000);
   }
 
   async function refreshAll(_reason = "manual") {
-    await Promise.all([
+    const now = Date.now();
+    if (refreshInFlight) {
+      await refreshInFlight;
+      return;
+    }
+
+    if (_reason !== "manual" && now - lastRefreshAt < 4000) {
+      return;
+    }
+
+    refreshInFlight = Promise.all([
       fetchOverview(),
       fetchAudit({ limit: 50 }),
       fetchGatewayAccessLogs({ limit: 20 }),
-    ]);
+    ]).then(() => undefined);
+
+    try {
+      await refreshInFlight;
+      lastRefreshAt = Date.now();
+    } finally {
+      refreshInFlight = null;
+    }
   }
 
   function connectWebSocket() {
