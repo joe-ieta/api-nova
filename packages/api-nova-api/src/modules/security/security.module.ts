@@ -80,6 +80,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     AuditController,
   ],
   exports: [
+    JwtModule,
     UserService,
     RoleService,
     PermissionService,

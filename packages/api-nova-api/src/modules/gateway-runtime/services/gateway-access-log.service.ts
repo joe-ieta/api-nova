@@ -23,6 +23,7 @@ export class GatewayAccessLogService {
     upstreamUrl?: string;
     proxyResult?: GatewayProxyResult;
     latencyMs: number;
+    statusCode?: number;
     errorMessage?: string;
   }) {
     try {
@@ -41,10 +42,13 @@ export class GatewayAccessLogService {
         method: input.req.method,
         routePath: input.resolvedRoute.routeBinding.routePath,
         upstreamUrl: input.upstreamUrl,
-        statusCode: input.proxyResult?.statusCode,
+        statusCode: input.proxyResult?.statusCode ?? input.statusCode,
         latencyMs: input.latencyMs,
         clientIp: this.ip(input.req),
         actorId: this.resolveActorId(input.req),
+        authMode: this.resolveAuthMode(input.req),
+        consumerId: this.resolveConsumerId(input.req),
+        credentialKeyId: this.resolveCredentialKeyId(input.req),
         requestContentType: this.headerValue(input.req.headers['content-type']),
         responseContentType: this.headerValue(input.proxyResult?.headers?.['content-type']),
         requestBytes:
@@ -67,6 +71,42 @@ export class GatewayAccessLogService {
       await this.gatewayAccessLogRepository.save(entity);
     } catch (error: any) {
       this.logger.warn(`Failed to persist gateway access log: ${error.message}`);
+    }
+  }
+
+  async recordUnmatchedRequest(input: {
+    requestId: string;
+    correlationId?: string;
+    req: Request;
+    routePath: string;
+    latencyMs: number;
+    statusCode: number;
+    errorMessage: string;
+  }) {
+    try {
+      const entity = this.gatewayAccessLogRepository.create({
+        requestId: input.requestId,
+        correlationId: input.correlationId,
+        method: input.req.method,
+        routePath: input.routePath,
+        statusCode: input.statusCode,
+        latencyMs: input.latencyMs,
+        clientIp: this.ip(input.req),
+        actorId: this.resolveActorId(input.req),
+        authMode: this.resolveAuthMode(input.req),
+        consumerId: this.resolveConsumerId(input.req),
+        credentialKeyId: this.resolveCredentialKeyId(input.req),
+        requestContentType: this.headerValue(input.req.headers['content-type']),
+        requestBytes: this.numericHeaderValue(input.req.headers['content-length']),
+        requestHeaders: this.normalizeHeaders(input.req.headers),
+        requestQuery: (input.req.query || {}) as Record<string, unknown>,
+        captureMode: 'meta_only',
+        errorMessage: input.errorMessage,
+      });
+
+      await this.gatewayAccessLogRepository.save(entity);
+    } catch (error: any) {
+      this.logger.warn(`Failed to persist unmatched gateway access log: ${error.message}`);
     }
   }
 
@@ -183,6 +223,21 @@ export class GatewayAccessLogService {
   private resolveActorId(req: Request) {
     const user = (req as Request & { user?: { id?: string; userId?: string } }).user;
     return user?.id || user?.userId;
+  }
+
+  private resolveAuthMode(req: Request) {
+    const auth = (req as Request & { gatewayAuth?: { mode?: string } }).gatewayAuth;
+    return auth?.mode;
+  }
+
+  private resolveConsumerId(req: Request) {
+    const auth = (req as Request & { gatewayAuth?: { consumerId?: string } }).gatewayAuth;
+    return auth?.consumerId;
+  }
+
+  private resolveCredentialKeyId(req: Request) {
+    const auth = (req as Request & { gatewayAuth?: { keyId?: string } }).gatewayAuth;
+    return auth?.keyId;
   }
 
   private resolveCaptureMode(

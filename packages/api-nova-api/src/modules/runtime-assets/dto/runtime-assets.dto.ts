@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsEnum,
   IsBoolean,
   IsNumber,
   IsOptional,
@@ -9,6 +10,7 @@ import {
 } from 'class-validator';
 import { RuntimeAssetStatus, RuntimeAssetType } from '../../../database/entities/runtime-asset.entity';
 import { TransportType } from '../../../database/entities/mcp-server.entity';
+import { GatewayConsumerCredentialStatus } from '../../../database/entities/gateway-consumer-credential.entity';
 
 export class RuntimeAssetQueryDto {
   @ApiPropertyOptional({ enum: RuntimeAssetType })
@@ -85,4 +87,48 @@ export class UpdateRuntimeAssetPolicyDto {
   @IsOptional()
   @IsString()
   policyBindingRef?: string;
+}
+
+export class GatewayConsumerCredentialQueryDto {
+  @ApiPropertyOptional({ description: 'Optional route binding scope filter' })
+  @IsOptional()
+  @IsString()
+  routeBindingId?: string;
+
+  @ApiPropertyOptional({ enum: GatewayConsumerCredentialStatus })
+  @IsOptional()
+  @IsEnum(GatewayConsumerCredentialStatus)
+  status?: GatewayConsumerCredentialStatus;
+}
+
+export class CreateGatewayConsumerCredentialDto {
+  @ApiPropertyOptional()
+  @IsString()
+  name: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  label?: string;
+
+  @ApiPropertyOptional({ description: 'Optional explicit key id' })
+  @IsOptional()
+  @IsString()
+  keyId?: string;
+
+  @ApiPropertyOptional({ description: 'Optional route binding scope' })
+  @IsOptional()
+  @IsString()
+  routeBindingId?: string;
+
+  @ApiPropertyOptional({ type: 'object' })
+  @IsOptional()
+  metadata?: Record<string, unknown>;
+}
+
+export class RevokeGatewayConsumerCredentialDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }

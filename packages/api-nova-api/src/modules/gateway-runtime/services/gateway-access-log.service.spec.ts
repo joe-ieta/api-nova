@@ -41,6 +41,11 @@ describe('GatewayAccessLogService', () => {
         query: { include: 'owner' },
         ip: '127.0.0.1',
         user: { id: 'user-1' },
+        gatewayAuth: {
+          mode: 'api_key',
+          consumerId: 'consumer-1',
+          keyId: 'key-live',
+        },
       } as any,
       upstreamUrl: 'https://api.example.com/pets',
       proxyResult: {
@@ -76,6 +81,9 @@ describe('GatewayAccessLogService', () => {
           'set-cookie': '[REDACTED]',
         }),
         actorId: 'user-1',
+        authMode: 'api_key',
+        consumerId: 'consumer-1',
+        credentialKeyId: 'key-live',
         requestBodyPreview: '{"ok":true}',
         responseBodyPreview: '{"result":true}',
       }),
@@ -107,6 +115,42 @@ describe('GatewayAccessLogService', () => {
       expect.objectContaining({
         captureMode: 'body_on_error',
         errorMessage: 'Gateway upstream timeout after 20ms',
+      }),
+    );
+  });
+
+  it('records unmatched gateway requests without runtime asset context', async () => {
+    const { service, repository } = buildService();
+
+    await service.recordUnmatchedRequest({
+      requestId: 'req-miss',
+      correlationId: 'corr-miss',
+      req: {
+        method: 'GET',
+        headers: {
+          host: 'gateway.local',
+        },
+        query: { page: '1' },
+        gatewayAuth: {
+          mode: 'anonymous',
+        },
+        ip: '127.0.0.1',
+      } as any,
+      routePath: '/missing',
+      latencyMs: 2,
+      statusCode: 404,
+      errorMessage: 'No active gateway route for GET /missing',
+    });
+
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: 'req-miss',
+        correlationId: 'corr-miss',
+        routePath: '/missing',
+        statusCode: 404,
+        authMode: 'anonymous',
+        captureMode: 'meta_only',
+        errorMessage: 'No active gateway route for GET /missing',
       }),
     );
   });

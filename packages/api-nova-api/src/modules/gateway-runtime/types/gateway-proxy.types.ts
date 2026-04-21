@@ -5,4 +5,5 @@ export type GatewayProxyResult = {
   headers: Record<string, string | string[] | undefined>;
   requestCapture?: GatewayPayloadCapture;
   responseCapture?: GatewayPayloadCapture;
+  responseBodyBuffer?: Buffer;
 };

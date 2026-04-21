@@ -18,8 +18,14 @@ export enum GatewayRouteBindingStatus {
   OFFLINE = 'offline',
 }
 
+export enum GatewayRoutePathMatchMode {
+  EXACT = 'exact',
+  PREFIX = 'prefix',
+  PARAMETER = 'parameter',
+}
+
 @Entity('gateway_route_bindings')
-@Index(['routePath', 'routeMethod'], { unique: true })
+@Index(['matchHost', 'routePath', 'routeMethod'], { unique: true })
 @Index(['endpointDefinitionId'])
 @Index(['runtimeAssetEndpointBindingId'])
 @Index(['status'])
@@ -39,6 +45,18 @@ export class GatewayRouteBindingEntity {
   @Column({ type: 'varchar', length: 255 })
   routePath: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  matchHost?: string;
+
+  @Column({
+    ...getEnumColumnOptions(process.env.DB_TYPE, GatewayRoutePathMatchMode),
+    default: GatewayRoutePathMatchMode.EXACT,
+  })
+  pathMatchMode: GatewayRoutePathMatchMode;
+
+  @Column({ type: 'int', default: 0 })
+  priority: number;
+
   @Column({ type: 'varchar', length: 255 })
   upstreamPath: string;
 
@@ -57,11 +75,29 @@ export class GatewayRouteBindingEntity {
   @Column({ type: 'varchar', length: 100, nullable: true })
   trafficPolicyRef?: string;
 
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  loggingPolicyRef?: string;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  cachePolicyRef?: string;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  rateLimitPolicyRef?: string;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  circuitBreakerPolicyRef?: string;
+
   @Column({ type: 'int', nullable: true })
   timeoutMs?: number;
 
   @Column(getJsonColumnOptions(process.env.DB_TYPE, { nullable: true }))
   retryPolicy?: Record<string, unknown>;
+
+  @Column(getJsonColumnOptions(process.env.DB_TYPE, { nullable: true }))
+  upstreamConfig?: Record<string, unknown>;
+
+  @Column({ type: 'text', nullable: true })
+  routeStatusReason?: string;
 
   @Column({
     ...getEnumColumnOptions(process.env.DB_TYPE, GatewayRouteBindingStatus),

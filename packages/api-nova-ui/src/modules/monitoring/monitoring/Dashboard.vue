@@ -67,6 +67,37 @@
       </el-col>
     </el-row>
 
+    <el-row :gutter="16" class="summary-row">
+      <el-col :span="6">
+        <MetricCard
+          :title="t('monitoring.dashboard.governance.gatewayAssets')"
+          :value="governanceMetrics.gatewayAssetCount"
+          icon="server"
+        />
+      </el-col>
+      <el-col :span="6">
+        <MetricCard
+          :title="t('monitoring.dashboard.governance.cacheRoutes')"
+          :value="governanceMetrics.cacheEnabledRoutes"
+          icon="disk"
+        />
+      </el-col>
+      <el-col :span="6">
+        <MetricCard
+          :title="t('monitoring.dashboard.governance.rateLimitedRoutes')"
+          :value="governanceMetrics.rateLimitedRoutes"
+          icon="network"
+        />
+      </el-col>
+      <el-col :span="6">
+        <MetricCard
+          :title="t('monitoring.dashboard.governance.breakerRoutes')"
+          :value="governanceMetrics.breakerProtectedRoutes"
+          icon="memory"
+        />
+      </el-col>
+    </el-row>
+
     <div class="overview-section">
       <el-row :gutter="16">
         <el-col :span="8">
@@ -90,7 +121,20 @@
           <template #header>
             <div class="section-header">
               <span>{{ t("monitoring.dashboard.recentRuntimeEvents") }}</span>
-              <el-tag size="small" type="info">{{ runtimeEvents.length }}</el-tag>
+              <div class="header-tags">
+                <el-tag size="small" type="danger">
+                  {{ t("monitoring.dashboard.events.authRejected", { count: governanceEventSummary.authRejected }) }}
+                </el-tag>
+                <el-tag size="small" type="warning">
+                  {{ t("monitoring.dashboard.events.rateLimited", { count: governanceEventSummary.rateLimited }) }}
+                </el-tag>
+                <el-tag size="small" type="info">
+                  {{ t("monitoring.dashboard.events.breakerOpened", { count: governanceEventSummary.breakerOpened }) }}
+                </el-tag>
+                <el-tag size="small" type="success">
+                  {{ t("monitoring.dashboard.events.cacheHits", { count: governanceEventSummary.cacheHits }) }}
+                </el-tag>
+              </div>
             </div>
           </template>
 
@@ -153,6 +197,26 @@
                 {{ row.runtimeSummary?.membershipCount || row.membershipCount || 0 }}
               </template>
             </el-table-column>
+            <el-table-column :label="t('monitoring.dashboard.governanceLabel')" min-width="260">
+              <template #default="{ row }">
+                <div v-if="row.asset?.type === 'gateway_service'" class="governance-cell">
+                  <div class="governance-line">
+                    <el-tag size="small" type="info">
+                      {{ t("monitoring.dashboard.governance.routes", { count: row.runtimeSummary?.gatewayGovernance?.totalRoutes ?? 0 }) }}
+                    </el-tag>
+                    <el-tag size="small" type="success">
+                      {{ t("monitoring.dashboard.governance.cacheHits", { count: row.runtimeSummary?.gatewayMetrics?.cacheHitCount ?? 0 }) }}
+                    </el-tag>
+                  </div>
+                  <div class="governance-text">
+                    {{ summarizeGovernance(row.runtimeSummary?.gatewayGovernance) }}
+                  </div>
+                </div>
+                <span v-else class="governance-text">
+                  {{ t("monitoring.dashboard.notApplicable") }}
+                </span>
+              </template>
+            </el-table-column>
           </el-table>
         </el-card>
       </el-col>
@@ -186,9 +250,58 @@
 
     <el-card class="logs-card">
       <template #header>
-        <div class="section-header">
-          <span>{{ t("monitoring.dashboard.gatewayAccessLogs") }}</span>
-          <el-tag size="small" type="info">{{ gatewayAccessLogs.length }}</el-tag>
+        <div class="logs-header">
+          <div class="section-header">
+            <span>{{ t("monitoring.dashboard.gatewayAccessLogs") }}</span>
+            <el-tag size="small" type="info">{{ gatewayAccessLogs.length }}</el-tag>
+          </div>
+          <div class="filter-row">
+            <el-select
+              v-model="gatewayLogFilters.runtimeAssetId"
+              clearable
+              size="small"
+              :placeholder="t('monitoring.dashboard.filters.runtimeAsset')"
+              @change="applyGatewayLogFilters"
+            >
+              <el-option
+                v-for="asset in gatewayRuntimeAssets"
+                :key="asset.asset?.id"
+                :label="asset.asset?.displayName || asset.asset?.name || asset.asset?.id"
+                :value="asset.asset?.id"
+              />
+            </el-select>
+            <el-select
+              v-model="gatewayLogFilters.method"
+              clearable
+              size="small"
+              :placeholder="t('monitoring.dashboard.filters.method')"
+              @change="applyGatewayLogFilters"
+            >
+              <el-option
+                v-for="method in gatewayLogMethodOptions"
+                :key="method"
+                :label="method"
+                :value="method"
+              />
+            </el-select>
+            <el-select
+              v-model="gatewayLogFilters.statusCode"
+              clearable
+              size="small"
+              :placeholder="t('monitoring.dashboard.filters.statusCode')"
+              @change="applyGatewayLogFilters"
+            >
+              <el-option
+                v-for="status in gatewayLogStatusOptions"
+                :key="status"
+                :label="String(status)"
+                :value="status"
+              />
+            </el-select>
+            <el-button size="small" @click="resetGatewayLogFilters">
+              {{ t("monitoring.dashboard.filters.reset") }}
+            </el-button>
+          </div>
         </div>
       </template>
 
@@ -232,6 +345,11 @@ const websocketStore = useWebSocketStore();
 const { t, locale } = useI18n();
 const autoRefresh = ref(true);
 const isRefreshing = ref(false);
+const gatewayLogFilters = ref<{
+  runtimeAssetId?: string;
+  method?: string;
+  statusCode?: number;
+}>({});
 
 let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -240,6 +358,9 @@ const runtimeEvents = computed(() => monitoringStore.runtimeEvents.slice(0, 20))
 const runtimeAssets = computed(() => monitoringStore.runtimeAssets.slice(0, 20));
 const logs = computed(() => monitoringStore.filteredLogs.slice(0, 20));
 const gatewayAccessLogs = computed(() => monitoringStore.gatewayAccessLogs.slice(0, 20));
+const gatewayRuntimeAssets = computed(() =>
+  runtimeAssets.value.filter((item: any) => item?.asset?.type === "gateway_service"),
+);
 
 const summaryMetrics = computed(() => ({
   totalRuntimeAssets: Number(monitoringStore.systemMetrics?.totalRuntimeAssets || 0),
@@ -251,6 +372,63 @@ const summaryMetrics = computed(() => ({
     monitoringStore.systemMetrics?.unhealthyRuntimeAssets || 0,
   ),
 }));
+
+const governanceMetrics = computed(() => {
+  const gatewayAssets = gatewayRuntimeAssets.value;
+  return gatewayAssets.reduce(
+    (summary: any, item: any) => {
+      const governance = item?.runtimeSummary?.gatewayGovernance || {};
+      const metrics = item?.runtimeSummary?.gatewayMetrics || {};
+      summary.gatewayAssetCount += 1;
+      summary.cacheEnabledRoutes += Number(governance.cacheEnabledRoutes || 0);
+      summary.rateLimitedRoutes += Number(governance.rateLimitedRoutes || 0);
+      summary.breakerProtectedRoutes += Number(governance.breakerProtectedRoutes || 0);
+      summary.cacheHitCount += Number(metrics.cacheHitCount || 0);
+      summary.cacheMissCount += Number(metrics.cacheMissCount || 0);
+      return summary;
+    },
+    {
+      gatewayAssetCount: 0,
+      cacheEnabledRoutes: 0,
+      rateLimitedRoutes: 0,
+      breakerProtectedRoutes: 0,
+      cacheHitCount: 0,
+      cacheMissCount: 0,
+    },
+  );
+});
+const governanceEventSummary = computed(() =>
+  runtimeEvents.value.reduce(
+    (summary: any, event: any) => {
+      const eventName = String(event?.eventName || "").toLowerCase();
+      if (eventName.includes("auth_rejected")) {
+        summary.authRejected += 1;
+      }
+      if (eventName.includes("rate_limit_rejected")) {
+        summary.rateLimited += 1;
+      }
+      if (eventName.includes("breaker_open")) {
+        summary.breakerOpened += 1;
+      }
+      if (eventName.includes("cache_hit")) {
+        summary.cacheHits += 1;
+      }
+      if (eventName.includes("cache_miss")) {
+        summary.cacheMisses += 1;
+      }
+      return summary;
+    },
+    {
+      authRejected: 0,
+      rateLimited: 0,
+      breakerOpened: 0,
+      cacheHits: 0,
+      cacheMisses: 0,
+    },
+  ),
+);
+const gatewayLogMethodOptions = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"];
+const gatewayLogStatusOptions = [200, 201, 204, 400, 401, 403, 404, 429, 500, 502, 503, 504];
 
 const systemStatusData = computed(() => ({
   status: monitoringStore.systemHealth.status,
@@ -337,15 +515,44 @@ function formatDateTime(value: Date | string) {
   return new Date(value).toLocaleString(locale.value);
 }
 
+function summarizeGovernance(governance?: any) {
+  if (!governance) {
+    return t("monitoring.dashboard.notApplicable");
+  }
+
+  const authModes = governance.authModes || {};
+  return t("monitoring.dashboard.governance.summaryText", {
+    jwt: Number(authModes.jwt || 0),
+    apiKey: Number(authModes.apiKey || authModes.api_key || 0),
+    anonymous: Number(authModes.anonymous || 0),
+    rateLimited: Number(governance.rateLimitedRoutes || 0),
+    breaker: Number(governance.breakerProtectedRoutes || 0),
+  });
+}
+
 async function handleRefresh() {
   isRefreshing.value = true;
   try {
-    await monitoringStore.refreshAll("dashboard");
+    await refreshDashboard("dashboard");
   } catch (error) {
     ElMessage.error(t("monitoring.dashboard.refreshFailed"));
   } finally {
     isRefreshing.value = false;
   }
+}
+
+async function applyGatewayLogFilters() {
+  await monitoringStore.fetchGatewayAccessLogs({
+    limit: 20,
+    runtimeAssetId: gatewayLogFilters.value.runtimeAssetId,
+    method: gatewayLogFilters.value.method,
+    statusCode: gatewayLogFilters.value.statusCode,
+  });
+}
+
+async function resetGatewayLogFilters() {
+  gatewayLogFilters.value = {};
+  await applyGatewayLogFilters();
 }
 
 function handleAutoRefreshChange(enabled: boolean) {
@@ -370,6 +577,11 @@ function exportLogs() {
   void monitoringStore.exportLogs("csv");
 }
 
+async function refreshDashboard(reason = "manual") {
+  await monitoringStore.refreshAll(reason);
+  await applyGatewayLogFilters();
+}
+
 function resetAutoRefresh() {
   if (autoRefreshTimer) {
     clearInterval(autoRefreshTimer);
@@ -377,14 +589,14 @@ function resetAutoRefresh() {
   }
   if (autoRefresh.value) {
     autoRefreshTimer = setInterval(() => {
-      void monitoringStore.refreshAll("auto");
+      void refreshDashboard("auto");
     }, monitoringStore.config.refreshInterval);
   }
 }
 
 onMounted(async () => {
   await websocketStore.initialize();
-  await monitoringStore.refreshAll("mount");
+  await refreshDashboard("mount");
   resetAutoRefresh();
 });
 
@@ -444,14 +656,50 @@ onBeforeUnmount(() => {
   justify-content: space-between;
 }
 
+.header-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .asset-name {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
+.governance-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.governance-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.governance-text {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .logs-card {
   margin-bottom: 24px;
+}
+
+.logs-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 @media (max-width: 960px) {
@@ -459,6 +707,10 @@ onBeforeUnmount(() => {
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;
+  }
+
+  .filter-row {
+    flex-direction: column;
   }
 }
 </style>

@@ -22,6 +22,7 @@ import { PublicationAuditEventEntity } from './entities/publication-audit-event.
 import { EndpointPublishBindingEntity } from './entities/endpoint-publish-binding.entity';
 import { GatewayRouteBindingEntity } from './entities/gateway-route-binding.entity';
 import { GatewayAccessLogEntity } from './entities/gateway-access-log.entity';
+import { GatewayConsumerCredentialEntity } from './entities/gateway-consumer-credential.entity';
 import { RuntimeMetricSeriesEntity } from './entities/runtime-metric-series.entity';
 import { RuntimeObservabilityEventEntity } from './entities/runtime-observability-event.entity';
 import { RuntimeObservabilityStateEntity } from './entities/runtime-observability-state.entity';
@@ -52,6 +53,7 @@ const entities = [
   EndpointPublishBindingEntity,
   GatewayRouteBindingEntity,
   GatewayAccessLogEntity,
+  GatewayConsumerCredentialEntity,
   RuntimeObservabilityEventEntity,
   RuntimeMetricSeriesEntity,
   RuntimeObservabilityStateEntity,

@@ -1651,6 +1651,51 @@ export const runtimeAssetsAPI = {
     return response.data;
   },
 
+  async listGatewayConsumerCredentials(
+    id: string,
+    params?: {
+      routeBindingId?: string;
+      status?: string;
+    },
+  ): Promise<any> {
+    const response = await api.get(
+      `/v1/runtime-assets/${id}/gateway-consumer-credentials`,
+      { params },
+    );
+    return response.data;
+  },
+
+  async createGatewayConsumerCredential(
+    id: string,
+    payload: {
+      name: string;
+      label?: string;
+      keyId?: string;
+      routeBindingId?: string;
+      metadata?: Record<string, unknown>;
+    },
+  ): Promise<any> {
+    const response = await api.post(
+      `/v1/runtime-assets/${id}/gateway-consumer-credentials`,
+      payload,
+    );
+    return response.data;
+  },
+
+  async revokeGatewayConsumerCredential(
+    id: string,
+    credentialId: string,
+    payload?: {
+      reason?: string;
+    },
+  ): Promise<any> {
+    const response = await api.post(
+      `/v1/runtime-assets/${id}/gateway-consumer-credentials/${credentialId}/revoke`,
+      payload || {},
+    );
+    return response.data;
+  },
+
   async startRuntimeAsset(id: string): Promise<any> {
     const response = await api.post(`/v1/runtime-assets/${id}/start`);
     return response.data;
@@ -1673,6 +1718,11 @@ export const runtimeAssetsAPI = {
 
   async redeployRuntimeAsset(id: string, payload?: Record<string, unknown>): Promise<any> {
     const response = await api.post(`/v1/runtime-assets/${id}/redeploy`, payload || {});
+    return response.data;
+  },
+
+  async deleteRuntimeAsset(id: string): Promise<any> {
+    const response = await api.delete(`/v1/runtime-assets/${id}`);
     return response.data;
   },
 };

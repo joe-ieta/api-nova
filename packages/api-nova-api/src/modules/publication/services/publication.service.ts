@@ -23,6 +23,7 @@ import {
 } from '../../../database/entities/publication-batch-run.entity';
 import {
   GatewayRouteBindingEntity,
+  GatewayRoutePathMatchMode,
   GatewayRouteBindingStatus,
 } from '../../../database/entities/gateway-route-binding.entity';
 import {
@@ -63,6 +64,7 @@ import {
   GATEWAY_SNAPSHOT_REFRESH_REQUESTED,
   type GatewaySnapshotRefreshPayload,
 } from '../../gateway-runtime/gateway-runtime.events';
+import { RuntimeAssetsService } from '../../runtime-assets/services/runtime-assets.service';
 
 type EndpointSummary = {
   path?: string;
@@ -104,6 +106,7 @@ export class PublicationService {
     private readonly bindingRepository: Repository<EndpointPublishBindingEntity>,
     @InjectRepository(GatewayRouteBindingEntity)
     private readonly routeBindingRepository: Repository<GatewayRouteBindingEntity>,
+    private readonly runtimeAssetsService: RuntimeAssetsService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -228,6 +231,7 @@ export class PublicationService {
         return {
           membership,
           runtimeAsset: context.runtimeAsset,
+          sourceType: this.inferSourceType(context.endpointDefinition),
           endpoint: {
             id: context.endpointDefinition.id,
             name: this.buildEndpointDisplayName(context.endpointDefinition),
@@ -472,6 +476,7 @@ export class PublicationService {
     }
 
     const summary = this.extractPrimaryEndpoint(context.endpointDefinition);
+    const matchHost = this.normalizeMatchHost(dto.matchHost);
     const routePath = this.normalizeRoutePath(dto.routePath ?? summary.path);
     const upstreamPath = this.normalizeRoutePath(dto.upstreamPath ?? summary.path);
     const routeMethod = this.normalizeMethod(dto.routeMethod ?? summary.method);
@@ -484,32 +489,57 @@ export class PublicationService {
       binding = this.routeBindingRepository.create({
         endpointDefinitionId: context.endpointDefinition.id,
         runtimeAssetEndpointBindingId: membershipId,
+        matchHost,
         routePath,
+        pathMatchMode: dto.pathMatchMode ?? this.inferPathMatchMode(routePath),
+        priority: dto.priority ?? 0,
         upstreamPath,
         routeMethod,
         upstreamMethod,
         routeVisibility: dto.routeVisibility ?? 'internal',
         authPolicyRef: dto.authPolicyRef,
         trafficPolicyRef: dto.trafficPolicyRef,
+        loggingPolicyRef: dto.loggingPolicyRef,
+        cachePolicyRef: dto.cachePolicyRef,
+        rateLimitPolicyRef: dto.rateLimitPolicyRef,
+        circuitBreakerPolicyRef: dto.circuitBreakerPolicyRef,
         timeoutMs: dto.timeoutMs,
+        upstreamConfig: dto.upstreamConfig,
+        routeStatusReason: dto.routeStatusReason,
         status: GatewayRouteBindingStatus.DRAFT,
       });
     } else {
       Object.assign(binding, {
         endpointDefinitionId: context.endpointDefinition.id,
         runtimeAssetEndpointBindingId: membershipId,
+        matchHost: matchHost ?? binding.matchHost,
         routePath,
+        pathMatchMode:
+          dto.pathMatchMode ?? binding.pathMatchMode ?? this.inferPathMatchMode(routePath),
+        priority: dto.priority ?? binding.priority ?? 0,
         upstreamPath,
         routeMethod,
         upstreamMethod,
         routeVisibility: dto.routeVisibility ?? binding.routeVisibility,
         authPolicyRef: dto.authPolicyRef ?? binding.authPolicyRef,
         trafficPolicyRef: dto.trafficPolicyRef ?? binding.trafficPolicyRef,
+        loggingPolicyRef: dto.loggingPolicyRef ?? binding.loggingPolicyRef,
+        cachePolicyRef: dto.cachePolicyRef ?? binding.cachePolicyRef,
+        rateLimitPolicyRef: dto.rateLimitPolicyRef ?? binding.rateLimitPolicyRef,
+        circuitBreakerPolicyRef:
+          dto.circuitBreakerPolicyRef ?? binding.circuitBreakerPolicyRef,
         timeoutMs: dto.timeoutMs ?? binding.timeoutMs,
+        upstreamConfig: dto.upstreamConfig ?? binding.upstreamConfig,
+        routeStatusReason: dto.routeStatusReason ?? binding.routeStatusReason,
       });
     }
 
-    await this.ensureRouteConflictFree(membershipId, binding.routePath, binding.routeMethod);
+    await this.ensureRouteConflictFree(
+      membershipId,
+      binding.matchHost,
+      binding.routePath,
+      binding.routeMethod,
+    );
     await this.routeBindingRepository.save(binding);
     await this.recordAuditEvent({
       action: PublicationAuditAction.GATEWAY_ROUTE_UPDATED,
@@ -521,10 +551,19 @@ export class PublicationService {
       sourceServiceAssetId: context.sourceServiceAsset.id,
       operatorId: actorId,
       details: {
+        matchHost: binding.matchHost,
         routePath: binding.routePath,
+        pathMatchMode: binding.pathMatchMode,
+        priority: binding.priority,
         routeMethod: binding.routeMethod,
         upstreamPath: binding.upstreamPath,
         upstreamMethod: binding.upstreamMethod,
+        authPolicyRef: binding.authPolicyRef,
+        trafficPolicyRef: binding.trafficPolicyRef,
+        loggingPolicyRef: binding.loggingPolicyRef,
+        cachePolicyRef: binding.cachePolicyRef,
+        rateLimitPolicyRef: binding.rateLimitPolicyRef,
+        circuitBreakerPolicyRef: binding.circuitBreakerPolicyRef,
       },
     });
     this.emitGatewaySnapshotRefresh({
@@ -544,11 +583,15 @@ export class PublicationService {
     const context = await this.resolveMembershipPublicationContext(membershipId);
 
     if (context.runtimeAsset.type === RuntimeAssetType.MCP_SERVER) {
-      return this.publishMembershipContext(
+      const result = await this.publishMembershipContext(
         context,
         dto.publishToMcp ?? true,
         { actorId },
       );
+      return {
+        ...result,
+        deployment: await this.buildPostPublishDeploymentState(context),
+      };
     }
 
     const result = await this.publishMembershipContext(
@@ -561,7 +604,10 @@ export class PublicationService {
       runtimeAssetId: context.runtimeAsset.id,
       runtimeMembershipId: membershipId,
     });
-    return result;
+    return {
+      ...result,
+      deployment: await this.buildPostPublishDeploymentState(context),
+    };
   }
 
   async offlineRuntimeMembership(
@@ -596,6 +642,11 @@ export class PublicationService {
     dto: BatchPublishRuntimeMembershipsDto,
     actorId?: string,
   ) {
+    const contexts = await Promise.all(
+      dto.membershipIds.map(async membershipId =>
+        this.resolveMembershipPublicationContext(membershipId),
+      ),
+    );
     const result = await this.executeBatchMembershipAction(
       PublicationBatchAction.PUBLISH,
       dto.membershipIds,
@@ -610,11 +661,31 @@ export class PublicationService {
       actorId,
       dto,
     );
+    const successfulMembershipIds = new Set(
+      (result.items || [])
+        .filter(item => item.status === 'success')
+        .map(item => item.membershipId),
+    );
+    const shouldAutoDeploy = contexts.some(
+      context =>
+        successfulMembershipIds.has(context.membership.id) &&
+        this.shouldAutoDeployPublishedMembership(context),
+    );
+    const deployment =
+      shouldAutoDeploy && result.batchRun.runtimeAssetId
+        ? await this.buildPostPublishDeploymentState(
+            contexts.find(context => context.runtimeAsset.id === result.batchRun.runtimeAssetId) ||
+              contexts[0],
+          )
+        : this.buildDeploymentHintFromContexts(contexts, successfulMembershipIds);
     this.emitGatewaySnapshotRefresh({
       reason: 'publication.batch_memberships_published',
       runtimeAssetId: result.batchRun.runtimeAssetId,
     });
-    return result;
+    return {
+      ...result,
+      deployment,
+    };
   }
 
   async batchOfflineRuntimeMemberships(
@@ -912,6 +983,7 @@ export class PublicationService {
         : null;
 
     return {
+      sourceType: this.inferSourceType(context.endpointDefinition),
       endpoint: {
         id: context.endpointDefinition.id,
         name: this.buildEndpointDisplayName(context.endpointDefinition),
@@ -947,6 +1019,99 @@ export class PublicationService {
         context.runtimeAsset.type === RuntimeAssetType.GATEWAY_SERVICE,
       ),
     };
+  }
+
+  private inferSourceType(endpointDefinition: EndpointDefinitionEntity) {
+    const source = ((endpointDefinition.metadata || {}) as Record<string, unknown>).source;
+    return source === 'manual-registration' ? 'manual' : 'imported';
+  }
+
+  private shouldAutoDeployPublishedMembership(context: MembershipPublicationContext) {
+    return (
+      context.runtimeAsset.type === RuntimeAssetType.MCP_SERVER &&
+      this.inferSourceType(context.endpointDefinition) === 'manual'
+    );
+  }
+
+  private buildDeploymentHintFromContexts(
+    contexts: MembershipPublicationContext[],
+    successfulMembershipIds: Set<string>,
+  ) {
+    const successfulContexts = contexts.filter(context =>
+      successfulMembershipIds.has(context.membership.id),
+    );
+    const mcpContexts = successfulContexts.filter(
+      context => context.runtimeAsset.type === RuntimeAssetType.MCP_SERVER,
+    );
+    if (mcpContexts.length === 0) {
+      return {
+        status: 'not_required',
+        attempted: false,
+        autoTriggered: false,
+        message: 'No runtime deployment update required',
+      };
+    }
+    const needsManualDeploy = mcpContexts.some(
+      context => !this.shouldAutoDeployPublishedMembership(context),
+    );
+    if (!needsManualDeploy) {
+      return {
+        status: 'not_required',
+        attempted: false,
+        autoTriggered: false,
+        message: 'Runtime deployment handled automatically',
+      };
+    }
+    return {
+      status: 'required',
+      attempted: false,
+      autoTriggered: false,
+      message: 'Runtime deployment is required before the server can be started',
+    };
+  }
+
+  private async buildPostPublishDeploymentState(
+    context: MembershipPublicationContext,
+  ) {
+    if (context.runtimeAsset.type !== RuntimeAssetType.MCP_SERVER) {
+      return {
+        status: 'not_required',
+        attempted: false,
+        autoTriggered: false,
+        message: 'No runtime deployment update required',
+      };
+    }
+
+    if (!this.shouldAutoDeployPublishedMembership(context)) {
+      return {
+        status: 'required',
+        attempted: false,
+        autoTriggered: false,
+        message: 'Runtime deployment is required before the server can be started',
+      };
+    }
+
+    try {
+      const deployment = await this.runtimeAssetsService.deployMcpRuntimeAsset(
+        context.runtimeAsset.id,
+      );
+      return {
+        status: 'deployed',
+        attempted: true,
+        autoTriggered: true,
+        message: 'Runtime deployment has been updated automatically',
+        managedServerId: deployment?.managedServer?.id,
+      };
+    } catch (error: any) {
+      return {
+        status: 'failed',
+        attempted: true,
+        autoTriggered: true,
+        message:
+          error?.message ||
+          'Automatic runtime deployment failed; please deploy the runtime manually',
+      };
+    }
   }
 
   private async ensureProfile(
@@ -1171,22 +1336,28 @@ export class PublicationService {
 
   private async ensureRouteConflictFree(
     runtimeAssetEndpointBindingId: string,
+    matchHost: string | undefined,
     routePath: string,
     routeMethod: string,
   ) {
-    const existing = await this.routeBindingRepository.findOne({
+    const existingBindings = await this.routeBindingRepository.find({
       where: {
         routePath: this.normalizeRoutePath(routePath),
         routeMethod: this.normalizeMethod(routeMethod),
       },
     });
+    const normalizedMatchHost = this.normalizeMatchHost(matchHost) || null;
+    const existing = existingBindings.find(
+      item => (this.normalizeMatchHost(item.matchHost) || null) === normalizedMatchHost,
+    );
 
     if (
       existing &&
       existing.runtimeAssetEndpointBindingId !== runtimeAssetEndpointBindingId
     ) {
+      const conflictHost = existing.matchHost ? `${existing.matchHost} ` : '';
       throw new BadRequestException(
-        `Route conflict: ${routeMethod} ${routePath} is already bound to runtime membership '${existing.runtimeAssetEndpointBindingId || existing.endpointDefinitionId}'`,
+        `Route conflict: ${conflictHost}${routeMethod} ${routePath} is already bound to runtime membership '${existing.runtimeAssetEndpointBindingId || existing.endpointDefinitionId}'`,
       );
     }
   }
@@ -1365,6 +1536,19 @@ export class PublicationService {
       throw new BadRequestException('routeMethod is required');
     }
     return value;
+  }
+
+  private normalizeMatchHost(host?: string) {
+    const value = String(host || '')
+      .trim()
+      .toLowerCase();
+    return value || undefined;
+  }
+
+  private inferPathMatchMode(routePath: string): GatewayRoutePathMatchMode {
+    return /\{[^}]+\}/.test(routePath)
+      ? GatewayRoutePathMatchMode.PARAMETER
+      : GatewayRoutePathMatchMode.EXACT;
   }
 
   private buildSourceServiceUrl(sourceServiceAsset: SourceServiceAssetEntity) {

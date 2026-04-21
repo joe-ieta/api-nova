@@ -1,20 +1,27 @@
-import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { Request } from 'express';
+import { User } from '../../database/entities/user.entity';
+import { CurrentUser } from '../security/decorators/current-user.decorator';
 import { RequirePermissions } from '../security/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../security/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../security/guards/permissions.guard';
 import {
+  CreateGatewayConsumerCredentialDto,
   DeployRuntimeAssetMcpDto,
   DeployRuntimeAssetGatewayDto,
+  GatewayConsumerCredentialQueryDto,
+  RevokeGatewayConsumerCredentialDto,
   RuntimeAssetAssemblyQueryDto,
   RuntimeAssetQueryDto,
   UpdateRuntimeAssetPolicyDto,
 } from './dto/runtime-assets.dto';
 import { RuntimeAssetsService } from './services/runtime-assets.service';
+import { OperationResultDto } from '../servers/dto/server.dto';
 
 @ApiTags('Runtime Assets')
 @Controller('v1/runtime-assets')
@@ -84,6 +91,49 @@ export class RuntimeAssetsController {
     );
   }
 
+  @Get(':id/gateway-consumer-credentials')
+  @RequirePermissions('server:read')
+  @ApiOperation({ summary: 'List gateway consumer credentials for one runtime asset' })
+  async listGatewayConsumerCredentials(
+    @Param('id') id: string,
+    @Query() query: GatewayConsumerCredentialQueryDto,
+  ) {
+    return this.runtimeAssetsService.listGatewayConsumerCredentials(id, query);
+  }
+
+  @Post(':id/gateway-consumer-credentials')
+  @RequirePermissions('server:manage')
+  @ApiOperation({ summary: 'Create one gateway consumer credential scoped to this runtime asset' })
+  async createGatewayConsumerCredential(
+    @Param('id') id: string,
+    @Body() body: CreateGatewayConsumerCredentialDto,
+    @CurrentUser() currentUser: User,
+    @Req() req: Request,
+  ) {
+    return this.runtimeAssetsService.createGatewayConsumerCredential(id, body, {
+      actorId: currentUser?.id,
+      ipAddress: this.getClientIp(req),
+      userAgent: this.getUserAgent(req),
+    });
+  }
+
+  @Post(':id/gateway-consumer-credentials/:credentialId/revoke')
+  @RequirePermissions('server:manage')
+  @ApiOperation({ summary: 'Revoke one gateway consumer credential' })
+  async revokeGatewayConsumerCredential(
+    @Param('id') id: string,
+    @Param('credentialId') credentialId: string,
+    @Body() body: RevokeGatewayConsumerCredentialDto,
+    @CurrentUser() currentUser: User,
+    @Req() req: Request,
+  ) {
+    return this.runtimeAssetsService.revokeGatewayConsumerCredential(id, credentialId, body, {
+      actorId: currentUser?.id,
+      ipAddress: this.getClientIp(req),
+      userAgent: this.getUserAgent(req),
+    });
+  }
+
   @Post(':id/deploy-mcp')
   @RequirePermissions('server:manage')
   @ApiOperation({ summary: 'Deploy MCP runtime asset into one managed server record' })
@@ -136,5 +186,29 @@ export class RuntimeAssetsController {
     @Body() body: DeployRuntimeAssetMcpDto,
   ) {
     return this.runtimeAssetsService.redeployRuntimeAsset(id, body);
+  }
+
+  @Delete(':id')
+  @RequirePermissions('server:delete', 'server:manage')
+  @ApiOperation({ summary: 'Delete runtime asset and its derived deployment records' })
+  async deleteRuntimeAsset(@Param('id') id: string): Promise<OperationResultDto> {
+    await this.runtimeAssetsService.deleteRuntimeAsset(id);
+    return {
+      success: true,
+      message: 'Runtime asset deleted successfully',
+    };
+  }
+
+  private getClientIp(req: Request) {
+    const forwardedFor = req.headers['x-forwarded-for'];
+    if (Array.isArray(forwardedFor)) {
+      return forwardedFor[0];
+    }
+    return forwardedFor || req.ip || req.socket?.remoteAddress;
+  }
+
+  private getUserAgent(req: Request) {
+    const userAgent = req.headers['user-agent'];
+    return Array.isArray(userAgent) ? userAgent[0] : userAgent;
   }
 }
