@@ -34,6 +34,8 @@ import { GatewayConsumerCredentialEntity } from './entities/gateway-consumer-cre
 import { RuntimeMetricSeriesEntity } from './entities/runtime-metric-series.entity';
 import { RuntimeObservabilityEventEntity } from './entities/runtime-observability-event.entity';
 import { RuntimeObservabilityStateEntity } from './entities/runtime-observability-state.entity';
+import { ConfigOverrideEntity } from './entities/config-override.entity';
+import { ConfigBackupEntity } from './entities/config-backup.entity';
 import { SeedService } from './seed.service';
 
 @Module({
@@ -72,6 +74,8 @@ import { SeedService } from './seed.service';
           RuntimeObservabilityEventEntity,
           RuntimeMetricSeriesEntity,
           RuntimeObservabilityStateEntity,
+          ConfigOverrideEntity,
+          ConfigBackupEntity,
         ];
 
         if (dbType === 'sqlite') {
@@ -145,6 +149,8 @@ import { SeedService } from './seed.service';
       RuntimeObservabilityEventEntity,
       RuntimeMetricSeriesEntity,
       RuntimeObservabilityStateEntity,
+      ConfigOverrideEntity,
+      ConfigBackupEntity,
     ]),
   ],
   providers: [

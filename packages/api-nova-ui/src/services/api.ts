@@ -13,9 +13,6 @@ import type {
   SystemMetrics,
   LogEntry,
   LogFilter,
-  ConfigFile,
-  ExportOptions,
-  ImportResult,
   AIAssistantType,
   ConfigTemplate,
   ConfigOptions,
@@ -1401,27 +1398,53 @@ export const authAPI = {
 // ============================================================================
 
 export const configAPI = {
-  // 导出配置
-  async exportConfig(options: ExportOptions): Promise<ConfigFile> {
-    const response = await api.post("/config/export", options);
+  async getConfigOverview(): Promise<any> {
+    const response = await api.get("/v1/config");
     return response.data;
   },
 
-  // 导入配置
-  async importConfig(file: File): Promise<ImportResult> {
-    const formData = new FormData();
-    formData.append("file", file);
-    const response = await api.post("/config/import", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+  async getConfigEnvironment(): Promise<any> {
+    const response = await api.get("/v1/config/environment");
     return response.data;
   },
 
-  // 验证配置
-  async validateConfig(
-    config: any,
-  ): Promise<{ valid: boolean; errors: any[] }> {
-    const response = await api.post("/config/validate", config);
+  async updateConfigOverview(payload: Record<string, unknown>): Promise<any> {
+    const response = await api.patch("/v1/config", payload);
+    return response.data;
+  },
+
+  async exportConfigOverview(): Promise<any> {
+    const response = await api.get("/v1/config/export");
+    return response.data;
+  },
+
+  async importConfigOverview(payload: Record<string, unknown>): Promise<any> {
+    const response = await api.patch("/v1/config/import", payload);
+    return response.data;
+  },
+
+  async previewConfigImport(payload: Record<string, unknown>): Promise<any> {
+    const response = await api.patch("/v1/config/import/preview", payload);
+    return response.data;
+  },
+
+  async listConfigBackups(): Promise<any[]> {
+    const response = await api.get("/v1/config/backups");
+    return response.data;
+  },
+
+  async createConfigBackup(payload?: { name?: string; description?: string }): Promise<any> {
+    const response = await api.patch("/v1/config/backups", payload || {});
+    return response.data;
+  },
+
+  async restoreConfigBackup(id: string): Promise<any> {
+    const response = await api.patch(`/v1/config/backups/${id}/restore`);
+    return response.data;
+  },
+
+  async deleteConfigBackup(id: string): Promise<{ success: boolean }> {
+    const response = await api.delete(`/v1/config/backups/${id}`);
     return response.data;
   },
 };

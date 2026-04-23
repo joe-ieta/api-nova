@@ -18,6 +18,7 @@ import {
 } from '../interfaces/process.interface';
 import { MCPServerEntity, ServerStatus, TransportType } from '../../../database/entities/mcp-server.entity';
 import { TelemetryModeMap, TelemetryMode } from '../interfaces/observability.interface';
+import { AppConfigService } from '../../../config/app-config.service';
 
 @Injectable()
 export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
@@ -37,6 +38,7 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
     private readonly processManager: ProcessManagerService,
     private readonly eventEmitter: EventEmitter2,
     private readonly configService: ConfigService,
+    private readonly appConfigService: AppConfigService,
     private readonly httpService: HttpService,
   ) {
     this.config = {
@@ -94,6 +96,8 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
    * 开始健康检查
    */
   async startHealthCheck(serverId: string): Promise<void> {
+    this.config.healthCheckInterval = this.appConfigService.healthCheckInterval;
+    this.config.healthCheckTimeout = this.appConfigService.healthCheckTimeout;
     if (this.healthCheckIntervals.has(serverId)) {
       this.logger.warn(`Health check already running for server ${serverId}`);
       return;
@@ -136,6 +140,7 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
    * 执行健康检查
    */
   async performHealthCheck(serverId: string): Promise<HealthCheckResult> {
+    this.config.healthCheckTimeout = this.appConfigService.healthCheckTimeout;
     const startTime = Date.now();
     let result: HealthCheckResult;
 

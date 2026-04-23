@@ -21,6 +21,7 @@ import {
 } from '../interfaces/process.interface';
 import { ProcessResourceMonitorService, ProcessResourceMetrics, SystemResourceInfo } from './process-resource-monitor.service';
 import { ProcessLogMonitorService, ProcessLogEntry } from './process-log-monitor.service';
+import { AppConfigService } from '../../../config/app-config.service';
 
 // MCP连接监控相关接口
 interface MCPConnectionEvent {
@@ -74,6 +75,7 @@ export class ProcessManagerService implements OnModuleDestroy {
     private readonly processLogRepository: Repository<ProcessLogEntity>,
     private readonly eventEmitter: EventEmitter2,
     private readonly configService: ConfigService,
+    private readonly appConfigService: AppConfigService,
     private readonly resourceMonitor: ProcessResourceMonitorService,
     private readonly logMonitor: ProcessLogMonitorService,
   ) {
@@ -119,6 +121,9 @@ export class ProcessManagerService implements OnModuleDestroy {
    * 启动进程（支持CLI spawn）
    */
   async startProcess(config: ProcessConfig): Promise<ProcessInfo> {
+    this.config.processTimeout = this.appConfigService.processTimeout;
+    this.config.defaultMaxRetries = this.appConfigService.processMaxRetries;
+    this.config.defaultRestartDelay = this.appConfigService.processRestartDelay;
     const { id: serverId } = config;
     
     // 检查进程是否已经在运行
@@ -227,6 +232,7 @@ export class ProcessManagerService implements OnModuleDestroy {
    * 停止进程
    */
   async stopProcess(serverId: string, force = false): Promise<void> {
+    this.config.processTimeout = this.appConfigService.processTimeout;
     const childProcess = this.processes.get(serverId);
     const processInfo = this.processInfo.get(serverId);
 
@@ -366,6 +372,7 @@ export class ProcessManagerService implements OnModuleDestroy {
    * 重启进程
    */
   async restartProcess(serverId: string, config: ProcessConfig): Promise<ProcessInfo> {
+    this.config.defaultRestartDelay = this.appConfigService.processRestartDelay;
     this.logger.log(`Restarting process for server ${serverId}`);
     await this.logProcess(serverId, LogLevel.INFO, 'Restarting process');
 

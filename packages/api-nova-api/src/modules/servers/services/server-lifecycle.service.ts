@@ -31,6 +31,7 @@ import {
   RuntimeCurrentStatus,
   RuntimeHealthStatus,
 } from '../../../database/entities/runtime-observability-state.entity';
+import { AppConfigService } from '../../../config/app-config.service';
 
 // 导入api-nova-server包中的transport实现
 import { createMcpServer, startStreamableMcpServer, startSseMcpServer } from 'api-nova-server';
@@ -54,6 +55,7 @@ export class ServerLifecycleService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    private readonly appConfigService: AppConfigService,
     private readonly eventEmitter: EventEmitter2,
     private readonly processManager: ProcessManagerService,
     private readonly processHealth: ProcessHealthService,
@@ -229,11 +231,9 @@ export class ServerLifecycleService {
     }
 
     // OpenAPI数据源（使用API URL）
-    const apiPort = this.configService.get<number>('PORT', 9001);
-    const apiBaseUrl = this.configService.get(
-      'API_BASE_URL',
-      `http://127.0.0.1:${apiPort}`,
-    );
+    const apiPort = this.appConfigService.port;
+    const apiBaseUrl =
+      this.appConfigService.apiBaseUrl || `http://127.0.0.1:${apiPort}`;
     const runtimeAssetId = serverEntity.config?.runtimeAssetId;
     const openApiUrl =
       typeof runtimeAssetId === 'string' && runtimeAssetId

@@ -1,365 +1,419 @@
 <template>
-  <div class="backup-manager">
-    <div class="header">
-      <h3>配置备份管理</h3>
-      <el-button
-        type="primary"
-        @click="showCreateBackupDialog"
-        :icon="FolderAdd"
-      >
-        创建备份
-      </el-button>
-    </div>
+  <div class="config-transfer-panel" v-loading="loading">
+    <el-alert
+      :title="t('config.transfer.title')"
+      :description="t('config.transfer.subtitle')"
+      type="info"
+      show-icon
+      :closable="false"
+    />
 
-    <!-- 备份列表 -->
-    <div class="backup-list" v-loading="configStore.loading">
-      <el-empty
-        v-if="configStore.backupList.length === 0"
-        description="暂无备份记录"
-      >
-        <el-button type="primary" @click="showCreateBackupDialog">
-          创建第一个备份
-        </el-button>
-      </el-empty>
-
-      <div v-else>
-        <div
-          v-for="backup in configStore.backupList"
-          :key="backup.id"
-          class="backup-item"
-        >
-          <div class="backup-info">
-            <div class="backup-header">
-              <h4>{{ backup.name }}</h4>
-              <el-tag size="small" type="info">
-                {{ formatFileSize(backup.size) }}
-              </el-tag>
-            </div>
-
-            <div class="backup-meta">
-              <div class="meta-item">
-                <el-icon><Calendar /></el-icon>
-                <span>{{ formatDateTime(backup.timestamp) }}</span>
-              </div>
-              <div class="meta-item">
-                <el-icon><Document /></el-icon>
-                <span>{{ backup.types.join(", ") }}</span>
-              </div>
-            </div>
-
-            <div v-if="backup.description" class="backup-description">
-              {{ backup.description }}
-            </div>
-          </div>
-
-          <div class="backup-actions">
-            <el-button
-              type="primary"
-              size="small"
-              @click="restoreBackup(backup.id)"
-              :loading="restoringBackupId === backup.id"
-            >
-              恢复
-            </el-button>
-            <el-button
-              type="danger"
-              size="small"
-              @click="deleteBackup(backup.id)"
-            >
-              删除
-            </el-button>
-          </div>
+    <div class="transfer-grid">
+      <el-card shadow="never">
+        <template #header>{{ t("config.transfer.latestExport") }}</template>
+        <div class="actions">
+          <el-button type="primary" :loading="exporting" @click="handleExport">
+            {{ t("config.transfer.export") }}
+          </el-button>
+          <el-button @click="openImportPicker">
+            {{ t("config.transfer.import") }}
+          </el-button>
+          <el-button :disabled="!pendingImport" @click="handlePreviewImport">
+            {{ t("config.transfer.preview") }}
+          </el-button>
+          <input
+            ref="fileInput"
+            class="hidden-input"
+            type="file"
+            accept=".json,application/json"
+            @change="handleImportFile"
+          />
         </div>
-      </div>
+
+        <el-empty
+          v-if="!latestExport"
+          :description="t('config.transfer.importPlaceholder')"
+        />
+        <div v-else class="export-preview">
+          <div class="preview-line">
+            <span>{{ latestExport.formatVersion }}</span>
+            <span>{{ latestExport.exportedAt }}</span>
+          </div>
+          <div class="preview-line">
+            <span>{{ t("config.transfer.overrideCount") }}</span>
+            <strong>{{ latestExport.overrideCount }}</strong>
+          </div>
+          <el-input
+            :model-value="JSON.stringify(latestExport, null, 2)"
+            type="textarea"
+            :rows="10"
+            readonly
+          />
+        </div>
+
+        <el-card v-if="importPreview" shadow="never" class="preview-card">
+          <template #header>{{ t("config.transfer.previewTitle") }}</template>
+          <div class="preview-line">
+            <span>{{ t("config.transfer.compatible") }}</span>
+            <strong>{{ importPreview.compatible ? t("config.yes") : t("config.no") }}</strong>
+          </div>
+          <div class="preview-line">
+            <span>{{ t("config.transfer.migrationRequired") }}</span>
+            <strong>{{ importPreview.migrationRequired ? t("config.yes") : t("config.no") }}</strong>
+          </div>
+          <div class="preview-line">
+            <span>{{ t("config.transfer.conflicts") }}</span>
+            <strong>{{ importPreview.conflicts.length }}</strong>
+          </div>
+          <div class="preview-line">
+            <span>{{ t("config.restartPlan") }}</span>
+            <strong>
+              {{ importPreview.restartPlan.length ? importPreview.restartPlan.join(", ") : t("config.restartPlanNone") }}
+            </strong>
+          </div>
+          <el-empty
+            v-if="!importPreview.conflicts.length"
+            :description="t('config.transfer.noConflicts')"
+          />
+          <el-table v-else :data="importPreview.conflicts" size="small" stripe>
+            <el-table-column prop="key" :label="t('config.field')" min-width="180" />
+            <el-table-column prop="kind" :label="t('config.transfer.conflicts')" width="120">
+              <template #default="{ row }">
+                {{
+                  row.kind === "add"
+                    ? t("config.transfer.kindAdd")
+                    : row.kind === "remove"
+                      ? t("config.transfer.kindRemove")
+                      : t("config.transfer.kindChange")
+                }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="currentValue" :label="t('config.value')" min-width="160" />
+            <el-table-column prop="incomingValue" :label="t('config.newValue')" min-width="160" />
+          </el-table>
+          <div class="actions preview-actions">
+            <el-button type="primary" :disabled="!importPreview.compatible" @click="applyPendingImport">
+              {{ t("config.transfer.applyImport") }}
+            </el-button>
+          </div>
+        </el-card>
+      </el-card>
+
+      <el-card shadow="never">
+        <template #header>{{ t("config.transfer.createBackup") }}</template>
+        <el-form label-position="top" class="backup-form">
+          <el-form-item :label="t('config.transfer.backupName')">
+            <el-input v-model="backupForm.name" clearable />
+          </el-form-item>
+          <el-form-item :label="t('config.transfer.backupDescription')">
+            <el-input v-model="backupForm.description" type="textarea" :rows="4" />
+          </el-form-item>
+          <el-button type="primary" :loading="creatingBackup" @click="handleCreateBackup">
+            {{ t("config.transfer.createBackup") }}
+          </el-button>
+        </el-form>
+
+        <el-alert
+          :title="t('config.transfer.restartHint')"
+          type="warning"
+          show-icon
+          :closable="false"
+          class="hint-alert"
+        />
+      </el-card>
     </div>
 
-    <!-- 创建备份对话框 -->
-    <el-dialog v-model="createBackupVisible" title="创建配置备份" width="500px">
-      <el-form
-        ref="backupFormRef"
-        :model="backupForm"
-        :rules="backupFormRules"
-        label-width="100px"
-      >
-        <el-form-item label="备份名称" prop="name">
-          <el-input
-            v-model="backupForm.name"
-            placeholder="请输入备份名称"
-            maxlength="50"
-            show-word-limit
-          />
-        </el-form-item>
-
-        <el-form-item label="备份类型" prop="types">
-          <el-checkbox-group v-model="backupForm.types">
-            <el-checkbox label="servers">服务器配置</el-checkbox>
-            <el-checkbox label="auth">认证配置</el-checkbox>
-            <el-checkbox label="openapi">OpenAPI规范</el-checkbox>
-            <el-checkbox label="testcases">测试用例</el-checkbox>
-            <el-checkbox label="settings">系统设置</el-checkbox>
-          </el-checkbox-group>
-        </el-form-item>
-
-        <el-form-item label="备份描述">
-          <el-input
-            v-model="backupForm.description"
-            type="textarea"
-            :rows="3"
-            placeholder="可选：描述本次备份的目的或包含的修改"
-            maxlength="200"
-            show-word-limit
-          />
-        </el-form-item>
-      </el-form>
-
-      <template #footer>
-        <el-button @click="createBackupVisible = false">取消</el-button>
-        <el-button
-          type="primary"
-          @click="createBackup"
-          :loading="configStore.loading"
-        >
-          创建备份
-        </el-button>
+    <el-card shadow="never">
+      <template #header>
+        <div class="table-header">
+          <span>{{ t("config.transfer.backupList") }}</span>
+          <el-button text @click="loadBackups">
+            {{ t("config.transfer.refresh") }}
+          </el-button>
+        </div>
       </template>
-    </el-dialog>
+
+      <el-empty v-if="!backups.length" :description="t('config.transfer.noBackups')" />
+      <el-table v-else :data="backups" size="small" stripe>
+        <el-table-column prop="name" :label="t('config.transfer.backupName')" min-width="180" />
+        <el-table-column
+          prop="description"
+          :label="t('config.transfer.backupDescription')"
+          min-width="220"
+          show-overflow-tooltip
+        />
+        <el-table-column prop="overrideCount" :label="t('config.transfer.overrideCount')" width="140" />
+        <el-table-column prop="createdAt" :label="t('config.transfer.createdAt')" min-width="180" />
+        <el-table-column prop="updatedAt" :label="t('config.transfer.updatedAt')" min-width="180" />
+        <el-table-column width="180">
+          <template #default="{ row }">
+            <div class="row-actions">
+              <el-button link type="primary" @click="handleRestore(row.id)">
+                {{ t("config.transfer.restore") }}
+              </el-button>
+              <el-button link type="danger" @click="handleDelete(row.id)">
+                {{ t("config.transfer.delete") }}
+              </el-button>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import {
-  ElMessage,
-  ElMessageBox,
-  type FormInstance,
-  type FormRules,
-} from "element-plus";
-import { FolderAdd, Calendar, Document } from "@element-plus/icons-vue";
-import { useConfigStore } from "@/stores/config";
+import { onMounted, ref } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { useI18n } from "vue-i18n";
+import { configAPI } from "@/services/api";
 
-interface BackupForm {
-  name: string;
-  types: string[];
-  description: string;
+interface ConfigExportSnapshot {
+  formatVersion: string;
+  exportedAt: string;
+  overrides: Array<Record<string, unknown>>;
+  overrideCount: number;
 }
 
-// Store
-const configStore = useConfigStore();
+interface ConfigBackupSummary {
+  id: string;
+  name: string;
+  description?: string;
+  overrideCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
-// 状态
-const createBackupVisible = ref(false);
-const restoringBackupId = ref<string | null>(null);
+interface ConfigImportPreview {
+  formatVersion: string;
+  compatible: boolean;
+  migrationRequired: boolean;
+  conflicts: Array<{
+    key: string;
+    currentValue?: string | number | boolean;
+    incomingValue?: string | number | boolean;
+    kind: "add" | "change" | "remove";
+  }>;
+  restartRequiredKeys: string[];
+  restartPlan: string[];
+}
 
-// 表单
-const backupFormRef = ref<FormInstance>();
-const backupForm = ref<BackupForm>({
+const { t } = useI18n();
+
+const loading = ref(false);
+const exporting = ref(false);
+const creatingBackup = ref(false);
+const latestExport = ref<ConfigExportSnapshot | null>(null);
+const backups = ref<ConfigBackupSummary[]>([]);
+const pendingImport = ref<Record<string, unknown> | null>(null);
+const importPreview = ref<ConfigImportPreview | null>(null);
+const fileInput = ref<HTMLInputElement | null>(null);
+const backupForm = ref({
   name: "",
-  types: [],
   description: "",
 });
 
-const backupFormRules: FormRules = {
-  name: [
-    { required: true, message: "请输入备份名称", trigger: "blur" },
-    { min: 2, max: 50, message: "长度在 2 到 50 个字符", trigger: "blur" },
-  ],
-  types: [
-    { required: true, message: "请选择至少一种备份类型", trigger: "change" },
-  ],
+const downloadJson = (payload: unknown, fileName: string) => {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
 };
 
-// 方法
-const showCreateBackupDialog = () => {
-  // 重置表单
-  backupForm.value = {
-    name: `备份_${new Date().toLocaleDateString()}`,
-    types: ["servers", "auth", "openapi", "testcases", "settings"],
-    description: "",
-  };
-  createBackupVisible.value = true;
+const loadBackups = async () => {
+  backups.value = await configAPI.listConfigBackups();
 };
 
-const createBackup = async () => {
-  if (!backupFormRef.value) return;
-
+const handleExport = async () => {
+  exporting.value = true;
   try {
-    await backupFormRef.value.validate();
-
-    await configStore.createBackup(
-      backupForm.value.name,
-      backupForm.value.types,
-      backupForm.value.description,
-    );
-
-    createBackupVisible.value = false;
-  } catch (error) {
-    if (error !== false) {
-      // 验证失败时error为false
-      console.error("创建备份失败:", error);
-    }
-  }
-};
-
-const restoreBackup = async (backupId: string) => {
-  try {
-    await ElMessageBox.confirm(
-      "恢复备份将会覆盖当前配置，此操作无法撤销。是否继续？",
-      "确认恢复备份",
-      {
-        confirmButtonText: "确认恢复",
-        cancelButtonText: "取消",
-        type: "warning",
-      },
-    );
-
-    restoringBackupId.value = backupId;
-    const success = await configStore.restoreBackup(backupId);
-
-    if (success) {
-      ElMessage.success("备份恢复成功");
-    }
-  } catch (error) {
-    if (error !== "cancel") {
-      console.error("恢复备份失败:", error);
-    }
+    const snapshot = await configAPI.exportConfigOverview();
+    latestExport.value = snapshot;
+    downloadJson(snapshot, `config-overrides-${Date.now()}.json`);
+    ElMessage.success(t("config.transfer.exportSuccess"));
+  } catch {
+    ElMessage.error(t("config.transfer.exportFailed"));
   } finally {
-    restoringBackupId.value = null;
+    exporting.value = false;
   }
 };
 
-const deleteBackup = async (backupId: string) => {
+const openImportPicker = () => {
+  fileInput.value?.click();
+};
+
+const handleImportFile = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const payload = JSON.parse(text);
+    if (!payload?.formatVersion || !Array.isArray(payload?.overrides)) {
+      throw new Error("invalid");
+    }
+    pendingImport.value = payload;
+    importPreview.value = null;
+    ElMessage.success(t("config.transfer.preview"));
+  } catch {
+    ElMessage.error(t("config.transfer.invalidFile"));
+  } finally {
+    target.value = "";
+  }
+};
+
+const handlePreviewImport = async () => {
+  if (!pendingImport.value) return;
+
+  try {
+    importPreview.value = await configAPI.previewConfigImport(pendingImport.value);
+  } catch {
+    ElMessage.error(t("config.transfer.importFailed"));
+  }
+};
+
+const applyPendingImport = async () => {
+  if (!pendingImport.value) return;
+
+  try {
+    await configAPI.importConfigOverview(pendingImport.value);
+    latestExport.value = pendingImport.value as unknown as ConfigExportSnapshot;
+    await loadBackups();
+    pendingImport.value = null;
+    ElMessage.success(t("config.transfer.importSuccess"));
+  } catch {
+    ElMessage.error(t("config.transfer.importFailed"));
+  }
+};
+
+const handleCreateBackup = async () => {
+  creatingBackup.value = true;
+  try {
+    await configAPI.createConfigBackup({
+      name: backupForm.value.name || undefined,
+      description: backupForm.value.description || undefined,
+    });
+    backupForm.value = { name: "", description: "" };
+    await loadBackups();
+    ElMessage.success(t("config.transfer.backupCreated"));
+  } catch {
+    ElMessage.error(t("config.transfer.backupCreateFailed"));
+  } finally {
+    creatingBackup.value = false;
+  }
+};
+
+const handleRestore = async (id: string) => {
   try {
     await ElMessageBox.confirm(
-      "确定要删除这个备份吗？此操作无法撤销。",
-      "确认删除",
-      {
-        confirmButtonText: "确认删除",
-        cancelButtonText: "取消",
-        type: "warning",
-      },
+      t("config.transfer.restartHint"),
+      t("config.transfer.restore"),
+      { type: "warning" },
     );
-
-    await configStore.deleteBackup(backupId);
+    await configAPI.restoreConfigBackup(id);
+    importPreview.value = null;
+    await loadBackups();
+    ElMessage.success(t("config.transfer.backupRestored"));
   } catch (error) {
     if (error !== "cancel") {
-      console.error("删除备份失败:", error);
+      ElMessage.error(t("config.transfer.backupRestoreFailed"));
     }
   }
 };
 
-const formatDateTime = (date: Date): string => {
-  return new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(new Date(date));
+const handleDelete = async (id: string) => {
+  try {
+    await ElMessageBox.confirm(
+      t("config.transfer.backupDescription"),
+      t("config.transfer.delete"),
+      { type: "warning" },
+    );
+    await configAPI.deleteConfigBackup(id);
+    backups.value = backups.value.filter((item) => item.id !== id);
+    ElMessage.success(t("config.transfer.backupDeleted"));
+  } catch (error) {
+    if (error !== "cancel") {
+      ElMessage.error(t("config.transfer.backupDeleteFailed"));
+    }
+  }
 };
 
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-};
-
-onMounted(() => {
-  // 组件挂载时可以刷新备份列表
+onMounted(async () => {
+  loading.value = true;
+  try {
+    await loadBackups();
+  } finally {
+    loading.value = false;
+  }
 });
 </script>
 
 <style scoped>
-.backup-manager {
-  padding: 20px;
-}
-
-.header {
+.config-transfer-panel {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.header h3 {
-  margin: 0;
-  color: var(--el-text-color-primary);
+.transfer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
-.backup-list {
-  min-height: 400px;
-}
-
-.backup-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  margin-bottom: 16px;
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color);
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-.backup-item:hover {
-  border-color: var(--el-color-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.backup-info {
-  flex: 1;
-}
-
-.backup-header {
+.actions,
+.row-actions,
+.table-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 8px;
 }
 
-.backup-header h4 {
-  margin: 0;
-  color: var(--el-text-color-primary);
-  font-size: 16px;
-  font-weight: 600;
+.table-header {
+  justify-content: space-between;
 }
 
-.backup-meta {
+.backup-form {
   display: flex;
-  gap: 20px;
-  margin-bottom: 8px;
+  flex-direction: column;
 }
 
-.meta-item {
+.hidden-input {
+  display: none;
+}
+
+.export-preview {
   display: flex;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.preview-card,
+.preview-actions {
+  margin-top: 16px;
+}
+
+.preview-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
   color: var(--el-text-color-regular);
   font-size: 13px;
 }
 
-.backup-description {
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
-  line-height: 1.5;
-  margin-top: 8px;
+.hint-alert {
+  margin-top: 16px;
 }
 
-.backup-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.el-checkbox-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.el-checkbox-group .el-checkbox {
-  margin-right: 0;
+@media (max-width: 960px) {
+  .transfer-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -23,6 +23,11 @@ export const validationSchema = Joi.object({
 
   API_KEY: Joi.string().optional(),
   JWT_SECRET: Joi.string().optional(),
+  JWT_REFRESH_SECRET: Joi.string().optional(),
+  JWT_EXPIRES_IN: Joi.string().default('15m'),
+
+  THROTTLE_TTL: Joi.number().positive().default(60),
+  THROTTLE_LIMIT: Joi.number().positive().default(10),
 
   LOG_LEVEL: Joi.string()
     .valid('error', 'warn', 'info', 'debug', 'verbose')
@@ -41,18 +46,34 @@ export const validationSchema = Joi.object({
   REQUEST_TIMEOUT: Joi.number().positive().default(30000),
   CACHE_TTL: Joi.number().positive().default(300),
   MAX_PAYLOAD_SIZE: Joi.string().default('10mb'),
+  API_BASE_URL: Joi.string().uri().optional(),
 
   MCP_SERVER_HOST: Joi.string().default('localhost'),
   MCP_SERVER_PORT: Joi.number().port().default(9022),
   MCP_SERVER_HEALTH_CHECK_INTERVAL: Joi.number().positive().default(30000),
+  MCP_SERVER_TIMEOUT: Joi.number().positive().default(300000),
 
   DEFAULT_OPENAPI_BASE_URL: Joi.string().uri().optional(),
   MAX_OPENAPI_FILE_SIZE: Joi.string().default('5mb'),
   OPENAPI_CACHE_TTL: Joi.number().positive().default(600),
 
   METRICS_ENABLED: Joi.boolean().default(true),
+  METRICS_HISTORY_MAX_AGE: Joi.number()
+    .positive()
+    .default(7 * 24 * 60 * 60 * 1000),
   HEALTH_CHECK_ENABLED: Joi.boolean().default(true),
   HEALTH_CHECK_TIMEOUT: Joi.number().positive().default(5000),
+  HEALTH_CHECK_INTERVAL: Joi.number().positive().default(30000),
+  HEALTH_CHECK_HISTORY_MAX_AGE: Joi.number()
+    .positive()
+    .default(24 * 60 * 60 * 1000),
+  AUTO_RESTART_UNHEALTHY_SERVERS: Joi.boolean().default(false),
+
+  PROCESS_TIMEOUT: Joi.number().positive().default(30000),
+  PROCESS_MAX_RETRIES: Joi.number().min(0).default(3),
+  PROCESS_RESTART_DELAY: Joi.number().min(0).default(1000),
+  PID_DIRECTORY: Joi.string().default('pids'),
+  LOG_DIRECTORY: Joi.string().default('logs'),
 
   HOT_RELOAD: Joi.boolean().default(false),
   WATCH_FILES: Joi.boolean().default(false),

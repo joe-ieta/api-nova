@@ -8,8 +8,6 @@ import { APP_GUARD, APP_INTERCEPTOR, APP_FILTER } from '@nestjs/core';
 import { resolve } from 'path';
 import { getDatabaseType, verifySqliteDatabasePath } from './database/db-compat';
 
-// 配置
-import { AppConfigService } from './config/app-config.service';
 import { validationSchema } from './config/validation.schema';
 
 // 模块
@@ -121,9 +119,6 @@ const envFilePath = [
   ],
   controllers: [AppController],
   providers: [
-    // 全局配置服务
-    AppConfigService,
-
     // 全局守卫
     {
       provide: APP_GUARD,
@@ -146,7 +141,6 @@ const envFilePath = [
       useClass: MCPExceptionFilter,
     },
   ],
-  exports: [AppConfigService],
 })
 export class AppModule {
   constructor(private readonly configService: ConfigService) {}
