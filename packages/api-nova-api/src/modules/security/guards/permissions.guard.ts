@@ -95,7 +95,7 @@ export class PermissionsGuard implements CanActivate {
     requiredPermissions: string[],
   ): Promise<boolean> {
     // 超级管理员拥有所有权限
-    if (user.hasRole('SUPER_ADMIN')) {
+    if (user.hasRole('super_admin') || user.hasRole('SUPER_ADMIN')) {
       return true;
     }
 

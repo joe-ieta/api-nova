@@ -159,10 +159,8 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token过期或无效，清除本地存储的token
-      localStorage.removeItem("auth_token");
-      sessionStorage.removeItem("auth_token");
       // 可以在这里触发登录页面跳转
-      console.warn("Authentication failed, please login again");
+      console.warn("Document request unauthorized");
     }
     return Promise.reject(error);
   },
@@ -260,8 +258,6 @@ export const documentsApi = {
       );
       // 如果是401错误，说明token无效
       if (error.response?.status === 401) {
-        localStorage.removeItem("auth_token");
-        sessionStorage.removeItem("auth_token");
       }
       return false;
     }

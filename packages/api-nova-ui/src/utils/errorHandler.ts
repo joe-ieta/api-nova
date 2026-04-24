@@ -37,6 +37,21 @@ class GlobalErrorHandler {
   private maxHistorySize = 100;
   private listeners: ((error: AppError) => void)[] = [];
 
+  private isIgnorableBrowserNoise(input: any) {
+    const message = String(
+      input?.message || input?.reason?.message || input || "",
+    ).trim();
+
+    if (!message) {
+      return false;
+    }
+
+    return (
+      message.includes("ResizeObserver loop completed with undelivered notifications") ||
+      message.includes("ResizeObserver loop limit exceeded")
+    );
+  }
+
   // 注册全局错误处理
   install(app: any) {
     app.provide("$globalErrorHandler", this);
@@ -90,6 +105,11 @@ class GlobalErrorHandler {
 
   // 处理Promise拒绝错误
   private handlePromiseRejection(event: PromiseRejectionEvent) {
+    if (this.isIgnorableBrowserNoise(event.reason)) {
+      event.preventDefault();
+      return;
+    }
+
     const appError: AppError = {
       code: "PROMISE_REJECTION",
       message: event.reason?.message || "未知Promise错误",
@@ -111,6 +131,11 @@ class GlobalErrorHandler {
 
   // 处理JavaScript错误
   private handleJavaScriptError(event: ErrorEvent) {
+    if (this.isIgnorableBrowserNoise(event)) {
+      event.preventDefault?.();
+      return;
+    }
+
     const appError: AppError = {
       code: "JAVASCRIPT_ERROR",
       message: event.message || "未知JavaScript错误",

@@ -96,7 +96,27 @@ export const useMonitoringStore = defineStore("monitoring", () => {
   let refreshInFlight: Promise<void> | null = null;
   let lastRefreshAt = 0;
 
-  const hasAuthToken = () => Boolean(localStorage.getItem("auth_token"));
+  const hasAuthToken = () =>
+    Boolean(
+      localStorage.getItem("auth_token") ||
+      sessionStorage.getItem("auth_token"),
+    );
+
+  const isMonitoringAccessDenied = (fetchError: any) => {
+    const status = Number(
+      fetchError?.status ||
+      fetchError?.originalError?.response?.status ||
+      fetchError?.response?.status ||
+      0,
+    );
+    const code = String(
+      fetchError?.code ||
+      fetchError?.originalError?.response?.data?.code ||
+      fetchError?.response?.data?.code ||
+      "",
+    ).toUpperCase();
+    return status === 401 || status === 403 || code === "UNAUTHORIZED" || code === "FORBIDDEN";
+  };
 
   const metrics = computed(() =>
     metricsHistory.value.map(snapshot => ({
@@ -423,6 +443,10 @@ export const useMonitoringStore = defineStore("monitoring", () => {
 
       lastUpdate.value = new Date();
     } catch (fetchError: any) {
+      if (isMonitoringAccessDenied(fetchError)) {
+        error.value = null;
+        return;
+      }
       error.value = fetchError?.message || "Failed to fetch monitoring overview";
       throw fetchError;
     } finally {
@@ -477,6 +501,12 @@ export const useMonitoringStore = defineStore("monitoring", () => {
           lastUpdate.value = new Date();
           return;
         }
+        if (isMonitoringAccessDenied(fetchError)) {
+          logs.value = [];
+          runtimeEvents.value = [];
+          lastUpdate.value = new Date();
+          return;
+        }
         throw fetchError;
       }
       logs.value = Array.isArray(response?.data)
@@ -509,6 +539,10 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     } catch (fetchError: any) {
       if (isMissingManagementApi(fetchError)) {
         managementApiAvailable.value = false;
+        runtimeAudit.value = [];
+        return runtimeAudit.value;
+      }
+      if (isMonitoringAccessDenied(fetchError)) {
         runtimeAudit.value = [];
         return runtimeAudit.value;
       }
@@ -552,6 +586,10 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     } catch (fetchError: any) {
       if (isMissingManagementApi(fetchError)) {
         managementApiAvailable.value = false;
+        gatewayAccessLogs.value = [];
+        return gatewayAccessLogs.value;
+      }
+      if (isMonitoringAccessDenied(fetchError)) {
         gatewayAccessLogs.value = [];
         return gatewayAccessLogs.value;
       }

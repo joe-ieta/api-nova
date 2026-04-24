@@ -36,10 +36,22 @@ const api: AxiosInstance = axios.create({
 });
 
 // 请求拦截器
+const getStoredAuthToken = () =>
+  localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+
+const shouldForceLogoutOnUnauthorized = (error: any) => {
+  const requestUrl = String(error?.config?.url || "").toLowerCase();
+  return (
+    requestUrl.includes("/auth/me") ||
+    requestUrl.includes("/auth/refresh") ||
+    requestUrl.includes("/auth/login")
+  );
+};
+
 api.interceptors.request.use(
   (config) => {
     // 添加认证token
-    const token = localStorage.getItem("auth_token");
+    const token = getStoredAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -104,9 +116,11 @@ api.interceptors.response.use(
         case 401:
           errorMessage = "认证失败，请重新登录";
           errorCode = "UNAUTHORIZED";
-          localStorage.removeItem("auth_token");
+          if (shouldForceLogoutOnUnauthorized(error)) {
+            localStorage.removeItem("auth_token");
           // 可以触发重新登录事件
-          window.dispatchEvent(new CustomEvent("auth:logout"));
+            window.dispatchEvent(new CustomEvent("auth:logout"));
+          }
           break;
         case 403:
           errorMessage = "权限不足";

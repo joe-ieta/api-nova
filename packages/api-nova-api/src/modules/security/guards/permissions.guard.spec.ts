@@ -68,4 +68,27 @@ describe('PermissionsGuard', () => {
     expect(authService.checkPermission).toHaveBeenCalledWith('user-1', 'server:write');
     expect(auditLog).toHaveBeenCalled();
   });
+
+  it('should allow super_admin without checking granular permissions', async () => {
+    const reflector = {
+      getAllAndOverride: jest
+        .fn()
+        .mockReturnValueOnce(false)
+        .mockReturnValueOnce(['monitoring:read']),
+    } as unknown as Reflector;
+    const authService = { checkPermission: jest.fn() } as any;
+    const guard = new PermissionsGuard(reflector, authService);
+    const request = {
+      user: { id: 'user-1', hasRole: (role: string) => role === 'super_admin' },
+      headers: {},
+      connection: { remoteAddress: '127.0.0.1' },
+      socket: { remoteAddress: '127.0.0.1' },
+      path: '/api/v1/monitoring/management/overview',
+      method: 'GET',
+      get: jest.fn().mockReturnValue('jest'),
+    };
+
+    await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
+    expect(authService.checkPermission).not.toHaveBeenCalled();
+  });
 });
