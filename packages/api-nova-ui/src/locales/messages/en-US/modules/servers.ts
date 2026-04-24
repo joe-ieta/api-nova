@@ -198,6 +198,7 @@ export default {
       pageTitle: "Runtime Assets",
       runtimeStatus: "Runtime Status",
       runtimeEndpoint: "Runtime Endpoint",
+      accessUrls: "Access URLs",
       runtimeType: "Runtime Type",
       members: "Members",
       activeMembers: "Active Members",

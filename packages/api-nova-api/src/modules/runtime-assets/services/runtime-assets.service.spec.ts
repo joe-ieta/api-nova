@@ -344,6 +344,7 @@ describe('RuntimeAssetsService', () => {
     gatewayRouteRepository.findOne.mockResolvedValue({
       id: 'route-1',
       runtimeAssetEndpointBindingId: 'membership-1',
+      matchHost: 'gateway.internal',
       routePath: '/orders',
       routeMethod: 'GET',
       upstreamPath: '/orders',
@@ -359,6 +360,8 @@ describe('RuntimeAssetsService', () => {
       {
         id: 'route-1',
         runtimeAssetEndpointBindingId: 'membership-1',
+        matchHost: 'gateway.internal',
+        routePath: '/orders',
         authPolicyRef: 'jwt-default',
         trafficPolicyRef: 'traffic-standard',
         loggingPolicyRef: 'body-preview',
@@ -374,6 +377,7 @@ describe('RuntimeAssetsService', () => {
     expect(result.gatewayGovernance).toEqual(
       expect.objectContaining({
         totalRoutes: 1,
+        accessUrls: expect.arrayContaining(['http://gateway.internal/orders']),
         cacheEnabledRoutes: 1,
         rateLimitedRoutes: 1,
         breakerProtectedRoutes: 1,
@@ -387,6 +391,7 @@ describe('RuntimeAssetsService', () => {
     expect(result.runtimeSummary.gatewayGovernance).toEqual(
       expect.objectContaining({
         totalRoutes: 1,
+        accessUrls: expect.arrayContaining(['http://gateway.internal/orders']),
       }),
     );
   });

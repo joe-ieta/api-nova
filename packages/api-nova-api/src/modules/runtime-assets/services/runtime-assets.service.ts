@@ -1301,7 +1301,10 @@ export class RuntimeAssetsService {
     const managedServerSummary = this.toManagedServerSummary(resolvedManagedServerEntity);
     const gatewayGovernance =
       runtimeAsset.type === RuntimeAssetType.GATEWAY_SERVICE
-        ? await this.buildRuntimeAssetGatewayGovernanceSummary(memberships)
+        ? await this.buildRuntimeAssetGatewayGovernanceSummary(
+            memberships,
+            managedServerSummary?.endpoint,
+          )
         : null;
 
     return {
@@ -1330,6 +1333,7 @@ export class RuntimeAssetsService {
 
   private async buildRuntimeAssetGatewayGovernanceSummary(
     memberships: RuntimeAssetEndpointBindingEntity[],
+    runtimeEndpoint?: string,
   ) {
     const membershipIds = memberships.map(item => item.id).filter(Boolean);
     if (membershipIds.length === 0) {
@@ -1349,12 +1353,15 @@ export class RuntimeAssetsService {
         cachePolicyRef: routeBinding.cachePolicyRef,
         rateLimitPolicyRef: routeBinding.rateLimitPolicyRef,
         circuitBreakerPolicyRef: routeBinding.circuitBreakerPolicyRef,
+        matchHost: routeBinding.matchHost,
+        routePath: routeBinding.routePath,
         upstreamConfig: routeBinding.upstreamConfig,
       })),
+      runtimeEndpoint,
     );
   }
 
-  private buildGatewayGovernanceSummary(routes: Array<Record<string, any>>) {
+  private buildGatewayGovernanceSummary(routes: Array<Record<string, any>>, runtimeEndpoint?: string) {
     const authModes = {
       anonymous: 0,
       jwt: 0,
@@ -1374,6 +1381,7 @@ export class RuntimeAssetsService {
 
     return {
       totalRoutes: routes.length,
+      accessUrls: this.buildGatewayAccessUrls(routes, runtimeEndpoint),
       authModes,
       cacheEnabledRoutes: routes.filter(route => Boolean(route.cachePolicyRef)).length,
       rateLimitedRoutes: routes.filter(
@@ -1395,6 +1403,96 @@ export class RuntimeAssetsService {
         circuitBreakerPolicyRefs: this.uniqueRefs(routes.map(route => route.circuitBreakerPolicyRef)),
       },
     };
+  }
+
+  private buildGatewayAccessUrls(routes: Array<Record<string, any>>, runtimeEndpoint?: string) {
+    const values = routes.flatMap(route => this.buildGatewayRouteAccessUrls(route, runtimeEndpoint));
+    return Array.from(new Set(values)).sort((left, right) => left.localeCompare(right));
+  }
+
+  private buildGatewayRouteAccessUrls(route: Record<string, any>, runtimeEndpoint?: string) {
+    const routePath = this.normalizeGatewayAccessPath(route.routePath);
+    if (!routePath) {
+      return [];
+    }
+
+    const values: string[] = [];
+    const normalizedRuntimeEndpoint = String(runtimeEndpoint || '').trim();
+    const normalizedMatchHost = String(route.matchHost || '').trim();
+
+    if (normalizedRuntimeEndpoint) {
+      const runtimeUrl = this.tryBuildGatewayUrl(normalizedRuntimeEndpoint, routePath);
+      if (runtimeUrl) {
+        values.push(runtimeUrl);
+      }
+    }
+
+    if (normalizedMatchHost) {
+      const hostSpecificUrl = this.tryBuildGatewayUrl(
+        this.resolveGatewayHostBase(normalizedMatchHost, normalizedRuntimeEndpoint),
+        routePath,
+      );
+      if (hostSpecificUrl) {
+        values.push(hostSpecificUrl);
+      }
+    }
+
+    return values;
+  }
+
+  private normalizeGatewayAccessPath(routePath?: string) {
+    const value = String(routePath || '').trim();
+    if (!value) {
+      return '';
+    }
+    return value.startsWith('/') ? value : `/${value}`;
+  }
+
+  private resolveGatewayHostBase(matchHost: string, runtimeEndpoint?: string) {
+    if (/^https?:\/\//i.test(matchHost)) {
+      return matchHost;
+    }
+
+    const normalizedRuntimeEndpoint = String(runtimeEndpoint || '').trim();
+    if (!normalizedRuntimeEndpoint) {
+      return matchHost;
+    }
+
+    try {
+      const runtimeUrl = new URL(normalizedRuntimeEndpoint);
+      if (matchHost.includes(':')) {
+        runtimeUrl.host = matchHost;
+      } else {
+        runtimeUrl.hostname = matchHost;
+      }
+      return runtimeUrl.origin;
+    } catch {
+      return matchHost;
+    }
+  }
+
+  private tryBuildGatewayUrl(base: string, routePath: string) {
+    const normalizedBase = String(base || '').trim();
+    if (!normalizedBase) {
+      return '';
+    }
+
+    try {
+      return new URL(routePath, this.ensureGatewayBaseUrl(normalizedBase)).toString();
+    } catch {
+      return '';
+    }
+  }
+
+  private ensureGatewayBaseUrl(value: string) {
+    const normalized = String(value || '').trim();
+    if (!normalized) {
+      return normalized;
+    }
+    const withScheme = /^https?:\/\//i.test(normalized)
+      ? normalized
+      : `http://${normalized}`;
+    return withScheme.endsWith('/') ? withScheme : `${withScheme}/`;
   }
 
   private toGatewayRouteView(item: any) {

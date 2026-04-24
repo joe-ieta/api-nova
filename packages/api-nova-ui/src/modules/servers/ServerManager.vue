@@ -217,6 +217,27 @@
                     <span class="label">{{ isRuntimeAssetsSurface ? `${t("servers.runtimeAssetsLabels.runtimeEndpoint")}:` : `${t("servers.serverUrl")}:` }}</span>
                     <span class="value">{{ server.endpoint || "N/A" }}</span>
                   </div>
+                  <div
+                    class="info-item info-item-multiline"
+                    v-if="isRuntimeAssetsSurface && getAccessUrls(server).length"
+                  >
+                    <span class="label">{{ t("servers.serverUrl") }}:</span>
+                    <div class="value-list">
+                      <span
+                        v-for="url in getAccessUrls(server).slice(0, 2)"
+                        :key="url"
+                        class="value"
+                      >
+                        {{ url }}
+                      </span>
+                      <span
+                        v-if="getAccessUrls(server).length > 2"
+                        class="value value-more"
+                      >
+                        +{{ getAccessUrls(server).length - 2 }}
+                      </span>
+                    </div>
+                  </div>
                   <div class="info-item">
                     <span class="label">{{ isRuntimeAssetsSurface ? `${t("servers.runtimeAssetsLabels.members")}:` : `${t('servers.port')}:` }}</span>
                     <span class="value">{{ getMembershipCount(server) }}</span>
@@ -518,6 +539,7 @@ type RuntimeAssetListRow = MCPServer & {
   activeMembershipCount: number;
   managedServerId?: string;
   rawRuntimeStatus?: string;
+  accessUrls?: string[];
 };
 
 // 路由和状态
@@ -657,6 +679,9 @@ const mapRuntimeAssetRow = (item: any): RuntimeAssetListRow => {
     status: normalizeRuntimeAssetStatus(summary.runtimeStatus || asset.status),
     healthy: Boolean(summary.healthy),
     endpoint: summary.endpoint || managedServer?.endpoint || "",
+    accessUrls: Array.isArray(summary.gatewayGovernance?.accessUrls)
+      ? summary.gatewayGovernance.accessUrls.filter((value: unknown) => Boolean(value))
+      : [],
     toolCount: Number(summary.toolsCount || managedServer?.toolsCount || 0),
     autoStart: false,
     tags: ["runtime-asset", String(asset.type || "unknown")],
@@ -713,6 +738,8 @@ const getActiveMembershipCount = (server: MCPServer | RuntimeAssetListRow) =>
   isRuntimeAssetsSurface.value
     ? (server as RuntimeAssetListRow).activeMembershipCount || 0
     : server.toolCount || 0;
+const getAccessUrls = (server: MCPServer | RuntimeAssetListRow) =>
+  isRuntimeAssetsSurface.value ? (server as RuntimeAssetListRow).accessUrls || [] : [];
 
 // 方法
 const refreshServers = async () => {
@@ -1422,6 +1449,11 @@ const handleServerMetricsUpdate = (data: any) => {
   font-size: 14px;
 }
 
+.info-item-multiline {
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .info-item .label {
   color: var(--el-text-color-regular);
 }
@@ -1429,6 +1461,24 @@ const handleServerMetricsUpdate = (data: any) => {
 .info-item .value {
   color: var(--el-text-color-primary);
   font-weight: 500;
+}
+
+.value-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  max-width: 65%;
+}
+
+.value-list .value {
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.value-more {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
 }
 
 .server-metrics {
