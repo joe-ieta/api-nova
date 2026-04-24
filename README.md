@@ -2,9 +2,9 @@
 
 **语言**：中文 | [English](./README_EN.md)
 
-ApiNova（中文名：达雅，亦可称 Api达雅）是一个面向 AI 时代的 API Gateway 与 API 能力平台。
+ApiNova（中文名：达雅 / Api达雅），一个面向 AI 时代的 API Gateway 与 API AI能力平台。
 
-它以 OpenAPI / Swagger 为输入基础，提供解析、校验、标准化、MCP Tool 生成、运行时暴露，以及面向运营与管理的 API / UI 工作流，让传统 API 更适合被 AI 应用、Agent 与模型运行时接入、理解与调用。
+ApiNova 自动装载 OpenAPI / Swagger API，手动注册API，通过探测、解析、校验、测试、标准化，提供权鉴、访问、缓存、流控、熔断核心功能，构建构建API Gateway Server 以及API MCP Server，让传统 API 无感融入 AI 应用，支持 LLM运行时接入。
 
 English speakers can use [README_EN.md](./README_EN.md).
 

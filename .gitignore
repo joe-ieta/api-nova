@@ -85,6 +85,7 @@ packages/*/dist/
 *.mcp-server-stats.json
 logs/
 pids/
+data/api-nova.db
 packages/data/
 .codex_temp_*.json
 
