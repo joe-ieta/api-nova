@@ -216,30 +216,6 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="lastProbeStatus" :label="t('endpointRegistry.table.probe')" width="120">
-            <template #default="{ row }">
-              <el-tag :type="getProbeTagType(row.lastProbeStatus)">
-                {{ getProbeLabel(row.lastProbeStatus) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column
-            :prop="'lastProbeSummary'"
-            :label="probeDetailsLabel"
-            min-width="280"
-            show-overflow-tooltip
-          />
-          <el-table-column
-            prop="publishEnabled"
-            :label="t('endpointRegistry.table.publishEnabled')"
-            width="130"
-          >
-            <template #default="{ row }">
-              <el-tag :type="row.publishEnabled ? 'success' : 'info'">
-                {{ row.publishEnabled ? t("common.yes") : t("common.no") }}
-              </el-tag>
-            </template>
-          </el-table-column>
           <el-table-column
             prop="updatedAtText"
             :label="t('endpointRegistry.table.updatedAt')"
@@ -248,16 +224,6 @@
           <el-table-column :label="t('endpointRegistry.table.actions')" :width="actionColumnWidth" fixed="right">
             <template #default="{ row }">
               <div class="row-actions manual-row-actions">
-                <el-button
-                  v-if="showProbeAction || isManualRegistrationView"
-                  size="small"
-                  :icon="Connection"
-                  class="action-btn"
-                  @click="handleProbe(row)"
-                  :loading="isActionLoading(row.id, 'probe')"
-                >
-                  {{ t("endpointRegistry.actions.probe") }}
-                </el-button>
                 <el-button
                   v-if="showTestAction"
                   size="small"
@@ -570,7 +536,6 @@
               <div class="manual-group-base-path">{{ group.basePath }}</div>
               <div class="manual-group-stats">
                 <span>{{ t("endpointRegistry.groupStats.ready", { count: group.readyCount }) }}</span>
-                <span>{{ t("endpointRegistry.groupStats.blocked", { count: group.blockedCount }) }}</span>
               </div>
             </button>
           </div>
@@ -589,9 +554,6 @@
                 <el-tag type="success" effect="plain">
                   {{ t("endpointRegistry.groupStats.ready", { count: selectedPublicationCandidateGroup.readyCount }) }}
                 </el-tag>
-                <el-tag type="warning" effect="plain">
-                  {{ t("endpointRegistry.groupStats.blocked", { count: selectedPublicationCandidateGroup.blockedCount }) }}
-                </el-tag>
               </div>
               <el-table
                 :data="selectedPublicationCandidateGroup.endpoints"
@@ -601,7 +563,7 @@
                 table-layout="auto"
                 @selection-change="handlePublicationCandidateSelectionChange"
               >
-                <el-table-column type="selection" width="46" />
+                <el-table-column type="selection" width="46" :selectable="isPublicationCandidateSelectable" />
                 <el-table-column prop="name" :label="t('endpointRegistry.table.name')" min-width="180" />
                 <el-table-column prop="methodPath" :label="t('endpointRegistry.table.methodPath')" min-width="220" />
                 <el-table-column prop="readinessState" :label="t('endpointRegistry.table.readiness')" width="120">
@@ -943,6 +905,15 @@
                   @click="handleViewRuntime(selectedPublicationMembershipRow)"
                 >
                   {{ t("endpointRegistry.actions.viewRuntime") }}
+                </el-button>
+                <el-button
+                  v-if="selectedPublicationMembershipRow.runtimeAssetId"
+                  size="small"
+                  plain
+                  class="action-btn"
+                  @click="handleViewMonitoring(selectedPublicationMembershipRow)"
+                >
+                  {{ t("endpointRegistry.actions.viewMonitoring") }}
                 </el-button>
               </div>
             </div>
@@ -1606,18 +1577,38 @@
       align-center
       @closed="resetPublicationTargetForm"
     >
-      <el-form :model="publicationTargetForm" label-width="130px">
+      <el-alert
+        :title="t('endpointRegistry.publicationBuilder.targetDialogHint')"
+        type="info"
+        show-icon
+        :closable="false"
+        class="mb-12"
+      />
+      <el-form
+        ref="publicationTargetFormRef"
+        :model="publicationTargetForm"
+        :rules="publicationTargetFormRules"
+        label-width="130px"
+      >
         <el-form-item :label="t('endpointRegistry.publicationBuilder.targetType')">
           <el-radio-group v-model="publicationTargetForm.type">
             <el-radio-button value="mcp_server">{{ filterLabel.mcp }}</el-radio-button>
             <el-radio-button value="gateway_service">{{ filterLabel.gateway }}</el-radio-button>
           </el-radio-group>
         </el-form-item>
-        <el-form-item :label="t('endpointRegistry.form.name')">
-          <el-input v-model="publicationTargetForm.name" clearable />
+        <el-form-item :label="t('endpointRegistry.form.name')" prop="name">
+          <el-input
+            v-model="publicationTargetForm.name"
+            clearable
+            :placeholder="t('endpointRegistry.publicationBuilder.namePlaceholder')"
+          />
         </el-form-item>
         <el-form-item :label="t('endpointRegistry.publicationBuilder.displayName')">
-          <el-input v-model="publicationTargetForm.displayName" clearable />
+          <el-input
+            v-model="publicationTargetForm.displayName"
+            clearable
+            :placeholder="t('endpointRegistry.publicationBuilder.displayNamePlaceholder')"
+          />
         </el-form-item>
         <el-form-item :label="t('endpointRegistry.form.description')">
           <el-input v-model="publicationTargetForm.description" type="textarea" :rows="3" />
@@ -2182,6 +2173,7 @@ const publicationTargetForm = ref({
   policyBindingRef: "",
 });
 const createFormRef = ref<FormInstance>();
+const publicationTargetFormRef = ref<FormInstance>();
 const createForm = ref({
   name: "",
   baseUrl: "",
@@ -2336,6 +2328,27 @@ const createFormRules = computed(() => {
 
   return rules;
 });
+
+const publicationTargetFormRules = computed(() => ({
+  name: [
+    {
+      required: true,
+      message: t("endpointRegistry.publicationBuilder.nameRequired"),
+      trigger: "blur",
+    },
+    {
+      min: 2,
+      max: 64,
+      message: t("endpointRegistry.publicationBuilder.nameLength"),
+      trigger: "blur",
+    },
+    {
+      pattern: /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/,
+      message: t("endpointRegistry.publicationBuilder.namePattern"),
+      trigger: "blur",
+    },
+  ],
+}));
 
 const isActionLoading = (
   rowId: string,
@@ -3465,7 +3478,7 @@ const publicationActivityEntries = computed<OperationTimelineEntry[]>(() => {
 
 const publicationCandidateGroups = computed<PublicationCandidateGroup[]>(() => {
   const map = new Map<string, PublicationCandidateGroup>();
-  for (const row of publicationCandidates.value) {
+  for (const row of publicationCandidates.value.filter(item => item.readinessState === "ready")) {
     if (!map.has(row.groupKey)) {
       map.set(row.groupKey, {
         groupKey: row.groupKey,
@@ -3489,6 +3502,9 @@ const publicationCandidateGroups = computed<PublicationCandidateGroup[]>(() => {
     }))
     .sort((a, b) => `${a.groupName} ${a.hostPort}`.localeCompare(`${b.groupName} ${b.hostPort}`));
 });
+
+const isPublicationCandidateSelectable = (row: PublicationCandidateRow) =>
+  row.readinessState === "ready";
 
 const effectiveSelectedPublicationCandidateGroupKey = computed(() => {
   if (
@@ -3555,7 +3571,6 @@ const loadOverview = async () => {
       const [candidateResult, membershipResult, runtimeAssetResult] = await Promise.all([
         serverAPI.listPublicationCandidates({
           search: search.value.trim() || undefined,
-          includeBlocked: true,
         }),
         serverAPI.listPublicationRuntimeMemberships(),
         runtimeAssetsAPI.listRuntimeAssets(),
@@ -3717,14 +3732,43 @@ const resetPublicationForm = () => {
   };
 };
 
+const buildPublicationTargetDraftBase = () => {
+  const group = selectedPublicationCandidateGroup.value;
+  const source = group?.groupName || group?.hostPort || "api";
+  return String(source)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40) || "api";
+};
+
+const buildPublicationTargetDraftName = (
+  type: "mcp_server" | "gateway_service",
+) => {
+  const suffix = type === "gateway_service" ? "gateway" : "mcp";
+  return `${buildPublicationTargetDraftBase()}-${suffix}`;
+};
+
+const buildPublicationTargetDraftDisplayName = (
+  type: "mcp_server" | "gateway_service",
+) => {
+  const group = selectedPublicationCandidateGroup.value;
+  const targetLabel = type === "gateway_service" ? filterLabel.value.gateway : filterLabel.value.mcp;
+  const source = group?.groupName || group?.hostPort || "API";
+  return `${source} ${targetLabel}`;
+};
+
 const resetPublicationTargetForm = () => {
+  const type = selectedPublicationTargetType.value;
   publicationTargetForm.value = {
-    type: selectedPublicationTargetType.value,
-    name: "",
-    displayName: "",
+    type,
+    name: buildPublicationTargetDraftName(type),
+    displayName: buildPublicationTargetDraftDisplayName(type),
     description: "",
     policyBindingRef: "",
   };
+  publicationTargetFormRef.value?.clearValidate();
 };
 
 const mapPublicationCandidateRow = (
@@ -3785,6 +3829,10 @@ const openPublicationTargetDialog = () => {
 };
 
 const submitPublicationTargetForm = async () => {
+  const valid = await publicationTargetFormRef.value?.validate().catch(() => false);
+  if (valid === false) {
+    return;
+  }
   try {
     publicationTargetSaving.value = true;
     const result = await serverAPI.createPublicationRuntimeAsset({
@@ -3898,7 +3946,9 @@ const formatTestDialogTimestamp = (value?: unknown) => {
 };
 
 const handlePublicationCandidateSelectionChange = (rows: PublicationCandidateRow[]) => {
-  selectedPublicationCandidateIds.value = rows.map(item => item.endpointDefinitionId);
+  selectedPublicationCandidateIds.value = rows
+    .filter(isPublicationCandidateSelectable)
+    .map(item => item.endpointDefinitionId);
 };
 
 const handlePublicationMembershipSelectionChange = (rows: EndpointRow[]) => {
@@ -4571,6 +4621,16 @@ const handleViewRuntime = async (row: EndpointRow) => {
   });
 };
 
+const handleViewMonitoring = async (row: EndpointRow) => {
+  await router.push({
+    path: "/monitoring",
+    query: {
+      runtimeAssetId: row.runtimeAssetId || undefined,
+      q: row.runtimeAssetName || row.runtimeAssetId || row.name,
+    },
+  });
+};
+
 const handleReadiness = async (row: EndpointRow) => {
   try {
     setActionLoading(row.id, "readiness");
@@ -4906,6 +4966,11 @@ watch(selectedReadinessState, async () => {
 
 watch(selectedPublicationTargetType, () => {
   publicationTargetForm.value.type = selectedPublicationTargetType.value;
+  if (showPublicationTargetDialog.value) {
+    publicationTargetForm.value.name = buildPublicationTargetDraftName(selectedPublicationTargetType.value);
+    publicationTargetForm.value.displayName = buildPublicationTargetDraftDisplayName(selectedPublicationTargetType.value);
+    publicationTargetFormRef.value?.clearValidate();
+  }
   const firstTarget = publicationTargetOptions.value[0];
   selectedPublicationTargetRuntimeAssetId.value = firstTarget?.asset?.id || "";
 });

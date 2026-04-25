@@ -25,6 +25,21 @@
         </el-button>
       </div>
     </div>
+
+    <div class="lifecycle-gate">
+      <div class="gate-step done">{{ t("apiTester.lifecycle.registration") }}</div>
+      <div class="gate-line active"></div>
+      <div class="gate-step active">{{ t("apiTester.lifecycle.testing") }}</div>
+      <div class="gate-line"></div>
+      <div class="gate-step">{{ t("apiTester.lifecycle.governance") }}</div>
+      <div class="gate-line"></div>
+      <div class="gate-step">{{ t("apiTester.lifecycle.publication") }}</div>
+      <div class="gate-copy">
+        <strong>{{ t("apiTester.lifecycle.gateTitle") }}</strong>
+        <span>{{ t("apiTester.lifecycle.gateDescription") }}</span>
+      </div>
+    </div>
+
     <div class="main-content">
       <div class="catalog-panel">
         <div class="panel-header">
@@ -52,7 +67,7 @@
               <div class="catalog-item-title">{{ group.groupName }}</div>
               <div class="catalog-item-subtitle">{{ group.hostPort }}</div>
               <div class="catalog-item-path">{{ group.basePath }}</div>
-              <div class="catalog-item-meta">{{ group.endpoints.length }} ? endpoint</div>
+              <div class="catalog-item-meta">{{ t("apiTester.endpointCount", { count: group.endpoints.length }) }}</div>
               <div class="catalog-item-progress">
                 {{ t("apiTester.progressCompleted", { count: group.completedTests }) }} / {{ group.endpoints.length }}
                 <span>{{ t("apiTester.progressPending", { count: group.pendingTests }) }}</span>
@@ -74,7 +89,7 @@
               <div class="catalog-item-title">{{ group.groupName }}</div>
               <div class="catalog-item-subtitle">{{ group.hostPort }}</div>
               <div class="catalog-item-path">{{ group.basePath }}</div>
-              <div class="catalog-item-meta">{{ group.endpoints.length }} ? endpoint</div>
+              <div class="catalog-item-meta">{{ t("apiTester.endpointCount", { count: group.endpoints.length }) }}</div>
               <div class="catalog-item-progress">
                 {{ t("apiTester.progressCompleted", { count: group.completedTests }) }} / {{ group.endpoints.length }}
                 <span>{{ t("apiTester.progressPending", { count: group.pendingTests }) }}</span>
@@ -112,7 +127,7 @@
           <div v-if="selectedGroup" class="endpoint-group-summary">
             <div class="catalog-item-subtitle">{{ selectedGroup.hostPort }}</div>
             <div class="catalog-item-path">{{ selectedGroup.basePath }}</div>
-            <div class="catalog-item-meta">{{ selectedGroup.endpoints.length }} ? endpoint</div>
+            <div class="catalog-item-meta">{{ t("apiTester.endpointCount", { count: selectedGroup.endpoints.length }) }}</div>
             <div class="catalog-item-progress">
               {{ t("apiTester.progressCompleted", { count: selectedGroup.completedTests }) }} / {{ selectedGroup.endpoints.length }}
               <span>{{ t("apiTester.progressPending", { count: selectedGroup.pendingTests }) }}</span>
@@ -269,6 +284,9 @@
                     <el-icon><Plus /></el-icon>
                     {{ t("apiTester.actions.saveAsTestCase") }}
                   </el-button>
+                  <el-button size="small" type="success" @click="goToGovernance" v-if="testResult.success">
+                    {{ t("apiTester.actions.goGovernance") }}
+                  </el-button>
                 </div>
               </div>
             </div>
@@ -391,7 +409,7 @@
     </div>
     <el-dialog
       v-model="createTestCaseDialogVisible"
-      title="创建测试用例"
+      :title="t('apiTester.dialog.createTestCaseTitle')"
       width="500px"
       :close-on-click-modal="false"
     >
@@ -401,19 +419,19 @@
         label-width="80px"
         :rules="testCaseRules"
       >
-        <el-form-item label="名称" prop="name">
-          <el-input v-model="newTestCase.name" placeholder="输入测试用例名称" />
+        <el-form-item :label="t('apiTester.dialog.name')" prop="name">
+          <el-input v-model="newTestCase.name" :placeholder="t('apiTester.dialog.namePlaceholder')" />
         </el-form-item>
 
-        <el-form-item label="标签" prop="tags">
-          <el-input v-model="tagsInput" placeholder="输入标签，用逗号分隔" />
+        <el-form-item :label="t('apiTester.dialog.tags')" prop="tags">
+          <el-input v-model="tagsInput" :placeholder="t('apiTester.dialog.tagsPlaceholder')" />
         </el-form-item>
 
-        <el-form-item label="期望结果">
+        <el-form-item :label="t('apiTester.dialog.expectedResult')">
           <el-input
             type="textarea"
             v-model="newTestCase.expectedResult"
-            placeholder="描述期望的测试结果（可选）"
+            :placeholder="t('apiTester.dialog.expectedResultPlaceholder')"
             :rows="3"
           />
         </el-form-item>
@@ -421,51 +439,52 @@
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="createTestCaseDialogVisible = false"
-            >取消</el-button
-          >
-          <el-button type="primary" @click="createTestCase">创建</el-button>
+          <el-button @click="createTestCaseDialogVisible = false">
+            {{ t("apiTester.dialog.cancel") }}
+          </el-button>
+          <el-button type="primary" @click="createTestCase">
+            {{ t("apiTester.dialog.create") }}
+          </el-button>
         </div>
       </template>
     </el-dialog>
 
-    <!-- 历史详情对话框 -->
     <el-dialog
       v-model="historyDetailsDialogVisible"
-      title="测试历史详情"
+      :title="t('apiTester.dialog.historyDetailTitle')"
       width="600px"
     >
       <div v-if="selectedHistoryItem" class="history-details">
         <div class="detail-section">
-          <h4>基本信息</h4>
+          <h4>{{ t("apiTester.dialog.basicInfo") }}</h4>
           <div class="detail-content">
             <p>
-              <strong>工具:</strong>
+              <strong>{{ t("apiTester.dialog.tool") }}:</strong>
               {{ getToolName(selectedHistoryItem.toolId) }}
             </p>
             <p>
-              <strong>时间:</strong>
+              <strong>{{ t("apiTester.dialog.time") }}:</strong>
               {{ formatDateTime(selectedHistoryItem.timestamp) }}
             </p>
             <p>
-              <strong>状态:</strong>
+              <strong>{{ t("apiTester.dialog.status") }}:</strong>
               <el-tag
                 :type="
                   selectedHistoryItem.result.success ? 'success' : 'danger'
                 "
               >
-                {{ selectedHistoryItem.result.success ? "成功" : "失败" }}
+                {{ selectedHistoryItem.result.success ? t("apiTester.status.success") : t("apiTester.status.failed") }}
               </el-tag>
             </p>
             <p>
-              <strong>执行时间:</strong>
+              <strong>{{ t("apiTester.duration") }}:</strong>
               {{ selectedHistoryItem.result.executionTime }}ms
             </p>
           </div>
         </div>
 
         <div class="detail-section">
-          <h4>参数</h4>
+          <h4>{{ t("apiTester.dialog.parameters") }}</h4>
           <el-input
             type="textarea"
             :value="JSON.stringify(selectedHistoryItem.parameters, null, 2)"
@@ -475,7 +494,7 @@
         </div>
 
         <div class="detail-section">
-          <h4>结果</h4>
+          <h4>{{ t("apiTester.dialog.result") }}</h4>
           <el-input
             type="textarea"
             :value="
@@ -726,6 +745,13 @@ const filteredSelectedGroupEndpoints = computed(() => {
     [endpoint.name, endpoint.method, endpoint.path, endpoint.status, endpoint.testStatus]
       .some((value) => String(value).toLowerCase().includes(keyword)),
   );
+});
+
+const selectedCatalogEndpoint = computed(() => {
+  if (!selectedEndpointId.value) return null;
+  return catalogGroups.value
+    .flatMap((group) => group.endpoints)
+    .find((endpoint) => endpoint.id === selectedEndpointId.value) || null;
 });
 
 const toolParameters = computed(() => {
@@ -1114,19 +1140,10 @@ const getMethodTagType = (method: string) => {
 };
 
 const getEndpointStatusLabel = (status: string): string => {
-  const labels: Record<string, string> = {
-    draft: "草稿",
-    ready: "就绪",
-    verified: "已校验",
-    active: "启用",
-    published: "已发布",
-    degraded: "异常",
-    offline: "已下线",
-    disabled: "已禁用",
-    retired: "已退役",
-    archived: "已归档",
-  };
-  return labels[String(status || "").toLowerCase()] || status || "未知状态";
+  const normalized = String(status || "").toLowerCase();
+  const labelKey = `apiTester.endpointStatus.${normalized}`;
+  const label = t(labelKey);
+  return label === labelKey ? status || t("apiTester.endpointStatus.unknown") : label;
 };
 
 const getEndpointStatusTagType = (status: string): string => {
@@ -1149,14 +1166,18 @@ const getTestStatusLabel = (testStatus: string, qualificationState?: string): st
   const normalizedTestStatus = String(testStatus || "").toLowerCase();
   const normalizedQualification = String(qualificationState || "").toLowerCase();
   if (normalizedQualification === "tested") {
-    return normalizedTestStatus === "passed" ? "已测试（通过）" : "已测试";
+    return normalizedTestStatus === "passed"
+      ? t("apiTester.testStatus.testedPassed")
+      : t("apiTester.testStatus.tested");
   }
   if (normalizedQualification === "test_blocked") {
-    return normalizedTestStatus === "failed" ? "测试阻塞（未通过）" : "测试阻塞";
+    return normalizedTestStatus === "failed"
+      ? t("apiTester.testStatus.blockedFailed")
+      : t("apiTester.testStatus.blocked");
   }
-  if (normalizedTestStatus === "passed") return "已测试（通过）";
-  if (normalizedTestStatus === "failed") return "测试阻塞（未通过）";
-  return "未测试";
+  if (normalizedTestStatus === "passed") return t("apiTester.testStatus.testedPassed");
+  if (normalizedTestStatus === "failed") return t("apiTester.testStatus.blockedFailed");
+  return t("apiTester.testStatus.untested");
 };
 
 const getTestStatusTagType = (testStatus: string, qualificationState?: string): string => {
@@ -1198,6 +1219,17 @@ const saveAsTestCase = () => {
   };
   tagsInput.value = newTestCase.value.tags.join(", ");
   createTestCaseDialogVisible.value = true;
+};
+
+const goToGovernance = async () => {
+  const endpoint = selectedCatalogEndpoint.value;
+  await router.push({
+    path: "/governance",
+    query: {
+      sourceType: endpoint?.sourceType || "all",
+      q: endpoint ? `${endpoint.method} ${endpoint.path}` : undefined,
+    },
+  });
 };
 
 const showCreateTestCaseDialog = () => {
@@ -1376,6 +1408,61 @@ watch(
 .header-actions {
   display: flex;
   gap: 12px;
+}
+
+.lifecycle-gate {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f8fbff 0%, #fffaf0 100%);
+}
+
+.gate-step {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--el-bg-color);
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.gate-step.done {
+  color: var(--el-color-success);
+  background: var(--el-color-success-light-9);
+}
+
+.gate-step.active {
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+}
+
+.gate-line {
+  width: 26px;
+  height: 2px;
+  background: var(--el-border-color);
+}
+
+.gate-line.active {
+  background: var(--el-color-primary);
+}
+
+.gate-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  text-align: right;
+}
+
+.gate-copy strong {
+  color: var(--el-text-color-primary);
 }
 
 .main-content {

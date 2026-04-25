@@ -1,7 +1,7 @@
 import axios from "axios";
 import type { AxiosResponse } from "axios";
 
-// 分页响应接口
+// Paginated document response.
 export interface PaginatedResponse<T> {
   documents: T[];
   total: number;
@@ -10,7 +10,7 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
-// 文档接口类型定义
+// Document API types.
 export interface Document {
   id: string;
   name: string;
@@ -72,63 +72,11 @@ export interface UpdateDocumentDto {
   };
 }
 
-export interface QuickPublishProcessLog {
-  step: string;
-  level: "info" | "success" | "warning" | "error";
-  summary: string;
-  details?: string;
-  timestamp: string;
-}
 
-export interface QuickPublishDocumentMcpResponse {
-  document: Document;
-  sourceServiceAsset: {
-    id: string;
-    sourceKey: string;
-    displayName?: string;
-    host: string;
-    port: number;
-    normalizedBasePath: string;
-  };
-  runtimeAsset: {
-    id: string;
-    name: string;
-    type: string;
-    status: string;
-    displayName?: string;
-  };
-  managedServer?: {
-    id: string;
-    name: string;
-    status: string;
-    port?: number;
-    transport?: string;
-    runtimeAssetId?: string;
-  };
-  runtimeSummary?: Record<string, any>;
-  publicationBatchRun?: {
-    id: string;
-    status: string;
-    totalCount: number;
-    successCount: number;
-    failedCount: number;
-  };
-  memberships: Array<{
-    membershipId: string;
-    endpointDefinitionId: string;
-    status: "success" | "failed";
-    message?: string;
-  }>;
-  tools: Array<Record<string, any>>;
-  toolsCount: number;
-  endpointCount: number;
-  processLogs: QuickPublishProcessLog[];
-}
-
-// API基础配置
+// API base configuration.
 const API_BASE_URL = "/api";
 
-// 创建axios实例
+// Axios instance for document APIs.
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
@@ -137,7 +85,7 @@ const apiClient = axios.create({
   },
 });
 
-// 请求拦截器 - 添加JWT token
+// Attach JWT token when present.
 apiClient.interceptors.request.use(
   (config) => {
     const token =
@@ -153,27 +101,25 @@ apiClient.interceptors.request.use(
   },
 );
 
-// 响应拦截器 - 处理错误
+// Handle common document API errors.
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token过期或无效，清除本地存储的token
-      // 可以在这里触发登录页面跳转
       console.warn("Document request unauthorized");
     }
     return Promise.reject(error);
   },
 );
 
-// 文档管理API
+// Document management API.
 export const documentsApi = {
-  // 获取用户文档列表
+  // Fetch the current user's documents.
   async getDocuments(): Promise<Document[]> {
     try {
       const response: AxiosResponse<PaginatedResponse<Document>> =
         await apiClient.get("/documents");
-      // 从分页响应中提取documents数组
+      // Extract documents from the paginated response.
       return response.data.documents || [];
     } catch (error) {
       console.error("Failed to fetch documents:", error);
@@ -181,7 +127,7 @@ export const documentsApi = {
     }
   },
 
-  // 获取单个文档
+  // Fetch a single document.
   async getDocument(id: string): Promise<Document> {
     try {
       const response: AxiosResponse<Document> = await apiClient.get(
@@ -194,7 +140,7 @@ export const documentsApi = {
     }
   },
 
-  // 创建文档
+  // Create a document.
   async createDocument(data: CreateDocumentDto): Promise<Document> {
     try {
       const response: AxiosResponse<Document> = await apiClient.post(
@@ -208,7 +154,7 @@ export const documentsApi = {
     }
   },
 
-  // 更新文档
+  // Update a document.
   async updateDocument(id: string, data: UpdateDocumentDto): Promise<Document> {
     try {
       const response: AxiosResponse<Document> = await apiClient.patch(
@@ -222,7 +168,7 @@ export const documentsApi = {
     }
   },
 
-  // 删除文档
+  // Delete a document.
   async deleteDocument(id: string): Promise<void> {
     try {
       await apiClient.delete(`/documents/${id}`);
@@ -232,7 +178,7 @@ export const documentsApi = {
     }
   },
 
-  // 检查用户认证状态
+  // Check whether the stored auth token can access document APIs.
   async checkAuth(): Promise<boolean> {
     try {
       const token =
@@ -243,7 +189,7 @@ export const documentsApi = {
         return false;
       }
 
-      // 尝试调用一个需要认证的接口来验证token有效性
+      // Validate the token by calling an authenticated endpoint.
       const response = await apiClient.get("/documents");
       console.log(
         "Auth check successful, documents loaded:",
@@ -256,29 +202,10 @@ export const documentsApi = {
         error.response?.status,
         error.message,
       );
-      // 如果是401错误，说明token无效
-      if (error.response?.status === 401) {
-      }
       return false;
     }
   },
 
-  async quickPublishDocumentToMcp(
-    id: string,
-    data: {
-      content?: string;
-      replaceExisting?: boolean;
-    },
-  ): Promise<QuickPublishDocumentMcpResponse> {
-    try {
-      const response: AxiosResponse<QuickPublishDocumentMcpResponse> =
-        await apiClient.post(`/documents/${id}/quick-publish-mcp`, data);
-      return response.data;
-    } catch (error) {
-      console.error(`Failed to quick publish document ${id} to MCP:`, error);
-      throw error;
-    }
-  },
 };
 
 export default documentsApi;

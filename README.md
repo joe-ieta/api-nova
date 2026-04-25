@@ -143,21 +143,24 @@ pnpm type-check
 - `/mcp` 是 MCP 协议端点，不是浏览器页面
 - 浏览器直接访问 `/mcp` 时若返回 `Mcp-Session-Id header is required`，属于符合预期的协议行为
 
-## 当前产品能力边界
+## Current Product Boundary
 
-- OpenAPI Management 仍然是导入与规范处理主路径
-- Endpoint Registry 是并行的治理入口，用于手工注册端点以及对导入端点做轻量治理
-- 语义发布层仍处于规划阶段，保留在 `open-items` 中，当前不属于已发布基线
+- OpenAPI Management remains the batch import and specification processing entry.
+- Manual endpoint registration remains a separate construction method under API Registration.
+- API Testing is the functional gate before Governance.
+- API Governance is the readiness decision surface.
+- API Publication is the first normal surface where MCP Server and Gateway runtime identities are created.
+- Runtime Assets and Monitoring are downstream operation surfaces.
 
-## 文档入口
+## Documentation Entry
 
-建议从以下文档开始：
+Start from:
 
 - [PRODUCT_CONSTRAINTS](./PRODUCT_CONSTRAINTS.md)
 - [PROJECT_BASELINE](./PROJECT_BASELINE.md)
 - [RELEASE_BASELINE_V1](./RELEASE_BASELINE_V1.md)
 - [Documentation Index](./docs/README.md)
-- [Fork Origin And Independence](./docs/guides/fork-origin-and-independence.md)
+- [Next Development Baseline](./NEXT_DEVELOPMENT_BASELINE.md)
 - [Staged Development Plan](./docs/guides/staged-development-plan.md)
 - [Open Items](./docs/reference/open-items.md)
 

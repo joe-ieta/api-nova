@@ -239,6 +239,7 @@
                       size="small"
                       @click="convertToMCP"
                       :disabled="selectedDocument.status !== 'valid'"
+                      :loading="converting"
                     >
                       <el-icon><Setting /></el-icon>
                       {{ t("openapi.convertToMcp") }}
@@ -960,7 +961,6 @@ import {
   type Document,
   type CreateDocumentDto,
   type UpdateDocumentDto,
-  type QuickPublishProcessLog,
 } from "../../api/documents";
 import { openApiAPI, serverAPI } from "../../services/api";
 
@@ -1095,39 +1095,6 @@ const formatOperationError = (error: unknown) => {
   }
 
   return t("common.unknownError");
-};
-
-const getOperationLogsFromError = (error: unknown): QuickPublishProcessLog[] => {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "response" in error &&
-    Array.isArray((error as any).response?.data?.processLogs)
-  ) {
-    return (error as any).response.data.processLogs as QuickPublishProcessLog[];
-  }
-
-  return [];
-};
-
-const appendQuickPublishProcessLogs = (
-  logs: QuickPublishProcessLog[],
-  fallbackTitle?: string,
-) => {
-  logs.forEach((entry) => {
-    addOperationTimelineEntry({
-      level: entry.level,
-      title: fallbackTitle || t("openapi.convertToMcp"),
-      summary: entry.summary,
-      details: [
-        `Step: ${entry.step}`,
-        `Timestamp: ${entry.timestamp}`,
-        entry.details || "",
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    });
-  });
 };
 
 // 琛ㄥ崟楠岃瘉瑙勫垯
@@ -1430,24 +1397,24 @@ const selectDocument = async (doc: Document) => {
           parsedApis.value = [];
         }
 
-        // 瑙ｆ瀽MCP宸ュ叿
+        // Parse MCP tools for local preview only. Runtime publication is handled later.
         try {
           const parseResult =
             await openApiStore.parseOpenAPIContent(sanitizedContent);
           mcpTools.value = parseResult.tools || [];
           mcpServerUrl.value = parseResult.servers[0]?.url || "";
         } catch (mcpError) {
-          console.warn("瑙ｆ瀽MCP宸ュ叿澶辫触:", mcpError);
+          console.warn("Failed to parse MCP tools:", mcpError);
           mcpTools.value = [];
           mcpServerUrl.value = "";
         }
 
-        // 淇濇寔鍦ㄧ紪杈戞爣绛鹃〉锛屼笉鑷姩鍒囨崲
+        // Keep the editor tab active; do not switch automatically.
         // if (parsedApis.value.length > 0) {
         //   activeTab.value = 'apis'
         // }
       } catch (parseError) {
-        console.error("瑙ｆ瀽OpenAPI鍐呭澶辫触:", parseError);
+        console.error("Failed to parse OpenAPI content:", parseError);
         ElMessage.warning(t("openapi.parseContentFailed"));
         parsedApis.value = [];
         mcpTools.value = [];
@@ -1455,7 +1422,7 @@ const selectDocument = async (doc: Document) => {
       }
     }
   } catch (error) {
-    console.error("鑾峰彇鏂囨。鍐呭澶辫触:", error);
+    console.error("Failed to fetch document content:", error);
     ElMessage.error(
       t("openapi.fetchDocumentFailed", {
         error:
@@ -1463,7 +1430,7 @@ const selectDocument = async (doc: Document) => {
       }),
     );
 
-    // 閲嶇疆鐘舵€?
+    // Reset document state after failed load.
     selectedDocument.value = null;
     editorContent.value = "";
     parsedApis.value = [];
@@ -1475,7 +1442,7 @@ const selectDocument = async (doc: Document) => {
 };
 
 const editDocument = (doc: Document) => {
-  // 濉厖缂栬緫琛ㄥ崟鏁版嵁
+  // Populate the edit form from the selected document.
   editForm.value = {
     id: doc.id,
     name: doc.name,
@@ -1491,14 +1458,14 @@ const deleteDocument = async (docId: string) => {
   }
 
   try {
-    // 鏌ユ壘瑕佸垹闄ょ殑鏂囨。
+    // Find the document before deleting so the confirmation can show its name.
     const docToDelete = documents.value.find((doc) => doc.id === docId);
     if (!docToDelete) {
       ElMessage.error(t("openapi.documentNotFound"));
       return;
     }
 
-    // 鏄剧ず纭瀵硅瘽妗嗭紝鍖呭惈鏂囨。鍚嶇О
+    // Confirm deletion with the document name visible.
     const confirmed = await ElMessageBox.confirm(
       t("openapi.confirmDeleteDocument", { name: docToDelete.name }),
       t("openapi.confirmDelete"),
@@ -1513,13 +1480,13 @@ const deleteDocument = async (docId: string) => {
       .catch(() => false);
     if (!confirmed) return;
 
-    // 璋冪敤API鍒犻櫎鏂囨。
+    // Delete the document through the API.
     await documentsApi.deleteDocument(docId);
 
-    // 浠庢湰鍦版枃妗ｅ垪琛ㄤ腑鍒犻櫎
+    // Remove it from the local list.
     documents.value = documents.value.filter((doc) => doc.id !== docId);
 
-    // 濡傛灉鍒犻櫎鐨勬槸褰撳墠閫変腑鐨勬枃妗ｏ紝娓呯┖鐩稿叧鐘舵€?
+    // Clear editor state when the selected document was deleted.
     if (selectedDocument.value?.id === docId) {
       selectedDocument.value = null;
       editorContent.value = "";
@@ -1531,7 +1498,7 @@ const deleteDocument = async (docId: string) => {
 
     ElMessage.success(t("openapi.deleteSuccess", { name: docToDelete.name }));
   } catch (error) {
-    console.error("鍒犻櫎鏂囨。澶辫触:", error);
+    console.error("Failed to delete document:", error);
     ElMessage.error(
       t("openapi.deleteFailed", {
         error:
@@ -1555,19 +1522,19 @@ const saveEditDocument = async () => {
 
     editing.value = true;
 
-    // 鍑嗗鏇存柊鏁版嵁
+    // Prepare update payload.
     const updateData: UpdateDocumentDto = {
       name: editForm.value.name,
       description: editForm.value.description,
     };
 
-    // 璋冪敤API鏇存柊鏂囨。
+    // Update through the API.
     const updatedDoc = await documentsApi.updateDocument(
       editForm.value.id,
       updateData,
     );
 
-    // 鏇存柊鏈湴鏂囨。鍒楄〃
+    // Update the local document list.
     const docIndex = documents.value.findIndex(
       (doc) => doc.id === editForm.value.id,
     );
@@ -1575,7 +1542,7 @@ const saveEditDocument = async () => {
       documents.value[docIndex] = updatedDoc;
     }
 
-    // 濡傛灉褰撳墠閫変腑鐨勬槸琚紪杈戠殑鏂囨。锛屼篃瑕佹洿鏂伴€変腑鏂囨。鐨勪俊鎭?
+    // Keep the selected document in sync with edits.
     if (selectedDocument.value?.id === editForm.value.id) {
       selectedDocument.value = updatedDoc;
     }
@@ -1583,7 +1550,7 @@ const saveEditDocument = async () => {
     showEditDialog.value = false;
     ElMessage.success(t("openapi.updateSuccess"));
   } catch (error) {
-    console.error("鏇存柊鏂囨。澶辫触:", error);
+    console.error("Failed to update document:", error);
     ElMessage.error(
       t("openapi.saveFailed", {
         error:
@@ -1605,7 +1572,7 @@ const refreshDocuments = async () => {
     await loadDocuments();
     ElMessage.success(t("openapi.refreshSuccess"));
   } catch (error) {
-    console.error("鍒锋柊鏂囨。澶辫触:", error);
+    console.error("Failed to refresh documents:", error);
     ElMessage.error(
       t("openapi.refreshFailed", {
         error:
@@ -1632,7 +1599,7 @@ const handleSpecAction = async (command: {
 
   switch (action) {
     case "edit":
-      // 閫夋嫨鏂囨。杩涜缂栬緫
+      // Select the document for editing.
       const doc = documents.value.find((d) => d.id === spec.id);
       if (doc) {
         selectDocument(doc);
@@ -1673,12 +1640,12 @@ const handleSpecAction = async (command: {
           await openApiStore.deleteSpec(spec.id);
         });
 
-        // 濡傛灉鍒犻櫎鐨勬槸褰撳墠閫変腑鐨勬枃妗ｏ紝娓呯┖閫夋嫨
+        // Clear the selected document after deleting it.
         if (selectedDocument.value?.id === spec.id) {
           selectedDocument.value = null;
           editorContent.value = "";
         }
-        // 浠庢枃妗ｅ垪琛ㄤ腑绉婚櫎
+        // Remove it from the document list.
         documents.value = documents.value.filter((doc) => doc.id !== spec.id);
         ElMessage.success(t("openapi.deleteSpecSuccess"));
       } catch (error) {
@@ -1737,7 +1704,7 @@ const handleContentChange = (content: string) => {
   validationResults.value = null;
 };
 
-// 淇濆瓨鏂囨。鍐呭
+// Save the current document content.
 const saveDocumentContent = async () => {
   if (!selectedDocument.value || !isAuthenticated.value) {
     if (!isAuthenticated.value) {
@@ -1749,7 +1716,7 @@ const saveDocumentContent = async () => {
   try {
     saving.value = true;
 
-    // 鍑嗗鏇存柊鏁版嵁
+    // Strip parser-generated metadata before persisting the OpenAPI document.
     const sanitizedContent = sanitizeOpenApiContent(editorContent.value);
     if (sanitizedContent !== editorContent.value) {
       editorContent.value = sanitizedContent;
@@ -1762,13 +1729,13 @@ const saveDocumentContent = async () => {
       content: sanitizedContent,
     };
 
-    // 璋冪敤API鏇存柊鏂囨。
+    // Persist the updated document.
     const updatedDoc = await documentsApi.updateDocument(
       selectedDocument.value.id,
       updateData,
     );
 
-    // 鏇存柊鏈湴鏂囨。鍒楄〃
+    // Update the local document list.
     const docIndex = documents.value.findIndex(
       (doc) => doc.id === selectedDocument.value!.id,
     );
@@ -1776,7 +1743,7 @@ const saveDocumentContent = async () => {
       documents.value[docIndex] = updatedDoc;
     }
 
-    // 鏇存柊閫変腑鐨勬枃妗?
+    // Update the selected document.
     selectedDocument.value = updatedDoc;
 
     ElMessage.success(t("openapi.saveSuccess"));
@@ -1791,27 +1758,27 @@ const saveDocumentContent = async () => {
       ].join("\n"),
     });
   } catch (error: any) {
-    console.error("淇濆瓨鏂囨。鍐呭澶辫触:", error);
+    console.error("Failed to save document content:", error);
 
-    // 澶勭悊400閿欒锛屾樉绀烘洿鍏蜂綋鐨勯敊璇俊鎭?
+    // Surface validation-related 400 errors with a more specific message.
     if (error.response && error.response.status === 400) {
       const errorData = error.response.data;
       let errorMessage = "";
 
       if (errorData && errorData.message) {
-        // 妫€鏌ユ槸鍚︽槸OpenAPI瑙勮寖楠岃瘉閿欒
+        // Keep this fallback explicit because the backend can return raw validator messages.
         if (
           errorData.message.includes("OpenAPI") ||
           errorData.message.includes("Swagger")
         ) {
-          errorMessage = `OpenAPI瑙勮寖楠岃瘉澶辫触: ${errorData.message}`;
+          errorMessage = `OpenAPI validation failed: ${errorData.message}`;
         } else if (errorData.message.includes("JSON")) {
-          errorMessage = `JSON鏍煎紡閿欒: ${errorData.message}`;
+          errorMessage = `JSON format error: ${errorData.message}`;
         } else {
-          errorMessage = `璇锋眰鍙傛暟閿欒: ${errorData.message}`;
+          errorMessage = `Invalid request parameters: ${errorData.message}`;
         }
       } else {
-        errorMessage = "鏂囨。鍐呭鏍煎紡涓嶆纭紝璇锋鏌penAPI瑙勮寖鏍煎紡";
+        errorMessage = "Document content is invalid. Check the OpenAPI format.";
       }
 
       ElMessage.error(errorMessage);
@@ -1826,7 +1793,7 @@ const saveDocumentContent = async () => {
         ].join("\n"),
       });
     } else {
-      // 鍏朵粬閿欒浣跨敤鍘熸湁閫昏緫
+      // Other errors use the existing localized failure message.
       ElMessage.error(
         t("openapi.saveFailed", {
           error:
@@ -1868,29 +1835,29 @@ const validateSpec = async () => {
       return await openApiStore.validateOpenAPIContent(sanitizedContent);
     });
 
-    // 鏇存柊楠岃瘉缁撴灉
+    // Update validation result state.
     validationResults.value = result;
 
-    // 鏇存柊鏂囨。鐘舵€?
+    // Update document status.
     if (selectedDocument.value) {
       const newStatus = result.valid ? "valid" : "invalid";
       selectedDocument.value.status = newStatus;
 
-      // 璋冪敤鍚庣API鏇存柊鏂囨。鐘舵€?
+      // Persist status without blocking the validation flow.
       try {
         await documentsApi.updateDocument(selectedDocument.value.id, {
           status: newStatus as any,
         });
       } catch (statusUpdateError) {
-        console.error("鏇存柊鏂囨。鐘舵€佸け璐?", statusUpdateError);
-        // 鐘舵€佹洿鏂板け璐ヤ笉褰卞搷楠岃瘉娴佺▼锛屽彧璁板綍閿欒
+        console.error("Failed to update document status:", statusUpdateError);
+        // Status update failure should not block validation.
       }
     }
 
-    // 濡傛灉楠岃瘉鎴愬姛锛岃В鏋怉PI璺緞骞舵洿鏂皃arsedApis
+    // Parse API paths after successful validation.
     if (result.valid) {
       try {
-        // 浣跨敤 extractApiPaths 鍑芥暟浠庡唴瀹逛腑鎻愬彇API璺緞
+        // Extract API paths from document content.
         const apiPaths = extractApiPaths(sanitizedContent);
         parsedApis.value = apiPaths.map((api, index) => ({
           id: index,
@@ -1900,18 +1867,18 @@ const validateSpec = async () => {
           description: api.description || "",
         }));
 
-        // 鑷姩鍒囨崲鍒癆PIs鏍囩椤垫樉绀篈PI鍒楄〃
+        // Switch to the APIs tab to show the parsed list.
         activeTab.value = "apis";
       } catch (parseError) {
-        console.error("瑙ｆ瀽API璺緞澶辫触:", parseError);
+        console.error("Failed to parse API paths:", parseError);
         parsedApis.value = [];
       }
     } else {
-      // 楠岃瘉澶辫触鏃舵竻绌篈PI鍒楄〃
+      // Clear parsed APIs after validation failure.
       parsedApis.value = [];
     }
 
-    // 鏄剧ず楠岃瘉缁撴灉娑堟伅
+    // Show validation result feedback.
     if (result.valid) {
       const warnings = result.warnings || [];
       const warningCount = warnings.length;
@@ -1962,7 +1929,7 @@ const validateSpec = async () => {
         ElMessage.error(t("openapi.validationFailedDetail", { errorCount }));
       }
 
-      // 濡傛灉鏈夐獙璇侀敊璇紝鍒囨崲鍒扮紪杈戝櫒鏍囩椤垫樉绀洪敊璇俊鎭?
+      // Return to the editor so validation errors are visible.
       activeTab.value = "editor";
       addOperationTimelineEntry({
         level: "error",
@@ -1987,7 +1954,7 @@ const validateSpec = async () => {
       });
     }
   } catch (error) {
-    console.error("楠岃瘉澶辫触:", error);
+    console.error("Validation failed:", error);
     ElMessage.error(
       t("openapi.validationError", {
         error: error instanceof Error ? error.message : String(error),
@@ -2009,14 +1976,14 @@ const validateSpec = async () => {
     if (selectedDocument.value) {
       selectedDocument.value.status = "invalid";
 
-      // 璋冪敤鍚庣API鏇存柊鏂囨。鐘舵€佷负invalid
+      // Persist invalid status without blocking error handling.
       try {
         await documentsApi.updateDocument(selectedDocument.value.id, {
           status: "invalid" as any,
         });
       } catch (statusUpdateError) {
-        console.error("鏇存柊鏂囨。鐘舵€佸け璐?", statusUpdateError);
-        // 鐘舵€佹洿鏂板け璐ヤ笉褰卞搷楠岃瘉娴佺▼锛屽彧璁板綍閿欒
+        console.error("Failed to update document status:", statusUpdateError);
+        // Status update failure should not block validation.
       }
     }
   } finally {
@@ -2036,17 +2003,17 @@ const createNewSpec = async () => {
     await createFormRef.value.validate();
     creating.value = true;
 
-    // 鍑嗗鍒涘缓鏁版嵁
+    // Prepare document creation payload.
     const createData: CreateDocumentDto = {
       name: createForm.value.name,
       description: createForm.value.description,
       content: generateTemplateContent(createForm.value.template),
     };
 
-    // 璋冪敤API鍒涘缓鏂囨。
+    // Create the document through the API.
     const newDoc = await documentsApi.createDocument(createData);
 
-    // 娣诲姞鍒版湰鍦版枃妗ｅ垪琛?
+    // Add it to the local document list.
     documents.value.push(newDoc);
     selectDocument(newDoc);
     showCreateDialog.value = false;
@@ -2071,7 +2038,7 @@ const createNewSpec = async () => {
       ].join("\n"),
     });
   } catch (error) {
-    console.error("鍒涘缓鏂囨。澶辫触:", error);
+    console.error("Failed to create document:", error);
     ElMessage.error(
       t("openapi.createFailed", {
         error:
@@ -2162,7 +2129,7 @@ const handleUploadDialogClose = () => {
   uploadFile.value = null;
   uploadForm.value = { name: "", description: "" };
   uploadFileList.value = [];
-  // 娓呯┖涓婁紶缁勪欢鐨勬枃浠跺垪琛?
+  // Clear the upload component file list.
   if (uploadRef.value) {
     uploadRef.value.clearFiles();
   }
@@ -2178,24 +2145,24 @@ const confirmUpload = async () => {
 
   uploading.value = true;
   try {
-    // 璇诲彇鏂囦欢鍐呭
+    // Read file content.
     const rawContent = await readFileContent(uploadFile.value);
 
-    // 鍑嗗鍒涘缓鏁版嵁
+    // Prepare document creation payload.
     const createData: CreateDocumentDto = {
       name: uploadForm.value.name,
       description: uploadForm.value.description,
       content: rawContent,
     };
 
-    // 璋冪敤API鍒涘缓鏂囨。
+    // Create the document through the API.
     const newDoc = await documentsApi.createDocument(createData);
 
-    // 娣诲姞鍒版湰鍦版枃妗ｅ垪琛?
+    // Add it to the local document list.
     documents.value.push(newDoc);
     selectDocument(newDoc);
 
-    // 纭繚瀵硅瘽妗嗗叧闂?
+    // Ensure the upload dialog is closed.
     handleUploadDialogClose();
 
     ElMessage.success(t("openapi.uploadSuccessValidate"));
@@ -2210,7 +2177,7 @@ const confirmUpload = async () => {
       ].join("\n"),
     });
   } catch (error) {
-    console.error("涓婁紶鏂囨。澶辫触:", error);
+    console.error("Failed to upload document:", error);
     ElMessage.error(
       t("openapi.uploadFailed", {
         error: error instanceof Error ? error.message : String(error),
@@ -2230,9 +2197,9 @@ const confirmUpload = async () => {
   }
 };
 
-// 宸ュ叿鍑芥暟
-// measureFunction 宸插湪 usePerformanceMonitor() 涓畾涔?
-// globalConfirmDelete 宸插湪 useConfirmation() 涓畾涔?
+// Utility helpers
+// measureFunction is provided by usePerformanceMonitor().
+// globalConfirmDelete is provided by useConfirmation().
 
 const readFileContent = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -2247,7 +2214,7 @@ const readFileContent = (file: File): Promise<string> => {
   });
 };
 
-// MCP鐩稿叧鏂规硶
+// MCP preview helpers. Publication is handled by the publication workbench.
 const convertToMCP = async () => {
   if (!editorContent.value || !selectedDocument.value?.id) {
     ElMessage.warning(t("openapi.selectDocumentFirst"));
@@ -2291,61 +2258,13 @@ const convertToMCP = async () => {
         .join("\n"),
     });
 
-    const quickPublishResult = await documentsApi.quickPublishDocumentToMcp(
-      selectedDocument.value.id,
-      {
-        content: sanitizedContent,
-        replaceExisting: true,
-      },
-    );
-
-    const docIndex = documents.value.findIndex(
-      (doc) => doc.id === quickPublishResult.document.id,
-    );
-    if (docIndex > -1) {
-      documents.value[docIndex] = quickPublishResult.document;
-    }
-    selectedDocument.value = quickPublishResult.document;
-
-    appendQuickPublishProcessLogs(
-      quickPublishResult.processLogs,
-      t("openapi.convertToMcp"),
-    );
-
     ElMessage.success(
-      t("openapi.quickPublishSuccess", {
-        count: mcpTools.value.length,
-        asset:
-          quickPublishResult.runtimeAsset.displayName ||
-          quickPublishResult.runtimeAsset.name,
-      }),
+      t("openapi.convertSuccess", { count: mcpTools.value.length }),
     );
-    addOperationTimelineEntry({
-      level: "success",
-      title: t("openapi.convertToMcp"),
-      summary: t("openapi.quickPublishSummary"),
-      details: [
-        `Runtime Asset: ${quickPublishResult.runtimeAsset.name}`,
-        `Runtime Asset ID: ${quickPublishResult.runtimeAsset.id}`,
-        `Managed Server: ${quickPublishResult.managedServer?.name || "n/a"}`,
-        `Managed Server ID: ${quickPublishResult.managedServer?.id || "n/a"}`,
-        `Memberships: ${
-          quickPublishResult.publicationBatchRun?.successCount || 0
-        }/${
-          quickPublishResult.publicationBatchRun?.totalCount ||
-          quickPublishResult.memberships.length
-        }`,
-        `Tool Count: ${quickPublishResult.toolsCount}`,
-      ].join("\n"),
-    });
   } catch (error) {
     console.error("Converting to MCP failed:", error);
-    appendQuickPublishProcessLogs(
-      getOperationLogsFromError(error),
-      t("openapi.convertToMcp"),
-    );
     ElMessage.error(
-      t("openapi.quickPublishFailed", {
+      t("openapi.convertFailed", {
         error: formatOperationError(error),
       }),
     );
@@ -2480,7 +2399,7 @@ const importFromUrl = async () => {
 const handleTestTool = async (tool: MCPTool, params: Record<string, any>) => {
   try {
     ElMessage.info(t("openapi.testingTool", { name: tool.name }));
-    // 杩欓噷鍙互闆嗘垚瀹為檯鐨勫伐鍏锋祴璇曢€昏緫
+    // Real tool test execution can be integrated here later.
     console.log("Testing tool:", tool, "with params:", params);
   } catch (error) {
     ElMessage.error(
@@ -2523,7 +2442,7 @@ const viewApiDetail = (api: any) => {
   );
 };
 
-// API鍗＄墖灞曞紑/鏀惰捣澶勭悊
+// API card expand/collapse handling.
 const toggleApiDetail = (index: number) => {
   const expandedIndex = expandedApis.value.indexOf(index);
   if (expandedIndex > -1) {
@@ -2533,7 +2452,7 @@ const toggleApiDetail = (index: number) => {
   }
 };
 
-// 鍝嶅簲鐘舵€佺爜鏍峰紡绫?
+// Response status code styling.
 const getResponseCodeClass = (code: string) => {
   const codeNum = parseInt(code);
   if (codeNum >= 200 && codeNum < 300) {
@@ -2548,9 +2467,9 @@ const getResponseCodeClass = (code: string) => {
   return "response-default";
 };
 
-// 绐楀彛澶у皬鍙樺寲澶勭悊
+// Window resize handling.
 const handleResize = () => {
-  // 瑙﹀彂璁＄畻灞炴€ч噸鏂拌绠?
+  // Trigger computed layout recalculation.
   if (editorContainerRef.value) {
     nextTick(() => {
       // 寮哄埗閲嶆柊璁＄畻楂樺害
@@ -2561,15 +2480,15 @@ const handleResize = () => {
 
 // 鐢熷懡鍛ㄦ湡
 onMounted(async () => {
-  // 妫€鏌ョ敤鎴疯璇佺姸鎬佸苟鍔犺浇鏂囨。
+  // Check authentication and load documents.
   await checkAuthentication();
 
-  // 娣诲姞绐楀彛澶у皬鍙樺寲鐩戝惉鍣?
+  // Add window resize listener.
   window.addEventListener("resize", handleResize);
 });
 
 onUnmounted(() => {
-  // 娓呯悊绐楀彛澶у皬鍙樺寲鐩戝惉鍣?
+  // Clean up window resize listener.
   window.removeEventListener("resize", handleResize);
 });
 </script>

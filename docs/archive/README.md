@@ -28,6 +28,10 @@ HTML prototypes and exploratory artifacts.
 
 Former active guides that became stale, drifted from the current baseline, or were replaced by tighter documentation.
 
+Recent archived planning material:
+
+- `guides/product-spine-restructure-plan-2026-04.md`: Phase 1/2/3 product-spine restructuring plan, superseded by `NEXT_DEVELOPMENT_BASELINE.md`, `docs/guides/staged-development-plan.md`, and `docs/reference/open-items.md`
+
 ### `reference`
 
 Historical reference notes such as one-off issue resolutions, abandoned release-flow drafts, and implementation rationale that no longer define the active maintenance baseline.

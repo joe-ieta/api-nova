@@ -2,19 +2,25 @@
 
 This directory contains active operational and usage-oriented documentation for the current product baseline.
 
-## Active Guides
+## Current Baseline Guides
+
+- [staged-development-plan](./staged-development-plan.md)
+- [asset-model-and-runtime-assets](./asset-model-and-runtime-assets.md)
+- [publication-resource-baseline](./publication-resource-baseline.md)
+- [release-readiness-checklist](./release-readiness-checklist.md)
+
+## Setup And Operations
 
 - [database-mode-quickstart](./database-mode-quickstart.md)
 - [database-strategy](./database-strategy.md)
 - [local-setup-and-run](./local-setup-and-run.md)
 - [parser-change-verification](./parser-change-verification.md)
-- [release-readiness-checklist](./release-readiness-checklist.md)
-- [staged-development-plan](./staged-development-plan.md)
 - [github-collaboration-workflow](./github-collaboration-workflow.md)
+
+## Durable Feature Baselines
+
 - [endpoint-semantic-layer-requirements](./endpoint-semantic-layer-requirements.md)
 - [dual-publication-implementation-outline](./dual-publication-implementation-outline.md)
-- [asset-model-and-runtime-assets](./asset-model-and-runtime-assets.md)
-- [publication-resource-baseline](./publication-resource-baseline.md)
 - [api-gateway-architecture-and-requirements](./api-gateway-architecture-and-requirements.md)
 - [api-gateway-phase1-technical-design](./api-gateway-phase1-technical-design.md)
 - [api-gateway-phase1-task-breakdown](./api-gateway-phase1-task-breakdown.md)
@@ -32,10 +38,11 @@ The active guide set is intentionally narrow during product convergence.
 
 It should primarily cover:
 
+- current product-spine baseline
 - setup and run
 - database mode selection
 - parser-change verification
 - release verification
-- current planning and engineering workflow
+- durable architecture baselines that still describe supported behavior
 
 Feature-specific experiments, release notes, troubleshooting deep dives, and historical implementation guides should live in `docs/archive/guides`.

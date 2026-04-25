@@ -15,7 +15,15 @@ The current top-level governance documents remain at repository root:
 
 ## Current Active Documents
 
-### Baseline and setup
+### Baseline and current execution
+
+- [Next Development Baseline](../NEXT_DEVELOPMENT_BASELINE.md)
+- [Staged Development Plan](./guides/staged-development-plan.md)
+- [Open Items](./reference/open-items.md)
+- [Asset Model And Runtime Assets](./guides/asset-model-and-runtime-assets.md)
+- [Publication Resource Baseline](./guides/publication-resource-baseline.md)
+
+### Setup and release
 
 - [Database Mode Quickstart](./guides/database-mode-quickstart.md)
 - [Database Strategy](./guides/database-strategy.md)
@@ -23,12 +31,10 @@ The current top-level governance documents remain at repository root:
 - [Parser Change Verification](./guides/parser-change-verification.md)
 - [Release Readiness Checklist](./guides/release-readiness-checklist.md)
 
-### Planning and governance
+### Durable governance and reference
 
 - [Fork Origin And Independence](./guides/fork-origin-and-independence.md)
-- [Staged Development Plan](./guides/staged-development-plan.md)
 - [Endpoint Semantic Layer Requirements](./guides/endpoint-semantic-layer-requirements.md)
-- [Open Items](./reference/open-items.md)
 - [Versioning Policy](./reference/versioning-policy.md)
 - [GitHub Collaboration Workflow](./guides/github-collaboration-workflow.md)
 
@@ -48,6 +54,7 @@ Use archive for:
 
 Examples now treated as archive material:
 
+- completed Phase 1/2/3 product-spine planning drafts
 - release-specific notes
 - troubleshooting deep dives that do not define the current baseline
 - feature-specific implementation guides that are no longer part of the active operator path

@@ -19,17 +19,30 @@ The current implementation has materially corrected the backend asset model, but
 
 The main symptoms are:
 
-1. OpenAPI import feels like a relatively complete flow from import to MCP publication
-2. manual endpoint registration feels like a different product path
-3. some product and service surfaces still describe registration and publication too closely, even though registration-time MCP carrier creation has been removed from the main path
-4. testing exists as a separate capability, but it is not yet a clear gate in the main asset lifecycle
-5. endpoint governance and runtime publication are still partially mixed in the same operator surface
+1. OpenAPI import previously over-expressed publication meaning inside an import-centered flow
+2. manual endpoint registration previously carried wording and follow-up assumptions from the older mixed model
+3. some compatibility APIs and downstream service surfaces still describe registration and publication too closely
+4. testing existed as a separate capability and has now been promoted into the main lifecycle gate
+5. endpoint governance and runtime publication still require continued downstream separation during Phase 2
 
 This gives users the wrong impression that:
 
 - registration already means publication
-- manual endpoints and imported endpoints are different product objects
+- manual endpoints and imported endpoints require different downstream lifecycle semantics
 - MCP Server creation is a side effect of registration rather than a later publication result
+
+Phase 1 closure has corrected the operator-facing upstream mainline:
+
+1. registration is now limited to catalog-side intake and maintenance
+2. batch import and manual entry stay as separate construction methods under `API Registration`
+3. testing is now visible as the lifecycle gate before governance
+4. governance remains the readiness decision point before publication
+
+Phase 2 should now focus on the downstream half:
+
+1. publication workbench productization
+2. runtime-asset-first compatibility cleanup
+3. observability closure across publication output, runtime assets, and monitoring
 
 ## 2. Corrected Product Spine
 
@@ -54,6 +67,16 @@ Supported registration methods:
 
 1. import OpenAPI
 2. manual endpoint registration
+
+These are two different asset-construction methods under the same registration stage.
+
+They do not need to be collapsed into one page or one form.
+
+What must stay unified is:
+
+- the catalog asset model they create
+- the lifecycle state vocabulary
+- the downstream testing, governance, and publication flow
 
 This stage should only create catalog-side assets:
 
@@ -163,7 +186,7 @@ These stages describe runtime exposure, not registration maturity.
 This separation avoids the current confusion where:
 
 - registering an endpoint can appear to create an MCP Server
-- imported endpoints feel publish-oriented while manual endpoints feel registry-oriented
+- imported endpoints can look publication-oriented while manual endpoints can look like a separate product path
 
 ## 5. Asset-Layer Interpretation
 
@@ -203,20 +226,19 @@ Owns:
 
 ## 6. Current Drift Against This Model
 
-The current codebase still has several concrete product-flow drifts:
+After Phase 1, the upstream registration, testing, and governance mainline is ready for handoff. The remaining concrete product-flow drifts are now Phase 2 downstream concerns:
 
 1. publication internals had retained legacy `MCPServerEntity` dependencies and `legacyEndpointId` compatibility links, and these should now be treated as a closure target rather than an active baseline assumption
-2. endpoint registry UI still mixes registration follow-up, governance, readiness, publish, and offline actions in one page
-3. top-level UI navigation has been corrected, but the registration surface is still split between import-first and manual-entry pages
-4. OpenAPI import still feels like the main product story, while manual registration feels like a side path
-5. residual server-first frontend store and websocket assumptions still exist in some management flows
+2. publication still needs to consume governance-ready endpoint candidates as the normal entry source
+3. runtime asset draft creation/selection and runtime membership configuration still need productization for both MCP and Gateway targets
+4. residual server-first frontend store and websocket assumptions still exist in some management flows
 
 That is structurally wrong under the corrected asset model because:
 
 - registration should produce catalog assets
 - publication should produce runtime assets
 
-The current OpenAPI path also still over-expresses publication meaning inside an import-centered operator surface.
+The registration-side OpenAPI path no longer quick-publishes runtime assets in the active UI flow. Any remaining publication shortcut should now be handled as Phase 2 compatibility cleanup rather than a Phase 1 blocker.
 
 ### 6.1 Current implementation cross-check
 
@@ -225,9 +247,9 @@ The following implementation areas are the main confirmed drift sources:
 - `packages/api-nova-api/src/modules/publication/services/publication.service.ts`
   publication was one of the main drift sources because it previously resolved endpoint context through `MCPServerEntity` and compatibility metadata such as `legacyEndpointId`
 - `packages/api-nova-ui/src/modules/endpoint-registry/EndpointRegistry.vue`
-  one mixed surface still exposes probe, readiness, publish, offline, governance-edit, and manual creation together
+  this component still backs multiple product surfaces, but Phase 1 now relies on route-scoped behavior to keep registration, governance, and publication actions separated in the operator flow
 - `packages/api-nova-ui/src/modules/openapi/OpenAPIManager.vue`
-  OpenAPI import remains a stronger top-level product surface than unified registration
+  OpenAPI import remains a distinct batch-construction surface and should continue to avoid implying that registration is already near publication
 - `packages/api-nova-ui/src/stores/server.ts`
   `packages/api-nova-ui/src/stores/websocket.ts`
   `packages/api-nova-ui/src/composables/useStores.ts`
@@ -251,12 +273,14 @@ Top-level product structure should move toward:
 
 ### 7.2 Registration surface
 
-The registration page should contain two entry modes:
+The registration stage should contain two explicit entry surfaces:
 
 1. Import OpenAPI
 2. Manual registration
 
-Both must converge into one registration result model.
+They should remain separate because they solve different construction problems.
+
+Both must converge into one registration result model and one downstream lifecycle.
 
 ### 7.3 Testing surface
 
@@ -288,27 +312,28 @@ Main work:
 1. define the four top-level workflow concepts in active docs
 2. reorder UI navigation and page ownership
 3. stop presenting OpenAPI import as the only primary product entry
-4. stop presenting manual registration as a different product object
+4. stop presenting manual registration as a different product object or a weaker side path
 
 Exit:
 
 - top-level product surfaces reflect registration, testing, governance, and publication as separate stages
 
-### Stage B: Unify API Registration
+### Stage B: Stabilize API Registration Boundaries
 
 Goal:
 
-- make import and manual registration two entry methods under one registration concept
+- preserve batch import and manual registration as two explicit entry surfaces under one registration concept
 
 Main work:
 
-1. create one unified API registration surface
+1. keep batch import and manual registration as separate asset-construction entry points
 2. route import and manual registration into the same catalog result model
 3. remove product-level wording that implies registration already created runtime publication artifacts
+4. make governance, testing, and publication consume both registration outputs through one shared asset lifecycle
 
 Exit:
 
-- both registration methods feel like one workflow
+- both registration methods remain distinct at entry but behave as one lifecycle after assets are created
 
 ### Stage C: Connect API Testing to the main flow
 
@@ -385,10 +410,11 @@ During this restructuring:
 
 ## 10. Immediate Execution Recommendation
 
-The next mainline should start with:
+Phase 1 mainline work is closed for handoff. The next mainline should move into Phase 2:
 
-1. Stage A: top-level product structure rewrite
-2. Stage B: API registration unification
-3. Stage C: testing gate integration
+1. make `API Publication` consume governance-ready endpoint candidates as the normal input
+2. finish runtime asset draft creation/selection for MCP and Gateway targets
+3. normalize runtime memberships, revisions, target configuration, and deployment handoff
+4. reduce legacy registration-time and endpoint-direct publication shortcuts
 
-Only after that should deeper publication and compatibility cleanup continue.
+Testing and governance refinements can continue opportunistically, but they should not block Phase 2.

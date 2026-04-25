@@ -330,10 +330,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { Monitor, Refresh, Connection, Service, Grid, Promotion } from "@element-plus/icons-vue";
 import { useI18n } from "vue-i18n";
+import { useRoute } from "vue-router";
 import MetricCard from "../components/monitoring/MetricCard.vue";
 import SystemStatusCard from "../components/monitoring/SystemStatusCard.vue";
 import AlertsPanel from "../components/monitoring/AlertsPanel.vue";
@@ -342,6 +343,7 @@ import { useWebSocketStore } from "@/stores/websocket";
 
 const monitoringStore = useMonitoringStore();
 const websocketStore = useWebSocketStore();
+const route = useRoute();
 const { t, locale } = useI18n();
 const autoRefresh = ref(true);
 const isRefreshing = ref(false);
@@ -429,6 +431,10 @@ const governanceEventSummary = computed(() =>
 );
 const gatewayLogMethodOptions = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"];
 const gatewayLogStatusOptions = [200, 201, 204, 400, 401, 403, 404, 429, 500, 502, 503, 504];
+const routeRuntimeAssetQuery = computed(() =>
+  normalizeRouteQueryValue(route.query.runtimeAssetId),
+);
+const routeSearchQuery = computed(() => normalizeRouteQueryValue(route.query.q));
 
 const systemStatusData = computed(() => ({
   status: monitoringStore.systemHealth.status,
@@ -555,6 +561,44 @@ async function resetGatewayLogFilters() {
   await applyGatewayLogFilters();
 }
 
+function normalizeRouteQueryValue(value: unknown) {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  return typeof candidate === "string" && candidate.trim()
+    ? candidate.trim()
+    : undefined;
+}
+
+function resolveGatewayRuntimeAssetId(query?: string) {
+  if (!query) {
+    return undefined;
+  }
+
+  const normalizedQuery = query.toLowerCase();
+  const matchedAsset = gatewayRuntimeAssets.value.find((item: any) => {
+    const asset = item?.asset || {};
+    return [asset.id, asset.name, asset.displayName]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(normalizedQuery));
+  });
+
+  return matchedAsset?.asset?.id;
+}
+
+function applyRouteGatewayLogFilters() {
+  const runtimeAssetId =
+    routeRuntimeAssetQuery.value ||
+    resolveGatewayRuntimeAssetId(routeSearchQuery.value);
+
+  if (!runtimeAssetId) {
+    return;
+  }
+
+  gatewayLogFilters.value = {
+    ...gatewayLogFilters.value,
+    runtimeAssetId,
+  };
+}
+
 function handleAutoRefreshChange(enabled: boolean) {
   autoRefresh.value = enabled;
   monitoringStore.toggleRealTime();
@@ -579,6 +623,7 @@ function exportLogs() {
 
 async function refreshDashboard(reason = "manual") {
   await monitoringStore.refreshAll(reason);
+  applyRouteGatewayLogFilters();
   await applyGatewayLogFilters();
 }
 
@@ -598,6 +643,11 @@ onMounted(async () => {
   await websocketStore.initialize();
   await refreshDashboard("mount");
   resetAutoRefresh();
+});
+
+watch([routeRuntimeAssetQuery, routeSearchQuery], async () => {
+  applyRouteGatewayLogFilters();
+  await applyGatewayLogFilters();
 });
 
 onBeforeUnmount(() => {
