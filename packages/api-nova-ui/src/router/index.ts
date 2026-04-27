@@ -3,14 +3,12 @@ import {
   createWebHistory,
   type RouteRecordRaw,
 } from "vue-router";
-import MainLayout from "@/layout/MainLayout.vue";
-import Login from "@/views/Login.vue";
 import { i18n } from "@/locales";
 
 const routes: RouteRecordRaw[] = [
   {
     path: "/",
-    component: MainLayout,
+    component: () => import("@/layout/MainLayout.vue"),
     redirect: "/registration/batch",
     children: [
       {
@@ -172,7 +170,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/login",
     name: "login",
-    component: Login,
+    component: () => import("@/views/Login.vue"),
     meta: {
       title: "Login",
       hidden: true,

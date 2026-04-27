@@ -53,6 +53,7 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: "dist",
       sourcemap: true,
+      chunkSizeWarningLimit: 4000,
       rollupOptions: {
         output: {
           manualChunks(id) {
@@ -92,6 +93,13 @@ export default defineConfig(({ mode }) => {
 
             if (id.includes("/src/modules/monitoring/")) {
               return "feature-monitoring";
+            }
+
+            if (
+              id.includes("/src/shared/components/monaco/") ||
+              id.includes("/src/shared/composables/useMonaco")
+            ) {
+              return "feature-editor";
             }
 
             if (id.includes("/src/modules/auth/")) {
