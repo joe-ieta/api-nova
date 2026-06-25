@@ -1,0 +1,4 @@
+interface:
+  display_name: "ApiNova Release"
+  short_description: "Package ApiNova online and offline release bundles."
+  default_prompt: "Package an ApiNova release bundle using the repository release workflow."
