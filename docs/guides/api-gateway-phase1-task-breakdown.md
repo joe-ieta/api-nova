@@ -363,7 +363,7 @@ Close phase one with explicit test coverage, migration safety, and compatibility
 
 ### Exit criteria
 
-1. `pnpm.cmd --dir packages/api-nova-api type-check` passes.
+1. `npm.cmd run type-check --workspace api-nova-api` passes.
 2. Gateway integration tests pass.
 3. New migration applies cleanly.
 4. Existing gateway publication paths remain functional.

@@ -40,8 +40,8 @@ npm install -g api-nova-server
 # Using yarn
 yarn global add api-nova-server
 
-# Using pnpm
-pnpm add -g api-nova-server
+# Using npm
+npm install -g api-nova-server
 ```
 
 ### ⚡ Immediate Usage

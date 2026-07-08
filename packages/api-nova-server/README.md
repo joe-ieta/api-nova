@@ -83,13 +83,13 @@ api-nova --openapi https://petstore.swagger.io/v2/swagger.json --transport sse -
 ## 本地开发
 
 ```bash
-pnpm --filter api-nova-server run build
-pnpm --filter api-nova-server run cli:help
-pnpm --filter api-nova-server run dev
-pnpm --filter api-nova-server run test
-pnpm --filter api-nova-server run test:smoke
-pnpm --filter api-nova-server run test:cli
-pnpm --filter api-nova-server run test:streamable-session
+npm run build --workspace api-nova-server
+npm run cli:help --workspace api-nova-server
+npm run dev --workspace api-nova-server
+npm run test --workspace api-nova-server
+npm run test:smoke --workspace api-nova-server
+npm run test:cli --workspace api-nova-server
+npm run test:streamable-session --workspace api-nova-server
 ```
 
 ## 与整仓的关系

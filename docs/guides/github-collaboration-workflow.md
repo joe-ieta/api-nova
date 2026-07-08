@@ -252,10 +252,10 @@ git merge upstream/main
 Typical checks:
 
 ```bash
-pnpm --filter api-nova-api run type-check
-pnpm --filter api-nova-api run build
-pnpm --filter api-nova-ui run build
-pnpm --filter api-nova-server run build
+npm run type-check --workspace api-nova-api
+npm run build --workspace api-nova-api
+npm run build --workspace api-nova-ui
+npm run build --workspace api-nova-server
 ```
 
 ### 5. Decide whether to absorb
@@ -341,10 +341,10 @@ git status --short
 Before release:
 
 ```bash
-pnpm --filter api-nova-api run type-check
-pnpm --filter api-nova-api run build
-pnpm --filter api-nova-ui run build
-pnpm --filter api-nova-server run build
+npm run type-check --workspace api-nova-api
+npm run build --workspace api-nova-api
+npm run build --workspace api-nova-ui
+npm run build --workspace api-nova-server
 ```
 
 ## Recommended Command Set For This Project

@@ -26,6 +26,12 @@ interface PreparedToolRegistration {
   };
 }
 
+type RegisterToolCompat = (
+  name: string,
+  config: PreparedToolRegistration['registration'],
+  cb: (args: Record<string, unknown>) => Promise<CallToolResult>,
+) => unknown;
+
 const MAX_PREPARED_TOOL_CACHE_ENTRIES = 16;
 const preparedToolCache = new Map<string, Promise<PreparedToolRegistration[]>>();
 const objectCacheTokens = new WeakMap<object, number>();
@@ -246,12 +252,13 @@ function printToolsSummary(tools: MCPTool[]) {
 async function registerTools(server: McpServer, preparedTools: PreparedToolRegistration[]): Promise<void> {
   serverDebugLog(`Registering ${preparedTools.length} tools into MCP Server...`);
 
+  const registerTool = server.registerTool.bind(server) as RegisterToolCompat;
   let successCount = 0;
   let errorCount = 0;
 
   for (const { tool, registration } of preparedTools) {
     try {
-      server.registerTool(
+      registerTool(
         tool.name,
         registration,
         async (args: Record<string, unknown>): Promise<CallToolResult> =>

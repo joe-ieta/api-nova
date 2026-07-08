@@ -20,7 +20,7 @@ if (!(Test-Path $packageJson)) {
 Write-Host "OK: package.json exists" -ForegroundColor Green
 
 if (!(Test-Path $distDir)) {
-    Write-Host "ERROR: dist directory not found, please run 'pnpm run build'" -ForegroundColor Red
+    Write-Host "ERROR: dist directory not found, please run 'npm run build'" -ForegroundColor Red
     exit 1
 }
 Write-Host "OK: dist directory exists" -ForegroundColor Green

@@ -59,31 +59,31 @@ Notes:
 ## Development Start
 
 ```bash
-pnpm --filter api-nova-api run start:dev
+npm run start:dev --workspace api-nova-api
 ```
 
 Production build:
 
 ```bash
-pnpm --filter api-nova-api run build
-pnpm --filter api-nova-api run start:prod
+npm run build --workspace api-nova-api
+npm run start:prod --workspace api-nova-api
 ```
 
 ## Common Scripts
 
 ```bash
-pnpm --filter api-nova-api run build
-pnpm --filter api-nova-api run start:dev
-pnpm --filter api-nova-api run test
-pnpm --filter api-nova-api run lint
-pnpm --filter api-nova-api run type-check
+npm run build --workspace api-nova-api
+npm run start:dev --workspace api-nova-api
+npm run test --workspace api-nova-api
+npm run lint --workspace api-nova-api
+npm run type-check --workspace api-nova-api
 ```
 
 Database mode verification examples:
 
 ```bash
-pnpm --filter api-nova-api run test -- --runInBand
-DB_TYPE=postgres pnpm --filter api-nova-api run test -- --runInBand
+npm run test --workspace api-nova-api -- --runInBand
+DB_TYPE=postgres npm run test --workspace api-nova-api -- --runInBand
 ```
 
 ## Main Endpoints

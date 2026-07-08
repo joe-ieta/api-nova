@@ -40,7 +40,10 @@ export class UrlParser extends BaseParser {
       });
 
       // Determine content type and parse accordingly
-      const contentType = response.headers['content-type'] || '';
+      const contentTypeHeader = response.headers['content-type'];
+      const contentType = Array.isArray(contentTypeHeader)
+        ? contentTypeHeader.join(';').toLowerCase()
+        : String(contentTypeHeader ?? '').toLowerCase();
       let spec: any;
 
       if (contentType.includes('yaml') || contentType.includes('yml')) {

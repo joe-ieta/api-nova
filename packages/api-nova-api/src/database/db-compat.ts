@@ -116,7 +116,7 @@ function findWorkspaceRootFrom(startPath: string): string | null {
   let packageJsonCandidate: string | null = null;
 
   while (true) {
-    if (existsSync(join(current, 'pnpm-workspace.yaml')) || existsSync(join(current, '.git'))) {
+    if (existsSync(join(current, 'package-lock.json')) || existsSync(join(current, '.git'))) {
       return current;
     }
     if (existsSync(join(current, 'package.json'))) {

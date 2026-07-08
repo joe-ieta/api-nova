@@ -47,7 +47,7 @@ class MonorepoDiagnostic {
     
     const requiredFiles = [
       'package.json',
-      'pnpm-workspace.yaml',
+      'package-lock.json',
       'packages',
       'scripts/build.js',
       'scripts/dev.js',
@@ -115,11 +115,12 @@ class MonorepoDiagnostic {
     
     try {
       const packages = this.discoverPackages();
+      const workspaceNames = new Set(packages.map(pkg => pkg.name));
       let allValid = true;
 
       for (const pkg of packages) {
         const packageJson = JSON.parse(fs.readFileSync(path.join(pkg.path, 'package.json'), 'utf8'));
-        const workspaceDeps = this.extractWorkspaceDependencies(packageJson);
+        const workspaceDeps = this.extractWorkspaceDependencies(packageJson, workspaceNames);
         
         console.log(`  📦 ${pkg.name}:`);
         
@@ -244,9 +245,9 @@ class MonorepoDiagnostic {
       });
   }
 
-  extractWorkspaceDependencies(packageJson) {
+  extractWorkspaceDependencies(packageJson, workspaceNames) {
     const deps = { ...packageJson.dependencies, ...packageJson.devDependencies };
-    return Object.keys(deps).filter(dep => deps[dep].startsWith('workspace:'));
+    return Object.keys(deps).filter(dep => workspaceNames.has(dep));
   }
 }
 

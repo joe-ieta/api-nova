@@ -287,5 +287,5 @@ Verified on April 16, 2026 against the pulled current baseline:
 - API startup in PostgreSQL mode completed with automatic schema creation and seed initialization
 - recreated PostgreSQL schema contains 19 public tables, including `endpoint_probe_logs`
 - recreated seed data includes 27 permissions, 5 roles, and 1 super admin user
-- `pnpm type-check` passed under PostgreSQL mode
-- `pnpm test` passed under PostgreSQL mode
+- `npm run type-check` passed under PostgreSQL mode
+- `npm run test` passed under PostgreSQL mode

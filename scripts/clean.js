@@ -30,7 +30,7 @@ class MonorepoCleanManager {
     
     try {
       if (pkg.hasCleanScript) {
-        execSync('pnpm run clean', { 
+        execSync('npm run clean', { 
           cwd: pkg.path, 
           stdio: 'inherit' 
         });

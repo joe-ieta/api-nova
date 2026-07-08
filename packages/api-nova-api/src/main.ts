@@ -8,6 +8,8 @@ import * as cors from 'cors';
 import * as helmet from 'helmet';
 import * as compression from 'compression';
 import * as express from 'express';
+import * as path from 'path';
+import { existsSync } from 'fs';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -55,7 +57,13 @@ async function bootstrap() {
     app.use(compression());
 
     // 静态文件服务
-    app.use(express.static('public'));
+    const publicDir = path.resolve(process.cwd(), 'public');
+    const indexFile = path.join(publicDir, 'index.html');
+
+    // Serve the packaged UI from the runtime working directory.
+    if (existsSync(publicDir)) {
+      app.use(express.static(publicDir, { index: false }));
+    }
 
     // CORS配置
     const corsOrigins = configService
@@ -83,6 +91,18 @@ async function bootstrap() {
     // 全局前缀
     app.setGlobalPrefix('api', {
       exclude: ['/', '/health', '/metrics', '/favicon.ico']
+    });
+
+    const expressInstance = app.getHttpAdapter().getInstance();
+    const spaFallbackPattern =
+      /^\/(?!(api|socket\.io|monitoring|health|metrics|assets)(\/|$)|favicon\.ico$|vite\.svg$).*/;
+
+    expressInstance.get(spaFallbackPattern, (_req, res, next) => {
+      if (!existsSync(indexFile)) {
+        return next();
+      }
+
+      return res.sendFile(indexFile);
     });
 
     // 全局验证管道

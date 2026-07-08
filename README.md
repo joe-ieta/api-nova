@@ -45,7 +45,7 @@ ApiNova 起源于 [`mcp-swagger-server`](https://github.com/zaizaizhao/mcp-swagg
 ### 运行要求
 
 - Node.js `>= 20`
-- pnpm `>= 8`
+- npm `>= 10`
 - Windows
 - Linux，其中当前主要兼容目标为 Ubuntu
 
@@ -107,15 +107,13 @@ MCP 客户端配置示例：
 
 ```bash
 node -v
-corepack enable
-corepack prepare pnpm@latest --activate
-pnpm -v
-pnpm install
-pnpm build
-pnpm dev
-pnpm test
-pnpm lint
-pnpm type-check
+npm -v
+npm install
+npm run build
+npm run dev
+npm run test
+npm run lint
+npm run type-check
 ```
 
 更多说明：

@@ -14,7 +14,7 @@ It covers:
 Required:
 
 - Node.js `>= 20`
-- `pnpm >= 8`
+- `npm >= 10`
 
 Optional:
 
@@ -25,8 +25,6 @@ Windows PowerShell:
 
 ```powershell
 winget install OpenJS.NodeJS.LTS
-corepack enable
-corepack prepare pnpm@latest --activate
 ```
 
 Ubuntu:
@@ -34,15 +32,13 @@ Ubuntu:
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt-get install -y nodejs
-corepack enable
-corepack prepare pnpm@latest --activate
 ```
 
 Verify:
 
 ```bash
 node -v
-pnpm -v
+npm -v
 ```
 
 ## 2. Install Dependencies
@@ -53,14 +49,14 @@ Windows PowerShell:
 
 ```powershell
 cd E:\CodexDev\api-nova-server
-pnpm install
+npm install
 ```
 
 Ubuntu:
 
 ```bash
 cd /path/to/api-nova-server
-pnpm install
+npm install
 ```
 
 ## 3. Choose Database Mode
@@ -180,9 +176,9 @@ Windows PowerShell:
 
 ```powershell
 cd E:\CodexDev\api-nova-server
-pnpm --filter api-nova-api run build
+npm run build --workspace api-nova-api
 $env:DB_TYPE="postgres"
-pnpm --filter api-nova-api run test -- --runInBand
+npm run test --workspace api-nova-api -- --runInBand
 node packages\api-nova-api\dist\src\main.js
 ```
 
@@ -190,8 +186,8 @@ Ubuntu:
 
 ```bash
 cd /path/to/api-nova-server
-pnpm --filter api-nova-api run build
-DB_TYPE=postgres pnpm --filter api-nova-api run test -- --runInBand
+npm run build --workspace api-nova-api
+DB_TYPE=postgres npm run test --workspace api-nova-api -- --runInBand
 DB_TYPE=postgres node packages/api-nova-api/dist/src/main.js
 ```
 
@@ -212,28 +208,28 @@ Current verified baseline:
 From repository root:
 
 ```bash
-pnpm build
+npm run build
 ```
 
 Per-package build:
 
 ```bash
-pnpm --filter api-nova-parser run build
-pnpm --filter api-nova-server run build
-pnpm --filter api-nova-api run build
-pnpm --filter api-nova-ui run build
+npm run build --workspace api-nova-parser
+npm run build --workspace api-nova-server
+npm run build --workspace api-nova-api
+npm run build --workspace api-nova-ui
 ```
 
 If parser behavior changed, run:
 
 ```bash
-pnpm run verify:parser-chain
+npm run verify:parser-chain
 ```
 
 For broader downstream verification:
 
 ```bash
-pnpm run verify:parser-chain:full
+npm run verify:parser-chain:full
 ```
 
 ## 5. Start Commands
@@ -243,7 +239,7 @@ pnpm run verify:parser-chain:full
 Development mode:
 
 ```bash
-pnpm --filter api-nova-api run start:dev
+npm run start:dev --workspace api-nova-api
 ```
 
 Built mode:
@@ -251,14 +247,14 @@ Built mode:
 Windows PowerShell:
 
 ```powershell
-pnpm --filter api-nova-api run build
+npm run build --workspace api-nova-api
 node packages\api-nova-api\dist\src\main.js
 ```
 
 Ubuntu:
 
 ```bash
-pnpm --filter api-nova-api run build
+npm run build --workspace api-nova-api
 node packages/api-nova-api/dist/src/main.js
 ```
 
@@ -271,7 +267,7 @@ Main addresses:
 ### 5.2 Start UI
 
 ```bash
-pnpm --filter api-nova-ui run dev
+npm run dev --workspace api-nova-ui
 ```
 
 Main address:
@@ -287,14 +283,14 @@ The default dev proxy target is:
 Windows PowerShell:
 
 ```powershell
-pnpm --filter api-nova-server run build
+npm run build --workspace api-nova-server
 node packages\api-nova-server\dist\cli.js --openapi .\examples\minimal-openapi.json --transport streamable --port 9022
 ```
 
 Ubuntu:
 
 ```bash
-pnpm --filter api-nova-server run build
+npm run build --workspace api-nova-server
 node packages/api-nova-server/dist/cli.js --openapi ./examples/minimal-openapi.json --transport streamable --port 9022
 ```
 
@@ -313,7 +309,7 @@ Notes:
 
 ### SQLite path
 
-1. `pnpm install`
+1. `npm install`
 2. Copy `.env.example` to `packages/api-nova-api/.env`
 3. Keep `DB_TYPE=sqlite` or omit it
 4. Start API
@@ -336,16 +332,16 @@ Notes:
 Core checks:
 
 ```bash
-pnpm build
-pnpm type-check
-pnpm --filter api-nova-server run test
+npm run build
+npm run type-check
+npm run test --workspace api-nova-server
 ```
 
 Targeted runtime checks:
 
 ```bash
-pnpm --filter api-nova-server run test:transform-spec
-pnpm --filter api-nova-server run test:streamable-session
+npm run test:transform-spec --workspace api-nova-server
+npm run test:streamable-session --workspace api-nova-server
 ```
 
 ## 8. Common Problems
@@ -388,7 +384,7 @@ Check:
 - rebuild the API package before restart:
 
 ```bash
-pnpm --filter api-nova-api run build
+npm run build --workspace api-nova-api
 ```
 
 If startup succeeds, logs should include:
@@ -410,7 +406,6 @@ Use:
 
 ```powershell
 npm.cmd -v
-pnpm.cmd -v
 ```
 
 If needed:

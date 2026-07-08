@@ -380,9 +380,9 @@ Close phase two with explicit coverage for security, governance, resilience, and
 
 ### Exit criteria
 
-1. `pnpm.cmd --dir packages/api-nova-api type-check` passes
-2. `pnpm.cmd test` passes
-3. `pnpm.cmd --dir packages/api-nova-ui type-check` passes
+1. `npm.cmd run type-check --workspace api-nova-api` passes
+2. `npm.cmd run test` passes
+3. `npm.cmd run type-check --workspace api-nova-ui` passes
 4. phase-two governance features are covered by targeted tests
 
 ## Phase 2 Migration Plan

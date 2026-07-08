@@ -10,7 +10,7 @@ class MonorepoBuildManager {
   }
 
   discoverPackages() {
-    return fs.readdirSync(this.packagesDir)
+    const packageEntries = fs.readdirSync(this.packagesDir)
       .filter(dir => {
         const packagePath = path.join(this.packagesDir, dir, 'package.json');
         return fs.existsSync(packagePath);
@@ -19,17 +19,29 @@ class MonorepoBuildManager {
         const packagePath = path.join(this.packagesDir, dir, 'package.json');
         const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
         return {
+          packageJson,
           name: packageJson.name,
           path: path.join(this.packagesDir, dir),
-          dependencies: this.extractWorkspaceDependencies(packageJson),
           hasBuilScript: !!(packageJson.scripts && packageJson.scripts.build)
+        };
+      });
+
+    const workspaceNames = new Set(packageEntries.map(pkg => pkg.name));
+
+    return packageEntries
+      .map(pkg => {
+        return {
+          name: pkg.name,
+          path: pkg.path,
+          dependencies: this.extractWorkspaceDependencies(pkg.packageJson, workspaceNames),
+          hasBuilScript: pkg.hasBuilScript
         };
       });
   }
 
-  extractWorkspaceDependencies(packageJson) {
+  extractWorkspaceDependencies(packageJson, workspaceNames) {
     const deps = { ...packageJson.dependencies, ...packageJson.devDependencies };
-    return Object.keys(deps).filter(dep => deps[dep].startsWith('workspace:'));
+    return Object.keys(deps).filter(dep => workspaceNames.has(dep));
   }
 
   buildDependencyGraph() {
@@ -92,7 +104,7 @@ class MonorepoBuildManager {
     const startTime = Date.now();
     
     try {
-      execSync('pnpm run build', { 
+      execSync('npm run build', { 
         cwd: pkg.path, 
         stdio: 'inherit' 
       });

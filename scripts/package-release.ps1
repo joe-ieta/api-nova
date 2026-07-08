@@ -15,6 +15,7 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $repoRoot = $repoRoot.Path
 $outputPath = [System.IO.Path]::GetFullPath($OutputDir)
 $runtimePlatform = node -p "process.platform + '-' + process.arch"
+$npmCommand = if ($IsWindows -or $env:OS -eq 'Windows_NT') { 'npm.cmd' } else { 'npm' }
 
 function Copy-IfExists {
   param(
@@ -90,7 +91,7 @@ if not exist "node_modules" (
   } else {
 @'
 set INSTALL_DEPS=0
-if not exist "packages\api-nova-api\node_modules" set INSTALL_DEPS=1
+if not exist "node_modules" set INSTALL_DEPS=1
 if not exist ".api-nova-runtime-platform" set INSTALL_DEPS=1
 if exist ".api-nova-runtime-platform" (
   set /p INSTALLED_PLATFORM=<.api-nova-runtime-platform
@@ -99,7 +100,7 @@ if exist ".api-nova-runtime-platform" (
 
 if "%INSTALL_DEPS%"=="1" (
   echo [ApiNova] Installing production dependencies for %RUNTIME_PLATFORM%...
-  call corepack pnpm install --prod --frozen-lockfile
+  call npm.cmd ci --omit=dev
   if errorlevel 1 (
     echo [ApiNova] Dependency installation failed.
     pause
@@ -120,7 +121,7 @@ fi
   } else {
 @'
 install_deps=0
-if [ ! -d "packages/api-nova-api/node_modules" ]; then
+if [ ! -d "node_modules" ]; then
   install_deps=1
 elif [ ! -f ".api-nova-runtime-platform" ]; then
   install_deps=1
@@ -130,7 +131,7 @@ fi
 
 if [ "${install_deps}" = "1" ]; then
   echo "[ApiNova] Installing production dependencies for ${runtime_platform}..."
-  corepack pnpm install --prod --frozen-lockfile
+  npm ci --omit=dev
   printf '%s\n' "${runtime_platform}" > .api-nova-runtime-platform
 fi
 '@
@@ -142,13 +143,19 @@ setlocal
 cd /d "%~dp0"
 
 set NODE_EXE=node
-if exist "runtime\node\node.exe" set NODE_EXE=runtime\node\node.exe
+set NODE_IS_BUNDLED=0
+if exist "runtime\node\node.exe" (
+  set NODE_EXE=runtime\node\node.exe
+  set NODE_IS_BUNDLED=1
+)
 
-where %NODE_EXE% >nul 2>nul
-if errorlevel 1 (
-  echo [ApiNova] Node.js was not found. Install Node.js 20 LTS or use a package with bundled runtime\node\node.exe.
-  pause
-  exit /b 1
+if "%NODE_IS_BUNDLED%"=="0" (
+  where node >nul 2>nul
+  if errorlevel 1 (
+    echo [ApiNova] Node.js was not found. Install Node.js 20 LTS or use a package with bundled runtime\node\node.exe.
+    pause
+    exit /b 1
+  )
 )
 
 for /f "tokens=*" %%v in ('%NODE_EXE% -v') do set NODE_VERSION=%%v
@@ -215,43 +222,35 @@ $offlineText
 
 Windows:
 
-````bat
-start.bat
-````
+    start.bat
 
 Linux / Ubuntu:
 
-````bash
-chmod +x ./start.sh
-./start.sh
-````
+    chmod +x ./start.sh
+    ./start.sh
 
 Open:
 
-````text
-http://127.0.0.1:9001/
-````
+    http://127.0.0.1:9001/
 
 Default account:
 
-````text
-admin / admin@123456
-````
+    admin / admin@123456
 
 Data stays inside this directory:
 
-- SQLite database: `data/api-nova.db`
-- logs: `logs/`
-- pids: `pids/`
+- SQLite database: data/api-nova.db
+- logs: logs/
+- pids: pids/
 
-Change `.env` before startup for ports, secrets, or database settings.
+Change .env before startup for ports, secrets, or database settings.
 "@ | Set-Content -Path (Join-Path $Path 'README_RUN.md') -Encoding UTF8
 }
 
 if (-not $SkipBuild) {
   Push-Location $repoRoot
   try {
-    npm.cmd run build
+    & $npmCommand run build
   } finally {
     Pop-Location
   }
@@ -267,8 +266,7 @@ New-Item -ItemType Directory -Force -Path (Join-Path $outputPath 'public') | Out
 New-Item -ItemType Directory -Force -Path (Join-Path $outputPath 'data'), (Join-Path $outputPath 'logs'), (Join-Path $outputPath 'pids') | Out-Null
 
 Copy-Item -Path (Join-Path $repoRoot 'package.json') -Destination (Join-Path $outputPath 'package.json') -Force
-Copy-Item -Path (Join-Path $repoRoot 'pnpm-lock.yaml') -Destination (Join-Path $outputPath 'pnpm-lock.yaml') -Force
-Copy-Item -Path (Join-Path $repoRoot 'pnpm-workspace.yaml') -Destination (Join-Path $outputPath 'pnpm-workspace.yaml') -Force
+Copy-Item -Path (Join-Path $repoRoot 'package-lock.json') -Destination (Join-Path $outputPath 'package-lock.json') -Force
 Copy-IfExists (Join-Path $repoRoot '.npmrc') (Join-Path $outputPath '.npmrc')
 Copy-IfExists (Join-Path $repoRoot 'README.md') (Join-Path $outputPath 'README_PROJECT.md')
 
@@ -283,6 +281,10 @@ foreach ($pkg in @('api-nova-api', 'api-nova-parser', 'api-nova-server')) {
   }
 }
 
+$uiPackageDir = Join-Path $outputPath 'packages\api-nova-ui'
+New-Item -ItemType Directory -Force -Path $uiPackageDir | Out-Null
+Copy-Item -Path (Join-Path $repoRoot 'packages\api-nova-ui\package.json') -Destination (Join-Path $uiPackageDir 'package.json') -Force
+
 Copy-Item -Path (Join-Path $repoRoot 'packages\api-nova-ui\dist\*') -Destination (Join-Path $outputPath 'public') -Recurse -Force
 if (Test-Path (Join-Path $repoRoot 'packages\api-nova-api\public')) {
   Copy-Item -Path (Join-Path $repoRoot 'packages\api-nova-api\public\*') -Destination (Join-Path $outputPath 'public') -Recurse -Force
@@ -295,7 +297,7 @@ Write-Readme -Path $outputPath -PackageMode $Mode -Platform $runtimePlatform
 if ($Mode -eq 'OfflineCurrentPlatform') {
   Push-Location $outputPath
   try {
-    corepack pnpm install --prod --frozen-lockfile
+    & $npmCommand ci --omit=dev
     $runtimePlatform | Set-Content -Path (Join-Path $outputPath '.api-nova-runtime-platform') -Encoding ASCII
   } finally {
     Pop-Location

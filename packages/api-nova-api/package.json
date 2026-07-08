@@ -53,8 +53,8 @@
     "helmet": "^7.0.0",
     "joi": "^17.9.0",
     "js-yaml": "^4.1.0",
-    "api-nova-parser": "workspace:*",
-    "api-nova-server": "workspace:*",
+    "api-nova-parser": "1.7.0",
+    "api-nova-server": "1.7.0",
     "multer": "^2.0.2",
     "passport-jwt": "^4.0.1",
     "pg": "^8.11.0",
@@ -124,6 +124,6 @@
   },
   "engines": {
     "node": ">=18.0.0",
-    "pnpm": ">=8.0.0"
+    "npm": ">=10.0.0"
   }
 }

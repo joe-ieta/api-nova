@@ -45,7 +45,7 @@ The original `mcp-swagger-server` project provided an important 0-to-1 foundatio
 ### Runtime Requirements
 
 - Node.js `>= 20`
-- pnpm `>= 8`
+- npm `>= 10`
 - Windows
 - Linux, with Ubuntu as the primary compatibility target
 
@@ -107,15 +107,13 @@ Example MCP client configuration:
 
 ```bash
 node -v
-corepack enable
-corepack prepare pnpm@latest --activate
-pnpm -v
-pnpm install
-pnpm build
-pnpm dev
-pnpm test
-pnpm lint
-pnpm type-check
+npm -v
+npm install
+npm run build
+npm run dev
+npm run test
+npm run lint
+npm run type-check
 ```
 
 See also:

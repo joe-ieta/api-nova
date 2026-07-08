@@ -11,7 +11,7 @@ Use this when one package should be copied between Windows and Linux hosts.
 - Output example: `E:\CodexDev\api-nova-release`
 - Includes compiled backend, compiled frontend, release manifests, startup scripts, and default `.env`.
 - Does not include `node_modules`.
-- First run installs production dependencies for the current OS/CPU using `corepack pnpm install --prod --frozen-lockfile`.
+- First run installs production dependencies for the current OS/CPU using `npm ci --omit=dev`.
 - This mode is not fully offline on first run.
 
 ### Offline Current-Platform Package
@@ -98,4 +98,4 @@ The strict `/health` endpoint may return `503` when optional MCP runtime health 
 - Do not copy a Windows `node_modules` directory into an Ubuntu ARM64 package.
 - Portable packages may be shared across platforms because dependencies are installed on first run.
 - Offline packages must be rebuilt per target platform.
-- `start.bat` must call pnpm with `call corepack pnpm ...` in portable mode; otherwise Windows batch execution can stop after dependency installation.
+- `start.bat` must call npm with `call npm.cmd ...` in portable mode; otherwise Windows batch execution can stop after dependency installation.

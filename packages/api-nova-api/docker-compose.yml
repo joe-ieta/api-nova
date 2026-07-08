@@ -3,8 +3,8 @@ version: '3.8'
 services:
   api-nova-api:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: packages/api-nova-api/Dockerfile
     ports:
       - "9001:9001"
       - "9022:9022"
@@ -18,9 +18,9 @@ services:
       - METRICS_ENABLED=true
       - HEALTH_CHECK_ENABLED=true
     volumes:
-      - .:/app
+      - ../..:/app
       - /app/node_modules
-    command: ["npm", "run", "start:dev"]
+    command: ["npm", "run", "start:dev", "--workspace", "api-nova-api"]
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9001/health"]

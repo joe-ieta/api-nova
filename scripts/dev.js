@@ -3,6 +3,8 @@ const path = require('path');
 const fs = require('fs');
 const MonorepoBuildManager = require('./build');
 
+const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+
 class DevEnvironmentManager extends MonorepoBuildManager {
   async startDevelopment() {
     console.log('🚀 Starting development environment...');
@@ -43,9 +45,8 @@ class DevEnvironmentManager extends MonorepoBuildManager {
       console.log(`👀 Starting watch mode for ${pkg.name}`);
       
       const watchScript = this.getWatchScript(pkg);
-      const [command, ...args] = watchScript.split(' ');
       
-      const child = spawn(command, args, {
+      const child = spawn(npmCommand, ['run', watchScript], {
         cwd: pkg.path,
         stdio: ['ignore', 'inherit', 'inherit']
       });
@@ -74,7 +75,7 @@ class DevEnvironmentManager extends MonorepoBuildManager {
 
     console.log(`🌐 Starting UI dev server for ${uiPackage.name}`);
     
-    const child = spawn('pnpm', ['run', 'dev'], {
+    const child = spawn(npmCommand, ['run', 'dev'], {
       cwd: uiPackage.path,
       stdio: 'inherit'
     });
@@ -111,14 +112,14 @@ class DevEnvironmentManager extends MonorepoBuildManager {
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
     
     if (packageJson.scripts['build:watch']) {
-      return 'pnpm run build:watch';
+      return 'build:watch';
     } else if (packageJson.scripts['watch']) {
-      return 'pnpm run watch';
+      return 'watch';
     } else if (packageJson.scripts['dev']) {
-      return 'pnpm run dev';
+      return 'dev';
     }
     
-    return 'pnpm run build:watch';
+    return 'build:watch';
   }
 }
 

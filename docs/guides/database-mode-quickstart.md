@@ -29,7 +29,7 @@ API_KEY=change-this-api-key
 Start:
 
 ```bash
-pnpm --filter api-nova-api run build
+npm run build --workspace api-nova-api
 node packages/api-nova-api/dist/src/main.js
 ```
 

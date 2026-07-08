@@ -27,7 +27,7 @@ You must also rebuild and verify downstream consumers.
 Run from repository root:
 
 ```bash
-pnpm run verify:parser-chain
+npm run verify:parser-chain
 ```
 
 This executes the fixed propagation order:
@@ -44,7 +44,7 @@ This executes the fixed propagation order:
 If you only need a rebuild without the full type-check pass:
 
 ```bash
-pnpm run build:parser-chain
+npm run build:parser-chain
 ```
 
 ## Full Consumer Build Variant
@@ -52,7 +52,7 @@ pnpm run build:parser-chain
 If you specifically need downstream build verification as well:
 
 ```bash
-pnpm run verify:parser-chain:full
+npm run verify:parser-chain:full
 ```
 
 This additionally runs:
@@ -84,6 +84,6 @@ Use this flow for changes that affect:
 
 If a release includes parser changes, the release verification section should include:
 
-- `pnpm run verify:parser-chain`
+- `npm run verify:parser-chain`
 
 Do not mark the parser change as complete until this passes.

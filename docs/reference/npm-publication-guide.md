@@ -79,7 +79,7 @@
 
 ```bash
 # 1. 清理并重新构建
-pnpm run build
+npm run build
 
 # 2. 验证构建产物
 ls -la packages/api-nova-server/dist/

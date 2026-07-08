@@ -43,19 +43,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
+          cache: npm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Set database environment
         shell: bash
@@ -88,13 +83,13 @@ jobs:
           psql -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE api_nova_api;"
 
       - name: Run package tests
-        run: pnpm --filter api-nova-api run test -- --runInBand
+        run: npm run test --workspace api-nova-api -- --runInBand
 
       - name: Build API package
-        run: pnpm --filter api-nova-api run build
+        run: npm run build --workspace api-nova-api
 
       - name: Build UI package
-        run: pnpm --filter api-nova-ui run build
+        run: npm run build --workspace api-nova-ui
 
       - name: Startup smoke test
         shell: bash

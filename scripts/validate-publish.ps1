@@ -21,7 +21,7 @@ if (!(Test-Path $packageJson)) {
 Write-Host "✅ package.json 存在" -ForegroundColor Green
 
 if (!(Test-Path $distDir)) {
-    Write-Host "❌ 未找到 dist 目录，请先运行 pnpm run build" -ForegroundColor Red
+    Write-Host "❌ 未找到 dist 目录，请先运行 npm run build" -ForegroundColor Red
     exit 1
 }
 Write-Host "✅ dist 目录存在" -ForegroundColor Green

@@ -32,21 +32,21 @@ Confirm active documentation is aligned with the implementation:
 Run:
 
 ```bash
-pnpm build
-pnpm type-check
-pnpm --filter api-nova-server run test
+npm run build
+npm run type-check
+npm run test --workspace api-nova-server
 ```
 
 If parser behavior changed, also run:
 
 ```bash
-pnpm run verify:parser-chain
+npm run verify:parser-chain
 ```
 
 If the release touches broader parser compatibility or downstream contracts, run:
 
 ```bash
-pnpm run verify:parser-chain:full
+npm run verify:parser-chain:full
 ```
 
 ## 4. API Test Verification
@@ -74,7 +74,7 @@ cd packages/api-nova-api
 For broader API regression verification:
 
 ```bash
-pnpm --filter api-nova-api test
+npm run test --workspace api-nova-api
 ```
 
 ## 5. Runtime Path Verification
@@ -130,8 +130,8 @@ Current verified baseline on April 16, 2026:
 - schema and seed initialization completed successfully on an empty database
 - resulting PostgreSQL schema contains 19 public tables, including `endpoint_probe_logs`
 - seed data was recreated with `27` permissions, `5` roles, and `1` super admin user
-- `DB_TYPE=postgres pnpm type-check` passed
-- `DB_TYPE=postgres pnpm test` passed
+- `DB_TYPE=postgres npm run type-check` passed
+- `DB_TYPE=postgres npm run test` passed
 
 ## 8. Endpoint Registry Verification
 
@@ -164,7 +164,7 @@ At minimum verify:
 - UI startup
 - basic import and conversion workflow
 - parser verification path
-- `pnpm --filter api-nova-server run test:streamable-session`
+- `npm run test:streamable-session --workspace api-nova-server`
 
 ## 10. Open Items Review
 

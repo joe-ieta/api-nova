@@ -153,7 +153,7 @@ def main() -> int:
 
     if not cli_interactive.exists() or not cli_standard.exists():
         print("dist files not found. Please build first:")
-        print("  pnpm -C packages/api-nova-server build")
+        print("  npm run build --workspace api-nova-server")
         return 2
 
     cases = [

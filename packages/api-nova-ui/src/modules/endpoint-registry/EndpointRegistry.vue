@@ -1860,7 +1860,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import type { FormInstance } from "element-plus";
-import type { ElTable } from "element-plus";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Connection,
@@ -2113,6 +2112,11 @@ type PublicationAuditEventRecord = {
   createdAt: string;
 };
 
+type PublicationMembershipTableRef = {
+  clearSelection: () => void;
+  toggleRowSelection: (row: EndpointRow, selected?: boolean) => void;
+};
+
 const loading = ref(false);
 const errorMessage = ref("");
 const search = ref("");
@@ -2135,7 +2139,7 @@ const selectedPublicationTargetRuntimeAssetId = ref("");
 const showPublicationTargetDialog = ref(false);
 const publicationTargetSaving = ref(false);
 const batchPublicationActionLoading = ref<"" | "publish" | "offline">("");
-const publicationMembershipTableRef = ref<InstanceType<typeof ElTable> | null>(null);
+const publicationMembershipTableRef = ref<PublicationMembershipTableRef | null>(null);
 const lastPublicationBatchRun = ref<BatchPublicationRun | null>(null);
 const publicationAuditEvents = ref<PublicationAuditEventRecord[]>([]);
 const actionLoading = ref<Record<string, string>>({});

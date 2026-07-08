@@ -50,40 +50,23 @@ print_header
 
 # Install dependencies
 print_section "Installing Dependencies"
-if command -v pnpm >/dev/null 2>&1; then
-    print_info "Using pnpm for package management"
-    pnpm install
-else
-    print_info "Using npm for package management"
-    npm install
-fi
+print_info "Using npm for package management"
+npm install
 print_success "Dependencies installed"
 
 # Build the project
 print_section "Building Project"
-if command -v pnpm >/dev/null 2>&1; then
-    pnpm run build
-else
-    npm run build
-fi
+npm run build
 print_success "Project built successfully"
 
 # Run linting
 print_section "Running Linter"
-if command -v pnpm >/dev/null 2>&1; then
-    pnpm run lint
-else
-    npm run lint
-fi
+npm run lint
 print_success "Linting completed"
 
 # Run tests
 print_section "Running Tests"
-if command -v pnpm >/dev/null 2>&1; then
-    pnpm run test
-else
-    npm run test
-fi
+npm run test
 print_success "Tests completed"
 
 print_section "Development Environment Ready"

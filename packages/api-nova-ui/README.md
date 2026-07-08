@@ -45,11 +45,9 @@
 
 ```bash
 node -v
-corepack enable
-corepack prepare pnpm@latest --activate
-pnpm -v
-pnpm install
-pnpm --filter api-nova-ui run dev
+npm -v
+npm install
+npm run dev --workspace api-nova-ui
 ```
 
 访问：
@@ -61,10 +59,10 @@ http://127.0.0.1:9000
 ## 构建命令
 
 ```bash
-pnpm --filter api-nova-ui run build
-pnpm --filter api-nova-ui run preview
-pnpm --filter api-nova-ui run type-check
-pnpm --filter api-nova-ui run lint
+npm run build --workspace api-nova-ui
+npm run preview --workspace api-nova-ui
+npm run type-check --workspace api-nova-ui
+npm run lint --workspace api-nova-ui
 ```
 
 ## 环境覆盖

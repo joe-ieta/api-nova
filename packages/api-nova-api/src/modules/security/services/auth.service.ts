@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import type { JwtSignOptions } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
@@ -444,9 +445,10 @@ export class AuthService {
     };
 
     // 生成访问令牌
+    const accessTokenExpiresIn = (process.env.JWT_EXPIRES_IN || '15m') as JwtSignOptions['expiresIn'];
     const accessToken = this.jwtService.sign(jwtPayload, {
       secret: process.env.JWT_SECRET,
-      expiresIn: process.env.JWT_EXPIRES_IN || '15m',
+      expiresIn: accessTokenExpiresIn,
     });
 
     // 生成刷新令牌

@@ -81,7 +81,7 @@
 
 ### 4.1 开发者添加 changeset
 ```bash
-pnpm changeset
+npm run changeset
 ```
 
 **交互式选择：**
@@ -115,7 +115,7 @@ Added Bearer token authentication support and fixed parser edge cases
 
 ### 4.2 发布时的 changelog 生成
 
-运行 `pnpm changeset version` 后：
+运行 `npm run version:packages` 后：
 
 **api-nova-server/CHANGELOG.md:**
 ```markdown
@@ -179,16 +179,16 @@ Added Bearer token authentication support and fixed parser edge cases
 
 ### 6.2 安装依赖
 ```bash
-pnpm add -D @changesets/changelog-github
+npm install -D @changesets/changelog-github
 ```
 
 ### 6.3 验证配置
 ```bash
 # 添加测试 changeset
-pnpm changeset
+npm run changeset
 
 # 生成版本和 changelog
-pnpm changeset version
+npm run version:packages
 
 # 查看生成的 changelog
 cat packages/api-nova-server/CHANGELOG.md
