@@ -2,7 +2,6 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { MCPServerEntity } from './entities/mcp-server.entity';
 import { AuthConfigEntity } from './entities/auth-config.entity';
-import { TestCaseEntity } from './entities/test-case.entity';
 import { LogEntryEntity } from './entities/log-entry.entity';
 import { User } from './entities/user.entity';
 import { Role } from './entities/role.entity';
@@ -21,6 +20,7 @@ import { PublicationBatchRunEntity } from './entities/publication-batch-run.enti
 import { PublicationAuditEventEntity } from './entities/publication-audit-event.entity';
 import { EndpointPublishBindingEntity } from './entities/endpoint-publish-binding.entity';
 import { GatewayRouteBindingEntity } from './entities/gateway-route-binding.entity';
+import { GatewayRouteSnapshotEntity } from './entities/gateway-route-snapshot.entity';
 import { GatewayAccessLogEntity } from './entities/gateway-access-log.entity';
 import { GatewayConsumerCredentialEntity } from './entities/gateway-consumer-credential.entity';
 import { RuntimeMetricSeriesEntity } from './entities/runtime-metric-series.entity';
@@ -29,11 +29,18 @@ import { RuntimeObservabilityStateEntity } from './entities/runtime-observabilit
 import { AiAssistantTemplateEntity } from '../modules/ai-assistant/entities/ai-assistant-template.entity';
 import { AiAssistantConfigEntity } from '../modules/ai-assistant/entities/ai-assistant-config.entity';
 import { verifySqliteDatabasePath, getDatabaseType } from './db-compat';
+import { SourceServiceInstanceEntity } from './entities/source-service-instance.entity';
+import { EndpointTestCaseEntity } from './entities/endpoint-test-case.entity';
+import { EndpointTestRunEntity } from './entities/endpoint-test-run.entity';
+import { EndpointTestSampleEntity } from './entities/endpoint-test-sample.entity';
+import { RuntimeUpstreamBindingEntity } from './entities/runtime-upstream-binding.entity';
+import { RuntimeUpstreamBindingInstanceEntity } from './entities/runtime-upstream-binding-instance.entity';
+import { RuntimeVerificationRunEntity } from './entities/runtime-verification-run.entity';
+import { RuntimeVerificationResultEntity } from './entities/runtime-verification-result.entity';
 
 const entities = [
   MCPServerEntity,
   AuthConfigEntity,
-  TestCaseEntity,
   LogEntryEntity,
   User,
   Role,
@@ -52,6 +59,7 @@ const entities = [
   PublicationAuditEventEntity,
   EndpointPublishBindingEntity,
   GatewayRouteBindingEntity,
+  GatewayRouteSnapshotEntity,
   GatewayAccessLogEntity,
   GatewayConsumerCredentialEntity,
   RuntimeObservabilityEventEntity,
@@ -59,6 +67,14 @@ const entities = [
   RuntimeObservabilityStateEntity,
   AiAssistantTemplateEntity,
   AiAssistantConfigEntity,
+  SourceServiceInstanceEntity,
+  EndpointTestCaseEntity,
+  EndpointTestRunEntity,
+  EndpointTestSampleEntity,
+  RuntimeUpstreamBindingEntity,
+  RuntimeUpstreamBindingInstanceEntity,
+  RuntimeVerificationRunEntity,
+  RuntimeVerificationResultEntity,
 ];
 
 function buildDataSourceOptions(
@@ -87,6 +103,8 @@ function buildDataSourceOptions(
 
   const dbType = getDatabaseType(read<string>('DB_TYPE', 'sqlite'));
   const nodeEnv = String(read<string>('NODE_ENV', 'development'));
+  const sslEnabled = read<boolean>('DB_SSL', nodeEnv === 'production');
+  const sslRejectUnauthorized = read<boolean>('DB_SSL_REJECT_UNAUTHORIZED', false);
 
   if (dbType === 'sqlite') {
     return {
@@ -94,7 +112,7 @@ function buildDataSourceOptions(
       location: verifySqliteDatabasePath(configService),
       autoSave: true,
       entities,
-      migrations: ['dist/database/migrations/*.js'],
+      migrations: ['dist/src/database/migrations/*Canonical*.js'],
       synchronize: read<boolean>('DB_SYNCHRONIZE', nodeEnv !== 'production'),
       logging: read<boolean>('DB_LOGGING', false),
     };
@@ -108,10 +126,10 @@ function buildDataSourceOptions(
     password: read('DB_PASSWORD', 'password'),
     database: String(read('DB_DATABASE', 'api_nova_api')),
     entities,
-    migrations: ['dist/database/migrations/*.js'],
+    migrations: ['dist/src/database/migrations/*Canonical*.js'],
     synchronize: read<boolean>('DB_SYNCHRONIZE', nodeEnv === 'development'),
     logging: read<boolean>('DB_LOGGING', false),
-    ssl: nodeEnv === 'production' ? { rejectUnauthorized: false } : false,
+    ssl: sslEnabled ? { rejectUnauthorized: sslRejectUnauthorized } : false,
   };
 }
 

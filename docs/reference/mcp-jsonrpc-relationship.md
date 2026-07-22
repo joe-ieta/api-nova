@@ -1,5 +1,8 @@
 # MCP 与 JSON-RPC 2.0 的关系说明
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 > 本文档详细解释了Model Context Protocol (MCP) 与 JSON-RPC 2.0 的关系和协议结构。
 
 ## 核心关系概述

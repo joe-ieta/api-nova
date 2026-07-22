@@ -1,5 +1,8 @@
 # ApiNova NPM 发布指南
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## 🎯 发布状态分析
 
 ### ✅ 当前具备条件

@@ -23,7 +23,11 @@
     "typeorm": "typeorm-ts-node-commonjs",
     "migration:generate": "npm run typeorm -- migration:generate -d src/database/data-source.ts",
     "migration:run": "npm run typeorm -- migration:run -d src/database/data-source.ts",
-    "migration:revert": "npm run typeorm -- migration:revert -d src/database/data-source.ts"
+    "migration:revert": "npm run typeorm -- migration:revert -d src/database/data-source.ts",
+    "db:verify-empty-sqlite": "node scripts/verify-empty-sqlite.cjs",
+    "db:verify-isolated-sqlite": "node scripts/verify-isolated-sqlite.cjs",
+    "db:verify-empty-postgres": "node scripts/verify-empty-postgres.cjs",
+    "db:verify-isolated-postgres": "node scripts/verify-isolated-postgres.cjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",

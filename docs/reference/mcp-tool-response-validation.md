@@ -1,5 +1,8 @@
 # MCP 工具响应格式验证分析
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## 问题
 
 用户询问项目中定义的 `MCPToolResponse` 接口是否符合 MCP 标准。

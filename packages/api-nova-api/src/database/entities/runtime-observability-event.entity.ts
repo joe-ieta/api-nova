@@ -5,7 +5,11 @@ import {
   Index,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { getEnumColumnOptions, getJsonColumnOptions } from '../db-compat';
+import {
+  getEnumColumnOptions,
+  getJsonColumnOptions,
+  getTimestampTzColumnOptions,
+} from '../db-compat';
 
 export enum RuntimeObservabilityEventFamily {
   RUNTIME_LIFECYCLE = 'runtime.lifecycle',
@@ -92,7 +96,7 @@ export class RuntimeObservabilityEventEntity {
   })
   status: RuntimeObservabilityStatus;
 
-  @Column({ type: 'datetime' as any })
+  @Column(getTimestampTzColumnOptions(process.env.DB_TYPE))
   occurredAt: Date;
 
   @Column({ type: 'varchar', length: 120, nullable: true })

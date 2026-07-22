@@ -1,5 +1,8 @@
 # Changesets Changelog 字段详解和实际效果
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## 1. 基本概念
 
 `changelog` 字段控制 Changesets 如何生成每个包的 CHANGELOG.md 文件。不同的配置会产生不同格式的 changelog。

@@ -149,8 +149,11 @@ export class RuntimeAssetsController {
   async deployMcpRuntimeAsset(
     @Param('id') id: string,
     @Body() body: DeployRuntimeAssetMcpDto,
+    @CurrentUser() currentUser: User,
   ) {
-    return this.runtimeAssetsService.deployMcpRuntimeAsset(id, body);
+    return this.runtimeAssetsService.deployMcpRuntimeAsset(id, body, {
+      actorId: currentUser?.id,
+    });
   }
 
   @Post(':id/deploy-gateway')
@@ -159,8 +162,11 @@ export class RuntimeAssetsController {
   async deployGatewayRuntimeAsset(
     @Param('id') id: string,
     @Body() body: DeployRuntimeAssetGatewayDto,
+    @CurrentUser() currentUser: User,
   ) {
-    return this.runtimeAssetsService.deployGatewayRuntimeAsset(id, body);
+    return this.runtimeAssetsService.deployGatewayRuntimeAsset(id, body, {
+      actorId: currentUser?.id,
+    });
   }
 
   @Put(':id/policy-binding')
@@ -176,8 +182,11 @@ export class RuntimeAssetsController {
   @Post(':id/start')
   @RequirePermissions('server:manage')
   @ApiOperation({ summary: 'Start managed MCP server bound to this runtime asset' })
-  async startRuntimeAsset(@Param('id') id: string) {
-    return this.runtimeAssetsService.startRuntimeAsset(id);
+  async startRuntimeAsset(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: User,
+  ) {
+    return this.runtimeAssetsService.startRuntimeAsset(id, { actorId: currentUser?.id });
   }
 
   @Post(':id/stop')
@@ -193,8 +202,11 @@ export class RuntimeAssetsController {
   async redeployRuntimeAsset(
     @Param('id') id: string,
     @Body() body: DeployRuntimeAssetMcpDto,
+    @CurrentUser() currentUser: User,
   ) {
-    return this.runtimeAssetsService.redeployRuntimeAsset(id, body);
+    return this.runtimeAssetsService.redeployRuntimeAsset(id, body, {
+      actorId: currentUser?.id,
+    });
   }
 
   @Delete(':id')

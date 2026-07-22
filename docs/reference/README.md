@@ -1,26 +1,23 @@
 # Reference
 
-This directory contains durable reference material used for maintenance, release work, and architecture tracking, but it is not the primary product baseline.
+> Document status: Active index
+> Last reviewed: 2026-07-22
 
-## Included
+## Product Governance
 
-- [open-items](./open-items.md)
-- [management-observability-baseline](./management-observability-baseline.md)
-- [management-permission-matrix](./management-permission-matrix.md)
-- [changelog-field-guide](./changelog-field-guide.md)
-- [esm-commonjs-quick-reference](./esm-commonjs-quick-reference.md)
-- [mcp-jsonrpc-relationship](./mcp-jsonrpc-relationship.md)
-- [mcp-tool-response-validation](./mcp-tool-response-validation.md)
-- [nodejs-module-systems-guide](./nodejs-module-systems-guide.md)
-- [npm-publication-guide](./npm-publication-guide.md)
-- [versioning-policy](./versioning-policy.md)
+- [Open Items](./open-items.md)
+- [Runtime Closure Design And Implementation Review](./runtime-closure-design-implementation-review.md)
+- [Management Observability Baseline](./management-observability-baseline.md)
+- [Management Permission Matrix](./management-permission-matrix.md)
+- [Versioning Policy](./versioning-policy.md)
 
-## Scope
+## Engineering Reference
 
-Keep only durable reference material here.
+- [Changelog Field Guide](./changelog-field-guide.md)
+- [ESM And CommonJS Quick Reference](./esm-commonjs-quick-reference.md)
+- [MCP And JSON-RPC Relationship](./mcp-jsonrpc-relationship.md)
+- [MCP Tool Response Validation](./mcp-tool-response-validation.md)
+- [Node.js Module Systems Guide](./nodejs-module-systems-guide.md)
+- [NPM Publication Guide](./npm-publication-guide.md)
 
-Do not store temporary plans, execution logs, milestone summaries, or active operator guides in this directory.
-
-Historical requirement drafts, sprint breakdowns, and superseded planning docs belong in `docs/archive`.
-
-One-off issue notes, abandoned release-flow implementation drafts, and historical packaging rationale should also move to `docs/archive/reference`.
+Temporary plans, milestone logs, and completed implementation notes do not belong here; move them to `docs/archive`.

@@ -1,5 +1,8 @@
 # Versioning Policy
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## Purpose
 
 This document defines the current versioning rule for the repository, package releases, and release tags.

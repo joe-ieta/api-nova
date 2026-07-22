@@ -1,5 +1,8 @@
 # Endpoint Publication Profile Requirements
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## 1. Background
 
 The current system mainly converts raw OpenAPI endpoint descriptions directly into MCP tools. That path is already usable, but it is not enough for the new product baseline.

@@ -54,13 +54,25 @@ export class GatewayRuntimeService {
       throw new NotFoundException(`No active gateway route for ${req.method} ${routePath}`);
     }
 
+    return this.forwardResolvedRoute(target, req, res, startedAt);
+  }
+
+  async forwardResolvedRoute(
+    target: GatewayResolvedRoute,
+    req: Request,
+    res: Response,
+    startedAt = Date.now(),
+    options: { bypassCache?: boolean } = {},
+  ): Promise<void> {
     try {
       const authContext = await this.gatewaySecurityService.authorize(target, req);
       const admission = await this.gatewayTrafficControlService.admit(target, authContext);
       try {
         const requestId = this.resolveRequestId(req, res);
         const correlationId = this.resolveCorrelationId(req);
-        const cacheLookup = this.gatewayCacheService.resolve(target, req, authContext);
+        const cacheLookup = options.bypassCache
+          ? null
+          : this.gatewayCacheService.resolve(target, req, authContext);
 
         if (cacheLookup) {
           await this.gatewayRuntimeMetricsService.recordCacheResult({
@@ -102,7 +114,9 @@ export class GatewayRuntimeService {
         }
 
         const upstreamResponse = await this.forwardWithRetry(target, req, res);
-        this.gatewayCacheService.store(target, req, authContext, upstreamResponse);
+        if (!options.bypassCache) {
+          this.gatewayCacheService.store(target, req, authContext, upstreamResponse);
+        }
         const latencyMs = Date.now() - startedAt;
         await this.gatewayRuntimeMetricsService.recordForwardResult({
           runtimeAssetId: target.runtimeAsset.id,

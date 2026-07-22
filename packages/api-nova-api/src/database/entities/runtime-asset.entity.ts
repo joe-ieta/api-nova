@@ -50,6 +50,9 @@ export class RuntimeAssetEntity {
   @Column({ type: 'varchar', length: 100, nullable: true })
   policyBindingRef?: string;
 
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  servicePrefix?: string;
+
   @Column(getJsonColumnOptions(process.env.DB_TYPE, { nullable: true }))
   metadata?: Record<string, unknown>;
 

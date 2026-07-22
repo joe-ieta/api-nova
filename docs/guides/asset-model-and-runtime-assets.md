@@ -1,5 +1,8 @@
 # Asset Model And Runtime Assets
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## Purpose
 
 This document defines the corrected top-level asset model for ApiNova.

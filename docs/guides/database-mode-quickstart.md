@@ -1,5 +1,8 @@
 # Database Mode Quickstart
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 This project supports two database modes:
 
 - `SQLite`: default, simplest local path

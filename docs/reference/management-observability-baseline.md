@@ -1,5 +1,8 @@
 # Management Observability Baseline
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## Purpose
 
 This document defines the Stage 2 baseline for management-side observability, operational event logging, and placeholder telemetry behavior.

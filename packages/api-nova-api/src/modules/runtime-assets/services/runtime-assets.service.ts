@@ -55,6 +55,13 @@ import {
   type GatewaySnapshotRefreshPayload,
 } from '../../gateway-runtime/gateway-runtime.events';
 import { AuditService } from '../../security/services/audit.service';
+import { RuntimeUpstreamBindingsService } from '../../runtime-upstream-bindings/services/runtime-upstream-bindings.service';
+import { SourceServiceInstanceEntity } from '../../../database/entities/source-service-instance.entity';
+import { RuntimeVerificationService } from '../../runtime-verification/services/runtime-verification.service';
+import {
+  RuntimeVerificationRunStatus,
+  RuntimeVerificationTrigger,
+} from '../../../database/entities/runtime-verification-run.entity';
 
 type GatewayCredentialAuditContext = {
   actorId?: string;
@@ -89,6 +96,8 @@ export class RuntimeAssetsService {
     private readonly gatewayAccessLogService: GatewayAccessLogService,
     private readonly runtimeObservabilityService: RuntimeObservabilityService,
     private readonly auditService: AuditService,
+    private readonly runtimeUpstreamBindingsService: RuntimeUpstreamBindingsService,
+    private readonly runtimeVerificationService: RuntimeVerificationService,
   ) {}
 
   async listRuntimeAssets(query: RuntimeAssetQueryDto = {}) {
@@ -248,7 +257,17 @@ export class RuntimeAssetsService {
 
       const pathKey = item.endpointDefinition.path;
       const methodKey = item.endpointDefinition.method.toLowerCase();
-      const sourceUrl = this.buildSourceServiceUrl(item.sourceServiceAsset);
+      const upstreamResolution = await this.runtimeUpstreamBindingsService.resolve(
+        item.membership.id,
+      );
+      if (!upstreamResolution.resolved || !upstreamResolution.instance) {
+        throw new ConflictException(
+          `Runtime membership '${item.membership.id}' has no resolvable upstream: ${upstreamResolution.reason}`,
+        );
+      }
+      const sourceUrl = this.runtimeUpstreamBindingsService.buildBaseUrl(
+        upstreamResolution.instance,
+      );
       servers.set(item.sourceServiceAsset.id, {
         url: sourceUrl,
         description: item.sourceServiceAsset.displayName,
@@ -280,6 +299,9 @@ export class RuntimeAssetsService {
         'x-runtime-asset-id': runtimeAssetId,
         'x-runtime-membership-id': item.membership.id,
         'x-endpoint-definition-id': item.endpointDefinition.id,
+        ...(upstreamResolution.instance.credentialRef
+          ? { 'x-api-nova-credential-ref': upstreamResolution.instance.credentialRef }
+          : {}),
       };
 
       if (!paths[pathKey]) {
@@ -300,6 +322,15 @@ export class RuntimeAssetsService {
     };
 
     const tools = await transformOpenApiToMcpTools(undefined, undefined, openApiData);
+    const verificationTools = includedMemberships
+      .map(item => ({
+        runtimeMembershipId: item.membership.id,
+        tool: tools.find(tool =>
+          tool.metadata?.method === item.endpointDefinition?.method.toUpperCase() &&
+          tool.metadata?.path === item.endpointDefinition?.path,
+        ),
+      }))
+      .filter(item => Boolean(item.tool));
 
     return {
       runtimeAsset: asset,
@@ -308,6 +339,7 @@ export class RuntimeAssetsService {
       includedMembershipCount: includedMemberships.length,
       openApiData,
       tools,
+      verificationTools,
       toolsCount: tools.length,
     };
   }
@@ -340,7 +372,18 @@ export class RuntimeAssetsService {
       );
     });
 
-    const routes = includedMemberships.map(item => this.toGatewayRouteView(item));
+    const routes = [];
+    for (const item of includedMemberships) {
+      const upstreamResolution = await this.runtimeUpstreamBindingsService.resolve(
+        item.membership.id,
+      );
+      if (!upstreamResolution.resolved || !upstreamResolution.instance) {
+        throw new ConflictException(
+          `Runtime membership '${item.membership.id}' has no resolvable upstream: ${upstreamResolution.reason}`,
+        );
+      }
+      routes.push(this.toGatewayRouteView(item, upstreamResolution.instance));
+    }
 
     return {
       runtimeAsset: asset,
@@ -358,6 +401,7 @@ export class RuntimeAssetsService {
   async deployGatewayRuntimeAsset(
     runtimeAssetId: string,
     dto: DeployRuntimeAssetGatewayDto = {},
+    verificationContext: { actorId?: string } = {},
   ) {
     const runtimeAsset = await this.requireRuntimeAsset(runtimeAssetId);
     if (runtimeAsset.type !== RuntimeAssetType.GATEWAY_SERVICE) {
@@ -371,29 +415,83 @@ export class RuntimeAssetsService {
       dto.publishedOnly ?? true,
     );
     runtimeAsset.policyBindingRef = dto.policyBindingRef ?? runtimeAsset.policyBindingRef;
-    runtimeAsset.metadata = {
-      ...(runtimeAsset.metadata || {}),
-      gatewayDeployment: {
-        deployedAt: new Date().toISOString(),
-        routeCount: assembly.includedMembershipCount,
-        publishedOnly: dto.publishedOnly ?? true,
-      },
-    };
     await this.runtimeAssetRepository.save(runtimeAsset);
+    const verificationPlan = await this.runtimeVerificationService.planCandidate(
+      runtimeAssetId,
+      {
+        trigger: runtimeAsset.metadata?.activeRevision
+          ? RuntimeVerificationTrigger.REDEPLOY
+          : RuntimeVerificationTrigger.DEPLOY,
+        includeRegression: true,
+        missingSmokeWaiverReason: dto.missingSmokeWaiverReason,
+      },
+      { waiverActorId: verificationContext.actorId },
+    );
+    if (!verificationPlan.canExecute) {
+      await this.runtimeObservabilityService.recordRuntimeControlEvent({
+        runtimeAssetId,
+        eventFamily: RuntimeObservabilityEventFamily.RUNTIME_CONTROL,
+        eventName: 'gateway.deploy_verification_blocked',
+        status: RuntimeObservabilityStatus.FAILED,
+        severity: RuntimeObservabilitySeverity.WARNING,
+        currentStatus: runtimeAsset.status === 'active'
+          ? RuntimeCurrentStatus.ACTIVE
+          : RuntimeCurrentStatus.DRAFT,
+        healthStatus: RuntimeHealthStatus.UNKNOWN,
+        summary: 'Gateway deployment verification prerequisites are blocked',
+        details: {
+          verificationRunId: verificationPlan.run.id,
+          blockers: verificationPlan.run.blockers,
+        },
+      });
+      throw new ConflictException({
+        code: 'RUNTIME_VERIFICATION_BLOCKED',
+        message: 'Gateway deployment is blocked by verification prerequisites',
+        verification: verificationPlan,
+      });
+    }
+    const verification = await this.runtimeVerificationService.executeGatewayCandidate(
+      runtimeAssetId,
+      verificationPlan.run.id,
+    );
+    if (verification.run.status !== RuntimeVerificationRunStatus.PASSED) {
+      await this.runtimeObservabilityService.recordRuntimeControlEvent({
+        runtimeAssetId,
+        eventFamily: RuntimeObservabilityEventFamily.RUNTIME_CONTROL,
+        eventName: 'gateway.deploy_verification_failed',
+        status: RuntimeObservabilityStatus.FAILED,
+        severity: RuntimeObservabilitySeverity.ERROR,
+        currentStatus: verification.run.previousActiveRevision
+          ? RuntimeCurrentStatus.ACTIVE
+          : RuntimeCurrentStatus.DRAFT,
+        healthStatus: RuntimeHealthStatus.UNHEALTHY,
+        summary: 'Gateway candidate replay failed; public activation was not changed',
+        details: {
+          verificationRunId: verification.run.id,
+          failedCount: verification.run.failedCount,
+          activationStatus: verification.run.activationStatus,
+        },
+      });
+      throw new ConflictException({
+        code: 'RUNTIME_VERIFICATION_FAILED',
+        message: 'Gateway candidate replay failed',
+        verification,
+      });
+    }
     await this.runtimeObservabilityService.recordRuntimeControlEvent({
       runtimeAssetId,
       eventFamily: RuntimeObservabilityEventFamily.RUNTIME_CONTROL,
       eventName: 'gateway.deploy',
       status: RuntimeObservabilityStatus.SUCCESS,
       severity: RuntimeObservabilitySeverity.INFO,
-      currentStatus: runtimeAsset.status === 'offline'
-        ? RuntimeCurrentStatus.OFFLINE
-        : RuntimeCurrentStatus.ACTIVE,
+      currentStatus: RuntimeCurrentStatus.ACTIVE,
       healthStatus: RuntimeHealthStatus.UNKNOWN,
       summary: `Gateway runtime asset deployed with ${assembly.includedMembershipCount} routes`,
       details: {
         routeCount: assembly.includedMembershipCount,
         publishedOnly: dto.publishedOnly ?? true,
+        verificationRunId: verification.run.id,
+        candidateRevision: verification.run.candidateRevision,
       },
     });
     this.emitGatewaySnapshotRefresh({
@@ -408,6 +506,7 @@ export class RuntimeAssetsService {
         await this.runtimeBindingRepository.find({ where: { runtimeAssetId } }),
       ),
       gatewayAssembly: assembly,
+      verification,
       action: 'deploy-gateway',
     };
   }
@@ -592,6 +691,7 @@ export class RuntimeAssetsService {
   async deployMcpRuntimeAsset(
     runtimeAssetId: string,
     dto: DeployRuntimeAssetMcpDto = {},
+    verificationContext: { actorId?: string } = {},
   ) {
     const assembled = await this.assembleMcpRuntimeAssetPayload(runtimeAssetId);
     const runtimeAsset = assembled.runtimeAsset;
@@ -623,6 +723,43 @@ export class RuntimeAssetsService {
       }
     }
 
+    const candidateBehaviorFingerprint = this.fingerprintRuntimePayload(
+      assembled.openApiData,
+    );
+    const verificationPlan = await this.runtimeVerificationService.planCandidate(
+      runtimeAssetId,
+      {
+        trigger: runtimeAsset.metadata?.activeRevision
+          ? RuntimeVerificationTrigger.REDEPLOY
+          : RuntimeVerificationTrigger.DEPLOY,
+        includeRegression: true,
+        missingSmokeWaiverReason: dto.missingSmokeWaiverReason,
+      },
+      {
+        behaviorFingerprint: candidateBehaviorFingerprint,
+        waiverActorId: verificationContext.actorId,
+      },
+    );
+    if (!verificationPlan.canExecute) {
+      throw new ConflictException({
+        code: 'RUNTIME_VERIFICATION_BLOCKED',
+        message: 'MCP deployment is blocked by verification prerequisites',
+        verification: verificationPlan,
+      });
+    }
+    const verification = await this.runtimeVerificationService.executeMcpCandidate(
+      runtimeAssetId,
+      verificationPlan.run.id,
+      assembled.verificationTools,
+    );
+    if (verification.run.status !== RuntimeVerificationRunStatus.PASSED) {
+      throw new ConflictException({
+        code: 'RUNTIME_VERIFICATION_FAILED',
+        message: 'MCP candidate replay failed',
+        verification,
+      });
+    }
+
     if (!server) {
       const targetPort =
         dto.port || (await this.findAvailableManagedServerPort());
@@ -645,6 +782,9 @@ export class RuntimeAssetsService {
         config: {
           runtimeAssetId,
           managedByRuntimeAsset: true,
+          verifiedCandidateRevision: verification.run.candidateRevision,
+          verificationRunId: verification.run.id,
+          behaviorFingerprint: candidateBehaviorFingerprint,
         },
       });
     } else {
@@ -672,20 +812,34 @@ export class RuntimeAssetsService {
         ...(server.config || {}),
         runtimeAssetId,
         managedByRuntimeAsset: true,
+        verifiedCandidateRevision: verification.run.candidateRevision,
+        verificationRunId: verification.run.id,
+        behaviorFingerprint: candidateBehaviorFingerprint,
       };
       server.tags = Array.from(
         new Set([...(server.tags || []), 'runtime-asset', 'mcp-runtime']),
       );
     }
 
-    const saved = await this.mcpServerRepository.save(server);
-
-    runtimeAsset.metadata = {
-      ...(runtimeAsset.metadata || {}),
-      managedServerId: saved.id,
-      deployedAt: new Date().toISOString(),
-    };
-    await this.runtimeAssetRepository.save(runtimeAsset);
+    const { saved, activation } = await this.mcpServerRepository.manager.transaction(
+      async manager => {
+        const saved = await manager.getRepository(MCPServerEntity).save(
+          server as MCPServerEntity,
+        );
+        runtimeAsset.metadata = {
+          ...(runtimeAsset.metadata || {}),
+          managedServerId: saved.id,
+          deployedAt: new Date().toISOString(),
+        };
+        await manager.getRepository(RuntimeAssetEntity).save(runtimeAsset);
+        const activation = await this.runtimeVerificationService.activateMcpCandidate(
+          runtimeAssetId,
+          verification.run.id,
+          manager,
+        );
+        return { saved, activation };
+      },
+    );
     await this.runtimeObservabilityService.recordRuntimeControlEvent({
       runtimeAssetId,
       eventFamily: RuntimeObservabilityEventFamily.RUNTIME_CONTROL,
@@ -719,21 +873,14 @@ export class RuntimeAssetsService {
       ),
       toolsCount: assembled.toolsCount,
       membershipCount: assembled.includedMembershipCount,
+      verification: { ...verification, activation },
     };
   }
 
-  async startRuntimeAsset(runtimeAssetId: string) {
+  async startRuntimeAsset(runtimeAssetId: string, verificationContext: { actorId?: string } = {}) {
     const runtimeAsset = await this.requireRuntimeAsset(runtimeAssetId);
     if (runtimeAsset.type === RuntimeAssetType.GATEWAY_SERVICE) {
-      runtimeAsset.status = 'active' as any;
-      runtimeAsset.metadata = {
-        ...(runtimeAsset.metadata || {}),
-        gatewayRuntime: {
-          ...(((runtimeAsset.metadata || {}).gatewayRuntime || {}) as Record<string, unknown>),
-          startedAt: new Date().toISOString(),
-        },
-      };
-      await this.runtimeAssetRepository.save(runtimeAsset);
+      const deployed = await this.deployGatewayRuntimeAsset(runtimeAssetId, {}, verificationContext);
       await this.runtimeObservabilityService.recordRuntimeControlEvent({
         runtimeAssetId,
         eventFamily: RuntimeObservabilityEventFamily.RUNTIME_LIFECYCLE,
@@ -742,26 +889,31 @@ export class RuntimeAssetsService {
         severity: RuntimeObservabilitySeverity.INFO,
         currentStatus: RuntimeCurrentStatus.ACTIVE,
         healthStatus: RuntimeHealthStatus.UNKNOWN,
-        summary: `Gateway runtime asset '${runtimeAssetId}' started`,
-      });
-      this.emitGatewaySnapshotRefresh({
-        reason: 'runtime_assets.gateway_started',
-        runtimeAssetId,
+        summary: `Gateway runtime asset '${runtimeAssetId}' started after candidate verification`,
+        details: {
+          verificationRunId: deployed.verification.run.id,
+          candidateRevision: deployed.verification.run.candidateRevision,
+        },
       });
       return {
-        runtimeAsset,
-        managedServer: null,
-        runtimeSummary: await this.buildRuntimeSummary(
-          runtimeAsset,
-          await this.runtimeBindingRepository.find({ where: { runtimeAssetId } }),
-        ),
+        ...deployed,
         action: 'start',
       };
     }
     const managedServer = await this.requireManagedServerForRuntimeAsset(runtimeAsset);
+    const deployed = await this.deployMcpRuntimeAsset(runtimeAssetId, {
+      targetServerId: managedServer.id,
+      name: managedServer.name,
+      port: managedServer.port,
+      transport: managedServer.transport,
+      autoStart: managedServer.autoStart,
+    }, verificationContext);
     const serverManager = this.getServerManager();
 
-    await serverManager.startServer(managedServer.id);
+    await serverManager.startServer(deployed.managedServer.id, {
+      runtimeAssetId,
+      candidateRevision: deployed.verification.run.candidateRevision,
+    });
     const nextManagedServer = await this.mcpServerRepository.findOne({
       where: { id: managedServer.id },
     });
@@ -881,10 +1033,15 @@ export class RuntimeAssetsService {
   async redeployRuntimeAsset(
     runtimeAssetId: string,
     dto: DeployRuntimeAssetMcpDto = {},
+    verificationContext: { actorId?: string } = {},
   ) {
     const runtimeAsset = await this.requireRuntimeAsset(runtimeAssetId);
     if (runtimeAsset.type === RuntimeAssetType.GATEWAY_SERVICE) {
-      const deployed = await this.deployGatewayRuntimeAsset(runtimeAssetId);
+      const deployed = await this.deployGatewayRuntimeAsset(
+        runtimeAssetId,
+        { missingSmokeWaiverReason: dto.missingSmokeWaiverReason },
+        verificationContext,
+      );
       return {
         ...deployed,
         action: 'redeploy',
@@ -894,12 +1051,15 @@ export class RuntimeAssetsService {
     const deployed = await this.deployMcpRuntimeAsset(runtimeAssetId, {
       ...dto,
       targetServerId: dto.targetServerId || managedServer?.id,
-    });
+    }, verificationContext);
 
     const serverManager = this.getServerManager();
     const nextManagedServer = deployed.managedServer;
     if (nextManagedServer.status === ServerStatus.RUNNING) {
-      await serverManager.restartServer(nextManagedServer.id);
+      await serverManager.restartServer(nextManagedServer.id, {
+        runtimeAssetId,
+        candidateRevision: deployed.verification.run.candidateRevision,
+      });
       const refreshedManagedServer =
         (await this.mcpServerRepository.findOne({ where: { id: nextManagedServer.id } })) ||
         null;
@@ -977,6 +1137,22 @@ export class RuntimeAssetsService {
     return typeof managedServerId === 'string' ? managedServerId : undefined;
   }
 
+  private fingerprintRuntimePayload(value: unknown) {
+    return createHash('sha256')
+      .update(JSON.stringify(this.canonicalizeRuntimePayload(value)))
+      .digest('hex');
+  }
+
+  private canonicalizeRuntimePayload(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(item => this.canonicalizeRuntimePayload(item));
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, item]) => [key, this.canonicalizeRuntimePayload(item)]),
+    );
+  }
+
   private getServerManager() {
     const { ServerManagerService } = require('../../servers/services/server-manager.service');
     const service = this.moduleRef.get(ServerManagerService, { strict: false });
@@ -995,18 +1171,6 @@ export class RuntimeAssetsService {
         ? ((error as { message: string }).message || '').toLowerCase()
         : '';
     return message.includes('already stopped') || message.includes('already stopping');
-  }
-
-  private buildSourceServiceUrl(sourceServiceAsset: SourceServiceAssetEntity) {
-    const protocol = sourceServiceAsset.scheme || 'http';
-    const defaultPort =
-      protocol === 'https' ? 443 : 80;
-    const portSegment =
-      sourceServiceAsset.port && sourceServiceAsset.port !== defaultPort
-        ? `:${sourceServiceAsset.port}`
-        : '';
-    const normalizedBasePath = sourceServiceAsset.normalizedBasePath || '/';
-    return `${protocol}://${sourceServiceAsset.host}${portSegment}${normalizedBasePath}`;
   }
 
   async listRuntimeAssetAccessLogs(runtimeAssetId: string, limit: number = 20) {
@@ -1495,7 +1659,7 @@ export class RuntimeAssetsService {
     return withScheme.endsWith('/') ? withScheme : `${withScheme}/`;
   }
 
-  private toGatewayRouteView(item: any) {
+  private toGatewayRouteView(item: any, sourceServiceInstance: SourceServiceInstanceEntity) {
     return {
       runtimeMembershipId: item.membership.id,
       endpointDefinitionId: item.endpointDefinition!.id,
@@ -1508,7 +1672,8 @@ export class RuntimeAssetsService {
       routeMethod: item.gatewayRouteBinding!.routeMethod,
       upstreamPath: item.gatewayRouteBinding!.upstreamPath,
       upstreamMethod: item.gatewayRouteBinding!.upstreamMethod,
-      upstreamBaseUrl: this.buildSourceServiceUrl(item.sourceServiceAsset!),
+      sourceServiceInstanceId: sourceServiceInstance.id,
+      upstreamBaseUrl: this.runtimeUpstreamBindingsService.buildBaseUrl(sourceServiceInstance),
       timeoutMs: item.gatewayRouteBinding!.timeoutMs ?? 30000,
       status: item.gatewayRouteBinding!.status,
       authPolicyRef: item.gatewayRouteBinding!.authPolicyRef,

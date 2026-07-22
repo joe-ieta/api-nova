@@ -106,6 +106,14 @@ export class CreatePublicationRuntimeAssetDto {
   @IsOptional()
   @IsString()
   policyBindingRef?: string;
+
+  @ApiPropertyOptional({
+    description: 'Gateway service path prefix, for example orders',
+    example: 'orders',
+  })
+  @IsOptional()
+  @IsString()
+  servicePrefix?: string;
 }
 
 export class AddPublicationRuntimeMembershipsDto {

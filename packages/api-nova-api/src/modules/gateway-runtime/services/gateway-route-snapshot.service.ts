@@ -6,6 +6,8 @@ import {
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { GatewayRouteSnapshotEntity } from '../../../database/entities/gateway-route-snapshot.entity';
+import { createHash } from 'node:crypto';
 import {
   EndpointPublishBindingEntity,
   PublicationBindingStatus,
@@ -35,11 +37,23 @@ import {
   type GatewaySnapshotRefreshPayload,
 } from '../gateway-runtime.events';
 import { GatewayPolicyService } from './gateway-policy.service';
+import { RuntimeUpstreamBindingsService } from '../../runtime-upstream-bindings/services/runtime-upstream-bindings.service';
+import { SourceServiceInstanceEntity } from '../../../database/entities/source-service-instance.entity';
 
 @Injectable()
 export class GatewayRouteSnapshotService implements OnModuleInit {
   private readonly logger = new Logger(GatewayRouteSnapshotService.name);
   private snapshot: GatewaySnapshotRouteEntry[] = [];
+  private readonly candidateSnapshots = new Map<
+    string,
+    {
+      runtimeAssetId: string;
+      entries: GatewaySnapshotRouteEntry[];
+      snapshotFingerprint: string;
+      preparedAt: Date;
+    }
+  >();
+  private readonly rollbackSnapshots = new Map<string, GatewaySnapshotRouteEntry[]>();
   private reloadPromise: Promise<void> | null = null;
   private reloadQueued = false;
 
@@ -47,6 +61,8 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
     private readonly gatewayPolicyService: GatewayPolicyService,
     @InjectRepository(GatewayRouteBindingEntity)
     private readonly routeBindingRepository: Repository<GatewayRouteBindingEntity>,
+    @InjectRepository(GatewayRouteSnapshotEntity)
+    private readonly persistedSnapshotRepository: Repository<GatewayRouteSnapshotEntity>,
     @InjectRepository(RuntimeAssetEndpointBindingEntity)
     private readonly runtimeBindingRepository: Repository<RuntimeAssetEndpointBindingEntity>,
     @InjectRepository(EndpointPublishBindingEntity)
@@ -57,6 +73,7 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
     private readonly endpointDefinitionRepository: Repository<EndpointDefinitionEntity>,
     @InjectRepository(SourceServiceAssetEntity)
     private readonly sourceServiceRepository: Repository<SourceServiceAssetEntity>,
+    private readonly runtimeUpstreamBindingsService: RuntimeUpstreamBindingsService,
   ) {}
 
   async onModuleInit() {
@@ -84,13 +101,216 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
 
   @OnEvent(GATEWAY_SNAPSHOT_REFRESH_REQUESTED)
   handleSnapshotRefreshRequested(payload?: GatewaySnapshotRefreshPayload) {
+    const reason = payload?.reason || 'unknown';
+    this.logger.debug(`Gateway snapshot refresh requested: ${reason}`);
+    if (
+      payload?.runtimeAssetId &&
+      ['runtime_assets.gateway_stopped', 'runtime_assets.gateway_deleted'].includes(reason)
+    ) {
+      this.removeRuntimeAsset(payload.runtimeAssetId);
+      return;
+    }
+    if (reason === 'runtime_assets.gateway_deployed') {
+      void this.reload();
+      return;
+    }
     this.logger.debug(
-      `Gateway snapshot refresh requested: ${payload?.reason || 'unknown'}`,
+      `Ignored route snapshot reload for '${reason}'; a verified deployment is required`,
     );
-    void this.reload();
   }
 
   private async performReload() {
+    const persisted = await this.persistedSnapshotRepository.find({
+      order: { activatedAt: 'DESC' },
+    });
+    if (persisted.length === 0) {
+      this.snapshot = [];
+      this.logger.log('Loaded gateway route snapshot with 0 persisted verified routes');
+      return;
+    }
+    const runtimeAssetIds = Array.from(new Set(persisted.map(item => item.runtimeAssetId)));
+    const runtimeAssets = await this.runtimeAssetRepository.findByIds(runtimeAssetIds);
+    const runtimeAssetMap = new Map(runtimeAssets.map(item => [item.id, item]));
+    const restored: GatewaySnapshotRouteEntry[] = [];
+    const restoredAssets = new Set<string>();
+    for (const item of persisted) {
+      if (restoredAssets.has(item.runtimeAssetId)) continue;
+      const runtimeAsset = runtimeAssetMap.get(item.runtimeAssetId);
+      if (
+        !runtimeAsset ||
+        ![RuntimeAssetStatus.ACTIVE, RuntimeAssetStatus.DEGRADED].includes(runtimeAsset.status) ||
+        runtimeAsset.metadata?.activeRevision !== item.revision
+      ) {
+        continue;
+      }
+      const entries = this.deserializeEntries(item.payload, runtimeAsset);
+      if (this.fingerprintEntries(entries) !== item.fingerprint) {
+        this.logger.warn(`Skipped corrupted Gateway snapshot '${item.revision}'`);
+        continue;
+      }
+      restored.push(...entries);
+      restoredAssets.add(item.runtimeAssetId);
+    }
+    this.snapshot = this.sortSnapshot(restored);
+    this.logger.log(`Loaded gateway route snapshot with ${this.snapshot.length} persisted verified routes`);
+  }
+
+  async prepareCandidate(runtimeAssetId: string, candidateRevision: string) {
+    const revision = String(candidateRevision || '').trim();
+    if (!revision) {
+      throw new Error('candidateRevision must not be blank');
+    }
+    const entries = await this.buildSnapshot({
+      runtimeAssetId,
+      allowInactiveRuntime: true,
+    });
+    const snapshotFingerprint = this.fingerprintEntries(entries);
+    this.candidateSnapshots.set(revision, {
+      runtimeAssetId,
+      entries,
+      snapshotFingerprint,
+      preparedAt: new Date(),
+    });
+    return {
+      runtimeAssetId,
+      candidateRevision: revision,
+      routeCount: entries.length,
+      runtimeMembershipIds: entries.map(entry => entry.membership.id),
+      snapshotFingerprint,
+    };
+  }
+
+  resolveCandidate(
+    candidateRevision: string,
+    host: string | undefined,
+    method: string,
+    path: string,
+  ) {
+    const candidate = this.candidateSnapshots.get(candidateRevision);
+    return candidate
+      ? this.resolveFromSnapshot(candidate.entries, host, method, path)
+      : null;
+  }
+
+  getCandidateRoute(candidateRevision: string, runtimeMembershipId: string) {
+    return this.candidateSnapshots
+      .get(candidateRevision)
+      ?.entries.find(entry => entry.membership.id === runtimeMembershipId) || null;
+  }
+
+  async activateCandidate(candidateRevision: string) {
+    const candidate = this.candidateSnapshots.get(candidateRevision);
+    if (!candidate) {
+      throw new Error(`Gateway candidate snapshot '${candidateRevision}' was not found`);
+    }
+    const previousEntries = this.snapshot.filter(
+      entry => entry.runtimeAsset.id === candidate.runtimeAssetId,
+    );
+    await this.persistedSnapshotRepository.save(
+      this.persistedSnapshotRepository.create({
+        runtimeAssetId: candidate.runtimeAssetId,
+        revision: candidateRevision,
+        fingerprint: candidate.snapshotFingerprint,
+        routeCount: candidate.entries.length,
+        payload: this.serializeEntries(candidate.entries),
+        activatedAt: new Date(),
+      }),
+    );
+    this.rollbackSnapshots.set(candidate.runtimeAssetId, previousEntries);
+    this.snapshot = this.sortSnapshot([
+      ...this.snapshot.filter(entry => entry.runtimeAsset.id !== candidate.runtimeAssetId),
+      ...candidate.entries,
+    ]);
+    this.candidateSnapshots.delete(candidateRevision);
+    return {
+      runtimeAssetId: candidate.runtimeAssetId,
+      candidateRevision,
+      activeRouteCount: candidate.entries.length,
+      previousRouteCount: previousEntries.length,
+      snapshotFingerprint: candidate.snapshotFingerprint,
+    };
+  }
+
+  rollbackRuntimeAsset(runtimeAssetId: string) {
+    if (!this.rollbackSnapshots.has(runtimeAssetId)) {
+      return { runtimeAssetId, rolledBack: false, activeRouteCount: 0 };
+    }
+    const previousEntries = this.rollbackSnapshots.get(runtimeAssetId) || [];
+    this.snapshot = this.sortSnapshot([
+      ...this.snapshot.filter(entry => entry.runtimeAsset.id !== runtimeAssetId),
+      ...previousEntries,
+    ]);
+    this.rollbackSnapshots.delete(runtimeAssetId);
+    return {
+      runtimeAssetId,
+      rolledBack: true,
+      activeRouteCount: previousEntries.length,
+    };
+  }
+
+  discardCandidate(candidateRevision: string) {
+    return this.candidateSnapshots.delete(candidateRevision);
+  }
+
+  private removeRuntimeAsset(runtimeAssetId: string) {
+    this.snapshot = this.snapshot.filter(entry => entry.runtimeAsset.id !== runtimeAssetId);
+  }
+
+  private serializeEntries(entries: GatewaySnapshotRouteEntry[]) {
+    return JSON.parse(JSON.stringify(entries)) as unknown[];
+  }
+
+  private deserializeEntries(payload: unknown[], runtimeAsset: RuntimeAssetEntity) {
+    return (Array.isArray(payload) ? payload : []).map(raw => {
+      const entry = raw as GatewaySnapshotRouteEntry;
+      entry.runtimeAsset = runtimeAsset;
+      entry.routeBinding.updatedAt = new Date(entry.routeBinding.updatedAt);
+      entry.routeBinding.createdAt = new Date(entry.routeBinding.createdAt);
+      return entry;
+    });
+  }
+
+  private fingerprintEntries(entries: GatewaySnapshotRouteEntry[]) {
+    const behavior = entries
+      .map(entry => ({
+        runtimeAssetId: entry.runtimeAsset.id,
+        servicePrefix: entry.runtimeAsset.servicePrefix || null,
+        policyBindingRef: entry.runtimeAsset.policyBindingRef || null,
+        membershipId: entry.membership.id,
+        publicationRevision: entry.membership.publicationRevision,
+        publishBindingId: entry.publishBinding.id,
+        routeBindingId: entry.routeBinding.id,
+        normalizedRoutePath: entry.normalizedRoutePath,
+        routeMethod: entry.routeMethod,
+        matchHost: entry.routeBinding.matchHost || null,
+        pathMatchMode: entry.routeBinding.pathMatchMode,
+        upstreamPath: entry.routeBinding.upstreamPath,
+        upstreamMethod: entry.routeBinding.upstreamMethod,
+        upstreamBaseUrl: entry.upstreamBaseUrl,
+        sourceServiceInstanceId: entry.sourceServiceInstance.id,
+        credentialRef: entry.sourceServiceInstance.credentialRef || null,
+        timeoutMs: entry.routeBinding.timeoutMs,
+        policies: entry.policies,
+      }))
+      .sort((left, right) => left.membershipId.localeCompare(right.membershipId));
+    return createHash('sha256')
+      .update(JSON.stringify(this.canonicalize(behavior)))
+      .digest('hex');
+  }
+
+  private canonicalize(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(item => this.canonicalize(item));
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, item]) => [key, this.canonicalize(item)]),
+    );
+  }
+
+  private async buildSnapshot(
+    options: { runtimeAssetId?: string; allowInactiveRuntime?: boolean } = {},
+  ) {
     const routeBindings = await this.routeBindingRepository.find({
       where: {
         status: GatewayRouteBindingStatus.ACTIVE,
@@ -101,9 +321,7 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
     });
 
     if (routeBindings.length === 0) {
-      this.snapshot = [];
-      this.logger.log('Loaded gateway route snapshot with 0 active routes');
-      return;
+      return [];
     }
 
     const membershipIds = Array.from(
@@ -174,7 +392,9 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
       if (
         !runtimeAsset ||
         runtimeAsset.type !== RuntimeAssetType.GATEWAY_SERVICE ||
-        ![RuntimeAssetStatus.ACTIVE, RuntimeAssetStatus.DEGRADED].includes(runtimeAsset.status)
+        (options.runtimeAssetId && runtimeAsset.id !== options.runtimeAssetId) ||
+        (!options.allowInactiveRuntime &&
+          ![RuntimeAssetStatus.ACTIVE, RuntimeAssetStatus.DEGRADED].includes(runtimeAsset.status))
       ) {
         continue;
       }
@@ -188,6 +408,13 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
       if (!sourceServiceAsset) {
         continue;
       }
+      const upstreamResolution = await this.runtimeUpstreamBindingsService.resolve(membership.id);
+      if (!upstreamResolution.resolved || !upstreamResolution.instance) {
+        this.logger.warn(
+          `Skipping gateway membership '${membership.id}': ${upstreamResolution.reason}`,
+        );
+        continue;
+      }
 
       nextSnapshot.push({
         routeBinding,
@@ -196,31 +423,45 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
         publishBinding,
         endpointDefinition,
         sourceServiceAsset,
-        upstreamBaseUrl: this.buildSourceServiceUrl(sourceServiceAsset),
-        normalizedRoutePath: this.normalizeRoutePath(routeBinding.routePath),
+        sourceServiceInstance: upstreamResolution.instance,
+        upstreamBaseUrl: this.buildSourceServiceUrl(upstreamResolution.instance),
+        normalizedRoutePath: this.buildPublishedRoutePath(
+          runtimeAsset.servicePrefix,
+          routeBinding.routePath,
+        ),
         routeMethod: this.normalizeMethod(routeBinding.routeMethod),
         priorityScore: this.computePriorityScore(routeBinding),
         policies: this.gatewayPolicyService.compileForRoute(routeBinding),
       });
     }
 
-    nextSnapshot.sort((left, right) => {
+    return this.sortSnapshot(nextSnapshot);
+  }
+
+  private sortSnapshot(entries: GatewaySnapshotRouteEntry[]) {
+    return [...entries].sort((left, right) => {
       if (right.priorityScore !== left.priorityScore) {
         return right.priorityScore - left.priorityScore;
       }
       return right.routeBinding.updatedAt.getTime() - left.routeBinding.updatedAt.getTime();
     });
-
-    this.snapshot = nextSnapshot;
-    this.logger.log(`Loaded gateway route snapshot with ${nextSnapshot.length} active routes`);
   }
 
   resolve(host: string | undefined, method: string, path: string): GatewayResolvedRoute | null {
+    return this.resolveFromSnapshot(this.snapshot, host, method, path);
+  }
+
+  private resolveFromSnapshot(
+    snapshot: GatewaySnapshotRouteEntry[],
+    host: string | undefined,
+    method: string,
+    path: string,
+  ): GatewayResolvedRoute | null {
     const normalizedMethod = this.normalizeMethod(method);
     const normalizedPath = this.normalizeRoutePath(path);
     const normalizedHost = this.normalizeHost(host);
 
-    for (const route of this.snapshot) {
+    for (const route of snapshot) {
       if (route.routeMethod !== normalizedMethod) {
         continue;
       }
@@ -242,6 +483,7 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
         publishBinding: route.publishBinding,
         endpointDefinition: route.endpointDefinition,
         sourceServiceAsset: route.sourceServiceAsset,
+        sourceServiceInstance: route.sourceServiceInstance,
         upstreamBaseUrl: route.upstreamBaseUrl,
         params: match.params,
         policies: route.policies,
@@ -324,6 +566,16 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
     return value.startsWith('/') ? value : `/${value}`;
   }
 
+  private buildPublishedRoutePath(servicePrefix: string | undefined, routePath?: string) {
+    const normalizedRoutePath = this.normalizeRoutePath(routePath);
+    const normalizedPrefix = String(servicePrefix || '')
+      .trim()
+      .replace(/^\/+|\/+$/g, '');
+    return normalizedPrefix
+      ? this.normalizeRoutePath(`/${normalizedPrefix}${normalizedRoutePath}`)
+      : normalizedRoutePath;
+  }
+
   private normalizeMethod(method?: string) {
     return String(method || '').trim().toUpperCase();
   }
@@ -345,15 +597,15 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
       : GatewayRoutePathMatchMode.EXACT;
   }
 
-  private buildSourceServiceUrl(sourceServiceAsset: SourceServiceAssetEntity) {
-    const protocol = sourceServiceAsset.scheme || 'http';
+  private buildSourceServiceUrl(sourceServiceInstance: SourceServiceInstanceEntity) {
+    const protocol = sourceServiceInstance.scheme || 'http';
     const defaultPort = protocol === 'https' ? 443 : 80;
     const portSegment =
-      sourceServiceAsset.port && sourceServiceAsset.port !== defaultPort
-        ? `:${sourceServiceAsset.port}`
+      sourceServiceInstance.port && sourceServiceInstance.port !== defaultPort
+        ? `:${sourceServiceInstance.port}`
         : '';
-    const normalizedBasePath = sourceServiceAsset.normalizedBasePath || '/';
-    return `${protocol}://${sourceServiceAsset.host}${portSegment}${normalizedBasePath}`.replace(
+    const normalizedBasePath = sourceServiceInstance.basePath || '/';
+    return `${protocol}://${sourceServiceInstance.host}${portSegment}${normalizedBasePath}`.replace(
       /\/+$/,
       '',
     );

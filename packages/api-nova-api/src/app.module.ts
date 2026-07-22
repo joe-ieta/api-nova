@@ -27,6 +27,10 @@ import { PublicationModule } from './modules/publication/publication.module';
 import { GatewayRuntimeModule } from './modules/gateway-runtime/gateway-runtime.module';
 import { RuntimeAssetsModule } from './modules/runtime-assets/runtime-assets.module';
 import { MonitoringModule } from './modules/monitoring/monitoring.module';
+import { SourceServiceInstancesModule } from './modules/source-service-instances/source-service-instances.module';
+import { EndpointTestingModule } from './modules/endpoint-testing/endpoint-testing.module';
+import { RuntimeUpstreamBindingsModule } from './modules/runtime-upstream-bindings/runtime-upstream-bindings.module';
+import { RuntimeVerificationModule } from './modules/runtime-verification/runtime-verification.module';
 
 // 通用组件
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -116,6 +120,10 @@ const envFilePath = [
     GatewayRuntimeModule,
     RuntimeAssetsModule,
     MonitoringModule,
+    SourceServiceInstancesModule,
+    EndpointTestingModule,
+    RuntimeUpstreamBindingsModule,
+    RuntimeVerificationModule,
   ],
   controllers: [AppController],
   providers: [

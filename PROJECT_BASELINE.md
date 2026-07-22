@@ -1,5 +1,8 @@
 # ApiNova Project Baseline
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## Purpose
 
 This document defines the current baseline for architecture, functional scope, and development rules.

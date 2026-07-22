@@ -43,6 +43,7 @@ out/
 !dist/**/*.d.ts
 !dist/**/*.js.map
 !packages/api-nova-server/scripts/*.js
+!scripts/verify-runtime-closure.js
 
 
 # Log files

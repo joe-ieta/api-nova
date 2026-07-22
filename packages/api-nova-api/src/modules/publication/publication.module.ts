@@ -14,6 +14,7 @@ import { RuntimeAssetsModule } from '../runtime-assets/runtime-assets.module';
 import { SecurityModule } from '../security/security.module';
 import { PublicationController } from './publication.controller';
 import { PublicationService } from './services/publication.service';
+import { RuntimeUpstreamBindingsModule } from '../runtime-upstream-bindings/runtime-upstream-bindings.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { PublicationService } from './services/publication.service';
       GatewayRouteBindingEntity,
     ]),
     RuntimeAssetsModule,
+    RuntimeUpstreamBindingsModule,
     SecurityModule,
   ],
   controllers: [PublicationController],

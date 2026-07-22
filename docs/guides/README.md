@@ -1,48 +1,32 @@
 # Guides
 
-This directory contains active operational and usage-oriented documentation for the current product baseline.
+> Document status: Active index
+> Last reviewed: 2026-07-22
 
-## Current Baseline Guides
+Only currently supported product paths, durable architecture contracts, and active execution plans belong here.
 
-- [staged-development-plan](./staged-development-plan.md)
-- [asset-model-and-runtime-assets](./asset-model-and-runtime-assets.md)
-- [publication-resource-baseline](./publication-resource-baseline.md)
-- [release-readiness-checklist](./release-readiness-checklist.md)
+## Active Execution And Release
 
-## Setup And Operations
+- [Staged Development Plan](./staged-development-plan.md)
+- [Runtime Instance And Regression Closure Plan](./runtime-instance-and-regression-closure-plan.md)
+- [Release Readiness Checklist](./release-readiness-checklist.md)
 
-- [database-mode-quickstart](./database-mode-quickstart.md)
-- [database-strategy](./database-strategy.md)
-- [local-setup-and-run](./local-setup-and-run.md)
-- [parser-change-verification](./parser-change-verification.md)
-- [github-collaboration-workflow](./github-collaboration-workflow.md)
+## Product And Architecture Baselines
 
-## Durable Feature Baselines
+- [Asset Model And Runtime Assets](./asset-model-and-runtime-assets.md)
+- [Publication Resource Baseline](./publication-resource-baseline.md)
+- [Endpoint Publication Profile Requirements](./endpoint-semantic-layer-requirements.md)
+- [API Gateway Architecture And Requirements](./api-gateway-architecture-and-requirements.md)
 
-- [endpoint-semantic-layer-requirements](./endpoint-semantic-layer-requirements.md)
-- [dual-publication-implementation-outline](./dual-publication-implementation-outline.md)
-- [api-gateway-architecture-and-requirements](./api-gateway-architecture-and-requirements.md)
-- [api-gateway-phase1-technical-design](./api-gateway-phase1-technical-design.md)
-- [api-gateway-phase1-task-breakdown](./api-gateway-phase1-task-breakdown.md)
-- [api-gateway-phase2-task-breakdown](./api-gateway-phase2-task-breakdown.md)
+## Setup And Engineering Workflows
 
-## Guide Inclusion Rule
+- [Database Mode Quickstart](./database-mode-quickstart.md)
+- [Database Strategy](./database-strategy.md)
+- [Local Setup And Run](./local-setup-and-run.md)
+- [Parser Change Verification](./parser-change-verification.md)
+- [GitHub Collaboration Workflow](./github-collaboration-workflow.md)
+- [Fork Origin And Independence](./fork-origin-and-independence.md)
 
-A guide belongs here only if it describes a currently supported product path or a currently required engineering workflow.
+## Inclusion Rule
 
-If a guide becomes stale, historical, or too drifted from the current baseline, move it into `docs/archive` instead of leaving it in the active set.
-
-## Current Narrow Baseline
-
-The active guide set is intentionally narrow during product convergence.
-
-It should primarily cover:
-
-- current product-spine baseline
-- setup and run
-- database mode selection
-- parser-change verification
-- release verification
-- durable architecture baselines that still describe supported behavior
-
-Feature-specific experiments, release notes, troubleshooting deep dives, and historical implementation guides should live in `docs/archive/guides`.
+A guide stays active only while it describes a supported product contract, an executable operational path, or unfinished approved work. Completed task breakdowns, milestone designs, dated audits, release notes, and superseded plans move to `docs/archive`.

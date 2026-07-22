@@ -652,6 +652,72 @@ export const serverAPI = {
     return response.data;
   },
 
+  async listSourceServiceInstances(
+    sourceServiceAssetId: string,
+    params?: { environment?: string; status?: string; enabled?: boolean; includeArchived?: boolean },
+  ): Promise<any> {
+    const response = await api.get(
+      `/v1/assets/source-services/${sourceServiceAssetId}/instances`,
+      { params },
+    );
+    return response.data;
+  },
+
+  async createSourceServiceInstance(
+    sourceServiceAssetId: string,
+    payload: Record<string, unknown>,
+  ): Promise<any> {
+    const response = await api.post(
+      `/v1/assets/source-services/${sourceServiceAssetId}/instances`,
+      payload,
+    );
+    return response.data;
+  },
+
+  async updateSourceServiceInstance(
+    sourceServiceAssetId: string,
+    instanceId: string,
+    payload: Record<string, unknown>,
+  ): Promise<any> {
+    const response = await api.patch(
+      `/v1/assets/source-services/${sourceServiceAssetId}/instances/${instanceId}`,
+      payload,
+    );
+    return response.data;
+  },
+
+  async probeSourceServiceInstance(
+    sourceServiceAssetId: string,
+    instanceId: string,
+    payload?: { timeoutMs?: number },
+  ): Promise<any> {
+    const response = await api.post(
+      `/v1/assets/source-services/${sourceServiceAssetId}/instances/${instanceId}/probe`,
+      payload || {},
+    );
+    return response.data;
+  },
+
+  async setDefaultSourceServiceInstance(
+    sourceServiceAssetId: string,
+    instanceId: string,
+  ): Promise<any> {
+    const response = await api.post(
+      `/v1/assets/source-services/${sourceServiceAssetId}/instances/${instanceId}/set-default`,
+    );
+    return response.data;
+  },
+
+  async archiveSourceServiceInstance(
+    sourceServiceAssetId: string,
+    instanceId: string,
+  ): Promise<any> {
+    const response = await api.post(
+      `/v1/assets/source-services/${sourceServiceAssetId}/instances/${instanceId}/archive`,
+    );
+    return response.data;
+  },
+
   async registerManualEndpointAsset(payload: {
     name: string;
     baseUrl: string;
@@ -719,9 +785,77 @@ export const serverAPI = {
     id: string,
     payload: {
       parameters?: Record<string, unknown>;
+      sourceServiceInstanceId?: string;
+      environment?: string;
     },
   ): Promise<any> {
     const response = await api.post(`/v1/assets/endpoints/${id}/test`, payload);
+    return response.data;
+  },
+
+  async listEndpointTestSamples(
+    endpointDefinitionId: string,
+    params?: { status?: string; fingerprint?: string; enabled?: boolean; page?: number; limit?: number },
+  ): Promise<any> {
+    const response = await api.get(
+      `/v1/endpoint-testing/endpoints/${endpointDefinitionId}/test-samples`,
+      { params },
+    );
+    return response.data;
+  },
+
+  async updateEndpointTestSample(
+    sampleId: string,
+    payload: Record<string, unknown>,
+  ): Promise<any> {
+    const response = await api.patch(
+      `/v1/endpoint-testing/test-samples/${sampleId}`,
+      payload,
+    );
+    return response.data;
+  },
+
+  async archiveEndpointTestSample(sampleId: string): Promise<any> {
+    const response = await api.post(
+      `/v1/endpoint-testing/test-samples/${sampleId}/archive`,
+    );
+    return response.data;
+  },
+
+  async deleteEndpointTestSample(sampleId: string): Promise<any> {
+    const response = await api.delete(`/v1/endpoint-testing/test-samples/${sampleId}`);
+    return response.data;
+  },
+
+  async getRuntimeUpstreamBinding(runtimeMembershipId: string): Promise<any> {
+    const response = await api.get(
+      `/v1/runtime-memberships/${runtimeMembershipId}/upstream-binding`,
+    );
+    return response.data;
+  },
+
+  async updateRuntimeUpstreamBinding(
+    runtimeMembershipId: string,
+    payload: Record<string, unknown>,
+  ): Promise<any> {
+    const response = await api.put(
+      `/v1/runtime-memberships/${runtimeMembershipId}/upstream-binding`,
+      payload,
+    );
+    return response.data;
+  },
+
+  async resolveRuntimeUpstreamBinding(runtimeMembershipId: string): Promise<any> {
+    const response = await api.get(
+      `/v1/runtime-memberships/${runtimeMembershipId}/upstream-binding/resolution`,
+    );
+    return response.data;
+  },
+
+  async deleteRuntimeUpstreamBinding(runtimeMembershipId: string): Promise<any> {
+    const response = await api.delete(
+      `/v1/runtime-memberships/${runtimeMembershipId}/upstream-binding`,
+    );
     return response.data;
   },
 
@@ -775,6 +909,7 @@ export const serverAPI = {
     displayName?: string;
     description?: string;
     policyBindingRef?: string;
+    servicePrefix?: string;
   }): Promise<any> {
     const response = await api.post("/v1/publication/endpoints/runtime-assets", payload);
     return response.data;
@@ -1678,6 +1813,18 @@ export const runtimeAssetsAPI = {
 
   async getRuntimeAssetDetail(id: string): Promise<any> {
     const response = await api.get(`/v1/runtime-assets/${id}`);
+    return response.data;
+  },
+
+  async listRuntimeVerificationRuns(id: string): Promise<any> {
+    const response = await api.get(`/v1/runtime-assets/${id}/verification-runs`);
+    return response.data;
+  },
+
+  async getRuntimeVerificationRun(id: string, verificationRunId: string): Promise<any> {
+    const response = await api.get(
+      `/v1/runtime-assets/${id}/verification-runs/${verificationRunId}`,
+    );
     return response.data;
   },
 

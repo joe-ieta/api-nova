@@ -23,6 +23,11 @@ describe('RuntimeAssetsService', () => {
   const mcpServerRepository = {
     findOne: jest.fn(),
     find: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    manager: {
+      transaction: jest.fn(),
+    },
   };
   const runtimeBindingRepository = {
     find: jest.fn(),
@@ -92,6 +97,16 @@ describe('RuntimeAssetsService', () => {
   const auditService = {
     log: jest.fn().mockResolvedValue(undefined),
   };
+  const runtimeUpstreamBindingsService = {
+    resolve: jest.fn(),
+    buildBaseUrl: jest.fn(),
+  };
+  const runtimeVerificationService = {
+    planCandidate: jest.fn(),
+    executeGatewayCandidate: jest.fn(),
+    executeMcpCandidate: jest.fn(),
+    activateMcpCandidate: jest.fn(),
+  };
   const serverManager = {
     stopServer: jest.fn(),
     startServer: jest.fn(),
@@ -114,10 +129,24 @@ describe('RuntimeAssetsService', () => {
     gatewayAccessLogService as any,
     runtimeObservabilityService as any,
     auditService as any,
+    runtimeUpstreamBindingsService as any,
+    runtimeVerificationService as any,
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
+    runtimeUpstreamBindingsService.resolve.mockResolvedValue({
+      resolved: true,
+      reason: 'resolved',
+      instance: {
+        id: 'instance-1',
+        scheme: 'https',
+        host: 'api.example.com',
+        port: 443,
+        basePath: '/base',
+      },
+    });
+    runtimeUpstreamBindingsService.buildBaseUrl.mockReturnValue('https://api.example.com/base');
     entityRepositoryMap.clear();
     entityRepositoryMap
       .set(require('../../../database/entities/gateway-consumer-credential.entity').GatewayConsumerCredentialEntity, gatewayConsumerCredentialRepository)
@@ -131,8 +160,15 @@ describe('RuntimeAssetsService', () => {
       .set(require('../../../database/entities/runtime-observability-event.entity').RuntimeObservabilityEventEntity, runtimeObservabilityEventRepository)
       .set(require('../../../database/entities/runtime-metric-series.entity').RuntimeMetricSeriesEntity, runtimeMetricSeriesRepository)
       .set(require('../../../database/entities/runtime-asset-endpoint-binding.entity').RuntimeAssetEndpointBindingEntity, runtimeBindingRepository)
-      .set(require('../../../database/entities/runtime-asset.entity').RuntimeAssetEntity, runtimeAssetRepository);
+      .set(require('../../../database/entities/runtime-asset.entity').RuntimeAssetEntity, runtimeAssetRepository)
+      .set(require('../../../database/entities/mcp-server.entity').MCPServerEntity, mcpServerRepository);
     runtimeAssetRepository.manager.transaction.mockImplementation(
+      async (callback: (manager: { getRepository: (entity: any) => any }) => Promise<unknown>) =>
+        callback({
+          getRepository: (entity: any) => entityRepositoryMap.get(entity),
+        }),
+    );
+    mcpServerRepository.manager.transaction.mockImplementation(
       async (callback: (manager: { getRepository: (entity: any) => any }) => Promise<unknown>) =>
         callback({
           getRepository: (entity: any) => entityRepositoryMap.get(entity),
@@ -162,6 +198,11 @@ describe('RuntimeAssetsService', () => {
     runtimeBindingRepository.findOne.mockResolvedValue(null);
     runtimeBindingRepository.delete.mockResolvedValue({ affected: 1 });
     mcpServerRepository.find.mockResolvedValue([]);
+    mcpServerRepository.create.mockImplementation((value: Record<string, unknown>) => ({
+      id: 'managed-server-new',
+      ...value,
+    }));
+    mcpServerRepository.save.mockImplementation(async (value: unknown) => value);
     runtimeObservabilityService.recordRuntimeControlEvent.mockResolvedValue(undefined);
     runtimeObservabilityService.getRuntimeAssetObservability.mockResolvedValue(null);
     eventEmitter.emit.mockReset();
@@ -191,16 +232,33 @@ describe('RuntimeAssetsService', () => {
     moduleRef.get.mockReturnValue(serverManager);
   });
 
-  it('emits gateway snapshot refresh when starting a gateway runtime asset', async () => {
-    await service.startRuntimeAsset('runtime-gateway-1');
+  it('routes gateway start through verified deployment instead of activating directly', async () => {
+    const deployResult = {
+      runtimeAsset: { id: 'runtime-gateway-1', status: 'active' },
+      runtimeSummary: { runtimeAssetId: 'runtime-gateway-1' },
+      gatewayAssembly: { includedMembershipCount: 1 },
+      verification: {
+        run: { id: 'verification-1', candidateRevision: 'revision-1' },
+      },
+      action: 'deploy-gateway',
+    };
+    const deploySpy = jest
+      .spyOn(service, 'deployGatewayRuntimeAsset')
+      .mockResolvedValueOnce(deployResult as any);
 
-    expect(eventEmitter.emit).toHaveBeenCalledWith(
-      'gateway.snapshot.refresh_requested',
+    const result = await service.startRuntimeAsset('runtime-gateway-1');
+
+    expect(deploySpy).toHaveBeenCalledWith('runtime-gateway-1', {}, {});
+    expect(result).toEqual(
+      expect.objectContaining({ action: 'start', verification: deployResult.verification }),
+    );
+    expect(runtimeObservabilityService.recordRuntimeControlEvent).toHaveBeenCalledWith(
       expect.objectContaining({
-        reason: 'runtime_assets.gateway_started',
-        runtimeAssetId: 'runtime-gateway-1',
+        eventName: 'gateway.started',
+        details: expect.objectContaining({ verificationRunId: 'verification-1' }),
       }),
     );
+    deploySpy.mockRestore();
   });
 
   it('emits gateway snapshot refresh when stopping a gateway runtime asset', async () => {
@@ -394,6 +452,13 @@ describe('RuntimeAssetsService', () => {
         accessUrls: expect.arrayContaining(['http://gateway.internal/orders']),
       }),
     );
+    expect(result.routes[0]).toEqual(
+      expect.objectContaining({
+        sourceServiceInstanceId: 'instance-1',
+        upstreamBaseUrl: 'https://api.example.com/base',
+      }),
+    );
+    expect(runtimeUpstreamBindingsService.resolve).toHaveBeenCalledWith('membership-1');
   });
 
   it('normalizes persisted gateway metrics into the runtime summary shape', async () => {
@@ -625,4 +690,223 @@ describe('RuntimeAssetsService', () => {
     expect(serverManager.deleteServer).toHaveBeenCalledWith('managed-server-1');
     expect(runtimeAssetRepository.delete).toHaveBeenCalledWith({ id: 'runtime-mcp-1' });
   });
+
+  it('blocks Gateway deployment before activation when verification prerequisites fail', async () => {
+    const runtimeAsset = {
+      id: 'runtime-gateway-verify',
+      type: RuntimeAssetType.GATEWAY_SERVICE,
+      status: 'draft',
+      metadata: {},
+    };
+    jest.spyOn(service as any, 'requireRuntimeAsset').mockResolvedValue(runtimeAsset);
+    jest.spyOn(service, 'assembleGatewayRuntimeAssetPayload').mockResolvedValue({
+      includedMembershipCount: 1,
+    } as any);
+    runtimeVerificationService.planCandidate.mockResolvedValue({
+      canExecute: false,
+      run: {
+        id: 'verification-blocked',
+        blockers: [{ code: 'smoke_sample_missing' }],
+      },
+      results: [],
+    });
+
+    await expect(
+      service.deployGatewayRuntimeAsset('runtime-gateway-verify'),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'RUNTIME_VERIFICATION_BLOCKED' }),
+    });
+    expect(runtimeVerificationService.executeGatewayCandidate).not.toHaveBeenCalled();
+    expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+      'gateway.snapshot.refresh_requested',
+      expect.anything(),
+    );
+  });
+
+  it('keeps the public Gateway snapshot unchanged when candidate replay fails', async () => {
+    const runtimeAsset = {
+      id: 'runtime-gateway-verify',
+      type: RuntimeAssetType.GATEWAY_SERVICE,
+      status: 'active',
+      metadata: { activeRevision: 'revision-1' },
+    };
+    jest.spyOn(service as any, 'requireRuntimeAsset').mockResolvedValue(runtimeAsset);
+    jest.spyOn(service, 'assembleGatewayRuntimeAssetPayload').mockResolvedValue({
+      includedMembershipCount: 1,
+    } as any);
+    runtimeVerificationService.planCandidate.mockResolvedValue({
+      canExecute: true,
+      run: { id: 'verification-failed' },
+      results: [],
+    });
+    runtimeVerificationService.executeGatewayCandidate.mockResolvedValue({
+      run: {
+        id: 'verification-failed',
+        status: 'failed',
+        failedCount: 1,
+        activationStatus: 'retained_previous',
+        previousActiveRevision: 'revision-1',
+      },
+      results: [],
+      activation: { activated: false, retainedPrevious: true },
+    });
+
+    await expect(
+      service.deployGatewayRuntimeAsset('runtime-gateway-verify'),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'RUNTIME_VERIFICATION_FAILED' }),
+    });
+    expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+      'gateway.snapshot.refresh_requested',
+      expect.anything(),
+    );
+  });
+
+  it('embeds only the per-operation credential reference in assembled MCP behavior', async () => {
+    const mcpAsset = {
+      id: 'runtime-mcp-credential',
+      type: RuntimeAssetType.MCP_SERVER,
+      status: 'draft',
+      name: 'orders-mcp',
+      displayName: 'Orders MCP',
+      metadata: {},
+    };
+    const requireSpy = jest.spyOn(service as any, 'requireRuntimeAsset').mockResolvedValue(mcpAsset);
+    const membershipSpy = jest.spyOn(service, 'listRuntimeAssetMemberships').mockResolvedValue({
+      total: 1,
+      data: [{
+        membership: { id: 'membership-credential', enabled: true },
+        endpointDefinition: {
+          id: 'endpoint-credential',
+          path: '/orders',
+          method: 'POST',
+          operationId: 'createOrder',
+          rawOperation: { responses: { 200: { description: 'ok' } } },
+        },
+        sourceServiceAsset: { id: 'source-orders', displayName: 'Orders API' },
+        profile: null,
+        publishBinding: { publishedToMcp: true, publishStatus: 'active' },
+      }],
+    } as any);
+    runtimeUpstreamBindingsService.resolve.mockResolvedValue({
+      resolved: true,
+      reason: 'resolved',
+      instance: {
+        id: 'instance-credential',
+        scheme: 'https',
+        host: 'orders.example',
+        port: 443,
+        basePath: '/',
+        credentialRef: 'env-headers:Authorization=UPSTREAM_ORDER_TOKEN',
+      },
+    });
+    runtimeUpstreamBindingsService.buildBaseUrl.mockReturnValue('https://orders.example');
+
+    const assembled = await service.assembleMcpRuntimeAssetPayload(mcpAsset.id);
+
+    expect((assembled.openApiData.paths['/orders'].post as any)['x-api-nova-credential-ref'])
+      .toBe('env-headers:Authorization=UPSTREAM_ORDER_TOKEN');
+    expect(JSON.stringify(assembled.openApiData)).not.toContain('upstream-secret');
+    membershipSpy.mockRestore();
+    requireSpy.mockRestore();
+  });
+
+  it('does not overwrite the managed MCP server when candidate replay fails', async () => {
+    const mcpAsset = {
+      id: 'runtime-mcp-verify',
+      type: RuntimeAssetType.MCP_SERVER,
+      status: 'active',
+      name: 'orders-mcp',
+      displayName: 'Orders MCP',
+      metadata: { activeRevision: 'revision-1' },
+    };
+    const requireSpy = jest.spyOn(service as any, 'requireRuntimeAsset').mockResolvedValue(mcpAsset);
+    const assembleSpy = jest.spyOn(service, 'assembleMcpRuntimeAssetPayload').mockResolvedValue({
+      runtimeAsset: mcpAsset,
+      openApiData: { openapi: '3.0.3' },
+      tools: [{ name: 'createOrder' }],
+      verificationTools: [{ runtimeMembershipId: 'membership-1', tool: { name: 'createOrder' } }],
+      toolsCount: 1,
+      includedMembershipCount: 1,
+    } as any);
+    mcpServerRepository.findOne.mockResolvedValue({
+      id: 'managed-server-1',
+      name: 'orders-mcp',
+      port: 9022,
+      transport: 'streamable',
+      status: ServerStatus.RUNNING,
+      tools: [{ name: 'oldTool' }],
+      config: { runtimeAssetId: mcpAsset.id },
+    });
+    runtimeVerificationService.planCandidate.mockResolvedValue({
+      canExecute: true,
+      run: { id: 'verification-mcp-failed' },
+      results: [],
+    });
+    runtimeVerificationService.executeMcpCandidate.mockResolvedValue({
+      run: { id: 'verification-mcp-failed', status: 'failed' },
+      results: [],
+    });
+
+    await expect(service.deployMcpRuntimeAsset(mcpAsset.id)).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'RUNTIME_VERIFICATION_FAILED' }),
+    });
+
+    expect(mcpServerRepository.save).not.toHaveBeenCalled();
+    expect(runtimeVerificationService.activateMcpCandidate).not.toHaveBeenCalled();
+    assembleSpy.mockRestore();
+    requireSpy.mockRestore();
+  });
+
+  it('persists and activates an MCP candidate only after replay passes', async () => {
+    const mcpAsset = {
+      id: 'runtime-mcp-verify',
+      type: RuntimeAssetType.MCP_SERVER,
+      status: 'draft',
+      name: 'orders-mcp',
+      displayName: 'Orders MCP',
+      metadata: {},
+    };
+    const requireSpy = jest.spyOn(service as any, 'requireRuntimeAsset').mockResolvedValue(mcpAsset);
+    const assembleSpy = jest.spyOn(service, 'assembleMcpRuntimeAssetPayload').mockResolvedValue({
+      runtimeAsset: mcpAsset,
+      openApiData: { openapi: '3.0.3' },
+      tools: [{ name: 'createOrder' }],
+      verificationTools: [{ runtimeMembershipId: 'membership-1', tool: { name: 'createOrder' } }],
+      toolsCount: 1,
+      includedMembershipCount: 1,
+    } as any);
+    mcpServerRepository.findOne.mockResolvedValue(null);
+    runtimeVerificationService.planCandidate.mockResolvedValue({
+      canExecute: true,
+      run: { id: 'verification-mcp-passed' },
+      results: [],
+    });
+    runtimeVerificationService.executeMcpCandidate.mockResolvedValue({
+      run: { id: 'verification-mcp-passed', status: 'passed' },
+      results: [],
+    });
+    runtimeVerificationService.activateMcpCandidate.mockResolvedValue({
+      run: { id: 'verification-mcp-passed', activationStatus: 'activated' },
+      runtimeAsset: mcpAsset,
+    });
+
+    const deployed = await service.deployMcpRuntimeAsset(mcpAsset.id, { port: 9033 });
+
+    expect(runtimeVerificationService.executeMcpCandidate).toHaveBeenCalledWith(
+      mcpAsset.id,
+      'verification-mcp-passed',
+      expect.arrayContaining([expect.objectContaining({ runtimeMembershipId: 'membership-1' })]),
+    );
+    expect(mcpServerRepository.save).toHaveBeenCalled();
+    expect(runtimeVerificationService.activateMcpCandidate).toHaveBeenCalledWith(
+      mcpAsset.id,
+      'verification-mcp-passed',
+      expect.objectContaining({ getRepository: expect.any(Function) }),
+    );
+    expect(deployed.verification.activation.run.activationStatus).toBe('activated');
+    assembleSpy.mockRestore();
+    requireSpy.mockRestore();
+  });
+
 });

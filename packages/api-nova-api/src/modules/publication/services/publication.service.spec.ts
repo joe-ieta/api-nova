@@ -66,6 +66,10 @@ describe('PublicationService', () => {
   const runtimeAssetsService = {
     deployMcpRuntimeAsset: jest.fn(),
   };
+  const runtimeUpstreamBindingsService = {
+    resolve: jest.fn(),
+    buildBaseUrl: jest.fn(),
+  };
 
   const service = new PublicationService(
     endpointDefinitionRepository as any,
@@ -80,6 +84,7 @@ describe('PublicationService', () => {
     routeBindingRepository as any,
     runtimeAssetsService as any,
     eventEmitter as any,
+    runtimeUpstreamBindingsService as any,
   );
 
   const sourceServiceAsset = {
@@ -116,6 +121,10 @@ describe('PublicationService', () => {
       status: RuntimeAssetStatus.DRAFT,
     });
     runtimeAssetRepository.save.mockImplementation(async (value: unknown) => value);
+    runtimeAssetRepository.create.mockImplementation((value: Record<string, unknown>) => ({
+      id: 'runtime-created',
+      ...value,
+    }));
     runtimeBindingRepository.find.mockResolvedValue([]);
     runtimeBindingRepository.findOne.mockResolvedValue(null);
     runtimeBindingRepository.create.mockImplementation((value: Record<string, unknown>) => ({
@@ -171,6 +180,36 @@ describe('PublicationService', () => {
     expect(result.total).toBe(1);
     expect(result.data[0].endpointDefinition.id).toBe('endpoint-1');
     expect(result.data[0].readiness.ready).toBe(true);
+  });
+
+  it('requires and normalizes a service prefix for gateway runtime assets', async () => {
+    runtimeAssetRepository.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.createPublicationRuntimeAsset({
+        type: RuntimeAssetType.GATEWAY_SERVICE,
+        name: 'orders-gateway',
+      }),
+    ).rejects.toThrow('servicePrefix is required');
+
+    const result = await service.createPublicationRuntimeAsset({
+      type: RuntimeAssetType.GATEWAY_SERVICE,
+      name: 'orders-gateway',
+      servicePrefix: '/Orders/',
+    });
+    runtimeUpstreamBindingsService.resolve.mockResolvedValue({
+      resolved: true,
+      instance: {
+        id: 'instance-1',
+        scheme: 'https',
+        host: 'api.example.com',
+        port: 443,
+        basePath: '/v1',
+      },
+    });
+    runtimeUpstreamBindingsService.buildBaseUrl.mockReturnValue('https://api.example.com/v1');
+
+    expect(result.runtimeAsset.servicePrefix).toBe('orders');
   });
 
   it('rejects adding non-ready endpoints into a publication runtime asset', async () => {

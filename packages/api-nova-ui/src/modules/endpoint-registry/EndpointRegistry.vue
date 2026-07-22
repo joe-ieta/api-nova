@@ -171,6 +171,9 @@
             <span class="count">{{
               t("endpointRegistry.groupCount", { count: selectedManualGroup.endpoints.length })
             }}</span>
+            <el-button size="small" type="primary" plain @click="openInstanceManager">
+              运行实例
+            </el-button>
           </div>
           <span v-else>{{ t("endpointRegistry.noGroupSelected") }}</span>
         </template>
@@ -864,6 +867,17 @@
                 </template>
               </el-alert>
               <div class="row-actions publication-workbench-actions">
+                <el-button
+                  v-if="selectedPublicationMembershipRow.runtimeMembershipId && selectedPublicationMembershipRow.sourceServiceAssetId"
+                  size="small"
+                  type="primary"
+                  plain
+                  :icon="Connection"
+                  class="action-btn"
+                  @click="showRuntimeUpstreamBinding = true"
+                >
+                  运行上游绑定
+                </el-button>
                 <el-button
                   size="small"
                   type="info"
@@ -1616,6 +1630,17 @@
         <el-form-item :label="t('endpointRegistry.publicationBuilder.policyBindingRef')">
           <el-input v-model="publicationTargetForm.policyBindingRef" clearable />
         </el-form-item>
+        <el-form-item
+          v-if="publicationTargetForm.type === 'gateway_service'"
+          label="服务前缀"
+          prop="servicePrefix"
+        >
+          <el-input
+            v-model="publicationTargetForm.servicePrefix"
+            clearable
+            placeholder="例如 orders，对外路径为 /api/v1/gateway/orders/..."
+          />
+        </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
@@ -1788,6 +1813,9 @@
             <div class="test-dialog-title-row">
               <span class="group-name">{{ testDialogEndpoint.name }}</span>
               <el-tag type="info">{{ testDialogEndpoint.methodPath }}</el-tag>
+              <el-button size="small" type="primary" plain @click="showSampleLibrary = true">
+                样本库
+              </el-button>
             </div>
             <div class="manual-group-url">{{ testDialogEndpoint.baseUrl }}</div>
           </div>
@@ -1854,6 +1882,23 @@
         </div>
       </template>
     </el-dialog>
+    <SourceServiceInstancesDialog
+      v-model="showInstanceManager"
+      :source-service-asset-id="selectedInstanceSourceAssetId"
+      :source-service-name="selectedManualGroup?.groupName"
+    />
+    <EndpointTestSamplesDialog
+      v-model="showSampleLibrary"
+      :endpoint-definition-id="testDialogEndpointId"
+      :endpoint-name="testDialogEndpoint?.name"
+    />
+    <RuntimeUpstreamBindingDialog
+      v-model="showRuntimeUpstreamBinding"
+      :runtime-membership-id="selectedPublicationMembershipRow?.runtimeMembershipId || ''"
+      :source-service-asset-id="selectedPublicationMembershipRow?.sourceServiceAssetId || ''"
+      :endpoint-name="selectedPublicationMembershipRow?.methodPath"
+      @saved="loadOverview"
+    />
   </div>
 </template>
 
@@ -1879,6 +1924,9 @@ import {
   type OperationTimelineLevel,
 } from "@/composables/useOperationTimeline";
 import OperationTimeline from "@/shared/components/ui/OperationTimeline.vue";
+import SourceServiceInstancesDialog from "./SourceServiceInstancesDialog.vue";
+import EndpointTestSamplesDialog from "./EndpointTestSamplesDialog.vue";
+import RuntimeUpstreamBindingDialog from "./RuntimeUpstreamBindingDialog.vue";
 
 const { t } = useI18n();
 const route = useRoute();
@@ -1939,14 +1987,22 @@ type EndpointAssetRecord = {
 type SourceServiceAssetRecord = {
   id: string;
   sourceKey: string;
-  scheme: string;
-  host: string;
-  port: number;
-  normalizedBasePath: string;
   displayName?: string;
   description?: string;
   metadata?: Record<string, any>;
   updatedAt?: string;
+  instanceCount?: number;
+  defaultInstance?: {
+    id: string;
+    name: string;
+    environment: string;
+    scheme: string;
+    host: string;
+    port: number;
+    basePath: string;
+    status: string;
+    enabled: boolean;
+  } | null;
 };
 
 type PublicationMembershipRecord = {
@@ -2124,6 +2180,9 @@ const rows = ref<EndpointRow[]>([]);
 const expandedGroupKeys = ref<string[]>([]);
 const selectedFilter = ref<RegistryFilter>("all");
 const selectedManualGroupKey = ref("");
+const showInstanceManager = ref(false);
+const showSampleLibrary = ref(false);
+const showRuntimeUpstreamBinding = ref(false);
 const selectedGovernanceGroupKey = ref("");
 const selectedPublicationGroupKey = ref("");
 const selectedPublicationCandidateGroupKey = ref("");
@@ -2175,6 +2234,7 @@ const publicationTargetForm = ref({
   displayName: "",
   description: "",
   policyBindingRef: "",
+  servicePrefix: "",
 });
 const createFormRef = ref<FormInstance>();
 const publicationTargetFormRef = ref<FormInstance>();
@@ -2349,6 +2409,27 @@ const publicationTargetFormRules = computed(() => ({
     {
       pattern: /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/,
       message: t("endpointRegistry.publicationBuilder.namePattern"),
+      trigger: "blur",
+    },
+  ],
+  servicePrefix: [
+    {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+        if (publicationTargetForm.value.type !== "gateway_service") {
+          callback();
+          return;
+        }
+        const normalized = String(value || "").trim().replace(/^\/+|\/+$/g, "");
+        if (!normalized) {
+          callback(new Error("Gateway 服务必须填写服务前缀"));
+          return;
+        }
+        if (!/^[a-zA-Z0-9][a-zA-Z0-9._~/-]*$/.test(normalized) || normalized.includes("//")) {
+          callback(new Error("服务前缀只能包含 URL 安全路径字符，且不能有空路径段"));
+          return;
+        }
+        callback();
+      },
       trigger: "blur",
     },
   ],
@@ -3023,14 +3104,15 @@ const parseGroupLocation = (baseUrl: string) => {
 };
 
 const deriveBaseUrlFromAsset = (asset?: SourceServiceAssetRecord) => {
-  if (!asset) return "unknown";
+  const instance = asset?.defaultInstance;
+  if (!instance) return "runtime-instance-required";
   const isDefaultPort =
-    (asset.scheme === "http" && asset.port === 80) ||
-    (asset.scheme === "https" && asset.port === 443);
+    (instance.scheme === "http" && instance.port === 80) ||
+    (instance.scheme === "https" && instance.port === 443);
   const authority = isDefaultPort
-    ? `${asset.scheme}://${asset.host}`
-    : `${asset.scheme}://${asset.host}:${asset.port}`;
-  return asset.normalizedBasePath === "/" ? authority : `${authority}${asset.normalizedBasePath}`;
+    ? `${instance.scheme}://${instance.host}`
+    : `${instance.scheme}://${instance.host}:${instance.port}`;
+  return instance.basePath === "/" ? authority : `${authority}${instance.basePath}`;
 };
 
 const getLifecycleLabel = (status?: string) =>
@@ -3366,6 +3448,16 @@ const selectedManualGroup = computed(
       (group) => group.groupKey === effectiveSelectedManualGroupKey.value,
     ) || null,
 );
+const selectedInstanceSourceAssetId = computed(
+  () => selectedManualGroup.value?.endpoints[0]?.sourceServiceAssetId || "",
+);
+const openInstanceManager = () => {
+  if (!selectedInstanceSourceAssetId.value) {
+    ElMessage.warning("当前 API 分组缺少源服务资产标识");
+    return;
+  }
+  showInstanceManager.value = true;
+};
 const effectiveSelectedGovernanceGroupKey = computed(() => {
   if (
     selectedGovernanceGroupKey.value &&
@@ -3771,6 +3863,7 @@ const resetPublicationTargetForm = () => {
     displayName: buildPublicationTargetDraftDisplayName(type),
     description: "",
     policyBindingRef: "",
+    servicePrefix: "",
   };
   publicationTargetFormRef.value?.clearValidate();
 };
@@ -3845,6 +3938,10 @@ const submitPublicationTargetForm = async () => {
       displayName: publicationTargetForm.value.displayName.trim() || undefined,
       description: publicationTargetForm.value.description.trim() || undefined,
       policyBindingRef: publicationTargetForm.value.policyBindingRef.trim() || undefined,
+      servicePrefix:
+        publicationTargetForm.value.type === "gateway_service"
+          ? publicationTargetForm.value.servicePrefix.trim().replace(/^\/+|\/+$/g, "")
+          : undefined,
     });
     const createdId = result?.runtimeAsset?.id;
     showPublicationTargetDialog.value = false;

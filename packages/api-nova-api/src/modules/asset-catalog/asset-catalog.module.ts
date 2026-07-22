@@ -6,6 +6,8 @@ import { SourceServiceAssetEntity } from '../../database/entities/source-service
 import { SecurityModule } from '../security/security.module';
 import { AssetCatalogController } from './asset-catalog.controller';
 import { AssetCatalogService } from './services/asset-catalog.service';
+import { EndpointTestingModule } from '../endpoint-testing/endpoint-testing.module';
+import { SourceServiceInstancesModule } from '../source-service-instances/source-service-instances.module';
 
 @Module({
   imports: [
@@ -15,6 +17,8 @@ import { AssetCatalogService } from './services/asset-catalog.service';
       EndpointDefinitionEntity,
     ]),
     SecurityModule,
+    EndpointTestingModule,
+    SourceServiceInstancesModule,
   ],
   controllers: [AssetCatalogController],
   providers: [AssetCatalogService],

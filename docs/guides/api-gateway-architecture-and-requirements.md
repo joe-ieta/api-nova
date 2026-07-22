@@ -1,5 +1,8 @@
 # ApiNova API Gateway Architecture And Requirements
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## Purpose
 
 This document defines the product-facing requirements and the target architecture for the ApiNova built-in API Gateway.
@@ -42,13 +45,13 @@ The target solution must fit the current codebase and runtime baseline.
 
 Relevant code:
 
-- [app.module.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/app.module.ts)
-- [main.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/main.ts)
-- [gateway-runtime.module.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/gateway-runtime.module.ts)
-- [publication.module.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/publication/publication.module.ts)
-- [runtime-asset.entity.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/database/entities/runtime-asset.entity.ts)
-- [runtime-asset-endpoint-binding.entity.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/database/entities/runtime-asset-endpoint-binding.entity.ts)
-- [gateway-route-binding.entity.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/database/entities/gateway-route-binding.entity.ts)
+- [app.module.ts](../../packages/api-nova-api/src/app.module.ts)
+- [main.ts](../../packages/api-nova-api/src/main.ts)
+- [gateway-runtime.module.ts](../../packages/api-nova-api/src/modules/gateway-runtime/gateway-runtime.module.ts)
+- [publication.module.ts](../../packages/api-nova-api/src/modules/publication/publication.module.ts)
+- [runtime-asset.entity.ts](../../packages/api-nova-api/src/database/entities/runtime-asset.entity.ts)
+- [runtime-asset-endpoint-binding.entity.ts](../../packages/api-nova-api/src/database/entities/runtime-asset-endpoint-binding.entity.ts)
+- [gateway-route-binding.entity.ts](../../packages/api-nova-api/src/database/entities/gateway-route-binding.entity.ts)
 
 ### Product constraints
 
@@ -237,8 +240,8 @@ That means:
 
 This is already reflected in:
 
-- [runtime-asset.entity.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/database/entities/runtime-asset.entity.ts)
-- [runtime-asset-endpoint-binding.entity.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/database/entities/runtime-asset-endpoint-binding.entity.ts)
+- [runtime-asset.entity.ts](../../packages/api-nova-api/src/database/entities/runtime-asset.entity.ts)
+- [runtime-asset-endpoint-binding.entity.ts](../../packages/api-nova-api/src/database/entities/runtime-asset-endpoint-binding.entity.ts)
 
 ## Request Processing Pipeline
 
@@ -471,4 +474,4 @@ The first implementation priority is correctness of the data plane:
 4. security and traffic policy
 5. cache
 
-For the concrete delivery sequence, see [api-gateway-phase1-technical-design](./api-gateway-phase1-technical-design.md).
+For historical delivery sequencing, see the archived [phase-one technical design](../archive/guides/api-gateway-phase1-technical-design.md). Current behavior is defined by this architecture document and the runtime closure plan.

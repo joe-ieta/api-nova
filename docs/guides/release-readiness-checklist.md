@@ -1,5 +1,8 @@
 # Release Readiness Checklist
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 Use this checklist before cutting a release or calling the current baseline publishable.
 
 The goal is to validate the real supported path, not to create an aspirational checklist for features that are still incomplete.
@@ -123,15 +126,16 @@ Verify:
 - startup logs clearly report `Database mode: postgres`
 - schema initialization and migrations succeed
 
-Current verified baseline on April 16, 2026:
+Current clean-schema baseline verified on July 21, 2026:
 
-- database `api_nova_api` was dropped and recreated from a clean state
-- API startup in `DB_TYPE=postgres` completed successfully
-- schema and seed initialization completed successfully on an empty database
-- resulting PostgreSQL schema contains 19 public tables, including `endpoint_probe_logs`
-- seed data was recreated with `27` permissions, `5` roles, and `1` super admin user
-- `DB_TYPE=postgres npm run type-check` passed
-- `DB_TYPE=postgres npm run test` passed
+- isolated empty SQLite and PostgreSQL databases both completed canonical `migration:run`
+- both migrated schemas returned zero pending changes from `schema:log`
+- each database contains 38 domain tables plus the migration ledger
+- all domain tables remain empty before explicit seed initialization
+- the nine runtime-instance, endpoint-testing, upstream-binding, verification, and persisted Gateway snapshot tables are present
+- `source_service_assets` contains no legacy runtime host/port columns
+- PostgreSQL uses a native UUID foreign key for `source_service_instances.sourceServiceAssetId`
+- verification commands are `npm run db:verify-isolated-sqlite --workspace api-nova-api` and `npm run db:verify-isolated-postgres --workspace api-nova-api`
 
 ## 8. Endpoint Registry Verification
 
@@ -150,7 +154,22 @@ Verify the imported endpoint governance path:
 - confirm imported endpoints can be listed and grouped without exposing manual create/edit/delete actions
 - run `probe`, `publish readiness`, `publish`, and `offline` on an imported endpoint and confirm the lifecycle state updates correctly
 
-## 9. Windows And Ubuntu Verification
+## 9. Runtime Credential And Verification Gate
+
+Verify:
+
+- configure a source-service instance with `env-headers:Authorization=UPSTREAM_API_TOKEN`
+- confirm create/update rejects a missing environment variable, malformed mapping, or transport-owned header
+- confirm the saved instance, verification evidence, Gateway snapshot, MCP server configuration, and logs contain the reference but never the resolved secret
+- confirm Gateway candidate replay and activated proxy calls replace consumer credentials with the upstream credential
+- confirm each MCP operation resolves the credential reference of its own selected source-service instance
+- change the selected instance or credential reference and confirm the candidate revision changes and fresh verification is required
+- remove the environment variable after configuration and confirm execution fails closed without activating a candidate
+- confirm deployment without a smoke sample remains blocked by default
+- use the permission-guarded no-smoke waiver action, enter a reason of at least 10 characters, and confirm operator id, environment, reason, and `waiver` result are visible in verification drill-down
+- confirm the waiver changes candidate identity and permits activation without fabricating a replay result
+
+## 10. Windows And Ubuntu Verification
 
 Check the documented run path on both:
 
@@ -166,9 +185,15 @@ At minimum verify:
 - parser verification path
 - `npm run test:streamable-session --workspace api-nova-server`
 
-## 10. Open Items Review
+Latest local evidence on 2026-07-22:
 
-Before release, review `docs/reference/open-items.md` and confirm:
+- Windows `npm run build` passed for Parser, Server, API, and UI production output
+- Windows streamable multi-session smoke passed for two concurrent MCP sessions
+- Windows API/UI interactive startup, basic import/conversion, and the complete Ubuntu path remain required before release
+
+## 11. Open Items Review
+
+Execute and record the [Runtime Publication Acceptance Cases](../testing/runtime-publication-acceptance-cases.md). Then review [Open Items](../reference/open-items.md) and confirm:
 
 - unfinished items are not being claimed as release-complete
 - operator-visible gaps are disclosed clearly enough
@@ -177,3 +202,11 @@ Before release, review `docs/reference/open-items.md` and confirm:
 - deferred auth and notification flows are described honestly in API and operator guidance
 
 A release is ready only when the documented baseline, the real implementation, and the tested operator path all match.
+
+Automated runtime-closure gate:
+
+```bash
+npm run verify:runtime-closure
+```
+
+The gate is necessary but not sufficient: the manual real-upstream and cross-platform checks above must also pass before release.

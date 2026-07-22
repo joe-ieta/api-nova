@@ -1,5 +1,8 @@
 # ApiNova Release Baseline V1
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## Goal
 
 Converge the repository toward a basic usable version that is suitable for release and can be connected to real AI applications.

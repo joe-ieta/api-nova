@@ -4,6 +4,7 @@ import { SchemaAnnotationExtractor } from '../extractors/schema-annotation-extra
 import { AuthManager, AuthConfig } from '../auth/types';
 import { BearerAuthManager } from '../auth/bearer-auth';
 import { CustomHeadersManager } from '../headers/CustomHeadersManager';
+import { resolveRuntimeCredentialRefHeaders } from '../headers/RuntimeCredentialRef';
 import axios, { AxiosResponse, AxiosError } from 'axios';
 import { isParserDebugEnabled, parserDebugLog, parserWarnLog } from '../utils/logger';
 
@@ -611,6 +612,11 @@ export class OpenAPIToMCPTransformer {
       }
 
       // 4. 添加认证头（最高优先级，可能覆盖自定义头）
+      Object.assign(
+        headers,
+        resolveRuntimeCredentialRefHeaders((operation as any)['x-api-nova-credential-ref']),
+      );
+
       if (this.authManager) {
         const authHeaders = await this.authManager.getAuthHeaders({
           method,

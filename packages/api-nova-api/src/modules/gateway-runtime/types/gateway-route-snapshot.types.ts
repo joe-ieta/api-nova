@@ -4,6 +4,7 @@ import { RuntimeAssetEndpointBindingEntity } from '../../../database/entities/ru
 import { EndpointPublishBindingEntity } from '../../../database/entities/endpoint-publish-binding.entity';
 import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
 import { SourceServiceAssetEntity } from '../../../database/entities/source-service-asset.entity';
+import { SourceServiceInstanceEntity } from '../../../database/entities/source-service-instance.entity';
 import { GatewayCompiledPolicyBundle } from './gateway-policy.types';
 
 export type GatewayResolvedRoute = {
@@ -13,6 +14,7 @@ export type GatewayResolvedRoute = {
   publishBinding: EndpointPublishBindingEntity;
   endpointDefinition: EndpointDefinitionEntity;
   sourceServiceAsset: SourceServiceAssetEntity;
+  sourceServiceInstance: SourceServiceInstanceEntity;
   upstreamBaseUrl: string;
   params: Record<string, string>;
   policies: GatewayCompiledPolicyBundle;
@@ -25,6 +27,7 @@ export type GatewaySnapshotRouteEntry = {
   publishBinding: EndpointPublishBindingEntity;
   endpointDefinition: EndpointDefinitionEntity;
   sourceServiceAsset: SourceServiceAssetEntity;
+  sourceServiceInstance: SourceServiceInstanceEntity;
   upstreamBaseUrl: string;
   normalizedRoutePath: string;
   routeMethod: string;

@@ -1,43 +1,28 @@
 # Archive
 
-This directory contains historical documentation that is no longer the active source of truth for current project work.
+> Document status: Active archive index
+> Last reviewed: 2026-07-22
 
-## Subdirectories
+This directory contains historical documentation that is not the current source of truth.
 
-### `plans`
+## Structure
 
-Historical proposals, implementation plans, design explorations, and roadmap fragments.
-
-### `summaries`
-
-Historical completion summaries, upgrade summaries, migration notes, and final-solution writeups.
-
-### `ui`
-
-Older UI-focused design and technical documents that no longer define the current top-level baseline.
-
-### `architecture`
-
-Earlier architecture proposal material retained for traceability.
-
-### `prototypes`
-
-HTML prototypes and exploratory artifacts.
-
-### `guides`
-
-Former active guides that became stale, drifted from the current baseline, or were replaced by tighter documentation.
-
-Recent archived planning material:
-
-- `guides/product-spine-restructure-plan-2026-04.md`: Phase 1/2/3 product-spine restructuring plan, superseded by `NEXT_DEVELOPMENT_BASELINE.md`, `docs/guides/staged-development-plan.md`, and `docs/reference/open-items.md`
-
-### `reference`
-
-Historical reference notes such as one-off issue resolutions, abandoned release-flow drafts, and implementation rationale that no longer define the active maintenance baseline.
+- `architecture`: earlier architecture proposals
+- `guides`: former active guides, completed phase designs, release notes, and superseded workflows
+- `plans`: historical proposals, implementation plans, and roadmaps
+- `summaries`: completion summaries, dated audits, migration notes, and final-solution records
+- `reference`: one-off issue resolutions and historical maintenance rationale
+- `ui`: older UI design and technical material
+- `prototypes`: exploratory HTML artifacts
+- `packages`: completed or superseded package-level implementation plans moved out of current package documentation
 
 ## Rules
 
-- Archived documents are read-only by default.
-- Do not update archived documents to represent current behavior.
-- If information from archive becomes current again, extract it into a new active document instead of reactivating the old file in place.
+- archived documents are read-only by default
+- their internal claims may be stale and must not override active documents
+- active documents may link here only when explicitly labeling historical context
+- if archived material becomes current again, extract and review it as a new active document
+
+## 2026-07-22 Closure Cleanup
+
+The cleanup archived completed Gateway Phase 1/2 task documents, Stage 4/6 implementation models, the superseded next-development baseline, the dated configuration audit, and historical API/Parser/Server package implementation plans. No content was deleted.

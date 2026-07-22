@@ -1,5 +1,8 @@
 # Publication Resource Baseline
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## Purpose
 
 This document defines the product and architecture baseline for `API Publication`.

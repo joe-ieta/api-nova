@@ -1,5 +1,8 @@
 # ApiNova
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 **语言**：中文 | [English](./README_EN.md)
 
 ApiNova（中文名：达雅 / Api达雅），一个面向 AI 时代的 API Gateway 与 API AI能力平台。
@@ -158,7 +161,9 @@ Start from:
 - [PROJECT_BASELINE](./PROJECT_BASELINE.md)
 - [RELEASE_BASELINE_V1](./RELEASE_BASELINE_V1.md)
 - [Documentation Index](./docs/README.md)
-- [Next Development Baseline](./NEXT_DEVELOPMENT_BASELINE.md)
+- [Runtime Instance And Regression Closure Plan](./docs/guides/runtime-instance-and-regression-closure-plan.md)
+- [Open Items](./docs/reference/open-items.md)
+- [Runtime Publication Acceptance Cases](./docs/testing/runtime-publication-acceptance-cases.md)
 - [Staged Development Plan](./docs/guides/staged-development-plan.md)
 - [Open Items](./docs/reference/open-items.md)
 

@@ -369,6 +369,9 @@ export class ServersLifecycleController {
         level: SystemLogLevel.ERROR,
         details: { error: error.message },
       });
+      if (error instanceof HttpException) {
+        throw error;
+      }
       if (error.message.includes('not found')) {
         throw new HttpException(error.message, HttpStatus.NOT_FOUND);
       }

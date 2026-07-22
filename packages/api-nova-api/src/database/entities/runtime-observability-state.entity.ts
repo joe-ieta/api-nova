@@ -6,7 +6,11 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { getEnumColumnOptions, getJsonColumnOptions } from '../db-compat';
+import {
+  getEnumColumnOptions,
+  getJsonColumnOptions,
+  getTimestampTzColumnOptions,
+} from '../db-compat';
 
 export enum RuntimeObservabilityScopeType {
   RUNTIME_ASSET = 'runtime_asset',
@@ -71,13 +75,13 @@ export class RuntimeObservabilityStateEntity {
   @Column({ type: 'varchar', length: 16, nullable: true })
   severity?: string;
 
-  @Column({ type: 'datetime' as any, nullable: true })
+  @Column(getTimestampTzColumnOptions(process.env.DB_TYPE, { nullable: true }))
   lastEventAt?: Date;
 
-  @Column({ type: 'datetime' as any, nullable: true })
+  @Column(getTimestampTzColumnOptions(process.env.DB_TYPE, { nullable: true }))
   lastSuccessAt?: Date;
 
-  @Column({ type: 'datetime' as any, nullable: true })
+  @Column(getTimestampTzColumnOptions(process.env.DB_TYPE, { nullable: true }))
   lastFailureAt?: Date;
 
   @Column({ type: 'varchar', length: 64, nullable: true })

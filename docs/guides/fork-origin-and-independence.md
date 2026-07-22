@@ -1,5 +1,8 @@
 # Fork Origin And Independence
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## Purpose
 
 This document records the origin of ApiNova, the product-positioning shift that has already happened, and the working rule for the relationship with the original upstream repository.

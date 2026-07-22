@@ -1,5 +1,8 @@
 # Parser Change Verification
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 This guide defines the required rebuild and verification path after any change in `packages/api-nova-parser`.
 
 ## Purpose

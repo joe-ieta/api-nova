@@ -14,6 +14,8 @@ import { RuntimeObservabilityModule } from '../runtime-observability/runtime-obs
 import { SecurityModule } from '../security/security.module';
 import { RuntimeAssetsController } from './runtime-assets.controller';
 import { RuntimeAssetsService } from './services/runtime-assets.service';
+import { RuntimeUpstreamBindingsModule } from '../runtime-upstream-bindings/runtime-upstream-bindings.module';
+import { RuntimeVerificationModule } from '../runtime-verification/runtime-verification.module';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { RuntimeAssetsService } from './services/runtime-assets.service';
       GatewayRouteBindingEntity,
     ]),
     GatewayRuntimeModule,
+    RuntimeUpstreamBindingsModule,
+    RuntimeVerificationModule,
     RuntimeObservabilityModule,
     SecurityModule,
   ],

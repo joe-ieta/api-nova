@@ -1,5 +1,8 @@
 # Node.js 模块系统详解：CommonJS vs ES Modules
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## 概述
 
 这份文档详细解释了 Node.js 中的两种模块系统：CommonJS 和 ES Modules (ESM)，以及它们如何影响包的发布和使用。

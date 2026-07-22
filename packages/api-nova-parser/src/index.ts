@@ -61,6 +61,7 @@ export { BearerAuthManager } from './auth/bearer-auth';
 
 // Export custom headers
 export { CustomHeadersManager, predefinedGenerators } from './headers/index';
+export { resolveRuntimeCredentialRefHeaders } from './headers/RuntimeCredentialRef';
 
 /**
  * High-level convenience function to parse and transform OpenAPI spec in one step

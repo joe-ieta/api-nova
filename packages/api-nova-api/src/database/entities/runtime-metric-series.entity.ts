@@ -5,7 +5,11 @@ import {
   Index,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { getEnumColumnOptions, getJsonColumnOptions } from '../db-compat';
+import {
+  getEnumColumnOptions,
+  getJsonColumnOptions,
+  getTimestampTzColumnOptions,
+} from '../db-compat';
 
 export enum RuntimeMetricScope {
   RUNTIME_ASSET = 'runtime_asset',
@@ -63,10 +67,10 @@ export class RuntimeMetricSeriesEntity {
   })
   aggregationWindow: RuntimeMetricAggregationWindow;
 
-  @Column({ type: 'datetime' as any })
+  @Column(getTimestampTzColumnOptions(process.env.DB_TYPE))
   windowStartedAt: Date;
 
-  @Column({ type: 'datetime' as any })
+  @Column(getTimestampTzColumnOptions(process.env.DB_TYPE))
   windowEndedAt: Date;
 
   @Column({

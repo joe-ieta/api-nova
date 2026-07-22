@@ -1,5 +1,8 @@
 # GitHub Collaboration Workflow
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## Purpose
 
 This document defines the recommended Git and GitHub workflow for this repository under the current operating model:

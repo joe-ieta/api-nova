@@ -1,5 +1,8 @@
 # Management Permission Matrix
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## Purpose
 
 This document defines the intended permission boundary for ApiNova management endpoints in the Stage 2 refactor.

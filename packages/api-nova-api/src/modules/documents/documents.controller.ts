@@ -35,7 +35,6 @@ import {
   DocumentDetailResponseDto,
   DocumentListResponseDto,
 } from './dto/document-response.dto';
-import { QuickPublishDocumentMcpDto } from './dto/quick-publish-document-mcp.dto';
 
 @ApiTags('Documents')
 @Controller('documents')
@@ -169,36 +168,6 @@ export class DocumentsController {
     this.logger.log(`Updating document ${id} for user ${userId}`);
     
     return this.documentsService.update(userId, id, updateDocumentDto);
-  }
-
-  @Post(':id/quick-publish-mcp')
-  @RequirePermissions('server:manage')
-  @ApiOperation({
-    summary: 'Quick publish one OpenAPI document as an MCP runtime asset',
-    description:
-      'Generate MCP tools from the current document content, replace an existing MCP runtime asset with the same publication name when requested, then create memberships, publish them, and deploy one managed MCP server.',
-  })
-  @ApiParam({
-    name: 'id',
-    description: 'Document ID',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Document quick-published as one MCP runtime asset',
-  })
-  async quickPublishMcp(
-    @Request() req: any,
-    @Param('id') id: string,
-    @Body() body: QuickPublishDocumentMcpDto,
-  ): Promise<Record<string, unknown>> {
-    const userId = req.user.id;
-    this.logger.log(`Quick publishing document ${id} to MCP for user ${userId}`);
-    return this.documentsService.quickPublishDocumentToMcp(
-      userId,
-      id,
-      body,
-    ) as Promise<Record<string, unknown>>;
   }
 
   @Delete(':id')

@@ -7,6 +7,12 @@
             <el-tag :type="statusTagType" size="large">
               {{ runtimeStatus }}
             </el-tag>
+            <el-button :icon="DocumentChecked" @click="verificationDialogVisible = true">
+              {{ t("monitoring.runtimeAssets.verification.open") }}
+            </el-button>
+            <el-button type="danger" plain @click="waiverDialogVisible = true">
+              {{ t("monitoring.runtimeAssets.verification.waiverAction") }}
+            </el-button>
             <el-button-group>
               <el-button
                 v-if="canDeploy"
@@ -393,6 +399,41 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <RuntimeVerificationDialog
+      v-model="verificationDialogVisible"
+      :runtime-asset-id="runtimeAssetId"
+    />
+
+    <el-dialog
+      v-model="waiverDialogVisible"
+      :title="t('monitoring.runtimeAssets.verification.waiverTitle')"
+      width="620px"
+    >
+      <el-alert
+        type="warning"
+        :closable="false"
+        show-icon
+        :title="t('monitoring.runtimeAssets.verification.waiverWarning')"
+      />
+      <el-form label-position="top" class="waiver-form">
+        <el-form-item :label="t('monitoring.runtimeAssets.verification.waiverReason')">
+          <el-input
+            v-model="waiverReason"
+            type="textarea"
+            :rows="5"
+            maxlength="1000"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="waiverDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="danger" :loading="actionLoading" @click="deployWithWaiver">
+          {{ t('monitoring.runtimeAssets.verification.waiverConfirm') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -400,10 +441,11 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { Refresh, VideoPause, VideoPlay } from "@element-plus/icons-vue";
+import { DocumentChecked, Refresh, VideoPause, VideoPlay } from "@element-plus/icons-vue";
 import { useI18n } from "vue-i18n";
 import { runtimeAssetsAPI } from "@/services/api";
 import { useWebSocketStore } from "@/stores/websocket";
+import RuntimeVerificationDialog from "./RuntimeVerificationDialog.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -419,6 +461,9 @@ const accessLogs = ref<any[]>([]);
 const credentials = ref<any[]>([]);
 const createdApiKey = ref("");
 const credentialDialogVisible = ref(false);
+const verificationDialogVisible = ref(false);
+const waiverDialogVisible = ref(false);
+const waiverReason = ref("");
 const credentialActionLoading = ref(false);
 const credentialForm = ref({
   name: "",
@@ -601,8 +646,10 @@ const runAction = async (
     await executor();
     ElMessage.success(successMessage);
     await loadDetail();
+    return true;
   } catch (error: any) {
     ElMessage.error(error?.message || t(`monitoring.runtimeAssets.actions.${action}Failed`));
+    return false;
   } finally {
     actionLoading.value = false;
   }
@@ -617,6 +664,29 @@ const deployRuntimeAsset = async () =>
         : runtimeAssetsAPI.deployMcpRuntimeAsset(runtimeAssetId.value),
     t("monitoring.runtimeAssets.actions.deploySuccess", { name: assetTitle.value }),
   );
+
+const deployWithWaiver = async () => {
+  const reason = waiverReason.value.trim();
+  if (reason.length < 10) {
+    ElMessage.warning(t("monitoring.runtimeAssets.verification.waiverReasonRequired"));
+    return;
+  }
+  const succeeded = await runAction(
+    "deploy",
+    () => asset.value?.type === "gateway_service"
+      ? runtimeAssetsAPI.deployGatewayRuntimeAsset(runtimeAssetId.value, {
+          missingSmokeWaiverReason: reason,
+        })
+      : runtimeAssetsAPI.deployMcpRuntimeAsset(runtimeAssetId.value, {
+          missingSmokeWaiverReason: reason,
+        }),
+    t("monitoring.runtimeAssets.verification.waiverSuccess"),
+  );
+  if (succeeded) {
+    waiverDialogVisible.value = false;
+    waiverReason.value = "";
+  }
+};
 
 const startRuntimeAsset = async () =>
   runAction(
@@ -774,6 +844,10 @@ onBeforeUnmount(() => {
 
 .detail-inline-alert {
   margin-bottom: 16px;
+}
+
+.waiver-form {
+  margin-top: 16px;
 }
 
 .event-list {

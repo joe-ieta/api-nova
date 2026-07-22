@@ -1,5 +1,8 @@
 # ApiNova
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 **Languages**: [中文](./README.md) | English
 
 ApiNova (Chinese name: Daya, also referred to as ApiDaya in Chinese contexts) is an API Gateway and API capability platform for the AI era.

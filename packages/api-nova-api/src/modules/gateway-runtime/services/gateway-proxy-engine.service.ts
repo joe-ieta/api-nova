@@ -8,6 +8,7 @@ import * as http from 'node:http';
 import * as https from 'node:https';
 import { PassThrough } from 'node:stream';
 import { URL } from 'node:url';
+import { resolveRuntimeCredentialRefHeaders } from 'api-nova-parser';
 import { GatewayRequestCaptureService } from './gateway-request-capture.service';
 import { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
 import { GatewayProxyResult } from '../types/gateway-proxy.types';
@@ -38,7 +39,12 @@ export class GatewayProxyEngineService {
       resolvedRoute.policies?.traffic?.timeoutMs ??
       resolvedRoute.routeBinding.timeoutMs ??
       30000;
-    const headers = this.buildForwardHeaders(req.headers, url, req);
+    const headers = this.buildForwardHeaders(
+      req.headers,
+      url,
+      req,
+      resolvedRoute.sourceServiceInstance.credentialRef,
+    );
     const requestCapture = this.gatewayRequestCaptureService.createTracker(
       req.headers['content-type'],
     );
@@ -204,6 +210,7 @@ export class GatewayProxyEngineService {
     headers: Request['headers'],
     url: URL,
     req: Request,
+    credentialRef?: string,
   ): Record<string, string> {
     const nextHeaders: Record<string, string> = {};
     const ignoredHeaders = new Set([
@@ -229,6 +236,7 @@ export class GatewayProxyEngineService {
       nextHeaders[key] = Array.isArray(value) ? value.join(',') : String(value);
     }
 
+    Object.assign(nextHeaders, resolveRuntimeCredentialRefHeaders(credentialRef));
     nextHeaders.host = url.host;
     nextHeaders['x-forwarded-host'] = String(req.headers.host || '');
     nextHeaders['x-forwarded-proto'] = String(req.protocol || url.protocol.replace(':', ''));

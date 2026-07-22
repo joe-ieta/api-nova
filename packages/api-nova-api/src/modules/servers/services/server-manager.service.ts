@@ -602,8 +602,12 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
   /**
    * 启动服务器
    */
-  async startServer(id: string): Promise<void> {
+  async startServer(
+    id: string,
+    verifiedRuntimeAsset?: { runtimeAssetId: string; candidateRevision: string },
+  ): Promise<void> {
     const server = await this.getServerEntityById(id);
+    this.assertVerifiedRuntimeAssetControl(server, verifiedRuntimeAsset);
     
     // 检查启动锁
     if (this.startingServers.has(id)) {
@@ -805,14 +809,18 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
   /**
    * 重启服务器
    */
-  async restartServer(id: string): Promise<void> {
+  async restartServer(
+    id: string,
+    verifiedRuntimeAsset?: { runtimeAssetId: string; candidateRevision: string },
+  ): Promise<void> {
     const server = await this.getServerEntityById(id);
+    this.assertVerifiedRuntimeAssetControl(server, verifiedRuntimeAsset);
     
     if (server.status === ServerStatus.RUNNING) {
       await this.stopServer(id);
     }
     
-    await this.startServer(id);
+    await this.startServer(id, verifiedRuntimeAsset);
     
     // 记录系统日志
     try {
@@ -837,6 +845,24 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
   /**
    * 获取服务器实例
    */
+  private assertVerifiedRuntimeAssetControl(
+    server: MCPServerEntity,
+    verifiedRuntimeAsset?: { runtimeAssetId: string; candidateRevision: string },
+  ) {
+    if (!server.config?.managedByRuntimeAsset) return;
+    const runtimeAssetId = String(server.config.runtimeAssetId || '');
+    const candidateRevision = String(server.config.verifiedCandidateRevision || '');
+    if (
+      !verifiedRuntimeAsset ||
+      verifiedRuntimeAsset.runtimeAssetId !== runtimeAssetId ||
+      verifiedRuntimeAsset.candidateRevision !== candidateRevision
+    ) {
+      throw new ConflictException(
+        'Runtime Asset managed MCP servers must be started or restarted through Runtime Assets verification',
+      );
+    }
+  }
+
   getServerInstance(id: string): ServerInstance | undefined {
     return this.serverInstances.get(id);
   }

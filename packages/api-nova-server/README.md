@@ -103,4 +103,4 @@ npm run test:streamable-session --workspace api-nova-server
 
 - [Project README](../../README.md)
 - [Local Setup And Run](../../docs/guides/local-setup-and-run.md)
-- [Current Convergence Plan](../../docs/guides/current-convergence-plan.md)
+- [Runtime Instance And Regression Closure Plan](../../docs/guides/runtime-instance-and-regression-closure-plan.md)

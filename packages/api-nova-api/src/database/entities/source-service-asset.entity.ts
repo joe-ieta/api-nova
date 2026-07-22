@@ -10,25 +10,12 @@ import { getJsonColumnOptions } from '../db-compat';
 
 @Entity('source_service_assets')
 @Index(['sourceKey'], { unique: true })
-@Index(['scheme', 'host', 'port', 'normalizedBasePath'], { unique: true })
 export class SourceServiceAssetEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'varchar', length: 255 })
   sourceKey: string;
-
-  @Column({ type: 'varchar', length: 16 })
-  scheme: string;
-
-  @Column({ type: 'varchar', length: 255 })
-  host: string;
-
-  @Column({ type: 'int' })
-  port: number;
-
-  @Column({ type: 'varchar', length: 255, default: '/' })
-  normalizedBasePath: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   displayName?: string;

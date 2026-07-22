@@ -1,5 +1,8 @@
 # Staged Development Plan
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## Purpose
 
 This document records the current staged delivery baseline after the Phase 1, Phase 2, and Phase 3 convergence work.
@@ -74,17 +77,19 @@ Scope:
 
 Current progress:
 
-- frontend OpenAPI document quick-publish client contracts have been removed
-- backend document quick-publish remains as an explicit compatibility cleanup target pending external-usage verification
-- Monitoring now consumes runtime asset handoff query parameters for gateway access-log filtering
-- OpenAPI document logs, dynamic validation fallback messages, and high-value maintenance comments have been normalized in touched areas
+- frontend and backend OpenAPI document quick-publish contracts have been removed
+- runtime instances, automatic endpoint samples, runtime upstream bindings, verification-gated Gateway/MCP activation, rollback retention, and operator evidence drill-down are implemented
+- the automated runtime-closure gate and isolated SQLite/PostgreSQL clean-baseline verification pass
+- Monitoring consumes runtime asset handoff query parameters for gateway access-log filtering
+- active design deviations and external acceptance dependencies are explicitly tracked instead of being claimed as complete
 
 Next order:
 
-1. verify backend quick-publish external usage before removal
-2. broaden runtime-asset-first audit, system-log, and metrics projections
-3. continue targeted encoding cleanup only where it affects operators or future maintenance
-4. run release-readiness validation before any large component split
+1. close or explicitly defer `DEV-01` through `DEV-05` in `docs/reference/open-items.md`
+2. execute `EXT-01` through `EXT-09` in `docs/testing/runtime-publication-acceptance-cases.md` when environments are available
+3. broaden runtime-asset-first audit, system-log, and metrics projections
+4. continue targeted encoding cleanup only where it affects operators or future maintenance
+5. avoid a large `EndpointRegistry` split until release behavior is stable
 
 ## Deferred Topic
 

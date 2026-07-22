@@ -65,6 +65,7 @@ import {
   type GatewaySnapshotRefreshPayload,
 } from '../../gateway-runtime/gateway-runtime.events';
 import { RuntimeAssetsService } from '../../runtime-assets/services/runtime-assets.service';
+import { RuntimeUpstreamBindingsService } from '../../runtime-upstream-bindings/services/runtime-upstream-bindings.service';
 
 type EndpointSummary = {
   path?: string;
@@ -108,6 +109,7 @@ export class PublicationService {
     private readonly routeBindingRepository: Repository<GatewayRouteBindingEntity>,
     private readonly runtimeAssetsService: RuntimeAssetsService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly runtimeUpstreamBindingsService: RuntimeUpstreamBindingsService,
   ) {}
 
   async listPublicationCandidates(query: PublicationCandidateQueryDto = {}) {
@@ -324,6 +326,22 @@ export class PublicationService {
       throw new BadRequestException(`Runtime asset '${normalizedName}' already exists`);
     }
 
+    const servicePrefix = String(dto.servicePrefix || '')
+      .trim()
+      .replace(/^\/+|\/+$/g, '')
+      .toLowerCase();
+    if (dto.type === RuntimeAssetType.GATEWAY_SERVICE && !servicePrefix) {
+      throw new BadRequestException('servicePrefix is required for gateway runtime assets');
+    }
+    if (
+      servicePrefix &&
+      (!/^[a-z0-9][a-z0-9._~/-]*$/.test(servicePrefix) || servicePrefix.includes('//'))
+    ) {
+      throw new BadRequestException(
+        'servicePrefix must contain URL-safe path segments without empty segments',
+      );
+    }
+
     const runtimeAsset = this.runtimeAssetRepository.create({
       name: normalizedName,
       type: dto.type,
@@ -331,6 +349,7 @@ export class PublicationService {
       displayName: dto.displayName?.trim() || normalizedName,
       description: dto.description?.trim() || undefined,
       policyBindingRef: dto.policyBindingRef?.trim() || undefined,
+      servicePrefix: servicePrefix || undefined,
       metadata: {
         source: 'api-publication',
         lifecycleStage: 'publication-draft',
@@ -347,6 +366,7 @@ export class PublicationService {
         type: saved.type,
         name: saved.name,
         displayName: saved.displayName,
+        servicePrefix: saved.servicePrefix,
       },
     });
 
@@ -790,6 +810,13 @@ export class PublicationService {
       return null;
     }
 
+    const upstreamResolution = await this.runtimeUpstreamBindingsService.resolve(
+      context.membership.id,
+    );
+    if (!upstreamResolution.resolved || !upstreamResolution.instance) {
+      return null;
+    }
+
     return {
       binding: matched.binding,
       params: matched.params,
@@ -798,7 +825,10 @@ export class PublicationService {
       runtimeAsset: context.runtimeAsset,
       endpointDefinition: context.endpointDefinition,
       sourceServiceAsset: context.sourceServiceAsset,
-      upstreamBaseUrl: this.buildSourceServiceUrl(context.sourceServiceAsset),
+      sourceServiceInstance: upstreamResolution.instance,
+      upstreamBaseUrl: this.runtimeUpstreamBindingsService.buildBaseUrl(
+        upstreamResolution.instance,
+      ),
     };
   }
 
@@ -1003,9 +1033,6 @@ export class PublicationService {
         id: context.sourceServiceAsset.id,
         sourceKey: context.sourceServiceAsset.sourceKey,
         displayName: context.sourceServiceAsset.displayName,
-        host: context.sourceServiceAsset.host,
-        port: context.sourceServiceAsset.port,
-        normalizedBasePath: context.sourceServiceAsset.normalizedBasePath,
       },
       runtimeAsset: context.runtimeAsset,
       membership: context.membership,
@@ -1549,20 +1576,6 @@ export class PublicationService {
     return /\{[^}]+\}/.test(routePath)
       ? GatewayRoutePathMatchMode.PARAMETER
       : GatewayRoutePathMatchMode.EXACT;
-  }
-
-  private buildSourceServiceUrl(sourceServiceAsset: SourceServiceAssetEntity) {
-    const protocol = sourceServiceAsset.scheme || 'http';
-    const defaultPort = protocol === 'https' ? 443 : 80;
-    const portSegment =
-      sourceServiceAsset.port && sourceServiceAsset.port !== defaultPort
-        ? `:${sourceServiceAsset.port}`
-        : '';
-    const normalizedBasePath = sourceServiceAsset.normalizedBasePath || '/';
-    return `${protocol}://${sourceServiceAsset.host}${portSegment}${normalizedBasePath}`.replace(
-      /\/+$/,
-      '',
-    );
   }
 
   private buildGovernanceReadiness(endpointDefinition: EndpointDefinitionEntity) {

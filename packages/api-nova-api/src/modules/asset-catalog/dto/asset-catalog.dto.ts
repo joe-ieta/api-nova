@@ -128,4 +128,14 @@ export class ExecuteEndpointDefinitionTestDto {
   @IsOptional()
   @IsObject()
   parameters?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ description: 'Explicit source service runtime instance id' })
+  @IsOptional()
+  @IsString()
+  sourceServiceInstanceId?: string;
+
+  @ApiPropertyOptional({ description: 'Environment used when selecting the default instance' })
+  @IsOptional()
+  @IsString()
+  environment?: string;
 }

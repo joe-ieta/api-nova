@@ -1,127 +1,115 @@
 # Open Items
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+> Owner: Product closure and release governance
+
 ## Purpose
 
-This file tracks only work that is still open after the Phase 1, Phase 2, and Phase 3 convergence pass.
+This file contains only unfinished work. Completed implementation history belongs in `docs/archive`; detailed executable cases belong in `docs/testing`.
 
-Closed phase notes and superseded execution detail should not be re-added here. Use archived guides for historical context.
+## Active Baseline
 
-## Current Baseline
+Use these documents together:
 
-Use these documents as the active planning basis:
-
-- `NEXT_DEVELOPMENT_BASELINE.md`
 - `docs/guides/staged-development-plan.md`
-- `docs/guides/asset-model-and-runtime-assets.md`
-- `docs/reference/management-observability-baseline.md`
+- `docs/guides/runtime-instance-and-regression-closure-plan.md`
+- `docs/reference/runtime-closure-design-implementation-review.md`
+- `docs/testing/runtime-publication-acceptance-cases.md`
 
-## Active Open Items
+## 1. External-Environment Acceptance
 
-### 1. Phase 3 compatibility cleanup
+Status: blocked by environment availability, not by the automated code baseline.
 
-Status: active
+These tests must pass before release and are intentionally not claimed as complete:
 
-Remaining work:
+- `EXT-01`: real upstream OpenAPI import with an absolute server URL
+- `EXT-02`: unresolved OpenAPI import repaired by attaching a live runtime instance
+- `EXT-03`: manual API registration against a live upstream
+- `EXT-04`: move an API from retired host/port A to live host/port B without re-import
+- `EXT-05`: live Gateway aggregate-service consumer probe through the configured service prefix
+- `EXT-06`: live MCP consumer probe using the selected transport and runtime credentials
+- `EXT-07`: failed candidate replay retains the last-known-good Gateway and MCP revisions
+- `EXT-08`: Windows API/UI interactive startup and basic import/conversion workflow
+- `EXT-09`: complete Ubuntu install, build, startup, parser verification, and streamable-session path
 
-- verify whether external callers still use backend `documents/:id/quick-publish-mcp`
-- remove or quarantine the backend quick-publish compatibility route after usage is ruled out
-- continue reducing endpoint-direct or server-first helper contracts where runtime-asset replacement surfaces already exist
+Execution details and evidence fields are defined in `docs/testing/runtime-publication-acceptance-cases.md`.
 
-Reason:
+## 2. Design And Implementation Deviations
 
-- OpenAPI import and manual registration no longer publish runtime assets from the active UI path
-- frontend quick-publish client contracts have already been removed
-- backend compatibility should be removed deliberately, not silently
+The main architecture is aligned, but the following productization gaps remain.
 
-### 2. Runtime-asset-first observability hardening
+### DEV-01: MCP deployment endpoint configuration
 
-Status: active
+Priority: P1
 
-Remaining work:
+The backend deploy DTO supports MCP `port` and `transport`, but the governed publication/runtime UI does not expose them. An explicit validated MCP `endpointPath` contract is also absent. Until this is implemented, the operator cannot fully define the published MCP endpoint before activation.
 
-- broaden system-log, audit-log, and metrics projections on top of the runtime-asset-first model
-- deepen publication-to-runtime-to-monitoring correlation beyond the current handoff links and query filters
-- keep residual `/v1/servers/*` observability routes clearly marked as compatibility surfaces
+### DEV-02: Upstream-change verification state
 
-Progress:
+Priority: P1
 
-- Monitoring now consumes runtime asset handoff query parameters for gateway access-log filtering
-- runtime-native websocket and normalized runtime-asset observability are the mainline contracts
+Changing a runtime upstream binding increments its revision and therefore changes the next deployment candidate identity. It does not immediately create a verification run or mark the active runtime asset as `verification_required`. Safety is enforced at deploy/redeploy, but operator-visible stale state is incomplete.
 
-### 3. I18n and encoding hardening
+### DEV-03: Instance-aware governance evidence
 
-Status: active
+Priority: P1
 
-Remaining work:
+Endpoint readiness currently uses endpoint metadata such as `testStatus` and probe status. It does not explicitly invalidate governance readiness when the qualifying test instance is archived, the selected instance changes, or the endpoint contract revision changes. Deployment replay still protects activation, but pre-publication readiness can present stale evidence.
 
-- continue replacing user-visible or high-maintenance mojibake in touched areas
-- modularize large locale files when doing related feature work
-- avoid broad churn in template/style comments that do not affect operators or maintainers
+### DEV-04: Sample storage and retention controls
 
-Progress:
+Priority: P1
 
-- OpenAPI document client logs, dynamic validation fallback messages, and high-value comments have been normalized
-- the current policy is targeted cleanup, not whole-file cosmetic rewriting
+Successful samples are automatically saved and sanitized, but payload-size limits, binary body metadata-only handling, configurable retention classes, and cleanup jobs are not implemented. This is a database-growth and sensitive-data-governance risk.
 
-### 4. Frontend structural cleanup
+### DEV-05: Instance and binding mutation audit
 
-Status: active / defer until behavior is stable
+Priority: P2
 
-Remaining work:
+Runtime upstream bindings have optimistic revisions and deployment verification has actor evidence for waivers. Source-instance and binding mutations do not yet persist a complete actor/reason/history audit trail.
 
-- split `EndpointRegistry` only after release behavior is stable
-- keep registration, governance, and publication behavior separate even while they still share implementation surface
-- monitor bundle-size and code-splitting opportunities during release hardening
+## 3. Runtime-Asset Observability Hardening
 
-Reason:
+Status: active.
 
-- Phase 1/2 behavior is now aligned, but a large component refactor would add risk before release validation
+- broaden system-log, audit-log, and metrics projections on the runtime-asset-first model
+- deepen publication-to-runtime-to-monitoring correlation
+- keep residual `/v1/servers/*` observability routes marked as compatibility surfaces
 
-### 5. Cross-platform operational polish
+## 4. Frontend Structural And Bundle Cleanup
 
-Status: active
+Status: deferred until release behavior is stable.
 
-Remaining work:
+- split `EndpointRegistry` after the real acceptance path is stable
+- preserve separate registration, governance, and publication responsibilities
+- address production chunk-size warnings through measured code splitting
 
-- keep Windows and Ubuntu setup, build, and validation commands in sync
-- verify release-readiness commands on the supported local development paths
-- avoid platform-specific shortcuts in docs unless explicitly scoped
+## 5. I18n And Encoding Hardening
 
-### 6. Security and notification delivery
+Status: active maintenance.
 
-Status: deferred
+- replace operator-visible mojibake in touched areas
+- move remaining hard-coded operator copy into locale modules
+- avoid unrelated cosmetic churn
 
-Deferred work:
+## 6. Security And Notification Delivery
+
+Status: deferred outside the runtime-publication closure line.
 
 - email verification delivery
 - password reset email delivery
 - email notification delivery
-- additional security workflow completeness checks beyond the current management guards
+- broader security-workflow completeness review
 
-Reason:
+## Closed Baseline
 
-- these remain valid product work, but they are intentionally outside the current product-spine closure line
+The following are no longer open:
 
-## Closed In Phase 1
-
-- OpenAPI import and manual endpoint registration are separate construction methods under `API Registration`
-- registration no longer implies runtime publication
-- `API Testing` is now visible as the lifecycle gate before governance
-- successful testing links operators into governance
-- governance remains the only readiness decision surface before publication
-
-## Closed In Phase 2
-
-- publication consumes governance-ready endpoint candidates as the normal input
-- blocked candidates are no longer selectable in the normal publication builder flow
-- MCP Server and Gateway runtime targets are peer publication options
-- runtime asset drafts and memberships are created from publication, not registration
-- publication membership workbench supports configuration, publish/offline, deploy/start/stop/redeploy, batch actions, audit visibility, and downstream Runtime Assets / Monitoring handoff
-
-## Closed Or No Longer Open
-
-- supported MCP transports are `stdio`, `streamable`, and `sse`
-- management websocket is not an MCP transport
-- SQLite and PostgreSQL are both supported product paths, with SQLite as default
-- ApiNova is not intended to become an enterprise full-traffic gateway in the current baseline
-- earlier Stage 0 through Stage 6 asset-model correction work is historical baseline, not an active open item
+- registration is separate from testing, governance, and publication
+- document-level quick publication has been removed
+- logical source assets no longer own live host/port coordinates
+- successful endpoint tests automatically persist distinct sanitized samples
+- Gateway uses a shared listen port and required per-service prefix
+- Gateway and MCP activation are verification-gated and retain prior revisions on candidate failure
+- SQLite and PostgreSQL clean-baseline migrations are automated and verified

@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Length,
   Max,
   Min,
 } from 'class-validator';
@@ -61,6 +62,16 @@ export class DeployRuntimeAssetMcpDto {
   @IsOptional()
   @IsBoolean()
   autoStart?: boolean;
+
+  @ApiPropertyOptional({
+    minLength: 10,
+    maxLength: 1000,
+    description: 'Authorized operator reason for deploying without a smoke sample',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(10, 1000)
+  missingSmokeWaiverReason?: string;
 }
 
 export class RuntimeAssetAssemblyQueryDto {
@@ -80,6 +91,16 @@ export class DeployRuntimeAssetGatewayDto {
   @IsOptional()
   @IsBoolean()
   publishedOnly?: boolean;
+
+  @ApiPropertyOptional({
+    minLength: 10,
+    maxLength: 1000,
+    description: 'Authorized operator reason for deploying without a smoke sample',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(10, 1000)
+  missingSmokeWaiverReason?: string;
 }
 
 export class UpdateRuntimeAssetPolicyDto {

@@ -1,5 +1,8 @@
 # ESM vs CommonJS 快速参考
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## 问题症状
 
 ```bash

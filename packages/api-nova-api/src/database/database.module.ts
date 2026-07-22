@@ -8,7 +8,6 @@ import {
 } from './db-compat';
 import { MCPServerEntity } from './entities/mcp-server.entity';
 import { AuthConfigEntity } from './entities/auth-config.entity';
-import { TestCaseEntity } from './entities/test-case.entity';
 import { LogEntryEntity } from './entities/log-entry.entity';
 import { User } from './entities/user.entity';
 import { Role } from './entities/role.entity';
@@ -29,6 +28,7 @@ import { PublicationBatchRunEntity } from './entities/publication-batch-run.enti
 import { PublicationAuditEventEntity } from './entities/publication-audit-event.entity';
 import { EndpointPublishBindingEntity } from './entities/endpoint-publish-binding.entity';
 import { GatewayRouteBindingEntity } from './entities/gateway-route-binding.entity';
+import { GatewayRouteSnapshotEntity } from './entities/gateway-route-snapshot.entity';
 import { GatewayAccessLogEntity } from './entities/gateway-access-log.entity';
 import { GatewayConsumerCredentialEntity } from './entities/gateway-consumer-credential.entity';
 import { RuntimeMetricSeriesEntity } from './entities/runtime-metric-series.entity';
@@ -36,6 +36,14 @@ import { RuntimeObservabilityEventEntity } from './entities/runtime-observabilit
 import { RuntimeObservabilityStateEntity } from './entities/runtime-observability-state.entity';
 import { ConfigOverrideEntity } from './entities/config-override.entity';
 import { ConfigBackupEntity } from './entities/config-backup.entity';
+import { SourceServiceInstanceEntity } from './entities/source-service-instance.entity';
+import { EndpointTestCaseEntity } from './entities/endpoint-test-case.entity';
+import { EndpointTestRunEntity } from './entities/endpoint-test-run.entity';
+import { EndpointTestSampleEntity } from './entities/endpoint-test-sample.entity';
+import { RuntimeUpstreamBindingEntity } from './entities/runtime-upstream-binding.entity';
+import { RuntimeUpstreamBindingInstanceEntity } from './entities/runtime-upstream-binding-instance.entity';
+import { RuntimeVerificationRunEntity } from './entities/runtime-verification-run.entity';
+import { RuntimeVerificationResultEntity } from './entities/runtime-verification-result.entity';
 import { SeedService } from './seed.service';
 
 @Module({
@@ -45,10 +53,17 @@ import { SeedService } from './seed.service';
       useFactory: (configService: ConfigService): TypeOrmModuleOptions => {
         const dbType = getDatabaseType(configService.get<string>('DB_TYPE'));
         const nodeEnv = String(configService.get<string>('NODE_ENV', 'development'));
+        const sslEnabled = configService.get<boolean>(
+          'DB_SSL',
+          nodeEnv === 'production',
+        );
+        const sslRejectUnauthorized = configService.get<boolean>(
+          'DB_SSL_REJECT_UNAUTHORIZED',
+          false,
+        );
         const entities = [
           MCPServerEntity,
           AuthConfigEntity,
-          TestCaseEntity,
           LogEntryEntity,
           User,
           Role,
@@ -69,6 +84,7 @@ import { SeedService } from './seed.service';
           PublicationAuditEventEntity,
           EndpointPublishBindingEntity,
           GatewayRouteBindingEntity,
+          GatewayRouteSnapshotEntity,
           GatewayAccessLogEntity,
           GatewayConsumerCredentialEntity,
           RuntimeObservabilityEventEntity,
@@ -76,6 +92,14 @@ import { SeedService } from './seed.service';
           RuntimeObservabilityStateEntity,
           ConfigOverrideEntity,
           ConfigBackupEntity,
+          SourceServiceInstanceEntity,
+          EndpointTestCaseEntity,
+          EndpointTestRunEntity,
+          EndpointTestSampleEntity,
+          RuntimeUpstreamBindingEntity,
+          RuntimeUpstreamBindingInstanceEntity,
+          RuntimeVerificationRunEntity,
+          RuntimeVerificationResultEntity,
         ];
 
         if (dbType === 'sqlite') {
@@ -109,7 +133,7 @@ import { SeedService } from './seed.service';
             nodeEnv === 'development',
           ),
           logging: configService.get('DB_LOGGING', false),
-          ssl: nodeEnv === 'production' ? { rejectUnauthorized: false } : false,
+          ssl: sslEnabled ? { rejectUnauthorized: sslRejectUnauthorized } : false,
           retryAttempts: 3,
           retryDelay:9000,
           autoLoadEntities: true,
@@ -123,7 +147,6 @@ import { SeedService } from './seed.service';
     TypeOrmModule.forFeature([
       MCPServerEntity,
       AuthConfigEntity,
-      TestCaseEntity,
       LogEntryEntity,
       User,
       Role,
@@ -151,6 +174,14 @@ import { SeedService } from './seed.service';
       RuntimeObservabilityStateEntity,
       ConfigOverrideEntity,
       ConfigBackupEntity,
+      SourceServiceInstanceEntity,
+      EndpointTestCaseEntity,
+      EndpointTestRunEntity,
+      EndpointTestSampleEntity,
+      RuntimeUpstreamBindingEntity,
+      RuntimeUpstreamBindingInstanceEntity,
+      RuntimeVerificationRunEntity,
+      RuntimeVerificationResultEntity,
     ]),
   ],
   providers: [

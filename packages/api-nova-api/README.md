@@ -126,4 +126,4 @@ At the current stage this package should not be treated as a fully realized ente
 - [Project README](../../README.md)
 - [Documentation Index](../../docs/README.md)
 - [Local Setup And Run](../../docs/guides/local-setup-and-run.md)
-- [Current Convergence Plan](../../docs/guides/current-convergence-plan.md)
+- [Runtime Instance And Regression Closure Plan](../../docs/guides/runtime-instance-and-regression-closure-plan.md)

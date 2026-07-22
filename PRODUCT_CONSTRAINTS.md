@@ -1,5 +1,8 @@
 # ApiNova Product Constraints
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 ## Purpose
 
 This document defines the top-level constraints for all follow-up optimization and upgrade work in this repository.

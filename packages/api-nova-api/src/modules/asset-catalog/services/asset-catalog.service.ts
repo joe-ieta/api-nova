@@ -18,6 +18,8 @@ import {
   UpdateManualEndpointAssetDto,
 } from '../dto/asset-catalog.dto';
 import { evaluateEndpointGovernanceReadiness } from '../endpoint-readiness.policy';
+import { EndpointTestingService } from '../../endpoint-testing/services/endpoint-testing.service';
+import { SourceServiceInstancesService } from '../../source-service-instances/services/source-service-instances.service';
 
 @Injectable()
 export class AssetCatalogService {
@@ -29,6 +31,8 @@ export class AssetCatalogService {
     @InjectRepository(EndpointDefinitionEntity)
     private readonly endpointDefinitionRepository: Repository<EndpointDefinitionEntity>,
     private readonly httpService: HttpService,
+    private readonly endpointTestingService: EndpointTestingService,
+    private readonly sourceServiceInstancesService: SourceServiceInstancesService,
   ) {}
 
   normalizeSourceKey(input: {
@@ -58,7 +62,7 @@ export class AssetCatalogService {
       where.sourceKey = Like(`%${query.sourceKey}%`);
     }
     if (query.host) {
-      where.host = Like(`%${query.host.toLowerCase()}%`);
+      where.sourceKey = Like(`%${query.host.toLowerCase()}%`);
     }
 
     const assets = await this.sourceServiceRepository.find({
@@ -67,10 +71,13 @@ export class AssetCatalogService {
         updatedAt: 'DESC',
       },
     });
+    const runtimeAwareAssets = await Promise.all(
+      assets.map(asset => this.buildSourceAssetRuntimeView(asset)),
+    );
 
     return {
-      total: assets.length,
-      data: assets,
+      total: runtimeAwareAssets.length,
+      data: runtimeAwareAssets,
     };
   }
 
@@ -89,7 +96,7 @@ export class AssetCatalogService {
     });
 
     return {
-      asset,
+      asset: await this.buildSourceAssetRuntimeView(asset),
       endpoints,
       endpointCount: endpoints.length,
     };
@@ -141,9 +148,14 @@ export class AssetCatalogService {
       where: { id: endpoint.sourceServiceAssetId },
     });
 
+    const instanceResult = sourceServiceAsset
+      ? await this.sourceServiceInstancesService.list(sourceServiceAsset.id, { enabled: true })
+      : { data: [] };
+
     return {
       endpoint,
       sourceServiceAsset,
+      sourceServiceInstance: instanceResult.data[0] || null,
     };
   }
 
@@ -194,12 +206,16 @@ export class AssetCatalogService {
       throw new NotFoundException(`Source service asset '${endpoint.sourceServiceAssetId}' not found`);
     }
 
+    const sourceServiceInstance = await this.sourceServiceInstancesService.resolveForExecution(
+      sourceServiceAsset.id,
+    );
     const metadata = (endpoint.metadata || {}) as Record<string, unknown>;
     const sourceType = this.inferSourceType(endpoint);
+    const runtimeBaseUrl = this.sourceServiceInstancesService.buildBaseUrl(sourceServiceInstance);
     const defaultProbeUrl =
       sourceType === 'imported'
-        ? this.buildBaseUrlFromSourceServiceAsset(sourceServiceAsset)
-        : `${this.buildBaseUrlFromSourceServiceAsset(sourceServiceAsset)}${endpoint.path}`;
+        ? runtimeBaseUrl
+        : `${runtimeBaseUrl}${endpoint.path}`;
     const probeUrl =
       typeof metadata.probeUrl === 'string' && metadata.probeUrl
         ? metadata.probeUrl
@@ -271,7 +287,14 @@ export class AssetCatalogService {
       throw new NotFoundException(`Source service asset '${endpoint.sourceServiceAssetId}' not found`);
     }
 
-    const testUrl = `${this.buildBaseUrlFromSourceServiceAsset(sourceServiceAsset)}${endpoint.path}`;
+    const sourceServiceInstance = await this.sourceServiceInstancesService.resolveForExecution(
+      sourceServiceAsset.id,
+      {
+        instanceId: input.sourceServiceInstanceId,
+        environment: input.environment,
+      },
+    );
+    const testUrl = `${this.sourceServiceInstancesService.buildBaseUrl(sourceServiceInstance)}${endpoint.path}`;
     const method = String(endpoint.method || 'GET').toUpperCase();
     const parameters =
       input.parameters && typeof input.parameters === 'object' ? input.parameters : {};
@@ -303,6 +326,34 @@ export class AssetCatalogService {
       });
       await this.endpointDefinitionRepository.save(endpoint);
 
+      const durationMs = Date.now() - startedAt;
+      if (passed) {
+        await this.endpointTestingService.recordSuccessfulRun({
+          endpointDefinitionId: endpoint.id,
+          sourceServiceInstanceId: sourceServiceInstance.id,
+          requestPayload: parameters,
+          responseStatusCode: response.status,
+          responseHeaders:
+            typeof response.headers?.toJSON === 'function'
+              ? response.headers.toJSON()
+              : { ...(response.headers || {}) },
+          responsePayload: response.data,
+          durationMs,
+          metadata: { method, url: testUrl, origin: 'asset-catalog-endpoint-test' },
+        });
+      } else {
+        await this.endpointTestingService.recordFailedRun({
+          endpointDefinitionId: endpoint.id,
+          sourceServiceInstanceId: sourceServiceInstance.id,
+          requestPayload: parameters,
+          responseStatusCode: response.status,
+          responsePayload: response.data,
+          durationMs,
+          errorMessage: `HTTP ${response.status}`,
+          metadata: { method, url: testUrl, origin: 'asset-catalog-endpoint-test' },
+        });
+      }
+
       return {
         endpointDefinitionId: endpoint.id,
         test: {
@@ -330,6 +381,20 @@ export class AssetCatalogService {
             : axiosErr.message || 'Test request failed',
       });
       await this.endpointDefinitionRepository.save(endpoint);
+
+      await this.endpointTestingService.recordFailedRun({
+        endpointDefinitionId: endpoint.id,
+        sourceServiceInstanceId: sourceServiceInstance.id,
+        requestPayload: parameters,
+        responseStatusCode: axiosErr.response?.status,
+        responsePayload: axiosErr.response?.data,
+        durationMs: Date.now() - startedAt,
+        errorMessage:
+          axiosErr.response?.status != null
+            ? `HTTP ${axiosErr.response.status}`
+            : axiosErr.message || 'Test request failed',
+        metadata: { method, url: testUrl, origin: 'asset-catalog-endpoint-test' },
+      });
 
       return {
         endpointDefinitionId: endpoint.id,
@@ -575,10 +640,6 @@ export class AssetCatalogService {
     if (!asset) {
       asset = this.sourceServiceRepository.create({
         sourceKey,
-        scheme: input.scheme.toLowerCase(),
-        host: input.host.toLowerCase(),
-        port: input.port,
-        normalizedBasePath: this.normalizeBasePath(input.normalizedBasePath),
         displayName: input.displayName,
         description: input.description,
         metadata: input.metadata,
@@ -592,7 +653,17 @@ export class AssetCatalogService {
       };
     }
 
-    return this.sourceServiceRepository.save(asset);
+    const saved = await this.sourceServiceRepository.save(asset);
+    if (input.host.toLowerCase() !== 'unknown-host') {
+      await this.sourceServiceInstancesService.ensureImportedInstance(saved.id, {
+        scheme: input.scheme.toLowerCase(),
+        host: input.host.toLowerCase(),
+        port: input.port,
+        basePath: this.normalizeBasePath(input.normalizedBasePath),
+        provenance: input.metadata,
+      });
+    }
+    return saved;
   }
 
   private async buildEndpointAssetRecord(id: string) {
@@ -600,6 +671,10 @@ export class AssetCatalogService {
     const endpoint = detail.endpoint;
     const sourceServiceAsset = detail.sourceServiceAsset;
     const metadata = (endpoint.metadata || {}) as Record<string, unknown>;
+    const instanceResult = sourceServiceAsset
+      ? await this.sourceServiceInstancesService.list(sourceServiceAsset.id, { enabled: true })
+      : { data: [] };
+    const defaultInstance = instanceResult.data[0];
 
     return {
       id: endpoint.id,
@@ -609,7 +684,9 @@ export class AssetCatalogService {
         sourceType: this.inferSourceType(endpoint),
         name:
           String(metadata.displayName || sourceServiceAsset?.displayName || endpoint.summary || endpoint.path),
-        baseUrl: this.buildBaseUrlFromSourceServiceAsset(sourceServiceAsset),
+        baseUrl: defaultInstance
+          ? this.sourceServiceInstancesService.buildBaseUrl(defaultInstance)
+          : undefined,
         businessDomain:
           typeof metadata.businessDomain === 'string' ? metadata.businessDomain : undefined,
         riskLevel: typeof metadata.riskLevel === 'string' ? metadata.riskLevel : undefined,
@@ -641,6 +718,17 @@ export class AssetCatalogService {
     } catch (headError) {
       return this.runGetProbe(probeUrl, startedAt, headError);
     }
+  }
+
+  private async buildSourceAssetRuntimeView(asset: SourceServiceAssetEntity) {
+    const instanceResult = await this.sourceServiceInstancesService.list(asset.id, {
+      enabled: true,
+    });
+    return {
+      ...asset,
+      defaultInstance: instanceResult.data[0] || null,
+      instanceCount: instanceResult.total,
+    };
   }
 
   private async runGetProbe(probeUrl: string, startedAt: number, headError?: unknown) {
@@ -756,21 +844,6 @@ export class AssetCatalogService {
     }
 
     return result;
-  }
-
-  private buildBaseUrlFromSourceServiceAsset(sourceServiceAsset?: SourceServiceAssetEntity | null) {
-    if (!sourceServiceAsset) {
-      return '';
-    }
-
-    const defaultPort =
-      (sourceServiceAsset.scheme === 'http' && sourceServiceAsset.port === 80) ||
-      (sourceServiceAsset.scheme === 'https' && sourceServiceAsset.port === 443);
-    const authority = defaultPort
-      ? `${sourceServiceAsset.scheme}://${sourceServiceAsset.host}`
-      : `${sourceServiceAsset.scheme}://${sourceServiceAsset.host}:${sourceServiceAsset.port}`;
-    const basePath = this.normalizeBasePath(sourceServiceAsset.normalizedBasePath);
-    return basePath === '/' ? authority : `${authority}${basePath}`;
   }
 
   private async requireEndpointDefinition(id: string) {

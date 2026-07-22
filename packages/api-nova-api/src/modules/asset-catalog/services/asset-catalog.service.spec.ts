@@ -26,11 +26,23 @@ describe('AssetCatalogService', () => {
     get: jest.fn(),
     request: jest.fn(),
   };
+  const endpointTestingService = {
+    recordSuccessfulRun: jest.fn(),
+    recordFailedRun: jest.fn(),
+  };
+  const sourceServiceInstancesService = {
+    resolveForExecution: jest.fn(),
+    buildBaseUrl: jest.fn(),
+    ensureImportedInstance: jest.fn(),
+    list: jest.fn(),
+  };
 
   const service = new AssetCatalogService(
     sourceServiceRepository as any,
     endpointDefinitionRepository as any,
     httpService as any,
+    endpointTestingService as any,
+    sourceServiceInstancesService as any,
   );
 
   const sourceServiceAsset = {
@@ -62,6 +74,15 @@ describe('AssetCatalogService', () => {
     sourceServiceRepository.findOne.mockResolvedValue(sourceServiceAsset);
     endpointDefinitionRepository.findOne.mockResolvedValue({ ...endpointDefinition });
     endpointDefinitionRepository.save.mockImplementation(async (value: unknown) => value);
+    sourceServiceInstancesService.resolveForExecution.mockResolvedValue({
+      id: 'instance-1',
+      sourceServiceAssetId: 'source-1',
+    });
+    sourceServiceInstancesService.buildBaseUrl.mockReturnValue('https://runtime.example.com/api');
+    sourceServiceInstancesService.ensureImportedInstance.mockResolvedValue({ id: 'instance-imported' });
+    sourceServiceInstancesService.list.mockResolvedValue({ total: 1, data: [
+      { id: 'instance-1', scheme: 'https', host: 'runtime.example.com', port: 443, basePath: '/api' },
+    ] });
   });
 
   it('returns governance readiness using the shared endpoint rules', async () => {
@@ -95,14 +116,65 @@ describe('AssetCatalogService', () => {
     const result = await service.probeEndpointDefinition('endpoint-1');
 
     expect(httpService.head).toHaveBeenCalledWith(
-      'https://api.example.com/v1',
+      'https://runtime.example.com/api',
       expect.objectContaining({
         timeout: 8000,
       }),
     );
+    expect(sourceServiceInstancesService.resolveForExecution).toHaveBeenCalledWith('source-1');
     expect(result.probe.status).toBe('healthy');
     expect(result.endpoint.status).toBe(EndpointDefinitionStatus.VERIFIED);
     expect(result.endpoint.publishEnabled).toBe(true);
     expect((result.endpoint.metadata || {}).probeScope).toBe('source_service');
+  });
+
+  it('automatically records a durable sample for a successful endpoint test', async () => {
+    httpService.request.mockReturnValue(
+      of({ status: 200, data: { orderId: 'order-1' }, headers: { 'content-type': 'application/json' } }),
+    );
+
+    const result = await service.executeEndpointDefinitionTest('endpoint-1', {
+      parameters: { customerId: 'customer-1' },
+    });
+
+    expect(result.test.passed).toBe(true);
+    expect(endpointTestingService.recordSuccessfulRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        endpointDefinitionId: 'endpoint-1',
+        sourceServiceInstanceId: 'instance-1',
+        requestPayload: { customerId: 'customer-1' },
+        responseStatusCode: 200,
+        responsePayload: { orderId: 'order-1' },
+      }),
+    );
+    expect(endpointTestingService.recordFailedRun).not.toHaveBeenCalled();
+  });
+
+  it('creates an imported runtime instance when a usable source URL is registered', async () => {
+    sourceServiceRepository.findOne.mockResolvedValue(null);
+    sourceServiceRepository.create.mockImplementation((value: Record<string, unknown>) => ({
+      id: 'source-created',
+      ...value,
+    }));
+    sourceServiceRepository.save.mockImplementation(async (value: unknown) => value);
+
+    await (service as any).upsertSourceServiceAsset({
+      scheme: 'https',
+      host: 'orders.example.com',
+      port: 443,
+      normalizedBasePath: '/api',
+      displayName: 'Orders',
+      metadata: { source: 'document-import' },
+    });
+
+    expect(sourceServiceInstancesService.ensureImportedInstance).toHaveBeenCalledWith(
+      'source-created',
+      expect.objectContaining({
+        scheme: 'https',
+        host: 'orders.example.com',
+        port: 443,
+        basePath: '/api',
+      }),
+    );
   });
 });

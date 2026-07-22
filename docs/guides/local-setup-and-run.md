@@ -1,5 +1,8 @@
 # Local Setup And Run
 
+> Document status: Active
+> Last reviewed: 2026-07-22
+
 This is the active setup and run baseline for the current product path.
 
 It covers:

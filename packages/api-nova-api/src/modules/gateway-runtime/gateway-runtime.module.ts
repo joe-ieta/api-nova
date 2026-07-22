@@ -5,6 +5,7 @@ import { EndpointPublishBindingEntity } from '../../database/entities/endpoint-p
 import { GatewayAccessLogEntity } from '../../database/entities/gateway-access-log.entity';
 import { GatewayConsumerCredentialEntity } from '../../database/entities/gateway-consumer-credential.entity';
 import { GatewayRouteBindingEntity } from '../../database/entities/gateway-route-binding.entity';
+import { GatewayRouteSnapshotEntity } from '../../database/entities/gateway-route-snapshot.entity';
 import { RuntimeAssetEndpointBindingEntity } from '../../database/entities/runtime-asset-endpoint-binding.entity';
 import { RuntimeAssetEntity } from '../../database/entities/runtime-asset.entity';
 import { SourceServiceAssetEntity } from '../../database/entities/source-service-asset.entity';
@@ -19,6 +20,7 @@ import { GatewayRequestCaptureService } from './services/gateway-request-capture
 import { GatewayRouteSnapshotService } from './services/gateway-route-snapshot.service';
 import { GatewayRuntimeMetricsService } from './services/gateway-runtime-metrics.service';
 import { GatewayRuntimeService } from './services/gateway-runtime.service';
+import { RuntimeUpstreamBindingsModule } from '../runtime-upstream-bindings/runtime-upstream-bindings.module';
 import { GatewaySecurityService } from './services/gateway-security.service';
 import { GatewayTrafficControlService } from './services/gateway-traffic-control.service';
 
@@ -30,11 +32,13 @@ import { GatewayTrafficControlService } from './services/gateway-traffic-control
       GatewayAccessLogEntity,
       GatewayConsumerCredentialEntity,
       GatewayRouteBindingEntity,
+      GatewayRouteSnapshotEntity,
       RuntimeAssetEndpointBindingEntity,
       RuntimeAssetEntity,
       SourceServiceAssetEntity,
     ]),
     RuntimeObservabilityModule,
+    RuntimeUpstreamBindingsModule,
     SecurityModule,
   ],
   controllers: [GatewayRuntimeController],
