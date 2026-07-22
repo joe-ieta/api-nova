@@ -114,7 +114,6 @@ npm -v
 npm ci
 npm run verify:package-manager
 npm run build
-npm run dev
 npm run test
 npm run lint
 npm run type-check
@@ -123,6 +122,7 @@ npm run type-check
 更多说明：
 
 - [Package Management Policy](./docs/guides/package-management-policy.md)
+- [Source Checkout Startup](./docs/release/api-nova-release-requirements.md#run-from-a-source-checkout)
 - [Local Setup And Run](./docs/guides/local-setup-and-run.md)
 - [Database Mode Quickstart](./docs/guides/database-mode-quickstart.md)
 - [Database Strategy](./docs/guides/database-strategy.md)

@@ -24,6 +24,7 @@ Confirm active documentation is aligned with the implementation:
 
 - `README.md`
 - `docs/guides/package-management-policy.md`
+- `docs/release/api-nova-release-requirements.md`
 - `docs/guides/local-setup-and-run.md`
 - `docs/guides/database-mode-quickstart.md`
 - `docs/guides/database-strategy.md`
@@ -31,7 +32,20 @@ Confirm active documentation is aligned with the implementation:
 - package README files for affected packages
 - deferred or partial items are tracked in `docs/reference/open-items.md`
 
-## 3. Build And Type Validation
+## 3. Source Startup Validation
+
+Follow [ApiNova Release Requirements - Run From A Source Checkout](../release/api-nova-release-requirements.md#run-from-a-source-checkout) and confirm:
+
+- API starts with `npm run start:dev --workspace api-nova-api`
+- UI starts separately with `npm run dev --workspace api-nova-ui`
+- Server starts separately with `npm run dev --workspace api-nova-server`
+- `GET http://127.0.0.1:9001/api/health/live` returns `200`
+- `GET http://127.0.0.1:9022/health` returns a successful Server health response
+- the MCP protocol endpoint is available at `http://127.0.0.1:9022/mcp`
+- `http://127.0.0.1:9000/` loads and can reach the API through the development proxy
+- root `npm run dev` is not treated as the full-product source startup command
+
+## 4. Build And Type Validation
 
 Run:
 
@@ -55,7 +69,7 @@ If the release touches broader parser compatibility or downstream contracts, run
 npm run verify:parser-chain:full
 ```
 
-## 4. API Test Verification
+## 5. API Test Verification
 
 For targeted OpenAPI management and validation paths under `packages/api-nova-api`:
 
@@ -83,7 +97,7 @@ For broader API regression verification:
 npm run test --workspace api-nova-api
 ```
 
-## 5. Runtime Path Verification
+## 6. Runtime Path Verification
 
 Verify the main operator paths:
 
@@ -97,7 +111,7 @@ Check:
 - `/mcp` is treated as an MCP protocol endpoint, not a browser page
 - concurrent streamable sessions can be established
 
-## 6. OpenAPI Management Verification
+## 7. OpenAPI Management Verification
 
 Use at least one known public operator test spec:
 
@@ -111,7 +125,7 @@ Verify:
 - tool preview renders usable results
 - conversion to MCP succeeds on the supported path
 
-## 7. Database Mode Verification
+## 8. Database Mode Verification
 
 ### SQLite
 
@@ -140,7 +154,7 @@ Current clean-schema baseline verified on July 21, 2026:
 - PostgreSQL uses a native UUID foreign key for `source_service_instances.sourceServiceAssetId`
 - verification commands are `npm run db:verify-isolated-sqlite --workspace api-nova-api` and `npm run db:verify-isolated-postgres --workspace api-nova-api`
 
-## 8. Endpoint Registry Verification
+## 9. Endpoint Registry Verification
 
 Verify the manual endpoint lifecycle path:
 
@@ -157,7 +171,7 @@ Verify the imported endpoint governance path:
 - confirm imported endpoints can be listed and grouped without exposing manual create/edit/delete actions
 - run `probe`, `publish readiness`, `publish`, and `offline` on an imported endpoint and confirm the lifecycle state updates correctly
 
-## 9. Runtime Credential And Verification Gate
+## 10. Runtime Credential And Verification Gate
 
 Verify:
 
@@ -172,7 +186,7 @@ Verify:
 - use the permission-guarded no-smoke waiver action, enter a reason of at least 10 characters, and confirm operator id, environment, reason, and `waiver` result are visible in verification drill-down
 - confirm the waiver changes candidate identity and permits activation without fabricating a replay result
 
-## 10. Windows And Ubuntu Verification
+## 11. Windows And Ubuntu Verification
 
 Check the documented run path on both:
 
@@ -194,7 +208,7 @@ Latest local evidence on 2026-07-22:
 - Windows streamable multi-session smoke passed for two concurrent MCP sessions
 - Windows API/UI interactive startup, basic import/conversion, and the complete Ubuntu path remain required before release
 
-## 11. Open Items Review
+## 12. Open Items Review
 
 Execute and record the [Runtime Publication Acceptance Cases](../testing/runtime-publication-acceptance-cases.md). Then review [Open Items](../reference/open-items.md) and confirm:
 

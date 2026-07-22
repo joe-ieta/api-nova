@@ -1,5 +1,127 @@
 # ApiNova Release Requirements
 
+> Document status: Active release operations
+> Last reviewed: 2026-07-22
+
+## Run From A Source Checkout
+
+Use this path for local development and pre-release acceptance directly from the Git checkout. It starts the management API, UI, and standalone MCP server as three source processes. It is not a substitute for the portable or offline deployment packages described below.
+
+### 1. Prerequisites
+
+- Node.js `>= 20`
+- npm `>= 10`
+- run every repository command from the repository root
+- use npm only; `package-lock.json` is the authoritative dependency lock
+
+Verify the toolchain:
+
+```bash
+node -v
+npm -v
+```
+
+### 2. Prepare A Clean Source Environment
+
+Install exactly the locked dependencies and build all four workspaces:
+
+```bash
+npm ci
+npm run verify:package-manager
+npm run build
+```
+
+Create the API environment file only when one does not already exist.
+
+Windows PowerShell:
+
+```powershell
+if (-not (Test-Path .\packages\api-nova-api\.env)) {
+  Copy-Item .\packages\api-nova-api\.env.example .\packages\api-nova-api\.env
+}
+```
+
+Linux / Ubuntu:
+
+```bash
+test -f ./packages/api-nova-api/.env || \
+  cp ./packages/api-nova-api/.env.example ./packages/api-nova-api/.env
+```
+
+The source default is SQLite. Review `packages/api-nova-api/.env` before startup, especially `JWT_SECRET`, the default administrator password, and any upstream credentials. Do not use the example secrets for an externally reachable environment.
+
+### 3. Start The Full Product From Source
+
+Keep all three terminals open.
+
+Terminal 1 - management API on port `9001`:
+
+```bash
+npm run start:dev --workspace api-nova-api
+```
+
+Terminal 2 - UI on port `9000`, proxying `/api` and WebSocket traffic to the API:
+
+```bash
+npm run dev --workspace api-nova-ui
+```
+
+Terminal 3 - standalone MCP server on port `9022`:
+
+```bash
+npm run dev --workspace api-nova-server
+```
+
+Open:
+
+- UI: `http://127.0.0.1:9000/`
+- API base: `http://127.0.0.1:9001/api`
+- API documentation: `http://127.0.0.1:9001/api/docs`
+- API startup health: `http://127.0.0.1:9001/api/health/live`
+- MCP endpoint: `http://127.0.0.1:9022/mcp`
+- MCP server health: `http://127.0.0.1:9022/health`
+
+The source default administrator is `admin` / `admin@123456` unless overridden in the API environment file. Stop each process with `Ctrl+C`.
+
+Important: the root `npm run dev` helper does not currently start `api-nova-api`, so it must not be used by itself as the full-product source startup command. Use the three explicit workspace commands above.
+
+### 4. Start Built Backend Code From Source
+
+For a backend-only production-style smoke test after `npm run build`:
+
+Windows PowerShell:
+
+```powershell
+$env:NODE_ENV = "production"
+$env:DB_TYPE = "sqlite"
+$env:DB_SQLITE_PATH = "data/api-nova.db"
+node .\packages\api-nova-api\dist\src\main.js
+```
+
+Linux / Ubuntu:
+
+```bash
+NODE_ENV=production \
+DB_TYPE=sqlite \
+DB_SQLITE_PATH=data/api-nova.db \
+node ./packages/api-nova-api/dist/src/main.js
+```
+
+This command starts the built API from the repository root, but a normal source build does not copy the UI into the root `public/` directory. Use the three-process source startup for development, or build a release package when a single process must serve both the UI and API.
+
+### 5. Start The MCP Server With A Specific OpenAPI Document
+
+The default Server development command starts the standalone runtime on port `9022`. To start it with a specific OpenAPI document instead, stop Terminal 3 and run:
+
+```bash
+npm run cli --workspace api-nova-server -- \
+  --openapi ./examples/minimal-openapi.json \
+  --transport streamable \
+  --port 9022
+```
+
+The MCP endpoint remains `http://127.0.0.1:9022/mcp`. Do not run this command at the same time as Terminal 3 because both bind port `9022`.
+
 ## Package Types
 
 ApiNova has two supported release package types.

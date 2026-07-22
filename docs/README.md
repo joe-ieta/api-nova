@@ -32,6 +32,7 @@
 ## Current Architecture And Operations
 
 - [Package Management Policy](./guides/package-management-policy.md)
+- [Release Requirements And Source Startup](./release/api-nova-release-requirements.md)
 - [Guides Index](./guides/README.md)
 - [Reference Index](./reference/README.md)
 - [Testing Index](./testing/README.md)
