@@ -43,6 +43,7 @@ Until this release baseline is reached, do not prioritize:
 - docs must match actual behavior
 - auth boundaries must be explicit
 - release instructions must be reproducible
+- clean installation, CI, build, packaging, and release commands must use the root npm workspace and `package-lock.json`
 - examples must work on Windows and Ubuntu
 
 ### P1. Preserve room for later versions

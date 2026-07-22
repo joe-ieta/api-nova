@@ -11,6 +11,7 @@ Use this skill for release packaging in the `api-nova` monorepo.
 
 - Pull latest code before packaging unless the user explicitly asks not to.
 - Preserve unrelated working tree changes. The existing untracked `data/` directory is user/runtime data; do not delete it.
+- Use npm only. Restore the locked dependency tree with `npm.cmd ci`, then run `npm.cmd run verify:package-manager` before release validation.
 - Run `npm.cmd run build` on Windows before packaging unless the user only asks for documentation.
 - Keep runtime output under the requested release directory.
 - Use SQLite by default with `DB_TYPE=sqlite` and `DB_SQLITE_PATH=data/api-nova.db`.

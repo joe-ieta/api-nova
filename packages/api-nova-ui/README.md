@@ -46,7 +46,7 @@
 ```bash
 node -v
 npm -v
-npm install
+npm ci
 npm run dev --workspace api-nova-ui
 ```
 

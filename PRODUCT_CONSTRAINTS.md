@@ -74,7 +74,13 @@ The repository contains four product layers:
 - Active docs and operator copy must be stored with stable UTF-8 encoding.
 - Readable fallback text is acceptable; corrupted text is not.
 
-### 10. Gateway boundary discipline must not drift
+### 10. Package management must remain reproducible
+
+- Repository development, CI, build, packaging, and release use npm Workspaces only.
+- Root `package-lock.json` is the only dependency lock file and must stay synchronized with manifests.
+- Published standard npm packages may be consumed with npm, pnpm, or Yarn; consumer compatibility must not introduce competing repository lock files or workspace tooling.
+
+### 11. Gateway boundary discipline must not drift
 
 - ApiNova is not an enterprise heavy gateway for full traffic takeover.
 - It should not replace an existing business gateway, edge gateway, or service mesh.

@@ -34,15 +34,11 @@ ApiNova is a tool designed for the AI era that automatically converts any OpenAP
 ### 📦 Installation
 
 ```bash
-# Using npm
-npm install -g api-nova-server
-
-# Using yarn
-yarn global add api-nova-server
-
-# Using npm
+# Install the published package
 npm install -g api-nova-server
 ```
+
+The published package follows the standard npm package format and may also be consumed with pnpm or Yarn. Repository development, build, and release commands use npm only.
 
 ### ⚡ Immediate Usage
 

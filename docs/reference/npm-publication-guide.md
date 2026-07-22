@@ -3,6 +3,8 @@
 > Document status: Active
 > Last reviewed: 2026-07-22
 
+Repository installation, build, and publication use npm only. See [Package Management Policy](../guides/package-management-policy.md).
+
 ## 🎯 发布状态分析
 
 ### ✅ 当前具备条件
@@ -81,6 +83,9 @@
 ### 2. 构建验证
 
 ```bash
+npm ci
+npm run verify:package-manager
+
 # 1. 清理并重新构建
 npm run build
 

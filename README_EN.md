@@ -111,7 +111,8 @@ Example MCP client configuration:
 ```bash
 node -v
 npm -v
-npm install
+npm ci
+npm run verify:package-manager
 npm run build
 npm run dev
 npm run test
@@ -121,6 +122,7 @@ npm run type-check
 
 See also:
 
+- [Package Management Policy](./docs/guides/package-management-policy.md)
 - [Local Setup And Run](./docs/guides/local-setup-and-run.md)
 - [Database Mode Quickstart](./docs/guides/database-mode-quickstart.md)
 - [Database Strategy](./docs/guides/database-strategy.md)

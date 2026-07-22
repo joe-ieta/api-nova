@@ -46,20 +46,20 @@ npm -v
 
 ## 2. Install Dependencies
 
-Run from repository root.
+Run from repository root. The repository uses npm only; see [Package Management Policy](./package-management-policy.md).
 
 Windows PowerShell:
 
 ```powershell
-cd E:\CodexDev\api-nova-server
-npm install
+cd E:\CodexDev\api-nova
+npm ci
 ```
 
 Ubuntu:
 
 ```bash
-cd /path/to/api-nova-server
-npm install
+cd /path/to/api-nova
+npm ci
 ```
 
 ## 3. Choose Database Mode
@@ -312,7 +312,7 @@ Notes:
 
 ### SQLite path
 
-1. `npm install`
+1. `npm ci`
 2. Copy `.env.example` to `packages/api-nova-api/.env`
 3. Keep `DB_TYPE=sqlite` or omit it
 4. Start API

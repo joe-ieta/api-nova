@@ -51,8 +51,8 @@ print_header
 # Install dependencies
 print_section "Installing Dependencies"
 print_info "Using npm for package management"
-npm install
-print_success "Dependencies installed"
+npm ci
+print_success "Dependencies installed from package-lock.json"
 
 # Build the project
 print_section "Building Project"

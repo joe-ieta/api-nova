@@ -20,6 +20,7 @@ Only currently supported product paths, durable architecture contracts, and acti
 
 ## Setup And Engineering Workflows
 
+- [Package Management Policy](./package-management-policy.md)
 - [Database Mode Quickstart](./database-mode-quickstart.md)
 - [Database Strategy](./database-strategy.md)
 - [Local Setup And Run](./local-setup-and-run.md)

@@ -1,12 +1,19 @@
 {
   "name": "api-nova-monorepo",
   "version": "1.0.0",
+  "packageManager": "npm@10.9.2",
   "description": "ApiNova monorepo for API gateway management and AI-ready API capability delivery",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
+    "preinstall": "node scripts/verify-package-manager.js",
+    "verify:package-manager": "node scripts/verify-package-manager.js",
     "build": "node scripts/build.js",
     "build:packages": "node scripts/build.js --non-ui",
     "build:parser-chain": "node scripts/verify-parser-propagation.js --build-only --include-consumer-builds",

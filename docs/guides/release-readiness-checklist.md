@@ -23,6 +23,7 @@ Confirm the release still matches the current baseline:
 Confirm active documentation is aligned with the implementation:
 
 - `README.md`
+- `docs/guides/package-management-policy.md`
 - `docs/guides/local-setup-and-run.md`
 - `docs/guides/database-mode-quickstart.md`
 - `docs/guides/database-strategy.md`
@@ -35,6 +36,8 @@ Confirm active documentation is aligned with the implementation:
 Run:
 
 ```bash
+npm ci
+npm run verify:package-manager
 npm run build
 npm run type-check
 npm run test --workspace api-nova-server
