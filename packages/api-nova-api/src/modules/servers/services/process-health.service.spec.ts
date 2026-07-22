@@ -34,6 +34,10 @@ describe('ProcessHealthService', () => {
         return values[key] ?? fallback;
       }),
     };
+    const appConfigService = {
+      healthCheckInterval: 30000,
+      healthCheckTimeout: 5000,
+    };
     const httpService = {
       get: jest.fn(),
     };
@@ -44,6 +48,7 @@ describe('ProcessHealthService', () => {
       processManager as any,
       eventEmitter as unknown as EventEmitter2,
       configService as unknown as ConfigService,
+      appConfigService as any,
       httpService as unknown as HttpService,
     );
 

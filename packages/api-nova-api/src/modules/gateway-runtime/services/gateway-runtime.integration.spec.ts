@@ -140,6 +140,7 @@ describe('GatewayProxyEngine integration', () => {
     publishBinding: { publishedToHttp: true },
     endpointDefinition: { id: 'endpoint-1' },
     sourceServiceAsset: { id: 'source-1' },
+    sourceServiceInstance: { id: 'instance-1', credentialRef: null },
     upstreamBaseUrl: `http://127.0.0.1:${upstreamPort}`,
     params: {},
   });

@@ -7,6 +7,7 @@ import { RuntimeVerificationRunEntity } from '../../database/entities/runtime-ve
 import { RuntimeVerificationResultEntity } from '../../database/entities/runtime-verification-result.entity';
 import { RuntimeUpstreamBindingsModule } from '../runtime-upstream-bindings/runtime-upstream-bindings.module';
 import { GatewayRuntimeModule } from '../gateway-runtime/gateway-runtime.module';
+import { SecurityModule } from '../security/security.module';
 import { RuntimeVerificationController } from './runtime-verification.controller';
 import { RuntimeVerificationService } from './services/runtime-verification.service';
 import { GatewayCandidateReplayService } from './services/gateway-candidate-replay.service';
@@ -22,6 +23,7 @@ import { RuntimeResponseAssertionService } from './services/runtime-response-ass
       RuntimeVerificationRunEntity,
       RuntimeVerificationResultEntity,
     ]),
+    SecurityModule,
     RuntimeUpstreamBindingsModule,
     GatewayRuntimeModule,
   ],

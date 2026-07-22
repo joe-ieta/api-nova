@@ -28,6 +28,34 @@ function Copy-IfExists {
   }
 }
 
+function Remove-ReleaseLifecycleScripts {
+  param(
+    [string]$PackageJsonPath,
+    [string]$PackageLockPath
+  )
+
+  $manifest = Get-Content -Path $PackageJsonPath -Raw | ConvertFrom-Json
+  if ($manifest.scripts) {
+    $manifest.scripts.PSObject.Properties.Remove('preinstall') | Out-Null
+  }
+  $manifest | ConvertTo-Json -Depth 100 | Set-Content -Path $PackageJsonPath -Encoding UTF8
+
+  if (Test-Path $PackageLockPath) {
+    $lockText = Get-Content -Path $PackageLockPath -Raw
+    $rootInstallScriptMarker = '      "hasInstallScript": true,'
+    $markerIndex = $lockText.IndexOf($rootInstallScriptMarker)
+    if ($markerIndex -ge 0 -and $markerIndex -lt 1000) {
+      $lineEnd = $lockText.IndexOf("`n", $markerIndex)
+      if ($lineEnd -ge 0) {
+        $lockText = $lockText.Remove($markerIndex, $lineEnd - $markerIndex + 1)
+      } else {
+        $lockText = $lockText.Remove($markerIndex)
+      }
+    }
+    Set-Content -Path $PackageLockPath -Value $lockText -Encoding UTF8
+  }
+}
+
 function Write-ReleaseEnv {
   param([string]$Path)
 
@@ -267,6 +295,9 @@ New-Item -ItemType Directory -Force -Path (Join-Path $outputPath 'data'), (Join-
 
 Copy-Item -Path (Join-Path $repoRoot 'package.json') -Destination (Join-Path $outputPath 'package.json') -Force
 Copy-Item -Path (Join-Path $repoRoot 'package-lock.json') -Destination (Join-Path $outputPath 'package-lock.json') -Force
+Remove-ReleaseLifecycleScripts `
+  -PackageJsonPath (Join-Path $outputPath 'package.json') `
+  -PackageLockPath (Join-Path $outputPath 'package-lock.json')
 Copy-IfExists (Join-Path $repoRoot '.npmrc') (Join-Path $outputPath '.npmrc')
 Copy-IfExists (Join-Path $repoRoot 'README.md') (Join-Path $outputPath 'README_PROJECT.md')
 

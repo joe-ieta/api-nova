@@ -30,6 +30,11 @@ describe('ProcessManagerService', () => {
         return values[key] ?? fallback;
       }),
     };
+    const appConfigService = {
+      processTimeout: 30000,
+      processMaxRetries: 3,
+      processRestartDelay: 1000,
+    };
     const resourceMonitor = {
       stopMonitoring: jest.fn(),
       startMonitoring: jest.fn(),
@@ -49,6 +54,7 @@ describe('ProcessManagerService', () => {
       processLogRepository as any,
       eventEmitter as unknown as EventEmitter2,
       configService as unknown as ConfigService,
+      appConfigService as any,
       resourceMonitor as any,
       logMonitor as any,
     );
