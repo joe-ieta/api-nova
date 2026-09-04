@@ -49,7 +49,7 @@ packages/*/dist/
 # MCP specific
 *.mcp-server.log
 *.mcp-server-stats.json
-logs/
+/logs/
 pids/
 data/api-nova.db
 packages/data/
