@@ -65,7 +65,8 @@ try {
     'src/headers/RuntimeCredentialRef.test.ts',
     'src/headers/RuntimeCredentialRef.integration.test.ts',
   ]);
-  run('API build', ['run', 'build', '--workspace', 'api-nova-api']);
+  run('server build', ['run', 'build', '--workspace', 'api-nova-server']);
+    run('API build', ['run', 'build', '--workspace', 'api-nova-api']);
   run('UI type check', ['run', 'type-check', '--workspace', 'api-nova-ui']);
   run('runtime closure API tests', [
     'run', 'test', '--workspace', 'api-nova-api', '--', '--runInBand', ...apiSuites,
