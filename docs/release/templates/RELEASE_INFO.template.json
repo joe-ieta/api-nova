@@ -1,0 +1,16 @@
+{
+  "product": "ApiNova",
+  "version": "<tag>",
+  "gitCommit": "<full-sha>",
+  "platformId": "<win-x64|linux-x64|linux-arm64>",
+  "os": "<windows|linux>",
+  "architecture": "<x64|arm64>",
+  "packageMode": "offline",
+  "bundledNode": true,
+  "nodeVersion": "<exact-version>",
+  "npmVersion": "<exact-version>",
+  "buildTimeUtc": "<ISO-8601>",
+  "packageLockSha256": "<sha256>",
+  "releaseNotes": "RELEASE_NOTES.md",
+  "quickStart": "QUICK_START.md"
+}

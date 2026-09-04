@@ -602,13 +602,14 @@ export class PermissionService {
 
     // 根据角色分配不同的权限
     switch (roleName) {
-      case 'SUPER_ADMIN':
+      case 'SUPER_ADMIN': {
         // 超级管理员拥有所有权限
         const allPermissions = await this.permissionRepository.find({
           where: { enabled: true },
         });
         role.permissions = allPermissions;
         break;
+      }
 
       case 'ADMIN':
         permissionNames = [

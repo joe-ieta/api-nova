@@ -121,6 +121,7 @@ npm run type-check
 
 更多说明：
 
+- [Version Release Standard](./RELEASE_STANDARD.md)
 - [Package Management Policy](./docs/guides/package-management-policy.md)
 - [Source Checkout Startup](./docs/release/api-nova-release-requirements.md#run-from-a-source-checkout)
 - [Local Setup And Run](./docs/guides/local-setup-and-run.md)

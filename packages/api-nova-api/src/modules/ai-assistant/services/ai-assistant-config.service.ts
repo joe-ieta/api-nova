@@ -270,11 +270,12 @@ export class AiAssistantConfigService {
           case 'activate':
             await this.updateConfig(id, { status: ConfigStatus.GENERATED });
             break;
-          case 'export':
+          case 'export': {
             // 批量导出需要特殊处理
             const exportFormat = batchDto.parameters?.format || ExportFormat.JSON;
             await this.exportConfig(id, { format: exportFormat });
             break;
+          }
         }
         results.push({ id, success: true });
         successCount++;

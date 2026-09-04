@@ -2,7 +2,8 @@ param(
   [ValidateSet('Portable', 'OfflineCurrentPlatform')]
   [string]$Mode = 'Portable',
 
-  [string]$OutputDir = 'E:\CodexDev\api-nova-release',
+  [Parameter(Mandatory = $true)]
+  [string]$OutputDir,
 
   [switch]$SkipBuild,
 
@@ -14,6 +15,14 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $repoRoot = $repoRoot.Path
 $outputPath = [System.IO.Path]::GetFullPath($OutputDir)
+$outputSeparators = [char[]]@(
+  [System.IO.Path]::DirectorySeparatorChar,
+  [System.IO.Path]::AltDirectorySeparatorChar
+)
+$outputLeaf = [System.IO.Path]::GetFileName($outputPath.TrimEnd($outputSeparators))
+if ($outputLeaf -ieq 'api-nova-release') {
+  throw 'Refusing to package directly into the api-nova-release latest mirror. Use a versioned staging directory.'
+}
 $runtimePlatform = node -p "process.platform + '-' + process.arch"
 $npmCommand = if ($IsWindows -or $env:OS -eq 'Windows_NT') { 'npm.cmd' } else { 'npm' }
 
@@ -193,7 +202,7 @@ echo [ApiNova] Node %NODE_VERSION% (%RUNTIME_PLATFORM%)
 $windowsInstallBlock
 
 echo [ApiNova] Starting at http://127.0.0.1:9001/
-start "" "http://127.0.0.1:9001/"
+if not "%API_NOVA_NO_BROWSER%"=="1" start "" "http://127.0.0.1:9001/"
 %NODE_EXE% packages\api-nova-api\dist\src\main.js
 pause
 "@ | Set-Content -Path (Join-Path $Path 'start.bat') -Encoding ASCII
@@ -221,7 +230,7 @@ echo "[ApiNova] `$(`$NODE_EXE -v) (`${runtime_platform})"
 $linuxInstallBlock
 
 echo "[ApiNova] Starting at http://127.0.0.1:9001/"
-if command -v xdg-open >/dev/null 2>&1; then
+if [ "`${API_NOVA_NO_BROWSER:-0}" != "1" ] && command -v xdg-open >/dev/null 2>&1; then
   (xdg-open "http://127.0.0.1:9001/" >/dev/null 2>&1 || true) &
 fi
 "`$NODE_EXE" packages/api-nova-api/dist/src/main.js

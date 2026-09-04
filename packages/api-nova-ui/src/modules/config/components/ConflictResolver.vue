@@ -35,7 +35,7 @@
       <!-- 冲突列表 -->
       <div class="conflicts-container">
         <div
-          v-for="(conflict, index) in conflicts"
+          v-for="conflict in conflicts"
           :key="conflict.id"
           class="conflict-card"
           :class="{ resolved: isConflictResolved(conflict.id) }"

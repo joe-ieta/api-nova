@@ -1,69 +1,93 @@
-﻿---
+---
 name: api-nova-release
-description: Package ApiNova release bundles and validate release outputs. Use when the user asks to pull latest ApiNova code, build ApiNova, create a green one-click runtime package, create a portable Windows/Linux package, create a first-run offline package, or document/reuse ApiNova release requirements.
+description: Build, validate, archive, and publish ApiNova product releases. Use when the user asks for an ApiNova version, release tag, green/offline runtime package, latest release directories, release notes, or reusable release workflow.
 ---
 
 # ApiNova Release
 
-Use this skill for release packaging in the `api-nova` monorepo.
+Read `RELEASE_STANDARD.md` before planning or executing a product release. It is the canonical contract; this skill only preserves its operational invariants.
 
-## Core Rules
+## Official Release Contract
 
-- Pull latest code before packaging unless the user explicitly asks not to.
-- Preserve unrelated working tree changes. The existing untracked `data/` directory is user/runtime data; do not delete it.
-- Use npm only. Restore the locked dependency tree with `npm.cmd ci`, then run `npm.cmd run verify:package-manager` before release validation.
-- Run `npm.cmd run build` on Windows before packaging unless the user only asks for documentation.
-- Keep runtime output under the requested release directory.
-- Use SQLite by default with `DB_TYPE=sqlite` and `DB_SQLITE_PATH=data/api-nova.db`.
-- Serve the built UI from the API process by copying `packages/api-nova-ui/dist` into release `public/`.
-- Start the backend with `node packages/api-nova-api/dist/src/main.js`.
-- Validate startup with `/api/health/live`, not strict `/health`.
+An official product tag is one atomic native offline set:
 
-## Package Modes
+- `api-nova-release-<tag>-win-x64.zip`
+- `api-nova-release-<tag>-linux-x64.tar.gz`
+- `api-nova-release-<tag>-linux-arm64.tar.gz`
 
-Choose one mode explicitly.
+All three artifacts must use the same tag, commit, release notes, dependency lock, and exact Node version. Each includes production dependencies and a bundled Node runtime, starts without downloads, and passes a fresh-extraction test on its matching OS and CPU.
 
-`Portable`:
+Never create a Linux artifact by copying Windows `node_modules`, or an ARM64 artifact by copying x64 dependencies. If a matching native builder is unavailable, leave the release in staging and report the missing platform as blocked. Do not call a partial set published.
 
-- Use when one package should be copied between Windows and Linux.
-- Does not include `node_modules`.
-- First run installs production dependencies for the current OS/CPU.
-- Not fully offline on first run.
+`Portable` mode is for development transfer only and is not an official product release artifact.
 
-`OfflineCurrentPlatform`:
+## Output Roots
 
-- Use when first run must not download anything.
-- Includes production `node_modules`.
-- Must be built on the same OS/CPU that will run it.
-- Windows x64 offline packages are not valid Ubuntu ARM64 packages.
-- Ubuntu ARM64 offline packages must be built on Ubuntu ARM64 or an equivalent ARM64 build environment.
+Use separate roots:
 
-## Preferred Script
+- immutable versions: `api-nova-release-archive/<tag>/`;
+- latest extracted mirrors: `api-nova-release/{win-x64,linux-x64,linux-arm64}/`;
+- disposable builds: `api-nova-release-staging/<tag>/<platform-id>/`.
 
-Use the repository script:
+Never pass the latest root directly to the packaging script. It recreates its output and can delete runtime data.
+
+Do not restructure the historical flat `E:\CodexDev\api-nova-release` directory without explicit approval. It may contain a live SQLite database.
+
+## Workflow
+
+1. Confirm the intended tag and fetch remote tags.
+2. Require a clean, synchronized source commit.
+3. Create `docs/release/versions/<tag>/RELEASE_NOTES.md` and `QUICK_START.md` from the templates before tagging.
+4. Run every release gate listed in `RELEASE_STANDARD.md`; record failures instead of omitting them.
+5. Build each platform on a matching native host with `scripts/package-release.ps1 -Mode OfflineCurrentPlatform -IncludeNode`.
+6. Add `RELEASE_INFO.json`, release notes, and quick start to each package.
+7. Verify staging output and a fresh extraction with network unavailable or blocked.
+8. Create the Windows ZIP and Linux `.tar.gz` files, then generate the version manifest and SHA-256 file.
+9. Require all three artifacts before promoting latest.
+10. Promote all latest platform directories together and write `CURRENT_RELEASE.json` last.
+11. Create and push an annotated tag only for the exact release commit.
+12. Upload the same bytes, notes, manifest, and checksums to the remote Release.
+
+Any artifact-content change after publication requires a new tag. Never replace bytes under an existing tag.
+
+## Single-Platform Packaging
+
+The repository script produces the current native platform directory:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Mode Portable -OutputDir E:\CodexDev\api-nova-release
+pwsh ./scripts/package-release.ps1 \
+  -Mode OfflineCurrentPlatform \
+  -OutputDir <versioned-staging-directory> \
+  -IncludeNode
 ```
 
-For a Windows x64 offline package:
+Before accepting it, assert the actual Node runtime identity matches the requested platform ID. On Linux, set executable bits on `start.sh` and the bundled Node before creating `.tar.gz`. On Windows, ensure workspace Junctions do not make the ZIP require elevated extraction.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Mode OfflineCurrentPlatform -OutputDir E:\CodexDev\api-nova-release-offline-win-x64 -IncludeNode
-```
-
-## Validation
-
-After packaging, run the start script from the output directory and verify:
+Validate:
 
 ```text
 http://127.0.0.1:9001/
 http://127.0.0.1:9001/api/health/live
+http://127.0.0.1:9001/api/system/initialization
 ```
 
-If strict `/health` returns `503`, inspect details before treating it as release failure; disk threshold and optional MCP checks can fail while the app is still runnable.
+Clean smoke-test databases, logs, PIDs, and temporary files before archiving.
+
+## Publication Safety
+
+Tag creation, tag push, latest-directory replacement, and remote upload are separate mutations. Obtain authorization when required immediately before each mutation.
+
+Before a public upload, inspect `.env` and the archive for credentials. Explicitly disclose documented default accounts or keys. Do not infer authorization to publish a specific payload merely from authorization to build it.
 
 ## References
 
-- Detailed requirements: `docs/release/api-nova-release-requirements.md`
+- Canonical standard: `RELEASE_STANDARD.md`
+- Single-platform mechanics: `docs/release/api-nova-release-requirements.md`
+- Release readiness: `docs/guides/release-readiness-checklist.md`
+- Templates: `docs/release/templates/`
 - Packaging script: `scripts/package-release.ps1`
+- Native artifact builder: `scripts/build-release-artifact.ps1`
+- Package smoke verifier: `scripts/test-release-package.ps1`
+- Release manifest builder: `scripts/create-release-manifest.ps1`
+- Atomic archive/latest promoter: `scripts/promote-release-set.ps1`
+- Three-platform workflow: `.github/workflows/release-artifacts.yml`

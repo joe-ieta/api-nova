@@ -1,7 +1,7 @@
 # Release Readiness Checklist
 
 > Document status: Active
-> Last reviewed: 2026-07-22
+> Last reviewed: 2026-09-04
 
 Use this checklist before cutting a release or calling the current baseline publishable.
 
@@ -23,6 +23,7 @@ Confirm the release still matches the current baseline:
 Confirm active documentation is aligned with the implementation:
 
 - `README.md`
+- `RELEASE_STANDARD.md`
 - `docs/guides/package-management-policy.md`
 - `docs/release/api-nova-release-requirements.md`
 - `docs/guides/local-setup-and-run.md`

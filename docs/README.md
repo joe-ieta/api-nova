@@ -1,7 +1,7 @@
 # ApiNova Documentation Index
 
 > Document status: Active canonical index
-> Last reviewed: 2026-07-22
+> Last reviewed: 2026-09-04
 
 ## Documentation Classes
 
@@ -19,6 +19,7 @@
 - [Product Constraints](../PRODUCT_CONSTRAINTS.md)
 - [Project Baseline](../PROJECT_BASELINE.md)
 - [Release Baseline V1](../RELEASE_BASELINE_V1.md)
+- [Version Release Standard](../RELEASE_STANDARD.md)
 
 ## Current Product Closure
 
@@ -33,6 +34,7 @@
 
 - [Package Management Policy](./guides/package-management-policy.md)
 - [Release Requirements And Source Startup](./release/api-nova-release-requirements.md)
+- [Product Release Documents](./release/versions/README.md)
 - [Guides Index](./guides/README.md)
 - [Reference Index](./reference/README.md)
 - [Testing Index](./testing/README.md)

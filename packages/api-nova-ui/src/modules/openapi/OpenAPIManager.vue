@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="openapi-manager">
     <!-- 璁よ瘉妫€鏌ュ姞杞界姸鎬?-->
     <div
@@ -1598,7 +1598,7 @@ const handleSpecAction = async (command: {
   const { action, spec } = command;
 
   switch (action) {
-    case "edit":
+    case "edit": {
       // Select the document for editing.
       const doc = documents.value.find((d) => d.id === spec.id);
       if (doc) {
@@ -1606,6 +1606,7 @@ const handleSpecAction = async (command: {
         activeTab.value = "editor";
       }
       break;
+    }
 
     case "duplicate":
       try {

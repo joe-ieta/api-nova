@@ -328,7 +328,7 @@ export const useLogStore = defineStore("log", () => {
         );
         break;
 
-      case "csv":
+      case "csv": {
         const headers = ["timestamp", "level", "source", "message"];
         if (options.includeContext) headers.push("context");
         if (options.includeStack) headers.push("stack");
@@ -351,6 +351,7 @@ export const useLogStore = defineStore("log", () => {
           ),
         ].join("\n");
         break;
+      }
 
       case "txt":
       default:

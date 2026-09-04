@@ -270,7 +270,7 @@ export const useTestingStore = defineStore("testing", () => {
         break;
 
       case "number":
-      case "integer":
+      case "integer": {
         const numValue = Number(value);
         if (isNaN(numValue)) {
           return `参数 ${name} 应为数字类型`;
@@ -285,6 +285,7 @@ export const useTestingStore = defineStore("testing", () => {
           return `参数 ${name} 不能大于 ${maximum}`;
         }
         break;
+      }
 
       case "boolean":
         if (typeof value !== "boolean") {

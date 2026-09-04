@@ -1,0 +1,171 @@
+name: release artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: Product tag to prepare, for example v1.7.5-rc.2
+        required: true
+        type: string
+      commit_sha:
+        description: Exact 40-character source commit
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-artifacts-${{ inputs.version_tag }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_NODE_VERSION: 24.15.0
+  RELEASE_NPM_VERSION: 10.9.2
+
+jobs:
+  release-gates:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: pg
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: pg
+      DB_ADMIN_DATABASE: postgres
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+
+      - name: Verify release identity
+        shell: pwsh
+        run: |
+          if ('${{ inputs.version_tag }}' -notmatch '^v\d+\.\d+\.\d+(?:-rc\.\d+)?$') {
+            throw 'Invalid version tag'
+          }
+          if ((git rev-parse HEAD).Trim() -ne '${{ inputs.commit_sha }}') {
+            throw 'Checkout does not match the requested commit'
+          }
+
+      - name: Setup exact Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.RELEASE_NODE_VERSION }}
+          cache: npm
+
+      - name: Setup exact npm
+        run: npm install --global npm@10.9.2
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify package manager
+        run: npm run verify:package-manager
+
+      - name: Verify runtime closure
+        run: npm run verify:runtime-closure
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Run type checks
+        run: npm run type-check
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Build production assets
+        run: npm run build
+
+  build-platform-artifacts:
+    needs: release-gates
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform_id: win-x64
+            runner: windows-2025
+            smoke_port: 19001
+          - platform_id: linux-x64
+            runner: ubuntu-24.04
+            smoke_port: 19101
+          - platform_id: linux-arm64
+            runner: ubuntu-24.04-arm
+            smoke_port: 19201
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+
+      - name: Setup exact Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.RELEASE_NODE_VERSION }}
+          cache: npm
+
+      - name: Setup exact npm
+        run: npm install --global npm@10.9.2
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build production assets
+        run: npm run build
+
+      - name: Build and smoke-test native offline artifact
+        shell: pwsh
+        run: ./scripts/build-release-artifact.ps1 -VersionTag '${{ inputs.version_tag }}' -CommitSha '${{ inputs.commit_sha }}' -PlatformId '${{ matrix.platform_id }}' -OutputDir '${{ runner.temp }}/api-nova-release-output' -SmokePort ${{ matrix.smoke_port }}
+
+      - name: Upload verified artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-nova-release-${{ inputs.version_tag }}-${{ matrix.platform_id }}
+          path: |
+            ${{ runner.temp }}/api-nova-release-output/api-nova-release-${{ inputs.version_tag }}-${{ matrix.platform_id }}.*
+            ${{ runner.temp }}/api-nova-release-output/VERIFICATION-${{ matrix.platform_id }}.json
+          if-no-files-found: error
+          retention-days: 14
+  assemble-release-set:
+    needs: build-platform-artifacts
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+
+      - name: Download native artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: api-nova-release-${{ inputs.version_tag }}-*
+          path: ${{ runner.temp }}/native-artifacts
+          merge-multiple: true
+
+      - name: Create complete release set
+        shell: pwsh
+        run: ./scripts/create-release-manifest.ps1 -VersionTag '${{ inputs.version_tag }}' -CommitSha '${{ inputs.commit_sha }}' -ArtifactDir '${{ runner.temp }}/native-artifacts' -OutputDir '${{ runner.temp }}/release-set'
+
+      - name: Upload complete release set
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-nova-release-${{ inputs.version_tag }}-complete
+          path: ${{ runner.temp }}/release-set/*
+          if-no-files-found: error
+          retention-days: 14

@@ -1,4 +1,4 @@
 interface:
   display_name: "ApiNova Release"
-  short_description: "Package ApiNova online and offline release bundles."
-  default_prompt: "Package an ApiNova release bundle using the repository release workflow."
+  short_description: "Build and validate three-platform offline releases."
+  default_prompt: "Create a complete ApiNova release set for Windows x64, Linux x64, and Linux ARM64 using the repository release standard."

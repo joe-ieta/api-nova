@@ -346,7 +346,7 @@ const generateDefaultValue = (prop: PropertySchema): any => {
       return false;
     case "array":
       return [];
-    case "object":
+    case "object": {
       const obj: Record<string, any> = {};
       if (prop.properties) {
         for (const [key, subProp] of Object.entries(prop.properties)) {
@@ -354,6 +354,7 @@ const generateDefaultValue = (prop: PropertySchema): any => {
         }
       }
       return obj;
+    }
     default:
       return null;
   }

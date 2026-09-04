@@ -1,7 +1,8 @@
 # ApiNova Release Requirements
 
 > Document status: Active release operations
-> Last reviewed: 2026-07-22
+> Last reviewed: 2026-09-04
+> Canonical packaging contract: [ApiNova Version Release Standard](../../RELEASE_STANDARD.md)
 
 ## Run From A Source Checkout
 
@@ -122,102 +123,110 @@ npm run cli --workspace api-nova-server -- \
 
 The MCP endpoint remains `http://127.0.0.1:9022/mcp`. Do not run this command at the same time as Terminal 3 because both bind port `9022`.
 
-## Package Types
+## Official Release Packaging
 
-ApiNova has two supported release package types.
+The canonical artifact, archive, latest-directory, version-document, and publication rules are defined in [ApiNova Version Release Standard](../../RELEASE_STANDARD.md). This document describes the underlying single-platform packaging mechanics only.
 
-### Portable Package
+### Official Package Set
 
-Use this when one package should be copied between Windows and Linux hosts.
+An official product version is an atomic set of three native offline packages:
 
-- Output example: `E:\CodexDev\api-nova-release`
-- Includes compiled backend, compiled frontend, release manifests, startup scripts, and default `.env`.
-- Does not include `node_modules`.
-- First run installs production dependencies for the current OS/CPU using `npm ci --omit=dev`.
-- This mode is not fully offline on first run.
+| Platform ID | Target | Archive |
+| --- | --- | --- |
+| `win-x64` | Windows x64 | `.zip` |
+| `linux-x64` | Ubuntu/Linux AMD64 | `.tar.gz` |
+| `linux-arm64` | Ubuntu/Linux ARM64 | `.tar.gz` |
 
-### Offline Current-Platform Package
+Every package includes compiled backend and frontend output, production `node_modules`, startup scripts, default local-test `.env`, and a bundled Node executable. First startup must not download anything.
 
-Use this when first run must not download anything.
+Build each package on its target OS and CPU. Do not copy Windows dependencies to Linux, or x64 dependencies to ARM64.
 
-- Output example: `E:\CodexDev\api-nova-release-offline-win-x64`
-- Includes compiled backend, compiled frontend, production `node_modules`, startup scripts, default `.env`, and optionally a bundled Node executable.
-- Must be built on the same OS/CPU architecture where it will run.
-- Windows x64 offline packages are only for Windows x64.
-- Ubuntu ARM64 offline packages must be built on Ubuntu ARM64, or in an equivalent Ubuntu ARM64 build environment.
+The `Portable` script mode remains available for development transfer, but it is not an official release artifact because first startup may install dependencies from the network.
 
-## Required Runtime Behavior
+### Staging Output
 
-- Startup must be one command:
-  - Windows: `start.bat`
-  - Linux / Ubuntu: `chmod +x ./start.sh && ./start.sh`
-- Default URL: `http://127.0.0.1:9001/`
-- Default local database: `data/api-nova.db`
-- Runtime files must stay inside the package directory:
-  - `data/`
-  - `logs/`
-  - `pids/`
-- Default admin account:
-  - username: `admin`
-  - password: `admin@123456`
+Never package directly into `E:\CodexDev\api-nova-release`. That path is the latest three-platform mirror and may contain runtime data.
 
-## Build Commands
+Use a disposable versioned staging path:
 
-Create the portable package:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 `
-  -Mode Portable `
-  -OutputDir E:\CodexDev\api-nova-release
+```text
+E:\CodexDev\api-nova-release-staging\<tag>\<platform-id>\
 ```
 
-Create a Windows x64 offline package with bundled `node.exe`:
+The final uncompressed package directory is named:
+
+```text
+api-nova-release-<tag>-<platform-id>
+```
+
+### Required Runtime Behavior
+
+- Windows startup: `start.bat`
+- Linux startup: `./start.sh`
+- Default UI: `http://127.0.0.1:9001/`
+- Startup health: `http://127.0.0.1:9001/api/health/live`
+- Default database: `data/api-nova.db`
+- Runtime files remain under `data/`, `logs/`, and `pids/`
+- Default local test account: `admin` / `admin@123456`
+- Shared-network testing requires changing default credentials and JWT secrets
+
+### Build Commands
+
+Windows x64, run on Windows x64:
 
 ```powershell
+$tag = 'vX.Y.Z'
+$output = "E:\CodexDev\api-nova-release-staging\$tag\win-x64\api-nova-release-$tag-win-x64"
+
 powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 `
   -Mode OfflineCurrentPlatform `
-  -OutputDir E:\CodexDev\api-nova-release-offline-win-x64 `
+  -OutputDir $output `
   -IncludeNode
 ```
 
-Create an Ubuntu ARM64 offline package on an Ubuntu ARM64 machine with PowerShell installed:
-
-```powershell
-pwsh ./scripts/package-release.ps1 `
-  -Mode OfflineCurrentPlatform `
-  -OutputDir /opt/api-nova-release-offline-linux-arm64
-```
-
-## Validation
-
-After packaging, validate from the output directory.
-
-Windows:
-
-```powershell
-.\start.bat
-```
-
-Linux:
+Linux x64, run on Ubuntu x64:
 
 ```bash
-chmod +x ./start.sh
-./start.sh
+tag='vX.Y.Z'
+output="/opt/api-nova-release-staging/${tag}/linux-x64/api-nova-release-${tag}-linux-x64"
+
+pwsh ./scripts/package-release.ps1 \
+  -Mode OfflineCurrentPlatform \
+  -OutputDir "${output}" \
+  -IncludeNode
 ```
 
-Then verify:
+Linux ARM64, run on Ubuntu ARM64:
+
+```bash
+tag='vX.Y.Z'
+output="/opt/api-nova-release-staging/${tag}/linux-arm64/api-nova-release-${tag}-linux-arm64"
+
+pwsh ./scripts/package-release.ps1 \
+  -Mode OfflineCurrentPlatform \
+  -OutputDir "${output}" \
+  -IncludeNode
+```
+
+Before archiving Linux output, ensure `start.sh` and `runtime/node/bin/node` are executable. Use `.tar.gz` so Unix permissions are retained.
+
+### Validation
+
+Validate the staging directory and a new extraction of the final archive on the matching platform:
 
 ```text
 http://127.0.0.1:9001/
 http://127.0.0.1:9001/api/health/live
+http://127.0.0.1:9001/api/system/initialization
 ```
 
-The strict `/health` endpoint may return `503` when optional MCP runtime health or disk threshold checks fail. Use `/api/health/live` for startup validation.
+The strict `/health` endpoint may return `503` when optional MCP or disk-threshold checks fail. Use `/api/health/live` for startup validation.
 
-## Known Constraints
+The final release must also satisfy the repository gates, document templates, archive layout, three-platform checksums, and atomic latest promotion in `RELEASE_STANDARD.md`.
 
-- A fully offline package cannot be architecture-neutral when dependencies include native modules such as `bcrypt`.
-- Do not copy a Windows `node_modules` directory into an Ubuntu ARM64 package.
-- Portable packages may be shared across platforms because dependencies are installed on first run.
-- Offline packages must be rebuilt per target platform.
-- `start.bat` must call npm with `call npm.cmd ...` in portable mode; otherwise Windows batch execution can stop after dependency installation.
+### Constraints
+
+- Offline packages are OS/CPU specific.
+- Linux artifacts require native execution evidence on their matching architecture.
+- Windows ZIP creation must not leave npm workspace Junctions that require elevated extraction.
+- A version is not published while any of the three official artifacts is missing or unverified.

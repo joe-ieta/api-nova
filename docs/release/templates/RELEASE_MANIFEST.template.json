@@ -1,0 +1,31 @@
+{
+  "product": "ApiNova",
+  "version": "<tag>",
+  "gitCommit": "<full-sha>",
+  "releaseStatus": "<prerelease|stable>",
+  "releaseDate": "<YYYY-MM-DD>",
+  "nodeVersion": "<exact-version>",
+  "artifacts": [
+    {
+      "platformId": "win-x64",
+      "filename": "api-nova-release-<tag>-win-x64.zip",
+      "archiveFormat": "zip",
+      "sizeBytes": 0,
+      "sha256": "<sha256>"
+    },
+    {
+      "platformId": "linux-x64",
+      "filename": "api-nova-release-<tag>-linux-x64.tar.gz",
+      "archiveFormat": "tar.gz",
+      "sizeBytes": 0,
+      "sha256": "<sha256>"
+    },
+    {
+      "platformId": "linux-arm64",
+      "filename": "api-nova-release-<tag>-linux-arm64.tar.gz",
+      "archiveFormat": "tar.gz",
+      "sizeBytes": 0,
+      "sha256": "<sha256>"
+    }
+  ]
+}

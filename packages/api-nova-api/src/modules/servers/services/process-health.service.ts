@@ -334,12 +334,13 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
       // 只有进程存活时才进行功能性健康检查
       switch (server.transport) {
         case TransportType.STREAMABLE:
-        case TransportType.SSE:
+        case TransportType.SSE: {
           // 使用进程配置中的健康检查端点
           const endpoint = processInfo.config?.healthCheck?.endpoint || `http://localhost:${server.port}/health`;
           this.logger.debug(`Performing HTTP health check for server ${server.id} at ${endpoint}`);
           return await this.httpHealthCheck(endpoint);
         
+        }
 
         default:
           throw new Error(`Unsupported transport type: ${server.transport}`);

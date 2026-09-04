@@ -270,7 +270,7 @@ export class AiAssistantTemplateService {
     const requiredFields = this.getRequiredFieldsByType(type);
     
     for (const field of requiredFields) {
-      if (!configTemplate.hasOwnProperty(field)) {
+      if (!Object.prototype.hasOwnProperty.call(configTemplate, field)) {
         throw new BadRequestException(`Missing required field '${field}' for assistant type '${type}'`);
       }
     }

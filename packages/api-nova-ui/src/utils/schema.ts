@@ -397,9 +397,10 @@ const generateStringSuggestions = (format?: string): string[] => {
         "https://www.example.com",
         "http://localhost:9000",
       ];
-    case "date":
+    case "date": {
       const today = new Date().toISOString().split("T")[0];
       return [today, "2024-01-01", "2024-12-31"];
+    }
     case "date-time":
       return [
         new Date().toISOString(),
