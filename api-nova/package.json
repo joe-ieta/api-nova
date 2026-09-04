@@ -1,0 +1,47 @@
+{
+  "name": "api-nova-monorepo",
+  "version": "1.0.0",
+  "description": "ApiNova monorepo for API gateway management and AI-ready API capability delivery",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.js",
+    "build:packages": "node scripts/build.js --non-ui",
+    "build:parser-chain": "node scripts/verify-parser-propagation.js --build-only --include-consumer-builds",
+    "prepack": "node scripts/build.js",
+    "pack": "pnpm pack --filter api-nova-server && pnpm pack --filter api-nova-parser",
+    "changeset":"changeset",
+    "version:packages":"changeset version",
+    "release":"pnpm run build && changeset publish",
+    "dev": "node scripts/dev.js",
+    "dev:ui": "pnpm --filter=api-nova-ui run dev",
+    "clean": "node scripts/clean.js",
+    "clean:build": "node scripts/clean.js --build-only",
+    "diagnostic": "node scripts/diagnostic.js",
+    "test": "pnpm -r run test",
+    "lint": "pnpm -r run lint",
+    "type-check": "pnpm -r run type-check",
+    "verify:parser-chain": "node scripts/verify-parser-propagation.js",
+    "verify:parser-chain:full": "node scripts/verify-parser-propagation.js --include-consumer-builds"
+  },
+  "keywords": [
+    "mcp",
+    "swagger",
+    "openapi",
+    "monorepo",
+    "model-context-protocol"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@changesets/changelog-github": "^0.5.1",
+    "@changesets/cli": "^2.29.5",
+    "@types/node": "^22.15.21",
+    "cross-env": "^7.0.3",
+    "nodemon": "^3.1.10",
+    "rimraf": "^5.0.5",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "tslib": "^2.8.1",
+    "typescript": "^5.8.3"
+  }
+}
