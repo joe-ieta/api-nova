@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Put, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RequirePermissions } from '../security/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../security/guards/jwt-auth.guard';
@@ -26,8 +26,9 @@ export class RuntimeUpstreamBindingsController {
   upsert(
     @Param('runtimeMembershipId') runtimeMembershipId: string,
     @Body() dto: UpsertRuntimeUpstreamBindingDto,
+    @Req() request: any,
   ) {
-    return this.service.upsert(runtimeMembershipId, dto);
+    return this.service.upsert(runtimeMembershipId, dto, this.mutationContext(request));
   }
 
   @Get('resolution')
@@ -40,8 +41,16 @@ export class RuntimeUpstreamBindingsController {
   @Delete()
   @RequirePermissions('server:manage')
   @ApiOperation({ summary: 'Delete a runtime membership upstream binding' })
-  async remove(@Param('runtimeMembershipId') runtimeMembershipId: string) {
-    await this.service.remove(runtimeMembershipId);
+  async remove(@Param('runtimeMembershipId') runtimeMembershipId: string, @Req() request: any) {
+    await this.service.remove(runtimeMembershipId, this.mutationContext(request));
     return { success: true };
+  }
+
+  private mutationContext(request: any) {
+    return {
+      actorId: request.user?.id,
+      ipAddress: request.ip,
+      userAgent: request.get?.('user-agent'),
+    };
   }
 }

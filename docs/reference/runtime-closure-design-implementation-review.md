@@ -1,8 +1,12 @@
 # Runtime Closure Design And Implementation Review
 
 > Document status: Active review record
-> Review date: 2026-07-22
+> Review date: 2026-09-07
 > Scope: Runtime instances, endpoint testing, publication bindings, Gateway/MCP deployment verification, and release closure
+
+## 2026-09-07 Governance And Sample-Retention Amendment
+
+The current baseline adds shared runtime-governance invalidation for upstream-instance and binding mutations, exposes `verificationRequired` in Runtime Asset summaries, and clears it only after successful Gateway/MCP verification activation. Source-instance and binding mutations now carry management-request actor context into audit records. Successful endpoint samples are bounded by a configurable UTF-8 capture limit, with digest/preview metadata for oversized values and a protected cleanup entry for expired archived samples. External deployment, identity-provider, platform and production durability gates remain open.
 
 ## 2026-09-06 Integration Amendment
 
@@ -12,7 +16,7 @@ The review below records the July baseline, not a fresh acceptance of every work
 
 No architecture-level reversal was found. The implementation preserves the intended separation between logical API assets, live runtime instances, endpoint evidence, publication membership, and deployable runtime assets. Activation safety is materially stronger than the earlier baseline.
 
-Five productization deviations remain. They are tracked as `DEV-01` through `DEV-05` in `open-items.md`; none is hidden by marking the work package complete.
+One productization deviation remains in the current baseline (`DEV-01`). `DEV-02` through `DEV-05` now have internal implementation coverage; their external acceptance and follow-up hardening remain tracked in `open-items.md`.
 
 ## Reviewed Contract Map
 
@@ -22,17 +26,17 @@ Five productization deviations remain. They are tracked as `DEV-01` through `DEV
 | Imported or manually entered addresses can be replaced without re-import | instance management and runtime upstream binding APIs/UI are present | aligned |
 | Successful API tests automatically save every distinct sample | success transaction writes one run and one sample; no confirmation path | aligned |
 | Failed tests remain evidence but do not create samples | failed-run path writes only the run | aligned |
-| Secrets are not persisted in samples or replay evidence | sensitive-key sanitization and `env-headers:` runtime references | aligned, retention limits remain open |
+| Secrets are not persisted in samples or replay evidence | sensitive-key sanitization and `env-headers:` runtime references | aligned; bounded capture and cleanup are implemented, binary object storage remains open |
 | Gateway services share one listen port and use a required prefix | required normalized `servicePrefix`; route snapshot scopes paths by prefix | aligned |
 | Gateway/MCP candidates cannot activate before required verification | deploy/start/redeploy flow plans and executes verification; direct managed-server bypass is quarantined | aligned |
 | Candidate failure keeps the previous active revision | Gateway snapshot rollback and MCP pre-persistence candidate replay | aligned |
 | Verification evidence is operator-visible | Runtime Asset verification dialog exposes blockers, assertions, results, and sanitized evidence | aligned |
 | SQLite/PostgreSQL start from a clean model | isolated verifiers confirm 38 domain tables and no pending migrations | aligned |
 | MCP endpoint is fully configurable before activation | deploy DTO has port/transport, but governed UI and explicit endpoint-path contract are incomplete | deviation `DEV-01` |
-| Upstream changes immediately expose verification-required state | candidate identity changes at next deploy, but no eager stale-state transition/run exists | deviation `DEV-02` |
-| Governance readiness is tied to current instance and endpoint revision | readiness uses endpoint metadata and does not invalidate on instance/contract changes | deviation `DEV-03` |
-| Sample storage is bounded and lifecycle-managed | samples are sanitized, but size/binary/retention controls are absent | deviation `DEV-04` |
-| Instance and binding mutations are fully audited | binding revision exists; actor/reason/history coverage is incomplete | deviation `DEV-05` |
+| Upstream changes immediately expose verification-required state | shared invalidation marks affected runtime assets and successful activation clears the marker | internally aligned; external acceptance remains |
+| Governance readiness is tied to current instance and endpoint revision | instance archive/update/default/probe changes invalidate affected assets; summary exposes the marker | internally aligned; external acceptance remains |
+| Sample storage is bounded and lifecycle-managed | sanitization, 256 KiB default cap, digest/preview fallback, and protected archived-sample cleanup are implemented | internally aligned; binary object storage remains open |
+| Instance and binding mutations are fully audited | audit logs include actor/IP/User-Agent, before/after, operation reason and resource identity | internally aligned; durable queue/retention remains open |
 
 ## Safety Boundary
 
@@ -51,7 +55,7 @@ The deviations do not permit an unverified candidate to silently replace an acti
 
 This review may be archived only after:
 
-1. `DEV-01` through `DEV-05` are closed or explicitly deferred by a new approved baseline;
+1. `DEV-01` is closed or explicitly deferred by a new approved baseline, and the internal implementation evidence for `DEV-02` through `DEV-05` is retained;
 2. `EXT-01` through `EXT-09` have recorded evidence;
 3. the release-readiness checklist is fully checked on Windows and Ubuntu;
 4. no active document links to a superseded plan as its source of truth.

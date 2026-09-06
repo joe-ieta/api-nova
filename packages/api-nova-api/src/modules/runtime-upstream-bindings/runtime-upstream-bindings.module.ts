@@ -4,6 +4,7 @@ import { RuntimeUpstreamBindingInstanceEntity } from '../../database/entities/ru
 import { RuntimeUpstreamBindingEntity } from '../../database/entities/runtime-upstream-binding.entity';
 import { SourceServiceInstanceEntity } from '../../database/entities/source-service-instance.entity';
 import { SecurityModule } from '../security/security.module';
+import { RuntimeGovernanceModule } from '../runtime-governance/runtime-governance.module';
 import { RuntimeUpstreamBindingsController } from './runtime-upstream-bindings.controller';
 import { RuntimeUpstreamBindingsService } from './services/runtime-upstream-bindings.service';
 
@@ -15,6 +16,7 @@ import { RuntimeUpstreamBindingsService } from './services/runtime-upstream-bind
       SourceServiceInstanceEntity,
     ]),
     SecurityModule,
+    RuntimeGovernanceModule,
   ],
   controllers: [RuntimeUpstreamBindingsController],
   providers: [RuntimeUpstreamBindingsService],

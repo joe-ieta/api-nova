@@ -31,6 +31,7 @@ describe('EndpointTestingService', () => {
     create: jest.fn((value: unknown) => value),
     save: jest.fn(async (value: unknown) => value),
     findAndCount: jest.fn(),
+    find: jest.fn(),
     findOne: jest.fn(),
     delete: jest.fn(),
   };
@@ -166,6 +167,37 @@ describe('EndpointTestingService', () => {
       }),
     );
     expect(testSampleRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('stores a bounded metadata summary for oversized payloads', async () => {
+    const result = await service.recordSuccessfulRun({
+      endpointDefinitionId: 'endpoint-1',
+      requestPayload: 'x'.repeat(300 * 1024),
+      responseStatusCode: 200,
+    });
+
+    expect(result.sample.requestPayload).toEqual(expect.objectContaining({
+      truncated: true,
+      byteLength: expect.any(Number),
+      sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      preview: expect.any(String),
+    }));
+  });
+
+  it('deletes only archived samples outside the configured retention window', async () => {
+    testSampleRepository.find.mockResolvedValue([
+      { id: 'sample-old' },
+      { id: 'sample-old-2' },
+    ]);
+    testSampleRepository.delete.mockResolvedValue({ affected: 1 });
+
+    await expect(service.cleanupExpiredSamples(30)).resolves.toEqual(
+      expect.objectContaining({ deletedCount: 2, retentionDays: 30 }),
+    );
+    expect(testSampleRepository.find).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ status: EndpointTestSampleStatus.ARCHIVED }),
+    }));
+    expect(testSampleRepository.delete).toHaveBeenCalledTimes(2);
   });
 
   it('rejects execution of a disabled test case', async () => {

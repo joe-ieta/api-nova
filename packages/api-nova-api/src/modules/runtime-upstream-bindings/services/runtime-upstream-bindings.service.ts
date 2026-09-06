@@ -17,12 +17,21 @@ import {
   SourceServiceInstanceStatus,
 } from '../../../database/entities/source-service-instance.entity';
 import { UpsertRuntimeUpstreamBindingDto } from '../dto/runtime-upstream-bindings.dto';
+import { AuditAction, AuditLevel, AuditStatus } from '../../../database/entities/audit-log.entity';
+import { AuditService } from '../../security/services/audit.service';
+import { RuntimeGovernanceInvalidationService } from '../../runtime-governance/services/runtime-governance-invalidation.service';
 
 export type RuntimeUpstreamResolutionReason =
   | 'resolved'
   | 'binding_not_active'
   | 'fixed_primary_unavailable'
   | 'no_healthy_candidate';
+
+export interface RuntimeUpstreamMutationContext {
+  actorId?: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
 
 @Injectable()
 export class RuntimeUpstreamBindingsService {
@@ -34,6 +43,8 @@ export class RuntimeUpstreamBindingsService {
     @InjectRepository(SourceServiceInstanceEntity)
     private readonly sourceInstanceRepository: Repository<SourceServiceInstanceEntity>,
     private readonly dataSource: DataSource,
+    private readonly auditService: AuditService,
+    private readonly governanceInvalidationService: RuntimeGovernanceInvalidationService,
   ) {}
 
   async getByMembership(runtimeMembershipId: string) {
@@ -48,6 +59,7 @@ export class RuntimeUpstreamBindingsService {
   async upsert(
     runtimeMembershipId: string,
     dto: UpsertRuntimeUpstreamBindingDto,
+    context: RuntimeUpstreamMutationContext = {},
   ) {
     const environment = dto.environment.trim().toLowerCase();
     if (!environment) {
@@ -87,7 +99,7 @@ export class RuntimeUpstreamBindingsService {
       );
     }
 
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const bindingRepository = manager.getRepository(RuntimeUpstreamBindingEntity);
       const candidateRepository = manager.getRepository(RuntimeUpstreamBindingInstanceEntity);
       const existing = await bindingRepository.findOne({
@@ -129,6 +141,29 @@ export class RuntimeUpstreamBindingsService {
       );
       return { binding: savedBinding, candidates };
     });
+    await this.governanceInvalidationService.invalidateForMembership(
+      runtimeMembershipId,
+      'runtime_upstream_binding_changed',
+      context,
+    );
+    await this.safeAudit({
+      action: AuditAction.API_CONFIGURED,
+      level: AuditLevel.INFO,
+      status: AuditStatus.SUCCESS,
+      resource: 'runtime_upstream_binding',
+      resourceId: runtimeMembershipId,
+      userId: context.actorId,
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+      details: {
+        operation: 'upsert',
+        reason: 'runtime_upstream_binding_changed',
+        revision: result.binding.revision,
+        after: result.binding,
+        candidateCount: result.candidates.length,
+      },
+    });
+    return result;
   }
 
   async resolve(runtimeMembershipId: string) {
@@ -183,7 +218,10 @@ export class RuntimeUpstreamBindingsService {
     return instance.basePath === '/' ? authority : `${authority}${instance.basePath}`;
   }
 
-  async remove(runtimeMembershipId: string) {
+  async remove(
+    runtimeMembershipId: string,
+    context: RuntimeUpstreamMutationContext = {},
+  ) {
     const binding = await this.requireBinding(runtimeMembershipId);
     await this.dataSource.transaction(async (manager) => {
       await manager.getRepository(RuntimeUpstreamBindingInstanceEntity).delete({
@@ -191,6 +229,35 @@ export class RuntimeUpstreamBindingsService {
       });
       await manager.getRepository(RuntimeUpstreamBindingEntity).delete(binding.id);
     });
+    await this.governanceInvalidationService.invalidateForMembership(
+      runtimeMembershipId,
+      'runtime_upstream_binding_removed',
+      context,
+    );
+    await this.safeAudit({
+      action: AuditAction.API_CONFIGURED,
+      level: AuditLevel.WARNING,
+      status: AuditStatus.SUCCESS,
+      resource: 'runtime_upstream_binding',
+      resourceId: runtimeMembershipId,
+      userId: context.actorId,
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+      details: {
+        operation: 'remove',
+        reason: 'runtime_upstream_binding_removed',
+        revision: binding.revision,
+        before: binding,
+      },
+    });
+  }
+
+  private async safeAudit(data: Parameters<AuditService['log']>[0]) {
+    try {
+      await this.auditService.log(data);
+    } catch {
+      // Audit persistence must not turn a completed configuration change into a failed request.
+    }
   }
 
   private async requireBinding(runtimeMembershipId: string) {

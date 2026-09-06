@@ -18,12 +18,18 @@ describe('RuntimeUpstreamBindingsService', () => {
   const dataSource = {
     transaction: jest.fn(),
   };
+  const auditService = { log: jest.fn().mockResolvedValue(undefined) };
+  const governanceInvalidationService = {
+    invalidateForMembership: jest.fn().mockResolvedValue([]),
+  };
 
   const service = new RuntimeUpstreamBindingsService(
     bindingRepository as any,
     candidateRepository as any,
     sourceInstanceRepository as any,
     dataSource as any,
+    auditService as any,
+    governanceInvalidationService as any,
   );
 
   const binding = {
@@ -164,5 +170,45 @@ describe('RuntimeUpstreamBindingsService', () => {
       }),
     ).rejects.toThrow('revision changed from 2 to 3');
     expect(transactionCandidateRepository.delete).not.toHaveBeenCalled();
+  });
+
+  it('invalidates the published runtime and audits a binding replacement', async () => {
+    sourceInstanceRepository.find.mockResolvedValue([instance('instance-primary')]);
+    const savedBinding = { ...binding, revision: 4 };
+    const transactionBindingRepository = {
+      findOne: jest.fn().mockResolvedValue(binding),
+      create: jest.fn(value => value),
+      save: jest.fn().mockResolvedValue(savedBinding),
+    };
+    const transactionCandidateRepository = {
+      delete: jest.fn(),
+      create: jest.fn(value => value),
+      save: jest.fn().mockResolvedValue([candidate('instance-primary', 0, 0)]),
+    };
+    dataSource.transaction.mockImplementation(async (callback: (manager: any) => unknown) =>
+      callback({
+        getRepository: (entity: { name: string }) =>
+          entity.name === 'RuntimeUpstreamBindingEntity'
+            ? transactionBindingRepository
+            : transactionCandidateRepository,
+      }),
+    );
+
+    await service.upsert('membership-1', {
+      sourceServiceAssetId: 'source-1',
+      environment: 'production',
+      selectionMode: RuntimeUpstreamSelectionMode.HEALTHY_PRIORITY,
+      candidates: [{ sourceServiceInstanceId: 'instance-primary' }],
+    });
+
+    expect(governanceInvalidationService.invalidateForMembership).toHaveBeenCalledWith(
+      'membership-1',
+      'runtime_upstream_binding_changed',
+      {},
+    );
+    expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({
+      resource: 'runtime_upstream_binding',
+      resourceId: 'membership-1',
+    }));
   });
 });

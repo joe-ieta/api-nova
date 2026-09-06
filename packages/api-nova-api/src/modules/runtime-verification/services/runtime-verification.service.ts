@@ -449,6 +449,10 @@ export class RuntimeVerificationService {
           activeUpstreamBindingRevisions: run.upstreamBindingRevisions || [],
           lastVerificationRunId: run.id,
           activatedAt: new Date().toISOString(),
+          verificationRequired: false,
+          verificationRequiredAt: undefined,
+          verificationRequiredReason: undefined,
+          verificationRequiredContext: undefined,
         };
         await this.runtimeAssetRepository.save(runtimeAsset);
         run.status = RuntimeVerificationRunStatus.PASSED;
@@ -600,6 +604,10 @@ export class RuntimeVerificationService {
       activeMcpBehaviorFingerprint: run.metadata?.behaviorFingerprint,
       lastVerificationRunId: run.id,
       activatedAt: new Date().toISOString(),
+      verificationRequired: false,
+      verificationRequiredAt: undefined,
+      verificationRequiredReason: undefined,
+      verificationRequiredContext: undefined,
     };
     await runtimeAssetRepository.save(runtimeAsset);
     run.activationStatus = RuntimeVerificationActivationStatus.ACTIVATED;

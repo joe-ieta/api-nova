@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash } from 'node:crypto';
 import { Repository } from 'typeorm';
+import { LessThan } from 'typeorm';
 import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
 import { EndpointTestCaseEntity } from '../../../database/entities/endpoint-test-case.entity';
 import {
@@ -57,6 +58,14 @@ export interface RecordEndpointTestFailureInput {
 export class EndpointTestingService {
   private readonly sensitiveKeyPattern =
     /authorization|proxy-authorization|cookie|set-cookie|api[-_]?key|access[-_]?token|refresh[-_]?token|secret|password|passwd|credential|session/i;
+  private readonly sampleMaxBytes = this.readPositiveInt(
+    process.env.ENDPOINT_TEST_SAMPLE_MAX_BYTES,
+    256 * 1024,
+  );
+  private readonly sampleRetentionDays = this.readPositiveInt(
+    process.env.ENDPOINT_TEST_SAMPLE_RETENTION_DAYS,
+    90,
+  );
 
   constructor(
     @InjectRepository(EndpointDefinitionEntity)
@@ -189,6 +198,23 @@ export class EndpointTestingService {
     return { sampleId, deleted: true };
   }
 
+  async cleanupExpiredSamples(retentionDays = this.sampleRetentionDays) {
+    const days = this.readPositiveInt(String(retentionDays), this.sampleRetentionDays);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const expired = await this.testSampleRepository.find({
+      where: {
+        status: EndpointTestSampleStatus.ARCHIVED,
+        capturedAt: LessThan(cutoff),
+      },
+      select: { id: true },
+    });
+    for (const sample of expired) {
+      await this.testSampleRepository.delete({ id: sample.id });
+    }
+    return { deletedCount: expired.length, retentionDays: days, cutoff };
+  }
+
   async recordSuccessfulRun(input: RecordEndpointTestSuccessInput) {
     await this.validateRunReferences(input.endpointDefinitionId, input.testCaseId);
     const executedAt = input.executedAt ?? new Date();
@@ -261,12 +287,32 @@ export class EndpointTestingService {
     metadata?: Record<string, unknown>;
   }) {
     return {
-      requestHeaders: this.sanitizeRecord(input.requestHeaders),
-      requestPayload: this.sanitizeValue(input.requestPayload),
-      responseHeaders: this.sanitizeRecord(input.responseHeaders),
-      responsePayload: this.sanitizeValue(input.responsePayload),
+      requestHeaders: this.boundCapturedValue(this.sanitizeRecord(input.requestHeaders)),
+      requestPayload: this.boundCapturedValue(this.sanitizeValue(input.requestPayload)),
+      responseHeaders: this.boundCapturedValue(this.sanitizeRecord(input.responseHeaders)),
+      responsePayload: this.boundCapturedValue(this.sanitizeValue(input.responsePayload)),
       metadata: this.sanitizeRecord(input.metadata),
     };
+  }
+
+  private boundCapturedValue(value: unknown): any {
+    if (value === undefined) return value;
+    const serialized = JSON.stringify(value) ?? 'null';
+    const byteLength = Buffer.byteLength(serialized, 'utf8');
+    if (byteLength <= this.sampleMaxBytes) return value;
+    const digest = createHash('sha256').update(serialized).digest('hex');
+    const preview = serialized.slice(0, 4096);
+    return {
+      truncated: true,
+      byteLength,
+      sha256: digest,
+      preview,
+    };
+  }
+
+  private readPositiveInt(value: string | undefined, fallback: number) {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
   }
 
   private sanitizeRecord(value?: Record<string, unknown>) {

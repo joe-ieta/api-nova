@@ -31,6 +31,7 @@ import { SourceServiceInstancesModule } from './modules/source-service-instances
 import { EndpointTestingModule } from './modules/endpoint-testing/endpoint-testing.module';
 import { RuntimeUpstreamBindingsModule } from './modules/runtime-upstream-bindings/runtime-upstream-bindings.module';
 import { RuntimeVerificationModule } from './modules/runtime-verification/runtime-verification.module';
+import { RuntimeGovernanceModule } from './modules/runtime-governance/runtime-governance.module';
 
 // 通用组件
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -124,6 +125,7 @@ const envFilePath = [
     EndpointTestingModule,
     RuntimeUpstreamBindingsModule,
     RuntimeVerificationModule,
+    RuntimeGovernanceModule,
   ],
   controllers: [AppController],
   providers: [

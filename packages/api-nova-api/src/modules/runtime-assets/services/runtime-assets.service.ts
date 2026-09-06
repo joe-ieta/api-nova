@@ -1464,6 +1464,7 @@ export class RuntimeAssetsService {
         ? await this.findManagedServerForRuntimeAsset(runtimeAsset)
         : managedServer;
     const managedServerSummary = this.toManagedServerSummary(resolvedManagedServerEntity);
+    const governanceMetadata = runtimeAsset.metadata || {};
     const gatewayGovernance =
       runtimeAsset.type === RuntimeAssetType.GATEWAY_SERVICE
         ? await this.buildRuntimeAssetGatewayGovernanceSummary(
@@ -1493,6 +1494,9 @@ export class RuntimeAssetsService {
           ? this.gatewayRuntimeMetricsService.getRuntimeAssetMetrics(runtimeAsset.id)
           : null,
       gatewayGovernance,
+      verificationRequired: governanceMetadata.verificationRequired === true,
+      verificationRequiredAt: governanceMetadata.verificationRequiredAt,
+      verificationRequiredReason: governanceMetadata.verificationRequiredReason,
     };
   }
 

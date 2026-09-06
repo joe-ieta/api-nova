@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { SourceServiceAssetEntity } from '../../database/entities/source-service-asset.entity';
 import { SourceServiceInstanceEntity } from '../../database/entities/source-service-instance.entity';
 import { SecurityModule } from '../security/security.module';
+import { RuntimeGovernanceModule } from '../runtime-governance/runtime-governance.module';
 import { SourceServiceInstancesController } from './source-service-instances.controller';
 import { SourceServiceInstancesService } from './services/source-service-instances.service';
 
@@ -12,6 +13,7 @@ import { SourceServiceInstancesService } from './services/source-service-instanc
     HttpModule,
     TypeOrmModule.forFeature([SourceServiceAssetEntity, SourceServiceInstanceEntity]),
     SecurityModule,
+    RuntimeGovernanceModule,
   ],
   controllers: [SourceServiceInstancesController],
   providers: [SourceServiceInstancesService],

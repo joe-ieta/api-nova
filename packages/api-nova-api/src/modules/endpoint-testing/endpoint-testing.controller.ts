@@ -104,6 +104,13 @@ export class EndpointTestingController {
     return this.endpointTestingService.archiveTestSample(sampleId);
   }
 
+  @Post('test-samples/cleanup')
+  @RequirePermissions('server:manage')
+  @ApiOperation({ summary: 'Delete archived endpoint samples past the retention window' })
+  cleanupExpiredSamples() {
+    return this.endpointTestingService.cleanupExpiredSamples();
+  }
+
   @Delete('test-samples/:sampleId')
   @RequirePermissions('server:manage')
   @ApiOperation({ summary: 'Delete an endpoint test sample' })

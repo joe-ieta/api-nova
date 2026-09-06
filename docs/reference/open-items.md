@@ -1,16 +1,16 @@
-# Open Items
+# 未完成事项
 
-> Document status: Active
-> Last reviewed: 2026-09-06
-> Owner: Product closure and release governance
+> 文档状态：Active
+> 最近复核：2026-09-07
+> 负责人：产品闭环与发布治理
 
-## Purpose
+## 目的
 
-This file contains only unfinished work. Completed implementation history belongs in `docs/archive`; detailed executable cases belong in `docs/testing`.
+本文件仅记录未完成项。已完成实现历史请放在 `docs/archive`；可执行的测试用例请放在 `docs/testing`。
 
-## Active Baseline
+## 当前基线
 
-Use these documents together:
+请同时参考这些文档：
 
 - `docs/guides/staged-development-plan.md`
 - `docs/guides/runtime-instance-and-regression-closure-plan.md`
@@ -19,165 +19,213 @@ Use these documents together:
 - `docs/guides/runtime-security-and-call-audit.md`
 - `docs/testing/runtime-security-audit-cases.md`
 
-## Remaining-Work Review: 2026-09-06
+## 剩余工作回顾：2026-09-07
 
-The recording/authentication implementation and controlled local integration are complete for the tested scope, not production acceptance. The remaining work is grouped below; adding a deferred item here does not authorize implementing it in the current change.
+当前录入与鉴权实现及受控本地联调已在既定测试范围内完成，但尚未构成生产验收。2026-09-07 已推进治理状态失效、变更审计和测试样例留存护栏；剩余工作如下；在本文件新增“延后项”仅表示记录，不代表当前变更可实现。
 
-- Release/environment gates: `EXT-01` through `EXT-11`, `ENV-01`, `SEC-OPS-01`, and `SEC-DEP-01`.
-- Existing productization gaps: `DEV-01` through `DEV-05`; the security work does not close them.
-- Follow-up audit work: `AUDIT-01` through `AUDIT-04` (analysis, retention, durability and caller-inventory scaling).
-- Follow-up security/governance design: `SEC-AUTH-01` and `SEC-POLICY-01` (token adapters and cross-protocol policy/QoS).
+- 外部环境验收：`EXT-01` 到 `EXT-11`、`ENV-01`、`SEC-OPS-01`、`SEC-DEP-01`。
+- 已存在的产品化缺口：`DEV-01`（仍待 UI/合同）、以及 `DEV-02` 到 `DEV-05` 的外部验收与后续增强。
+- 后续审计任务：`AUDIT-01` 到 `AUDIT-04`（分析检索、留存策略、持久化、调用方清单扩展）。
+- 后续安全与治理设计：`SEC-AUTH-01` 与 `SEC-POLICY-01`（令牌适配器与跨协议策略/QoS）。
 
-Record the responsible operator, target environment, tested commit, commands, result and sanitized evidence location when closing a gate. Keep credentials in approved local configuration/secret storage, never in this document or Git. Local fixture evidence must not be substituted for an unexecuted external case.
+### 可并行推进项（当前先执行）
 
-## 1. External-Environment Acceptance
+以下任务不需要外部 OAuth/JWKS、真实上游发布环境或外部数据库即可推进，先进入并行开发：
 
-Status: blocked by environment availability, not by the automated code baseline.
+#### 任务包 A：治理状态一致性（P1）
 
-These tests must pass before release and are intentionally not claimed as complete:
+- 目标：缩小“可见状态与实际状态”差距，优先保证运营端信息可信。
+- 包含项：`DEV-02`、`DEV-03`、`DEV-05`。
+- 交付：
+  - 上游绑定变更立即触发校验/标记要求。
+  - 运行时实例归档、实例变更、合约变更后对就绪证据做失效或重算。
+  - 实例/绑定/治理关键变更写入完整 actor/reason/revision 审计链。
+- 预期依赖：仅数据库/现有服务端状态表与现网快照读写。
+  - 2026-09-07 进展：已新增共享治理失效服务；绑定或实例变更会写入关联运行时资产的 `verificationRequired`、原因、时间和上下文，重新验证激活会清除该标记。实例/绑定变更同时写入 `audit_logs`，保留 actor（来自管理请求 JWT）、IP/User-Agent、before/after 和操作原因。
 
-- `EXT-01`: real upstream OpenAPI import with an absolute server URL
-- `EXT-02`: unresolved OpenAPI import repaired by attaching a live runtime instance
-- `EXT-03`: manual API registration against a live upstream
-- `EXT-04`: move an API from retired host/port A to live host/port B without re-import
-- `EXT-05`: live Gateway aggregate-service consumer probe through the configured service prefix
-- `EXT-06`: live MCP consumer probe using the selected transport and runtime credentials
-- `EXT-07`: failed candidate replay retains the last-known-good Gateway and MCP revisions
-- `EXT-08`: Windows API/UI interactive startup and basic import/conversion workflow
-- `EXT-09`: complete Ubuntu install, build, startup, parser verification, and streamable-session path
-- `EXT-10`: real OAuth provider/JWKS rotation, HTTPS reverse proxy and third-party MCP client authorization flow (resource metadata, audience, scopes, reconnection). Local signed-token tests are not equivalent to this acceptance.
-- `EXT-11`: rerun the 40-table canonical migration and full API startup against an approved isolated PostgreSQL instance. SQLite migration/startup and PostgreSQL column-definition tests passed on 2026-09-06; a live PostgreSQL run was not performed for the added configuration tables.
-- `ENV-01`: full Windows `/health` disk probe requires access unavailable in the restricted test environment (WMI/profile permission errors). Do not relax system execution policies as a workaround. The local multi-process test uses `/api/health/ready`, not a claim that all system probes passed.
+#### 任务包 B：样例与审计留存的可控化（P1）
 
-Controlled progress on 2026-09-06: `npm run verify:runtime-security-integration` passed real API/MCP processes with a local HTTPS reverse proxy and HTTPS JWKS rotation, SDK calls, protected management inventory and cross-process API evidence. This narrows but does not close `EXT-10`: issuer login/consent and actual deployment configuration remain external acceptance.
+- 目标：降低样例与调用留存的不可控增长风险。
+- 包含项：`DEV-04`、`AUDIT-02`、`AUDIT-03`（第一阶段）。
+- 交付：
+  - 统一定义体量上限与二进制落盘策略（如元数据化摘要）。
+  - 新增可配置保留策略和清理入口。
+  - 给异步审计失败、背压、重试策略增加可观测边界指标和告警条件。
+- 预期依赖：仅本地/本项目配置与现有 `runtime-call-audit` 组件。
+  - 2026-09-07 进展：成功测试样例增加 UTF-8 体量上限（默认 256 KiB，超限保存 SHA-256、字节数和预览），并提供受权限保护的 `POST /v1/endpoint-testing/test-samples/cleanup` 清理入口；通过 `ENDPOINT_TEST_SAMPLE_MAX_BYTES` 与 `ENDPOINT_TEST_SAMPLE_RETENTION_DAYS` 调整默认值。
 
-Execution details and evidence fields are defined in `docs/testing/runtime-publication-acceptance-cases.md`.
+#### 任务包 C：观测能力基础化（P2）
 
-To resume external integration, supply the trusted issuer/JWKS URLs, Gateway/MCP public URLs and proxy configuration, the local path to test credentials, and permission/connection details for a dedicated temporary PostgreSQL database. Test the actual login/consent and client refresh/reconnect flow, then rerun `npm run verify:runtime-closure` against the 40-table target. The full closure gate has not been rerun with the updated PostgreSQL schema. The current security fixture seeds route snapshots directly and does not exercise registration, governance, publication or managed deployment end to end.
+- 目标：为后续检索分析打底，不替代完整分析平台。
+- 包含项：`AUDIT-04`，以及 `AUDIT-01` 的基础数据接口预置。
+- 交付：
+  - 调用方清单索引/聚合的本地最小化实现（基于日级文件清单或轻量索引）。
+  - 增补观测生命周期元数据（首次/末次/调用次数/大小估算）。
+  - 为后续检索 UI/导出预留 schema 与权限入口。
+- 预期依赖：本地审计文件目录与现有管理端点结构。
 
-## 2. Design And Implementation Deviations
+#### 外部条件阻塞项（暂不改动）
 
-The main architecture is aligned, but the following productization gaps remain.
+- 以下项建议先挂起并作为回归后置条件：`EXT-01`~`EXT-11`、`ENV-01`、`SEC-OPS-01`、`SEC-DEP-01`、`SEC-AUTH-01`、`SEC-POLICY-01`、`DEV-01`、`AUDIT-01` 的检索/展示阶段、以及 `DEV-01` 依赖的 UI 交互联调。
 
-### AUDIT-01: Call analysis and inspection workflows
+当关闭某个验收项时，请记录责任人、目标环境、对应提交、执行命令、结果及脱敏证据位置。凭据必须保存在经批准的本地配置/密钥管理中，不要写入该文档或 Git。联调夹具证据不得替代未执行的外部用例。
 
-Status: explicitly deferred beyond the current recording/authentication work.
+## 1. 外部环境验收
 
-Caller timelines, API/transport/time-range search, Payload/Response inspection, analysis and controlled export remain unimplemented. The automatic caller inventory endpoint is not a log-analysis feature. Define access control, pagination, redaction and export authorization before adding UI; acceptance must preserve concurrent/parent-child relationships without treating timestamp order as causality.
+状态：受环境可用性限制阻塞，不是代码基线阻塞。
 
-### AUDIT-02: Audit retention and storage lifecycle
+下列测试项必须通过后才能发布，不应视为已完成：
 
-Status: follow-up development; deployment safeguards are required under `SEC-OPS-01`.
+- `EXT-01`：真实上游 OpenAPI 导入，使用绝对服务器 URL
+- `EXT-02`：未解析的 OpenAPI 导入，通过绑定实际运行时实例修复
+- `EXT-03`：针对真实上游的手工 API 注册
+- `EXT-04`：将某 API 从下线主机/端口 A 迁移到在线主机/端口 B，无需重新导入
+- `EXT-05`：通过配置前缀执行实时 Gateway 聚合服务消费者探测
+- `EXT-06`：使用选定传输与运行时凭据执行实时 MCP 消费者探测
+- `EXT-07`：失败候选回归时保留上一次已知可用的 Gateway 与 MCP 版本
+- `EXT-08`：Windows 平台 API/UI 交互启动与基础导入/转换流程
+- `EXT-09`：完整 Ubuntu 安装、构建、启动、解析器校验与 Streamable 会话路径
+- `EXT-10`：真实 OAuth 提供方/JWKS 轮换、HTTPS 反代及第三方 MCP 客户端授权链路（资源元数据、audience、scope、重连）。本地签名令牌测试不能替代该验收项。
+- `EXT-11`：在正式隔离 PostgreSQL 上重新执行 40 表规范迁移并完成 API 全量启动。2026-09-06 已完成 SQLite 迁移/启动与 PostgreSQL 列类型测试，但对新增配置表未执行真实 PostgreSQL 运行。
+- `ENV-01`：完整 Windows `/health` 磁盘探测受当前限制环境权限影响（WMI/用户目录权限报错）而受阻，不应通过放宽系统执行策略规避。多进程本地联调只使用 `/api/health/ready`，不能当作全量系统探测通过的证据。
 
-Daily JSONL splitting exists, but automatic retention cleanup, file/total-storage quotas, encrypted large-object storage and extended/nested multipart support do not. Define retention/deletion and backup policies for both call files and caller observations, test boundary-sized/binary evidence and safe cleanup, and document unsupported formats. Standard form-data field/file capture and per-body size limits already exist; do not conflate this item with the separate test-sample storage gap `DEV-04`.
+受控进展（2026-09-06）：`npm run verify:runtime-security-integration` 已在真实 API/MCP 进程、HTTPS 反代、HTTPS JWKS 轮换、SDK 调用、受保护的管理侧边清单与跨进程 API 证据场景下通过。该结果缩小了风险面，但尚未关闭 `EXT-10`：issuer 登录/授权同意及真实发布配置仍需外部验收。
 
-### AUDIT-03: Durability and sustained-load guarantees
+执行细节与证据字段定义见 `docs/testing/runtime-publication-acceptance-cases.md`。
 
-Status: follow-up design and fault/load validation; zero-loss auditing is not a current guarantee.
+恢复外部联调前需提供：受信任 issuer/JWKS URL、Gateway/MCP 公网 URL 与反向代理配置、测试凭据本地路径、以及专用临时 PostgreSQL 数据库的连接与权限信息。完成真实登录/同意流程、客户端刷新与重连后，再次执行 `npm run verify:runtime-closure`（针对 40 表目标）。完整闭环尚未使用更新后的 PostgreSQL 模式重跑。当前安全夹具直接种子化路由快照，不覆盖从注册、治理、发布到托管部署的端到端流程。
 
-Current asynchronous JSONL writes fail open, emit a sanitized failure warning and flush on graceful shutdown. Durable queues, bounded write backlog/backpressure, crash recovery, tamper evidence and production-load guarantees remain unimplemented/unverified. Define the intended loss and latency budgets before choosing storage or queue mechanisms. Cover slow/full/read-only disks, process termination, long-running requests and sustained concurrent maximum-size bodies; no replay of a business call may be introduced merely to recover its audit record.
+## 2. 设计与实现偏差
 
-### AUDIT-04: Caller inventory scale and multi-host collection
+主架构保持对齐，但以下产品化缺口仍未关闭。
 
-Status: follow-up development; no caller preregistration requirement may be introduced.
+### AUDIT-01：调用分析与检索工作流
 
-The management endpoint merges append-only caller observations from the shared local directory on each read; it has no persistent search index/compaction or multi-host collector. Add bounded-cost indexing/aggregation and observation lifecycle handling when scale requires it, and define optional caller annotations/maintenance separately from authentication. Preserve issuer/subject identity across token refresh and transport changes; never merge different issuers by display name or turn an observed caller into an authorization grant.
+状态：在本次录入/鉴权工作之外，明确延后。
 
-The active recording contract is [安全调用与日志审计](../guides/runtime-security-and-call-audit.md).
+调用方时间线、API/传输/时间范围检索、Payload/Response 检视、分析与受控导出仍未实现。自动调用方清单接口不是日志分析能力。新增前需先定义访问控制、分页、脱敏和导出授权；验收必须保留并发与父子调用关系，不得仅用时间排序当作因果链。
 
-### DEV-01: MCP deployment endpoint configuration
+### AUDIT-02：审计留存与存储生命周期
 
-Priority: P1
+状态：后续开发；部署层面的安全要求在 `SEC-OPS-01` 下执行。
 
-The backend deploy DTO supports MCP `port` and `transport`, but the governed publication/runtime UI does not expose them. An explicit validated MCP `endpointPath` contract is also absent. Until this is implemented, the operator cannot fully define the published MCP endpoint before activation.
+已具备按日 JSONL 分片，但未实现自动留存清理、文件/总量配额、加密大对象存储与扩展的嵌套 multipart 支持。需为调用日志与调用方观测定义留存/删除与备份策略，补齐边界体积/二进制证据与安全清理测试，并记录不支持的格式。标准 `form-data` 字段与文件采集以及单次体量上限已存在；本项不要与独立的测试样例存储缺口 `DEV-04` 混淆。
 
-### DEV-02: Upstream-change verification state
+### AUDIT-03：持久性与高并发保障
 
-Priority: P1
+状态：后续设计与故障/压测验证；当前尚不保证零丢失。
 
-Changing a runtime upstream binding increments its revision and therefore changes the next deployment candidate identity. It does not immediately create a verification run or mark the active runtime asset as `verification_required`. Safety is enforced at deploy/redeploy, but operator-visible stale state is incomplete.
+当前异步 JSONL 写入失败时走 fail-open，发出脱敏告警并在优雅关闭时 flush。未实现持久队列、有限写入队列与背压、崩溃恢复、篡改证据和生产级承载能力。应在选择存储/队列方案前先定义可接受的丢失与延迟预算。覆盖慢盘/满盘/只读盘、进程被终止、长耗时请求与持续高并发大体量场景；不能通过重放业务调用来“补齐”审计记录。
 
-### DEV-03: Instance-aware governance evidence
+### AUDIT-04：调用方清单规模化与多主机采集
 
-Priority: P1
+状态：后续开发；不应引入调用方预注册要求。
 
-Endpoint readiness currently uses endpoint metadata such as `testStatus` and probe status. It does not explicitly invalidate governance readiness when the qualifying test instance is archived, the selected instance changes, or the endpoint contract revision changes. Deployment replay still protects activation, but pre-publication readiness can present stale evidence.
+管理端点当前在每次读取时会合并共享本地目录中的追加日志文件；没有持久索引/压缩机制，也没有多主机采集器。规模化后应补充有界成本索引与聚合、观测生命周期处理，并单独定义可选的调用方标注与运维维护能力。保持跨 Token 刷新和传输切换的 issuer/subject 身份一致，禁止按展示名合并不同 issuer，也不要将观测到的调用方直接升级为授权授予。
 
-### DEV-04: Sample storage and retention controls
+当前生效的录入合约为 [安全调用与日志审计](../guides/runtime-security-and-call-audit.md)。
 
-Priority: P1
+### DEV-01：MCP 发布端点配置
 
-Successful samples are automatically saved and sanitized, but payload-size limits, binary body metadata-only handling, configurable retention classes, and cleanup jobs are not implemented. This is a database-growth and sensitive-data-governance risk.
+优先级：P1
 
-### DEV-05: Instance and binding mutation audit
+后端发布 DTO 已支持 MCP 的 `port` 与 `transport`，但受管发布/运行时 UI 尚未暴露它们。显式且可校验的 MCP `endpointPath` 合同也尚未落地。因此运营方目前不能在启用前完整定义 MCP 发布端点。
 
-Priority: P2
+### DEV-02：上游变更校验状态
 
-Runtime upstream bindings have optimistic revisions and deployment verification has actor evidence for waivers. Source-instance and binding mutations do not yet persist a complete actor/reason/history audit trail.
+优先级：P1
 
-## 3. Runtime-Asset Observability Hardening
+状态：内部实现完成；真实发布回归仍待外部验收。
 
-Status: active.
+修改运行时上游绑定会修改修订号，并立即将关联运行时资产标记为 `verificationRequired=true`，记录原因、时间和上下文。部署/重部署阶段仍需执行验证；成功激活后清除标记。
 
-- broaden system-log, audit-log, and metrics projections on the runtime-asset-first model
-- deepen publication-to-runtime-to-monitoring correlation
-- keep residual `/v1/servers/*` observability routes marked as compatibility surfaces
+### DEV-03：实例感知治理证据
 
-## 4. Frontend Structural And Bundle Cleanup
+优先级：P1
 
-Status: deferred until release behavior is stable.
+状态：内部实现完成；真实发布回归仍待外部验收。
 
-- split `EndpointRegistry` after the real acceptance path is stable
-- preserve separate registration, governance, and publication responsibilities
-- address production chunk-size warnings through measured code splitting
+关联测试实例归档、地址/端口/凭据等实例变更、默认实例切换和探测结果变化，都会显式失效关联运行时资产的验证标记。端点合约修订仍由发布候选 revision 负责；预发布摘要现在可直接读取 `verificationRequired` 状态。
 
-## 5. I18n And Encoding Hardening
+### DEV-04：样例存储与留存控制
 
-Status: active maintenance.
+优先级：P1
 
-- replace operator-visible mojibake in touched areas
-- move remaining hard-coded operator copy into locale modules
-- avoid unrelated cosmetic churn
+状态：第一阶段内部实现完成；二进制专用对象存储和生产留存策略仍属后续项。
 
-## 6. Security And Notification Delivery
+成功样例会自动保存并做脱敏；超过体量上限时保存摘要元数据而不是完整载荷。归档样例可通过受保护清理入口按保留天数删除。当前仅覆盖 JSON/文本摘要，二进制专用对象存储仍需外部部署决策。
 
-Status: notification delivery remains deferred. The release gates and follow-up capabilities below carry their own explicit statuses.
+### DEV-05：实例与绑定变更审计
 
-- email verification delivery
-- password reset email delivery
-- email notification delivery
-- broader security-workflow completeness review
+优先级：P2
 
-### SEC-DEP-01: Production dependency advisory check
+状态：内部实现完成；操作者身份透传与运营审计检索仍待后续工作。
 
-Status: environment-blocked pending explicit data-transfer authorization (2026-09-06).
+源实例和上游绑定的创建、更新、归档、默认切换、探测、删除/替换均写入现有 `audit_logs`，资源类型、操作、before/after、原因和关联 revision 可用于后续检索。审计写入失败不阻断已完成的配置变更，生产告警/持久队列仍由 `AUDIT-02`/`AUDIT-03` 负责。
 
-`npm audit --omit=dev --json` could not complete: sandbox network access failed and the approval reviewer blocked sending dependency names/versions to the npm registry without explicit user authorization. No audit result is claimed and no automatic dependency upgrades were performed. Complete the online check after authorization, triage the actual advisory paths, and rerun the affected package tests before release.
+## 3. 运行时资产可观测性加固
 
-### SEC-OPS-01: Production security and audit deployment acceptance
+状态：进行中。
 
-Status: required before production exposure; depends on the target deployment environment.
+- 扩展运行时资产优先模型下系统日志、审计日志与指标透视
+- 深化“发布-运行时-监控”链路关联
+- 保留 `/v1/servers/*` 观测兼容面为兼容性入口
 
-- Verify issuer, audience, scopes, resource metadata, TLS/proxy paths and Host/Origin allowlists for every exposed runtime. Assign distinct audiences where services require separate authorization boundaries.
-- Review persisted Gateway snapshots and explicitly reverify/redeploy routes needing OAuth. New production defaults do not rewrite existing anonymous or legacy-auth snapshots; management JWT and upstream credentials must remain separate from external caller tokens.
-- Set a persistent absolute audit directory, Windows NTFS ACL or Linux ownership/modes, encrypted disk/backups, operational quota/retention safeguards, and business-specific redaction fields. Current file modes do not establish Windows ACLs, and arbitrary binary/business secrets cannot be automatically recognized.
-- Connect `[RUNTIME_AUDIT_WRITE_FAILED]` to operational alerting and document acceptance of fail-open/loss behavior. Exercise access denial, alert delivery and backup/restore on the target host; unit failure injection is not deployment evidence.
-- Confirm the migration CLI's explicit database environment and backup/rollback procedure before applying the 40-table schema to a real database. No current business database was migrated during local integration.
+## 4. 前端结构与打包整理
 
-Close only with sanitized per-environment evidence and recorded operator decisions; automatic retention/durability implementation stays separately tracked in `AUDIT-02`/`AUDIT-03`.
+状态：待发布行为稳定后再执行。
 
-### SEC-AUTH-01: Additional token adapters and revocation
+- 在真实验收路径稳定后拆分 `EndpointRegistry`
+- 保留注册、治理、发布三者职责分离
+- 用测量数据处理生产环境分块警告，完成必要的代码分割
 
-Status: deferred capability design, not part of the implemented JWT resource-server contract.
+## 5. 国际化与编码加固
 
-Opaque-token introspection, immediate revocation and generalized multi-issuer adapters are not implemented. Confirm the actual provider requirement before expanding the adapter; define introspection authentication, caching/outage behavior and revoked-session handling. Current RS256/ES256 JWT validation relies on trusted issuer/JWKS and expiry. ApiNova remains a resource server; building an authorization server or automatically trusting arbitrary issuers is outside this baseline.
+状态：持续维护。
 
-### SEC-POLICY-01: Cross-protocol fine-grained authorization and QoS
+- 替换相关区域中的可见乱码
+- 将剩余固定文案收口到 locale 模块
+- 避免非必要的视觉与内容大改动
 
-Status: deferred design/approval; not included in the current logging/authentication work.
+## 6. 安全与通知投递
 
-Gateway OAuth base scopes are process-level and MCP supports additional per-tool scopes. A governed per-route/API scope editor, unified caller/API rate-limit policy across Gateway/MCP, and QoS tiers/quotas/priorities are not implemented as one shared contract. Existing Gateway traffic control must not be presented as cross-protocol QoS. Define scope inheritance, admission outcomes and observable rejection records before implementation, preserving MCP HTTP/SSE/Streamable semantics and ApiNova's lightweight product-gateway boundary.
+状态：通知投递仍待处理，以下发布门禁与后续能力各自带有独立状态。
 
-## Evidence Boundary
+- 邮件校验码投递
+- 重置密码邮件投递
+- 其他邮件通知投递
+- 更广泛安全流程完整性复盘
 
-Completed behavior and test counts are documented in the active design/acceptance records linked above, not treated as open work here. The historical July 38-table PostgreSQL result does not close current `EXT-11`. The controlled security integration and 40-table SQLite result do not close external identity-provider, managed-publication, UI/platform or production-operational acceptance.
+### SEC-DEP-01：生产依赖安全公告检查
+
+状态：环境阻塞，待明确数据外传授权（2026-09-06）。
+
+`npm audit --omit=dev --json` 无法完成：沙箱网络访问失败，且审批审查者阻止在未授权前将依赖名/版本发送到 npm 仓库。未产生有效审计结果，也未执行自动化依赖升级。请在授权后完成线上检查，梳理真实告警路径，再在发布前重跑相关包测试。
+
+### SEC-OPS-01：生产安全与审计发布验收
+
+状态：生产发布前强制项，依赖目标部署环境。
+
+- 确认每个对外运行时的 issuer、audience、scope、资源元数据、TLS/反代路径及 Host/Origin 白名单；在需分离授权边界的场景使用不同 audience。
+- 复核已持久化的 Gateway 快照，明确重新验证并重发布需 OAuth 的路由。生产新默认不会重写已有匿名或历史鉴权快照；管理端 JWT 与上游凭据必须与外部调用者令牌分离。
+- 建立持久绝对审计目录、Windows NTFS ACL 或 Linux 所有权/权限、加密磁盘与备份、运行时配额/留存护栏；当前文件模式未建立 Windows ACL，且无法自动识别任意业务密钥。
+- 将 `[RUNTIME_AUDIT_WRITE_FAILED]` 与运维告警闭环，并明确受理 fail-open/丢失行为。执行访问拒绝、告警触达、备份/恢复演练，避免仅用单元故障注入代替部署验收。
+- 发布前确认迁移 CLI 的显式数据库环境和备份/回滚流程，再将 40 表结构应用至真实数据库。当前本地联调未执行真实业务数据库迁移。
+
+仅凭脱敏后的环境级证据和记录到位的运营决策方可关闭；留存与持久化补强仍分别在 `AUDIT-02`/`AUDIT-03` 跟踪。
+
+### SEC-AUTH-01：额外令牌适配与撤销能力
+
+状态：能力设计延后，不属于已实施的 JWT 资源服务器合同。
+
+不透明令牌内省、即时撤销与通用多 Issuer 适配器未实现。请先确认真实提供商要求，再扩展适配；需定义内省鉴权、缓存/异常时行为与撤销会话处理。当前 RS256/ES256 JWT 校验采用信任 issuer+JWKS 与过期控制。ApiNova 仍为资源服务器，不构建授权服务器，也不自动信任任意 issuer。
+
+### SEC-POLICY-01：跨协议精细鉴权与 QoS
+
+状态：设计/审批延后，不在当前日志与鉴权范围内。
+
+Gateway OAuth 默认为进程级 scope，MCP 另有工具级 scope；尚未实现统一的路由/API 级别 scope 管理、统一 Gateway/MCP 的调用限流策略、QoS 分级/配额/优先级。现有 Gateway 的流控不能被表述为跨协议 QoS。实施前需定义 scope 继承、准入结果和可观测拒绝记录，同时保持 MCP HTTP/SSE/Streamable 语义与 ApiNova 轻量网关边界。
+
+## 证据边界
+
+已完成行为与测试计数记录于上述设计/验收文档，不应在此文件作为未完成项处理。历史 7/38 表 PostgreSQL 结果不再用于当前 `EXT-11` 的闭环；本次受控安全联调与 40 表 SQLite 结果也不关闭外部身份提供商、托管发布、UI/平台及生产运维验收。

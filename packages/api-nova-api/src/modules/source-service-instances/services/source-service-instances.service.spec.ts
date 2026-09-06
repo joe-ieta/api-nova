@@ -26,10 +26,16 @@ describe('SourceServiceInstancesService', () => {
   const httpService = {
     head: jest.fn(),
   };
+  const auditService = { log: jest.fn().mockResolvedValue(undefined) };
+  const governanceInvalidationService = {
+    invalidateForSourceInstance: jest.fn().mockResolvedValue([]),
+  };
   const service = new SourceServiceInstancesService(
     instanceRepository as any,
     sourceServiceRepository as any,
     httpService as any,
+    auditService as any,
+    governanceInvalidationService as any,
   );
 
   const instance = {
@@ -128,6 +134,16 @@ describe('SourceServiceInstancesService', () => {
     expect(instanceRepository.save).toHaveBeenCalledWith(expect.objectContaining({
       credentialRef: undefined,
     }));
+    expect(governanceInvalidationService.invalidateForSourceInstance).toHaveBeenCalledWith(
+      'instance-1',
+      'source_service_instance_changed',
+      {},
+    );
+    expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({
+      resource: 'source_service_instance',
+      resourceId: 'instance-1',
+      details: expect.objectContaining({ operation: 'update' }),
+    }));
   });
 
   it('keeps imported instance creation idempotent for repeated registration', async () => {
@@ -190,6 +206,11 @@ describe('SourceServiceInstancesService', () => {
         status: SourceServiceInstanceStatus.OFFLINE,
         archivedAt: expect.any(Date),
       }),
+    );
+    expect(governanceInvalidationService.invalidateForSourceInstance).toHaveBeenCalledWith(
+      'instance-1',
+      'source_service_instance_archived',
+      {},
     );
   });
 

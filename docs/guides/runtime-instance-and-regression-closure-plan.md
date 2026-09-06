@@ -1,13 +1,13 @@
 # Runtime Instance And Regression Closure Development Plan
 
 > Document status: Active
-> Last reviewed: 2026-09-06 (security integration amendment; earlier work-package evidence remains dated)
+> Last reviewed: 2026-09-07 (governance and sample-retention amendment; earlier work-package evidence remains dated)
 
 ## Status
 
-Active implementation baseline, amended on 2026-07-22.
+Active implementation baseline, amended on 2026-09-07.
 
-2026-09-06 amendment: [security calling and audit](runtime-security-and-call-audit.md) adds unified inbound identity, automatic caller observations and API-level payload evidence without an analysis UI. Integration also adds the two configuration persistence tables required for clean API startup, bringing the current target to 40 domain tables. SQLite passed; PostgreSQL validation remains `EXT-11`. The 38-table results below are July execution history and must not be used as current release acceptance. The controlled integration fixture does not replace the pending real registration/publication workflow checks.
+2026-09-07 amendment: [security calling and audit](runtime-security-and-call-audit.md) adds unified inbound identity, automatic caller observations and API-level payload evidence without an analysis UI. Runtime governance now invalidates published assets after upstream-instance/binding changes and records mutation audit context; successful endpoint samples have bounded capture and an authenticated cleanup entry. Integration also adds the two configuration persistence tables required for clean API startup, bringing the current target to 40 domain tables. SQLite passed; PostgreSQL validation remains `EXT-11`. The 38-table results below are July execution history and must not be used as current release acceptance. The controlled integration fixture does not replace the pending real registration/publication workflow checks.
 
 This document defines the approved clean-baseline development task. Existing database structures, historical data, and legacy tests are not compatibility constraints; development and verification start from a newly initialized schema.
 
@@ -38,7 +38,7 @@ Implementation progress on 2026-07-22:
 - completed the Windows root production build for Parser, Server, API, and UI, plus the MCP Server streamable multi-session smoke
 - in progress: manual real-upstream acceptance scenarios, Windows API/UI startup and basic import validation, and the complete Ubuntu release path
 
-Drift review on 2026-07-22 found no architecture-level reversal: successful samples remain automatic, runtime coordinates remain instance-owned, and Runtime Asset managed MCP servers cannot bypass verification through legacy start/restart actions. The review did identify productization gaps in MCP endpoint configuration, eager verification-required state after upstream changes, instance-aware readiness staleness, sample retention/size controls, and mutation audit coverage. These are tracked as `DEV-01` through `DEV-05` in `docs/reference/open-items.md`. Manual real-upstream acceptance, the remaining Windows interactive startup/import checks, and the complete Ubuntu release path remain explicit release blockers.
+Drift review on 2026-09-07 found no architecture-level reversal: successful samples remain automatic, runtime coordinates remain instance-owned, and Runtime Asset managed MCP servers cannot bypass verification through legacy start/restart actions. The former eager verification-required, instance-aware readiness, sample size/cleanup, and mutation-audit gaps are implemented in the current baseline; MCP endpoint UI/contract completion and external acceptance remain tracked in `docs/reference/open-items.md`. Manual real-upstream acceptance, the remaining Windows interactive startup/import checks, and the complete Ubuntu release path remain explicit release blockers.
 
 ## Purpose
 
@@ -366,6 +366,8 @@ Capture policy:
 3. equivalent fingerprints remain separate records; fingerprints are used only for grouping, search, and later maintenance
 4. regression eligibility is applied automatically by policy and can later be enabled, disabled, labeled, tagged, or archived through sample maintenance
 5. no candidate-to-baseline promotion step exists in the capture path
+6. captured JSON/text evidence is bounded by `ENDPOINT_TEST_SAMPLE_MAX_BYTES` (default 256 KiB); oversized values retain byte length, SHA-256 and a short preview
+7. archived samples older than `ENDPOINT_TEST_SAMPLE_RETENTION_DAYS` (default 90 days) can be removed through the protected cleanup endpoint
 
 ### 4.8 New `runtime_verification_runs`
 

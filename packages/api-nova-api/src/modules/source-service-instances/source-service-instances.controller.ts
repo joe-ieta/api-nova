@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RequirePermissions } from '../security/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../security/guards/jwt-auth.guard';
@@ -34,8 +34,9 @@ export class SourceServiceInstancesController {
   create(
     @Param('sourceServiceAssetId') sourceServiceAssetId: string,
     @Body() body: CreateSourceServiceInstanceDto,
+    @Req() request: any,
   ) {
-    return this.sourceServiceInstancesService.create(sourceServiceAssetId, body);
+    return this.sourceServiceInstancesService.create(sourceServiceAssetId, body, this.mutationContext(request));
   }
 
   @Get(':instanceId')
@@ -55,8 +56,9 @@ export class SourceServiceInstancesController {
     @Param('sourceServiceAssetId') sourceServiceAssetId: string,
     @Param('instanceId') instanceId: string,
     @Body() body: UpdateSourceServiceInstanceDto,
+    @Req() request: any,
   ) {
-    return this.sourceServiceInstancesService.update(sourceServiceAssetId, instanceId, body);
+    return this.sourceServiceInstancesService.update(sourceServiceAssetId, instanceId, body, this.mutationContext(request));
   }
 
   @Post(':instanceId/probe')
@@ -66,8 +68,9 @@ export class SourceServiceInstancesController {
     @Param('sourceServiceAssetId') sourceServiceAssetId: string,
     @Param('instanceId') instanceId: string,
     @Body() body: ProbeSourceServiceInstanceDto,
+    @Req() request: any,
   ) {
-    return this.sourceServiceInstancesService.probe(sourceServiceAssetId, instanceId, body);
+    return this.sourceServiceInstancesService.probe(sourceServiceAssetId, instanceId, body, this.mutationContext(request));
   }
 
   @Post(':instanceId/set-default')
@@ -76,8 +79,9 @@ export class SourceServiceInstancesController {
   setDefault(
     @Param('sourceServiceAssetId') sourceServiceAssetId: string,
     @Param('instanceId') instanceId: string,
+    @Req() request: any,
   ) {
-    return this.sourceServiceInstancesService.setDefault(sourceServiceAssetId, instanceId);
+    return this.sourceServiceInstancesService.setDefault(sourceServiceAssetId, instanceId, this.mutationContext(request));
   }
 
   @Post(':instanceId/archive')
@@ -86,7 +90,16 @@ export class SourceServiceInstancesController {
   archive(
     @Param('sourceServiceAssetId') sourceServiceAssetId: string,
     @Param('instanceId') instanceId: string,
+    @Req() request: any,
   ) {
-    return this.sourceServiceInstancesService.archive(sourceServiceAssetId, instanceId);
+    return this.sourceServiceInstancesService.archive(sourceServiceAssetId, instanceId, this.mutationContext(request));
+  }
+
+  private mutationContext(request: any) {
+    return {
+      actorId: request.user?.id,
+      ipAddress: request.ip,
+      userAgent: request.get?.('user-agent'),
+    };
   }
 }

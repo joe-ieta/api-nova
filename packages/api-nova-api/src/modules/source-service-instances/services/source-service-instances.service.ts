@@ -21,6 +21,15 @@ import {
   SourceServiceInstanceQueryDto,
   UpdateSourceServiceInstanceDto,
 } from '../dto/source-service-instances.dto';
+import { AuditAction, AuditLevel, AuditStatus } from '../../../database/entities/audit-log.entity';
+import { AuditService } from '../../security/services/audit.service';
+import { RuntimeGovernanceInvalidationService } from '../../runtime-governance/services/runtime-governance-invalidation.service';
+
+export interface SourceServiceInstanceMutationContext {
+  actorId?: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
 
 @Injectable()
 export class SourceServiceInstancesService {
@@ -30,6 +39,8 @@ export class SourceServiceInstancesService {
     @InjectRepository(SourceServiceAssetEntity)
     private readonly sourceServiceRepository: Repository<SourceServiceAssetEntity>,
     private readonly httpService: HttpService,
+    private readonly auditService: AuditService,
+    private readonly governanceInvalidationService: RuntimeGovernanceInvalidationService,
   ) {}
 
   async list(sourceServiceAssetId: string, query: SourceServiceInstanceQueryDto = {}) {
@@ -51,7 +62,11 @@ export class SourceServiceInstancesService {
     return this.requireInstance(sourceServiceAssetId, instanceId);
   }
 
-  async create(sourceServiceAssetId: string, input: CreateSourceServiceInstanceDto) {
+  async create(
+    sourceServiceAssetId: string,
+    input: CreateSourceServiceInstanceDto,
+    context: SourceServiceInstanceMutationContext = {},
+  ) {
     await this.requireSourceServiceAsset(sourceServiceAssetId);
     const normalized = this.normalizeInput(input);
     await this.ensureUniqueIdentity(
@@ -68,7 +83,10 @@ export class SourceServiceInstancesService {
       archivedAt: undefined,
     });
     const saved = await this.instanceRepository.save(instance);
-    return input.isDefault ? this.setDefault(sourceServiceAssetId, saved.id) : saved;
+    await this.recordMutationAudit('create', undefined, saved, context);
+    return input.isDefault
+      ? this.setDefault(sourceServiceAssetId, saved.id, context)
+      : saved;
   }
 
   async ensureImportedInstance(
@@ -111,9 +129,11 @@ export class SourceServiceInstancesService {
     sourceServiceAssetId: string,
     instanceId: string,
     input: UpdateSourceServiceInstanceDto,
+    context: SourceServiceInstanceMutationContext = {},
   ) {
     const instance = await this.requireInstance(sourceServiceAssetId, instanceId);
     this.ensureNotArchived(instance);
+    const before = { ...instance };
     const normalized = this.normalizeInput(input, instance);
     if (normalized.environment !== instance.environment || normalized.name !== instance.name) {
       await this.ensureUniqueIdentity(
@@ -127,20 +147,44 @@ export class SourceServiceInstancesService {
     const shouldBeDefault = input.isDefault ?? instance.isDefault;
     Object.assign(instance, normalized, { isDefault: false });
     const saved = await this.instanceRepository.save(instance);
-    return shouldBeDefault ? this.setDefault(sourceServiceAssetId, saved.id) : saved;
+    await this.governanceInvalidationService.invalidateForSourceInstance(
+      saved.id,
+      'source_service_instance_changed',
+      context,
+    );
+    await this.recordMutationAudit('update', before, saved, context);
+    return shouldBeDefault
+      ? this.setDefault(sourceServiceAssetId, saved.id, context)
+      : saved;
   }
 
-  async archive(sourceServiceAssetId: string, instanceId: string) {
+  async archive(
+    sourceServiceAssetId: string,
+    instanceId: string,
+    context: SourceServiceInstanceMutationContext = {},
+  ) {
     const instance = await this.requireInstance(sourceServiceAssetId, instanceId);
     if (instance.archivedAt) return instance;
+    const before = { ...instance };
     instance.enabled = false;
     instance.isDefault = false;
     instance.status = SourceServiceInstanceStatus.OFFLINE;
     instance.archivedAt = new Date();
-    return this.instanceRepository.save(instance);
+    const saved = await this.instanceRepository.save(instance);
+    await this.governanceInvalidationService.invalidateForSourceInstance(
+      saved.id,
+      'source_service_instance_archived',
+      context,
+    );
+    await this.recordMutationAudit('archive', before, saved, context);
+    return saved;
   }
 
-  async setDefault(sourceServiceAssetId: string, instanceId: string) {
+  async setDefault(
+    sourceServiceAssetId: string,
+    instanceId: string,
+    context: SourceServiceInstanceMutationContext = {},
+  ) {
     const instance = await this.requireInstance(sourceServiceAssetId, instanceId);
     this.ensureNotArchived(instance);
     if (!instance.enabled) {
@@ -170,7 +214,14 @@ export class SourceServiceInstancesService {
         { isDefault: false },
       );
       current.isDefault = true;
-      return repository.save(current);
+      const saved = await repository.save(current);
+      await this.governanceInvalidationService.invalidateForSourceInstance(
+        saved.id,
+        'source_service_instance_default_changed',
+        context,
+      );
+      await this.recordMutationAudit('set_default', instance, saved, context);
+      return saved;
     });
   }
 
@@ -178,6 +229,7 @@ export class SourceServiceInstancesService {
     sourceServiceAssetId: string,
     instanceId: string,
     input: ProbeSourceServiceInstanceDto = {},
+    context: SourceServiceInstanceMutationContext = {},
   ) {
     const instance = await this.requireInstance(sourceServiceAssetId, instanceId);
     this.ensureNotArchived(instance);
@@ -186,6 +238,7 @@ export class SourceServiceInstancesService {
     }
 
     const url = this.buildBaseUrl(instance);
+    const before = { ...instance };
     const startedAt = Date.now();
     const probedAt = new Date();
     try {
@@ -205,6 +258,12 @@ export class SourceServiceInstancesService {
       instance.lastProbeLatencyMs = Date.now() - startedAt;
       instance.lastError = healthy ? undefined : `HTTP ${response.status}`;
       const saved = await this.instanceRepository.save(instance);
+      await this.governanceInvalidationService.invalidateForSourceInstance(
+        saved.id,
+        'source_service_instance_probe_changed',
+        context,
+      );
+      await this.recordMutationAudit('probe', before, saved, context);
       return {
         instance: saved,
         probe: {
@@ -228,6 +287,12 @@ export class SourceServiceInstancesService {
       instance.lastProbeLatencyMs = Date.now() - startedAt;
       instance.lastError = errorMessage;
       const saved = await this.instanceRepository.save(instance);
+      await this.governanceInvalidationService.invalidateForSourceInstance(
+        saved.id,
+        'source_service_instance_probe_changed',
+        context,
+      );
+      await this.recordMutationAudit('probe', before, saved, context);
       return {
         instance: saved,
         probe: {
@@ -388,6 +453,37 @@ export class SourceServiceInstancesService {
       throw new BadRequestException('Source service instance environment is invalid');
     }
     return environment;
+  }
+
+  private async recordMutationAudit(
+    operation: string,
+    before: unknown,
+    after: unknown,
+    context: SourceServiceInstanceMutationContext,
+  ) {
+    try {
+      await this.auditService.log({
+        action: AuditAction.API_CONFIGURED,
+        level: operation === 'archive' ? AuditLevel.WARNING : AuditLevel.INFO,
+        status: AuditStatus.SUCCESS,
+        resource: 'source_service_instance',
+        resourceId: (after as { id?: string })?.id,
+        userId: context.actorId,
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+        details: {
+          operation,
+          reason: `source_service_instance_${operation}`,
+          revision:
+            (after as { revision?: number; updatedAt?: Date })?.revision ??
+            (after as { updatedAt?: Date })?.updatedAt,
+          before,
+          after,
+        },
+      });
+    } catch {
+      // Audit persistence must not turn a completed instance mutation into a failed request.
+    }
   }
 
   private normalizeBasePath(value?: string) {
