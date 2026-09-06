@@ -6,6 +6,7 @@ import { BearerAuthManager } from '../auth/bearer-auth';
 import { CustomHeadersManager } from '../headers/CustomHeadersManager';
 import { resolveRuntimeCredentialRefHeaders } from '../headers/RuntimeCredentialRef';
 import axios, { AxiosResponse, AxiosError } from 'axios';
+import { beginRuntimeCall, captureAuditBody, getRuntimeCallContext, redactAuditHeaders, redactAuditUrl, redactAuditValue } from '../audit/runtime-call-audit';
 import { isParserDebugEnabled, parserDebugLog, parserWarnLog } from '../utils/logger';
 
 // Re-export types
@@ -195,7 +196,7 @@ export class OpenAPIToMCPTransformer {
   private getDefaultBaseUrl(sourceOrigin?: string): string {
     if (this.spec.servers && this.spec.servers.length > 0) {
       const serverUrl = this.spec.servers[0].url;
-      parserDebugLog(`Using default base URL from OpenAPI spec: ${serverUrl}`);
+      parserDebugLog(`Using default base URL from OpenAPI spec: ${redactAuditUrl(serverUrl)}`);
 
       // 处理相对路径和格式化 URL
       return this.normalizeBaseUrl(serverUrl, sourceOrigin);
@@ -593,6 +594,14 @@ export class OpenAPIToMCPTransformer {
     args: any,
     operation: OperationObject
   ): Promise<MCPToolResponse> {
+    const context = getRuntimeCallContext();
+    const call = context ? beginRuntimeCall({ ...context,
+      runtimeAssetId: (operation as any)['x-runtime-asset-id'] || context.runtimeAssetId,
+      endpointDefinitionId: (operation as any)['x-endpoint-definition-id'],
+      sourceServiceInstanceId: (operation as any)['x-source-service-instance-id'],
+      operationId: operation.operationId }, 'api') : undefined;
+    let requestData: unknown;
+    let requestHeaders: Record<string, string> = {};
     try {
       // 1. 构建请求 URL
       const { url, queryParams } = this.buildUrlWithParams(path, args, operation);
@@ -612,10 +621,9 @@ export class OpenAPIToMCPTransformer {
       }
 
       // 4. 添加认证头（最高优先级，可能覆盖自定义头）
-      Object.assign(
-        headers,
-        resolveRuntimeCredentialRefHeaders((operation as any)['x-api-nova-credential-ref']),
-      );
+      const credentialHeaders = resolveRuntimeCredentialRefHeaders((operation as any)['x-api-nova-credential-ref']);
+      Object.assign(headers, credentialHeaders);
+      const credentialNames = [...Object.keys(credentialHeaders), ...Object.keys(this.options.customHeaders?.env || {})];
 
       if (this.authManager) {
         const authHeaders = await this.authManager.getAuthHeaders({
@@ -624,17 +632,24 @@ export class OpenAPIToMCPTransformer {
           args
         });
         Object.assign(headers, authHeaders);
+        credentialNames.push(...Object.keys(authHeaders));
       }
 
       // 5. 准备请求体
       const requestBody = this.buildRequestBody(args, operation);
+      requestData = requestBody;
+      requestHeaders = headers;
+      if (context) headers['x-request-id'] = context.requestId;
+      if (call) Object.assign(call.record, { method: method.toUpperCase(), path,
+        url: redactAuditUrl(axios.getUri({ url, params: queryParams })),
+        requestHeaders: redactAuditHeaders(headers, credentialNames) });
       if (isParserDebugEnabled(this.options.debugHeaders)) {
-        parserDebugLog(JSON.stringify(requestBody, null, 2));
+        parserDebugLog(JSON.stringify(redactAuditValue(requestBody), null, 2));
       }
       
       // 6. 调试输出最终请求头
       if (this.options.debugHeaders) {
-        parserDebugLog(`[${method.toUpperCase()} ${path}] Final headers:`, headers);
+        parserDebugLog(`[${method.toUpperCase()} ${path}] Final headers:`, redactAuditHeaders(headers, credentialNames));
       }
       
       // 7. 执行 HTTP 请求
@@ -647,13 +662,31 @@ export class OpenAPIToMCPTransformer {
         timeout: this.options.requestTimeout,
         validateStatus: () => true, // 不要自动抛出错误，我们手动处理
         maxRedirects: 5,
-        responseType: 'json'
+        responseType: call ? 'arraybuffer' : 'json',
+        ...(call ? { transformResponse: [(data: any) => data] } : {}),
       });
+
+      if (call) {
+        await call.finish({ outcome: response.status >= 400 ? 'error' : 'success', statusCode: response.status,
+          requestHeaders: redactAuditHeaders(response.config.headers?.toJSON() || headers, credentialNames),
+          request: captureAuditBody(response.config?.data ?? requestBody, headers['Content-Type'] || headers['content-type'] || 'application/json'),
+          responseHeaders: redactAuditValue(response.headers),
+          response: captureAuditBody(response.data, String(response.headers['content-type'] || 'text/plain')) });
+        // Preserve upstream bytes in evidence, then restore the existing JSON-mode tool response.
+        if (Buffer.isBuffer(response.data)) response.data = response.data.toString('utf8');
+        if (typeof response.data === 'string') {
+          try { response.data = JSON.parse(response.data); } catch { /* non-JSON response */ }
+        }
+      }
 
       // 6. 处理响应
       return this.formatHttpResponse(response, method, path, operation);
 
     } catch (error) {
+      if (call) await call.finish({ outcome: 'error',
+        request: captureAuditBody((error as AxiosError)?.config?.data ?? requestData,
+          requestHeaders['Content-Type'] || requestHeaders['content-type'] || 'application/json'),
+        errorCode: String((error as any)?.code || 'upstream_request_failed') });
       // 7. 错误处理
       return this.handleRequestError(error, method, path);
     }
@@ -667,15 +700,15 @@ export class OpenAPIToMCPTransformer {
     let url = this.buildBaseUrl(path);
     const queryParams: Record<string, any> = {};
 
-    parserDebugLog(`Building URL - Base: ${this.options.baseUrl}, Prefix: ${this.options.pathPrefix}, Path: ${path}`);
-    parserDebugLog(`Initial URL: ${url}`);
+    parserDebugLog(`Building URL for path template: ${path}`);
+    parserDebugLog(`Initial URL: ${redactAuditUrl(url)}`);
 
     // 处理路径参数
     url = url.replace(/{([^}]+)}/g, (match, paramName) => {
       const value = args[paramName];
       if (value !== undefined) {
         const encodedValue = encodeURIComponent(String(value));
-        parserDebugLog(`Replacing path parameter {${paramName}} with: ${encodedValue}`);
+        parserDebugLog(`Resolved path parameter {${paramName}}`);
         return encodedValue;
       }
       parserWarnLog(`Path parameter {${paramName}} not found in args:`, Object.keys(args));
@@ -689,13 +722,13 @@ export class OpenAPIToMCPTransformer {
           const value = args[param.name];
           if (value !== undefined) {
             queryParams[param.name] = value;
-            parserDebugLog(`Added query parameter: ${param.name} = ${value}`);
+            parserDebugLog('Added query parameter:', redactAuditValue({ [param.name]: value }));
           }
         }
       }
     }
 
-    parserDebugLog(`Final URL: ${url}, Query params:`, queryParams);
+    parserDebugLog(`Final URL: ${redactAuditUrl(url)}, Query params:`, redactAuditValue(queryParams));
     return { url, queryParams };
   }
 

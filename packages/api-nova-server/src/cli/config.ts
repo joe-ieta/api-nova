@@ -36,6 +36,10 @@ export function loadEnvFile(envPath: string): Record<string, string> {
       }
     });
     
+    // Shared runtime security/audit helpers read the process environment in both CLI modes.
+    for (const [key, value] of Object.entries(envVars)) {
+      if (key.startsWith('API_NOVA_')) process.env[key] = value;
+    }
     console.error(CliDesign.success(`.env 文件加载成功，加载了 ${Object.keys(envVars).length} 个环境变量`));
     return envVars;
   } catch (error: any) {

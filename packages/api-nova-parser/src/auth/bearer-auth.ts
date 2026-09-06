@@ -42,9 +42,7 @@ export class BearerAuthManager implements AuthManager {
 
       // 调试模式下记录认证信息（不记录完整token）
       if (this.config.debug) {
-        console.debug(`[BearerAuth] Added Authorization header for ${context?.method || 'unknown'} ${context?.path || 'unknown'}`);
-        console.debug(`[BearerAuth] Token source: ${this.bearerConfig.source}`);
-        console.debug(`[BearerAuth] Token preview: ${token.substring(0, 10)}...`);
+        console.error(`[BearerAuth] Authorization header resolved for ${context?.method || 'unknown'}`);
       }
 
       return headers;

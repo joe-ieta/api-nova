@@ -1,7 +1,8 @@
 # Local Setup And Run
 
 > Document status: Active
-> Last reviewed: 2026-07-22
+> HTTP MCP 入站鉴权与调用日志配置见[安全调用与日志审计](./runtime-security-and-call-audit.md)。HTTP 默认采用 OAuth/JWT；仅本机匿名测试需显式设置 `API_NOVA_RUNTIME_AUTH_MODE=anonymous`。CLI 的上游 Bearer 参数不替代入站鉴权。
+> Last reviewed: 2026-09-06
 
 This is the active setup and run baseline for the current product path.
 

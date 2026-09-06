@@ -198,9 +198,9 @@ export class GatewayTrafficControlService {
             limit: rateLimit.routeMax,
           }
         : undefined,
-      rateLimit.consumerMax && authContext?.consumerId
+      rateLimit.consumerMax && (authContext?.principal?.callerId || authContext?.consumerId || authContext?.actorId)
         ? {
-            key: `consumer:${resolvedRoute.routeBinding.id}:${authContext.consumerId}`,
+            key: `consumer:${resolvedRoute.routeBinding.id}:${authContext.principal?.callerId || authContext.consumerId || authContext.actorId}`,
             limit: rateLimit.consumerMax,
           }
         : undefined,

@@ -116,10 +116,7 @@ export class GatewayCacheService {
     const varyHeaderKeys = resolvedRoute.policies.cache.varyHeaderKeys;
     const queryEntries = this.normalizeQueryEntries(url, varyQueryKeys);
     const headerEntries = this.normalizeHeaderEntries(req, varyHeaderKeys);
-    const consumerKey =
-      resolvedRoute.policies.cache.varyByConsumer && authContext?.consumerId
-        ? authContext.consumerId
-        : undefined;
+    const consumerKey = authContext?.principal?.callerId || authContext?.actorId || authContext?.consumerId;
 
     return JSON.stringify({
       runtimeAssetId: resolvedRoute.runtimeAsset.id,

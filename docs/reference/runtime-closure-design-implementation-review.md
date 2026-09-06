@@ -4,6 +4,10 @@
 > Review date: 2026-07-22
 > Scope: Runtime instances, endpoint testing, publication bindings, Gateway/MCP deployment verification, and release closure
 
+## 2026-09-06 Integration Amendment
+
+The review below records the July baseline, not a fresh acceptance of every work package. Security integration subsequently found and fixed Gateway request-stream consumption, generic logging of streaming responses, and missing configuration persistence tables in clean migrations. The current schema target is 40 domain tables; SQLite migration/startup passed, while the updated PostgreSQL check remains `EXT-11`. Controlled multi-process Gateway/MCP security and audit evidence is recorded in [security audit cases](../testing/runtime-security-audit-cases.md); real registration/publication, external identity-provider and platform acceptance items remain open.
+
 ## Outcome
 
 No architecture-level reversal was found. The implementation preserves the intended separation between logical API assets, live runtime instances, endpoint evidence, publication membership, and deployable runtime assets. Activation safety is materially stronger than the earlier baseline.

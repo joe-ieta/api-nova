@@ -1,7 +1,7 @@
 # Release Readiness Checklist
 
 > Document status: Active
-> Last reviewed: 2026-09-04
+> Last reviewed: 2026-09-06
 
 Use this checklist before cutting a release or calling the current baseline publishable.
 
@@ -144,7 +144,9 @@ Verify:
 - startup logs clearly report `Database mode: postgres`
 - schema initialization and migrations succeed
 
-Current clean-schema baseline verified on July 21, 2026:
+Current target on September 6, 2026: 40 domain tables plus the migration ledger, including `config_overrides` and `config_backups`. Isolated SQLite verification and full API startup without automatic schema synchronization passed. The 40-table PostgreSQL migration/startup check remains required (`EXT-11`); do not reuse the older 38-table result as current release evidence.
+
+Historical clean-schema verification on July 21, 2026:
 
 - isolated empty SQLite and PostgreSQL databases both completed canonical `migration:run`
 - both migrated schemas returned zero pending changes from `schema:log`

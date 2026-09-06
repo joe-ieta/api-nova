@@ -31,6 +31,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "type-check": "npm run type-check --workspaces --if-present",
     "verify:runtime-closure": "node scripts/verify-runtime-closure.js",
+    "verify:runtime-security-integration": "node scripts/verify-runtime-security-integration.cjs",
     "verify:parser-chain": "node scripts/verify-parser-propagation.js",
     "verify:parser-chain:full": "node scripts/verify-parser-propagation.js --include-consumer-builds"
   },

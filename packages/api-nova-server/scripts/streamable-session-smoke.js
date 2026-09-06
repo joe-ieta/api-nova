@@ -1,5 +1,7 @@
 const { once } = require("node:events");
 const path = require("node:path");
+// This suite tests the explicitly anonymous local transport profile.
+process.env.API_NOVA_RUNTIME_AUTH_MODE = 'anonymous';
 
 function assert(condition, message) {
   if (!condition) {

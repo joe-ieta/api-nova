@@ -1,7 +1,7 @@
 # Guides
 
 > Document status: Active index
-> Last reviewed: 2026-07-22
+> Last reviewed: 2026-09-06
 
 Only currently supported product paths, durable architecture contracts, and active execution plans belong here.
 
@@ -17,6 +17,7 @@ Only currently supported product paths, durable architecture contracts, and acti
 - [Publication Resource Baseline](./publication-resource-baseline.md)
 - [Endpoint Publication Profile Requirements](./endpoint-semantic-layer-requirements.md)
 - [API Gateway Architecture And Requirements](./api-gateway-architecture-and-requirements.md)
+- [安全调用与日志审计](./runtime-security-and-call-audit.md)
 
 ## Setup And Engineering Workflows
 

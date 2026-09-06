@@ -1,6 +1,37 @@
 import { GatewayAccessLogService } from './gateway-access-log.service';
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 describe('GatewayAccessLogService', () => {
+  it('records denied admissions and cache hits without fabricating upstream calls', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'api-nova-admission-audit-'));
+    const previous = process.env.API_NOVA_AUDIT_DIR;
+    process.env.API_NOVA_AUDIT_DIR = directory;
+    try {
+      const { service } = buildService();
+      const input = { resolvedRoute: { runtimeAsset: { id: 'runtime-1' }, membership: { id: 'member-1' },
+        routeBinding: { id: 'route-1', routePath: '/orders' }, endpointDefinition: { id: 'api-1' } } as any,
+        req: { method: 'GET', originalUrl: '/orders?token=secret', headers: { authorization: 'Bearer private-token' } } as any,
+        latencyMs: 10 };
+      await service.recordRequest({ ...input, requestId: 'denied', statusCode: 401, errorMessage: 'invalid_token' });
+      await service.recordRequest({ ...input, requestId: 'cached', upstreamUrl: 'cache://gateway',
+        proxyResult: { statusCode: 200, headers: { 'content-type': 'application/json' },
+          responseBodyBuffer: Buffer.from(JSON.stringify({ value: 'x'.repeat(9000), password: 'cached-secret' })) } });
+      const file = (await readdir(directory)).find(name => /^\d{4}-/.test(name))!;
+      const raw = await readFile(join(directory, file), 'utf8');
+      expect(raw).not.toMatch(/private-token|cached-secret|token=secret/);
+      const [denied, cached] = raw.trim().split('\n').map(line => JSON.parse(line));
+      expect(denied).toMatchObject({ kind: 'admission', endpointDefinitionId: 'api-1', outcome: 'error', statusCode: 401,
+        request: { state: 'omitted', reason: 'body_not_consumed_at_admission' } });
+      expect(denied.response).toBeUndefined();
+      expect(cached).toMatchObject({ kind: 'admission', outcome: 'cache_hit', statusCode: 200 });
+      expect(JSON.parse(cached.response.data).value).toHaveLength(9000);
+    } finally {
+      if (previous === undefined) delete process.env.API_NOVA_AUDIT_DIR; else process.env.API_NOVA_AUDIT_DIR = previous;
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
   const buildService = () => {
     const create = jest.fn().mockImplementation((input: any) => input);
     const save = jest.fn().mockResolvedValue(undefined);

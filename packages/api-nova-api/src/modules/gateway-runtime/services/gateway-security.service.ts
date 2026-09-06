@@ -2,6 +2,7 @@ import {
   ForbiddenException,
   Injectable,
   UnauthorizedException,
+  HttpException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -22,6 +23,7 @@ import { AuditService } from '../../security/services/audit.service';
 import { UserService } from '../../security/services/user.service';
 import { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
 import { GatewayRequestAuthContext } from '../types/gateway-security.types';
+import { authenticateRuntimeRequest, RuntimeAuthError } from 'api-nova-parser';
 
 @Injectable()
 export class GatewaySecurityService {
@@ -38,6 +40,17 @@ export class GatewaySecurityService {
     req: Request,
   ): Promise<GatewayRequestAuthContext> {
     const mode = resolvedRoute.policies.auth.mode;
+    if (mode === 'oauth' || mode === 'runtime_api_key') {
+      try {
+        const principal = await authenticateRuntimeRequest(req.headers, 'gateway', mode === 'oauth' ? 'oauth' : 'api_key');
+        const context: GatewayRequestAuthContext = { mode, principal };
+        this.attachAuthContext(req, context);
+        return context;
+      } catch (error) {
+        if (error instanceof RuntimeAuthError) throw new HttpException(error.code, error.status);
+        throw error;
+      }
+    }
     if (mode === 'anonymous') {
       const context: GatewayRequestAuthContext = { mode };
       this.attachAuthContext(req, context);

@@ -20,6 +20,7 @@ import { RequirePermissions } from '../security/decorators/permissions.decorator
 import { JwtAuthGuard } from '../security/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../security/guards/permissions.guard';
 import { GatewayAccessLogService } from '../gateway-runtime/services/gateway-access-log.service';
+import { listObservedRuntimeCallers } from 'api-nova-parser';
 
 @ApiTags('Monitoring')
 @Controller('v1/monitoring')
@@ -30,6 +31,17 @@ export class MonitoringController {
     private readonly runtimeObservabilityService: RuntimeObservabilityService,
     private readonly gatewayAccessLogService: GatewayAccessLogService,
   ) {}
+
+  @Get('management/external-callers')
+  @RequirePermissions('monitoring:read')
+  @ApiOperation({ summary: 'List automatically observed authenticated callers (no payloads)' })
+  async getExternalCallers(@Query('page') page = 1, @Query('limit') limit = 20) {
+    const callers = await listObservedRuntimeCallers();
+    const size = Math.min(100, Math.max(1, Math.floor(Number(limit) || 20)));
+    const current = Math.max(1, Math.floor(Number(page) || 1));
+    return { status: 'success', data: { data: callers.slice((current - 1) * size, current * size),
+      total: callers.length, page: current, limit: size } };
+  }
 
   @Get('metrics')
   @SkipThrottle()

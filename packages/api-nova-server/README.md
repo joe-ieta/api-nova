@@ -54,6 +54,8 @@ api-nova --openapi https://petstore.swagger.io/v2/swagger.json --transport stdio
 
 ### Streamable HTTP
 
+HTTP 模式默认校验外部 OAuth/JWT，启动前需配置受信任 issuer、JWKS 和资源 URL。仅本机匿名测试需显式设置 `API_NOVA_RUNTIME_AUTH_MODE=anonymous`。完整配置见[安全调用与日志审计](../../docs/guides/runtime-security-and-call-audit.md)。
+
 ```bash
 api-nova --openapi https://petstore.swagger.io/v2/swagger.json --transport streamable --port 9022
 ```
@@ -65,6 +67,8 @@ api-nova --openapi https://petstore.swagger.io/v2/swagger.json --transport sse -
 ```
 
 ## 常用参数
+
+下面的 `--auth-type` / `--bearer-*` 是调用上游 API 的凭证；MCP 客户端入站鉴权使用 `API_NOVA_RUNTIME_*` 环境配置。验证成功的外部调用者会自动进入清单，无需预先注册。调用日志默认追加到 `data/runtime-audit`，生产应设置 `API_NOVA_AUDIT_DIR` 为受限、持久化的绝对目录。
 
 ```bash
 --openapi <url|file>
@@ -90,6 +94,7 @@ npm run test --workspace api-nova-server
 npm run test:smoke --workspace api-nova-server
 npm run test:cli --workspace api-nova-server
 npm run test:streamable-session --workspace api-nova-server
+npm run test:security-audit --workspace api-nova-server
 ```
 
 ## 与整仓的关系

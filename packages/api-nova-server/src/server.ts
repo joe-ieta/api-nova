@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { AuthConfig } from 'api-nova-parser';
+import { AuthConfig, flushRuntimeAudit } from 'api-nova-parser';
 
 import { initTools } from "./tools/initTools";
 import { startStdioMcpServer, startSseMcpServer, startStreamableMcpServer } from "./transportUtils";
@@ -44,10 +44,12 @@ export async function createMcpServer(
   if (lifecycle.registerSignalHandlers !== false) {
     process.on("SIGINT", async () => {
       await server.close();
+      await flushRuntimeAudit();
       process.exit(0);
     });
     process.on("SIGTERM", async () => {
       await server.close();
+      await flushRuntimeAudit();
       process.exit(0);
     });
   }

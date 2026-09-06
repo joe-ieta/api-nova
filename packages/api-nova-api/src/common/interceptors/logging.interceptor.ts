@@ -16,11 +16,14 @@ export class LoggingInterceptor implements NestInterceptor {
   constructor(private readonly configService: AppConfigService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const request = context.switchToHttp().getRequest();
+    // Gateway owns streamed responses and unified API-granular audit records.
+    // Serializing Express Response here can throw after the response was sent.
+    if (request.path?.startsWith('/api/v1/gateway/')) return next.handle();
     if (!this.configService.debugMode && this.configService.isProduction) {
       return next.handle();
     }
 
-    const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
     const { method, url, headers, body, query } = request;
     const userAgent = headers['user-agent'] || 'Unknown';

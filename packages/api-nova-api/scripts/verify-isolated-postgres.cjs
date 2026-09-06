@@ -16,8 +16,10 @@ if (fs.existsSync(environmentPath)) {
 }
 
 const databaseName = `api_nova_verify_${process.pid}_${Date.now()}`;
-const expectedDomainTableCount = 38;
+const expectedDomainTableCount = 40;
 const requiredTables = [
+  'config_overrides',
+  'config_backups',
   'source_service_instances',
   'endpoint_test_cases',
   'endpoint_test_runs',

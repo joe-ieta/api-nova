@@ -1,7 +1,7 @@
 # Runtime Publication Acceptance Cases
 
 > Document status: Active
-> Last reviewed: 2026-07-22
+> Last reviewed: 2026-09-06
 > Release gate: Required together with `docs/guides/release-readiness-checklist.md`
 
 ## Evidence Header
@@ -47,9 +47,9 @@ For every manual execution record:
 | VR-07 | exact sample has dynamic paths | configure ignored paths and replay | ignored paths do not fail exact comparison; other mismatches do | automated-passed |
 | CR-01 | instance uses valid `env-headers:` reference | deploy and invoke | secret is resolved at execution and not persisted in samples/runs/snapshots | automated-covered |
 | CR-02 | referenced environment variable is missing | deploy or invoke | operation fails closed; candidate is not activated | automated-covered |
-| DB-01 | isolated SQLite available | run `db:verify-isolated-sqlite` | 38 domain tables, zero domain rows, no forbidden columns/pending migrations; temp file removed | automated-passed |
-| DB-02 | isolated PostgreSQL available | run `db:verify-isolated-postgres` | same clean contract as SQLite; temporary database removed | automated-passed |
-| RG-01 | current checkout | run `npm run verify:runtime-closure` | all eight gate stages pass | automated-passed |
+| DB-01 | isolated SQLite available | run `db:verify-isolated-sqlite` | 40 domain tables, zero domain rows, no forbidden columns/pending migrations; temp file removed | automated-passed |
+| DB-02 | isolated PostgreSQL available | run `db:verify-isolated-postgres` | same 40-table clean contract as SQLite; temporary database removed | environment-blocked (EXT-11) |
+| RG-01 | current checkout | run `npm run verify:runtime-closure` | all eight gate stages pass, including the current PostgreSQL target | automated-covered (full gate rerun pending EXT-11) |
 | RG-02 | Windows checkout | run root production build | Parser, Server, API, and UI build successfully | automated-passed |
 | RG-03 | Windows checkout | run streamable-session smoke | two MCP sessions remain isolated and disconnect cleanly | automated-passed |
 
@@ -80,7 +80,9 @@ For every manual execution record:
 
 ## Latest Automated Evidence
 
-On 2026-07-22 the current worktree passed:
+On 2026-09-06, isolated SQLite verification passed with 40 domain tables, zero domain rows and no pending migrations. Full API startup with `DB_SYNCHRONIZE=false` and the Gateway/MCP multi-process security integration also passed; see [security audit cases](runtime-security-audit-cases.md). This fixture uses pre-seeded publication snapshots and does not close the real registration/publication workflow cases. The updated PostgreSQL baseline and full closure gate remain pending `EXT-11`.
+
+Historical evidence from the 2026-07-22 worktree (not current database acceptance):
 
 - `npm run verify:runtime-closure`: 8 stages, 3 Parser tests, 81 API tests
 - isolated SQLite and PostgreSQL verification: 38 domain tables each, zero pending migrations

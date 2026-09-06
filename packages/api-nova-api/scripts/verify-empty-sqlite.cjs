@@ -11,6 +11,8 @@ const databasePath = path.resolve(
 );
 
 const requiredTables = [
+  'config_overrides',
+  'config_backups',
   'source_service_instances',
   'endpoint_test_cases',
   'endpoint_test_runs',

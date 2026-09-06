@@ -8,7 +8,9 @@ import * as http from 'node:http';
 import * as https from 'node:https';
 import { PassThrough } from 'node:stream';
 import { URL } from 'node:url';
-import { resolveRuntimeCredentialRefHeaders } from 'api-nova-parser';
+import { resolveRuntimeCredentialRefHeaders, beginRuntimeCall, createAuditBodyTracker,
+  redactAuditHeaders, redactAuditUrl, redactAuditValue } from 'api-nova-parser';
+import { gatewayAuditContext } from './gateway-audit-context';
 import { GatewayRequestCaptureService } from './gateway-request-capture.service';
 import { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
 import { GatewayProxyResult } from '../types/gateway-proxy.types';
@@ -34,6 +36,8 @@ export class GatewayProxyEngineService {
       resolvedRoute.params,
     );
     const url = new URL(targetUrl);
+    const consumerQueryKey = resolvedRoute.policies?.auth?.apiKeyQueryParamName;
+    if (consumerQueryKey) url.searchParams.delete(consumerQueryKey);
     const transport = url.protocol === 'https:' ? https : http;
     const timeoutMs =
       resolvedRoute.policies?.traffic?.timeoutMs ??
@@ -48,18 +52,33 @@ export class GatewayProxyEngineService {
     const requestCapture = this.gatewayRequestCaptureService.createTracker(
       req.headers['content-type'],
     );
+    const call = beginRuntimeCall(gatewayAuditContext(req, this.ensureRequestId(req), resolvedRoute), 'api');
+    Object.assign(call.record, { method: resolvedRoute.routeBinding.upstreamMethod,
+      path: resolvedRoute.endpointDefinition.path || resolvedRoute.routeBinding.upstreamPath,
+      url: redactAuditUrl(url.toString()), requestHeaders: redactAuditHeaders(headers,
+        Object.keys(resolveRuntimeCredentialRefHeaders(resolvedRoute.sourceServiceInstance.credentialRef))) });
+    const requestAudit = createAuditBodyTracker(String(req.headers['content-type'] || ''));
+    let responseAudit: ReturnType<typeof createAuditBodyTracker> | undefined;
 
     return new Promise<GatewayProxyResult & { targetUrl: string }>((resolve, reject) => {
       let settled = false;
-      const finalizeResolve = (value: GatewayProxyResult & { targetUrl: string }) => {
+      const finalizeResolve = async (value: GatewayProxyResult & { targetUrl: string }) => {
         if (!settled) {
           settled = true;
+          await call.finish({ outcome: value.statusCode >= 400 ? 'error' : 'success', statusCode: value.statusCode,
+            request: requestAudit.finish(), response: responseAudit?.finish(),
+            responseHeaders: redactAuditValue(value.headers) });
+          value.auditRecorded = true;
           resolve(value);
         }
       };
-      const finalizeReject = (error: Error) => {
+      const finalizeReject = async (error: Error) => {
         if (!settled) {
           settled = true;
+          await call.finish({ outcome: req.aborted || (res.destroyed && !res.writableEnded) ? 'cancelled' : 'error',
+            statusCode: typeof (error as any).getStatus === 'function' ? (error as any).getStatus() : undefined,
+            request: requestAudit.finish(req.complete), response: responseAudit?.finish(false),
+            errorCode: (error as any).code || error.name });
           reject(error);
         }
       };
@@ -77,12 +96,13 @@ export class GatewayProxyEngineService {
           const responseCapture = this.gatewayRequestCaptureService.createTracker(
             upstreamRes.headers['content-type'] as string | string[] | undefined,
           );
+          responseAudit = createAuditBodyTracker(String(upstreamRes.headers['content-type'] || ''));
           const responseTap = new PassThrough();
           const responseBodyChunks: Buffer[] = [];
           let responseBodyBytes = 0;
           let responseBodyOverflow = false;
           let responseCaptureFinalized = false;
-          let finalizedResponseCapture = responseCapture.finalize();
+          let finalizedResponseCapture: ReturnType<typeof responseCapture.finalize>;
           const normalizedHeaders = this.normalizeResponseHeaders(
             upstreamRes.headers as Record<string, unknown>,
           );
@@ -101,6 +121,7 @@ export class GatewayProxyEngineService {
           });
           responseTap.on('data', chunk => {
             responseCapture.observeChunk(chunk);
+            responseAudit!.observe(chunk);
             if (
               responseBodyOverflow ||
               !options?.captureResponseBodyMaxBytes ||
@@ -124,6 +145,7 @@ export class GatewayProxyEngineService {
             if (!res.writableEnded) {
               upstreamRes.destroy();
               responseTap.destroy();
+              void finalizeReject(new BadGatewayException('Client closed response'));
             }
           });
           res.on('finish', () => {
@@ -140,7 +162,7 @@ export class GatewayProxyEngineService {
                 options?.captureResponseBodyMaxBytes && !responseBodyOverflow
                   ? Buffer.concat(responseBodyChunks)
                   : undefined,
-              targetUrl,
+              targetUrl: url.toString(),
             });
           });
           responseTap.on('end', () => {
@@ -178,6 +200,7 @@ export class GatewayProxyEngineService {
       const requestTap = new PassThrough();
       requestTap.on('data', chunk => {
         requestCapture.observeChunk(chunk);
+        requestAudit.observe(chunk);
       });
 
       req.pipe(requestTap).pipe(upstreamReq);
@@ -223,6 +246,9 @@ export class GatewayProxyEngineService {
       'transfer-encoding',
       'upgrade',
       'host',
+      'authorization',
+      'x-api-key',
+      'cookie',
     ]);
 
     for (const [key, value] of Object.entries(headers)) {
@@ -258,6 +284,7 @@ export class GatewayProxyEngineService {
     const requestId = Array.isArray(existing)
       ? existing[0]
       : existing || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    req.headers['x-request-id'] = String(requestId);
     if (res && !res.headersSent) {
       res.setHeader('x-request-id', requestId);
     }

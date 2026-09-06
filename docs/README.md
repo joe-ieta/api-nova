@@ -1,7 +1,7 @@
 # ApiNova Documentation Index
 
 > Document status: Active canonical index
-> Last reviewed: 2026-09-04
+> Last reviewed: 2026-09-06
 
 ## Documentation Classes
 
@@ -32,6 +32,7 @@
 
 ## Current Architecture And Operations
 
+- [安全调用与日志审计](./guides/runtime-security-and-call-audit.md)
 - [Package Management Policy](./guides/package-management-policy.md)
 - [Release Requirements And Source Startup](./release/api-nova-release-requirements.md)
 - [Product Release Documents](./release/versions/README.md)

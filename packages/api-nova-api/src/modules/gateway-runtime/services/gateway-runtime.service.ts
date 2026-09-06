@@ -9,6 +9,8 @@ import { GatewayTrafficControlService } from './gateway-traffic-control.service'
 import { GatewayCacheService } from './gateway-cache.service';
 import { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
 import { GatewayProxyResult } from '../types/gateway-proxy.types';
+import { randomUUID } from 'node:crypto';
+import { runtimeChallenge } from 'api-nova-parser';
 
 @Injectable()
 export class GatewayRuntimeService {
@@ -64,6 +66,7 @@ export class GatewayRuntimeService {
     startedAt = Date.now(),
     options: { bypassCache?: boolean } = {},
   ): Promise<void> {
+    this.resolveRequestId(req, res);
     try {
       const authContext = await this.gatewaySecurityService.authorize(target, req);
       const admission = await this.gatewayTrafficControlService.admit(target, authContext);
@@ -144,6 +147,9 @@ export class GatewayRuntimeService {
     } catch (error) {
       const latencyMs = Date.now() - startedAt;
       const statusCode = this.resolveStatusCode(error);
+      if (!res.headersSent && (statusCode === 401 || statusCode === 403) && target.policies.auth.mode === 'oauth') {
+        res.setHeader('WWW-Authenticate', runtimeChallenge('gateway', statusCode === 403));
+      }
       if (statusCode === 401 || statusCode === 403) {
         this.gatewayRuntimeMetricsService.recordPolicyEvent({
           runtimeAssetId: target.runtimeAsset.id,
@@ -196,10 +202,11 @@ export class GatewayRuntimeService {
       return responseValue;
     }
     const requestValue = req.headers['x-request-id'];
-    if (Array.isArray(requestValue)) {
-      return requestValue[0];
-    }
-    return String(requestValue || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+    const candidate = Array.isArray(requestValue) ? requestValue[0] : requestValue;
+    const requestId = candidate && /^[A-Za-z0-9._:-]{1,120}$/.test(candidate) ? candidate : randomUUID();
+    req.headers['x-request-id'] = requestId;
+    if (!res.headersSent && typeof res.setHeader === 'function') res.setHeader('x-request-id', requestId);
+    return requestId;
   }
 
   private resolveCorrelationId(req: Request) {

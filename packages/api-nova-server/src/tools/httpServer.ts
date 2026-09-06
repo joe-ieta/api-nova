@@ -1,5 +1,9 @@
 import { IncomingMessage, ServerResponse } from "http";
 import http from "node:http";
+import { randomUUID } from 'node:crypto';
+import { beginRuntimeCall, captureAuditBody, flushRuntimeAudit, redactAuditUrl, redactAuditValue, RuntimeAuthError, runtimeAuthMode,
+  runtimeMetadata, withRuntimeCallContext } from 'api-nova-parser';
+import { authenticateMcpRequest, sendMcpAuthError } from './runtime-security';
 
 const LOCAL_HOSTS = ["localhost", "127.0.0.1", "::1", "[::1]"] as const;
 
@@ -271,8 +275,7 @@ function isOriginAllowed(origin: string, security: EffectiveSecurityOptions): bo
     return true;
   }
 
-  const originHost = normalizeHostValue(normalizedOrigin);
-  return security.allowedHosts.has(originHost);
+  return false;
 }
 
 /**
@@ -303,8 +306,9 @@ function handleCORS(
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
   res.setHeader(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, Last-Event-ID, MCP-Session-Id"
+    "Content-Type, Authorization, X-Api-Key, Last-Event-ID, MCP-Session-Id, MCP-Protocol-Version, X-Request-Id, X-Correlation-Id"
   );
+  res.setHeader('Access-Control-Expose-Headers', 'MCP-Session-Id, WWW-Authenticate, X-Request-Id');
 
   return true;
 }
@@ -382,6 +386,20 @@ function handleAuthDiscoveryEndpoints(
     return false;
   }
 
+  if (getRequestPathname(req)?.startsWith('/.well-known/oauth-protected-resource')) {
+    try {
+      if (runtimeAuthMode() === 'oauth') {
+        const metadata = runtimeMetadata('mcp');
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify(metadata));
+        return true;
+      }
+    } catch (error) {
+      sendMcpAuthError(res, error as RuntimeAuthError);
+      return true;
+    }
+  }
+
   writeJsonErrorResponse(
     res,
     404,
@@ -410,7 +428,7 @@ function setupCleanupHandlers(
 
     httpServer.close(() => {
       console.log("Server closed");
-      process.exit(0);
+      void flushRuntimeAudit().then(() => process.exit(0));
     });
   };
 
@@ -461,6 +479,29 @@ export function createBaseHttpServer(
 
   const httpServer = http.createServer(async (req, res) => {
     const isEndpointRequest = requestMatchesEndpoint(req, endpoint);
+    const requestId = randomUUID();
+    res.setHeader('x-request-id', requestId);
+    const admission = beginRuntimeCall({ transport: 'mcp', requestId, identitySource: 'anonymous',
+      clientIp: req.socket.remoteAddress }, 'admission');
+    admission.record.method = req.method;
+    admission.record.url = redactAuditUrl(`http://localhost${req.url || '/'}`);
+    admission.record.requestHeaders = redactAuditValue(req.headers);
+    const endResponse = res.end;
+    res.end = function (this: ServerResponse, ...args: any[]) {
+      if (res.statusCode >= 400 && (typeof args[0] === 'string' || Buffer.isBuffer(args[0]))) {
+        admission.record.response = captureAuditBody(args[0], String(res.getHeader('content-type') || 'text/plain'));
+      }
+      return (endResponse as any).apply(this, args);
+    } as typeof res.end;
+    let recorded = false;
+    const recordAdmission = (cancelled = false) => {
+      if (recorded) return;
+      recorded = true;
+      void admission.finish({ statusCode: res.statusCode, outcome: cancelled ? 'cancelled' :
+        res.statusCode >= 400 ? 'error' : 'success' });
+    };
+    res.once('finish', () => recordAdmission());
+    res.once('close', () => recordAdmission(!res.writableFinished));
 
     const headerValidationError = validateRequestHeaders(req, security);
     if (headerValidationError) {
@@ -490,12 +531,8 @@ export function createBaseHttpServer(
 
     // Handle OPTIONS requests
     if (req.method === "OPTIONS") {
-      if (requestMatchesEndpoint(req, endpoint)) {
-        res.setHeader("Allow", "GET, POST, DELETE");
-        writeJsonRpcErrorResponse(res, 405, -32000, "Method not allowed.");
-      } else {
-        res.writeHead(204).end();
-      }
+      res.setHeader('Allow', 'GET, POST, DELETE, OPTIONS');
+      res.writeHead(204).end();
       return;
     }
 
@@ -507,8 +544,23 @@ export function createBaseHttpServer(
 
     // 生成接口
     try {
-      await handlers.handleRequest(req, res);
+      const context = await authenticateMcpRequest(req, requestId);
+      context.serverId = process.env.API_NOVA_AUDIT_SERVER_ID || process.env.API_NOVA_MCP_RESOURCE ||
+        process.env.API_NOVA_RUNTIME_RESOURCE || `${handlers.serverType}:${listenHost}:${httpServer.address() && typeof httpServer.address() === 'object' ? (httpServer.address() as import('node:net').AddressInfo).port : port}${endpoint}`;
+      Object.assign(admission.record, context);
+      let expiryTimer: ReturnType<typeof setTimeout> | undefined;
+      if (context.expiresAt) {
+        expiryTimer = setTimeout(() => res.end(), Math.min(2147483647, Math.max(1, context.expiresAt * 1000 - Date.now())));
+        expiryTimer.unref();
+        res.once('close', () => clearTimeout(expiryTimer));
+        res.once('finish', () => clearTimeout(expiryTimer));
+      }
+      await withRuntimeCallContext(context, () => handlers.handleRequest(req, res));
     } catch (error) {
+      if (error instanceof RuntimeAuthError && !res.headersSent) {
+        sendMcpAuthError(res, error);
+        return;
+      }
       console.error(`Error in ${handlers.serverType} request handler:`, error);
       if (res.headersSent) {
         res.end();

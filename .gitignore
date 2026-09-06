@@ -53,6 +53,7 @@ packages/*/dist/
 pids/
 data/api-nova.db
 packages/data/
+**/data/runtime-audit/
 .codex_temp_*.json
 
 # Local environment files

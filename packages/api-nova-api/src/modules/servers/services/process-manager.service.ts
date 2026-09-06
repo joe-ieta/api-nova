@@ -22,6 +22,7 @@ import {
 import { ProcessResourceMonitorService, ProcessResourceMetrics, SystemResourceInfo } from './process-resource-monitor.service';
 import { ProcessLogMonitorService, ProcessLogEntry } from './process-log-monitor.service';
 import { AppConfigService } from '../../../config/app-config.service';
+import { auditDirectory } from 'api-nova-parser';
 
 // MCP连接监控相关接口
 interface MCPConnectionEvent {
@@ -140,12 +141,12 @@ export class ProcessManagerService implements OnModuleDestroy {
     try {
       // 更新状态为启动中
       await this.updateProcessStatus(serverId, ProcessStatus.STARTING);
-      console.log('config', config);
+      this.logger.debug(`Starting configured process for server ${serverId}`);
       
       // 创建子进程 - 支持CLI可执行文件
       const childProcess = spawn(config.scriptPath, config.args, {
         cwd: config.cwd || process.cwd(),
-        env: { ...process.env, ...config.env },
+        env: { ...process.env, ...config.env, API_NOVA_AUDIT_DIR: auditDirectory(), API_NOVA_AUDIT_SERVER_ID: serverId },
         stdio: ['pipe', 'pipe', 'pipe'],
         detached: false,
         shell: process.platform === 'win32', // Windows需要shell

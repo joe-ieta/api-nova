@@ -1,4 +1,6 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
+import { ConfigOverrideEntity } from './entities/config-override.entity';
+import { ConfigBackupEntity } from './entities/config-backup.entity';
 import { ConfigService } from '@nestjs/config';
 import { MCPServerEntity } from './entities/mcp-server.entity';
 import { AuthConfigEntity } from './entities/auth-config.entity';
@@ -39,6 +41,8 @@ import { RuntimeVerificationRunEntity } from './entities/runtime-verification-ru
 import { RuntimeVerificationResultEntity } from './entities/runtime-verification-result.entity';
 
 const entities = [
+  ConfigOverrideEntity,
+  ConfigBackupEntity,
   MCPServerEntity,
   AuthConfigEntity,
   LogEntryEntity,

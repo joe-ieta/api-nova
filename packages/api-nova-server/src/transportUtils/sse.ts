@@ -1,6 +1,10 @@
 import type { IncomingMessage, Server as HttpServer, ServerResponse } from "http";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { getRuntimeCallContext } from 'api-nova-parser';
+import { instrumentMcpTransport } from './audit';
+import { assertMcpToolScopes } from '../tools/runtime-security';
+import { getBody } from '../tools/getBody';
 import {
   createBaseHttpServer,
   type HttpSecurityOptions,
@@ -13,6 +17,7 @@ type SseServerSource = McpServer | SseServerFactory;
 interface SseSessionContext {
   server: McpServer;
   transport: SSEServerTransport;
+  callerId?: string;
 }
 
 export interface SseMcpServerOptions extends HttpSecurityOptions {
@@ -86,6 +91,7 @@ export async function startSseMcpServer(
       activeSessions[sessionId] = {
         server: sessionServer,
         transport,
+        callerId: getRuntimeCallContext()?.callerId,
       };
 
       let closed = false;
@@ -99,6 +105,7 @@ export async function startSseMcpServer(
 
       try {
         await sessionServer.connect(transport);
+        instrumentMcpTransport(transport);
         await transport.send({
           jsonrpc: "2.0",
           method: "sse/connection",
@@ -129,7 +136,13 @@ export async function startSseMcpServer(
         return;
       }
 
-      await activeSession.transport.handlePostMessage(req, res);
+      if (activeSession.callerId !== getRuntimeCallContext()?.callerId) {
+        res.writeHead(403).end('Session belongs to another caller');
+        return;
+      }
+      const body = await getBody(req);
+      await assertMcpToolScopes(body);
+      await activeSession.transport.handlePostMessage(req, res, body);
       return;
     }
 

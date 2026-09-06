@@ -10,6 +10,8 @@ const requiredTables = [
   'runtime_verification_runs',
   'runtime_verification_results',
   'gateway_route_snapshots',
+  'config_overrides',
+  'config_backups',
 ];
 const forbiddenSourceAssetColumns = ['scheme', 'host', 'port', 'normalizedBasePath'];
 
@@ -66,7 +68,7 @@ async function main() {
     };
     console.log(JSON.stringify(result));
     if (
-      domainTables.length !== 38 ||
+      domainTables.length !== 40 ||
       missingTables.length ||
       nonEmptyTables.length ||
       presentForbiddenColumns.length ||

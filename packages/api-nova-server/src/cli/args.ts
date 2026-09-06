@@ -60,10 +60,11 @@ export function showHelp() {
   console.log(CliDesign.option('-c, --config <file>', '配置文件路径 (JSON 格式)'));
   console.log(CliDesign.option('--env <file>', '环境变量文件路径 (.env 格式)'));
   
-  console.log(CliDesign.section(`${CliDesign.icons.key} 认证选项`));
-  console.log(CliDesign.option('--auth-type <type>', '认证类型 (none|bearer)', CLI_DEFAULTS.authType));
-  console.log(CliDesign.option('--bearer-token <token>', 'Bearer Token 静态值'));
-  console.log(CliDesign.option('--bearer-env <varname>', 'Bearer Token 环境变量名', CLI_DEFAULTS.bearerEnvName));
+  console.log(CliDesign.section(`${CliDesign.icons.key} 上游 API 认证选项`));
+  console.log(CliDesign.option('--auth-type <type>', '上游 API 认证类型 (none|bearer)', CLI_DEFAULTS.authType));
+  console.log(CliDesign.option('--bearer-token <token>', '上游 Bearer Token 静态值'));
+  console.log(CliDesign.option('--bearer-env <varname>', '上游 Bearer Token 环境变量名', CLI_DEFAULTS.bearerEnvName));
+  console.log(CliDesign.brand.muted('  MCP HTTP 入站默认 OAuth；请通过进程环境 API_NOVA_RUNTIME_* 配置，与上游凭证分离。'));
   
   console.log(CliDesign.section(`${CliDesign.icons.gear} 自定义请求头选项`));
   console.log(CliDesign.option('--custom-header <header>', '自定义请求头 "Key=Value" (可重复)'));

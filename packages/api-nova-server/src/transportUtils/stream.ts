@@ -15,6 +15,9 @@ import {
   writeJsonRpcErrorResponse,
 } from "../tools/httpServer";
 import { getBody } from "../tools/getBody";
+import { instrumentMcpTransport } from './audit';
+import { auditDigest, getRuntimeCallContext, RuntimeAuthError } from 'api-nova-parser';
+import { assertMcpToolScopes } from '../tools/runtime-security';
 
 type StreamableServerFactory = () => Promise<McpServer>;
 type StreamableServerSource = McpServer | StreamableServerFactory;
@@ -23,6 +26,7 @@ interface StreamableSessionContext {
   server: McpServer;
   transport: StreamableHTTPServerTransport;
   isClosing: boolean;
+  callerId?: string;
 }
 
 interface ActiveConnectionInfo {
@@ -74,7 +78,7 @@ export class MCPConnectionMonitor extends EventEmitter {
   // 添加连接 - 使用sessionId作为唯一标识
   addConnection(sessionId: string, req?: IncomingMessage): void {
     const connection: ActiveConnectionInfo = {
-      sessionId,
+      sessionId: auditDigest(sessionId),
       remoteAddress: this.extractRemoteAddress(req),
       userAgent: this.extractUserAgent(req),
       connectedAt: new Date(),
@@ -197,7 +201,6 @@ export async function startStreamableMcpServer(
   options: StreamableMcpServerOptions = {}
 ): Promise<Server> {
   const activeSessions: Record<string, StreamableSessionContext> = {};
-  const sessionEventStore = options.eventStore ?? new InMemoryEventStore();
   const useServerFactory = isServerFactory(serverSource);
 
   const createSessionServer = async (): Promise<McpServer> => {
@@ -226,13 +229,13 @@ export async function startStreamableMcpServer(
     try {
       await session.transport.close();
     } catch (error) {
-      console.error(`Error closing transport for session ${sessionId}:`, error);
+      console.error(`Error closing transport for session ${auditDigest(sessionId)}:`, error);
     }
 
     try {
       await session.server.close();
     } catch (error) {
-      console.error(`Error closing server for session ${sessionId}:`, error);
+      console.error(`Error closing server for session ${auditDigest(sessionId)}:`, error);
     }
 
     delete activeSessions[sessionId];
@@ -260,12 +263,18 @@ export async function startStreamableMcpServer(
       try {
         const sessionId = getHeaderValue(req, "mcp-session-id");
         const body = await getBody<JSONRPCMessage>(req);
+      await assertMcpToolScopes(body);
 
         // 1. If the sessionId is provided and a session exists, reuse it.
         if (sessionId) {
           const activeSession = activeSessions[sessionId];
           if (!activeSession) {
             writeJsonRpcErrorResponse(res, 404, -32001, "Session not found");
+            return;
+          }
+
+          if (activeSession.callerId !== getRuntimeCallContext()?.callerId) {
+            writeJsonRpcErrorResponse(res, 403, -32000, 'Session belongs to another caller');
             return;
           }
 
@@ -287,7 +296,7 @@ export async function startStreamableMcpServer(
         const sessionServer = await createSessionServer();
         let transport: StreamableHTTPServerTransport;
         transport = new StreamableHTTPServerTransport({
-          eventStore: sessionEventStore,
+          eventStore: isolateEventStore(options.eventStore ?? new InMemoryEventStore()),
           sessionIdGenerator: randomUUID,
           enableDnsRebindingProtection:
             options.enableDnsRebindingProtection !== false,
@@ -298,6 +307,7 @@ export async function startStreamableMcpServer(
               server: sessionServer,
               transport,
               isClosing: false,
+              callerId: getRuntimeCallContext()?.callerId,
             };
             globalConnectionMonitor.addConnection(initializedSessionId, req);
           },
@@ -313,8 +323,10 @@ export async function startStreamableMcpServer(
         };
 
         await sessionServer.connect(transport);
+        instrumentMcpTransport(transport);
         await transport.handleRequest(req, res, body);
       } catch (error) {
+        if (error instanceof RuntimeAuthError) throw error;
         console.error("Error handling request:", error);
         writeJsonRpcErrorResponse(res, 500, -32603, "Internal Server Error");
       }
@@ -339,12 +351,16 @@ export async function startStreamableMcpServer(
         writeJsonRpcErrorResponse(res, 404, -32001, "Session not found");
         return;
       }
+      if (activeSession.callerId !== getRuntimeCallContext()?.callerId) {
+        writeJsonRpcErrorResponse(res, 403, -32000, 'Session belongs to another caller');
+        return;
+      }
 
       const lastEventId = getHeaderValue(req, "last-event-id");
       if (lastEventId) {
-        console.log(`Client reconnecting with Last-Event-ID: ${lastEventId}`);
+        console.log('Client reconnecting with an event cursor');
       } else {
-        console.log(`Establishing new connection for session ${sessionId}`);
+        console.log(`Establishing new connection for session ${auditDigest(sessionId)}`);
       }
 
       await activeSession.transport.handleRequest(req, res);
@@ -367,6 +383,10 @@ export async function startStreamableMcpServer(
       const activeSession = activeSessions[sessionId];
       if (!activeSession) {
         writeJsonRpcErrorResponse(res, 404, -32001, "Session not found");
+        return;
+      }
+      if (activeSession.callerId !== getRuntimeCallContext()?.callerId) {
+        writeJsonRpcErrorResponse(res, 403, -32000, 'Session belongs to another caller');
         return;
       }
 
@@ -412,4 +432,22 @@ export async function startStreamableMcpServer(
     },
     options.host
   );
+}
+
+// Even an injected shared event store may only replay cursors owned by this session.
+function isolateEventStore(store: EventStore): EventStore {
+  const owned = new Set<string>();
+  return {
+    async storeEvent(streamId, message) {
+      const id = await store.storeEvent(streamId, message);
+      owned.add(id);
+      return id;
+    },
+    async replayEventsAfter(id, options) {
+      if (!owned.has(id)) return '';
+      return store.replayEventsAfter(id, { send: async (eventId, message) => {
+        if (owned.has(eventId)) await options.send(eventId, message);
+      } });
+    },
+  };
 }

@@ -10,12 +10,16 @@ import * as compression from 'compression';
 import * as express from 'express';
 import * as path from 'path';
 import { existsSync } from 'fs';
+import { flushRuntimeAudit, runtimeMetadata } from 'api-nova-parser';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   
   try {
     const app = await NestFactory.create(AppModule, {
+      // Parsers below deliberately exclude the streaming Gateway path. Do not let
+      // Nest append its default JSON parser and drain that stream afterwards.
+      bodyParser: false,
       logger: ['error', 'warn', 'log', 'debug', 'verbose'],
     });
 
@@ -81,11 +85,15 @@ async function bootstrap() {
       allowedHeaders: [
         'Content-Type', 
         'Authorization', 
+        'x-api-key',
+        'x-request-id',
+        'x-correlation-id',
         'mcp-session-id',
         'accept',
         'origin',
         'x-requested-with'
       ],
+      exposedHeaders: ['WWW-Authenticate', 'X-Request-Id'],
     }));
 
     // 全局前缀
@@ -94,6 +102,10 @@ async function bootstrap() {
     });
 
     const expressInstance = app.getHttpAdapter().getInstance();
+    expressInstance.get(/^\/\.well-known\/oauth-protected-resource(?:\/.*)?$/, (_req, res) => {
+      try { res.setHeader('Cache-Control', 'no-store'); res.json(runtimeMetadata('gateway')); }
+      catch { res.status(503).json({ error: 'runtime_auth_not_configured' }); }
+    });
     const spaFallbackPattern =
       /^\/(?!(api|socket\.io|monitoring|health|metrics|assets)(\/|$)|favicon\.ico$|vite\.svg$).*/;
 
@@ -190,12 +202,14 @@ async function bootstrap() {
     process.on('SIGTERM', async () => {
       logger.log('🛑 SIGTERM received, shutting down gracefully');
       await app.close();
+      await flushRuntimeAudit();
       process.exit(0);
     });
 
     process.on('SIGINT', async () => {
       logger.log('🛑 SIGINT received, shutting down gracefully');
       await app.close();
+      await flushRuntimeAudit();
       process.exit(0);
     });
 

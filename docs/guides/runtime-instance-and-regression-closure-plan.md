@@ -1,11 +1,13 @@
 # Runtime Instance And Regression Closure Development Plan
 
 > Document status: Active
-> Last reviewed: 2026-07-22
+> Last reviewed: 2026-09-06 (security integration amendment; earlier work-package evidence remains dated)
 
 ## Status
 
 Active implementation baseline, amended on 2026-07-22.
+
+2026-09-06 amendment: [security calling and audit](runtime-security-and-call-audit.md) adds unified inbound identity, automatic caller observations and API-level payload evidence without an analysis UI. Integration also adds the two configuration persistence tables required for clean API startup, bringing the current target to 40 domain tables. SQLite passed; PostgreSQL validation remains `EXT-11`. The 38-table results below are July execution history and must not be used as current release acceptance. The controlled integration fixture does not replace the pending real registration/publication workflow checks.
 
 This document defines the approved clean-baseline development task. Existing database structures, historical data, and legacy tests are not compatibility constraints; development and verification start from a newly initialized schema.
 

@@ -44,15 +44,18 @@ export class GatewayPolicyService {
       .toLowerCase();
 
     if (!normalized) {
-      return 'anonymous' as const;
+      return process.env.NODE_ENV === 'production' ? 'oauth' as const : 'anonymous' as const;
     }
+    if (normalized === 'oauth') return 'oauth' as const;
+    if (normalized === 'runtime-api-key') return 'runtime_api_key' as const;
+    if (normalized === 'anonymous') return 'anonymous' as const;
     if (normalized.includes('api-key') || normalized.includes('apikey') || normalized.includes('key')) {
       return 'api_key' as const;
     }
     if (normalized.includes('jwt') || normalized.includes('bearer') || normalized.includes('token')) {
       return 'jwt' as const;
     }
-    return 'anonymous' as const;
+    return process.env.NODE_ENV === 'production' ? 'oauth' as const : 'anonymous' as const;
   }
 
   private resolveLoggingCaptureMode(ref?: string): GatewayLoggingCaptureMode {

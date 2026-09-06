@@ -299,6 +299,7 @@ export class RuntimeAssetsService {
         'x-runtime-asset-id': runtimeAssetId,
         'x-runtime-membership-id': item.membership.id,
         'x-endpoint-definition-id': item.endpointDefinition.id,
+        'x-source-service-instance-id': upstreamResolution.instance.id,
         ...(upstreamResolution.instance.credentialRef
           ? { 'x-api-nova-credential-ref': upstreamResolution.instance.credentialRef }
           : {}),
@@ -1530,12 +1531,15 @@ export class RuntimeAssetsService {
       anonymous: 0,
       jwt: 0,
       apiKey: 0,
+      oauth: 0,
     };
 
     for (const route of routes) {
       const authMode = this.resolveGatewayAuthMode(route.authPolicyRef);
       if (authMode === 'jwt') {
         authModes.jwt += 1;
+      } else if (authMode === 'oauth') {
+        authModes.oauth += 1;
       } else if (authMode === 'api_key') {
         authModes.apiKey += 1;
       } else {
@@ -1690,15 +1694,17 @@ export class RuntimeAssetsService {
   private resolveGatewayAuthMode(ref?: string) {
     const normalized = String(ref || '').trim().toLowerCase();
     if (!normalized) {
-      return 'anonymous';
+      return process.env.NODE_ENV === 'production' ? 'oauth' : 'anonymous';
     }
+    if (normalized === 'oauth') return 'oauth';
+    if (normalized === 'anonymous') return 'anonymous';
     if (normalized.includes('api-key') || normalized.includes('apikey') || normalized.includes('key')) {
       return 'api_key';
     }
     if (normalized.includes('jwt') || normalized.includes('bearer') || normalized.includes('token')) {
       return 'jwt';
     }
-    return 'anonymous';
+    return process.env.NODE_ENV === 'production' ? 'oauth' : 'anonymous';
   }
 
   private uniqueRefs(values: Array<string | undefined>) {

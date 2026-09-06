@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { redactAuditUrl } from 'api-nova-parser';
 
 export interface ErrorResponse {
   success: false;
@@ -32,6 +33,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     const status = exception.getStatus();
     const exceptionResponse = exception.getResponse();
+    let safePath = '[invalid URL]';
+    try {
+      const safeUrl = new URL(redactAuditUrl(new URL(request.url || '/', 'http://api.local').toString()));
+      safePath = safeUrl.pathname + safeUrl.search;
+    } catch {
+      // Malformed request targets must not break error handling or leak raw input.
+    }
     
     const errorResponse: ErrorResponse = {
       success: false,
@@ -40,7 +48,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message: this.getErrorMessage(exceptionResponse),
         details: this.getErrorDetails(exceptionResponse),
         timestamp: new Date().toISOString(),
-        path: request.url,
+        path: safePath,
         method: request.method,
         requestId: request.headers['x-request-id'],
       },
@@ -50,7 +58,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     this.logger.error({
       type: 'http_exception',
       status,
-      path: request.url,
+      path: safePath,
       method: request.method,
       userAgent: request.headers['user-agent'],
       ip: request.ip,

@@ -3,6 +3,19 @@ import { GatewayPolicyService } from './gateway-policy.service';
 describe('GatewayPolicyService', () => {
   const service = new GatewayPolicyService();
 
+  it('requires OAuth by default in production and keeps explicit modes', () => {
+    const previous = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      expect(service.compileForRoute({} as any).auth.mode).toBe('oauth');
+      expect(service.compileForRoute({ authPolicyRef: 'unknown-policy' } as any).auth.mode).toBe('oauth');
+      expect(service.compileForRoute({ authPolicyRef: 'anonymous' } as any).auth.mode).toBe('anonymous');
+      expect(service.compileForRoute({ authPolicyRef: 'runtime-api-key' } as any).auth.mode).toBe('runtime_api_key');
+    } finally {
+      if (previous === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = previous;
+    }
+  });
+
   it('compiles the route binding into a normalized policy bundle', () => {
     const result = service.compileForRoute({
       authPolicyRef: 'jwt-default',

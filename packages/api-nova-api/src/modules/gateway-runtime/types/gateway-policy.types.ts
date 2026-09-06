@@ -1,4 +1,4 @@
-export type GatewayAuthMode = 'anonymous' | 'jwt' | 'api_key';
+export type GatewayAuthMode = 'anonymous' | 'jwt' | 'api_key' | 'oauth' | 'runtime_api_key';
 
 export type GatewayLoggingCaptureMode =
   | 'meta_only'

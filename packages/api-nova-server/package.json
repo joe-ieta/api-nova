@@ -10,7 +10,8 @@
     "api-nova-interactive": "./dist/cli-interactive.js"
   },
   "scripts": {
-    "test": "npm run build && node scripts/cli-smoke.js && node scripts/smoke-test.js && node scripts/streamable-session-smoke.js && node scripts/transform-from-spec-smoke.js",
+    "test:security-audit": "npm run build && node scripts/runtime-security-audit-smoke.js",
+    "test": "npm run build && node scripts/cli-smoke.js && node scripts/smoke-test.js && node scripts/streamable-session-smoke.js && node scripts/transform-from-spec-smoke.js && node scripts/runtime-security-audit-smoke.js",
     "test:smoke": "npm run build && node scripts/smoke-test.js",
     "test:cli": "npm run build && node scripts/cli-smoke.js",
     "test:streamable-session": "npm run build && node scripts/streamable-session-smoke.js",

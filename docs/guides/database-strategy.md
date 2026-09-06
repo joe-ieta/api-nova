@@ -1,7 +1,7 @@
 # Database Strategy
 
 > Document status: Active
-> Last reviewed: 2026-07-22
+> Last reviewed: 2026-09-06
 
 ## Decision
 
@@ -48,7 +48,9 @@ npm run db:verify-isolated-sqlite --workspace api-nova-api
 npm run db:verify-isolated-postgres --workspace api-nova-api
 ```
 
-Latest verified baseline on 2026-07-22:
+The current canonical target on 2026-09-06 is **40 domain tables** plus the migration ledger. The configuration persistence migration adds `config_overrides` and `config_backups`. Isolated SQLite migration verification and full API startup with `DB_SYNCHRONIZE=false` passed. PostgreSQL execution against this 40-table target remains pending as `EXT-11`; the earlier PostgreSQL result is not current acceptance evidence.
+
+Historical verification on 2026-07-22 (before the configuration persistence migration):
 
 - 38 domain tables plus the migration ledger in each engine
 - all nine runtime-closure core tables present

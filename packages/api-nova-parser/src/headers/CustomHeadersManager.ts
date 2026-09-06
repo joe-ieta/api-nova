@@ -1,5 +1,6 @@
 import { CustomHeaders, RequestContext } from '../transformer/types';
 import { getPredefinedGenerator } from './generators';
+import { redactAuditHeaders, redactAuditValue } from '../audit/runtime-call-audit';
 
 /**
  * 自定义请求头管理器
@@ -37,7 +38,7 @@ export class CustomHeadersManager {
       if (this.config.static) {
         Object.assign(headers, this.config.static);
         if (this.debugMode) {
-          console.log('Added static headers:', this.config.static);
+          console.error('Added static headers:', redactAuditValue(this.config.static));
         }
       }
 
@@ -46,7 +47,7 @@ export class CustomHeadersManager {
         const envHeaders = await this.resolveEnvHeaders(this.config.env);
         Object.assign(headers, envHeaders);
         if (this.debugMode) {
-          console.log('Added env headers:', envHeaders);
+          console.error('Added env header names:', Object.keys(envHeaders));
         }
       }
 
@@ -55,7 +56,7 @@ export class CustomHeadersManager {
         const dynamicHeaders = await this.resolveDynamicHeaders(this.config.dynamic);
         Object.assign(headers, dynamicHeaders);
         if (this.debugMode) {
-          console.log('Added dynamic headers:', dynamicHeaders);
+          console.error('Added dynamic headers:', redactAuditValue(dynamicHeaders));
         }
       }
 
@@ -64,7 +65,7 @@ export class CustomHeadersManager {
         const conditionalHeaders = await this.resolveConditionalHeaders(this.config.conditional, context);
         Object.assign(headers, conditionalHeaders);
         if (this.debugMode) {
-          console.log('Added conditional headers:', conditionalHeaders);
+          console.error('Added conditional headers:', redactAuditValue(conditionalHeaders));
         }
       }
 
@@ -72,7 +73,7 @@ export class CustomHeadersManager {
       const filteredHeaders = this.filterProtectedHeaders(headers);
 
       if (this.debugMode) {
-        console.log('Final custom headers:', filteredHeaders);
+        console.error('Final custom headers:', redactAuditHeaders(filteredHeaders, Object.keys(this.config.env || {})));
       }
 
       return filteredHeaders;

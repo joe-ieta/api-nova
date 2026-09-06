@@ -1,13 +1,14 @@
 # Testing Documentation
 
 > Document status: Active index
-> Last reviewed: 2026-07-22
+> Last reviewed: 2026-09-06
 
 This directory contains executable acceptance cases and release evidence requirements. Unit-test source remains next to implementation code; historical test plans belong in `docs/archive`.
 
 ## Active Test Assets
 
 - [Runtime Publication Acceptance Cases](./runtime-publication-acceptance-cases.md)
+- [安全调用与日志审计验收用例](./runtime-security-audit-cases.md)
 
 ## Status Vocabulary
 

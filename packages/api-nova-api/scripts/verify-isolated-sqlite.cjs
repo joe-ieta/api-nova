@@ -4,8 +4,10 @@ const path = require('node:path');
 const databaseName = `api-nova-verify-${process.pid}-${Date.now()}.sqlite`;
 const databasePath = path.resolve(__dirname, '..', '..', '..', 'tmp', databaseName);
 const safeRoot = path.resolve(__dirname, '..', '..', '..', 'tmp');
-const expectedDomainTableCount = 38;
+const expectedDomainTableCount = 40;
 const requiredTables = [
+  'config_overrides',
+  'config_backups',
   'source_service_instances',
   'endpoint_test_cases',
   'endpoint_test_runs',

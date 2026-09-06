@@ -1,7 +1,7 @@
 # ApiNova API Gateway Architecture And Requirements
 
 > Document status: Active
-> Last reviewed: 2026-07-22
+> Last reviewed: 2026-09-06
 
 ## Purpose
 
@@ -145,8 +145,8 @@ Requirements:
 Requirements:
 
 1. Every gateway request must produce an access log record.
-2. Metadata-only logging is the default.
-3. Request and response body capture must be policy controlled.
+2. The existing management log remains a summary/preview surface. The unified runtime call audit records full supported bodies as defined in [安全调用与日志审计](./runtime-security-and-call-audit.md).
+3. The unified audit applies explicit size, format, and redaction controls. Legacy `loggingPolicyRef` preview labels do not disable this new call evidence stream.
 4. Error paths must support stronger capture for diagnosis.
 5. Request tracking must support `requestId` and `correlationId`.
 6. Log storage must distinguish summary events from request-level payload capture.
