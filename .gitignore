@@ -55,11 +55,7 @@ lerna-debug.log*
 
 # Editor directories and files
 .idea/
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
+.vscode/
 *.suo
 *.ntvs*
 *.njsproj
@@ -115,3 +111,10 @@ packages/api-nova-api/.env.development
 # runtime artifacts
 packages/api-nova-server/.mcp-swagger/
 packages/api-nova-server/mcp-server-stats.json
+
+# Dot directories (kept local only, not tracked in the repository)
+.agents/
+.changeset/
+.codex/
+.github/
+
