@@ -109,3 +109,4 @@ npm run test:security-audit --workspace api-nova-server
 - [Project README](../../README.md)
 - [Local Setup And Run](../../docs/guides/local-setup-and-run.md)
 - [Runtime Instance And Regression Closure Plan](../../docs/guides/runtime-instance-and-regression-closure-plan.md)
+- [Staged Development Plan](../../docs/guides/staged-development-plan.md)

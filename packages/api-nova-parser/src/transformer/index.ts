@@ -187,6 +187,24 @@ export class OpenAPIToMCPTransformer {
       }
     }
 
+    // Sanitization/truncation can collapse distinct operations to the same name.
+    const groups = new Map<string, MCPTool[]>();
+    for (const tool of tools) groups.set(tool.name, [...(groups.get(tool.name) || []), tool]);
+    const used = new Set(tools.map(tool => tool.name));
+    for (const [name, group] of groups) {
+      if (group.length < 2) continue;
+      for (const tool of group) {
+        const identity = `${tool.metadata?.method}:${tool.metadata?.path}`;
+        let hash = 2166136261;
+        for (let i = 0; i < identity.length; i++) hash = Math.imul(hash ^ identity.charCodeAt(i), 16777619);
+        const suffix = (hash >>> 0).toString(16).padStart(8, '0');
+        let candidate = `${name.slice(0, 55)}_${suffix}`;
+        let sequence = 1;
+        while (used.has(candidate)) candidate = `${name.slice(0, 44)}_${suffix}_${sequence++}`;
+        used.add(candidate);
+        tool.name = candidate;
+      }
+    }
     return tools;
   }
 
@@ -436,7 +454,16 @@ export class OpenAPIToMCPTransformer {
   private generateToolName(method: string, path: string, operation: OperationObject): string {
     // Use operationId if available
     if (operation.operationId) {
-      return operation.operationId;
+      // MCP tool names must only contain letters, numbers, '_', and '-'.
+      // Synthesized operationIds (e.g. `${method}_${path}`) can contain '/',
+      // which most MCP clients reject. Sanitize the id to a safe name.
+      const cleanedOperationId = String(operation.operationId)
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_+|_+$/g, '');
+      if (cleanedOperationId) {
+        return cleanedOperationId.slice(0, 64);
+      }
     }
 
     // Generate from method and path
@@ -446,7 +473,7 @@ export class OpenAPIToMCPTransformer {
       .replace(/_+/g, '_') // Replace multiple underscores with single
       .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
 
-    return `${method}_${cleanPath}`;
+    return `${method}_${cleanPath}`.slice(0, 64);
   }
 
   /**
@@ -519,7 +546,8 @@ export class OpenAPIToMCPTransformer {
           // 处理 MediaType 级别的示例
           this.enhanceSchemaWithMediaTypeExamples(bodySchema, jsonContent);
           
-          if (bodySchema.type === 'object' && bodySchema.properties) {
+          if (bodySchema.type === 'object' && bodySchema.properties &&
+              !Object.keys(bodySchema.properties).some(key => key in properties)) {
             // Merge request body properties
             Object.assign(properties, bodySchema.properties);
             if (bodySchema.required) {
@@ -608,6 +636,16 @@ export class OpenAPIToMCPTransformer {
 
       // 2. 准备请求头（默认头）
       const headers = { ...this.options.defaultHeaders };
+      const protectedNames = new Set([
+        'host', 'content-length', 'connection', 'transfer-encoding',
+        ...(this.options.protectedHeaders || []).map(name => name.toLowerCase()),
+      ]);
+      for (const parameter of operation.parameters || []) {
+        if (this.isReferenceObject(parameter) || parameter.in !== 'header') continue;
+        const name = parameter.name.toLowerCase();
+        if (protectedNames.has(name) || args[parameter.name] == null) continue;
+        headers[name] = String(args[parameter.name]);
+      }
 
       // 3. 添加自定义头（在认证头之前，优先级较低）
       if (this.customHeadersManager) {
@@ -777,7 +815,7 @@ export class OpenAPIToMCPTransformer {
       for (const param of operation.parameters) {
         if (!this.isReferenceObject(param)) {
           if (param.in === 'path') pathParams.add(param.name);
-          if (param.in === 'query') queryParams.add(param.name);
+          if (param.in === 'query' || param.in === 'header' || param.in === 'cookie') queryParams.add(param.name);
         }
       }
 

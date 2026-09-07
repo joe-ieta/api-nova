@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-07
+---
 # Changesets Changelog 字段详解和实际效果
 
 > Document status: Active

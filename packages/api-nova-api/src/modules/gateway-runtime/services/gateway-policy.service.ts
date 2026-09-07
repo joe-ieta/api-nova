@@ -8,10 +8,14 @@ import {
 @Injectable()
 export class GatewayPolicyService {
   compileForRoute(routeBinding: GatewayRouteBindingEntity): GatewayCompiledPolicyBundle {
+    const configuredMode = this.resolveAuthMode(routeBinding.authPolicyRef);
+    const visibility = String(routeBinding.routeVisibility || 'internal').trim().toLowerCase();
+    const mode = configuredMode === 'anonymous' && visibility !== 'external'
+      ? 'jwt' : configuredMode;
     return {
       auth: {
         ref: routeBinding.authPolicyRef,
-        mode: this.resolveAuthMode(routeBinding.authPolicyRef),
+        mode,
         apiKeyQueryParamName: this.resolveApiKeyQueryParamName(routeBinding.upstreamConfig),
       },
       traffic: {

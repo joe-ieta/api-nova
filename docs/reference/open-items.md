@@ -12,6 +12,7 @@
 
 请同时参考这些文档：
 
+- `docs/baseline/PROJECT_BASELINE.md`
 - `docs/guides/staged-development-plan.md`
 - `docs/guides/runtime-instance-and-regression-closure-plan.md`
 - `docs/reference/runtime-closure-design-implementation-review.md`

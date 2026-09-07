@@ -15,6 +15,7 @@ This directory contains historical documentation that is not the current source 
 - `ui`: older UI design and technical material
 - `prototypes`: exploratory HTML artifacts
 - `packages`: completed or superseded package-level implementation plans moved out of current package documentation
+- `baselines`: historical baseline documents consolidated into `docs/baseline`
 
 ## Rules
 

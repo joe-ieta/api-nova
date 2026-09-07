@@ -34,7 +34,11 @@ export class GatewaySecurityService {
     resolvedRoute: GatewayResolvedRoute,
     req: Request,
   ): Promise<GatewayRequestAuthContext> {
-    const mode = resolvedRoute.policies.auth.mode;
+    const configuredMode = resolvedRoute.policies.auth.mode;
+    const visibility = String(resolvedRoute.routeBinding.routeVisibility || 'internal')
+      .trim().toLowerCase();
+    const mode = configuredMode === 'anonymous' && visibility !== 'external'
+      ? 'jwt' : configuredMode;
     if (mode === 'jwt') {
       try {
         const principal = await this.authenticateJwt(req.headers);

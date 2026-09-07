@@ -1,7 +1,7 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Like, Repository } from 'typeorm';
+import { EntityManager, Like, In, Repository } from 'typeorm';
 import { firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 import {
@@ -10,9 +10,28 @@ import {
 } from '../../../database/entities/endpoint-definition.entity';
 import { SourceServiceAssetEntity } from '../../../database/entities/source-service-asset.entity';
 import {
+  EndpointPublishBindingEntity,
+  PublicationBindingStatus,
+} from '../../../database/entities/endpoint-publish-binding.entity';
+import {
+  GatewayRouteBindingEntity,
+  GatewayRouteBindingStatus,
+  GatewayRoutePathMatchMode,
+} from '../../../database/entities/gateway-route-binding.entity';
+import { PublicationAuditEventEntity } from '../../../database/entities/publication-audit-event.entity';
+import { PublicationProfileEntity } from '../../../database/entities/publication-profile.entity';
+import { PublicationProfileHistoryEntity } from '../../../database/entities/publication-profile-history.entity';
+import { RuntimeAssetEndpointBindingEntity, RuntimeAssetEndpointBindingStatus } from '../../../database/entities/runtime-asset-endpoint-binding.entity';
+import { RuntimeUpstreamBindingEntity } from '../../../database/entities/runtime-upstream-binding.entity';
+import { RuntimeUpstreamBindingInstanceEntity } from '../../../database/entities/runtime-upstream-binding-instance.entity';
+import { MCPServerEntity } from '../../../database/entities/mcp-server.entity';
+import { RuntimeAssetEntity } from '../../../database/entities/runtime-asset.entity';
+import {
   AssetCatalogQueryDto,
   ExecuteEndpointDefinitionTestDto,
   EndpointCatalogQueryDto,
+  ManualEndpointParameterDto,
+  ManualEndpointRequestBodyDto,
   RegisterManualEndpointAssetDto,
   UpdateEndpointDefinitionGovernanceDto,
   UpdateManualEndpointAssetDto,
@@ -30,6 +49,18 @@ export class AssetCatalogService {
     private readonly sourceServiceRepository: Repository<SourceServiceAssetEntity>,
     @InjectRepository(EndpointDefinitionEntity)
     private readonly endpointDefinitionRepository: Repository<EndpointDefinitionEntity>,
+    @InjectRepository(RuntimeAssetEndpointBindingEntity)
+    private readonly runtimeBindingRepository: Repository<RuntimeAssetEndpointBindingEntity>,
+    @InjectRepository(EndpointPublishBindingEntity)
+    private readonly publishBindingRepository: Repository<EndpointPublishBindingEntity>,
+    @InjectRepository(GatewayRouteBindingEntity)
+    private readonly routeBindingRepository: Repository<GatewayRouteBindingEntity>,
+    @InjectRepository(PublicationProfileEntity)
+    private readonly profileRepository: Repository<PublicationProfileEntity>,
+    @InjectRepository(PublicationProfileHistoryEntity)
+    private readonly profileHistoryRepository: Repository<PublicationProfileHistoryEntity>,
+    @InjectRepository(PublicationAuditEventEntity)
+    private readonly publicationAuditRepository: Repository<PublicationAuditEventEntity>,
     private readonly httpService: HttpService,
     private readonly endpointTestingService: EndpointTestingService,
     private readonly sourceServiceInstancesService: SourceServiceInstancesService,
@@ -215,11 +246,12 @@ export class AssetCatalogService {
     const defaultProbeUrl =
       sourceType === 'imported'
         ? runtimeBaseUrl
-        : `${runtimeBaseUrl}${endpoint.path}`;
-    const probeUrl =
+        : `${runtimeBaseUrl.replace(/\/+$/, '')}${endpoint.path}`;
+    const rawProbeUrl =
       typeof metadata.probeUrl === 'string' && metadata.probeUrl
         ? metadata.probeUrl
         : defaultProbeUrl;
+    const probeUrl = this.substitutePathParameters(rawProbeUrl, endpoint);
     if (!probeUrl) {
       throw new BadRequestException(`Probe URL cannot be resolved for endpoint '${id}'`);
     }
@@ -235,7 +267,7 @@ export class AssetCatalogService {
       lastProbeAt: new Date().toISOString(),
       lastProbeError: result.errorMessage,
       lastProbeHttpStatus: result.httpStatus,
-      probeUrl: result.probeUrl,
+      probeUrl: rawProbeUrl,
       probeScope: sourceType === 'imported' ? 'source_service' : 'endpoint',
     };
 
@@ -289,15 +321,14 @@ export class AssetCatalogService {
 
     const sourceServiceInstance = await this.sourceServiceInstancesService.resolveForExecution(
       sourceServiceAsset.id,
-      {
-        instanceId: input.sourceServiceInstanceId,
-        environment: input.environment,
-      },
+      { instanceId: input.sourceServiceInstanceId, environment: input.environment },
     );
-    const testUrl = `${this.sourceServiceInstancesService.buildBaseUrl(sourceServiceInstance)}${endpoint.path}`;
-    const method = String(endpoint.method || 'GET').toUpperCase();
     const parameters =
       input.parameters && typeof input.parameters === 'object' ? input.parameters : {};
+    const rawTestUrl = `${this.sourceServiceInstancesService.buildBaseUrl(sourceServiceInstance).replace(/\/+$/, '')}${endpoint.path}`;
+    const testUrl = this.substitutePathParameters(rawTestUrl, endpoint, parameters);
+    const method = String(endpoint.method || 'GET').toUpperCase();
+    const request = this.buildEndpointTestRequest(endpoint, parameters);
     const startedAt = Date.now();
 
     try {
@@ -307,9 +338,7 @@ export class AssetCatalogService {
           method: method as any,
           timeout: 12000,
           validateStatus: () => true,
-          ...(this.isQueryOnlyMethod(method)
-            ? { params: parameters }
-            : { data: parameters }),
+          ...request,
         }),
       );
 
@@ -421,6 +450,8 @@ export class AssetCatalogService {
       method: input.method,
       path: input.path,
       description: input.description,
+      parameters: input.parameters,
+      requestBody: input.requestBody,
       metadata: {
         source: 'manual-registration',
         businessDomain: input.businessDomain,
@@ -434,6 +465,8 @@ export class AssetCatalogService {
   async updateManualEndpointAssetRecord(id: string, input: UpdateManualEndpointAssetDto) {
     const endpoint = await this.requireEndpointDefinition(id);
     this.ensureManualEndpoint(endpoint);
+    await this.ensureManualEndpointMutatable(endpoint);
+    const previousEndpoint = { ...endpoint };
     const previousSourceServiceAssetId = endpoint.sourceServiceAssetId;
 
     const parsed = new URL(input.baseUrl);
@@ -457,6 +490,16 @@ export class AssetCatalogService {
     endpoint.path = this.normalizeBasePath(input.path);
     endpoint.summary = input.description || `${input.method.toUpperCase()} ${input.path}`;
     endpoint.description = input.description;
+    const template = { ...(endpoint.rawOperation || {}) };
+    const changes = this.buildManualOperationTemplate(input.parameters, input.requestBody);
+    if (input.parameters !== undefined) template.parameters = changes.parameters || [];
+    if (input.requestBody !== undefined) {
+      if (changes.requestBody) template.requestBody = changes.requestBody;
+      else delete template.requestBody;
+    }
+    endpoint.rawOperation = template;
+    endpoint.status = EndpointDefinitionStatus.DRAFT;
+    endpoint.publishEnabled = false;
     endpoint.metadata = {
       ...(endpoint.metadata || {}),
       source: 'manual-registration',
@@ -464,6 +507,11 @@ export class AssetCatalogService {
       riskLevel: input.riskLevel,
       displayName: input.name,
       baseUrl: input.baseUrl,
+      probeUrl: `${input.baseUrl.replace(/\/+$/, '')}${this.normalizeBasePath(input.path)}`,
+      lastProbeStatus: undefined,
+      lastProbeAt: undefined,
+      lastProbeHttpStatus: undefined,
+      lastProbeError: undefined,
       testStatus: 'untested',
       qualificationState: 'registered',
       lastTestAt: undefined,
@@ -474,7 +522,11 @@ export class AssetCatalogService {
       lastTestError: undefined,
     };
 
-    await this.endpointDefinitionRepository.save(endpoint);
+    await this.endpointDefinitionRepository.manager.transaction(async manager => {
+      await this.ensureManualEndpointMutatable(previousEndpoint, manager);
+      await this.syncEndpointRouteBindings(endpoint, previousEndpoint, manager);
+      await manager.getRepository(EndpointDefinitionEntity).save(endpoint);
+    });
     await this.cleanupOrphanSourceServiceAsset(previousSourceServiceAssetId);
     return this.buildEndpointAssetRecord(endpoint.id);
   }
@@ -482,13 +534,15 @@ export class AssetCatalogService {
   async deleteManualEndpointAssetRecord(id: string) {
     const endpoint = await this.requireEndpointDefinition(id);
     this.ensureManualEndpoint(endpoint);
+    await this.ensureManualEndpointRemovable(endpoint);
     const sourceServiceAssetId = endpoint.sourceServiceAssetId;
-    await this.endpointDefinitionRepository.remove(endpoint);
+    await this.cascadeDeleteEndpointRecord(endpoint);
     await this.cleanupOrphanSourceServiceAsset(sourceServiceAssetId);
 
     return {
       success: true,
       endpointId: id,
+      deletedBindings: true,
     };
   }
 
@@ -582,6 +636,8 @@ export class AssetCatalogService {
     method: string;
     path: string;
     description?: string;
+    parameters?: RegisterManualEndpointAssetDto['parameters'];
+    requestBody?: RegisterManualEndpointAssetDto['requestBody'];
     metadata?: Record<string, unknown>;
   }) {
     const parsed = new URL(input.baseUrl);
@@ -599,12 +655,23 @@ export class AssetCatalogService {
       },
     });
 
+    const existing = await this.endpointDefinitionRepository.findOne({
+      where: {
+        sourceServiceAssetId: sourceServiceAsset.id,
+        method: input.method.toUpperCase(),
+        path: this.normalizeBasePath(input.path),
+      },
+    });
+    if (existing) {
+      throw new ConflictException('This endpoint is already registered; update the existing endpoint instead');
+    }
     const endpoint = await this.upsertEndpointDefinition({
       sourceServiceAssetId: sourceServiceAsset.id,
       method: input.method.toUpperCase(),
       path: this.normalizeBasePath(input.path),
       summary: input.description || `${input.method.toUpperCase()} ${input.path}`,
       description: input.description,
+      rawOperation: this.buildManualOperationTemplate(input.parameters, input.requestBody),
       status: EndpointDefinitionStatus.DRAFT,
       publishEnabled: false,
       metadata: {
@@ -866,7 +933,267 @@ export class AssetCatalogService {
       return;
     }
 
+    // Runtime instances may still be referenced by retained test/audit evidence.
+    const instances = await this.sourceServiceInstancesService.list(sourceServiceAssetId);
+    if (instances.total > 0) return;
     await this.sourceServiceRepository.delete({ id: sourceServiceAssetId });
+  }
+
+  private buildManualOperationTemplate(
+    parameters?: ManualEndpointParameterDto[],
+    requestBody?: ManualEndpointRequestBodyDto | null,
+  ): Record<string, any> {
+    const template: Record<string, unknown> = {};
+    const normalizedParameters = Array.isArray(parameters) ? parameters : [];
+    const names = new Set<string>();
+    for (const parameter of normalizedParameters) {
+      const name = parameter?.name?.trim();
+      if (!name || names.has(name)) {
+        throw new BadRequestException('Manual endpoint parameters must have non-empty, unique names');
+      }
+      names.add(name);
+    }
+    if (normalizedParameters.length > 0) {
+      template.parameters = normalizedParameters
+        .filter(
+          (param): param is ManualEndpointParameterDto =>
+            Boolean(param && typeof param.name === 'string' && param.name.trim()),
+        )
+        .map(param => ({
+          name: param.name.trim(),
+          in: param.in,
+          description: param.description,
+          required: param.in === 'path' || (param.required ?? false),
+          schema: {
+            ...(param.schema || { type: param.type || 'string' }),
+            ...(param.example !== undefined ? { example: param.example } : {}),
+          },
+        }));
+    }
+
+    if (requestBody) {
+      const bodySchema =
+        requestBody.schema && Object.keys(requestBody.schema).length > 0
+          ? requestBody.schema
+          : { type: requestBody.type || 'object' };
+      template.requestBody = {
+        required: requestBody.required ?? false,
+        description: requestBody.description,
+        content: {
+          'application/json': {
+            schema: bodySchema,
+            ...(requestBody.example !== undefined ? { example: requestBody.example } : {}),
+          },
+        },
+      };
+    }
+
+    return template;
+  }
+
+  private substitutePathParameters(
+    url: string,
+    endpoint: EndpointDefinitionEntity,
+    supplied: Record<string, unknown> = {},
+  ) {
+    return url.replace(/\{([^}]+)\}/g, (_match, name: string) =>
+      encodeURIComponent(String(this.resolvePathSample(name, endpoint, supplied))),
+    );
+  }
+
+  private resolvePathSample(
+    name: string,
+    endpoint: EndpointDefinitionEntity,
+    supplied: Record<string, unknown>,
+  ) {
+    if (Object.prototype.hasOwnProperty.call(supplied, name) && supplied[name] != null) {
+      return supplied[name];
+    }
+    const stored = endpoint.metadata?.testParameters as Record<string, unknown> | undefined;
+    if (stored && Object.prototype.hasOwnProperty.call(stored, name) && stored[name] != null) {
+      return stored[name];
+    }
+    const parameters = endpoint.rawOperation?.parameters;
+    const parameter = Array.isArray(parameters)
+      ? parameters.find(item => item?.name === name && item.in === 'path')
+      : undefined;
+    const sample = parameter?.example ?? parameter?.schema?.example ?? parameter?.schema?.default;
+    if (sample != null) return sample;
+    throw new BadRequestException(`Path parameter '${name}' requires a test value or an example`);
+  }
+
+  private buildEndpointTestRequest(
+    endpoint: EndpointDefinitionEntity,
+    supplied: Record<string, unknown>,
+  ) {
+    const operation = endpoint.rawOperation || {};
+    if (!Array.isArray(operation.parameters) && !operation.requestBody) {
+      return this.isQueryOnlyMethod(endpoint.method.toUpperCase())
+        ? { params: supplied } : { data: supplied };
+    }
+    const params: Record<string, unknown> = {};
+    const headers: Record<string, string> = {};
+    const body = { ...supplied };
+    for (const parameter of (Array.isArray(operation.parameters) ? operation.parameters : [])) {
+      const value = supplied[parameter.name] ?? parameter.example ??
+        parameter.schema?.example ?? parameter.schema?.default;
+      delete body[parameter.name];
+      if (value == null) continue;
+      if (parameter.in === 'query') params[parameter.name] = value;
+      if (parameter.in === 'header') headers[parameter.name] = String(value);
+    }
+    const requestBody = operation.requestBody as any;
+    const data = requestBody
+      ? (supplied.body ?? (Object.keys(body).length ? body :
+          requestBody.content?.['application/json']?.example))
+      : undefined;
+    return { params, headers, ...(data !== undefined ? { data } : {}) };
+  }
+
+  private async hasActivePublicationBinding(
+    endpoint: EndpointDefinitionEntity,
+    manager?: EntityManager,
+  ) {
+    if (endpoint.status === EndpointDefinitionStatus.PUBLISHED) return true;
+    const [publications, routes, memberships] = await Promise.all([
+      (manager?.getRepository(EndpointPublishBindingEntity) || this.publishBindingRepository).find({
+        where: { endpointDefinitionId: endpoint.id, publishStatus: PublicationBindingStatus.ACTIVE },
+      }),
+      (manager?.getRepository(GatewayRouteBindingEntity) || this.routeBindingRepository).find({
+        where: { endpointDefinitionId: endpoint.id, status: GatewayRouteBindingStatus.ACTIVE },
+      }),
+      (manager?.getRepository(RuntimeAssetEndpointBindingEntity) || this.runtimeBindingRepository).find({
+        where: { endpointDefinitionId: endpoint.id, status: RuntimeAssetEndpointBindingStatus.ACTIVE },
+      }),
+    ]);
+    if (publications.length > 0 || routes.length > 0 || memberships.length > 0) return true;
+    const entityManager = manager || this.endpointDefinitionRepository.manager;
+    const related = await entityManager.getRepository(RuntimeAssetEndpointBindingEntity).find({
+      where: { endpointDefinitionId: endpoint.id },
+    });
+    if (!related.length) return false;
+    const runtimes = await entityManager.getRepository(RuntimeAssetEntity).find({
+      where: { id: In([...new Set(related.map(item => item.runtimeAssetId))]) },
+    });
+    // Published snapshots are immutable and remain live until the runtime is stopped/redeployed.
+    if (runtimes.some(runtime => runtime.type === 'gateway_service' &&
+      ['active', 'degraded'].includes(runtime.status) && runtime.metadata?.activeRevision)) return true;
+    const serverIds = runtimes.map(runtime => runtime.metadata?.managedServerId)
+      .filter((id): id is string => typeof id === 'string');
+    if (!serverIds.length) return false;
+    const servers = await entityManager.getRepository(MCPServerEntity).find({
+      where: { id: In(serverIds) },
+    });
+    return servers.some(server => ['running', 'starting', 'restarting'].includes(server.status));
+  }
+
+  private async ensureManualEndpointMutatable(
+    endpoint: EndpointDefinitionEntity,
+    manager?: EntityManager,
+  ) {
+    if (await this.hasActivePublicationBinding(endpoint, manager)) {
+      throw new ConflictException(
+        `Manual endpoint '${endpoint.id}' has active publication bindings; offline its memberships and stop deployed runtimes before editing or deleting it`,
+      );
+    }
+  }
+
+  private async ensureManualEndpointRemovable(endpoint: EndpointDefinitionEntity) {
+    await this.ensureManualEndpointMutatable(endpoint);
+  }
+
+  private async syncEndpointRouteBindings(
+    endpoint: EndpointDefinitionEntity,
+    previous: EndpointDefinitionEntity,
+    manager: EntityManager,
+  ) {
+    const repository = manager.getRepository(GatewayRouteBindingEntity);
+    const routes = await repository.find({ where: { endpointDefinitionId: endpoint.id } });
+    for (const route of routes) {
+      if (route.routePath === previous.path) {
+        route.routePath = endpoint.path;
+        route.pathMatchMode = /\{[^}]+\}/.test(endpoint.path)
+          ? GatewayRoutePathMatchMode.PARAMETER : GatewayRoutePathMatchMode.EXACT;
+      }
+      if (route.upstreamPath === previous.path) route.upstreamPath = endpoint.path;
+      if (route.routeMethod === previous.method) route.routeMethod = endpoint.method;
+      if (route.upstreamMethod === previous.method) route.upstreamMethod = endpoint.method;
+      const candidates = await repository.find({
+        where: { routePath: route.routePath, routeMethod: route.routeMethod },
+      });
+      if (candidates.some(candidate => candidate.id !== route.id &&
+        (candidate.matchHost || '').toLowerCase() === (route.matchHost || '').toLowerCase())) {
+        throw new ConflictException('The updated endpoint conflicts with an existing gateway route');
+      }
+      await repository.save(route);
+    }
+    const memberships = await manager.getRepository(RuntimeAssetEndpointBindingEntity).find({
+      where: { endpointDefinitionId: endpoint.id },
+    });
+    if (memberships.length === 0) return;
+    if (endpoint.sourceServiceAssetId !== previous.sourceServiceAssetId) {
+      await this.deleteMembershipUpstreamBindings(manager, memberships.map(item => item.id));
+    }
+    await this.markRuntimeVerificationRequired(manager, memberships);
+  }
+
+  private async deleteMembershipUpstreamBindings(manager: EntityManager, membershipIds: string[]) {
+    if (!membershipIds.length) return;
+    const repository = manager.getRepository(RuntimeUpstreamBindingEntity);
+    const criteria = { runtimeAssetEndpointBindingId: In(membershipIds) };
+    const bindings = await repository.find({ where: criteria });
+    if (bindings.length) {
+      await manager.getRepository(RuntimeUpstreamBindingInstanceEntity).delete({
+        runtimeUpstreamBindingId: In(bindings.map(binding => binding.id)),
+      });
+    }
+    await repository.delete(criteria);
+  }
+
+  private async markRuntimeVerificationRequired(
+    manager: EntityManager,
+    memberships: RuntimeAssetEndpointBindingEntity[],
+  ) {
+    if (memberships.length === 0) return;
+    const repository = manager.getRepository(RuntimeAssetEntity);
+    const runtimes = await repository.find({
+      where: { id: In([...new Set(memberships.map(item => item.runtimeAssetId))]) },
+    });
+    for (const runtime of runtimes) {
+      runtime.metadata = {
+        ...(runtime.metadata || {}),
+        verificationRequired: true,
+        verificationRequiredAt: new Date().toISOString(),
+        verificationRequiredReason: 'manual_endpoint_changed',
+      };
+      await repository.save(runtime);
+    }
+  }
+
+  private async cascadeDeleteEndpointRecord(endpoint: EndpointDefinitionEntity) {
+    await this.endpointDefinitionRepository.manager.transaction(async manager => {
+      await this.ensureManualEndpointMutatable(endpoint, manager);
+      const runtimeRepository = manager.getRepository(RuntimeAssetEndpointBindingEntity);
+      const memberships = await runtimeRepository.find({
+        where: { endpointDefinitionId: endpoint.id },
+      });
+      const criteria = [
+        { endpointDefinitionId: endpoint.id },
+        ...(memberships.length ? [{
+          runtimeAssetEndpointBindingId: In(memberships.map(item => item.id)),
+        }] : []),
+      ];
+      await manager.getRepository(EndpointPublishBindingEntity).delete(criteria);
+      await manager.getRepository(GatewayRouteBindingEntity).delete(criteria);
+      await manager.getRepository(PublicationProfileEntity).delete(criteria);
+      if (memberships.length) {
+        await this.deleteMembershipUpstreamBindings(manager, memberships.map(item => item.id));
+        await this.markRuntimeVerificationRequired(manager, memberships);
+      }
+      await runtimeRepository.delete({ endpointDefinitionId: endpoint.id });
+      // History, audit events and test evidence deliberately survive catalog deletion.
+      await manager.getRepository(EndpointDefinitionEntity).delete({ id: endpoint.id });
+    });
   }
 
   private async upsertEndpointDefinition(

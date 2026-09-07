@@ -31,11 +31,11 @@ import { OpenAPIService } from './services/openapi.service';
 import { ConfigureOpenAPIDto, InputSourceType } from './dto/configure-openapi.dto';
 import { OpenAPIResponseDto } from './dto/openapi-response.dto';
 import { AppConfigService } from '../../config/app-config.service';
-import { Public } from '../security/decorators/public.decorator';
+import { JwtAuthGuard } from '../security/guards/jwt-auth.guard';
 
 @ApiTags('OpenAPI')
-@Public()
 @Controller('openapi')
+@UseGuards(JwtAuthGuard)
 @UseInterceptors(LoggingInterceptor)
 export class OpenAPIController {
   private readonly logger = new Logger(OpenAPIController.name);

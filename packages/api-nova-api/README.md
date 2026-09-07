@@ -127,3 +127,4 @@ At the current stage this package should not be treated as a fully realized ente
 - [Documentation Index](../../docs/README.md)
 - [Local Setup And Run](../../docs/guides/local-setup-and-run.md)
 - [Runtime Instance And Regression Closure Plan](../../docs/guides/runtime-instance-and-regression-closure-plan.md)
+- [Staged Development Plan](../../docs/guides/staged-development-plan.md)

@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes } from 'node:crypto';
 import * as http from 'node:http';
 import { In, Like, Repository } from 'typeorm';
+import { AppConfigService } from '../../../config/app-config.service';
 import { transformOpenApiToMcpTools } from 'api-nova-server';
 import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
 import { GatewayRouteBindingEntity } from '../../../database/entities/gateway-route-binding.entity';
@@ -92,6 +93,7 @@ export class RuntimeAssetsService {
     private readonly gatewayRouteRepository: Repository<GatewayRouteBindingEntity>,
     @InjectRepository(GatewayConsumerCredentialEntity)
     private readonly gatewayConsumerCredentialRepository: Repository<GatewayConsumerCredentialEntity>,
+    private readonly appConfigService: AppConfigService,
     private readonly gatewayRuntimeMetricsService: GatewayRuntimeMetricsService,
     private readonly gatewayAccessLogService: GatewayAccessLogService,
     private readonly runtimeObservabilityService: RuntimeObservabilityService,
@@ -279,8 +281,7 @@ export class RuntimeAssetsService {
       const profile = item.profile;
       const operation = {
         ...rawOperation,
-        operationId:
-          item.endpointDefinition.operationId ||
+        operationId: item.endpointDefinition.operationId ||
           String(rawOperation.operationId || `${methodKey}_${pathKey}`),
         summary:
           profile?.intentName ||
@@ -307,6 +308,9 @@ export class RuntimeAssetsService {
 
       if (!paths[pathKey]) {
         paths[pathKey] = {};
+      }
+      if (paths[pathKey][methodKey]) {
+        throw new ConflictException(`Multiple memberships map to ${methodKey.toUpperCase()} ${pathKey}; use distinct runtime assets`);
       }
       paths[pathKey][methodKey] = operation;
     }
@@ -383,7 +387,7 @@ export class RuntimeAssetsService {
           `Runtime membership '${item.membership.id}' has no resolvable upstream: ${upstreamResolution.reason}`,
         );
       }
-      routes.push(this.toGatewayRouteView(item, upstreamResolution.instance));
+      routes.push({ ...this.toGatewayRouteView(item, upstreamResolution.instance), servicePrefix: asset.servicePrefix });
     }
 
     return {
@@ -901,22 +905,27 @@ export class RuntimeAssetsService {
         action: 'start',
       };
     }
-    const managedServer = await this.requireManagedServerForRuntimeAsset(runtimeAsset);
+    const managedServer = await this.findManagedServerForRuntimeAsset(runtimeAsset);
     const deployed = await this.deployMcpRuntimeAsset(runtimeAssetId, {
-      targetServerId: managedServer.id,
-      name: managedServer.name,
-      port: managedServer.port,
-      transport: managedServer.transport,
-      autoStart: managedServer.autoStart,
+      targetServerId: managedServer?.id,
+      name: managedServer?.name,
+      port: managedServer?.port,
+      transport: managedServer?.transport,
+      autoStart: managedServer?.autoStart,
     }, verificationContext);
     const serverManager = this.getServerManager();
 
-    await serverManager.startServer(deployed.managedServer.id, {
+    const verification = {
       runtimeAssetId,
       candidateRevision: deployed.verification.run.candidateRevision,
-    });
+    };
+    if (deployed.managedServer.status === ServerStatus.RUNNING) {
+      await serverManager.restartServer(deployed.managedServer.id, verification);
+    } else {
+      await serverManager.startServer(deployed.managedServer.id, verification);
+    }
     const nextManagedServer = await this.mcpServerRepository.findOne({
-      where: { id: managedServer.id },
+      where: { id: deployed.managedServer.id },
     });
     const memberships = await this.runtimeBindingRepository.find({
       where: { runtimeAssetId },
@@ -931,7 +940,7 @@ export class RuntimeAssetsService {
       healthStatus: RuntimeHealthStatus.UNKNOWN,
       summary: `MCP runtime asset '${runtimeAssetId}' start requested`,
       details: {
-        managedServerId: managedServer.id,
+        managedServerId: deployed.managedServer.id,
       },
     });
 
@@ -1470,6 +1479,7 @@ export class RuntimeAssetsService {
         ? await this.buildRuntimeAssetGatewayGovernanceSummary(
             memberships,
             managedServerSummary?.endpoint,
+            runtimeAsset.servicePrefix,
           )
         : null;
 
@@ -1503,6 +1513,7 @@ export class RuntimeAssetsService {
   private async buildRuntimeAssetGatewayGovernanceSummary(
     memberships: RuntimeAssetEndpointBindingEntity[],
     runtimeEndpoint?: string,
+    servicePrefix?: string,
   ) {
     const membershipIds = memberships.map(item => item.id).filter(Boolean);
     if (membershipIds.length === 0) {
@@ -1517,6 +1528,8 @@ export class RuntimeAssetsService {
     return this.buildGatewayGovernanceSummary(
       routeBindings.map(routeBinding => ({
         authPolicyRef: routeBinding.authPolicyRef,
+        routeVisibility: routeBinding.routeVisibility,
+        servicePrefix,
         trafficPolicyRef: routeBinding.trafficPolicyRef,
         loggingPolicyRef: routeBinding.loggingPolicyRef,
         cachePolicyRef: routeBinding.cachePolicyRef,
@@ -1539,7 +1552,10 @@ export class RuntimeAssetsService {
     };
 
     for (const route of routes) {
-      const authMode = this.resolveGatewayAuthMode(route.authPolicyRef);
+      const configuredMode = this.resolveGatewayAuthMode(route.authPolicyRef);
+      const authMode = configuredMode === 'anonymous' &&
+        String(route.routeVisibility || 'internal').trim().toLowerCase() !== 'external'
+        ? 'jwt' : configuredMode;
       if (authMode === 'jwt') {
         authModes.jwt += 1;
       } else if (authMode === 'api_key') {
@@ -1584,32 +1600,26 @@ export class RuntimeAssetsService {
 
   private buildGatewayRouteAccessUrls(route: Record<string, any>, runtimeEndpoint?: string) {
     const routePath = this.normalizeGatewayAccessPath(route.routePath);
-    if (!routePath) {
+    if (!routePath) return [];
+    const servicePrefix = String(route.servicePrefix || '').trim().replace(/^\/+|\/+$/g, '');
+    const publishedPath = `${servicePrefix ? `/${servicePrefix}` : ''}${routePath}`;
+    const configuredBase = String(runtimeEndpoint || this.appConfigService.apiBaseUrl || '')
+      .trim().replace(/\/+$/, '');
+    const gatewayBase = /\/api\/v1\/gateway$/.test(configuredBase)
+      ? configuredBase : `${configuredBase.replace(/\/api$/, '')}/api/v1/gateway`;
+    const address = `${gatewayBase}${publishedPath}`;
+    const matchHost = String(route.matchHost || '').trim();
+    if (!matchHost) return [address];
+    try {
+      const url = new URL(address, this.ensureGatewayBaseUrl(matchHost));
+      const hostUrl = new URL(this.ensureGatewayBaseUrl(matchHost));
+      url.hostname = hostUrl.hostname;
+      if (hostUrl.port) url.port = hostUrl.port;
+      if (/^https?:\/\//i.test(matchHost)) url.protocol = hostUrl.protocol;
+      return [url.toString()];
+    } catch {
       return [];
     }
-
-    const values: string[] = [];
-    const normalizedRuntimeEndpoint = String(runtimeEndpoint || '').trim();
-    const normalizedMatchHost = String(route.matchHost || '').trim();
-
-    if (normalizedRuntimeEndpoint) {
-      const runtimeUrl = this.tryBuildGatewayUrl(normalizedRuntimeEndpoint, routePath);
-      if (runtimeUrl) {
-        values.push(runtimeUrl);
-      }
-    }
-
-    if (normalizedMatchHost) {
-      const hostSpecificUrl = this.tryBuildGatewayUrl(
-        this.resolveGatewayHostBase(normalizedMatchHost, normalizedRuntimeEndpoint),
-        routePath,
-      );
-      if (hostSpecificUrl) {
-        values.push(hostSpecificUrl);
-      }
-    }
-
-    return values;
   }
 
   private normalizeGatewayAccessPath(routePath?: string) {
@@ -1685,6 +1695,7 @@ export class RuntimeAssetsService {
       timeoutMs: item.gatewayRouteBinding!.timeoutMs ?? 30000,
       status: item.gatewayRouteBinding!.status,
       authPolicyRef: item.gatewayRouteBinding!.authPolicyRef,
+      routeVisibility: item.gatewayRouteBinding!.routeVisibility,
       trafficPolicyRef: item.gatewayRouteBinding!.trafficPolicyRef,
       loggingPolicyRef: item.gatewayRouteBinding!.loggingPolicyRef,
       cachePolicyRef: item.gatewayRouteBinding!.cachePolicyRef,

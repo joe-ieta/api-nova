@@ -65,6 +65,7 @@ describe('PublicationService', () => {
   };
   const runtimeAssetsService = {
     deployMcpRuntimeAsset: jest.fn(),
+    startRuntimeAsset: jest.fn(),
   };
   const runtimeUpstreamBindingsService = {
     resolve: jest.fn(),
@@ -159,6 +160,7 @@ describe('PublicationService', () => {
         id: 'managed-server-1',
       },
     });
+    runtimeAssetsService.startRuntimeAsset.mockResolvedValue({ managedServer: { id: 'managed-server-1' } });
     eventEmitter.emit.mockReset();
   });
 
@@ -419,10 +421,11 @@ describe('PublicationService', () => {
       'operator-1',
     );
 
-    expect(runtimeAssetsService.deployMcpRuntimeAsset).toHaveBeenCalledWith('runtime-1');
+    expect(runtimeAssetsService.startRuntimeAsset).toHaveBeenCalledWith('runtime-1', { actorId: 'operator-1' });
+    expect(runtimeAssetsService.deployMcpRuntimeAsset).not.toHaveBeenCalled();
     expect(result.deployment).toEqual(
       expect.objectContaining({
-        status: 'deployed',
+        status: 'started',
         autoTriggered: true,
         attempted: true,
       }),
@@ -470,4 +473,102 @@ describe('PublicationService', () => {
       }),
     );
   });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  function seedManualPublication(type = RuntimeAssetType.MCP_SERVER) {
+    runtimeAssetRepository.findOne.mockResolvedValue({
+      id: 'runtime-1', type, servicePrefix: type === RuntimeAssetType.GATEWAY_SERVICE ? 'shop' : undefined,
+      name: 'runtime', status: RuntimeAssetStatus.DRAFT,
+    });
+    runtimeBindingRepository.findOne.mockResolvedValue({
+      id: 'membership-1', runtimeAssetId: 'runtime-1', endpointDefinitionId: 'endpoint-1',
+      status: 'draft', publicationRevision: 0, enabled: true,
+    });
+    profileRepository.findOne.mockResolvedValue({
+      id: 'profile-1', endpointDefinitionId: 'endpoint-1', runtimeAssetEndpointBindingId: 'membership-1',
+      version: 1, intentName: 'List orders', descriptionForLlm: 'List orders', status: 'reviewed',
+    });
+    endpointDefinitionRepository.findOne.mockResolvedValue({
+      ...readyEndpoint, metadata: { ...readyEndpoint.metadata, source: 'manual-registration' },
+    });
+  }
+
+  it('honors autoStart=false and propagates the actor to candidate verification', async () => {
+    seedManualPublication();
+    const result = await service.publishRuntimeMembership('membership-1', { autoStart: false }, 'operator-1');
+    expect(result.deployment.status).toBe('deployed');
+    expect(runtimeAssetsService.deployMcpRuntimeAsset).toHaveBeenCalledWith(
+      'runtime-1', {}, { actorId: 'operator-1' },
+    );
+    expect(runtimeAssetsService.startRuntimeAsset).not.toHaveBeenCalled();
+  });
+
+  it('does not deploy when MCP publication is explicitly disabled', async () => {
+    seedManualPublication();
+    const result = await service.publishRuntimeMembership('membership-1', { publishToMcp: false });
+    expect(result.deployment.status).toBe('not_required');
+    expect(runtimeAssetsService.startRuntimeAsset).not.toHaveBeenCalled();
+    expect(runtimeAssetsService.deployMcpRuntimeAsset).not.toHaveBeenCalled();
+    expect(bindingRepository.save).not.toHaveBeenCalledWith(expect.objectContaining({ publishStatus: 'active' }));
+  });
+
+  it('reports failed verification/start without claiming a running MCP server', async () => {
+    seedManualPublication();
+    runtimeAssetsService.startRuntimeAsset.mockRejectedValue(new Error('candidate replay failed'));
+    const result = await service.publishRuntimeMembership('membership-1', {});
+    expect(result.deployment).toMatchObject({
+      status: 'failed', attempted: true, message: 'candidate replay failed',
+    });
+  });
+
+  it('auto-configures an authenticated parameterized gateway route', async () => {
+    seedManualPublication(RuntimeAssetType.GATEWAY_SERVICE);
+    endpointDefinitionRepository.findOne.mockResolvedValue({
+      ...readyEndpoint, path: '/orders/{id}',
+      metadata: { ...readyEndpoint.metadata, source: 'manual-registration' },
+    });
+    await service.publishRuntimeMembership('membership-1', { publishToHttp: true });
+    expect(routeBindingRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+      routePath: '/orders/{id}', upstreamPath: '/orders/{id}',
+      pathMatchMode: 'parameter', routeVisibility: 'internal', authPolicyRef: 'jwt-default',
+    }));
+  });
+
+  it('does not create routes for endpoints that fail the governance gate', async () => {
+    seedManualPublication(RuntimeAssetType.GATEWAY_SERVICE);
+    endpointDefinitionRepository.findOne.mockResolvedValue({
+      ...readyEndpoint, metadata: { testStatus: 'failed' },
+    });
+    await expect(service.publishRuntimeMembership('membership-1', {})).rejects.toThrow('Publish blocked');
+    expect(routeBindingRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('honors autoConfigureRoute=false', async () => {
+    seedManualPublication(RuntimeAssetType.GATEWAY_SERVICE);
+    await expect(service.publishRuntimeMembership('membership-1', { autoConfigureRoute: false }))
+      .rejects.toThrow('Publish blocked');
+    expect(routeBindingRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('deploys each successful runtime once in a mixed-runtime batch', async () => {
+    const contexts = ['runtime-1', 'runtime-1', 'runtime-2'].map((id, index) => ({
+      membership: { id: 'membership-' + index },
+      runtimeAsset: { id, type: RuntimeAssetType.MCP_SERVER },
+      endpointDefinition: { ...readyEndpoint, metadata: { source: 'manual-registration' } },
+    }));
+    jest.spyOn(service as any, 'resolveMembershipPublicationContext')
+      .mockImplementation(async id => contexts.find(context => context.membership.id === id));
+    jest.spyOn(service as any, 'executeBatchMembershipAction').mockResolvedValue({
+      batchRun: { runtimeAssetId: null },
+      items: contexts.map(context => ({ membershipId: context.membership.id, status: 'success' })),
+    });
+    const result = await service.batchPublishRuntimeMemberships({
+      membershipIds: contexts.map(context => context.membership.id),
+    }, 'operator-1');
+    expect(runtimeAssetsService.startRuntimeAsset).toHaveBeenCalledTimes(2);
+    expect(result.deployments).toHaveLength(2);
+    expect(result.deployment.status).toBe('multiple');
+  });
+
 });

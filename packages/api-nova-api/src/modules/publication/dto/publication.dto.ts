@@ -130,6 +130,16 @@ export class AddPublicationRuntimeMembershipsDto {
 }
 
 export class BatchPublishRuntimeMembershipsDto {
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  autoStart?: boolean;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  autoConfigureRoute?: boolean;
+
   @ApiPropertyOptional({ type: [String] })
   @IsArray()
   @ArrayNotEmpty()
@@ -301,6 +311,22 @@ export class PublishEndpointDto {
   @IsOptional()
   @IsBoolean()
   publishToHttp?: boolean;
+
+  @ApiPropertyOptional({
+    default: true,
+    description: 'Automatically start the MCP runtime server after publication when applicable',
+  })
+  @IsOptional()
+  @IsBoolean()
+  autoStart?: boolean;
+
+  @ApiPropertyOptional({
+    default: true,
+    description: 'Automatically create a default gateway route from the endpoint method/path when none exists',
+  })
+  @IsOptional()
+  @IsBoolean()
+  autoConfigureRoute?: boolean;
 }
 
 export class OfflineEndpointDto {

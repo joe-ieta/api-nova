@@ -14,7 +14,7 @@ describe('GatewayPolicyService', () => {
   });
 
   it('keeps only explicit canonical authentication modes', () => {
-    expect(service.compileForRoute({ authPolicyRef: 'anonymous' } as any).auth.mode).toBe('anonymous');
+    expect(service.compileForRoute({ authPolicyRef: 'anonymous', routeVisibility: 'external' } as any).auth.mode).toBe('anonymous');
     expect(service.compileForRoute({ authPolicyRef: 'jwt-default' } as any).auth.mode).toBe('jwt');
     expect(service.compileForRoute({ authPolicyRef: 'api-key-default' } as any).auth.mode).toBe('api_key');
   });
@@ -109,7 +109,7 @@ describe('GatewayPolicyService', () => {
   });
 
   it('keeps non-auth defaults when anonymous is explicitly selected', () => {
-    const result = service.compileForRoute({ authPolicyRef: 'anonymous' } as any);
+    const result = service.compileForRoute({ authPolicyRef: 'anonymous', routeVisibility: 'external' } as any);
 
     expect(result.auth.mode).toBe('anonymous');
     expect(result.logging.captureMode).toBe('meta_only');
@@ -117,4 +117,13 @@ describe('GatewayPolicyService', () => {
     expect(result.traffic.trafficControl).toBeUndefined();
     expect(result.cache.enabled).toBe(false);
   });
+
+  it.each(['internal', undefined, 'unexpected'])(
+    'compiles protected access for non-external visibility %s', routeVisibility => {
+      expect(service.compileForRoute({
+        authPolicyRef: 'anonymous', routeVisibility,
+      } as any).auth.mode).toBe('jwt');
+    },
+  );
+
 });

@@ -27,6 +27,9 @@ describe('GatewaySecurityService', () => {
     ({
       routeBinding: {
         id: 'route-1',
+        // Anonymous access is only allowed on explicitly external routes;
+        // internal (default) routes are forced to require a JWT.
+        routeVisibility: mode === 'anonymous' ? 'external' : 'internal',
       },
       runtimeAsset: {
         id: 'runtime-1',
@@ -38,7 +41,7 @@ describe('GatewaySecurityService', () => {
       },
     } as any);
 
-  it('allows anonymous routes without credentials', async () => {
+  it('allows anonymous routes without credentials when visibility is external', async () => {
     const { service } = buildService();
     const req = {
       headers: {},
@@ -159,4 +162,26 @@ describe('GatewaySecurityService', () => {
       ),
     ).rejects.toThrow(UnauthorizedException);
   });
+
+  it.each(['internal', undefined, 'INTERNAL', 'unknown'])(
+    'requires shared runtime authentication for anonymous policy with visibility %s', async visibility => {
+      const { service } = buildService();
+      const route = resolvedRoute('anonymous');
+      route.routeBinding.routeVisibility = visibility;
+      await expect(service.authorize(route, { headers: {}, query: {} } as any))
+        .rejects.toMatchObject({ status: 401 });
+    },
+  );
+
+  it('authenticates internal anonymous-policy routes with the shared runtime principal', async () => {
+    const { service } = buildService();
+    const principal = { callerId: 'caller-1', scopes: ['api:invoke'] };
+    const authenticate = jest.fn().mockResolvedValue(principal);
+    (service as any).authenticateJwt = authenticate;
+    const route = resolvedRoute('anonymous');
+    route.routeBinding.routeVisibility = 'internal';
+    await expect(service.authorize(route, { headers: { authorization: 'Bearer token' } } as any))
+      .resolves.toEqual({ mode: 'jwt', principal });
+  });
+
 });

@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-07
+---
 # Endpoint Publication Profile Requirements
 
 > Document status: Active

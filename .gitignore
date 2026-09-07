@@ -52,6 +52,7 @@ packages/*/dist/
 /logs/
 pids/
 data/api-nova.db
+data/*.db
 packages/data/
 **/data/runtime-audit/
 .codex_temp_*.json
@@ -75,3 +76,13 @@ debug.log
 debug/
 packages/api-nova-api/.env
 packages/api-nova-api/.env.development
+
+
+# runtime artifacts
+packages/api-nova-server/.mcp-swagger/
+packages/api-nova-server/mcp-server-stats.json
+
+# Dot directories (kept local only, not tracked in the repository)
+.agents/
+.codex/*
+!.codex/skills/

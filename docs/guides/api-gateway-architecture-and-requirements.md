@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-07
+---
 # ApiNova API Gateway Architecture And Requirements
 
 > Document status: Active

@@ -119,7 +119,7 @@ UI must consume the managed transport matrix exposed by API and must not invent 
 
 ## Current Design Constraints
 
-- the runtime architecture must stay aligned with `PROJECT_BASELINE.md` and `PRODUCT_CONSTRAINTS.md`
+- the runtime architecture must stay aligned with `PROJECT_BASELINE.md` and `PRODUCT_CONSTRAINTS.md` (now under `docs/baseline/`)
 - no new MCP transport should be introduced into the baseline without end-to-end implementation, docs, and verification
 - runtime logs must not corrupt stdio protocol behavior
 - Windows and Linux path handling, process invocation, and file loading must remain supported

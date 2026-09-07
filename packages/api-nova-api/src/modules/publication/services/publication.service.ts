@@ -84,6 +84,12 @@ type PublicationAuditContext = {
   batchRunId?: string;
 };
 
+type PublicationActionOptions = {
+  autoStart?: boolean;
+  autoConfigureRoute?: boolean;
+  actorId?: string;
+};
+
 @Injectable()
 export class PublicationService {
   constructor(
@@ -601,16 +607,24 @@ export class PublicationService {
     actorId?: string,
   ) {
     const context = await this.resolveMembershipPublicationContext(membershipId);
+    const publicationOptions: PublicationActionOptions = {
+      autoStart: dto.autoStart ?? true,
+      autoConfigureRoute: dto.autoConfigureRoute ?? true,
+      actorId,
+    };
 
     if (context.runtimeAsset.type === RuntimeAssetType.MCP_SERVER) {
       const result = await this.publishMembershipContext(
         context,
         dto.publishToMcp ?? true,
         { actorId },
+        publicationOptions,
       );
       return {
         ...result,
-        deployment: await this.buildPostPublishDeploymentState(context),
+        deployment: dto.publishToMcp === false
+          ? { status: 'not_required', attempted: false, autoTriggered: false }
+          : await this.buildPostPublishDeploymentState(context, publicationOptions),
       };
     }
 
@@ -618,6 +632,7 @@ export class PublicationService {
       context,
       dto.publishToHttp ?? true,
       { actorId },
+      publicationOptions,
     );
     this.emitGatewaySnapshotRefresh({
       reason: 'publication.membership_published',
@@ -626,7 +641,7 @@ export class PublicationService {
     });
     return {
       ...result,
-      deployment: await this.buildPostPublishDeploymentState(context),
+      deployment: await this.buildPostPublishDeploymentState(context, publicationOptions),
     };
   }
 
@@ -677,6 +692,7 @@ export class PublicationService {
             ? dto.publishToMcp ?? true
             : dto.publishToHttp ?? true,
           { actorId, batchRunId },
+          { autoStart: dto.autoStart ?? true, autoConfigureRoute: dto.autoConfigureRoute ?? true, actorId },
         ),
       actorId,
       dto,
@@ -686,18 +702,29 @@ export class PublicationService {
         .filter(item => item.status === 'success')
         .map(item => item.membershipId),
     );
-    const shouldAutoDeploy = contexts.some(
-      context =>
-        successfulMembershipIds.has(context.membership.id) &&
-        this.shouldAutoDeployPublishedMembership(context),
+    const eligibleContexts = contexts.filter(context =>
+      successfulMembershipIds.has(context.membership.id) &&
+      (context.runtimeAsset.type === RuntimeAssetType.MCP_SERVER
+        ? dto.publishToMcp !== false : dto.publishToHttp !== false),
     );
-    const deployment =
-      shouldAutoDeploy && result.batchRun.runtimeAssetId
-        ? await this.buildPostPublishDeploymentState(
-            contexts.find(context => context.runtimeAsset.id === result.batchRun.runtimeAssetId) ||
-              contexts[0],
-          )
-        : this.buildDeploymentHintFromContexts(contexts, successfulMembershipIds);
+    const deploymentContexts = new Map(
+      eligibleContexts.filter(context => this.shouldAutoDeployPublishedMembership(context))
+        .map(context => [context.runtimeAsset.id, context]),
+    );
+    const deployments = [];
+    for (const context of deploymentContexts.values()) {
+      deployments.push({
+        runtimeAssetId: context.runtimeAsset.id,
+        ...await this.buildPostPublishDeploymentState(context, {
+          autoStart: dto.autoStart ?? true, actorId,
+        }),
+      });
+    }
+    const deployment = deployments.length === 1 ? deployments[0]
+      : deployments.length > 1
+        ? { status: 'multiple', attempted: true, autoTriggered: true,
+            message: 'See deployments for each runtime result' }
+        : this.buildDeploymentHintFromContexts(eligibleContexts, successfulMembershipIds);
     this.emitGatewaySnapshotRefresh({
       reason: 'publication.batch_memberships_published',
       runtimeAssetId: result.batchRun.runtimeAssetId,
@@ -705,6 +732,7 @@ export class PublicationService {
     return {
       ...result,
       deployment,
+      deployments,
     };
   }
 
@@ -1099,6 +1127,7 @@ export class PublicationService {
 
   private async buildPostPublishDeploymentState(
     context: MembershipPublicationContext,
+    options: PublicationActionOptions = { autoStart: true, autoConfigureRoute: true },
   ) {
     if (context.runtimeAsset.type !== RuntimeAssetType.MCP_SERVER) {
       return {
@@ -1119,14 +1148,21 @@ export class PublicationService {
     }
 
     try {
-      const deployment = await this.runtimeAssetsService.deployMcpRuntimeAsset(
-        context.runtimeAsset.id,
-      );
+      const shouldStart = options.autoStart !== false;
+      const deployment = shouldStart
+        ? await this.runtimeAssetsService.startRuntimeAsset(context.runtimeAsset.id, {
+            actorId: options.actorId,
+          })
+        : await this.runtimeAssetsService.deployMcpRuntimeAsset(
+            context.runtimeAsset.id, {}, { actorId: options.actorId },
+          );
       return {
-        status: 'deployed',
+        status: shouldStart ? 'started' : 'deployed',
         attempted: true,
         autoTriggered: true,
-        message: 'Runtime deployment has been updated automatically',
+        message: shouldStart
+          ? 'Runtime verified, deployed and started automatically'
+          : 'Runtime deployment has been updated automatically',
         managedServerId: deployment?.managedServer?.id,
       };
     } catch (error: any) {
@@ -1203,10 +1239,52 @@ export class PublicationService {
     });
   }
 
+  private async ensureDefaultGatewayRoute(
+    context: MembershipPublicationContext,
+    auditContext: PublicationAuditContext = {},
+  ) {
+    const summary = this.extractPrimaryEndpoint(context.endpointDefinition);
+    const routePath = this.normalizeRoutePath(summary.path);
+    const routeMethod = this.normalizeMethod(summary.method);
+    await this.ensureRouteConflictFree(context.membership.id, undefined, routePath, routeMethod);
+    const binding = this.routeBindingRepository.create({
+      endpointDefinitionId: context.endpointDefinition.id,
+      runtimeAssetEndpointBindingId: context.membership.id,
+      matchHost: undefined,
+      routePath,
+      pathMatchMode: this.inferPathMatchMode(routePath),
+      priority: 0,
+      upstreamPath: routePath,
+      routeMethod,
+      upstreamMethod: routeMethod,
+      routeVisibility: 'internal',
+      authPolicyRef: 'jwt-default',
+      status: GatewayRouteBindingStatus.DRAFT,
+    });
+    const saved = await this.routeBindingRepository.save(binding);
+    await this.recordAuditEvent({
+      action: PublicationAuditAction.GATEWAY_ROUTE_UPDATED,
+      status: PublicationAuditStatus.INFO,
+      summary: `Default gateway route auto-created for membership '${context.membership.id}'`,
+      runtimeAssetId: context.runtimeAsset.id,
+      runtimeAssetEndpointBindingId: context.membership.id,
+      endpointDefinitionId: context.endpointDefinition.id,
+      sourceServiceAssetId: context.sourceServiceAsset.id,
+      operatorId: auditContext.actorId,
+      details: {
+        routePath,
+        routeMethod,
+        autoCreated: true,
+      },
+    });
+    return saved;
+  }
+
   private async publishMembershipContext(
     context: MembershipPublicationContext,
     shouldPublish: boolean,
     auditContext: PublicationAuditContext = {},
+    options: PublicationActionOptions = { autoStart: true, autoConfigureRoute: true },
   ) {
     if (!shouldPublish) {
       return this.buildMembershipPublicationState(context);
@@ -1216,10 +1294,22 @@ export class PublicationService {
       context.membership,
       context.endpointDefinition,
     );
-    const routeBinding =
+    let routeBinding =
       context.runtimeAsset.type === RuntimeAssetType.GATEWAY_SERVICE
         ? await this.findGatewayRouteBinding(context.membership.id)
         : null;
+
+    if (
+      context.runtimeAsset.type === RuntimeAssetType.GATEWAY_SERVICE &&
+      !routeBinding &&
+      options.autoConfigureRoute !== false
+    ) {
+      const preliminary = this.buildReadiness(context.endpointDefinition, profile);
+      if (!preliminary.ready) {
+        throw new BadRequestException(`Publish blocked: ${preliminary.reasons.join('; ')}`);
+      }
+      routeBinding = await this.ensureDefaultGatewayRoute(context, auditContext);
+    }
     const reasons = this.buildReadiness(
       context.endpointDefinition,
       profile,

@@ -107,7 +107,9 @@ describe('RuntimeAssetsService', () => {
     executeMcpCandidate: jest.fn(),
     activateMcpCandidate: jest.fn(),
   };
+  const appConfigService = { apiBaseUrl: '' };
   const serverManager = {
+    restartServer: jest.fn(),
     stopServer: jest.fn(),
     startServer: jest.fn(),
     deleteServer: jest.fn(),
@@ -125,6 +127,7 @@ describe('RuntimeAssetsService', () => {
     publishBindingRepository as any,
     gatewayRouteRepository as any,
     gatewayConsumerCredentialRepository as any,
+    appConfigService as any,
     gatewayRuntimeMetricsService as any,
     gatewayAccessLogService as any,
     runtimeObservabilityService as any,
@@ -135,6 +138,7 @@ describe('RuntimeAssetsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    appConfigService.apiBaseUrl = '';
     runtimeUpstreamBindingsService.resolve.mockResolvedValue({
       resolved: true,
       reason: 'resolved',
@@ -435,7 +439,7 @@ describe('RuntimeAssetsService', () => {
     expect(result.gatewayGovernance).toEqual(
       expect.objectContaining({
         totalRoutes: 1,
-        accessUrls: expect.arrayContaining(['http://gateway.internal/orders']),
+        accessUrls: expect.arrayContaining(['http://gateway.internal/api/v1/gateway/orders']),
         cacheEnabledRoutes: 1,
         rateLimitedRoutes: 1,
         breakerProtectedRoutes: 1,
@@ -450,7 +454,7 @@ describe('RuntimeAssetsService', () => {
     expect(result.runtimeSummary.gatewayGovernance).toEqual(
       expect.objectContaining({
         totalRoutes: 1,
-        accessUrls: expect.arrayContaining(['http://gateway.internal/orders']),
+        accessUrls: expect.arrayContaining(['http://gateway.internal/api/v1/gateway/orders']),
       }),
     );
     expect(result.routes[0]).toEqual(
@@ -909,5 +913,45 @@ describe('RuntimeAssetsService', () => {
     assembleSpy.mockRestore();
     requireSpy.mockRestore();
   });
+
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it.each([
+    ['', '/api/v1/gateway/shop/orders'],
+    ['https://api.example.com/api', 'https://api.example.com/api/v1/gateway/shop/orders'],
+    ['https://api.example.com/api/v1/gateway/', 'https://api.example.com/api/v1/gateway/shop/orders'],
+  ])('builds mounted gateway URLs from %s with the service prefix', (base, expected) => {
+    appConfigService.apiBaseUrl = base;
+    expect((service as any).buildGatewayRouteAccessUrls({
+      routePath: '/orders', servicePrefix: 'shop',
+    })).toEqual([expected]);
+  });
+
+  it('keeps host-specific URLs on the gateway mount and configured port', () => {
+    appConfigService.apiBaseUrl = 'https://api.example.com:9443/api';
+    expect((service as any).buildGatewayRouteAccessUrls({
+      routePath: '/orders', servicePrefix: 'shop', matchHost: 'shop.example.com',
+    })).toEqual(['https://shop.example.com:9443/api/v1/gateway/shop/orders']);
+  });
+
+  it.each([ServerStatus.STOPPED, ServerStatus.RUNNING])(
+    'verifies once before starting or reloading an MCP runtime in %s state', async status => {
+      runtimeAssetRepository.findOne.mockResolvedValue({
+        id: 'runtime-mcp-1', type: RuntimeAssetType.MCP_SERVER, metadata: {},
+      });
+      const managedServer = { id: 'managed-server-new', status };
+      mcpServerRepository.findOne.mockResolvedValue(managedServer);
+      const deploy = jest.spyOn(service, 'deployMcpRuntimeAsset').mockResolvedValue({
+        managedServer, verification: { run: { candidateRevision: 'revision-1' } },
+      } as any);
+      await service.startRuntimeAsset('runtime-mcp-1', { actorId: 'operator-1' });
+      expect(deploy).toHaveBeenCalledTimes(1);
+      const command = status === ServerStatus.RUNNING ? serverManager.restartServer : serverManager.startServer;
+      expect(command).toHaveBeenCalledWith('managed-server-new', {
+        runtimeAssetId: 'runtime-mcp-1', candidateRevision: 'revision-1',
+      });
+    },
+  );
 
 });

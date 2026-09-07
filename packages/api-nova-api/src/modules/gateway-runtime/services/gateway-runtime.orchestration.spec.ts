@@ -62,6 +62,7 @@ const createResolvedRoute = (overrides: Record<string, any> = {}) =>
     publishBinding: { id: 'publish-1', publishedToHttp: true },
     sourceServiceAsset: { id: 'source-1' },
     routeBinding: {
+        routeVisibility: 'external',
       id: 'route-1',
       routePath: '/orders',
       routeMethod: 'GET',

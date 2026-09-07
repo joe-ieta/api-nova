@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-07
+---
 # ApiNova Documentation Index
 
 > Document status: Active canonical index
@@ -16,10 +21,11 @@
 
 ## Canonical Governance
 
-- [Product Constraints](../PRODUCT_CONSTRAINTS.md)
-- [Project Baseline](../PROJECT_BASELINE.md)
-- [Release Baseline V1](../RELEASE_BASELINE_V1.md)
+- [Product Constraints](./baseline/PRODUCT_CONSTRAINTS.md)
+- [Project Baseline](./baseline/PROJECT_BASELINE.md)
 - [Version Release Standard](../RELEASE_STANDARD.md)
+- [Document Versions](./VERSIONS.md)
+- [Merge Review And Verification](./audits/2026-09-07-reviewed-merge.md)
 
 ## Current Product Closure
 
@@ -31,6 +37,7 @@
 - [Open Items](./reference/open-items.md)
 - [Runtime Publication Acceptance Cases](./testing/runtime-publication-acceptance-cases.md)
 - [Release Readiness Checklist](./guides/release-readiness-checklist.md)
+- [Release Requirements](./release/api-nova-release-requirements.md)
 
 ## Current Architecture And Operations
 
@@ -43,6 +50,11 @@
 - [Guides Index](./guides/README.md)
 - [Reference Index](./reference/README.md)
 - [Testing Index](./testing/README.md)
+- [Fork Origin And Independence](./guides/fork-origin-and-independence.md)
+- [Endpoint Semantic Layer Requirements](./guides/endpoint-semantic-layer-requirements.md)
+- [API Gateway Architecture And Requirements](./guides/api-gateway-architecture-and-requirements.md)
+- [Versioning Policy](./reference/versioning-policy.md)
+- [GitHub Collaboration Workflow](./guides/github-collaboration-workflow.md)
 
 ## Archive
 
