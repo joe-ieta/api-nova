@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-07
+---
 # ApiNova Documentation Index
 
 ## Purpose
@@ -6,18 +11,19 @@ This directory separates current-use documentation from archived historical mate
 
 Use this index as the documentation entry point for ApiNova. Do not treat archived plans, old implementation notes, or completion summaries as the current project baseline.
 
-The current top-level governance documents remain at repository root:
+The current top-level governance documents are:
 
 - [README](../README.md)
-- [PRODUCT_CONSTRAINTS](../PRODUCT_CONSTRAINTS.md)
-- [PROJECT_BASELINE](../PROJECT_BASELINE.md)
-- [RELEASE_BASELINE_V1](../RELEASE_BASELINE_V1.md)
+- [PRODUCT_CONSTRAINTS](./baseline/PRODUCT_CONSTRAINTS.md)
+- [PROJECT_BASELINE](./baseline/PROJECT_BASELINE.md) (consolidated project / next-development / release baseline)
+- [VERSIONS](./VERSIONS.md) (document version manifest)
 
 ## Current Active Documents
 
 ### Baseline and current execution
 
-- [Next Development Baseline](../NEXT_DEVELOPMENT_BASELINE.md)
+- [Project Baseline](./baseline/PROJECT_BASELINE.md)
+- [Product Constraints](./baseline/PRODUCT_CONSTRAINTS.md)
 - [Staged Development Plan](./guides/staged-development-plan.md)
 - [Open Items](./reference/open-items.md)
 - [Asset Model And Runtime Assets](./guides/asset-model-and-runtime-assets.md)
@@ -30,11 +36,13 @@ The current top-level governance documents remain at repository root:
 - [Local Setup And Run](./guides/local-setup-and-run.md)
 - [Parser Change Verification](./guides/parser-change-verification.md)
 - [Release Readiness Checklist](./guides/release-readiness-checklist.md)
+- [Release Requirements](./release/api-nova-release-requirements.md)
 
 ### Durable governance and reference
 
 - [Fork Origin And Independence](./guides/fork-origin-and-independence.md)
 - [Endpoint Semantic Layer Requirements](./guides/endpoint-semantic-layer-requirements.md)
+- [API Gateway Architecture And Requirements](./guides/api-gateway-architecture-and-requirements.md)
 - [Versioning Policy](./reference/versioning-policy.md)
 - [GitHub Collaboration Workflow](./guides/github-collaboration-workflow.md)
 

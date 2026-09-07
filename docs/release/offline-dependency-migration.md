@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-07
+---
 # 外网 → 内网 离线依赖库迁移（ApiNova）
 
 > 适用场景：工程源码是从**外网开发机**拷贝进内网的，本机离线（无外网、无 npm 镜像），

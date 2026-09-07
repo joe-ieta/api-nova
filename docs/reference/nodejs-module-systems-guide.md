@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-07
+---
 # Node.js 模块系统详解：CommonJS vs ES Modules
 
 ## 概述

@@ -156,11 +156,10 @@ pnpm type-check
 
 Start from:
 
-- [PRODUCT_CONSTRAINTS](./PRODUCT_CONSTRAINTS.md)
-- [PROJECT_BASELINE](./PROJECT_BASELINE.md)
-- [RELEASE_BASELINE_V1](./RELEASE_BASELINE_V1.md)
+- [PRODUCT_CONSTRAINTS](./docs/baseline/PRODUCT_CONSTRAINTS.md)
+- [PROJECT_BASELINE](./docs/baseline/PROJECT_BASELINE.md)
 - [Documentation Index](./docs/README.md)
-- [Next Development Baseline](./NEXT_DEVELOPMENT_BASELINE.md)
+- [Document VERSIONS](./docs/VERSIONS.md)
 - [Staged Development Plan](./docs/guides/staged-development-plan.md)
 - [Open Items](./docs/reference/open-items.md)
 

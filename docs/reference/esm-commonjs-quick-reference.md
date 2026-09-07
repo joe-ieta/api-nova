@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-07
+---
 # ESM vs CommonJS 快速参考
 
 ## 问题症状

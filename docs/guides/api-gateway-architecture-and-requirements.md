@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-07
+---
 # ApiNova API Gateway Architecture And Requirements
 
 ## Purpose
@@ -471,4 +476,4 @@ The first implementation priority is correctness of the data plane:
 4. security and traffic policy
 5. cache
 
-For the concrete delivery sequence, see [api-gateway-phase1-technical-design](./api-gateway-phase1-technical-design.md).
+For the historical delivery sequence, see the archived [api-gateway-phase1-technical-design](../archive/plans/api-gateway-phase1-technical-design.md).

@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-07
+---
 # Reference
 
 This directory contains durable reference material used for maintenance, release work, and architecture tracking, but it is not the primary product baseline.
@@ -10,9 +15,7 @@ This directory contains durable reference material used for maintenance, release
 - [changelog-field-guide](./changelog-field-guide.md)
 - [esm-commonjs-quick-reference](./esm-commonjs-quick-reference.md)
 - [mcp-jsonrpc-relationship](./mcp-jsonrpc-relationship.md)
-- [mcp-tool-response-validation](./mcp-tool-response-validation.md)
 - [nodejs-module-systems-guide](./nodejs-module-systems-guide.md)
-- [npm-publication-guide](./npm-publication-guide.md)
 - [versioning-policy](./versioning-policy.md)
 
 ## Scope

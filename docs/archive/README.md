@@ -4,6 +4,10 @@ This directory contains historical documentation that is no longer the active so
 
 ## Subdirectories
 
+### `baselines`
+
+Archived original baseline documents whose content has been consolidated into the active `docs/baseline/` zone (see `docs/VERSIONS.md` for the version manifest).
+
 ### `plans`
 
 Historical proposals, implementation plans, design explorations, and roadmap fragments.
@@ -30,7 +34,7 @@ Former active guides that became stale, drifted from the current baseline, or we
 
 Recent archived planning material:
 
-- `guides/product-spine-restructure-plan-2026-04.md`: Phase 1/2/3 product-spine restructuring plan, superseded by `NEXT_DEVELOPMENT_BASELINE.md`, `docs/guides/staged-development-plan.md`, and `docs/reference/open-items.md`
+- `guides/product-spine-restructure-plan-2026-04.md`: Phase 1/2/3 product-spine restructuring plan, superseded by `docs/baseline/PROJECT_BASELINE.md`, `docs/guides/staged-development-plan.md`, and `docs/reference/open-items.md`
 
 ### `reference`
 

@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-07
+---
 # Guides
 
 This directory contains active operational and usage-oriented documentation for the current product baseline.
@@ -20,11 +25,7 @@ This directory contains active operational and usage-oriented documentation for 
 ## Durable Feature Baselines
 
 - [endpoint-semantic-layer-requirements](./endpoint-semantic-layer-requirements.md)
-- [dual-publication-implementation-outline](./dual-publication-implementation-outline.md)
 - [api-gateway-architecture-and-requirements](./api-gateway-architecture-and-requirements.md)
-- [api-gateway-phase1-technical-design](./api-gateway-phase1-technical-design.md)
-- [api-gateway-phase1-task-breakdown](./api-gateway-phase1-task-breakdown.md)
-- [api-gateway-phase2-task-breakdown](./api-gateway-phase2-task-breakdown.md)
 
 ## Guide Inclusion Rule
 

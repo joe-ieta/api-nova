@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-07
+---
 # Local Setup And Run
 
 This is the active setup and run baseline for the current product path.

@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-07
+---
 # 审查报告 A1：手工服务注册 → 发布为代理服务的能力审查
 
 - 报告编号：A1

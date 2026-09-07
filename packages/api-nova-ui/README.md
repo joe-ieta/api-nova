@@ -91,4 +91,4 @@ VITE_APP_TITLE=ApiNova
 - [Project README](../../README.md)
 - [Documentation Index](../../docs/README.md)
 - [Local Setup And Run](../../docs/guides/local-setup-and-run.md)
-- [Current Convergence Plan](../../docs/guides/current-convergence-plan.md)
+- [Staged Development Plan](../../docs/guides/staged-development-plan.md)

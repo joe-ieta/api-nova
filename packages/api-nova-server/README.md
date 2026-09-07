@@ -103,4 +103,4 @@ pnpm --filter api-nova-server run test:streamable-session
 
 - [Project README](../../README.md)
 - [Local Setup And Run](../../docs/guides/local-setup-and-run.md)
-- [Current Convergence Plan](../../docs/guides/current-convergence-plan.md)
+- [Staged Development Plan](../../docs/guides/staged-development-plan.md)

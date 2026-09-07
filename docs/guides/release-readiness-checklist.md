@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-07
+---
 # Release Readiness Checklist
 
 Use this checklist before cutting a release or calling the current baseline publishable.

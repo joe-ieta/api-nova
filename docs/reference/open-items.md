@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-07
+---
 # Open Items
 
 ## Purpose
@@ -10,7 +15,7 @@ Closed phase notes and superseded execution detail should not be re-added here. 
 
 Use these documents as the active planning basis:
 
-- `NEXT_DEVELOPMENT_BASELINE.md`
+- `docs/baseline/PROJECT_BASELINE.md`
 - `docs/guides/staged-development-plan.md`
 - `docs/guides/asset-model-and-runtime-assets.md`
 - `docs/reference/management-observability-baseline.md`
