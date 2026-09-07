@@ -1,9 +1,16 @@
-import { IsString, IsOptional, IsNumber, IsBoolean, IsEnum, IsArray, IsObject, ValidateNested, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsBoolean, IsEnum, IsIn, IsArray, IsObject, ValidateNested, Min, Max } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import { ServerStatus } from '../../../database/entities/mcp-server.entity';
 import { AuthType } from '../../../database/entities/auth-config.entity';
+
+const CURRENT_AUTH_TYPES = [
+  AuthType.NONE,
+  AuthType.BEARER,
+  AuthType.API_KEY,
+  AuthType.BASIC,
+] as const;
 
 export enum ManagedTransportType {
   STREAMABLE = 'streamable',
@@ -245,10 +252,10 @@ export class CreateAuthConfigDto {
 
   @ApiProperty({ 
     description: '认证类型', 
-    enum: AuthType, 
+    enum: CURRENT_AUTH_TYPES,
     example: AuthType.BEARER 
   })
-  @IsEnum(AuthType)
+  @IsIn(CURRENT_AUTH_TYPES)
   type: AuthType;
 
   @ApiProperty({ description: '认证配置详情', type: 'object' })
@@ -281,11 +288,11 @@ export class UpdateAuthConfigDto {
 
   @ApiPropertyOptional({ 
     description: '认证类型', 
-    enum: AuthType, 
+    enum: CURRENT_AUTH_TYPES,
     example: AuthType.BEARER 
   })
   @IsOptional()
-  @IsEnum(AuthType)
+  @IsIn(CURRENT_AUTH_TYPES)
   type?: AuthType;
 
   @ApiPropertyOptional({ description: '认证配置详情', type: 'object' })

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { GatewayRouteBindingEntity } from '../../../database/entities/gateway-route-binding.entity';
 import {
   GatewayCompiledPolicyBundle,
@@ -44,18 +44,18 @@ export class GatewayPolicyService {
       .toLowerCase();
 
     if (!normalized) {
-      return process.env.NODE_ENV === 'production' ? 'oauth' as const : 'anonymous' as const;
+      throw new ServiceUnavailableException('Gateway authentication policy is required');
     }
-    if (normalized === 'oauth') return 'oauth' as const;
-    if (normalized === 'runtime-api-key') return 'runtime_api_key' as const;
-    if (normalized === 'anonymous') return 'anonymous' as const;
-    if (normalized.includes('api-key') || normalized.includes('apikey') || normalized.includes('key')) {
+    if (/^anonymous(?:[-_:].+)?$/.test(normalized)) return 'anonymous' as const;
+    if (/^(?:api-key|api_key|apikey)(?:[-_:].+)?$/.test(normalized)) {
       return 'api_key' as const;
     }
-    if (normalized.includes('jwt') || normalized.includes('bearer') || normalized.includes('token')) {
+    if (/^(?:jwt|bearer)(?:[-_:].+)?$/.test(normalized)) {
       return 'jwt' as const;
     }
-    return process.env.NODE_ENV === 'production' ? 'oauth' as const : 'anonymous' as const;
+    throw new ServiceUnavailableException(
+      `Unsupported Gateway authentication policy: ${normalized.slice(0, 120)}`,
+    );
   }
 
   private resolveLoggingCaptureMode(ref?: string): GatewayLoggingCaptureMode {

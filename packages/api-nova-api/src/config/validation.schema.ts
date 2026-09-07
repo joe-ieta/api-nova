@@ -19,7 +19,7 @@ export const validationSchema = Joi.object({
   DB_PASSWORD: Joi.string().default('password'),
   DB_DATABASE: Joi.string().default('api_nova_api'),
   DB_LOGGING: Joi.boolean().default(false),
-  DB_SYNCHRONIZE: Joi.boolean().optional(),
+  DB_SYNCHRONIZE: Joi.boolean().default(false),
   DB_SSL: Joi.boolean().optional(),
   DB_SSL_REJECT_UNAUTHORIZED: Joi.boolean().optional(),
 

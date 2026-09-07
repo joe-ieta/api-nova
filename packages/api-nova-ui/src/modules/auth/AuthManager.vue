@@ -119,7 +119,7 @@
               <el-option label="Bearer Token" value="bearer" />
               <el-option label="API Key" value="apikey" />
               <el-option label="Basic Auth" value="basic" />
-              <el-option label="OAuth2" value="oauth2" />
+              <el-option label="OAuth2（后续版本）" value="oauth2" disabled />
             </el-select>
           </div>
         </div>
@@ -324,10 +324,10 @@
                 <div class="option-desc">使用用户名密码进行基础认证</div>
               </div>
             </el-option>
-            <el-option label="OAuth2" value="oauth2">
+            <el-option label="OAuth2（后续版本）" value="oauth2" disabled>
               <div class="option-content">
-                <div class="option-title">OAuth2</div>
-                <div class="option-desc">使用OAuth2客户端凭据流</div>
+                <div class="option-title">OAuth2（后续版本）</div>
+                <div class="option-desc">当前版本未启用，保留为后续产品能力</div>
               </div>
             </el-option>
           </el-select>

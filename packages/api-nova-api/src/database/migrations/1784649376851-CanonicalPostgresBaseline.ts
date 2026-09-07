@@ -231,10 +231,20 @@ export class CanonicalPostgresBaseline1784649376851 implements MigrationInterfac
         await queryRunner.query(`ALTER TABLE "role_permissions" ADD CONSTRAINT "FK_06792d0c62ce6b0203c03643cdd" FOREIGN KEY ("permissionId") REFERENCES "permissions"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "user_roles" ADD CONSTRAINT "FK_472b25323af01488f1f66a06b67" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
         await queryRunner.query(`ALTER TABLE "user_roles" ADD CONSTRAINT "FK_86033897c009fcca8b6505d6be2" FOREIGN KEY ("roleId") REFERENCES "roles"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`CREATE TABLE "config_overrides" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "envKey" character varying(128) NOT NULL, "section" character varying(64) NOT NULL, "field" character varying(64) NOT NULL, "valueType" character varying(16) NOT NULL, "value" jsonb NOT NULL, "restartRequired" boolean NOT NULL DEFAULT false, "description" character varying(255), "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_ab61ea3bd77a9d05e984eab2e99" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE UNIQUE INDEX "IDX_764904ce9d58083275f9f6aedf" ON "config_overrides" ("envKey") `);
+        await queryRunner.query(`CREATE INDEX "IDX_79e388fe550f8c472347fe7dd8" ON "config_overrides" ("section") `);
+        await queryRunner.query(`CREATE TABLE "config_backups" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying(120) NOT NULL, "description" character varying(255), "overrideCount" integer NOT NULL DEFAULT '0', "snapshot" jsonb NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_8448fa65b87f3834322360a9b25" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE INDEX "IDX_8a83578a41c394d56d55230d4d" ON "config_backups" ("createdAt") `);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
         if (queryRunner.connection.options.type !== 'postgres') return;
+        await queryRunner.query(`DROP INDEX "public"."IDX_8a83578a41c394d56d55230d4d"`);
+        await queryRunner.query(`DROP TABLE "config_backups"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_79e388fe550f8c472347fe7dd8"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_764904ce9d58083275f9f6aedf"`);
+        await queryRunner.query(`DROP TABLE "config_overrides"`);
         await queryRunner.query(`ALTER TABLE "user_roles" DROP CONSTRAINT "FK_86033897c009fcca8b6505d6be2"`);
         await queryRunner.query(`ALTER TABLE "user_roles" DROP CONSTRAINT "FK_472b25323af01488f1f66a06b67"`);
         await queryRunner.query(`ALTER TABLE "role_permissions" DROP CONSTRAINT "FK_06792d0c62ce6b0203c03643cdd"`);

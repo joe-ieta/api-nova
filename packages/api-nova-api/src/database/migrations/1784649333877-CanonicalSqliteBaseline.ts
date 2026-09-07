@@ -268,10 +268,20 @@ export class CanonicalSqliteBaseline1784649333877 implements MigrationInterface 
         await queryRunner.query(`ALTER TABLE "temporary_user_roles" RENAME TO "user_roles"`);
         await queryRunner.query(`CREATE INDEX "IDX_472b25323af01488f1f66a06b6" ON "user_roles" ("userId") `);
         await queryRunner.query(`CREATE INDEX "IDX_86033897c009fcca8b6505d6be" ON "user_roles" ("roleId") `);
+        await queryRunner.query(`CREATE TABLE "config_overrides" ("id" varchar PRIMARY KEY NOT NULL, "envKey" varchar(128) NOT NULL, "section" varchar(64) NOT NULL, "field" varchar(64) NOT NULL, "valueType" varchar(16) NOT NULL, "value" text NOT NULL, "restartRequired" boolean NOT NULL DEFAULT (0), "description" varchar(255), "createdAt" datetime NOT NULL DEFAULT (datetime('now')), "updatedAt" datetime NOT NULL DEFAULT (datetime('now')))`);
+        await queryRunner.query(`CREATE UNIQUE INDEX "IDX_764904ce9d58083275f9f6aedf" ON "config_overrides" ("envKey") `);
+        await queryRunner.query(`CREATE INDEX "IDX_79e388fe550f8c472347fe7dd8" ON "config_overrides" ("section") `);
+        await queryRunner.query(`CREATE TABLE "config_backups" ("id" varchar PRIMARY KEY NOT NULL, "name" varchar(120) NOT NULL, "description" varchar(255), "overrideCount" integer NOT NULL DEFAULT (0), "snapshot" text NOT NULL, "createdAt" datetime NOT NULL DEFAULT (datetime('now')), "updatedAt" datetime NOT NULL DEFAULT (datetime('now')))`);
+        await queryRunner.query(`CREATE INDEX "IDX_8a83578a41c394d56d55230d4d" ON "config_backups" ("createdAt") `);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
         if (queryRunner.connection.options.type !== 'sqljs') return;
+        await queryRunner.query(`DROP INDEX "IDX_8a83578a41c394d56d55230d4d"`);
+        await queryRunner.query(`DROP TABLE "config_backups"`);
+        await queryRunner.query(`DROP INDEX "IDX_79e388fe550f8c472347fe7dd8"`);
+        await queryRunner.query(`DROP INDEX "IDX_764904ce9d58083275f9f6aedf"`);
+        await queryRunner.query(`DROP TABLE "config_overrides"`);
         await queryRunner.query(`DROP INDEX "IDX_86033897c009fcca8b6505d6be"`);
         await queryRunner.query(`DROP INDEX "IDX_472b25323af01488f1f66a06b6"`);
         await queryRunner.query(`ALTER TABLE "user_roles" RENAME TO "temporary_user_roles"`);

@@ -107,7 +107,7 @@ describe('Gateway real HTTP audit', () => {
         aud: process.env.API_NOVA_GATEWAY_RESOURCE, scope: 'api:invoke', iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 300 })).toString('base64url');
     const token = unsigned + '.' + sign('RSA-SHA256', Buffer.from(unsigned), keys.privateKey).toString('base64url');
-    const security = new GatewaySecurityService(null as any, null as any, null as any, null as any);
+    const security = new GatewaySecurityService(null as any, null as any);
     let upstreamHeaders: http.IncomingHttpHeaders = {};
     const requestBody = JSON.stringify({ message: 'x'.repeat(9000), password: 'request-secret' });
     const responseBody = JSON.stringify({ result: 'y'.repeat(9000), access_token: 'response-secret' });
@@ -124,7 +124,7 @@ describe('Gateway real HTTP audit', () => {
     const route = { upstreamBaseUrl: `http://127.0.0.1:${(upstream.address() as AddressInfo).port}`,
       routeBinding: { upstreamPath: '/echo', upstreamMethod: 'POST', routePath: '/echo' },
       endpointDefinition: { id: 'api-1', path: '/echo' }, runtimeAsset: { id: 'runtime-1' },
-      sourceServiceInstance: { id: 'instance-1' }, params: {}, policies: { auth: { mode: 'oauth' }, traffic: { timeoutMs: 1000 } } } as any;
+      sourceServiceInstance: { id: 'instance-1' }, params: {}, policies: { auth: { mode: 'jwt' }, traffic: { timeoutMs: 1000 } } } as any;
     const engine = new GatewayProxyEngineService(new GatewayRequestCaptureService());
     let finish!: (value: any) => void;
     const completed = new Promise<any>(resolve => { finish = resolve; });

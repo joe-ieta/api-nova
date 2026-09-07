@@ -2,7 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { createLocalJWKSet, createRemoteJWKSet, jwtVerify, JSONWebKeySet } from 'jose';
 import { auditDigest } from './runtime-call-audit';
 
-export type RuntimeAuthMode = 'oauth' | 'api_key' | 'anonymous';
+export type RuntimeAuthMode = 'jwt' | 'api_key' | 'anonymous';
 export interface RuntimePrincipal {
   callerId?: string;
   issuer?: string;
@@ -38,31 +38,16 @@ export function runtimeResource(transport: 'gateway' | 'mcp'): string {
 }
 
 export function runtimeAuthMode(): RuntimeAuthMode {
-  const mode = process.env.API_NOVA_RUNTIME_AUTH_MODE || 'oauth';
-  if (!['oauth', 'api_key', 'anonymous'].includes(mode)) throw new RuntimeAuthError(503, 'invalid_auth_mode');
+  const mode = String(process.env.API_NOVA_RUNTIME_AUTH_MODE || '').trim().toLowerCase();
+  if (!mode) throw new RuntimeAuthError(503, 'runtime_auth_not_configured');
+  if (!['jwt', 'api_key', 'anonymous'].includes(mode)) throw new RuntimeAuthError(503, 'invalid_auth_mode');
   return mode as RuntimeAuthMode;
 }
 
-export function runtimeMetadata(transport: 'gateway' | 'mcp') {
-  try {
-    const resource = runtimeResource(transport);
-    const issuer = process.env.API_NOVA_RUNTIME_ISSUER;
-    if (!issuer) throw new Error('Missing issuer');
-    trustedUrl(issuer);
-    return { resource, authorization_servers: [issuer], bearer_methods_supported: ['header'],
-      scopes_supported: requiredRuntimeScopes() };
-  } catch { throw new RuntimeAuthError(503, 'runtime_auth_not_configured'); }
-}
-
-export function runtimeChallenge(transport: 'gateway' | 'mcp', insufficientScope = false, scopes = requiredRuntimeScopes()): string {
-  let metadata = '';
-  try {
-    const resource = new URL(runtimeResource(transport));
-    metadata = `, resource_metadata="${resource.origin}/.well-known/oauth-protected-resource${resource.pathname === '/' ? '' : resource.pathname}"`;
-  } catch { /* no discovery advertised for unconfigured/private deployments */ }
+export function runtimeChallenge(_transport: 'gateway' | 'mcp', insufficientScope = false, scopes = requiredRuntimeScopes()): string {
   const safeScopes = scopes.filter(scope => /^[\x21\x23-\x5B\x5D-\x7E]+$/.test(scope)).join(' ');
   const parameters = [insufficientScope ? 'error="insufficient_scope"' : '',
-    metadata.replace(/^, /, ''), safeScopes ? `scope="${safeScopes}"` : ''].filter(Boolean);
+    safeScopes ? `scope="${safeScopes}"` : ''].filter(Boolean);
   return `Bearer${parameters.length ? ' ' + parameters.join(', ') : ''}`;
 }
 

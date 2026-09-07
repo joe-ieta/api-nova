@@ -31,7 +31,7 @@ async function prepareDatabase(fixture) {
       name: 'isolated-security-fixture', type: 'gateway_service', status: 'active', servicePrefix: 'secure',
       metadata: { activeRevision: 'integration-fixture' } });
     const routeBinding = { id: fixture.routeId, routePath: '/echo', routeMethod: 'POST',
-      upstreamPath: '/echo', upstreamMethod: 'POST', pathMatchMode: 'exact', authPolicyRef: 'oauth',
+      upstreamPath: '/echo', upstreamMethod: 'POST', pathMatchMode: 'exact', authPolicyRef: 'jwt',
       timeoutMs: 3000, createdAt: new Date(), updatedAt: new Date() };
     const entry = { runtimeAsset: runtime, membership: { id: fixture.membershipId, publicationRevision: 1 },
       publishBinding: { id: fixture.bindingId }, routeBinding, endpointDefinition: { id: fixture.endpointId, path: '/echo' },
@@ -167,7 +167,7 @@ async function main() {
       DB_TYPE: 'sqlite', DB_SQLITE_PATH: path.join(directory, 'isolated.sqlite'), DB_SYNCHRONIZE: 'false',
       DB_LOGGING: 'false', JWT_SECRET: randomBytes(32).toString('hex'), JWT_REFRESH_SECRET: randomBytes(32).toString('hex'),
       SUPER_ADMIN_USERNAME: 'integration-admin', SUPER_ADMIN_EMAIL: 'integration@example.invalid', SUPER_ADMIN_PASSWORD: adminPassword,
-      API_NOVA_RUNTIME_AUTH_MODE: 'oauth', API_NOVA_RUNTIME_ISSUER: `${base}/issuer`,
+      API_NOVA_RUNTIME_AUTH_MODE: 'jwt', API_NOVA_RUNTIME_ISSUER: `${base}/issuer`,
       API_NOVA_RUNTIME_JWKS_URI: `${base}/issuer/jwks`, API_NOVA_RUNTIME_JWKS_JSON: '',
       API_NOVA_GATEWAY_RESOURCE: `${base}/edge/gateway`, API_NOVA_MCP_RESOURCE: `${base}/edge/mcp`,
       API_NOVA_RUNTIME_REQUIRED_SCOPES: 'api:invoke', API_NOVA_MCP_TOOL_SCOPES: '{}',
@@ -195,12 +195,12 @@ async function main() {
     await waitUntil(async () => (await fetch(`http://127.0.0.1:${mcpPort}/health`)).ok, 'MCP did not start');
     check('real API and MCP processes with isolated SQLite');
     const metadata = await fetchTls(`${base}/.well-known/oauth-protected-resource/edge/mcp`);
-    assert.equal(metadata.status, 200); assert.equal((await metadata.json()).resource, env.API_NOVA_MCP_RESOURCE);
+    assert.equal(metadata.status, 404); assert.equal((await metadata.json()).error.code, 'oauth_metadata_not_supported');
     const gatewayMetadata = await fetchTls(`${base}/.well-known/oauth-protected-resource/edge/gateway`);
-    assert.equal(gatewayMetadata.status, 200); assert.equal((await gatewayMetadata.json()).resource, env.API_NOVA_GATEWAY_RESOURCE);
+    assert.equal(gatewayMetadata.status, 404); assert.equal((await gatewayMetadata.json()).error, 'oauth_metadata_not_supported');
     const preflight = await fetchTls(`${base}/edge/mcp`, { method: 'OPTIONS', headers: { origin: base } });
     assert.equal(preflight.status, 204); assert.equal(preflight.headers.get('access-control-allow-origin'), base);
-    check('HTTPS prefixed protected-resource metadata');
+    check('OAuth protected-resource metadata is not exposed');
     const mint = (audience, rotated = false) => new SignJWT({ sub: 'external-caller', scope: 'api:invoke' })
       .setProtectedHeader({ alg: 'RS256', kid: rotated ? 'rotated' : 'first' })
       .setIssuer(env.API_NOVA_RUNTIME_ISSUER).setAudience(audience).setIssuedAt().setExpirationTime('5m')
@@ -211,7 +211,7 @@ async function main() {
       signal: AbortSignal.timeout(8000), headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ message: payload }) });
     const missing = await gatewayCall(); assert.equal(missing.status, 401);
-    assert.ok(missing.headers.get('www-authenticate').includes(`${base}/.well-known/oauth-protected-resource/edge/gateway`));
+    assert.equal(missing.headers.get('www-authenticate'), 'Bearer scope="api:invoke"');
     await missing.text();
     const wrong = await gatewayCall(mcpToken); assert.equal(wrong.status, 401); await wrong.text();
     const gatewayResponse = await gatewayCall(gatewayToken);

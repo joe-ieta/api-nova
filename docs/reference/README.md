@@ -5,6 +5,7 @@
 
 ## Product Governance
 
+- [Security Design And Implementation](./security-design-and-implementation.md)
 - [Open Items](./open-items.md)
 - [Runtime Closure Design And Implementation Review](./runtime-closure-design-implementation-review.md)
 - [Management Observability Baseline](./management-observability-baseline.md)

@@ -15,7 +15,7 @@ async function main() {
   const directory = await fs.mkdtemp(path.join(tmpdir(), 'api-nova-mcp-audit-'));
   const original = { ...process.env };
   process.env.API_NOVA_AUDIT_DIR = directory;
-  process.env.API_NOVA_RUNTIME_AUTH_MODE = 'oauth';
+  process.env.API_NOVA_RUNTIME_AUTH_MODE = 'jwt';
   process.env.API_NOVA_RUNTIME_ISSUER = 'https://issuer.example';
   process.env.API_NOVA_MCP_RESOURCE = 'https://runtime.example/mcp';
   process.env.API_NOVA_RUNTIME_REQUIRED_SCOPES = 'api:invoke';
@@ -70,10 +70,10 @@ async function main() {
   try {
     const missing = await init('');
     assert.equal(missing.response.status, 401);
-    assert.match(missing.response.headers.get('www-authenticate'), /^Bearer resource_metadata=/);
+    assert.equal(missing.response.headers.get('www-authenticate'), 'Bearer scope="api:invoke"');
     const metadata = await fetch(`${base}/.well-known/oauth-protected-resource/mcp`);
-    assert.equal(metadata.status, 200);
-    assert.deepEqual((await metadata.json()).authorization_servers, ['https://issuer.example']);
+    assert.equal(metadata.status, 404);
+    assert.equal((await metadata.json()).error.code, 'oauth_metadata_not_supported');
     assert.equal((await init(await mint('caller-a', { aud: 'https://wrong.example' }))).response.status, 401);
     assert.equal((await init(await mint('caller-a', { scope: '' }))).response.status, 403);
     assert.equal((await fetch(`${base}/mcp`, { method: 'OPTIONS' })).status, 204);

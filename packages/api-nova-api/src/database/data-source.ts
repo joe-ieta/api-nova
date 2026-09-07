@@ -116,8 +116,8 @@ function buildDataSourceOptions(
       location: verifySqliteDatabasePath(configService),
       autoSave: true,
       entities,
-      migrations: ['dist/src/database/migrations/*Canonical*.js'],
-      synchronize: read<boolean>('DB_SYNCHRONIZE', nodeEnv !== 'production'),
+      migrations: ['dist/src/database/migrations/*Baseline*.js'],
+      synchronize: read<boolean>('DB_SYNCHRONIZE', false),
       logging: read<boolean>('DB_LOGGING', false),
     };
   }
@@ -130,8 +130,8 @@ function buildDataSourceOptions(
     password: read('DB_PASSWORD', 'password'),
     database: String(read('DB_DATABASE', 'api_nova_api')),
     entities,
-    migrations: ['dist/src/database/migrations/*Canonical*.js'],
-    synchronize: read<boolean>('DB_SYNCHRONIZE', nodeEnv === 'development'),
+    migrations: ['dist/src/database/migrations/*Baseline*.js'],
+    synchronize: read<boolean>('DB_SYNCHRONIZE', false),
     logging: read<boolean>('DB_LOGGING', false),
     ssl: sslEnabled ? { rejectUnauthorized: sslRejectUnauthorized } : false,
   };

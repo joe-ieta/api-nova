@@ -34,9 +34,9 @@
 | INT-01 | 完整 API 与独立 MCP 进程经 HTTPS 代理完成元数据、前缀、鉴权、9 KB 调用与调用者归并 | 根 `verify-runtime-security-integration.cjs` | automated-passed |
 | INT-02 | 远程 HTTPS JWKS 轮换后两个进程重新取钥，同主体 MCP 会话继续使用 | 同上，包含约 31 秒缓存冷却等待 | automated-passed |
 | INT-03 | 管理 API 登录/正文解析保持正常；外部调用令牌不能读取管理调用者清单 | 同上 | automated-passed |
-| INT-04 | 禁用自动同步的干净 SQLite 迁移含配置表，完整 API 可启动 | 同上、`CanonicalConfigPersistence.spec.ts`、隔离 SQLite verifier | automated-passed |
+| INT-04 | 禁用自动同步的干净 SQLite baseline 含配置表，完整 API 可启动 | PG/SQLite canonical baselines、隔离 SQLite verifier | automated-passed |
 | INT-05 | 普通日志跳过 Gateway 流式响应；异常路径脱敏，损坏 URL 不导致二次异常或原文泄漏 | API `logging.interceptor.spec.ts`、`http-exception.filter.spec.ts` | automated-passed |
-| EXT-10 | 实际 OAuth 提供方、JWKS 轮换、TLS/代理前缀、外部客户端授权与长流重连 | [open-items](../reference/open-items.md) | environment-blocked |
+| EXT-10 | 实际 JWT 签发方、JWKS 轮换、TLS/代理前缀、外部客户端鉴权与长流重连 | [open-items](../reference/open-items.md) | environment-blocked |
 
 ## 执行命令
 
@@ -52,7 +52,7 @@ npm run verify:runtime-security-integration
 
 server 单项验证入口为 `npm run test:security-audit --workspace api-nova-server`，成功标识为 `RUNTIME_SECURITY_AUDIT_SMOKE_OK`。
 
-多进程联调成功标识为 `RUNTIME_SECURITY_INTEGRATION_OK`。使用临时证书/日志/数据库，结束后只清理本次夹具；不使用开发 `.env` 的业务数据库，不停止用户现有进程。此测试使用预置快照，不替代发布流程和真实外部 OAuth 提供方验收。系统 `/health` 的 Windows 磁盘探测在受限环境中被拒绝，测试使用 `/api/health/ready` 验证服务就绪，未将完整系统健康检查计作通过。
+多进程联调成功标识为 `RUNTIME_SECURITY_INTEGRATION_OK`。使用临时证书/日志/数据库，结束后只清理本次夹具；不使用开发 `.env` 的业务数据库，不停止用户现有进程。此测试使用预置快照，不替代发布流程和真实外部 JWT/JWKS 提供方验收。系统 `/health` 的 Windows 磁盘探测在受限环境中被拒绝，测试使用 `/api/health/ready` 验证服务就绪，未将完整系统健康检查计作通过。
 
 ## 上线前人工检查
 

@@ -79,6 +79,8 @@ async function verifySchema() {
        AND column_name = 'sourceServiceAssetId'`,
   );
   const hasPendingMigrations = await dataSource.showMigrations();
+  const schemaLog = await dataSource.driver.createSchemaBuilder().log();
+  const schemaDriftQueryCount = schemaLog.upQueries.length;
   const result = {
     database: databaseName,
     domainTableCount: domainTables.length,
@@ -88,6 +90,7 @@ async function verifySchema() {
     presentForbiddenColumns,
     sourceServiceInstanceAssetIdType: instanceFkType[0]?.data_type,
     hasPendingMigrations,
+    schemaDriftQueryCount,
   };
   console.log(JSON.stringify(result));
   if (
@@ -97,7 +100,8 @@ async function verifySchema() {
     nonEmptyTables.length ||
     presentForbiddenColumns.length ||
     result.sourceServiceInstanceAssetIdType !== 'uuid' ||
-    hasPendingMigrations
+    hasPendingMigrations ||
+    schemaDriftQueryCount !== 0
   ) {
     throw new Error('Isolated PostgreSQL baseline verification failed');
   }

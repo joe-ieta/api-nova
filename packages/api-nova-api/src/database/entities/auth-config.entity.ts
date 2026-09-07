@@ -21,6 +21,7 @@ export enum AuthType {
   BEARER = 'bearer',
   API_KEY = 'apikey',
   BASIC = 'basic',
+  /** Reserved for a future product milestone; not accepted by current write DTOs. */
   OAUTH2 = 'oauth2',
 }
 

@@ -20,7 +20,7 @@ describe('runtime authentication and audit contract', () => {
     original = { ...process.env };
     directory = await mkdtemp(join(tmpdir(), 'api-nova-security-audit-'));
     process.env.API_NOVA_AUDIT_DIR = directory;
-    process.env.API_NOVA_RUNTIME_AUTH_MODE = 'oauth';
+    process.env.API_NOVA_RUNTIME_AUTH_MODE = 'jwt';
     process.env.API_NOVA_RUNTIME_ISSUER = issuer;
     process.env.API_NOVA_RUNTIME_RESOURCE = resource;
     delete process.env.API_NOVA_RUNTIME_JWKS_URI;
@@ -65,7 +65,7 @@ describe('runtime authentication and audit contract', () => {
       .rejects.toMatchObject({ status: 403 });
     await expect(authenticateRuntimeRequest({ authorization: 'Bearer eyJhbGciOiJub25lIn0.e30.' }, 'mcp'))
       .rejects.toMatchObject({ status: 401 });
-    expect(runtimeChallenge('mcp')).toMatch(/^Bearer resource_metadata=/);
+    expect(runtimeChallenge('mcp')).toBe('Bearer scope="api:invoke"');
   });
 
   it('binds private API keys to a stable subject, allowed resources and expiry', async () => {

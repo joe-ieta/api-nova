@@ -147,7 +147,7 @@ export class GatewayRuntimeService {
     } catch (error) {
       const latencyMs = Date.now() - startedAt;
       const statusCode = this.resolveStatusCode(error);
-      if (!res.headersSent && (statusCode === 401 || statusCode === 403) && target.policies.auth.mode === 'oauth') {
+      if (!res.headersSent && (statusCode === 401 || statusCode === 403) && target.policies.auth.mode === 'jwt') {
         res.setHeader('WWW-Authenticate', runtimeChallenge('gateway', statusCode === 403));
       }
       if (statusCode === 401 || statusCode === 403) {

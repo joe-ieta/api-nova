@@ -3,17 +3,20 @@ import { GatewayPolicyService } from './gateway-policy.service';
 describe('GatewayPolicyService', () => {
   const service = new GatewayPolicyService();
 
-  it('requires OAuth by default in production and keeps explicit modes', () => {
-    const previous = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
-    try {
-      expect(service.compileForRoute({} as any).auth.mode).toBe('oauth');
-      expect(service.compileForRoute({ authPolicyRef: 'unknown-policy' } as any).auth.mode).toBe('oauth');
-      expect(service.compileForRoute({ authPolicyRef: 'anonymous' } as any).auth.mode).toBe('anonymous');
-      expect(service.compileForRoute({ authPolicyRef: 'runtime-api-key' } as any).auth.mode).toBe('runtime_api_key');
-    } finally {
-      if (previous === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = previous;
-    }
+  it('fails closed for missing, unknown, and removed authentication modes', () => {
+    expect(() => service.compileForRoute({} as any)).toThrow('Gateway authentication policy is required');
+    expect(() => service.compileForRoute({ authPolicyRef: 'unknown-policy' } as any))
+      .toThrow('Unsupported Gateway authentication policy');
+    expect(() => service.compileForRoute({ authPolicyRef: 'oauth' } as any))
+      .toThrow('Unsupported Gateway authentication policy');
+    expect(() => service.compileForRoute({ authPolicyRef: 'runtime-api-key' } as any))
+      .toThrow('Unsupported Gateway authentication policy');
+  });
+
+  it('keeps only explicit canonical authentication modes', () => {
+    expect(service.compileForRoute({ authPolicyRef: 'anonymous' } as any).auth.mode).toBe('anonymous');
+    expect(service.compileForRoute({ authPolicyRef: 'jwt-default' } as any).auth.mode).toBe('jwt');
+    expect(service.compileForRoute({ authPolicyRef: 'api-key-default' } as any).auth.mode).toBe('api_key');
   });
 
   it('compiles the route binding into a normalized policy bundle', () => {
@@ -105,8 +108,8 @@ describe('GatewayPolicyService', () => {
     });
   });
 
-  it('falls back to anonymous/meta_only/default timeout when refs are absent', () => {
-    const result = service.compileForRoute({} as any);
+  it('keeps non-auth defaults when anonymous is explicitly selected', () => {
+    const result = service.compileForRoute({ authPolicyRef: 'anonymous' } as any);
 
     expect(result.auth.mode).toBe('anonymous');
     expect(result.logging.captureMode).toBe('meta_only');

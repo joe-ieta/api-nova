@@ -2,7 +2,7 @@ import { IncomingMessage, ServerResponse } from "http";
 import http from "node:http";
 import { randomUUID } from 'node:crypto';
 import { beginRuntimeCall, captureAuditBody, flushRuntimeAudit, redactAuditUrl, redactAuditValue, RuntimeAuthError, runtimeAuthMode,
-  runtimeMetadata, withRuntimeCallContext } from 'api-nova-parser';
+  withRuntimeCallContext } from 'api-nova-parser';
 import { authenticateMcpRequest, sendMcpAuthError } from './runtime-security';
 
 const LOCAL_HOSTS = ["localhost", "127.0.0.1", "::1", "[::1]"] as const;
@@ -386,20 +386,6 @@ function handleAuthDiscoveryEndpoints(
     return false;
   }
 
-  if (getRequestPathname(req)?.startsWith('/.well-known/oauth-protected-resource')) {
-    try {
-      if (runtimeAuthMode() === 'oauth') {
-        const metadata = runtimeMetadata('mcp');
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-        res.end(JSON.stringify(metadata));
-        return true;
-      }
-    } catch (error) {
-      sendMcpAuthError(res, error as RuntimeAuthError);
-      return true;
-    }
-  }
-
   writeJsonErrorResponse(
     res,
     404,
@@ -539,7 +525,7 @@ export function createBaseHttpServer(
     // Handle common endpoints like health and ping （health check and ping test）
     if (handleCommonEndpoints(req, res)) return;
 
-    // Return deterministic JSON for OAuth/OIDC discovery when auth is not configured.
+    // Return a deterministic unsupported response for OAuth/OIDC discovery paths.
     if (handleAuthDiscoveryEndpoints(req, res, authDiscoveryPaths)) return;
 
     // 生成接口

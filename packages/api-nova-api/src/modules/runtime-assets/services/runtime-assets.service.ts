@@ -1535,19 +1535,19 @@ export class RuntimeAssetsService {
       anonymous: 0,
       jwt: 0,
       apiKey: 0,
-      oauth: 0,
+      invalid: 0,
     };
 
     for (const route of routes) {
       const authMode = this.resolveGatewayAuthMode(route.authPolicyRef);
       if (authMode === 'jwt') {
         authModes.jwt += 1;
-      } else if (authMode === 'oauth') {
-        authModes.oauth += 1;
       } else if (authMode === 'api_key') {
         authModes.apiKey += 1;
-      } else {
+      } else if (authMode === 'anonymous') {
         authModes.anonymous += 1;
+      } else {
+        authModes.invalid += 1;
       }
     }
 
@@ -1697,18 +1697,14 @@ export class RuntimeAssetsService {
 
   private resolveGatewayAuthMode(ref?: string) {
     const normalized = String(ref || '').trim().toLowerCase();
-    if (!normalized) {
-      return process.env.NODE_ENV === 'production' ? 'oauth' : 'anonymous';
-    }
-    if (normalized === 'oauth') return 'oauth';
-    if (normalized === 'anonymous') return 'anonymous';
-    if (normalized.includes('api-key') || normalized.includes('apikey') || normalized.includes('key')) {
+    if (/^anonymous(?:[-_:].+)?$/.test(normalized)) return 'anonymous';
+    if (/^(?:api-key|api_key|apikey)(?:[-_:].+)?$/.test(normalized)) {
       return 'api_key';
     }
-    if (normalized.includes('jwt') || normalized.includes('bearer') || normalized.includes('token')) {
+    if (/^(?:jwt|bearer)(?:[-_:].+)?$/.test(normalized)) {
       return 'jwt';
     }
-    return process.env.NODE_ENV === 'production' ? 'oauth' : 'anonymous';
+    return 'invalid';
   }
 
   private uniqueRefs(values: Array<string | undefined>) {

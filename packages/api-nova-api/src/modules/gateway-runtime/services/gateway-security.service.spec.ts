@@ -1,4 +1,3 @@
-import { JwtService } from '@nestjs/jwt';
 import { createHash } from 'node:crypto';
 import { UnauthorizedException } from '@nestjs/common';
 import { AuditAction } from '../../../database/entities/audit-log.entity';
@@ -6,12 +5,6 @@ import { GatewaySecurityService } from './gateway-security.service';
 
 describe('GatewaySecurityService', () => {
   const buildService = () => {
-    const jwtService = {
-      verify: jest.fn(),
-    };
-    const userService = {
-      findUserById: jest.fn(),
-    };
     const auditService = {
       log: jest.fn().mockResolvedValue(undefined),
     };
@@ -22,13 +15,9 @@ describe('GatewaySecurityService', () => {
 
     return {
       service: new GatewaySecurityService(
-        jwtService as unknown as JwtService,
-        userService as any,
         auditService as any,
         credentialRepository as any,
       ),
-      jwtService,
-      userService,
       auditService,
       credentialRepository,
     };
@@ -62,13 +51,12 @@ describe('GatewaySecurityService', () => {
     expect(req.gatewayAuth).toEqual({ mode: 'anonymous' });
   });
 
-  it('validates jwt routes and attaches the authenticated user', async () => {
-    const { service, jwtService, userService } = buildService();
-    jwtService.verify.mockReturnValue({ sub: 'user-1' });
-    userService.findUserById.mockResolvedValue({
-      id: 'user-1',
-      isActive: true,
-    });
+  it('validates jwt routes with the shared runtime validator', async () => {
+    const { service } = buildService();
+    const principal = { callerId: 'caller-1', issuer: 'https://issuer.example',
+      subject: 'user-1', identitySource: 'authenticated' as const, scopes: ['api:invoke'] };
+    const authenticate = jest.fn().mockResolvedValue(principal);
+    (service as any).authenticateJwt = authenticate;
     const req = {
       headers: {
         authorization: 'Bearer token-123',
@@ -78,21 +66,16 @@ describe('GatewaySecurityService', () => {
 
     await expect(service.authorize(resolvedRoute('jwt'), req)).resolves.toEqual({
       mode: 'jwt',
-      actorId: 'user-1',
+      principal,
     });
-    expect(jwtService.verify).toHaveBeenCalledWith('token-123');
-    expect(req.user).toEqual({
-      id: 'user-1',
-      isActive: true,
-    });
+    expect(authenticate).toHaveBeenCalledWith(req.headers);
   });
 
   it('rejects jwt routes without a bearer token', async () => {
     const { service } = buildService();
-
     await expect(
       service.authorize(resolvedRoute('jwt'), { headers: {}, query: {} } as any),
-    ).rejects.toThrow(UnauthorizedException);
+    ).rejects.toMatchObject({ status: 401 });
   });
 
   it('validates active api keys scoped to the runtime asset', async () => {

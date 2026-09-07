@@ -1,5 +1,4 @@
-import { UnauthorizedException, ServiceUnavailableException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { ServiceUnavailableException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { GatewayConsumerCredentialStatus } from '../../../database/entities/gateway-consumer-credential.entity';
 import { GatewayCacheService } from './gateway-cache.service';
@@ -112,12 +111,6 @@ describe('GatewayRuntimeService orchestration', () => {
     const snapshotService = {
       resolve: jest.fn().mockReturnValue(resolvedRoute),
     };
-    const jwtService = {
-      verify: jest.fn(),
-    };
-    const userService = {
-      findUserById: jest.fn(),
-    };
     const auditService = {
       log: jest.fn().mockResolvedValue(undefined),
     };
@@ -139,8 +132,6 @@ describe('GatewayRuntimeService orchestration', () => {
 
     const metricsService = new GatewayRuntimeMetricsService(runtimeObservabilityService as any);
     const securityService = new GatewaySecurityService(
-      jwtService as unknown as JwtService,
-      userService as any,
       auditService as any,
       credentialRepository as any,
     );
@@ -162,14 +153,13 @@ describe('GatewayRuntimeService orchestration', () => {
     return {
       resolvedRoute,
       snapshotService,
-      jwtService,
-      userService,
       credentialRepository,
       runtimeObservabilityService,
       accessLogService,
       proxyEngineService,
       metricsService,
       cacheService,
+      securityService,
       runtimeService,
     };
   };
@@ -184,8 +174,10 @@ describe('GatewayRuntimeService orchestration', () => {
         upstream: {},
       },
     });
-    harness.jwtService.verify.mockReturnValue({ sub: 'user-1' });
-    harness.userService.findUserById.mockResolvedValue({ id: 'user-1', isActive: true });
+    const principal = { callerId: 'caller-1', issuer: 'https://issuer.example',
+      subject: 'user-1', identitySource: 'authenticated' as const, scopes: ['api:invoke'] };
+    const authenticate = jest.fn().mockResolvedValue(principal);
+    (harness.securityService as any).authenticateJwt = authenticate;
     harness.proxyEngineService.forward.mockResolvedValue(createProxySuccess());
 
     const req = createRequest({
@@ -201,8 +193,7 @@ describe('GatewayRuntimeService orchestration', () => {
 
     await harness.runtimeService.forwardRequest('/orders', req, res as any);
 
-    expect(req.user).toEqual({ id: 'user-1', isActive: true });
-    expect(req.gatewayAuth).toEqual({ mode: 'jwt', actorId: 'user-1' });
+    expect(req.gatewayAuth).toEqual({ mode: 'jwt', principal });
     expect(harness.proxyEngineService.forward).toHaveBeenCalledTimes(1);
     expect(harness.runtimeObservabilityService.recordGatewayRequestResult).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -237,7 +228,7 @@ describe('GatewayRuntimeService orchestration', () => {
         }),
         new MockResponse() as any,
       ),
-    ).rejects.toThrow(UnauthorizedException);
+    ).rejects.toThrow('invalid_token');
 
     expect(harness.proxyEngineService.forward).not.toHaveBeenCalled();
     expect(harness.metricsService.getRuntimeAssetMetrics('runtime-1').policyCounts).toEqual(

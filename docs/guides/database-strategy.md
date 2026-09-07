@@ -1,7 +1,7 @@
 # Database Strategy
 
 > Document status: Active
-> Last reviewed: 2026-09-06
+> Last reviewed: 2026-09-07
 
 ## Decision
 
@@ -18,8 +18,9 @@ The engines share one domain model but do not have identical scaling or operatio
 2. SQLite is the default and uses an explicit writable database path.
 3. PostgreSQL remains the production recommendation.
 4. Shared service logic must not depend on engine-specific SQL.
-5. Database-specific types and migration details stay behind datasource and compatibility helpers.
-6. New development starts from the canonical clean schema; historical schema/data compatibility is not required for the current closure line.
+5. Database-specific types stay behind datasource dialect helpers；这些辅助函数服务于 PG/SQLite 双引擎，不承担历史版本兼容。
+6. 开发阶段只支持从 canonical clean schema 初始化；不提供历史 schema/data 升级路径，结构变化时重建开发数据库。
+7. 迁移目录只保留 SQLite/PostgreSQL 两个 canonical baseline；后置修补必须在合入前折叠回对应基线。
 
 ## Runtime Boundaries
 
@@ -48,7 +49,7 @@ npm run db:verify-isolated-sqlite --workspace api-nova-api
 npm run db:verify-isolated-postgres --workspace api-nova-api
 ```
 
-The current canonical target on 2026-09-06 is **40 domain tables** plus the migration ledger. The configuration persistence migration adds `config_overrides` and `config_backups`. Isolated SQLite migration verification and full API startup with `DB_SYNCHRONIZE=false` passed. PostgreSQL execution against this 40-table target remains pending as `EXT-11`; the earlier PostgreSQL result is not current acceptance evidence.
+The current canonical target on 2026-09-07 is **40 domain tables** plus the migration ledger. `config_overrides` and `config_backups` are now part of both engine baselines; the separate compatibility migration was removed. Isolated SQLite initialization passes with zero schema drift and `DB_SYNCHRONIZE=false`. PostgreSQL SQL compiles with the API build, but isolated execution is environment-blocked because the configured local `postgres` credential was rejected; it remains pending as `EXT-11`.
 
 Historical verification on 2026-07-22 (before the configuration persistence migration):
 

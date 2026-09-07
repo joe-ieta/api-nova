@@ -96,12 +96,12 @@ describe('GatewayCacheService', () => {
     );
   });
 
-  it('isolates OAuth callers even when consumer variation is disabled', () => {
+  it('isolates JWT callers even when consumer variation is disabled', () => {
     const service = new GatewayCacheService();
     const route = buildRoute();
     route.policies.cache.varyByConsumer = false;
     const req = { method: 'GET', originalUrl: '/orders', headers: {} } as any;
-    const principal = (callerId: string) => ({ mode: 'oauth', principal: {
+    const principal = (callerId: string) => ({ mode: 'jwt', principal: {
       callerId, identitySource: 'authenticated', scopes: [] } }) as any;
     expect(service.resolve(route, req, principal('caller-a'))?.key)
       .not.toBe(service.resolve(route, req, principal('caller-b'))?.key);

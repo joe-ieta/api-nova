@@ -10,7 +10,7 @@ import * as compression from 'compression';
 import * as express from 'express';
 import * as path from 'path';
 import { existsSync } from 'fs';
-import { flushRuntimeAudit, runtimeMetadata } from 'api-nova-parser';
+import { flushRuntimeAudit } from 'api-nova-parser';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -103,8 +103,8 @@ async function bootstrap() {
 
     const expressInstance = app.getHttpAdapter().getInstance();
     expressInstance.get(/^\/\.well-known\/oauth-protected-resource(?:\/.*)?$/, (_req, res) => {
-      try { res.setHeader('Cache-Control', 'no-store'); res.json(runtimeMetadata('gateway')); }
-      catch { res.status(503).json({ error: 'runtime_auth_not_configured' }); }
+      res.setHeader('Cache-Control', 'no-store');
+      res.status(404).json({ error: 'oauth_metadata_not_supported' });
     });
     const spaFallbackPattern =
       /^\/(?!(api|socket\.io|monitoring|health|metrics|assets)(\/|$)|favicon\.ico$|vite\.svg$).*/;

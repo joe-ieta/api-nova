@@ -7,12 +7,15 @@ Only currently supported product paths, durable architecture contracts, and acti
 
 ## Active Execution And Release
 
+- [Security Development Task Plan](./security-development-task-plan.md)
+- [Security Development Execution Status](./security-development-execution-status.md)
 - [Staged Development Plan](./staged-development-plan.md)
 - [Runtime Instance And Regression Closure Plan](./runtime-instance-and-regression-closure-plan.md)
 - [Release Readiness Checklist](./release-readiness-checklist.md)
 
 ## Product And Architecture Baselines
 
+- [Security Functional Requirements](./security-functional-requirements.md)
 - [Asset Model And Runtime Assets](./asset-model-and-runtime-assets.md)
 - [Publication Resource Baseline](./publication-resource-baseline.md)
 - [Endpoint Publication Profile Requirements](./endpoint-semantic-layer-requirements.md)

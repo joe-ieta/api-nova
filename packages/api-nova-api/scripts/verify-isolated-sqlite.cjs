@@ -52,6 +52,8 @@ async function main() {
     sourceColumnNames.includes(name),
   );
   const hasPendingMigrations = await dataSource.showMigrations();
+  const schemaLog = await dataSource.driver.createSchemaBuilder().log();
+  const schemaDriftQueryCount = schemaLog.upQueries.length;
   const result = {
     database: databaseName,
     domainTableCount: domainTables.length,
@@ -60,6 +62,7 @@ async function main() {
     nonEmptyTables,
     presentForbiddenColumns,
     hasPendingMigrations,
+    schemaDriftQueryCount,
   };
   console.log(JSON.stringify(result));
   if (
@@ -68,7 +71,8 @@ async function main() {
     missingTables.length ||
     nonEmptyTables.length ||
     presentForbiddenColumns.length ||
-    hasPendingMigrations
+    hasPendingMigrations ||
+    schemaDriftQueryCount !== 0
   ) {
     throw new Error('Isolated SQLite baseline verification failed');
   }

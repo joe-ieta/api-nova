@@ -112,7 +112,7 @@ import { SeedService } from './seed.service';
             entities,
             synchronize: configService.get(
               'DB_SYNCHRONIZE',
-              nodeEnv !== 'production',
+              false,
             ),
             logging: configService.get('DB_LOGGING', false),
             autoLoadEntities: true,
@@ -130,7 +130,7 @@ import { SeedService } from './seed.service';
           entities,
           synchronize: configService.get(
             'DB_SYNCHRONIZE',
-            nodeEnv === 'development',
+            false,
           ),
           logging: configService.get('DB_LOGGING', false),
           ssl: sslEnabled ? { rejectUnauthorized: sslRejectUnauthorized } : false,

@@ -4,7 +4,6 @@ import {
   UnauthorizedException,
   HttpException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Request } from 'express';
 import { Repository } from 'typeorm';
@@ -18,9 +17,7 @@ import {
   GatewayConsumerCredentialEntity,
   GatewayConsumerCredentialStatus,
 } from '../../../database/entities/gateway-consumer-credential.entity';
-import { User } from '../../../database/entities/user.entity';
 import { AuditService } from '../../security/services/audit.service';
-import { UserService } from '../../security/services/user.service';
 import { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
 import { GatewayRequestAuthContext } from '../types/gateway-security.types';
 import { authenticateRuntimeRequest, RuntimeAuthError } from 'api-nova-parser';
@@ -28,8 +25,6 @@ import { authenticateRuntimeRequest, RuntimeAuthError } from 'api-nova-parser';
 @Injectable()
 export class GatewaySecurityService {
   constructor(
-    private readonly jwtService: JwtService,
-    private readonly userService: UserService,
     private readonly auditService: AuditService,
     @InjectRepository(GatewayConsumerCredentialEntity)
     private readonly credentialRepository: Repository<GatewayConsumerCredentialEntity>,
@@ -40,9 +35,9 @@ export class GatewaySecurityService {
     req: Request,
   ): Promise<GatewayRequestAuthContext> {
     const mode = resolvedRoute.policies.auth.mode;
-    if (mode === 'oauth' || mode === 'runtime_api_key') {
+    if (mode === 'jwt') {
       try {
-        const principal = await authenticateRuntimeRequest(req.headers, 'gateway', mode === 'oauth' ? 'oauth' : 'api_key');
+        const principal = await this.authenticateJwt(req.headers);
         const context: GatewayRequestAuthContext = { mode, principal };
         this.attachAuthContext(req, context);
         return context;
@@ -53,27 +48,6 @@ export class GatewaySecurityService {
     }
     if (mode === 'anonymous') {
       const context: GatewayRequestAuthContext = { mode };
-      this.attachAuthContext(req, context);
-      return context;
-    }
-
-    if (mode === 'jwt') {
-      const token = this.extractBearerToken(req);
-      if (!token) {
-        throw new UnauthorizedException('Gateway JWT token is required');
-      }
-
-      const payload = this.jwtService.verify<{ sub?: string }>(token);
-      if (!payload?.sub) {
-        throw new UnauthorizedException('Gateway JWT token is invalid');
-      }
-
-      const user = await this.resolveActiveUser(payload.sub);
-      const context: GatewayRequestAuthContext = {
-        mode,
-        actorId: user.id,
-      };
-      this.attachUser(req, user);
       this.attachAuthContext(req, context);
       return context;
     }
@@ -123,15 +97,6 @@ export class GatewaySecurityService {
     return context;
   }
 
-  private extractBearerToken(req: Request) {
-    const authorization = this.headerValue(req.headers.authorization);
-    if (!authorization) {
-      return undefined;
-    }
-    const match = authorization.match(/^Bearer\s+(.+)$/i);
-    return match?.[1];
-  }
-
   private extractApiKey(req: Request, queryParamName?: string) {
     const fromHeader = this.headerValue(req.headers['x-api-key']);
     if (fromHeader) {
@@ -146,6 +111,10 @@ export class GatewaySecurityService {
       | string[]
       | undefined;
     return this.headerValue(raw);
+  }
+
+  private authenticateJwt(headers: Request['headers']) {
+    return authenticateRuntimeRequest(headers, 'gateway', 'jwt');
   }
 
   private parseApiKey(presentedKey: string) {
@@ -169,24 +138,6 @@ export class GatewaySecurityService {
       return false;
     }
     return timingSafeEqual(incomingBuffer, expectedBuffer);
-  }
-
-  private async resolveActiveUser(userId: string) {
-    let user: User;
-    try {
-      user = await this.userService.findUserById(userId);
-    } catch {
-      throw new UnauthorizedException('Gateway JWT token is invalid');
-    }
-
-    if (!user.isActive) {
-      throw new UnauthorizedException('Gateway user is inactive');
-    }
-    return user;
-  }
-
-  private attachUser(req: Request, user: User) {
-    (req as Request & { user?: User }).user = user;
   }
 
   private attachAuthContext(req: Request, context: GatewayRequestAuthContext) {

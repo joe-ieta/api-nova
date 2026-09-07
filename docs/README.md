@@ -23,6 +23,8 @@
 
 ## Current Product Closure
 
+- [Security Development Task Plan](./guides/security-development-task-plan.md)
+- [Security Development Execution Status](./guides/security-development-execution-status.md)
 - [Staged Development Plan](./guides/staged-development-plan.md)
 - [Runtime Instance And Regression Closure Plan](./guides/runtime-instance-and-regression-closure-plan.md)
 - [Runtime Closure Design And Implementation Review](./reference/runtime-closure-design-implementation-review.md)
@@ -33,6 +35,8 @@
 ## Current Architecture And Operations
 
 - [安全调用与日志审计](./guides/runtime-security-and-call-audit.md)
+- [Security Functional Requirements](./guides/security-functional-requirements.md)
+- [Security Design And Implementation](./reference/security-design-and-implementation.md)
 - [Package Management Policy](./guides/package-management-policy.md)
 - [Release Requirements And Source Startup](./release/api-nova-release-requirements.md)
 - [Product Release Documents](./release/versions/README.md)

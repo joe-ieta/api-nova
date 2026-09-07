@@ -259,6 +259,10 @@ describe('GatewayRuntimeService', () => {
     deps.gatewaySecurityService.authorize.mockRejectedValue(
       new UnauthorizedException('Gateway JWT token is required'),
     );
+    const response = {
+      headersSent: false,
+      setHeader: jest.fn(),
+    };
 
     await expect(
       deps.service.forwardRequest(
@@ -271,9 +275,14 @@ describe('GatewayRuntimeService', () => {
             'x-request-id': 'req-auth',
           },
         } as any,
-        {} as any,
+        response as any,
       ),
     ).rejects.toThrow('Gateway JWT token is required');
+
+    expect(response.setHeader).toHaveBeenCalledWith(
+      'WWW-Authenticate',
+      'Bearer',
+    );
 
     expect(deps.gatewayAccessLogService.recordRequest).toHaveBeenCalledWith(
       expect.objectContaining({

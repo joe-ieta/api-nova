@@ -1,13 +1,15 @@
 # 安全调用与日志审计
 
 > Document status: Active implementation contract
-> Last reviewed: 2026-09-06
+> Last reviewed: 2026-09-07
+
+> Scope note (2026-09-07): Runtime Auth 已收敛为 JWT、API Key、显式 Anonymous；OAuth2 与 MCP 2026-07 无状态协议均不在当前范围。实施状态以 [安全开发执行与状态记录](./security-development-execution-status.md) 为准。
 
 ## 目标与本次范围
 
 Gateway 与 MCP 统一调用记录格式。每次实际 API 调用记录调用者、API 资产、运行实例、调用开始/结束时间、实际请求 Payload 和返回 Response，保留关联标识供后续时间序列与链路分析使用。本次不开发日志分析、统计报表、时间线展示或查询 UI。
 
-本次同时实施安全调用：MCP HTTP 入站逐请求校验，Gateway 可采用相同的外部 OAuth/JWT 或内部 API Key 校验器。不得把未经校验的客户端 Header、IP 或 MCP 会话 ID 标记为已认证身份。
+本次同时实施安全调用：MCP HTTP 入站逐请求校验，Gateway 可采用相同的外部 JWT 或内部 API Key 校验器。不得把未经校验的客户端 Header、IP 或 MCP 会话 ID 标记为已认证身份。
 
 ## 改造前的能力缺口
 
@@ -41,29 +43,29 @@ MCP 同时记录 `tools/call` 的参数/结果和其下游 HTTP 调用，使用�
 
 已校验身份应使用稳定的 callerId，并独立保存 credentialId/clientId。API Key 轮换不应改变主体标识。JWT 的主体应结合受信任 issuer，不能仅凭可伪造的 `sub` 文本。
 
-外部调用者无需在 ApiNova 预先注册。OAuth 校验通过后，以 `SHA-256(issuer + NUL + sub)` 生成 callerId，自动追加调用者观察记录，维护 firstSeenAt、lastSeenAt、使用过的协议。同一 issuer/sub 的新令牌保持同一个调用者。内部配置式 API Key 以稳定的 subject 归并，可配置多个不同 key 对应同一 subject；旧 Gateway 数据库 Key 仍按原凭证记录识别，跨 Key 归并建议迁至统一认证模式。
+外部调用者无需在 ApiNova 预先注册。JWT 校验通过后，以 `SHA-256(issuer + NUL + sub)` 生成 callerId，自动追加调用者观察记录，维护 firstSeenAt、lastSeenAt、使用过的协议。同一 issuer/sub 的新令牌保持同一个调用者。内部配置式 API Key 以稳定的 subject 归并，可配置多个不同 key 对应同一 subject；旧 Gateway 数据库 Key 仍按原凭证记录识别，跨 Key 归并建议迁至统一认证模式。
 
 `GET /api/v1/monitoring/management/external-callers?page=1&limit=20` 提供自动发现清单，沿用管理 JWT 与 `monitoring:read` 权限，不返回凭证和 Payload。它不是新调用者注册接口，也不授予访问权限。鉴权失败不登记可信主体；有效身份访问无权工具时仍保留已认证请求记录。不同签发方的同名 sub 不自动合并。
 
-无需“预先注册调用者”并不意味着免认证：运维需配置受信任签发方，调用者仍需取得该签发方授予的访问令牌。OAuth 客户端注册/用户同意由外部授权服务器负责，本项目不实现授权服务器、登录页或任意签发方自动信任。
+无需“预先注册调用者”并不意味着免认证：运维需配置受信任签发方，调用者仍需从约定渠道取得 JWT。本项目不实现 Token 获取/刷新、客户端注册、用户同意、授权服务器、登录页或任意签发方自动信任。
 
 匿名访问只能记录匿名连接/会话的观察标识。IP、User-Agent 和会话标识均不代表真实用户。跨 Gateway/MCP 可靠归并同一调用者，必须依赖共同的认证主体映射。
 
 ## MCP 安全边界
 
-HTTP 授权采用官方 OAuth/Bearer 互操作模型时，必须实现资源元数据、逐请求令牌校验、audience 校验与正确的 401/403 challenge；不可将访问令牌放入 URL，也不可直接透传 MCP 客户端令牌到下游 API。有状态传输须绑定会话与主体，保留 POST/GET/DELETE、SSE 和重连语义。STDIO 使用本机进程/环境边界。
+当前 HTTP 入站认证属于 Private Deployment Extension：JWT 使用 Authorization Bearer，API Key 使用 X-API-Key，不宣称为 MCP 标准 OAuth Authorization。必须逐请求校验、验证 audience 并返回正确 401/403 challenge；不可将凭证放入 URL，也不可直接透传 MCP 客户端凭证到下游 API。有状态传输须绑定会话与主体，保留 POST/GET/DELETE、SSE 和重连语义。STDIO 使用本机进程/环境边界。
 
 依据：[MCP HTTP Authorization](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization)、[MCP Security Best Practices](https://modelcontextprotocol.io/specification/2025-11-25/basic/security_best_practices)。协议版本应独立确认，不在日志改造中隐式升级。
 
-当前实现支持外部授权服务器签发的 RS256/ES256 JWT access token，验证签名、issuer、audience、sub、exp、iat、nbf 和配置的 scope。JWKS 支持受信任 HTTPS 地址或本地公钥 JSON；不支持 opaque token introspection。JWT 撤销依赖短有效期/签发方密钥策略，不宣称即时撤销。OAuth 元数据指向外部签发方，服务自身只充当资源服务器。
+当前实现支持受信任签发方签发的 RS256/ES256 JWT，验证签名、issuer、audience、sub、exp、iat、nbf 和配置的 scope。JWKS 支持受信任 HTTPS 地址或本地公钥 JSON；不支持 opaque token introspection。JWT 撤销依赖短有效期/签发方密钥策略，不宣称即时撤销。OAuth protected-resource metadata 固定返回不支持。
 
-MCP 默认 `oauth`，未配置可信验证参数时不放行受保护请求；匿名必须显式选择。会话与 callerId 绑定，POST/GET/DELETE 都重新校验；GET 长流在令牌过期时关闭。默认事件回放缓存按会话隔离。Host/Origin 白名单保留，浏览器预检返回 204，暴露必要 MCP/授权响应 Header。
+MCP 不设置隐式认证默认值；必须显式选择 `jwt`、`api_key` 或 `anonymous`，缺失或未知模式 Fail Closed。会话与 callerId 绑定，POST/GET/DELETE 都重新校验；GET 长流在令牌过期时关闭。默认事件回放缓存按会话隔离。Host/Origin 白名单保留，浏览器预检返回 204，暴露必要 MCP/授权响应 Header。
 
-Gateway 的 `authPolicyRef=oauth` 使用共同 OAuth 身份；`runtime-api-key` 使用共同内部 Key 配置。原 `jwt`/`api-key` 保留管理用户/数据库凭证行为。生产环境缺省策略使用 OAuth；匿名策略需显式设置。不同已认证主体隔离 Gateway 缓存；入站 Authorization、Cookie、API Key 不透传上游，上游凭证通过实例 credentialRef 单独注入。
+Gateway 只接受显式 `jwt`、`api-key` 或 `anonymous` 策略；缺失、未知、`oauth` 和 `runtime-api-key` 均拒绝编译。JWT 使用共同 Issuer/Audience/JWK(S) Validator，API Key 当前使用 Gateway 凭证存储。不同已认证主体隔离 Gateway 缓存；入站 Authorization、Cookie、API Key 不透传上游，上游凭证通过实例 credentialRef 单独注入。
 
-生产缺省值作用于新编译的路由；已经持久化的部署快照不会被环境变量静默重写。升级时应检查存量路由的 authPolicyRef，并重新验证、部署需要切换到 OAuth 的 Gateway。开发环境仍保留原无策略路由的匿名行为，不能将开发配置直接作为公网配置。
+升级时必须检查存量路由的 authPolicyRef：无策略、`oauth`、`runtime-api-key` 或无法识别的引用需要迁移为显式模式并重新发布。开发调试也必须显式设置 Anonymous，不能依赖环境回退。
 
-基础 scope 当前在服务进程级配置；MCP 可再按工具名要求更细 scope。Gateway 新 OAuth 模式尚未新增逐路由 scope 编辑器或 QoS 等级体系。多个 MCP Server 若需要分别隔离授权，应在各自受管进程环境中设置不同的 `API_NOVA_MCP_RESOURCE`；同一 audience 表示同一资源授权边界，不能依靠端口或会话 ID 代替授权。
+基础 scope 当前在服务进程级配置；MCP 可再按工具名要求更细 scope。Gateway JWT 模式尚未新增逐路由 scope 编辑器或 QoS 等级体系。多个 MCP Server 若需要分别隔离授权，应在各自受管进程环境中设置不同的 `API_NOVA_MCP_RESOURCE`；同一 audience 表示同一资源授权边界，不能依靠端口或会话 ID 代替授权。
 
 ## 配置与启动
 
@@ -71,8 +73,8 @@ Gateway 的 `authPolicyRef=oauth` 使用共同 OAuth 身份；`runtime-api-key` 
 
 | 变量 | 用途 |
 | --- | --- |
-| `API_NOVA_RUNTIME_AUTH_MODE` | MCP 入站模式：`oauth`（默认）、`api_key`、`anonymous` |
-| `API_NOVA_RUNTIME_ISSUER` | 精确匹配的受信任 OAuth issuer |
+| `API_NOVA_RUNTIME_AUTH_MODE` | MCP 入站模式：`jwt`、`api_key`、`anonymous`；必须显式设置 |
+| `API_NOVA_RUNTIME_ISSUER` | 精确匹配的受信任 JWT issuer |
 | `API_NOVA_RUNTIME_JWKS_URI` | HTTPS JWKS 公钥地址，不从客户端 token 指定的地址取钥 |
 | `API_NOVA_RUNTIME_JWKS_JSON` | 离线公钥集合，可替代 JWKS URI；不存私钥 |
 | `API_NOVA_MCP_RESOURCE` | MCP 对外规范 URL，也是其 JWT audience |
@@ -89,7 +91,7 @@ Gateway 的 `authPolicyRef=oauth` 使用共同 OAuth 身份；`runtime-api-key` 
 PowerShell 示例（地址是配置示意，须换成实际可信服务）：
 
 ```powershell
-$env:API_NOVA_RUNTIME_AUTH_MODE = 'oauth'
+$env:API_NOVA_RUNTIME_AUTH_MODE = 'jwt'
 $env:API_NOVA_RUNTIME_ISSUER = 'https://identity.example/tenant'
 $env:API_NOVA_RUNTIME_JWKS_URI = 'https://identity.example/tenant/jwks'
 $env:API_NOVA_MCP_RESOURCE = 'https://runtime.example/mcp'
@@ -101,7 +103,7 @@ npm run dev
 
 独立 server 使用相同环境启动 `node packages/api-nova-server/dist/cli.js --openapi ./examples/minimal-openapi.json --transport streamable --port 9022`。仅本机开发需要匿名时，显式设置 `$env:API_NOVA_RUNTIME_AUTH_MODE='anonymous'`。Linux 使用对应的 `export NAME=value` 设置环境。
 
-客户端每次 HTTP 请求发送 `Authorization: Bearer <access-token>`。MCP 元数据位于 `/.well-known/oauth-protected-resource` 及其 endpoint 对应路径；配置的外部地址、反向代理路径和 audience 必须一致。TLS 可以由受信任的反向代理终止，仍须配置 Host/Origin 允许列表；不能通过放开所有 Origin 替代正确配置。
+JWT 客户端每次 HTTP 请求发送 `Authorization: Bearer <access-token>`。本轮不发布 MCP OAuth 元数据，相关 `/.well-known/oauth-*` 路径固定返回不支持；配置的外部地址、反向代理路径和 audience 必须一致。TLS 可以由受信任的反向代理终止，仍须配置 Host/Origin 允许列表；不能通过放开所有 Origin 替代正确配置。
 
 内部 Key 配置为数组，每项包括 `id`、稳定 `subject`、完整入站 Key 的 SHA-256 `secretHash`、Unix 秒 `expiresAt`、允许的 `resources` URL 数组和 `scopes`。客户端通过 `X-Api-Key` 发送原始 Key。配置文件/环境不存原始 Key；不同 Key 可对应相同 subject。该模式是私有接入方式，不宣称通用 OAuth 客户端互操作。
 
@@ -146,6 +148,6 @@ npm run verify:parser-chain
 
 联调修复两项入口缺口：关闭 Nest 自动追加的正文解析器，防止其提前消费 Gateway 请求流；普通请求日志跳过 Gateway 流式响应，由统一审计器负责采集。管理 API 仍保留 JSON/表单解析。HTTP 异常日志中的敏感 Query 同样脱敏。
 
-干净迁移还补齐了既有配置模块需要的 `config_overrides`、`config_backups`，当前基线为 40 张业务表。关闭 `DB_SYNCHRONIZE` 的部署需要先构建、执行 `npm run migration:run --workspace api-nova-api`，再启动 API；该命令作用于配置的数据库，应先确认目标和备份。迁移 CLI 从当前进程环境读取 `DB_TYPE`、`DB_DATABASE` 等连接参数，不会自动加载 API 的 `.env`；必须显式设置目标，不能依赖应用启动时的配置加载。本次只对隔离临时数据库实际执行了迁移。
+`config_overrides`、`config_backups` 已直接纳入 PG/SQLite canonical baseline，当前基线为 40 张业务表，不再加载后置兼容迁移。关闭 `DB_SYNCHRONIZE` 的部署需要先构建、执行 `npm run migration:run --workspace api-nova-api`，再启动 API；该命令作用于配置的数据库，应先确认目标。开发阶段结构变化直接重建数据库，不承诺历史数据迁移。迁移 CLI 从当前进程环境读取 `DB_TYPE`、`DB_DATABASE` 等连接参数，不会自动加载 API 的 `.env`；必须显式设置目标，不能依赖应用启动时的配置加载。
 
 测试只信任本次生成的临时证书，不关闭 TLS 验证，不修改系统证书库。Windows 默认使用 Git 附带的 OpenSSL，也可通过 `API_NOVA_TEST_OPENSSL` 指定路径；Linux 使用 PATH 中的 OpenSSL。运行前先执行 `npm run build:packages`。测试夹具直接构造已部署路由快照，不代表注册、治理、发布全过程验收；本地 JWKS 服务不代表外部 OAuth 登录/用户同意流程。外部提供方与 PostgreSQL 实例验收仍在 open-items 中。

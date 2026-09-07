@@ -443,7 +443,7 @@ describe('RuntimeAssetsService', () => {
           anonymous: 0,
           jwt: 1,
           apiKey: 0,
-          oauth: 0,
+          invalid: 0,
         },
       }),
     );

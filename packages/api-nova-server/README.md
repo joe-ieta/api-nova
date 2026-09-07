@@ -54,7 +54,7 @@ api-nova --openapi https://petstore.swagger.io/v2/swagger.json --transport stdio
 
 ### Streamable HTTP
 
-HTTP 模式默认校验外部 OAuth/JWT，启动前需配置受信任 issuer、JWKS 和资源 URL。仅本机匿名测试需显式设置 `API_NOVA_RUNTIME_AUTH_MODE=anonymous`。完整配置见[安全调用与日志审计](../../docs/guides/runtime-security-and-call-audit.md)。
+HTTP 模式不设置认证策略时拒绝启动调用；必须显式配置 JWT、API Key 或 Anonymous。JWT 模式需配置受信任 issuer、JWKS 和 audience；仅本机匿名测试使用 `API_NOVA_RUNTIME_AUTH_MODE=anonymous`。完整配置见[安全调用与日志审计](../../docs/guides/runtime-security-and-call-audit.md)。
 
 ```bash
 api-nova --openapi https://petstore.swagger.io/v2/swagger.json --transport streamable --port 9022
