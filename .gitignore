@@ -114,7 +114,5 @@ packages/api-nova-server/mcp-server-stats.json
 
 # Dot directories (kept local only, not tracked in the repository)
 .agents/
-.changeset/
 .codex/
-.github/
 
