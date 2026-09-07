@@ -8,7 +8,7 @@
 
 | 项 | 外网机（源） | 本机（目标） |
 | --- | --- | --- |
-| 工程根 | `E:\CodexDev\api-nova` | `E:\IETA\Java\api-nova\api-nova`（monorepo 根，git 仓库的 `api-nova/` 子树） |
+| 工程根 | `E:\CodexDev\api-nova` | `E:\IETA\Java\api-nova`（仓库根 = monorepo 根，含 `packages/`、`scripts/`、`docs/`） |
 | Windows 用户 | `IETA` | `ieta-48` |
 | pnpm 内容店（依赖库本体） | `C:\Users\IETA\.pnpm-store\v10` | 由本文件第 3 步创建于 `C:\Users\ieta-48\.pnpm-store\v10` |
 | pnpm 版本 | `10.33.0`（见 `node_modules\.modules.yaml` 的 `packageManager`） | 需从外网机拷贝（本机无 pnpm；`corepack` 拉 pnpm 需联网，离线不可用） |
@@ -81,12 +81,12 @@ $env:Path = "C:\Users\ieta-48\AppData\Local\pnpm;" + $env:Path
 pnpm -v                                          # 期望 10.33.0
 
 # ---- 3) 离线重建依赖（只消耗本地内容店，不访问网络）----
-cd E:\IETA\Java\api-nova\api-nova
+cd E:\IETA\Java\api-nova
 pnpm install --frozen-lockfile --offline
 ```
 
 > 若你想用显式路径避开用户目录混淆（如 `E:\pnpm-store`）：第 1 步的落点改到该路径，
-> 并在 `api-nova\.npmrc` 里**追加**一行 `store-dir=E:/pnpm-store`（注意用正斜杠），其余不变。
+> 并在工程根 `.npmrc`（`E:\IETA\Java\api-nova\.npmrc`）里**追加**一行 `store-dir=E:/pnpm-store`（注意用正斜杠），其余不变。
 
 ---
 
@@ -95,7 +95,7 @@ pnpm install --frozen-lockfile --offline
 依赖重建成功后，编译并产出发布包（会包含最新源码与审查整改，建议**重跑构建**而非直接用旧 dist）：
 
 ```powershell
-cd E:\IETA\Java\api-nova\api-nova
+cd E:\IETA\Java\api-nova
 
 # 构建 api / parser / server / ui
 pnpm run build
@@ -116,10 +116,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 -Mode Por
 ```powershell
 # 依赖完整性（关键：node_modules/.pnpm 数量应上千，而不是残缺副本的 464）
 Test-Path "C:\Users\ieta-48\.pnpm-store\v10"
-(Get-ChildItem "E:\IETA\Java\api-nova\api-nova\node_modules\.pnpm" -Directory).Count
-Test-Path "E:\IETA\Java\api-nova\api-nova\packages\api-nova-ui\node_modules\vite"          # True
-Test-Path "E:\IETA\Java\api-nova\api-nova\node_modules\.pnpm\typescript@*"                 # 至少一个 True
-Test-Path "E:\IETA\Java\api-nova\api-nova\node_modules\.pnpm\typeorm@*"                    # 至少一个 True
+(Get-ChildItem "E:\IETA\Java\api-nova\node_modules\.pnpm" -Directory).Count
+Test-Path "E:\IETA\Java\api-nova\packages\api-nova-ui\node_modules\vite"                   # True
+Test-Path "E:\IETA\Java\api-nova\node_modules\.pnpm\typescript@*"                          # 至少一个 True
+Test-Path "E:\IETA\Java\api-nova\node_modules\.pnpm\typeorm@*"                             # 至少一个 True
 
 # 发布产物完整性
 Test-Path "E:\IETA\Java\api-nova-release\packages\api-nova-api\dist\src\main.js"           # True
