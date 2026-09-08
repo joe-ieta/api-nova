@@ -1,5 +1,5 @@
 ---
-doc-version: 1.1.0
+doc-version: 1.2.0
 doc-status: active
 doc-updated: 2026-09-08
 ---
@@ -12,7 +12,7 @@ Only currently supported product paths, durable architecture contracts, and acti
 
 ## Active Execution And Release
 
-- [Observability Development Task Plan](./runtime-observability-development-task-plan.md) (plan confirmation pending)
+- [Observability Development Task Plan](./runtime-observability-development-task-plan.md) (approved plan; implementation in progress)
 - [Observability Development Execution Status](./runtime-observability-development-execution-status.md)
 
 - [Security Development Task Plan](./security-development-task-plan.md)
@@ -23,7 +23,7 @@ Only currently supported product paths, durable architecture contracts, and acti
 
 ## Product And Architecture Baselines
 
-- [Unified Call Logging And Observability Requirements](./runtime-observability-requirements.md) (approved requirements; implementation not started)
+- [Unified Call Logging And Observability Requirements](./runtime-observability-requirements.md) (approved requirements; implementation in progress)
 
 - [Security Functional Requirements](./security-functional-requirements.md)
 - [Asset Model And Runtime Assets](./asset-model-and-runtime-assets.md)

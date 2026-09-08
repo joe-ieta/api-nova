@@ -56,7 +56,7 @@ $environment = @{
   DB_TYPE = 'sqlite'
   DB_SQLITE_PATH = 'data/release-smoke.db'
   DB_SYNCHRONIZE = 'false'
-  NODE_OPTIONS = '--require="' + (Join-Path $PSScriptRoot 'release-network-guard.cjs') + '"'
+  NODE_OPTIONS = '--require=' + (Join-Path $PSScriptRoot 'release-network-guard.cjs').Replace([char]92, [char]47)
 }
 foreach ($name in @('data', 'logs', 'pids')) {
   $target = Join-Path $packagePath $name
@@ -83,6 +83,8 @@ $passed = $false
 try {
   & $nodePath -e "try { require('node:net').connect({host:'198.51.100.1',port:443}); process.exit(1); } catch (e) { if (e.code !== 'API_NOVA_OFFLINE_BLOCKED') throw e; }"
   if ($LASTEXITCODE -ne 0) { throw 'Offline network guard did not block the test connection' }
+  & $nodePath -e "try { require('node:dns').resolve4('release-offline.invalid', () => {}); process.exit(1); } catch (e) { if (e.code !== 'API_NOVA_OFFLINE_BLOCKED') throw e; }"
+  if ($LASTEXITCODE -ne 0) { throw 'Offline network guard did not block DNS lookup' }
   if ($PlatformId -eq 'win-x64') {
     $startArgs = @{
       FilePath = 'cmd.exe'
@@ -182,3 +184,6 @@ try {
   }
   Remove-Item -LiteralPath $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
 }
+
+
+

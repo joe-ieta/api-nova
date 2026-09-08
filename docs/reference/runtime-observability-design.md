@@ -1,11 +1,12 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.2.0
 doc-status: active
 doc-updated: 2026-09-08
 ---
 # 统一调用日志、审计与可观测性设计
 
 > Document status: Approved design baseline; implementation not started
+> Scope decision (2026-09-08, approved): 用户明确允许统一修改旧接口和数据库结构。新采集仅输出 schemaVersion=2，新查询不导入旧格式、不保留旧接口兼容别名；数据库维护新的初始化基线，不设计旧库升级链。实际旧数据不自动删除。
 > 配套需求：[功能需求文档](../guides/runtime-observability-requirements.md)。
 > 方案及建议默认值已于 2026-09-08 由用户确认，尚未修改程序、数据库或运行配置。
 > 实施配套：[对外 API Endpoint](./runtime-observability-api-endpoints.md)、[开发任务计划](../guides/runtime-observability-development-task-plan.md)、[执行状态](../guides/runtime-observability-development-execution-status.md)。
@@ -28,7 +29,7 @@ API 管理面集中提供 Gateway 和 MCP 的查询及推送服务。每条记�
 | --- | --- |
 | packages/api-nova-api/src/modules/gateway-runtime/gateway-runtime.controller.ts | Gateway 入口，建立一次内部调用上下文，覆盖返回与拒绝分支 |
 | packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime.service.ts | 转发、策略、缓存与结果处理；分离入口与实际出站证据 |
-| packages/api-nova-api/src/modules/gateway-runtime/services/gateway-access-log.service.ts | 保留现有元数据兼容投影，统一新旧记录标识 |
+| packages/api-nova-api/src/modules/gateway-runtime/services/gateway-access-log.service.ts | 在接入与集成包中移除重复调用日志写入/查询，收敛到单一调用事实 |
 | packages/api-nova-parser/src/audit/runtime-call-audit.ts | 复用 begin/finish、正文脱敏与 JSONL，扩展阶段记录及可恢复采集 |
 | packages/api-nova-parser/src/transformer/index.ts | MCP 上游请求执行接入位置；编码时确认每个实际尝试与重定向边界 |
 | packages/api-nova-server/src/tools/runtime-security.ts | 可信身份与认证失败上下文 |
@@ -120,7 +121,7 @@ begin 阶段写 started；finish 写真实终态。长流可按不短于 15 秒�
 
 ## 5. 存储模型
 
-逻辑表名为设计命名；实现时遵循现有实体与迁移规范。
+逻辑表名为设计命名；实现时遵循现有实体与空库初始化基线，不增加历史升级迁移。
 
 | 表/对象 | 核心内容与约束 |
 | --- | --- |
@@ -131,7 +132,7 @@ begin 阶段写 started；finish 写真实终态。长流可按不短于 15 秒�
 | runtime_access_sources | 匿名/认证失败来源、可信 IP 观察与来源类别；限制高基数 |
 | runtime_caller_observations | 调用者、来源、服务器和协议关系；first/lastSeen、活动时间桶 |
 | runtime_ingest_checkpoints | 文件身份、已提交字节位置、进程序号和最近成功/失败；按完整记录提交 |
-| runtime_ingest_receipts | sourceInstanceId/sourceEventId 或兼容去重键；防重与冲突隔离 |
+| runtime_ingest_receipts | 当前 v2 的 sourceInstanceId/sourceEventId 唯一身份；防重与冲突隔离 |
 | runtime_metric_buckets | 可合并计数、字节和固定耗时直方图；bucketVersion 与水位 |
 | runtime_caller_buckets | callerId/服务器/时间活动及计数；支持去重活跃人数与调用者历史 |
 | runtime_observability_events | 复用现有事件，扩展规范信封、持久 sequence、主体/资源及调用关联 |
@@ -148,21 +149,19 @@ SQLite 首期使用单收集/聚合写入者、短批次事务与现有方言工
 
 ## 6. 采集、归一化与故障恢复
 
-### 6.1 共享契约演进
+### 6.1 全新开发版本契约
 
-现有 JSONL 通过兼容适配器导入。新增 schema 使用 started、progress、finished 阶段记录；同一 invocationId 多条阶段记录归并为一个查询对象。旧格式只有 finish 时直接得到 completed，并标注 startRecordAvailable=false。
+采集层固定 schemaVersion=2，显式记录 spanKind、phase、recordVersion、eventId、processId/sourceSequence、内部因果 ID 和字节计量方式。仅接受当前格式，不推断旧 Gateway DB 与 JSONL 之间的对应关系，也不从上游日志补造外部入口。
 
-先梳理既有 Gateway DB 与 JSONL 的 invocationId/eventId 关联，再确定数据源权威：新接口以规范调用表为准；Gateway 旧表仅为兼容投影，不参与新统计。能可靠关联的旧记录统一去重，缺少关联的记录标记 legacy，仅在显式历史兼容查询中返回，不能用“时间+URL相近”合并并计数。
+begin、progress、finish 是同一 invocationId 的不同版本；每次写入使用独立 eventId。收集器消费专用 v2 文件，未知 schema 隔离并报告格式错误。无历史自动导入，不维护 legacy 查询路径。
 
-sourceEventId 存在则复用；缺失时由源文件稳定身份、字节起点和行内容摘要构造兼容去重键。无法从旧记录恢复唯一 invocationId 时生成导入命名空间 ID，标注推断来源，不宣称跨导入副本可无误去重。
-
-共享上下文、脱敏与正文代码继续收敛在 parser/audit 现有边界。API 中增加独立调用观测模块负责收集、存储和查询，避免让 parser 依赖 NestJS 或数据库。
+共享字段、规范化与统计参考实现收敛在 parser/audit/runtime-observability-contract.ts；API 负责存储、查询和报送，parser 不依赖 NestJS 或数据库。实际核查与验证见 [契约接入映射](./runtime-observability-contract-mapping.md)。
 
 ### 6.2 增量导入
 
 每个进程只追加自身文件，使用启动 UUID 而不是可复用 PID 作为稳定身份。管理进程以有限批次读取完整记录并提交收集检查点。文件末尾不完整行等待后续数据，关闭后仍不完整则隔离并记录缺口。
 
-新 schema 的正文可拆分为受限块/对象，避免单个大 JSONL 行撑爆内存；兼容旧行时按既有最大正文/Base64 膨胀设置明确读入上限与流式解析。超过支持上限的旧记录隔离，不尝试无界读入。
+v2 正文采用有界采集/暂存，收集按正文上限和 Base64 膨胀设置明确行上限。超出支持上限的记录隔离，不尝试无界读入。
 
 同一次导入事务写入去重 receipt、调用新版本、身份关系、终态/更正事件和检查点；事务失败从旧位置重试。若相同 ID 出现不同已完成内容，隔离为冲突，不覆盖证据。
 
@@ -188,7 +187,7 @@ sourceEventId 存在则复用；缺失时由源文件稳定身份、字节起点
 
 认证成功后先记录可信 caller，再决定该工具/路由权限。认证失败仅进入来源观察，避免把伪造 JWT sub 或 API Key 当成真实主体。来源实体按作用域限制高基数，超限汇入 unclassified/overflow 桶并返回降级数量。
 
-调用者计数通过规范入库事实维护。旧 external-callers 文件仅提供历史身份补录；已有 firstSeen/lastSeen 可保留，但历史统计只能从实际可导入调用计算，返回 historyCompleteSince。
+调用者计数通过规范入库事实维护。不导入旧 external-callers 文件。新调用者清单从 v2 入库事实生成，historyCompleteSince 表示当前数据集有效起点。
 
 ## 8. 正文、字节与留存
 
@@ -299,7 +298,7 @@ receipt 去重记录至少保留到所有可能被重新导入的源文件退出
 
 首次订阅默认从创建时的已提交事件水位之后开始；不自动把历史正文或全部调用推向新地址。需要历史回放时使用受控事件查询，批量历史重投不在首期；单条已存在投递可 retry。
 
-保留现有 /management/gateway-access-logs、/management/external-callers 和既有运行事件 API。新内部存储切换通过适配器完成，不悄悄改变旧响应字段、分页和权限；不能从旧接口反向绕过新正文权限。
+按新 Endpoint 文档统一查询入口。/management/gateway-access-logs、/management/external-callers 等重复调用日志路径在集成包中收敛，不保留兼容别名；更新现有调用方，维持必要的管理生命周期功能。
 
 ### 10.2 查询规范与响应
 
@@ -441,27 +440,29 @@ GET /events 以 sequence 升序补拉。响应 nextCursor 为本批已扫描位�
 
 对正文读取、策略/映射/订阅变更、测试推送和人工 retry 写管理审计；不对每次统计刷新再制造同等规模的业务调用事件。既有管理审计如有更长保留要求，沿用更严格配置。
 
-## 13. 兼容迁移与实施分解
+## 13. 新版本结构与实施分解
 
 | 步骤 | 交付 | 关键依赖/验收 |
 | --- | --- | --- |
 | A | 共享 schema、上下文、边界捕获、身份/来源映射 | FR-01~04；先证明单次调用与重试不会双计 |
-| B | 新实体、增量收集、旧格式适配、正文对象和恢复 | FR-03/04/10；重复导入、半行、磁盘/数据库故障 |
+| B | 新实体、增量收集、新格式校验、正文对象和恢复 | FR-03/04/10；重复导入、半行、磁盘/数据库故障 |
 | C | 明细、正文、trace、callers/sources、权限 | FR-05/09；跨资源保护、历史可解释 |
 | D | 聚合、capabilities、状态与 pipeline API | FR-06/08；计数与字节口径、迟到更正 |
 | E | 持久事件、Webhook、投递恢复、Socket.IO 补拉 | FR-07；重复、断线、游标过期、重启 |
-| F | 旧接口适配、文档与计划中的场景/负载验证 | AC-01~20；SQLite/PostgreSQL 与两平台 |
+| F | 接口收敛、文档与计划中的场景/负载验证 | AC-01~20；SQLite/PostgreSQL 与两平台 |
 
-迁移使用显式数据库 migration，避免启动时自动破坏存量表。增加新表及字段后先开启收集索引，核对新路径覆盖，再把新接口开放给调用方；保留旧 JSONL 与 Gateway 查询的现有用途直到兼容验证完成。
+数据库按当前实体维护 SQLite/PostgreSQL 初始化基线，仅在隔离空库中验证。用户允许结构调整，不表示授权清空现有开发数据；需要重建实际数据库时明确列出目标及数据影响。新版本不维护旧数据升级链或自动历史回填。
 
-历史回填按允许的时间窗口显式启用，标记 originOfRecord=backfill，不向业务订阅默认发送旧调用完成事件。回填与实时导入共用幂等规则；统计显示导入进度和可用起点。
-
-回退策略是停止新聚合/投递消费者并关闭新 API 功能开关，继续已有采集与旧接口；已写的新表数据保留，不通过删除历史证据实现回退。正文清理策略一旦生效具有不可逆的数据影响，因此作为用户确认的保留策略执行并产生审计。
-
-需求/设计及建议已经确认。代码、迁移和测试按配套任务计划实施，任务计划确认后开始编码；大屏 UI、多主机远程收集和外部消息总线仍属于后续阶段。
+集成时直接收敛旧日志 Endpoint 和内部调用方，不建立双套查询真相。关闭新采集/报送 worker 不应自动删除调用证据。代码、测试与文档按任务计划持续推进，大屏 UI、多主机远程采集和外部消息总线仍为后续阶段。
 
 ## 14. 已确认决策
 
 以下默认边界已由用户确认：同机多进程汇集；保留完整脱敏正文及既有 16 MiB 上限；按 30 天元数据/7 天正文等建议 TTL 治理；Webhook 至少一次投递加现有 Socket.IO 补拉；业务不中断、采集损失必须显式可观测。
 
 实施阶段需要测量的技术项包括具体采集分支覆盖、旧记录关联字段、字节测量阶段、数据库容量与性能。这些属于确认后的工程验证工作，不把尚未验证的性能或覆盖范围写成已实现保证。
+
+## 15. 存储基础实施记录
+
+2026-09-08 已写入当前存储实体、事务仓储、正文对象存储，以及两种数据库的初始基线。调用当前投影与版本历史分开，sequence 使用事务内计数器，既有事件表复用 eventName/details，不再增加第二张同义事件表。非法/冲突证据仅保存哈希及安全原因，不复制正文。
+
+具体结构、默认保留及未完成项见[存储基础实现说明](./runtime-observability-storage-foundation.md)。代码写入不代表初始化或验收通过；本轮没有执行数据库脚本，没有清空已有数据。自动汇集、接口权限、查询与分发仍按后续任务接入。

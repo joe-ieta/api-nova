@@ -63,6 +63,7 @@ export { BearerAuthManager } from './auth/bearer-auth';
 export { CustomHeadersManager, predefinedGenerators } from './headers/index';
 export { resolveRuntimeCredentialRefHeaders } from './headers/RuntimeCredentialRef';
 export * from './audit/runtime-call-audit';
+export * from './audit/runtime-observability-contract';
 export * from './audit/runtime-auth';
 
 /**

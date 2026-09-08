@@ -1,5 +1,5 @@
 ---
-doc-version: 1.1.0
+doc-version: 1.2.0
 doc-status: active
 doc-updated: 2026-09-08
 ---
@@ -58,13 +58,15 @@ doc-updated: 2026-09-08
 
 ## Runtime Observability Enhancement
 
-Requirements and design defaults are approved. The development plan and endpoint-level contract await confirmation before coding. Planned endpoints are not yet available.
+Requirements, design and development plan are approved. Implementation is in progress on the current schema/API only, without historical compatibility adapters. Planned endpoints are not yet available.
 
 - [Unified Call Logging And Observability Requirements](./guides/runtime-observability-requirements.md)
 - [Unified Call Logging And Observability Design](./reference/runtime-observability-design.md)
 - [Observability Public API Endpoints](./reference/runtime-observability-api-endpoints.md)
 - [Observability Development Task Plan](./guides/runtime-observability-development-task-plan.md)
 - [Observability Development Execution Status](./guides/runtime-observability-development-execution-status.md)
+- [Observability Contract And Source Mapping](./reference/runtime-observability-contract-mapping.md)
+- [Observability Storage Foundation](./reference/runtime-observability-storage-foundation.md)
 
 ## Archive
 

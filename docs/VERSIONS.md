@@ -29,10 +29,10 @@
 | [docs/guides/local-setup-and-run.md](./guides/local-setup-and-run.md) | 1.1.0 | active | 2026-09-08 |
 | [docs/guides/parser-change-verification.md](./guides/parser-change-verification.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/guides/publication-resource-baseline.md](./guides/publication-resource-baseline.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/guides/README.md](./guides/README.md) | 1.1.0 | active | 2026-09-08 |
+| [docs/guides/README.md](./guides/README.md) | 1.2.0 | active | 2026-09-08 |
 | [docs/guides/release-readiness-checklist.md](./guides/release-readiness-checklist.md) | 1.1.0 | active | 2026-09-08 |
 | [docs/guides/staged-development-plan.md](./guides/staged-development-plan.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/README.md](./README.md) | 1.1.0 | active | 2026-09-08 |
+| [docs/README.md](./README.md) | 1.2.0 | active | 2026-09-08 |
 | [docs/reference/changelog-field-guide.md](./reference/changelog-field-guide.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/esm-commonjs-quick-reference.md](./reference/esm-commonjs-quick-reference.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/management-observability-baseline.md](./reference/management-observability-baseline.md) | 1.0.0 | active | 2026-09-07 |
@@ -40,7 +40,7 @@
 | [docs/reference/mcp-jsonrpc-relationship.md](./reference/mcp-jsonrpc-relationship.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/nodejs-module-systems-guide.md](./reference/nodejs-module-systems-guide.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/open-items.md](./reference/open-items.md) | 1.1.0 | active | 2026-09-08 |
-| [docs/reference/README.md](./reference/README.md) | 1.1.0 | active | 2026-09-08 |
+| [docs/reference/README.md](./reference/README.md) | 1.2.0 | active | 2026-09-08 |
 | [docs/reference/versioning-policy.md](./reference/versioning-policy.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/release/api-nova-release-requirements.md](./release/api-nova-release-requirements.md) | 1.1.0 | active | 2026-09-08 |
 | [docs/release/offline-dependency-migration.md](./release/offline-dependency-migration.md) | 1.0.0 | active | 2026-09-07 |
@@ -49,15 +49,17 @@
 
 ## 可观测性增强文档
 
-active 表示文档正在维护，不表示接口已经实现。需求/设计已确认，任务计划与 Endpoint 细化待确认；实现状态以执行台账为准。
+active 表示文档正在维护，不表示接口已经实现。需求、设计、任务计划和全新版本范围均已确认；存储及采集基础实施中，新 Endpoint 尚未开放。实现与验证状态以执行台账为准。
 
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
-| [可观测性功能需求](./guides/runtime-observability-requirements.md) | 1.0.0 | active | 2026-09-08 |
-| [可观测性设计](./reference/runtime-observability-design.md) | 1.0.0 | active | 2026-09-08 |
-| [可观测性 API Endpoint](./reference/runtime-observability-api-endpoints.md) | 0.1.0 | active | 2026-09-08 |
-| [可观测性开发任务计划](./guides/runtime-observability-development-task-plan.md) | 0.1.0 | active | 2026-09-08 |
-| [可观测性执行与完成状态](./guides/runtime-observability-development-execution-status.md) | 1.0.0 | active | 2026-09-08 |
+| [可观测性功能需求](./guides/runtime-observability-requirements.md) | 1.2.0 | active | 2026-09-08 |
+| [可观测性设计](./reference/runtime-observability-design.md) | 1.2.0 | active | 2026-09-08 |
+| [可观测性 API Endpoint](./reference/runtime-observability-api-endpoints.md) | 1.1.3 | active | 2026-09-08 |
+| [可观测性开发任务计划](./guides/runtime-observability-development-task-plan.md) | 1.1.3 | active | 2026-09-08 |
+| [可观测性执行与完成状态](./guides/runtime-observability-development-execution-status.md) | 1.3.0 | active | 2026-09-08 |
+| [可观测性契约与接入映射](./reference/runtime-observability-contract-mapping.md) | 1.1.0 | active | 2026-09-08 |
+| [可观测性存储基础](./reference/runtime-observability-storage-foundation.md) | 1.1.0 | active | 2026-09-08 |
 
 ## 归档文档
 

@@ -1,24 +1,25 @@
 ---
-doc-version: 0.1.0
+doc-version: 1.1.3
 doc-status: active
 doc-updated: 2026-09-08
-approval-status: pending
-implementation-status: not-started
+approval-status: approved
+implementation-status: in-progress
 ---
 # 可观测性对外 API Endpoint 文档
 
-> Document status: Maintained consumer contract; endpoint details pending plan confirmation
+> Document status: Maintained consumer contract; approved endpoint contract; implementation in progress
+> Scope decision (2026-09-08, approved): 全新开发版本直接统一旧接口和数据库结构；不提供旧格式导入或旧查询路径兼容。新增 Endpoint 仍为 PLANNED，不能据文档确认推断已经上线。
 > 可用性声明：本文新增的 28 个 HTTP Endpoint 和 2 类推送契约目前均为 PLANNED，尚未实现或部署。路径与示例用于确认和后续联调准备，不能作为已上线能力清单。
 > 已确认基线：[需求](../guides/runtime-observability-requirements.md)、[设计](./runtime-observability-design.md)。
 > 开发关联：[任务计划](../guides/runtime-observability-development-task-plan.md)、[执行状态](../guides/runtime-observability-development-execution-status.md)。
 
-## 1. 文档维护与兼容性
+## 1. 文档维护与版本演进
 
 本文是外部集成方使用的接口契约。新增或修改接口时，同一任务包必须同步更新本文、DTO/Swagger、权限映射、契约测试及执行台账。编码后由程序生成 OpenAPI 文档，不另维护一份手写且可能漂移的 OpenAPI YAML。
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 0.1.0，拟对外数据 schemaVersion 为 1.0。确认后首个实现批次冻结参数契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.1.3，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -168,7 +169,7 @@ overview 接收 from/to/origin/serverType/runtimeAssetId，返回 businessSummar
 | 上游尝试 | upstreamOperationId、attemptIndex、redirectHopIndex |
 | 流量 | requestBytes、responseBytes、byteMeasurement、measurementStage、partial |
 | 正文 | request/response 的 state、reason、expiresAt 和读取链接 |
-| 质量 | schemaVersion、sourceRecordId、ingestedAt、legacy、missingFields、isPartial |
+| 质量 | schemaVersion、sourceRecordId、ingestedAt、missingFields、isPartial |
 
 traces 返回 nodes、edges、missingParentReferences、isPartial。返回的节点包括所有可访问的协议/工具/上游边界；无权限节点不返回原始 ID 或隐蔽数量，不通过路径透露资源存在。
 
@@ -213,7 +214,7 @@ encoding 可为 json、text、base64、multipart。multipart 内容包含经脱�
 
 ### 4.4 OBS-API-07/08/09/10：调用者与来源
 
-callers 按 lastSeenAt DESC、callerId DESC 分页。每项包含 callerId、displayName、identitySource、firstSeenAt、lastSeenAt、serverTypes、授权范围内的 observedServerCount、labels 和区间 summary。统计不足时带 historyCompleteSince，不推算旧历史。
+callers 按 lastSeenAt DESC、callerId DESC 分页。每项包含 callerId、displayName、identitySource、firstSeenAt、lastSeenAt、serverTypes、授权范围内的 observedServerCount、labels 和区间 summary。统计不足时带 historyCompleteSince，不导入或推算旧历史。
 
 caller 详情返回凭证 ID/subject 的受限引用，不返回 Key、JWT、secretHash 或其他可用于认证的值。PATCH 仅修改 displayName、note、labels；不得修改可信 issuer/sub、callerId 或历史证据。
 
@@ -308,13 +309,13 @@ PATCH/DELETE 对象要求 If-Match 为 GET 返回的 ETag/版本；缺失返回 
 
 创建订阅、测试推送、retry 接受 Idempotency-Key；retry 为必填。幂等键按调用主体、方法、路径及请求摘要隔离，建议保留 24 小时。同键同内容返回原操作结果，同键不同内容返回 409 IDEMPOTENCY_CONFLICT；记录不能保存秘密明文。
 
-这些是对已确认设计中“乐观版本控制、受控重试”的 Endpoint 级细化，将随任务计划一并确认。
+这些是已随任务计划确认的 Endpoint 级并发与幂等契约。
 
 ## 6. 主动消息协议
 
 ### OBS-PUSH-01：Socket.IO 实时订阅与恢复
 
-归属 OBS-TP-13，状态 PLANNED。沿用 namespace=/monitoring；Socket.IO 不是原生 WebSocket 帧 API，不另约定 WebSocket URL。连接使用受管管理身份，握手参数和实际 Engine.IO path 在实现契约冻结时与现有客户端保持一致并补入本文。
+归属 OBS-TP-13，状态 PLANNED。沿用 namespace=/monitoring；Socket.IO 不是原生 WebSocket 帧 API，不另约定 WebSocket URL。连接使用受管管理身份，握手传 auth.token，namespace=/monitoring、Engine.IO path=/socket.io；凭证仅通过受控连接传递，不放 URL。当前服务器未自定义 Engine.IO path，新权限检查在实现包中接入。
 
 客户端发送 subscribe-observability：
 ```json
@@ -388,10 +389,23 @@ Header 包含 X-ApiNova-Event-Id、X-ApiNova-Delivery-Id、X-ApiNova-Timestamp�
 5. 用 events 补拉断线区间，用 deliveries 查询发送过程；游标过期重建快照。
 6. 对 metrics.bucket_updated 按桶版本替换，不能每收到一次事件就给总数加一。
 
-## 9. 既有接口与版本记录
+## 9. 接口收敛与版本记录
 
-现有 /api/v1/monitoring/management/gateway-access-logs、/management/external-callers 及运行事件接口继续保留原契约。本文新接口通过 OBS-TP-15 与旧接口对接验证，不把旧接口重命名为新能力，也不放宽旧接口权限。
+OBS-TP-15 将重复调用日志接口和现有调用方直接收敛到本文的新 Endpoint。不为 /api/v1/monitoring/management/gateway-access-logs、/management/external-callers 建立兼容别名。必要的生命周期/健康管理功能仍保留其业务职责，权限不能因收敛而放宽。
 
 | 文档版本 | 日期 | 内容 | 实现/发布状态 |
 | --- | --- | --- | --- |
-| 0.1.0 | 2026-09-08 | 首次登记 28 个 HTTP Endpoint、Socket.IO/Webhook、对象与错误契约 | 全部 PLANNED；未发布 |
+| 1.0.0 | 2026-09-08 | 首次登记 28 个 HTTP Endpoint、Socket.IO/Webhook、对象与错误契约 | 全部 PLANNED；未发布 |
+| 1.1.3 | 2026-09-08 | 同步 TP-02 验收、正文过期保留审计及内部 GC 边界；无新增对外路由 | 全部 PLANNED；未发布 |
+
+## 当前开发进度与接入边界
+
+2026-09-08：共享 v2 采集契约及阶段写入已有代码；TP-02 存储包退出条件已满足，包括正文归属、写入/回收互斥和孤立回收。API build、48 项存储/GC 用例与 PostgreSQL 四进程测试通过，此前两方言初始化烟测通过。本文 28 个 HTTP Endpoint、Webhook 和 Socket.IO 新订阅仍为 PLANNED，没有新增可供调用的已上线接口。
+
+源 schemaVersion=2 与对外 envelope schemaVersion=1.0 属于不同层级，不是保留两个历史格式。旧日志查询路径及其调用方将在 OBS-TP-15 直接切换，不提供自动降级或兼容别名。数据库结构只维护当前空库基线；已有开发库不会自动升级或删除，需要另行明确处理。
+
+对外 sequence 仍为十进制字符串且允许有间隙；内部补零排序键不对客户端暴露。正文摘要中的 capturedDigest 与对象存储完整性摘要用途不同，客户端不得据此假设脱敏前后内容相同。更多实现边界见[存储基础说明](./runtime-observability-storage-foundation.md)。
+
+验证进度更新（2026-09-08）：48 项存储/GC 用例全部通过；PostgreSQL 四进程验证了提交/回滚顺序、未提交不可见、跨进程写入租约和孤立回收，schemaDrift=0、清理退出码 0。Linux 与全链路矩阵尚未执行，pg 非致命弃用警告仍待定位。TP-03 权限与 API 基础已就绪；存储模块尚未接入运行时，GC 也没有自动调度。
+
+正文过期后的调用审计元数据仍保留；正文读取接口实现时须维持 PAYLOAD_EXPIRED 语义。目录归属、内部租约、generation、文件路径和 GC 控制入口属于服务端内部机制，不增加对外清理 Endpoint，也不暴露磁盘路径。后续 OBS-API-26/27/28 由 TP-14 提供授权后的治理/健康视图，不能直接透传内部状态行。

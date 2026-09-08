@@ -60,6 +60,9 @@ export enum RuntimeObservabilityRetentionClass {
 @Index(['severity', 'occurredAt'])
 @Index(['status', 'occurredAt'])
 @Index(['correlationId'])
+@Index('IDX_obs_events_sequence', ['sequence'], { unique: true })
+@Index('IDX_obs_events_dispatch_sequence', ['dispatchState', 'sequence'])
+@Index('IDX_obs_events_expiry', ['expiresAt'])
 export class RuntimeObservabilityEventEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -125,6 +128,31 @@ export class RuntimeObservabilityEventEntity {
     default: RuntimeObservabilityRetentionClass.STANDARD,
   })
   retentionClass: RuntimeObservabilityRetentionClass;
+
+  // Event details and eventName remain the single payload/type, not a parallel log.
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  sequence?: string;
+
+  @Column({ type: 'varchar', length: 16, nullable: true })
+  schemaVersion?: string;
+
+  @Column({ type: 'varchar', length: 240, nullable: true })
+  subjectId?: string;
+
+  @Column({ type: 'integer', nullable: true })
+  subjectVersion?: number;
+
+  @Column({ type: 'varchar', length: 24, nullable: true })
+  dispatchState?: string;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  dispatchLeaseOwner?: string;
+
+  @Column(getTimestampTzColumnOptions(process.env.DB_TYPE, { nullable: true }))
+  dispatchLeaseUntil?: Date;
+
+  @Column(getTimestampTzColumnOptions(process.env.DB_TYPE, { nullable: true }))
+  expiresAt?: Date;
 
   @CreateDateColumn()
   createdAt: Date;

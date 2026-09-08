@@ -143,11 +143,12 @@ describe('runtime authentication and audit contract', () => {
       expect(call.record.requestId).toBe(String(id));
       await call.finish({ outcome: 'success', request: captureAuditBody({ id }) });
     })));
-    const files = (await readdir(directory)).filter(file => /^\d{4}-/.test(file));
+    const files = (await readdir(directory)).filter(file => /^calls-v2-/.test(file));
     const records = (await Promise.all(files.map(file => readFile(join(directory, file), 'utf8'))))
       .flatMap(data => data.trim().split('\n').map(line => JSON.parse(line)));
-    expect(new Set(records.map(item => item.invocationId)).size).toBe(records.length);
-    expect(records.every(item => item.completedAt >= item.startedAt)).toBe(true);
+    expect(new Set(records.map(item => item.eventId)).size).toBe(records.length);
+    expect(records.filter(item => item.phase === 'finished').every(item => item.completedAt >= item.startedAt)).toBe(true);
+    expect(records.some(item => item.phase === 'started')).toBe(true);
   });
 
   it('reports storage failures without leaking payloads or failing the API call', async () => {

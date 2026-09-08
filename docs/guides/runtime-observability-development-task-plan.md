@@ -1,14 +1,15 @@
 ---
-doc-version: 0.1.0
+doc-version: 1.1.3
 doc-status: active
 doc-updated: 2026-09-08
-approval-status: pending
-implementation-status: not-started
+approval-status: approved
+implementation-status: in-progress
 ---
 # 可观测性开发任务计划
 
-> Document status: Maintained execution plan; awaiting user confirmation before coding
-> 需求、设计与建议默认值已于 2026-09-08 获得用户同意。本次建立任务包与接口契约，任务计划确认后开始编码。
+> Document status: Maintained execution plan; approved, active execution
+> Scope decision (2026-09-08, approved): 统一采用新格式、新 Endpoint 和新数据库初始化结构；移除旧格式导入、兼容查询和历史迁移链。任务编号不变，OBS-TP-15 改为全链路集成与旧能力收敛。
+> 需求、设计与建议默认值已于 2026-09-08 获得用户同意。任务计划已获用户确认，按依赖持续编码和验证。
 > 关联：[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[执行状态](./runtime-observability-development-execution-status.md)。
 
 ## 1. 交付边界与工作规则
@@ -19,7 +20,7 @@ implementation-status: not-started
 
 每个任务包都有进入条件、输出物、适用测试、文档责任和退出标准；只写代码不算完成。接口文档和任务台账在同一任务包中维护，不等最终联调再补写。
 
-全局编码门禁为 OBS-GATE-01。当前等待用户确认本计划与 Endpoint 细化；需求/设计本身不再重复等待确认。门禁通过后，OBS-TP-01 自动转 READY，后续按依赖推进。
+全局编码门禁为 OBS-GATE-01，已通过。OBS-TP-01/02 已满足各自退出条件；OBS-TP-03 可启动，OBS-TP-04 继续实施。后续按依赖推进，不重复请求计划确认。
 
 ## 2. 任务包总表
 
@@ -27,8 +28,8 @@ implementation-status: not-started
 
 | 任务包 | 内容与输出 | 硬依赖 | 规模 | 主要负责边界 |
 | --- | --- | --- | --- | --- |
-| OBS-TP-01 | 共享字段、错误/字节/计数契约、旧记录映射与接入覆盖清单 | OBS-GATE-01 | M | parser/audit 契约、API DTO 契约 |
-| OBS-TP-02 | 数据实体、索引、迁移、事务仓储、正文对象、事件序号基础 | OBS-TP-01 | L | API database 与新调用观测存储模块 |
+| OBS-TP-01 | 共享字段、错误/字节/计数契约、当前字段映射与接入覆盖清单 | OBS-GATE-01 | M | parser/audit 契约、API DTO 契约 |
+| OBS-TP-02 | 数据实体、索引、初始化基线、事务仓储、正文对象、事件序号基础 | OBS-TP-01 | L | API database 与新调用观测存储模块 |
 | OBS-TP-03 | 管理认证/资源范围、细分权限、API envelope/游标/版本并发基础 | OBS-TP-01、02 | M | security、monitoring 公共 API 层 |
 | OBS-TP-04 | 共享调用上下文、阶段写入、受限正文与上游尝试采集器 | OBS-TP-01 | L | parser/audit、共享出站采集适配 |
 | OBS-TP-05 | Gateway 入口及转发/拒绝/缓存/取消完整接入 | OBS-TP-04 | L | gateway-runtime |
@@ -41,7 +42,7 @@ implementation-status: not-started
 | OBS-TP-12 | Webhook 订阅、签名、投递、重试/死信与管理 API | OBS-TP-11 | L | subscription/delivery worker |
 | OBS-TP-13 | 现有 Socket.IO 统一事件接入、快照衔接、补拉与慢消费 | OBS-TP-10、11 | M | websocket gateway |
 | OBS-TP-14 | 保留/配额/策略 API、采集健康、清理与故障降级闭环 | OBS-TP-09、10、11、12 | L | policy/retention/pipeline |
-| OBS-TP-15 | Gateway/MCP 与全部查询报送集成、旧接口兼容、切换/回退 | OBS-TP-05、06、07、09、10、12、13、14 | M | 跨模块集成 |
+| OBS-TP-15 | Gateway/MCP 与全部查询报送集成、旧能力收敛、切换/回退 | OBS-TP-05、06、07、09、10、12、13、14 | M | 跨模块集成 |
 | OBS-TP-16 | AC-01~20 总体验收、平台/数据库矩阵、性能与对外文档收口 | OBS-TP-15 | L | 集成验证与交付证据 |
 
 ## 3. 依赖图与执行顺序
@@ -71,7 +72,7 @@ flowchart TD
     T10 --> T14
     T11 --> T14
     T12 --> T14
-    T05 --> T15[15 兼容集成]
+    T05 --> T15[15 全链路集成与旧能力收敛]
     T06 --> T15
     T07 --> T15
     T09 --> T15
@@ -93,16 +94,16 @@ flowchart TD
 | W4 | OBS-TP-09、10、11 可并行 | 明细与分析 API、统一事件历史 |
 | W5 | OBS-TP-12 与 13 可并行 | 主动 Webhook 与可靠实时恢复 |
 | W6 | OBS-TP-14 | 配额/保留、策略与运行健康闭环 |
-| W7 | OBS-TP-15 | 全链路可用与旧接口兼容 |
+| W7 | OBS-TP-15 | 全链路可用与旧能力收敛 |
 | W8 | OBS-TP-16 | 验收证据、可用范围与集成文档 |
 
-波次是推荐协作顺序，不引入额外等待：某任务硬依赖已完成即可启动。未修改同一文件且契约稳定时可并行；共享 schema、数据库迁移、module 注册和生成文档由单一任务包统筹，避免并行覆盖。
+波次是推荐协作顺序，不引入额外等待：某任务硬依赖已完成即可启动。未修改同一文件且契约稳定时可并行；共享 schema、数据库初始化基线、module 注册和生成文档由单一任务包统筹，避免并行覆盖。
 
 ## 4. 任务包执行卡
 
 ### OBS-TP-01 共享契约与接入映射
 
-输入为已确认需求/设计、现有 Gateway DB/JSONL/MCP 记录和安全契约。输出共享 schema、四种 spanKind、内部 ID/父子链路、origin、outcome、字节/错误枚举、旧字段映射及“每个实际请求仅一个上游节点”的覆盖清单。
+输入为已确认需求/设计、现有 Gateway DB/JSONL/MCP 记录和安全契约。输出共享 schema、四种 spanKind、内部 ID/父子链路、origin、outcome、字节/错误枚举、当前字段映射及“每个实际请求仅一个上游节点”的覆盖清单。
 
 明确当前 schema 的真实 eventId/invocationId 来源、旧 Gateway 双写关系、HTTP 字节测量阶段、管理 prefix 和现有 Socket.IO 连接契约。冻结 afterSequence 启动与签名 after 游标恢复的区别、If-Match/Idempotency-Key 细则，并同步对外文档。
 
@@ -110,13 +111,15 @@ flowchart TD
 
 ### OBS-TP-02 存储、事务与序号基础
 
-输出 invocation/payload/caller/source/observation/checkpoint/receipt、事件/订阅/投递/聚合逻辑表的基础实体和显式升级脚本，建立受控正文对象存储、关键索引与短事务仓储。
+输出 invocation/payload/caller/source/observation/checkpoint/receipt、事件/订阅/投递/聚合逻辑表的基础实体和新版初始化脚本，建立受控正文对象存储、关键索引与短事务仓储。
 
 本包提供调用更新+事件插入+receipt+checkpoint 的同事务 API、单调提交事件 sequence 分配器和查询水位基础。TP-08 使用该事务能力，TP-11 只扩充分发，不再重建另一条非事务事件路径。
 
-既有安全数据库基线重整与本项目分开协作。本任务不得擅自清空已有数据；冻结当前分支支持的显式增量升级方式，更新初始化基线时也保留升级和回退证据。
+既有安全数据库基线重整与本项目分开协作。本任务不得擅自清空已有数据；直接维护当前实体与 SQLite/PostgreSQL 初始化基线，在隔离空库中验证；不开发旧版本数据库升级链。
 
-退出：SQLite/PostgreSQL 的约束/索引与数据保留升级通过针对性验证；重复唯一键、事务回滚、并发提交序号、文件路径约束与孤立对象回收有证据。
+退出：SQLite/PostgreSQL 的约束/索引与数据保留结构通过针对性验证；重复唯一键、事务回滚、并发提交序号、文件路径约束与孤立对象回收有证据。
+
+验收边界：本包验证存储原语和数据库方言；Linux、完整系统事务并发及跨包 AC-20 仍由 TP-15/16 负责，不把 Windows 组件测试外推为完整平台验收。TP-14 接入 GC 调度和策略，本包不自动开启清理。
 
 ### OBS-TP-03 权限与 API 基础
 
@@ -128,7 +131,7 @@ flowchart TD
 
 输出 begin/progress/finish、异步上下文、原始字节测量、递归脱敏、受限正文暂存、元数据队列与写失败健康计数。实际 HTTP 尝试适配器统一表示重试/重定向，不再次实现业务重试。
 
-输出按进程追加 schema，与旧格式兼容；默认 16 MiB/最大 64 MiB、采集内存预算和省略原因可配置。最低限度容量保护在这里落地，不能等 TP-14 再补。
+按进程追加输出当前 v2 schema；默认 16 MiB/最大 64 MiB、采集内存预算和省略原因可配置。最低限度容量保护在这里落地，不能等 TP-14 再补。
 
 退出：并发链路不串线，正常空正文/省略/中断可区分，秘密不进入文件或 stdout；存储失败不改变业务响应或重发上游。
 
@@ -136,7 +139,7 @@ flowchart TD
 
 覆盖入口、路由未匹配、认证/权限/限流、缓存、实际转发、客户端取消和流结束。入口 body/Response 与出站 body/Response 分侧记录，内部 requestId 一次生成并传播。
 
-退出：AC-01/03/04/08 的 Gateway 部分通过；正常响应只终结一次，缓存不产生上游节点，兼容元数据不混入新计数。新增修改集中在 gateway-runtime。
+退出：AC-01/03/04/08 的 Gateway 部分通过；正常响应只终结一次，缓存不产生上游节点，被替换的旧元数据路径不再生成重复事实。新增修改集中在 gateway-runtime。
 
 ### OBS-TP-06 MCP 接入
 
@@ -154,11 +157,11 @@ flowchart TD
 
 ### OBS-TP-08 汇集、身份与恢复
 
-输出增量文件收集、完整行检查、schema 适配、事务幂等、started/finish/修正投影、来源冲突隔离、caller/source 增量归并和历史回填。
+输出增量文件收集、完整行检查、schema 校验、事务幂等、started/finish/修正投影、来源冲突隔离、caller/source 增量归并和数据集初始化。
 
-仅可靠标识用于去重；检查点与调用/事件同事务。可信 issuer/sub 或 subject 延续已有 callerId；IP/匿名/失败来源分离且限制高基数。早期 pipeline 状态、水位和缺口计数必须随收集实现。
+只接受当前 schema，以 eventId/源进程序号用于去重；检查点与调用/事件同事务。可信 issuer/sub 或 subject 延续已有 callerId；IP/匿名/失败来源分离且限制高基数。早期 pipeline 状态、水位和缺口计数必须随收集实现。
 
-退出：AC-06/07/09/10 的核心路径通过；重启/半行/重复导入不会重复计数；推断 unknown 可被真实终态修正。历史回填默认不推送旧业务事件。
+退出：AC-06/07/09/10 的核心路径通过；重启/半行/重复导入不会重复计数；推断 unknown 可被真实终态修正。数据集初始化默认不推送旧业务事件。
 
 ### OBS-TP-09 明细与审计 API
 
@@ -192,7 +195,7 @@ flowchart TD
 
 交付 OBS-PUSH-01。沿用既有 namespace/连接方式，新订阅使用同一持久事件源，支持 from snapshotSeq、签名游标、有限补拉/缓冲、慢客户端断开和 Token 过期。
 
-退出：AC-14/17 通过；补拉与实时切换无时间缝隙；重复/晚到桶按版本替换，不能按收到消息次数累加。保持已有 runtime-event 消费者兼容，不把敏感事件无条件全局广播。
+退出：AC-14/17 通过；补拉与实时切换无时间缝隙；重复/晚到桶按版本替换，不能按收到消息次数累加。同步更新已有 runtime-event 消费者，不新增旧消息适配层，不把敏感事件无条件全局广播。
 
 ### OBS-TP-14 保留、容量与运行健康
 
@@ -202,13 +205,13 @@ flowchart TD
 
 退出：AC-15/16 完成，回收/重启/数据库失败的降级不破坏业务路径；策略变更版本和管理审计可查。
 
-### OBS-TP-15 全链路兼容与接入切换
+### OBS-TP-15 全链路集成与旧能力收敛
 
-依次联通“真实外部请求 → 上游 → 文件 → 索引 → 查询/聚合 → 事件 → 接收端”，覆盖三类采集来源与两类服务器。验证既有 gateway-access-logs/external-callers 和运行事件 API 的原分页、字段和权限。
+依次联通“真实外部请求 → 上游 → 文件 → 索引 → 查询/聚合 → 事件 → 接收端”，覆盖三类采集来源与两类服务器。将重复 gateway-access-logs/external-callers 查询及其现有调用方收敛到新 Endpoint，验证统一分页、字段和权限；不保留兼容别名。
 
-输出增量启用、有限历史回填、停止新消费者的回退步骤；不能靠删数据回退。关联 ID 与数据源权威要证明没有两路日志重复计数。
+输出增量启用、有限数据集初始化、停止新消费者的回退步骤；不能靠删数据回退。关联 ID 与数据源权威要证明没有两路日志重复计数。
 
-退出：每条完整链路有可定位的证据与兼容用例；API 文档填入已验证的实际 prefix、Socket.IO 连接参数和测试版本。
+退出：每条完整链路有可定位的证据与接入切换用例；API 文档填入已验证的实际 prefix、Socket.IO 连接参数和测试版本。
 
 ### OBS-TP-16 总体验收与交付证据
 
@@ -240,7 +243,7 @@ flowchart TD
 
 执行状态唯一台账为配套 execution-status 文档。任务状态使用 BACKLOG、READY、IN_PROGRESS、BLOCKED、REVIEW、DONE、DEFERRED，与现有项目习惯一致。全局审批门禁单独记录，不把“等待计划确认”误报为实现技术故障。
 
-任务 DONE 必须同时具备：已交付的代码/配置/迁移或该包明确的文档产物；对应验收结果；适用测试记录；更新的 API/设计与兼容说明；没有会破坏依赖方契约的未决问题。仅计划、写入代码、运行过但失败的测试不能满足 DONE。
+任务 DONE 必须同时具备：已交付的代码/配置/初始化基线或该包明确的文档产物；对应验收结果；适用测试记录；更新的 API/设计与破坏性调整说明；没有会破坏依赖方契约的未决问题。仅计划、写入代码、运行过但失败的测试不能满足 DONE。
 
 每次更新填写实际受影响文件、完成项、测试命令/结果、证据路径、数据库影响、待办与下一步。未执行测试写“未执行”，日期不代表测试通过。回归导致契约失效时任务重开，不保留虚假的 DONE。
 
@@ -250,7 +253,7 @@ API 状态依其自己的契约测试推进，不由某个共享基础包 DONE �
 
 | 依赖/风险 | 处理原则 |
 | --- | --- |
-| 旧 Gateway DB/JSONL 标识不一致 | TP-01 先映射；不可靠历史隔离，不猜测归并 |
+| 多层调用被误作同一计数边界 | TP-01 固定显式 spanKind；旧格式不导入，新数据不猜测归并 |
 | 现有安全/数据库工作同时修改共享文件 | 按文件归属协调、保留既有改动；不重置或清空 |
 | shared HTTP hook 重复包裹 | TP-04 统一边界，05/06/07 接入测试证明次数 |
 | SQLite 写入竞争与大正文 | 短事务、单写入者、正文分离、明确容量；性能由证据限定 |
@@ -263,6 +266,14 @@ API 状态依其自己的契约测试推进，不由某个共享基础包 DONE �
 
 ## 8. 本次确认与启动动作
 
-本次需要确认的是 16 个任务包、依赖/完成标准和 API Endpoint 细化。确认后将门禁设为 PASSED，从 OBS-TP-01 开始，再按依赖逐包开发、验证并维护对外文档与状态台账。
+16 个任务包、依赖/完成标准和 API Endpoint 细化已获确认，OBS-GATE-01=PASSED。按依赖逐包开发、验证并维护对外文档与状态台账；用户补充的全新版本范围已同步纳入。
 
 常规依赖推进、测试与文档维护已属于后续编码授权范围，不逐包重复请求批准。发布、部署或扩大范围不包含在这次计划确认中。
+
+## 当前实施补充
+
+OBS-TP-02 已完成存储包退出条件：20 个存储实体、调用版本、正文对象、去重凭据、冲突隔离、断点与同事务事件基础，以及两个数据库的空库初始化文件；本轮补充正文归属、写入/回收租约、generation 隔离与有界 GC。新模块尚未接入应用入口；不能据此认为自动采集或查询 API 已经上线。
+
+OBS-TP-04 的阶段写入与预算保护已写入；此前 44 个 parser 针对性测试和 parser build 通过。完整故障注入、存储矩阵及接入验收尚未完成，任务包状态不提前提升为 DONE。实际完成情况只维护在[执行台账](./runtime-observability-development-execution-status.md)。
+
+验证执行更新（2026-09-08）：API build、48 项存储/GC 用例及 PostgreSQL 四进程提交/回滚/回收竞争均已通过。此前两方言隔离烟测均为 63 表、schemaDrift=0；本轮 PostgreSQL 仍为零漂移，脚本清理退出码为 0。按原包级退出标准，TP-02=DONE、TP-03=READY，TP-08 仍等待 TP-04。Linux/完整矩阵留在 TP-16，全系统 SQL.js 并发和非致命 pg 弃用警告留在 TP-15；28 个 HTTP Endpoint 与两类推送仍为 PLANNED。

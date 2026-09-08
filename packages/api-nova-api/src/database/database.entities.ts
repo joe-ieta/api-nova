@@ -40,7 +40,10 @@ import { ProcessInfoEntity } from '../modules/servers/entities/process-info.enti
 import { ProcessLogEntity } from '../modules/servers/entities/process-log.entity';
 import { HealthCheckResultEntity } from '../modules/servers/entities/health-check-result.entity';
 
+import { CALL_OBSERVABILITY_ENTITIES } from './entities/runtime-call-observability.entity';
+
 export const DATABASE_ENTITIES = [
+  ...CALL_OBSERVABILITY_ENTITIES,
   ConfigOverrideEntity,
   ConfigBackupEntity,
   MCPServerEntity,
