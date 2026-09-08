@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { getJsonColumnOptions } from '../db-compat';
+import { getJsonColumnOptions } from '../database-dialect';
 
 @Entity('endpoint_test_cases')
 @Index(['endpointDefinitionId', 'enabled'])

@@ -1,7 +1,7 @@
 # ApiNova 安全设计与实现方案
 
 > Document status: Draft for approval
-> Last reviewed: 2026-09-07
+> Last reviewed: 2026-09-08
 > Implementation status: 已进入实现；Batch 1 状态见 [安全开发执行与状态记录](../guides/security-development-execution-status.md)
 
 ## 架构
@@ -14,7 +14,7 @@ Consumer Credential 与 Upstream Credential 是不同对象。Gateway/MCP 共享
 
 - SQLite 与 PostgreSQL 各自从单一 canonical baseline 初始化，实体共享、SQL 方言分别表达。
 - 开发阶段不提供旧表、旧枚举或历史快照的数据迁移；结构调整后重建开发数据库。
-- `db-compat.ts` 只负责 JSON/Enum/UUID/Timestamp/IP 等双引擎方言映射，不承担版本兼容。
+- `database-dialect.ts` 只负责 JSON/Enum/UUID/Timestamp/IP 等双引擎方言映射，不承担版本兼容。
 - OAuth2 枚举和结构类型作为未来扩展位保留，但当前 UI 禁用，发布和运行路径拒绝；不为历史 OAuth2 数据增加兼容分支。
 - 上游 Secret 继续存放在受控 Provider 中，数据库和 Binding 文件只保存引用、摘要及非敏感元数据。
 

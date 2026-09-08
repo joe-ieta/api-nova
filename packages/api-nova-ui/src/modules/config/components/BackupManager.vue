@@ -54,12 +54,8 @@
         <el-card v-if="importPreview" shadow="never" class="preview-card">
           <template #header>{{ t("config.transfer.previewTitle") }}</template>
           <div class="preview-line">
-            <span>{{ t("config.transfer.compatible") }}</span>
-            <strong>{{ importPreview.compatible ? t("config.yes") : t("config.no") }}</strong>
-          </div>
-          <div class="preview-line">
-            <span>{{ t("config.transfer.migrationRequired") }}</span>
-            <strong>{{ importPreview.migrationRequired ? t("config.yes") : t("config.no") }}</strong>
+            <span>Format</span>
+            <strong>{{ importPreview.formatVersion }}</strong>
           </div>
           <div class="preview-line">
             <span>{{ t("config.transfer.conflicts") }}</span>
@@ -92,7 +88,7 @@
             <el-table-column prop="incomingValue" :label="t('config.newValue')" min-width="160" />
           </el-table>
           <div class="actions preview-actions">
-            <el-button type="primary" :disabled="!importPreview.compatible" @click="applyPendingImport">
+            <el-button type="primary" @click="applyPendingImport">
               {{ t("config.transfer.applyImport") }}
             </el-button>
           </div>
@@ -186,8 +182,6 @@ interface ConfigBackupSummary {
 
 interface ConfigImportPreview {
   formatVersion: string;
-  compatible: boolean;
-  migrationRequired: boolean;
   conflicts: Array<{
     key: string;
     currentValue?: string | number | boolean;

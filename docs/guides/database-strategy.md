@@ -1,95 +1,76 @@
+---
+doc-version: 1.1.0
+doc-status: active
+doc-updated: 2026-09-08
+---
 # Database Strategy
 
 > Document status: Active
-> Last reviewed: 2026-09-07
-
-## Decision
-
-ApiNova supports two first-class database modes:
-
-- `SQLite`: default for local, evaluation, single-node, and light-load deployment
-- `PostgreSQL`: recommended for production, multi-user, higher-write, and long-running deployment
-
-The engines share one domain model but do not have identical scaling or operational characteristics.
+> Last reviewed: 2026-09-08
 
 ## Current Contract
 
-1. Database selection is configuration-driven through `DB_TYPE=sqlite|postgres`.
-2. SQLite is the default and uses an explicit writable database path.
-3. PostgreSQL remains the production recommendation.
-4. Shared service logic must not depend on engine-specific SQL.
-5. Database-specific types stay behind datasource dialect helpers；这些辅助函数服务于 PG/SQLite 双引擎，不承担历史版本兼容。
-6. 开发阶段只支持从 canonical clean schema 初始化；不提供历史 schema/data 升级路径，结构变化时重建开发数据库。
-7. 迁移目录只保留 SQLite/PostgreSQL 两个 canonical baseline；后置修补必须在合入前折叠回对应基线。
+- SQLite is the default for a single API instance and a durable writable file.
+- PostgreSQL is supported for higher write concurrency and multi-user deployments.
+- Only `DB_TYPE=sqlite|postgres` is accepted. An unsupported value fails startup.
+- Both engines use `DATABASE_ENTITIES` and `buildDatabaseOptions()`: 41 entity classes, 43 domain tables including two junction tables.
+- `database-dialect.ts` expresses real JSON, enum, UUID, timestamp and IP differences; it is not a historical-data compatibility layer.
+- This initial-development project supports only clean initialization. No old-table conversion, data backfill, automatic repair, or historical migration chain is maintained.
+- Each engine has exactly one initial migration. Runtime `synchronize` is always false; `DB_SYNCHRONIZE=true` is rejected.
+- Configuration imports use only `config-overrides/v1`; unknown fields, duplicate keys, mismatched types and older formats are rejected atomically.
 
-## Runtime Boundaries
+## Environment And Initialization
 
-### SQLite
+The application and migration CLI load the same API-package environment files: explicit process variables first, then `.env.local`, `.env.<NODE_ENV>`, and `.env`. `API_NOVA_ENV_FILE` can explicitly select one existing file. Tests do not load environment files unless explicitly selected.
 
-Use SQLite when one ApiNova API instance manages a moderate number of assets and operational writes. It is not a shared database for multiple API replicas.
+Entity decorators are loaded after environment initialization. Starting from another working directory does not change the selected API environment file. Relative SQLite paths resolve from the workspace root.
 
-SQLite needs bounded operational data growth, a writable persistent file path, backup guidance, and controlled log/metric write rates.
-
-### PostgreSQL
-
-Use PostgreSQL for sustained multi-user operation, higher concurrent writes, longer retention, and future multi-instance evolution. PostgreSQL must not be reduced to SQLite's operational limits merely to keep a common schema.
-
-## Data Classes
-
-Lower-frequency configuration data includes users, permissions, documents, logical assets, runtime instances, memberships, credentials references, and publication configuration.
-
-Potentially higher-frequency data includes test runs/samples, verification evidence, access logs, system logs, metrics, audit events, and health history. Retention and payload-size controls are especially important for the second group.
-
-## Current Verification
-
-The canonical model is verified from isolated empty databases:
+For a deliberately selected NEW empty application database:
 
 ```bash
-npm run db:verify-isolated-sqlite --workspace api-nova-api
-npm run db:verify-isolated-postgres --workspace api-nova-api
+npm run build --workspace api-nova-api
+npm run migration:run --workspace api-nova-api
+npm run start:dev --workspace api-nova-api
 ```
 
-The current canonical target on 2026-09-07 is **40 domain tables** plus the migration ledger. `config_overrides` and `config_backups` are now part of both engine baselines; the separate compatibility migration was removed. Isolated SQLite initialization passes with zero schema drift and `DB_SYNCHRONIZE=false`. PostgreSQL SQL compiles with the API build, but isolated execution is environment-blocked because the configured local `postgres` credential was rejected; it remains pending as `EXT-11`.
+The migration command targets the configured database. Confirm its identity and emptiness first. Do not run the initial migration on an existing business database. First API startup provisions required roles/users, so a running application database is no longer blank.
 
-Historical verification on 2026-07-22 (before the configuration persistence migration):
+## Isolated Empty Databases And Smoke Tests
 
-- 38 domain tables plus the migration ledger in each engine
-- all nine runtime-closure core tables present
-- zero domain rows in isolated databases
-- no legacy source host/port columns
-- UUID source-instance foreign key
-- zero pending migrations
-- isolated database cleanup after verification
-
-The root gate runs both verifiers:
+These commands create uniquely named databases/files instead of resetting the configured business database:
 
 ```bash
+npm run build --workspace api-nova-api
+npm run db:create-empty --workspace api-nova-api -- sqlite
+npm run db:create-empty --workspace api-nova-api -- postgres
+npm run db:smoke --workspace api-nova-api -- sqlite --keep
+npm run db:smoke --workspace api-nova-api -- postgres --keep
+```
+
+PostgreSQL credentials come from the API environment file; the account needs permission to create a temporary database. `DB_ADMIN_DATABASE` defaults to `postgres`. The configured `DB_DATABASE` is not used as the smoke target.
+
+`create-empty` retains an empty schema without seeds. `smoke` checks migration ownership, exact tables, zero rows, zero pending migrations, zero schema drift, JSON primitives, CRUD, rollback/unique constraints, process persistence, API startup, and anonymous management denial. It removes its own seeded test rows before verifying emptiness again. Omit `--keep` to remove the test-owned database after a successful smoke. Retained paths and database names are printed and written to `tmp/database-cleanup-*/result.json`.
+
+## Schema Artifacts And Regeneration
+
+The checked-in schema exports are `packages/api-nova-api/database/sqlite-schema.sql` and `postgres-schema.sql`. They contain no seed data and no TypeORM migration ledger. Use the corresponding initial migration for application initialization; do not apply a SQL export and then run that migration again on the same database.
+
+After changing the shared entity model:
+
+```bash
+npm run build --workspace api-nova-api
+npm run db:generate-schema --workspace api-nova-api -- sqlite
+npm run db:generate-schema --workspace api-nova-api -- postgres
+npm run build --workspace api-nova-api
 npm run verify:runtime-closure
 ```
 
-## Reliability Requirements
+Generation uses isolated new databases and replaces the initial migration/export for each dialect. It is a development operation, not an upgrade of an existing database. Discarding existing development data requires its owner's explicit approval.
 
-Both modes require:
+## Verification And Boundaries
 
-- explicit startup validation
-- migration-only schema ownership in production
-- secret redaction in persisted evidence
-- bounded sample/log/metric/audit growth
-- backup and recovery guidance
-- failed-migration visibility
+On 2026-09-08, both real local engines passed the 43-table empty-schema, persistence and complete API-startup smoke with zero drift and automatic synchronization disabled. The missing `process_info`, `process_logs`, and `health_check_results` tables are now included. SQLite enum-length metadata no longer causes repeated table rebuilds.
 
-SQLite additionally requires single-instance deployment and a durable writable volume. PostgreSQL additionally requires connection, credential, availability, and operational backup management.
+See [Persistence Cleanup Review](../audits/2026-09-08-persistence-cleanup.md) for commands, retained databases, regressions and evidence. Older 38/40-table results describe historical models only.
 
-## Known Open Work
-
-Payload-size policies, binary evidence handling, retention classes, and cleanup jobs for test and verification evidence remain open as `DEV-04` in `docs/reference/open-items.md`. Windows interactive and Ubuntu database-path verification remain in the external acceptance matrix.
-
-## Release Acceptance
-
-Database support is release-ready only when:
-
-1. both isolated verifiers pass;
-2. application startup succeeds using the documented configuration for each engine;
-3. Windows and Ubuntu paths are verified;
-4. retention and backup boundaries are documented honestly;
-5. no active guide claims historical table counts or schema compatibility.
+SQLite still requires one API instance and a durable writable volume. PostgreSQL needs operational backup, connection and permission management. Payload retention, production fault/load testing, real upstream publication and Ubuntu acceptance remain separate work in [Open Items](../reference/open-items.md).

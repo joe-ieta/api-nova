@@ -169,7 +169,6 @@ export class SeedService implements OnModuleInit {
       .getOne();
 
     if (existingSuperAdmin) {
-      await this.reconcileExistingSuperAdmin(existingSuperAdmin);
       this.logger.log(`Super admin already exists: ${existingSuperAdmin.username}`);
       return;
     }
@@ -203,46 +202,6 @@ export class SeedService implements OnModuleInit {
       this.logger.error('Failed to create super admin', error);
       throw error;
     }
-  }
-
-  private async reconcileExistingSuperAdmin(user: User): Promise<void> {
-    const isDevelopment =
-      this.configService.get<string>('NODE_ENV', 'development') !== 'production';
-
-    if (!isDevelopment) {
-      return;
-    }
-
-    let dirty = false;
-
-    if (user.status !== UserStatus.ACTIVE) {
-      user.status = UserStatus.ACTIVE;
-      dirty = true;
-    }
-
-    if (!user.emailVerified) {
-      user.emailVerified = true;
-      dirty = true;
-    }
-
-    if (user.lockedUntil) {
-      user.lockedUntil = null;
-      dirty = true;
-    }
-
-    if (user.loginAttempts !== 0) {
-      user.loginAttempts = 0;
-      dirty = true;
-    }
-
-    if (!dirty) {
-      return;
-    }
-
-    await this.userRepository.save(user);
-    this.logger.warn(
-      `Reconciled development super admin state: ${user.username}`,
-    );
   }
 
   async isSystemInitialized(): Promise<boolean> {

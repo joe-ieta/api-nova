@@ -4,7 +4,7 @@ import {
   getEnumColumnOptions,
   getJsonColumnOptions,
   getTimestampTzColumnOptions,
-} from '../../../database/db-compat';
+} from '../../../database/database-dialect';
 
 @Entity('process_info')
 export class ProcessInfoEntity {

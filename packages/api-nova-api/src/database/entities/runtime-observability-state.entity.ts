@@ -10,7 +10,7 @@ import {
   getEnumColumnOptions,
   getJsonColumnOptions,
   getTimestampTzColumnOptions,
-} from '../db-compat';
+} from '../database-dialect';
 
 export enum RuntimeObservabilityScopeType {
   RUNTIME_ASSET = 'runtime_asset',

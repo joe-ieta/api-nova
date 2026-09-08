@@ -86,3 +86,9 @@ packages/api-nova-server/mcp-server-stats.json
 .agents/
 .codex/*
 !.codex/skills/
+
+# Local release payloads never belong in Git
+/api-nova-release/
+/api-nova-release-archive/
+/api-nova-release-staging/
+/api-nova-release-preview/

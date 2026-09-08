@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { getJsonColumnOptions } from '../db-compat';
+import { getJsonColumnOptions } from '../database-dialect';
 
 @Entity('source_service_assets')
 @Index(['sourceKey'], { unique: true })

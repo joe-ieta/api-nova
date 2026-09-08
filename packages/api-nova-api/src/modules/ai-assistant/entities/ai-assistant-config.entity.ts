@@ -14,7 +14,7 @@ import {
   getEnumColumnOptions,
   getJsonColumnOptions,
   getUuidColumnOptions,
-} from '../../../database/db-compat';
+} from '../../../database/database-dialect';
 
 export enum ConfigStatus {
   GENERATED = 'generated',

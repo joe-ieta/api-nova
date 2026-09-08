@@ -13,7 +13,7 @@ import {
   getIpColumnOptions,
   getJsonColumnOptions,
   getUuidColumnOptions,
-} from '../db-compat';
+} from '../database-dialect';
 
 export enum AuditAction {
   // 用户操作

@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
-import { getEnumColumnOptions, getJsonColumnOptions } from '../db-compat';
+import { getEnumColumnOptions, getJsonColumnOptions } from '../database-dialect';
 
 export enum RuntimeVerificationResultStatus {
   PENDING = 'pending',

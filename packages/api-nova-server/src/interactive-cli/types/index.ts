@@ -78,7 +78,7 @@ export interface SessionConfig {
   port?: number;
   host?: string;
   auth?: AuthConfig;
-  customHeaders?: CustomHeaders | Record<string, string>;
+  customHeaders?: CustomHeaders;
   operationFilter?: OperationFilter;
   interfaceSelection?: InterfaceSelectionConfig;
   createdAt: string;
@@ -241,7 +241,7 @@ export interface WizardData {
   port?: number;
   host?: string;
   auth?: AuthConfig;
-  customHeaders?: CustomHeaders | Record<string, string>;
+  customHeaders?: CustomHeaders;
   operationFilter?: OperationFilter;
   interfaceSelection?: InterfaceSelectionConfig;
 }

@@ -14,7 +14,7 @@ import {
   getJsonColumnOptions,
   getTimestampColumnOptions,
   getUuidColumnOptions,
-} from '../db-compat';
+} from '../database-dialect';
 
 export enum AuthType {
   NONE = 'none',

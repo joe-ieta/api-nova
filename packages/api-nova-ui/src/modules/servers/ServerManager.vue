@@ -523,7 +523,6 @@ import {
 import type { MCPServer, ServerStatus } from "@/types";
 import { runtimeAssetsAPI } from "@/services/api";
 import { useServerStore } from "@/stores/server";
-import { useWebSocketStore } from "@/stores/websocket";
 import ServerFormDialog from "./components/ServerFormDialog.vue";
 
 // 导入全局功能
@@ -546,7 +545,6 @@ type RuntimeAssetListRow = MCPServer & {
 const route = useRoute();
 const router = useRouter();
 const serverStore = useServerStore();
-const websocketStore = useWebSocketStore();
 const { t } = useI18n();
 
 // 全局功能
@@ -819,48 +817,13 @@ const getStatusText = (status: ServerStatus) => {
   return textMap[status] || t("servers.status.unknown");
 };
 
-const formatUptime = (uptime: number, server?: any) => {
-  // 如果有startedAt字段，基于它实时计算运行时间
-  if (server?.metrics?.startedAt) {
-    try {
-      const startTime = new Date(server.metrics.startedAt);
-      
-      // 检查日期是否有效
-      if (isNaN(startTime.getTime())) {
-        console.warn('Invalid startedAt value:', server.metrics.startedAt);
-        // 回退到使用uptime参数
-        const hours = Math.floor(uptime / 3600000);
-        const minutes = Math.floor((uptime % 3600000) / 60000);
-        return `${hours}h ${minutes}m`;
-      }
-      
-      const now = new Date();
-      const uptimeMs = now.getTime() - startTime.getTime();
-      
-      // 确保计算结果为正数
-      if (uptimeMs < 0) {
-        console.warn('Negative uptime calculated, using fallback');
-        const hours = Math.floor(uptime / 3600000);
-        const minutes = Math.floor((uptime % 3600000) / 60000);
-        return `${hours}h ${minutes}m`;
-      }
-      
-      const hours = Math.floor(uptimeMs / 3600000);
-      const minutes = Math.floor((uptimeMs % 3600000) / 60000);
-      return `${hours}h ${minutes}m`;
-    } catch (error) {
-      console.error('Error formatting uptime with startedAt:', error);
-      // 回退到使用uptime参数
-      const hours = Math.floor(uptime / 3600000);
-      const minutes = Math.floor((uptime % 3600000) / 60000);
-      return `${hours}h ${minutes}m`;
-    }
-  }
-
-  // 兼容旧的uptime字段（毫秒）
-  const hours = Math.floor(uptime / 3600000);
-  const minutes = Math.floor((uptime % 3600000) / 60000);
-  return `${hours}h ${minutes}m`;
+const formatUptime = (_uptime: number, server?: MCPServer) => {
+  const startedAt = server?.metrics?.startedAt;
+  if (!startedAt) return "N/A";
+  const start = new Date(startedAt).getTime();
+  if (!Number.isFinite(start)) return "N/A";
+  const elapsed = Math.max(0, Date.now() - start);
+  return `${Math.floor(elapsed / 3600000)}h ${Math.floor((elapsed % 3600000) / 60000)}m`;
 };
 
 const formatDateTime = (date: Date | string | number) => {
@@ -1210,17 +1173,6 @@ onMounted(async () => {
 
   await refreshServers();
 
-  // 订阅 WebSocket 实时更新
-  if (!isRuntimeAssetsSurface.value) {
-    websocketStore.subscribe(
-      "runtime:server-status",
-      handleServerStatusUpdate,
-    );
-    websocketStore.subscribe(
-      "runtime:server-metrics",
-      handleServerMetricsUpdate,
-    );
-  }
 });
 
 watch(
@@ -1234,19 +1186,8 @@ onUnmounted(() => {
   // 停止性能监控
   stopMonitoring();
 
-  if (!isRuntimeAssetsSurface.value) {
-    websocketStore.unsubscribe("runtime:server-status");
-    websocketStore.unsubscribe("runtime:server-metrics");
-  }
 });
 
-const handleServerStatusUpdate = (data: any) => {
-  serverStore.updateServerStatus(data.serverId, data.status);
-};
-
-const handleServerMetricsUpdate = (data: any) => {
-  serverStore.updateServerMetrics(data.serverId, data.metrics);
-};
 </script>
 
 <style scoped>

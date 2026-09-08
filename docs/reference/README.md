@@ -1,14 +1,17 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
-doc-updated: 2026-09-07
+doc-updated: 2026-09-08
 ---
 # Reference
 
 > Document status: Active index
-> Last reviewed: 2026-07-22
+> Last reviewed: 2026-09-08
 
 ## Product Governance
+
+- [Unified Call Logging And Observability Design](./runtime-observability-design.md) (approved design; implementation not started)
+- [Observability Public API Endpoints](./runtime-observability-api-endpoints.md) (planned consumer contract)
 
 - [Security Design And Implementation](./security-design-and-implementation.md)
 - [Open Items](./open-items.md)

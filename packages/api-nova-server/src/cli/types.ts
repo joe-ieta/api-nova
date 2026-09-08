@@ -1,4 +1,4 @@
-import { AuthConfig } from 'api-nova-parser';
+import { AuthConfig, CustomHeaders, OperationFilter } from 'api-nova-parser';
 
 export interface ServerOptions {
   transport: string;
@@ -44,26 +44,12 @@ export interface ConfigFile {
   autoRestart?: boolean;
   maxRetries?: number;
   retryDelay?: number;
-  customHeaders?: {
-    static?: Record<string, string>;
-    env?: Record<string, string>;
-    conditional?: Array<{
-      condition: string;
-      headers: Record<string, string>;
-    }>;
-  };
+  customHeaders?: CustomHeaders;
   debugHeaders?: boolean;
   allowedHosts?: string[];
   allowedOrigins?: string[];
   disableDnsRebindingProtection?: boolean;
-  operationFilter?: {
-    methods?: string[] | { include?: string[]; exclude?: string[] };
-    paths?: string[] | { include?: string[]; exclude?: string[] };
-    operationIds?: string[] | { include?: string[]; exclude?: string[] };
-    statusCodes?: number[] | { include?: number[]; exclude?: number[] };
-    parameters?: string[] | { required?: string[]; forbidden?: string[] };
-    customFilter?: string;
-  };
+  operationFilter?: OperationFilter;
 }
 
 export interface ParsedOptions extends ServerOptions {

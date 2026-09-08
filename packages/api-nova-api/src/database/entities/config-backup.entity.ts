@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { getJsonColumnOptions } from '../db-compat';
+import { getJsonColumnOptions } from '../database-dialect';
 
 @Entity('config_backups')
 @Index(['createdAt'])

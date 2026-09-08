@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { getEnumColumnOptions, getJsonColumnOptions } from '../db-compat';
+import { getEnumColumnOptions, getJsonColumnOptions } from '../database-dialect';
 
 export enum RuntimeAssetEndpointBindingStatus {
   DRAFT = 'draft',

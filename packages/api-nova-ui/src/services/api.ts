@@ -275,12 +275,6 @@ export const serverAPI = {
     return response.data;
   },
 
-  // 启动/停止服务器（兼容旧接口）
-  async toggleServer(id: string, enabled: boolean): Promise<MCPServer> {
-    await serverAPI.performServerAction(id, enabled ? "start" : "stop");
-    return serverAPI.getServerDetails(id);
-  },
-
   // 获取服务器详情
   async getServerDetails(id: string): Promise<MCPServer> {
     const response = await api.get(`/v1/servers/${id}`);
@@ -1950,11 +1944,6 @@ export const retryableServerAPI = {
     )(),
   deleteServer: (id: string) =>
     createRetryableAPI(() => serverAPI.deleteServer(id), "deleteServer")(),
-  toggleServer: (id: string, enabled: boolean) =>
-    createRetryableAPI(
-      () => serverAPI.toggleServer(id, enabled),
-      "toggleServer",
-    )(),
   getServerDetails: (id: string) =>
     createRetryableAPI(
       () => serverAPI.getServerDetails(id),

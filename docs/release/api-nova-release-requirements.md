@@ -1,12 +1,12 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
-doc-updated: 2026-09-07
+doc-updated: 2026-09-08
 ---
 # ApiNova Release Requirements
 
 > Document status: Active release operations
-> Last reviewed: 2026-09-04
+> Last reviewed: 2026-09-08
 > Canonical packaging contract: [ApiNova Version Release Standard](../../RELEASE_STANDARD.md)
 
 ## Run From A Source Checkout
@@ -55,6 +55,15 @@ test -f ./packages/api-nova-api/.env || \
 ```
 
 The source default is SQLite. Review `packages/api-nova-api/.env` before startup, especially `JWT_SECRET`, the default administrator password, and any upstream credentials. Do not use the example secrets for an externally reachable environment.
+
+Initialize the deliberately selected NEW empty application database before first startup. Application and migration CLI share the API environment file; automatic synchronization is disabled.
+
+```bash
+npm run build --workspace api-nova-api
+npm run migration:run --workspace api-nova-api
+```
+
+Do not apply the initial migration to an existing schema. For a safe separate blank database instead, use the isolated creation commands in [Database Strategy](../guides/database-strategy.md).
 
 ### 3. Start The Full Product From Source
 

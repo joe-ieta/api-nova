@@ -55,7 +55,18 @@ $environment = @{
   MCP_PORT = ($Port + 1).ToString()
   DB_TYPE = 'sqlite'
   DB_SQLITE_PATH = 'data/release-smoke.db'
-  DB_SYNCHRONIZE = 'true'
+  DB_SYNCHRONIZE = 'false'
+  NODE_OPTIONS = '--require="' + (Join-Path $PSScriptRoot 'release-network-guard.cjs') + '"'
+}
+foreach ($name in @('data', 'logs', 'pids')) {
+  $target = Join-Path $packagePath $name
+  if ([IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($target)) -ne $packagePath) {
+    throw 'Unsafe smoke runtime directory'
+  }
+  $item = Get-Item -LiteralPath $target
+  if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or @(Get-ChildItem -LiteralPath $target -Force).Count) {
+    throw "Smoke requires an empty, non-linked $name directory; existing runtime data is never cleared"
+  }
 }
 $previousEnvironment = @{}
 foreach ($name in $environment.Keys) {
@@ -70,6 +81,8 @@ $process = $null
 $passed = $false
 
 try {
+  & $nodePath -e "try { require('node:net').connect({host:'198.51.100.1',port:443}); process.exit(1); } catch (e) { if (e.code !== 'API_NOVA_OFFLINE_BLOCKED') throw e; }"
+  if ($LASTEXITCODE -ne 0) { throw 'Offline network guard did not block the test connection' }
   if ($PlatformId -eq 'win-x64') {
     $startArgs = @{
       FilePath = 'cmd.exe'
@@ -155,6 +168,10 @@ try {
       Write-Host '--- release stderr ---'
       Get-Content -LiteralPath $stderrPath
     }
+  }
+
+  if ($process -and -not $process.HasExited) {
+    if (-not $process.WaitForExit(10000)) { throw 'Release process did not stop; refusing runtime cleanup' }
   }
 
   foreach ($relativeDir in @('data', 'logs', 'pids')) {

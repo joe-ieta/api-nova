@@ -31,97 +31,6 @@ function deepMergeParameterField(
   };
 }
 
-function normalizeStringArray(value: unknown): string[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const normalized = value
-    .map(item => (typeof item === 'string' ? item.trim() : ''))
-    .filter(Boolean);
-  return normalized.length > 0 ? normalized : undefined;
-}
-
-function normalizeNumberArray(value: unknown): number[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const normalized = value
-    .map(item => Number(item))
-    .filter(item => Number.isFinite(item));
-  return normalized.length > 0 ? normalized : undefined;
-}
-
-function normalizeIncludeExcludeStringField(
-  value: unknown
-): { include?: string[]; exclude?: string[] } | undefined {
-  if (!value) return undefined;
-  if (Array.isArray(value)) {
-    const include = normalizeStringArray(value);
-    return include ? { include } : undefined;
-  }
-  if (typeof value !== 'object') return undefined;
-  const candidate = value as { include?: unknown; exclude?: unknown };
-  const include = normalizeStringArray(candidate.include);
-  const exclude = normalizeStringArray(candidate.exclude);
-  if (!include && !exclude) return undefined;
-  return { include, exclude };
-}
-
-function normalizeIncludeExcludeNumberField(
-  value: unknown
-): { include?: number[]; exclude?: number[] } | undefined {
-  if (!value) return undefined;
-  if (Array.isArray(value)) {
-    const include = normalizeNumberArray(value);
-    return include ? { include } : undefined;
-  }
-  if (typeof value !== 'object') return undefined;
-  const candidate = value as { include?: unknown; exclude?: unknown };
-  const include = normalizeNumberArray(candidate.include);
-  const exclude = normalizeNumberArray(candidate.exclude);
-  if (!include && !exclude) return undefined;
-  return { include, exclude };
-}
-
-function normalizeParameterField(
-  value: unknown
-): { required?: string[]; forbidden?: string[] } | undefined {
-  if (!value) return undefined;
-  if (Array.isArray(value)) {
-    const required = normalizeStringArray(value);
-    return required ? { required } : undefined;
-  }
-  if (typeof value !== 'object') return undefined;
-  const candidate = value as { required?: unknown; forbidden?: unknown };
-  const required = normalizeStringArray(candidate.required);
-  const forbidden = normalizeStringArray(candidate.forbidden);
-  if (!required && !forbidden) return undefined;
-  return { required, forbidden };
-}
-
-function normalizeConfigOperationFilter(
-  configFilter?: ConfigFile['operationFilter']
-): OperationFilter | undefined {
-  if (!configFilter || typeof configFilter !== 'object') {
-    return undefined;
-  }
-
-  const normalized: OperationFilter = {};
-
-  const methods = normalizeIncludeExcludeStringField(configFilter.methods);
-  if (methods) normalized.methods = methods;
-
-  const paths = normalizeIncludeExcludeStringField(configFilter.paths);
-  if (paths) normalized.paths = paths;
-
-  const operationIds = normalizeIncludeExcludeStringField(configFilter.operationIds);
-  if (operationIds) normalized.operationIds = operationIds;
-
-  const statusCodes = normalizeIncludeExcludeNumberField(configFilter.statusCodes);
-  if (statusCodes) normalized.statusCodes = statusCodes as OperationFilter['statusCodes'];
-
-  const parameters = normalizeParameterField(configFilter.parameters);
-  if (parameters) normalized.parameters = parameters;
-
-  return Object.keys(normalized).length > 0 ? normalized : undefined;
-}
-
 export function parseOperationFilter(
   options: ServerOptions & { 
     'operation-filter-methods'?: string[], 
@@ -136,7 +45,7 @@ export function parseOperationFilter(
   let hasConfig = false;
 
   if (config?.operationFilter) {
-    const normalizedConfigFilter = normalizeConfigOperationFilter(config.operationFilter);
+    const normalizedConfigFilter = normalizeOperationFilter(config.operationFilter);
     if (normalizedConfigFilter) {
       Object.assign(filter, normalizedConfigFilter);
       hasConfig = true;
@@ -163,8 +72,7 @@ export function parseOperationFilter(
 
   if (options['operation-filter-status-codes']) {
     const parsedCodes = options['operation-filter-status-codes']
-      .map(code => parseInt(code, 10))
-      .filter(code => !isNaN(code));
+      .map(code => Number(code));
     const cliStatusCodes = { include: parsedCodes };
     filter.statusCodes = deepMergeFilterField(filter.statusCodes as any, cliStatusCodes as any);
     hasConfig = true;

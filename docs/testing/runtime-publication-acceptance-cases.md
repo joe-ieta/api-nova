@@ -1,7 +1,7 @@
 # Runtime Publication Acceptance Cases
 
 > Document status: Active
-> Last reviewed: 2026-09-06
+> Last reviewed: 2026-09-08
 > Release gate: Required together with `docs/guides/release-readiness-checklist.md`
 
 ## Evidence Header
@@ -47,9 +47,9 @@ For every manual execution record:
 | VR-07 | exact sample has dynamic paths | configure ignored paths and replay | ignored paths do not fail exact comparison; other mismatches do | automated-passed |
 | CR-01 | instance uses valid `env-headers:` reference | deploy and invoke | secret is resolved at execution and not persisted in samples/runs/snapshots | automated-covered |
 | CR-02 | referenced environment variable is missing | deploy or invoke | operation fails closed; candidate is not activated | automated-covered |
-| DB-01 | isolated SQLite available | run `db:verify-isolated-sqlite` | 40 domain tables, zero domain rows, no forbidden columns/pending migrations/schema drift; temp file removed | automated-passed |
-| DB-02 | isolated PostgreSQL available | run `db:verify-isolated-postgres` | same 40-table clean and zero-drift contract as SQLite; temporary database removed | environment-blocked: configured PostgreSQL credential rejected (EXT-11) |
-| RG-01 | current checkout | run `npm run verify:runtime-closure` | all eight gate stages pass, including the current PostgreSQL target | automated-covered (full gate rerun pending EXT-11) |
+| DB-01 | isolated SQLite available | run `db:smoke -- sqlite` in the API workspace | 43 domain tables, zero rows/pending migrations/drift, persistence and full API startup pass; owned temp file removed | automated-passed |
+| DB-02 | isolated PostgreSQL available | run `db:smoke -- postgres` in the API workspace | same 43-table schema/persistence/startup contract; owned temporary database removed | automated-passed (2026-09-08) |
+| RG-01 | current checkout | run `npm run verify:runtime-closure` | all nine gate stages pass, including both database startup smokes | automated-passed (2026-09-08) |
 | RG-02 | Windows checkout | run root production build | Parser, Server, API, and UI build successfully | automated-passed |
 | RG-03 | Windows checkout | run streamable-session smoke | two MCP sessions remain isolated and disconnect cleanly | automated-passed |
 
@@ -79,6 +79,10 @@ For every manual execution record:
 | EXT-09 | repeat install/build/start/parser/session workflow on Ubuntu | all documented Ubuntu commands and core workflow pass | environment-blocked |
 
 ## Latest Automated Evidence
+
+On 2026-09-08, the nine-stage gate passed against both 43-table databases, including transactional persistence, complete API startup, empty-table restoration and zero drift. See [Persistence Cleanup Review](../audits/2026-09-08-persistence-cleanup.md). The PostgreSQL credential blocker below is historical and has been resolved for the local isolated instance.
+
+Historical September 7 evidence:
 
 On 2026-09-07, isolated SQLite verification passed with 40 domain tables, zero domain rows, no pending migrations and zero TypeORM schema drift; the temporary database was removed. The configuration persistence tables are folded into the single baseline. PostgreSQL baseline execution remains pending `EXT-11` because the configured local PostgreSQL credential was rejected before a temporary database could be created.
 

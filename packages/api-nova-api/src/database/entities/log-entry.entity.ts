@@ -12,7 +12,7 @@ import {
   getEnumColumnOptions,
   getJsonColumnOptions,
   getUuidColumnOptions,
-} from '../db-compat';
+} from '../database-dialect';
 
 export enum LogLevel {
   DEBUG = 'debug',

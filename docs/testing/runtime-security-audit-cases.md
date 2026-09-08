@@ -1,12 +1,14 @@
 # 安全调用与日志审计验收用例
 
 > Document status: Active acceptance baseline
-> Last reviewed: 2026-09-06
+> Last reviewed: 2026-09-08
 > Contract: [安全调用与日志审计](../guides/runtime-security-and-call-audit.md)
 
 ## 执行范围
 
 本地 Windows、Node.js、npm 工作区；单元/smoke 使用测试替身与 loopback 服务，多进程联调使用完整 API 入口、独立 MCP 进程、临时 SQLite、HTTPS 代理及远程 JWKS 夹具。所有证书、密钥和日志仅用于本次隔离测试，不依赖生产身份系统或业务数据库。以下本地结果对应本次提交的源代码基线，不代表线上验收。
+
+2026-09-08 清理后复验：Parser 8 套件/30 例、API 45 套件/237 例、Server 6 组冒烟、九阶段回归门禁与七项跨进程安全联调全部通过。真实本地 PG/SQLite 各 43 张业务表通过空库、事务与完整 API 启动冒烟；零数据、零结构差异。详细范围及保留空库位置见 [本轮清理审查记录](../audits/2026-09-08-persistence-cleanup.md)。以下旧计数保留为历史证据。
 
 2026-09-06 执行结果：parser 7 个测试套件、26 个用例通过；联调修复后 API 全量回归 45 个测试套件、199 个用例通过；server 的 CLI、基础运行、多会话、工具转换、安全审计共 5 组 smoke 全部通过；parser/server/API/UI 全量构建和类型检查通过。UI 构建仍提示既有循环 chunk/第三方注释警告，未将其计作测试失败。多进程联调 7 组检查通过，产生 3 次真实上游 API 调用和 4 次 HTTPS JWKS 获取；隔离 SQLite 验证 40 张业务表、零业务行、无待执行迁移，新增配置表通过实体结构零差异检查。生产依赖在线审计被环境策略拦截，状态见 `SEC-DEP-01`，不计作通过。
 
@@ -34,7 +36,7 @@
 | INT-01 | 完整 API 与独立 MCP 进程经 HTTPS 代理完成元数据、前缀、鉴权、9 KB 调用与调用者归并 | 根 `verify-runtime-security-integration.cjs` | automated-passed |
 | INT-02 | 远程 HTTPS JWKS 轮换后两个进程重新取钥，同主体 MCP 会话继续使用 | 同上，包含约 31 秒缓存冷却等待 | automated-passed |
 | INT-03 | 管理 API 登录/正文解析保持正常；外部调用令牌不能读取管理调用者清单 | 同上 | automated-passed |
-| INT-04 | 禁用自动同步的干净 SQLite baseline 含配置表，完整 API 可启动 | PG/SQLite canonical baselines、隔离 SQLite verifier | automated-passed |
+| INT-04 | 禁用自动同步的干净 SQLite baseline 含配置表，完整 API 可启动 | PG/SQLite 初始迁移、统一 `db:smoke` | automated-passed |
 | INT-05 | 普通日志跳过 Gateway 流式响应；异常路径脱敏，损坏 URL 不导致二次异常或原文泄漏 | API `logging.interceptor.spec.ts`、`http-exception.filter.spec.ts` | automated-passed |
 | EXT-10 | 实际 JWT 签发方、JWKS 轮换、TLS/代理前缀、外部客户端鉴权与长流重连 | [open-items](../reference/open-items.md) | environment-blocked |
 

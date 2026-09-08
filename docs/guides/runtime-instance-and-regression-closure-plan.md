@@ -1,13 +1,15 @@
 # Runtime Instance And Regression Closure Development Plan
 
 > Document status: Active
-> Last reviewed: 2026-09-07 (governance and sample-retention amendment; earlier work-package evidence remains dated)
+> Last reviewed: 2026-09-08 (governance and sample-retention amendment; earlier work-package evidence remains dated)
 
 ## Status
 
 Active implementation baseline, amended on 2026-09-07.
 
-2026-09-07 amendment: [security calling and audit](runtime-security-and-call-audit.md) adds unified inbound identity, automatic caller observations and API-level payload evidence without an analysis UI. Runtime governance now invalidates published assets after upstream-instance/binding changes and records mutation audit context; successful endpoint samples have bounded capture and an authenticated cleanup entry. Integration also adds the two configuration persistence tables required for clean API startup, bringing the current target to 40 domain tables. SQLite passed; PostgreSQL validation remains `EXT-11`. The 38-table results below are July execution history and must not be used as current release acceptance. The controlled integration fixture does not replace the pending real registration/publication workflow checks.
+2026-09-08 amendment: the shared entity registry now includes all 43 domain tables. SQLite and real local PostgreSQL initial migration, persistence and API-startup smokes passed, as did the nine-stage runtime gate. See [Persistence Cleanup Review](../audits/2026-09-08-persistence-cleanup.md). Earlier counts and the PostgreSQL blocker below are historical evidence, not current acceptance.
+
+2026-09-07 amendment (historical): [security calling and audit](runtime-security-and-call-audit.md) adds unified inbound identity, automatic caller observations and API-level payload evidence without an analysis UI. Runtime governance now invalidates published assets after upstream-instance/binding changes and records mutation audit context; successful endpoint samples have bounded capture and an authenticated cleanup entry. Integration also adds the two configuration persistence tables required for clean API startup, bringing the current target to 40 domain tables. SQLite passed; PostgreSQL validation remains `EXT-11`. The 38-table results below are July execution history and must not be used as current release acceptance. The controlled integration fixture does not replace the pending real registration/publication workflow checks.
 
 This document defines the approved clean-baseline development task. Existing database structures, historical data, and legacy tests are not compatibility constraints; development and verification start from a newly initialized schema.
 

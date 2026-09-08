@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { getEnumColumnOptions, getTimestampColumnOptions } from '../db-compat';
+import { getEnumColumnOptions, getTimestampColumnOptions } from '../database-dialect';
 
 export enum RuntimeUpstreamSelectionMode {
   FIXED_PRIMARY = 'fixed_primary',

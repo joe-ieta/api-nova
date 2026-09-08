@@ -71,6 +71,7 @@ const documentationFiles = ['README.md', 'README_EN.md', 'PRODUCT_CONSTRAINTS.md
 const checkDocumentation = target => {
   const stat = fs.statSync(target);
   if (stat.isDirectory()) {
+    if (['node_modules', 'dist', 'build', 'tmp', '.git', '.cache'].includes(path.basename(target))) return;
     for (const entry of fs.readdirSync(target)) checkDocumentation(path.join(target, entry));
   } else if (path.extname(target).toLowerCase() === '.md') {
     const content = fs.readFileSync(target, 'utf8');

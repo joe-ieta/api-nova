@@ -268,9 +268,6 @@ const formData = ref<ServerConfig & { openApiDocumentId?: string }>({
   autoStart: false,
   tags: [],
   openApiDocumentId: "",
-  // 兼容旧字段
-  endpoint: "",
-  customHeaders: {},
 });
 
 // 自定义头部列表
@@ -342,9 +339,6 @@ const resetForm = () => {
     autoStart: false,
     tags: [],
     openApiDocumentId: "",
-    // 兼容旧字段
-    endpoint: "",
-    customHeaders: {},
   };
   customHeadersList.value = [];
   formRef.value?.clearValidate();
@@ -367,14 +361,11 @@ watch(
         autoStart: server.autoStart || false,
         tags: server.tags || [],
         openApiDocumentId: (server.config as any)?.openApiDocumentId || "",
-        // 兼容旧字段
-        endpoint: server.endpoint || "",
-        customHeaders: server.config?.customHeaders || {},
       };
 
       // 转换自定义头部为列表格式
       customHeadersList.value = Object.entries(
-        formData.value.customHeaders || {},
+        (server.config?.customHeaders?.static || {}) as Record<string, string>,
       ).map(([key, value]) => ({ key, value }));
     } else {
       resetForm();
@@ -447,16 +438,13 @@ const handleSubmit = async () => {
       transport: formData.value.transport,
       openApiData: formData.value.openApiData || {},
       config: {
-        customHeaders,
+        customHeaders: { static: customHeaders },
         openApiDocumentId: formData.value.openApiDocumentId,
       },
       authConfig: formData.value.authConfig,
       autoStart: formData.value.autoStart,
       tags: formData.value.tags?.filter((tag) => tag.trim()) || [],
-      // 兼容旧字段
-      endpoint: formData.value.endpoint,
     };
-    console.log(serverConfig);
     let success = false;
 
     if (isEdit.value && props.server) {

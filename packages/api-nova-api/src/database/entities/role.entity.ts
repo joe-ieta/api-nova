@@ -13,7 +13,7 @@ import { Permission } from './permission.entity';
 import {
   getEnumColumnOptions,
   getJsonColumnOptions,
-} from '../db-compat';
+} from '../database-dialect';
 
 export enum RoleType {
   SYSTEM = 'system',

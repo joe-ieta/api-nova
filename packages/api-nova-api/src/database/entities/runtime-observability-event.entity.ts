@@ -9,7 +9,7 @@ import {
   getEnumColumnOptions,
   getJsonColumnOptions,
   getTimestampTzColumnOptions,
-} from '../db-compat';
+} from '../database-dialect';
 
 export enum RuntimeObservabilityEventFamily {
   RUNTIME_LIFECYCLE = 'runtime.lifecycle',

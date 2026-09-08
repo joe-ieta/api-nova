@@ -5,7 +5,7 @@ import {
   Index,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { getJsonColumnOptions } from '../db-compat';
+import { getJsonColumnOptions } from '../database-dialect';
 
 @Entity('publication_profile_history')
 @Index(['endpointDefinitionId'])

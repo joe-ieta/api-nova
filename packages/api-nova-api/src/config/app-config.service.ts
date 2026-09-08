@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -494,47 +494,58 @@ export class AppConfigService implements OnModuleInit {
     );
   }
 
+  private validateImportRecords(dto: ImportApplicationConfigDto): ConfigTransferOverrideDto[] {
+    if (dto.formatVersion !== CONFIG_EXPORT_VERSION || !Array.isArray(dto.overrides)) {
+      throw new BadRequestException('Only config-overrides/v1 with an overrides array is supported');
+    }
+    const seen = new Set<string>();
+    return dto.overrides.map((record) => {
+      const spec = record && SPEC_BY_FIELD.get(`${record.section}.${record.field}`);
+      if (!spec?.editable || !spec.envKey || record.envKey !== spec.envKey ||
+          record.valueType !== spec.valueType || typeof record.value !== spec.valueType ||
+          record.value === '' || (typeof record.value === 'number' && !Number.isFinite(record.value))) {
+        throw new BadRequestException('Invalid or unsupported configuration override');
+      }
+      if (seen.has(spec.envKey)) throw new BadRequestException('Duplicate configuration override');
+      seen.add(spec.envKey);
+      try {
+        this.validateOverrideValue(spec, record.value);
+      } catch {
+        throw new BadRequestException(`Invalid value for ${spec.section}.${spec.field}`);
+      }
+      return this.buildOverrideRecord(spec, record.value);
+    });
+  }
+
   private async replaceOverrides(records: ConfigTransferOverrideDto[]): Promise<string[]> {
     const restartRequiredKeys = new Set<string>();
+    const previous = this.getCurrentOverrideRecords();
+    const incoming = new Map(records.map((record) => [record.envKey, record]));
+    for (const record of [...previous, ...records]) {
+      const oldValue = previous.find((old) => old.envKey === record.envKey)?.value;
+      if (record.restartRequired && oldValue !== incoming.get(record.envKey)?.value) {
+        restartRequiredKeys.add(`${record.section}.${record.field}`);
+      }
+    }
     const knownEnvKeys = CONFIG_FIELD_SPECS.map((spec) => spec.envKey).filter(Boolean) as string[];
-
-    if (knownEnvKeys.length > 0) {
-      await this.configOverrideRepository.delete(knownEnvKeys.map((envKey) => ({ envKey })));
-    }
+    await this.configOverrideRepository.manager.transaction(async (manager) => {
+      const repository = manager.getRepository(ConfigOverrideEntity);
+      await repository.delete(knownEnvKeys.map((envKey) => ({ envKey })));
+      if (records.length) await repository.save(records.map((record) => repository.create(record)));
+      const audit = manager.getRepository(AuditLog);
+      await audit.save(audit.create({
+        action: AuditAction.CONFIG_IMPORTED,
+        description: `Imported ${records.length} configuration overrides`,
+        level: AuditLevel.INFO,
+        status: AuditStatus.SUCCESS,
+        resource: 'config',
+        details: { after: { importedCount: records.length, restartRequiredKeys: [...restartRequiredKeys] } },
+        metadata: { count: records.length, tags: ['config', 'import'] },
+      }));
+    });
     this.overrides.clear();
-
-    for (const record of records) {
-      const spec = SPEC_BY_FIELD.get(`${record.section}.${record.field}`);
-      if (!spec || !spec.editable || !spec.envKey) {
-        continue;
-      }
-
-      const normalizedValue = this.normalizeOverrideValue(spec, record.value);
-      if (normalizedValue === undefined) {
-        continue;
-      }
-
-      this.validateOverrideValue(spec, normalizedValue);
-
-      await this.configOverrideRepository.save(
-        this.configOverrideRepository.create({
-          envKey: spec.envKey,
-          section: spec.section,
-          field: spec.field,
-          valueType: spec.valueType,
-          value: normalizedValue,
-          restartRequired: spec.restartRequired,
-          description: spec.description,
-        }),
-      );
-
-      this.overrides.set(spec.envKey, normalizedValue);
-      if (spec.restartRequired) {
-        restartRequiredKeys.add(`${spec.section}.${spec.field}`);
-      }
-    }
-
-    return Array.from(restartRequiredKeys);
+    records.forEach((record) => this.overrides.set(record.envKey, record.value));
+    return [...restartRequiredKeys];
   }
 
   private buildRestartPlan(restartRequiredKeys: string[]): string[] {
@@ -565,11 +576,12 @@ export class AppConfigService implements OnModuleInit {
   }
 
   previewImportConfig(dto: ImportApplicationConfigDto): ConfigImportPreviewDto {
+    const records = this.validateImportRecords(dto);
     const currentOverrides = new Map(
       this.getCurrentOverrideRecords().map((record) => [`${record.section}.${record.field}`, record]),
     );
     const incomingOverrides = new Map(
-      (dto.overrides || []).map((record) => [`${record.section}.${record.field}`, record]),
+      records.map((record) => [`${record.section}.${record.field}`, record]),
     );
 
     const conflicts: ConfigImportPreviewDto['conflicts'] = [];
@@ -581,6 +593,7 @@ export class AppConfigService implements OnModuleInit {
       const incomingRecord = incomingOverrides.get(key);
 
       if (!currentRecord && incomingRecord) {
+        if (incomingRecord.restartRequired) restartRequired.add(key);
         conflicts.push({
           key,
           incomingValue: incomingRecord.value,
@@ -614,8 +627,6 @@ export class AppConfigService implements OnModuleInit {
 
     return {
       formatVersion: dto.formatVersion,
-      compatible: dto.formatVersion === CONFIG_EXPORT_VERSION,
-      migrationRequired: dto.formatVersion !== CONFIG_EXPORT_VERSION,
       conflicts,
       restartRequiredKeys: Array.from(restartRequired),
       restartPlan: this.buildRestartPlan(Array.from(restartRequired)),
@@ -633,32 +644,9 @@ export class AppConfigService implements OnModuleInit {
   }
 
   async importConfig(dto: ImportApplicationConfigDto): Promise<ConfigImportResultDto> {
-    if (dto.formatVersion !== CONFIG_EXPORT_VERSION) {
-      throw new Error(`Unsupported configuration export format: ${dto.formatVersion}`);
-    }
-
-    const restartRequiredKeys = await this.replaceOverrides(dto.overrides || []);
-    const importedCount = (dto.overrides || []).length;
-
-    await this.auditLogRepository.save(
-      this.auditLogRepository.create({
-        action: AuditAction.CONFIG_IMPORTED,
-        description: `Imported ${importedCount} configuration overrides`,
-        level: AuditLevel.INFO,
-        status: AuditStatus.SUCCESS,
-        resource: 'config',
-        details: {
-          after: {
-            importedCount,
-            restartRequiredKeys,
-          },
-        },
-        metadata: {
-          count: importedCount,
-          tags: ['config', 'p2', 'import'],
-        },
-      }),
-    );
+    const records = this.validateImportRecords(dto);
+    const restartRequiredKeys = await this.replaceOverrides(records);
+    const importedCount = records.length;
 
     return {
       importedCount,
@@ -727,7 +715,7 @@ export class AppConfigService implements OnModuleInit {
     const snapshot = backup.snapshot as unknown as ConfigExportDto;
     const result = await this.importConfig({
       formatVersion: snapshot.formatVersion,
-      overrides: snapshot.overrides || [],
+      overrides: snapshot.overrides,
     });
 
     await this.auditLogRepository.save(
@@ -1135,13 +1123,11 @@ export class AppConfigService implements OnModuleInit {
       return undefined;
     }
 
-    if (spec.valueType === 'number') {
-      return Number(value);
+    if (typeof value !== spec.valueType ||
+        (typeof value === 'number' && !Number.isFinite(value))) {
+      throw new BadRequestException(`Expected ${spec.valueType} for ${spec.section}.${spec.field}`);
     }
-    if (spec.valueType === 'boolean') {
-      return Boolean(value);
-    }
-    return String(value);
+    return value as string | number | boolean;
   }
 
   private validateOverrideValue(spec: ConfigFieldSpec, value: string | number | boolean) {

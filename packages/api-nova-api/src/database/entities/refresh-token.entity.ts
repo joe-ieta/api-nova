@@ -13,7 +13,7 @@ import {
   getIpColumnOptions,
   getTimestampColumnOptions,
   getUuidColumnOptions,
-} from '../db-compat';
+} from '../database-dialect';
 
 @Entity('refresh_tokens')
 @Index(['token'], { unique: true })

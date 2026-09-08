@@ -11,7 +11,7 @@ import { Role } from './role.entity';
 import {
   getEnumColumnOptions,
   getJsonColumnOptions,
-} from '../db-compat';
+} from '../database-dialect';
 
 export enum PermissionCategory {
   SYSTEM = 'system',

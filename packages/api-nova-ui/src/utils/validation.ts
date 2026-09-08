@@ -169,56 +169,10 @@ export const validateServerConfig = (
     });
   }
 
-  // 验证端点 URL
-  if (!config.endpoint) {
-    errors.push({
-      path: "endpoint",
-      message: "服务器端点不能为空",
-      severity: "error",
-      code: "REQUIRED_FIELD",
-    });
-  } else {
-    try {
-      const url = new URL(config.endpoint);
-      if (!["http:", "https:"].includes(url.protocol)) {
-        errors.push({
-          path: "endpoint",
-          message: "端点必须使用 HTTP 或 HTTPS 协议",
-          severity: "error",
-          code: "INVALID_PROTOCOL",
-        });
-      }
-    } catch {
-      errors.push({
-        path: "endpoint",
-        message: "端点 URL 格式无效",
-        severity: "error",
-        code: "INVALID_URL",
-      });
-    }
+  if (!config.openApiData || typeof config.openApiData !== "object" || Array.isArray(config.openApiData)) {
+    errors.push({ path: "openApiData", message: "OpenAPI data must be an object",
+      severity: "error", code: "REQUIRED_FIELD" });
   }
-
-  // 验证 OpenAPI 规范
-  if (!config.openApiSpec) {
-    errors.push({
-      path: "openApiSpec",
-      message: "OpenAPI 规范不能为空",
-      severity: "error",
-      code: "REQUIRED_FIELD",
-    });
-  }
-
-  // 验证认证配置
-  if (config.authentication) {
-    const authErrors = validateAuthConfig(config.authentication);
-    errors.push(
-      ...authErrors.map((err) => ({
-        ...err,
-        path: `authentication.${err.path}`,
-      })),
-    );
-  }
-
   return errors;
 };
 

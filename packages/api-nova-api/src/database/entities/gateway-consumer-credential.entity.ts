@@ -10,7 +10,7 @@ import {
   getEnumColumnOptions,
   getJsonColumnOptions,
   getTimestampColumnOptions,
-} from '../db-compat';
+} from '../database-dialect';
 
 export enum GatewayConsumerCredentialStatus {
   ACTIVE = 'active',

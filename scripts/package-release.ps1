@@ -76,7 +76,7 @@ CORS_ORIGINS=http://localhost:9001,http://127.0.0.1:9001
 DB_TYPE=sqlite
 DB_SQLITE_PATH=data/api-nova.db
 DB_LOGGING=false
-DB_SYNCHRONIZE=true
+DB_SYNCHRONIZE=false
 JWT_SECRET=api-nova-local-release-change-me
 JWT_REFRESH_SECRET=api-nova-local-release-refresh-change-me
 SUPER_ADMIN_USERNAME=admin
@@ -201,6 +201,10 @@ echo [ApiNova] Node %NODE_VERSION% (%RUNTIME_PLATFORM%)
 
 $windowsInstallBlock
 
+set "API_NOVA_ENV_FILE=%CD%\.env"
+%NODE_EXE% initialize-database.cjs
+if errorlevel 1 exit /b 1
+
 echo [ApiNova] Starting at http://127.0.0.1:9001/
 if not "%API_NOVA_NO_BROWSER%"=="1" start "" "http://127.0.0.1:9001/"
 %NODE_EXE% packages\api-nova-api\dist\src\main.js
@@ -228,6 +232,9 @@ runtime_platform="`$(`$NODE_EXE -p "process.platform + '-' + process.arch")"
 echo "[ApiNova] `$(`$NODE_EXE -v) (`${runtime_platform})"
 
 $linuxInstallBlock
+
+export API_NOVA_ENV_FILE="`$(pwd)/.env"
+"`$NODE_EXE" initialize-database.cjs
 
 echo "[ApiNova] Starting at http://127.0.0.1:9001/"
 if [ "`${API_NOVA_NO_BROWSER:-0}" != "1" ] && command -v xdg-open >/dev/null 2>&1; then
@@ -288,13 +295,14 @@ if (-not $SkipBuild) {
   Push-Location $repoRoot
   try {
     & $npmCommand run build
+    if ($LASTEXITCODE -ne 0) { throw 'Source build failed' }
   } finally {
     Pop-Location
   }
 }
 
-if (Test-Path $outputPath) {
-  Remove-Item -Path $outputPath -Recurse -Force
+if (Test-Path -LiteralPath $outputPath) {
+  throw 'OutputDir must be a new staging directory; existing output is never deleted automatically.'
 }
 
 New-Item -ItemType Directory -Force -Path $outputPath | Out-Null
@@ -307,7 +315,7 @@ Copy-Item -Path (Join-Path $repoRoot 'package-lock.json') -Destination (Join-Pat
 Remove-ReleaseLifecycleScripts `
   -PackageJsonPath (Join-Path $outputPath 'package.json') `
   -PackageLockPath (Join-Path $outputPath 'package-lock.json')
-Copy-IfExists (Join-Path $repoRoot '.npmrc') (Join-Path $outputPath '.npmrc')
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'initialize-release-database.cjs') -Destination (Join-Path $outputPath 'initialize-database.cjs')
 Copy-IfExists (Join-Path $repoRoot 'README.md') (Join-Path $outputPath 'README_PROJECT.md')
 
 foreach ($pkg in @('api-nova-api', 'api-nova-parser', 'api-nova-server')) {
@@ -337,10 +345,22 @@ Write-Readme -Path $outputPath -PackageMode $Mode -Platform $runtimePlatform
 if ($Mode -eq 'OfflineCurrentPlatform') {
   Push-Location $outputPath
   try {
-    & $npmCommand ci --omit=dev
+    & $npmCommand ci --omit=dev --no-audit --no-fund
+    if ($LASTEXITCODE -ne 0) { throw 'Production dependency installation failed' }
     $runtimePlatform | Set-Content -Path (Join-Path $outputPath '.api-nova-runtime-platform') -Encoding ASCII
   } finally {
     Pop-Location
+  }
+
+  # Materialize workspace links so Windows ZIP extraction needs no symlink privileges.
+  if ($IsWindows -or $env:OS -eq 'Windows_NT') {
+    foreach ($name in @('api-nova-api', 'api-nova-parser', 'api-nova-server', 'api-nova-ui')) {
+      $link = Join-Path $outputPath "node_modules/$name"
+      if ((Get-Item -LiteralPath $link -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+        Remove-Item -LiteralPath $link -Force
+        Copy-Item -LiteralPath (Join-Path $outputPath "packages/$name") -Destination $link -Recurse
+      }
+    }
   }
 
   if ($IncludeNode) {

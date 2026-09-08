@@ -6,8 +6,8 @@ import {
   ValidationWarning,
 } from 'api-nova-parser';
 
-// Keep local interface for backward compatibility
-export interface LocalValidationResult {
+// Management API validation response.
+export interface SpecificationValidationResult {
   valid: boolean;
   errors: string[];
   warnings: string[];
@@ -47,7 +47,7 @@ export class ValidatorService {
     }
   }
 
-  async validateSpecification(spec: any): Promise<LocalValidationResult> {
+  async validateSpecification(spec: any): Promise<SpecificationValidationResult> {
     try {
       this.logger.log('Starting OpenAPI specification validation');
 
@@ -62,7 +62,7 @@ export class ValidatorService {
 
       this.logger.log(`OpenAPI validation completed: ${validationResult.valid ? 'valid' : 'invalid'} with ${validationResult.errors.length} errors and ${validationResult.warnings.length} warnings`);
 
-      // Convert ValidationError[] and ValidationWarning[] to string[] for compatibility
+      // Map parser diagnostics to the management API response.
       return {
         valid: validationResult.valid,
         errors: validationResult.errors.map((err: ValidationError) => err.message),
@@ -78,15 +78,4 @@ export class ValidatorService {
     }
   }
 
-  /**
-   * Legacy validation method for backward compatibility
-   */
-  async validateSpecificationLegacy(spec: any): Promise<LocalValidationResult> {
-    const result = await this.validateSpecification(spec);
-    return {
-      valid: result.valid,
-      errors: result.errors,
-      warnings: result.warnings
-    };
-  }
 }

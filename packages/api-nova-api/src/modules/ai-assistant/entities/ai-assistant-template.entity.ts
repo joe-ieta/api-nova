@@ -10,7 +10,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   getEnumColumnOptions,
   getJsonColumnOptions,
-} from '../../../database/db-compat';
+} from '../../../database/database-dialect';
 
 export enum AssistantType {
   CLAUDE_DESKTOP = 'claude_desktop',

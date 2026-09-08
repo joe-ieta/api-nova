@@ -1,12 +1,12 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
-doc-updated: 2026-09-07
+doc-updated: 2026-09-08
 ---
 # Database Mode Quickstart
 
 > Document status: Active
-> Last reviewed: 2026-07-22
+> Last reviewed: 2026-09-08
 
 This project supports two database modes:
 
@@ -34,10 +34,11 @@ JWT_REFRESH_SECRET=change-this-refresh-secret
 API_KEY=change-this-api-key
 ```
 
-Start:
+Initialize a NEW empty database, then start (the migration targets the API environment file):
 
 ```bash
 npm run build --workspace api-nova-api
+npm run migration:run --workspace api-nova-api
 node packages/api-nova-api/dist/src/main.js
 ```
 
@@ -93,21 +94,19 @@ Notes:
 - PostgreSQL mode is active only when `DB_TYPE=postgres` is set explicitly
 - PostgreSQL is recommended for heavier write volume and multi-user operation
 
-Reset database when you need a clean baseline:
-
-Windows PowerShell:
-
-```powershell
-psql -U postgres -h localhost -p 5432 -d postgres -c "DROP DATABASE IF EXISTS api_nova_api;"
-psql -U postgres -h localhost -p 5432 -d postgres -c "CREATE DATABASE api_nova_api;"
-```
-
-Ubuntu:
+For an isolated blank database or smoke test, without resetting the configured database:
 
 ```bash
-sudo -u postgres psql -d postgres -c "DROP DATABASE IF EXISTS api_nova_api;"
-sudo -u postgres psql -d postgres -c "CREATE DATABASE api_nova_api;"
+npm run build --workspace api-nova-api
+npm run db:create-empty --workspace api-nova-api -- postgres
+npm run db:smoke --workspace api-nova-api -- postgres --keep
 ```
+
+The command prints a new database name. Set `DB_DATABASE` to that name if you choose to use it. It already contains the initial migration; starting the API will add required seed users/roles.
+
+For an explicitly selected NEW empty application database, run `npm run migration:run --workspace api-nova-api` before starting the API. Never apply the initial migration to an existing business schema. Automatic schema synchronization is disabled in every mode.
+
+See [Database Strategy](database-strategy.md) for both SQL exports, environment precedence and schema regeneration.
 
 ## Product Guidance
 

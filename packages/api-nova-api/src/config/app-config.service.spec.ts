@@ -46,6 +46,12 @@ describe('AppConfigService', () => {
     backupRepository.create.mockClear();
     backupRepository.delete.mockClear();
 
+    (overrideRepository as any).manager = {
+      transaction: jest.fn(async (callback) => callback({
+        getRepository: (entity: unknown) => entity === ConfigOverrideEntity ? overrideRepository : auditRepository,
+      })),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AppConfigService,
@@ -198,8 +204,7 @@ describe('AppConfigService', () => {
       ],
     });
 
-    expect(preview.compatible).toBe(true);
-    expect(preview.migrationRequired).toBe(false);
+    expect(preview.formatVersion).toBe('config-overrides/v1');
     expect(preview.conflicts).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -208,5 +213,31 @@ describe('AppConfigService', () => {
         }),
       ]),
     );
+  });
+  it('rejects historical formats without touching persistent overrides', async () => {
+    await expect(service.importConfig({ formatVersion: '1.0.0', overrides: [] }))
+      .rejects.toThrow('Only config-overrides/v1');
+    expect(overrideRepository.delete).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed and duplicate records before any delete', async () => {
+    const record = { envKey: 'LOG_LEVEL', section: 'logging', field: 'level',
+      valueType: 'string' as const, value: 'warn', restartRequired: false };
+    await expect(service.importConfig({ formatVersion: 'config-overrides/v1',
+      overrides: [record, record] })).rejects.toThrow('Duplicate');
+    await expect(service.importConfig({ formatVersion: 'config-overrides/v1',
+      overrides: [{ ...record, value: 1 }] })).rejects.toThrow('Invalid');
+    expect(overrideRepository.delete).not.toHaveBeenCalled();
+  });
+
+  it('keeps the effective cache unchanged when a transaction fails', async () => {
+    overrideRepository.find.mockResolvedValue([{ envKey: 'LOG_LEVEL', value: 'debug' }]);
+    await service.reloadOverrides();
+    overrideRepository.save.mockRejectedValueOnce(new Error('write failed'));
+    await expect(service.importConfig({ formatVersion: 'config-overrides/v1', overrides: [{
+      envKey: 'LOG_LEVEL', section: 'logging', field: 'level', valueType: 'string',
+      value: 'warn', restartRequired: false,
+    }] })).rejects.toThrow('write failed');
+    expect(service.getAllConfig().logging.level).toBe('debug');
   });
 });

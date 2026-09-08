@@ -1,28 +1,36 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsObject, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { Allow, Equals, IsArray, IsBoolean, IsIn, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApplicationConfigResponseDto } from './config-response.dto';
 
 export class ConfigTransferOverrideDto {
   @ApiProperty()
+  @IsString()
   envKey: string;
 
   @ApiProperty()
+  @IsString()
   section: string;
 
   @ApiProperty()
+  @IsString()
   field: string;
 
   @ApiProperty({ enum: ['string', 'number', 'boolean'] })
+  @IsIn(['string', 'number', 'boolean'])
   valueType: 'string' | 'number' | 'boolean';
 
   @ApiProperty()
+  @Allow()
   value: string | number | boolean;
 
   @ApiProperty()
+  @IsBoolean()
   restartRequired: boolean;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   description?: string;
 }
 
@@ -42,7 +50,7 @@ export class ConfigExportDto {
 
 export class ImportApplicationConfigDto {
   @ApiProperty({ default: 'config-overrides/v1' })
-  @IsString()
+  @Equals('config-overrides/v1')
   formatVersion: string;
 
   @ApiProperty({ type: [ConfigTransferOverrideDto] })
@@ -115,12 +123,6 @@ export class ConfigImportPreviewConflictDto {
 export class ConfigImportPreviewDto {
   @ApiProperty()
   formatVersion: string;
-
-  @ApiProperty()
-  compatible: boolean;
-
-  @ApiProperty()
-  migrationRequired: boolean;
 
   @ApiProperty({ type: [ConfigImportPreviewConflictDto] })
   conflicts: ConfigImportPreviewConflictDto[];

@@ -1,8 +1,6 @@
 import { io, Socket } from "socket.io-client";
-import type { SystemMetrics, MCPServer } from "@/types";
+import type { MCPServer } from "@/types";
 
-// 临时移除调试器导入，避免模块问题
-// import { wsDebugger } from "@/utils/websocket-debug";
 
 export interface WebSocketEvents {
   "runtime:overview": (payload: any) => void;
@@ -10,36 +8,6 @@ export interface WebSocketEvents {
   "runtime:event": (payload: any) => void;
   "runtime:log": (payload: any) => void;
   "runtime:alert": (payload: any) => void;
-  "runtime:system-metrics": (metrics: SystemMetrics) => void;
-  "runtime:server-metrics": (data: {
-    serverId: string;
-    runtimeAssetId?: string;
-    metrics: SystemMetrics;
-    summary?: any;
-  }) => void;
-  "runtime:server-status": (data: {
-    serverId: string;
-    status: MCPServer["status"];
-    error?: string;
-  }) => void;
-  "runtime:process-info": (data: {
-    serverId: string;
-    runtimeAssetId?: string;
-    processInfo: any;
-  }) => void;
-  "runtime:process-log": (data: {
-    serverId: string;
-    runtimeAssetId?: string;
-    logData?: {
-      id?: string;
-      level?: string;
-      message?: string;
-      timestamp?: string | Date;
-      source?: string;
-      metadata?: Record<string, any>;
-    };
-    timestamp?: string | Date;
-  }) => void;
   "server:created": (server: MCPServer) => void;
   "server:updated": (server: MCPServer) => void;
   "server:deleted": (serverId: string) => void;
@@ -64,123 +32,6 @@ export class WebSocketService {
   private readonly DEBUG = (import.meta as any).env?.VITE_WS_DEBUG === "true";
   private d(...args: any[]) {
     if (this.DEBUG) console.log("[WebSocketService]", ...args);
-  }
-
-  private mapRuntimeEventToServerStatus(payload: any): MCPServer["status"] | null {
-    const family = String(payload?.family || "");
-    const status = String(payload?.status || "").toLowerCase();
-
-    if (family === "runtime.health") {
-      return status === "failed" ? "error" : "running";
-    }
-    if (family === "runtime.lifecycle") {
-      if (status === "failed") return "error";
-      if (status === "offline") return "stopped";
-      if (status === "degraded") return "starting";
-      return "running";
-    }
-
-    return null;
-  }
-
-  private emitLegacyMetricsFromRuntimeOverview(payload: any): void {
-    const metrics = payload?.data?.metrics;
-    if (metrics) {
-      this.emitEvent("runtime:system-metrics", metrics as SystemMetrics);
-    }
-  }
-
-  private emitLegacyServerMetricsFromRuntimeAsset(payload: any): void {
-    const observability = payload?.data?.normalizedObservability;
-    const managedServerId =
-      observability?.currentState?.managedServer?.id ||
-      payload?.data?.runtimeSummary?.managedServer?.id;
-    const runtimeAssetId = payload?.runtimeAssetId;
-    if (!managedServerId) {
-      return;
-    }
-
-    const summary = observability?.metricsSummary || {};
-    const eventPayload = {
-      serverId: managedServerId,
-      runtimeAssetId,
-      metrics: {
-        totalRequests: Number(summary?.counters?.requestCount || 0),
-        successfulRequests: Number(summary?.counters?.successCount || 0),
-        failedRequests: Number(summary?.counters?.errorCount || 0),
-        averageResponseTime: Number(summary?.latency?.averageMs || 0),
-        activeConnections: 0,
-        errorRate: 0,
-        uptime: 0,
-      } as any,
-      summary,
-    };
-
-    this.emitEvent("runtime:server-metrics", eventPayload);
-  }
-
-  private emitLegacyProcessInfoFromRuntimeAsset(payload: any): void {
-    const managedServerId =
-      payload?.managedServerId ||
-      payload?.data?.normalizedObservability?.currentState?.managedServer?.id ||
-      payload?.data?.runtimeSummary?.managedServer?.id;
-    const processInfo = payload?.liveProcessInfo;
-
-    if (!managedServerId || !processInfo) {
-      return;
-    }
-
-    const eventPayload = {
-      serverId: managedServerId,
-      runtimeAssetId: payload?.runtimeAssetId,
-      processInfo,
-    };
-
-    this.emitEvent("runtime:process-info", eventPayload);
-  }
-
-  private emitLegacyServerStatusFromRuntimeEvent(payload: any): void {
-    if (!payload?.managedServerId) {
-      return;
-    }
-
-    const mappedStatus = this.mapRuntimeEventToServerStatus(payload);
-    if (!mappedStatus) {
-      return;
-    }
-
-    const eventPayload = {
-      serverId: payload.managedServerId,
-      status: mappedStatus,
-      error:
-        mappedStatus === "error"
-          ? payload?.details?.errorMessage || payload?.summary
-          : undefined,
-    };
-
-    this.emitEvent("runtime:server-status", eventPayload);
-  }
-
-  private emitLegacyProcessLogFromRuntimeLog(payload: any): void {
-    if (!payload?.managedServerId) {
-      return;
-    }
-
-    const eventPayload = {
-      serverId: payload.managedServerId,
-      runtimeAssetId: payload?.runtimeAssetId,
-      logData: {
-        id: payload.id,
-        level: payload.level,
-        message: payload.message,
-        timestamp: payload.timestamp,
-        source: payload.source,
-        metadata: payload.details || undefined,
-      },
-      timestamp: payload.timestamp,
-    };
-
-    this.emitEvent("runtime:process-log", eventPayload);
   }
 
   constructor(private url: string = "/monitoring") {
@@ -410,23 +261,18 @@ export class WebSocketService {
 
     this.socket.on("runtime-overview", (data: any) => {
       this.emitEvent("runtime:overview", data);
-      this.emitLegacyMetricsFromRuntimeOverview(data);
     });
 
     this.socket.on("runtime-asset-observability", (data: any) => {
       this.emitEvent("runtime:asset", data);
-      this.emitLegacyServerMetricsFromRuntimeAsset(data);
-      this.emitLegacyProcessInfoFromRuntimeAsset(data);
     });
 
     this.socket.on("runtime-event", (data: any) => {
       this.emitEvent("runtime:event", data);
-      this.emitLegacyServerStatusFromRuntimeEvent(data);
     });
 
     this.socket.on("runtime-log", (data: any) => {
       this.emitEvent("runtime:log", data);
-      this.emitLegacyProcessLogFromRuntimeLog(data);
     });
 
     this.socket.on("runtime-alert", (data: any) => {
@@ -510,11 +356,6 @@ export class WebSocketService {
       "runtime:event",
       "runtime:log",
       "runtime:alert",
-      "runtime:system-metrics",
-      "runtime:server-metrics",
-      "runtime:server-status",
-      "runtime:process-info",
-      "runtime:process-log",
       "server:created",
       "server:updated",
       "server:deleted",
@@ -645,7 +486,6 @@ export class WebSocketService {
   // 取消订阅进程信息更新
   unsubscribeFromProcessInfo(runtimeAssetId: string): void {
     if (!runtimeAssetId) return;
-    // 兼容旧通用unsubscribe & 新事件
     this.emit("unsubscribe-runtime-asset", { runtimeAssetId });
   }
 

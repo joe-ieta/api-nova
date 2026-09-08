@@ -19,7 +19,7 @@ import {
   getIpColumnOptions,
   getJsonColumnOptions,
   getTimestampColumnOptions,
-} from '../db-compat';
+} from '../database-dialect';
 
 
 export enum UserStatus {

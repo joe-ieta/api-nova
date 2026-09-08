@@ -16,10 +16,10 @@ export const validationSchema = Joi.object({
   DB_HOST: Joi.string().default('localhost'),
   DB_PORT: Joi.number().port().default(5432),
   DB_USERNAME: Joi.string().default('postgres'),
-  DB_PASSWORD: Joi.string().default('password'),
+  DB_PASSWORD: Joi.string().allow('').optional(),
   DB_DATABASE: Joi.string().default('api_nova_api'),
   DB_LOGGING: Joi.boolean().default(false),
-  DB_SYNCHRONIZE: Joi.boolean().default(false),
+  DB_SYNCHRONIZE: Joi.boolean().valid(false).default(false),
   DB_SSL: Joi.boolean().optional(),
   DB_SSL_REJECT_UNAUTHORIZED: Joi.boolean().optional(),
 

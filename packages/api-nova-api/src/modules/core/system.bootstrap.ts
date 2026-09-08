@@ -82,7 +82,7 @@ export class SystemBootstrap implements OnApplicationBootstrap {
     } else {
       this.logger.log('🔧 开发环境提醒:');
       this.logger.log('   ℹ️ 默认超级用户已创建，请查看日志获取登录信息');
-      this.logger.log('   ℹ️ 数据库同步已启用，结构变更将自动应用');
+      this.logger.log('   Database schema is managed by explicit initial-schema migrations.');
     }
   }
 

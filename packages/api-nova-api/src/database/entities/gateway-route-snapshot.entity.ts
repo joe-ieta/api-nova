@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
-import { getJsonColumnOptions, getTimestampTzColumnOptions } from '../db-compat';
+import { getJsonColumnOptions, getTimestampTzColumnOptions } from '../database-dialect';
 
 @Entity('gateway_route_snapshots')
 @Index(['runtimeAssetId', 'revision'], { unique: true })

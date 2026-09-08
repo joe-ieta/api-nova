@@ -1,12 +1,12 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
-doc-updated: 2026-09-07
+doc-updated: 2026-09-08
 ---
 # Release Readiness Checklist
 
 > Document status: Active
-> Last reviewed: 2026-09-06
+> Last reviewed: 2026-09-08
 
 Use this checklist before cutting a release or calling the current baseline publishable.
 
@@ -149,7 +149,7 @@ Verify:
 - startup logs clearly report `Database mode: postgres`
 - schema initialization and migrations succeed
 
-Current target on September 6, 2026: 40 domain tables plus the migration ledger, including `config_overrides` and `config_backups`. Isolated SQLite verification and full API startup without automatic schema synchronization passed. The 40-table PostgreSQL migration/startup check remains required (`EXT-11`); do not reuse the older 38-table result as current release evidence.
+Current target on September 8, 2026: 43 domain tables plus the migration ledger, including the configuration and three process/health tables. Both isolated SQLite and PostgreSQL migration, persistence and complete API-startup checks passed with zero schema drift and automatic synchronization disabled. See [Persistence Cleanup Review](../audits/2026-09-08-persistence-cleanup.md).
 
 Historical clean-schema verification on July 21, 2026:
 
@@ -160,7 +160,7 @@ Historical clean-schema verification on July 21, 2026:
 - the nine runtime-instance, endpoint-testing, upstream-binding, verification, and persisted Gateway snapshot tables are present
 - `source_service_assets` contains no legacy runtime host/port columns
 - PostgreSQL uses a native UUID foreign key for `source_service_instances.sourceServiceAssetId`
-- verification commands are `npm run db:verify-isolated-sqlite --workspace api-nova-api` and `npm run db:verify-isolated-postgres --workspace api-nova-api`
+- the old verifier commands are superseded; use `npm run db:smoke --workspace api-nova-api -- sqlite` and `npm run db:smoke --workspace api-nova-api -- postgres` for the current model
 
 ## 9. Endpoint Registry Verification
 

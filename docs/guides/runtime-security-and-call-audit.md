@@ -1,7 +1,7 @@
 # 安全调用与日志审计
 
 > Document status: Active implementation contract
-> Last reviewed: 2026-09-07
+> Last reviewed: 2026-09-08
 
 > Scope note (2026-09-07): Runtime Auth 已收敛为 JWT、API Key、显式 Anonymous；OAuth2 与 MCP 2026-07 无状态协议均不在当前范围。实施状态以 [安全开发执行与状态记录](./security-development-execution-status.md) 为准。
 
@@ -148,6 +148,6 @@ npm run verify:parser-chain
 
 联调修复两项入口缺口：关闭 Nest 自动追加的正文解析器，防止其提前消费 Gateway 请求流；普通请求日志跳过 Gateway 流式响应，由统一审计器负责采集。管理 API 仍保留 JSON/表单解析。HTTP 异常日志中的敏感 Query 同样脱敏。
 
-`config_overrides`、`config_backups` 已直接纳入 PG/SQLite canonical baseline，当前基线为 40 张业务表，不再加载后置兼容迁移。关闭 `DB_SYNCHRONIZE` 的部署需要先构建、执行 `npm run migration:run --workspace api-nova-api`，再启动 API；该命令作用于配置的数据库，应先确认目标。开发阶段结构变化直接重建数据库，不承诺历史数据迁移。迁移 CLI 从当前进程环境读取 `DB_TYPE`、`DB_DATABASE` 等连接参数，不会自动加载 API 的 `.env`；必须显式设置目标，不能依赖应用启动时的配置加载。
+`config_overrides`、`config_backups` 及三张进程/健康检查表均纳入 PG/SQLite 单一初始迁移，当前为 43 张业务表。`DB_SYNCHRONIZE=true` 被拒绝；应先构建、确认配置指向全新空库、执行 `npm run migration:run --workspace api-nova-api`，再启动 API。应用与迁移 CLI 统一加载 API 包内 `.env` 系列文件，进程环境优先，也可用 `API_NOVA_ENV_FILE` 指定文件。隔离建库与冒烟入口见 [数据库策略](database-strategy.md)。本地 PG/SQLite 已完成真实初始化、持久化与 API 启动验证；不提供历史数据迁移，也未操作现有业务库。
 
-测试只信任本次生成的临时证书，不关闭 TLS 验证，不修改系统证书库。Windows 默认使用 Git 附带的 OpenSSL，也可通过 `API_NOVA_TEST_OPENSSL` 指定路径；Linux 使用 PATH 中的 OpenSSL。运行前先执行 `npm run build:packages`。测试夹具直接构造已部署路由快照，不代表注册、治理、发布全过程验收；本地 JWKS 服务不代表外部 OAuth 登录/用户同意流程。外部提供方与 PostgreSQL 实例验收仍在 open-items 中。
+测试只信任本次生成的临时证书，不关闭 TLS 验证，不修改系统证书库。Windows 默认使用 Git 附带的 OpenSSL，也可通过 `API_NOVA_TEST_OPENSSL` 指定路径；Linux 使用 PATH 中的 OpenSSL。运行前先执行 `npm run build:packages`。测试夹具直接构造已部署路由快照，不代表注册、治理、发布全过程验收；本地 JWKS 服务不代表外部 OAuth 登录/用户同意流程。外部身份提供方与生产运维验收仍在 open-items 中，本地隔离 PostgreSQL 验证结果见 [清理审查记录](../audits/2026-09-08-persistence-cleanup.md)。

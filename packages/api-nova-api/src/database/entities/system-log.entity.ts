@@ -13,7 +13,7 @@ import {
   getEnumColumnOptions,
   getJsonColumnOptions,
   getUuidColumnOptions,
-} from '../db-compat';
+} from '../database-dialect';
 
 export enum SystemLogEventType {
   // MCP服务器生命周期事件

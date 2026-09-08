@@ -1,9 +1,11 @@
 > 2026-09-07: 本目录的旧记录描述来源分支当时的静态审查结果，不代表当前合并结果已经通过验证。请以 [审查性合并记录](./2026-09-07-reviewed-merge.md) 的问题处理与测试证据为准。
 
+> 2026-09-08: 数据库与持久化清理、43 表 PG/SQLite 空库及完整回归结果见 [本轮清理审查记录](./2026-09-08-persistence-cleanup.md)。旧报告中的 38/40 表与环境阻塞结论保留为历史证据。
+
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
-doc-updated: 2026-09-07
+doc-updated: 2026-09-08
 ---
 # ApiNova 审查报告索引
 
@@ -31,6 +33,8 @@ doc-updated: 2026-09-07
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | A1 | [2026-09-04-manual-registration-publication.md](./2026-09-04-manual-registration-publication.md) | 2026-09-04 | 手工服务注册 → 发布为代理服务（MCP / Gateway）能力与实现 | 11 | 3 高 | `已整改` | 2026-09-04 |
 
+| A2 | [2026-09-08-persistence-cleanup.md](./2026-09-08-persistence-cleanup.md) | 2026-09-08 | 数据库、持久化及关联历史兼容清理 | 7 | 4 P1 | `已整改`（本地验证范围） | 2026-09-08 |
+
 ## 整改完成情况跟踪
 
 ### 报告 A1：手工注册发布代理服务审查（2026-09-04）
@@ -50,6 +54,13 @@ doc-updated: 2026-09-07
 | A1-11 | `packages/api-nova-ui/src` 为空目录，UI 侧运营闭环源码缺失 | 中 | `已整改` | 2026-09-04 | 开发 | 从 git HEAD 恢复 122 个 UI 源文件到 `api-nova/packages/api-nova-ui/src`（含 EndpointRegistry 的 governance/publication workbench） |
 
 > 注：本次整改以静态代码验证为主（tsc 对改动文件无新增错误）；本机 jest 依赖在当前 monorepo 迁移后的 node_modules 状态下未就绪，运行级 E2E 复核列为后续项，待环境修复后补充。个别结论（如空 schema/含 `/` 工具名在真实 MCP 客户端的表现）建议端到端联调复核。
+
+### 报告 A2：数据库与持久化清理（2026-09-08）
+
+- PC-01 至 PC-07 已修复，范围与代码入口见报告。
+- API 45 套件/237 例、Parser 8 套件/30 例、Server 6 组冒烟全部通过。
+- PG、SQLite 各 43 张业务表通过零数据、零结构差异、事务和完整 API 启动检查；九阶段门禁与七项安全联调通过。
+- 生产部署、Ubuntu、交互式 UI 与真实外部身份提供方验收不在本地通过结论之内。
 
 ## 使用说明
 

@@ -19,7 +19,6 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function prepareDatabase(fixture) {
   const { AppDataSource: db } = require(path.join(apiDist, 'database/data-source.js'));
-  db.setOptions({ migrations: [path.join(apiDist, 'database/migrations/*Canonical*.js')] });
   await db.initialize();
   try {
     await db.runMigrations({ transaction: 'all' });

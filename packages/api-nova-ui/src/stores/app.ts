@@ -119,14 +119,14 @@ export const useAppStore = defineStore("app", () => {
     globalSettings.value = { ...globalSettings.value, ...settings };
     // 持久化到本地存储
     localStorage.setItem(
-      "mcp-gateway-settings",
+      "api-nova-settings",
       JSON.stringify(globalSettings.value),
     );
   };
 
   const loadGlobalSettings = () => {
     try {
-      const saved = localStorage.getItem("mcp-gateway-settings");
+      const saved = localStorage.getItem("api-nova-settings");
       if (saved) {
         const parsedSettings = JSON.parse(saved);
         globalSettings.value = { ...globalSettings.value, ...parsedSettings };

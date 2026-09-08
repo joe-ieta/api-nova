@@ -13,7 +13,7 @@ import {
   getJsonColumnOptions,
   getTimestampColumnOptions,
   getUuidColumnOptions,
-} from '../db-compat';
+} from '../database-dialect';
 import { SourceServiceAssetEntity } from './source-service-asset.entity';
 
 export enum SourceServiceInstanceStatus {

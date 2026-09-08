@@ -66,13 +66,13 @@ try {
     'src/headers/RuntimeCredentialRef.integration.test.ts',
   ]);
   run('server build', ['run', 'build', '--workspace', 'api-nova-server']);
-    run('API build', ['run', 'build', '--workspace', 'api-nova-api']);
+  run('API build', ['run', 'build', '--workspace', 'api-nova-api']);
   run('UI type check', ['run', 'type-check', '--workspace', 'api-nova-ui']);
   run('runtime closure API tests', [
     'run', 'test', '--workspace', 'api-nova-api', '--', '--runInBand', ...apiSuites,
   ]);
-  run('isolated SQLite baseline', ['run', 'db:verify-isolated-sqlite', '--workspace', 'api-nova-api']);
-  run('isolated PostgreSQL baseline', ['run', 'db:verify-isolated-postgres', '--workspace', 'api-nova-api']);
+  run('isolated SQLite schema and persistence', ['run', 'db:smoke', '--workspace', 'api-nova-api', '--', 'sqlite']);
+  run('isolated PostgreSQL schema and persistence', ['run', 'db:smoke', '--workspace', 'api-nova-api', '--', 'postgres']);
   console.log(`\n${JSON.stringify({ passed: true, checkCount: checks.length, checks })}`);
 } catch (error) {
   console.error(`\n[runtime-closure] ${error.message || error}`);

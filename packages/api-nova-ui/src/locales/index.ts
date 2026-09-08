@@ -10,7 +10,6 @@ export const SUPPORT_LOCALES: { value: Locale; label: string; flag: string }[] =
 ];
 
 const LOCALE_STORAGE_KEY = "api-nova-locale";
-const LEGACY_LOCALE_STORAGE_KEY = "mcp-gateway-locale";
 
 export const i18n = createI18n({
   legacy: false,
@@ -46,9 +45,7 @@ export function setLocale(locale: Locale) {
 
 export function loadLocalePreference(): Locale {
   try {
-    const saved =
-      (localStorage.getItem(LOCALE_STORAGE_KEY) as Locale) ||
-      (localStorage.getItem(LEGACY_LOCALE_STORAGE_KEY) as Locale);
+    const saved = localStorage.getItem(LOCALE_STORAGE_KEY) as Locale;
 
     if (saved && SUPPORT_LOCALES.some((item) => item.value === saved)) {
       return saved;

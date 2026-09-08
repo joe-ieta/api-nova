@@ -33,8 +33,7 @@ export interface McpServerConfig {
   auth?: AuthConfig;
 }
 
-// 为了保持向后兼容性，创建TransformOptions作为TransformerOptions的类型别名
-// 同时扩展一些api-nova-server特有的字段
+// Parser transformation options plus server-specific behavior.
 export interface TransformOptions extends TransformerOptions {
   // api-nova-server特有的字段
   tagFilter?: string[];

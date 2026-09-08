@@ -9,7 +9,7 @@ import {
   getEnumColumnOptions,
   getJsonColumnOptions,
   getTimestampTzColumnOptions,
-} from '../db-compat';
+} from '../database-dialect';
 
 export enum RuntimeMetricScope {
   RUNTIME_ASSET = 'runtime_asset',

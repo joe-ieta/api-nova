@@ -8,7 +8,7 @@ import {
 import {
   getEnumColumnOptions,
   getJsonColumnOptions,
-} from '../db-compat';
+} from '../database-dialect';
 
 export enum PublicationAuditAction {
   RUNTIME_ASSET_CREATED = 'runtime_asset.created',

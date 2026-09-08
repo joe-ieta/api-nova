@@ -11,8 +11,6 @@ export {
   HttpMethod
 } from 'api-nova-parser';
 
-// Re-export ParsedEndpoint as alias for ApiEndpoint for backward compatibility
-export type ParsedEndpoint = import('api-nova-parser').ApiEndpoint;
 
 export interface MCPTool {
   name: string;
@@ -57,12 +55,6 @@ export interface ApiResponse<T = any> {
 }
 
 // ValidationResult is now imported from api-nova-parser
-// Keep local ValidationResult for backward compatibility if needed
-export interface LocalValidationResult {
-  valid: boolean;
-  errors: string[];
-  warnings: string[];
-}
 
 export interface HealthStatus {
   status: 'ok' | 'error' | 'shutting_down';

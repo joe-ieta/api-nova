@@ -5,7 +5,7 @@ import {
   Index,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { getJsonColumnOptions, getUuidColumnOptions } from '../db-compat';
+import { getJsonColumnOptions, getUuidColumnOptions } from '../database-dialect';
 
 @Entity('gateway_access_logs')
 @Index(['requestId'])

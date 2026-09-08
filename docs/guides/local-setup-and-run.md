@@ -1,13 +1,13 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
-doc-updated: 2026-09-07
+doc-updated: 2026-09-08
 ---
 # Local Setup And Run
 
 > Document status: Active
 > HTTP MCP 入站鉴权与调用日志配置见[安全调用与日志审计](./runtime-security-and-call-audit.md)。HTTP 入站必须显式选择 JWT、API Key 或 Anonymous；仅本机匿名测试使用 `API_NOVA_RUNTIME_AUTH_MODE=anonymous`。CLI 的上游 Bearer 参数不替代入站鉴权。
-> Last reviewed: 2026-09-06
+> Last reviewed: 2026-09-08
 
 This is the active setup and run baseline for the current product path.
 
@@ -163,28 +163,22 @@ Notes:
 - PostgreSQL mode is enabled only when `DB_TYPE=postgres` is set explicitly
 - PostgreSQL remains the recommended mode for heavier and longer-running deployments
 
-Clean reinitialization path:
-
-Windows PowerShell:
-
-```powershell
-psql -U postgres -h localhost -p 5432 -d postgres -c "DROP DATABASE IF EXISTS api_nova_api;"
-psql -U postgres -h localhost -p 5432 -d postgres -c "CREATE DATABASE api_nova_api;"
-```
-
-Ubuntu:
+Isolated clean initialization (does not reset the configured database):
 
 ```bash
-sudo -u postgres psql -d postgres -c "DROP DATABASE IF EXISTS api_nova_api;"
-sudo -u postgres psql -d postgres -c "CREATE DATABASE api_nova_api;"
+npm run build --workspace api-nova-api
+npm run db:create-empty --workspace api-nova-api -- postgres
+npm run db:smoke --workspace api-nova-api -- postgres --keep
 ```
+
+The commands print a newly created database name. To use that blank database, explicitly select it with `DB_DATABASE`. For a different NEW empty application database, first run `npm run migration:run --workspace api-nova-api`. Never run the initial migration on an existing business schema.
 
 Recommended validation after switching to PostgreSQL:
 
 Windows PowerShell:
 
 ```powershell
-cd E:\CodexDev\api-nova-server
+cd E:\CodexDev\api-nova
 npm run build --workspace api-nova-api
 $env:DB_TYPE="postgres"
 npm run test --workspace api-nova-api -- --runInBand
@@ -194,7 +188,7 @@ node packages\api-nova-api\dist\src\main.js
 Ubuntu:
 
 ```bash
-cd /path/to/api-nova-server
+cd /path/to/api-nova
 npm run build --workspace api-nova-api
 DB_TYPE=postgres npm run test --workspace api-nova-api -- --runInBand
 DB_TYPE=postgres node packages/api-nova-api/dist/src/main.js
@@ -207,10 +201,7 @@ Validation points:
 - `GET http://localhost:9001/api/health/live` returns `200`
 - `GET http://localhost:9001/api/system/initialization` returns initialized status
 
-Current verified baseline:
-
-- SQLite default path: build + test + startup
-- PostgreSQL path: database recreation, schema initialization, seed initialization, health endpoint, initialization endpoint, and full package test pass
+Current verified baseline (2026-09-08): both isolated engines pass 43-table initialization, zero rows/drift, transactional persistence and complete API startup with automatic synchronization disabled. This does not claim the full system-health probe or an interactive UI acceptance run. Details: [Persistence Cleanup Review](../audits/2026-09-08-persistence-cleanup.md).
 
 ## 4. Build Commands
 
@@ -321,8 +312,8 @@ Notes:
 1. `npm ci`
 2. Copy `.env.example` to `packages/api-nova-api/.env`
 3. Keep `DB_TYPE=sqlite` or omit it
-4. Start API
-5. Open `http://127.0.0.1:9001/api/docs`
+4. Build the API and run `npm run migration:run --workspace api-nova-api` against the NEW empty database
+5. Start API, then open `http://127.0.0.1:9001/api/docs`
 6. Start UI if needed
 7. Start runtime CLI if MCP endpoint testing is needed
 
@@ -332,8 +323,8 @@ Notes:
 2. Create database `api_nova_api`
 3. Configure `packages/api-nova-api/.env`
 4. Set `DB_TYPE=postgres`
-5. Start API
-6. Open `http://127.0.0.1:9001/api/docs`
+5. Build the API and run `npm run migration:run --workspace api-nova-api` against the NEW empty database
+6. Start API, then open `http://127.0.0.1:9001/api/docs`
 7. Start UI if needed
 
 ## 7. Verification Commands

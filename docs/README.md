@@ -1,12 +1,12 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
-doc-updated: 2026-09-07
+doc-updated: 2026-09-08
 ---
 # ApiNova Documentation Index
 
 > Document status: Active canonical index
-> Last reviewed: 2026-09-06
+> Last reviewed: 2026-09-08
 
 ## Documentation Classes
 
@@ -55,6 +55,16 @@ doc-updated: 2026-09-07
 - [API Gateway Architecture And Requirements](./guides/api-gateway-architecture-and-requirements.md)
 - [Versioning Policy](./reference/versioning-policy.md)
 - [GitHub Collaboration Workflow](./guides/github-collaboration-workflow.md)
+
+## Runtime Observability Enhancement
+
+Requirements and design defaults are approved. The development plan and endpoint-level contract await confirmation before coding. Planned endpoints are not yet available.
+
+- [Unified Call Logging And Observability Requirements](./guides/runtime-observability-requirements.md)
+- [Unified Call Logging And Observability Design](./reference/runtime-observability-design.md)
+- [Observability Public API Endpoints](./reference/runtime-observability-api-endpoints.md)
+- [Observability Development Task Plan](./guides/runtime-observability-development-task-plan.md)
+- [Observability Development Execution Status](./guides/runtime-observability-development-execution-status.md)
 
 ## Archive
 

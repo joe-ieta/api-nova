@@ -508,11 +508,6 @@ ${chalk.hex(this.theme.colors.warning)('更多信息:')}
       return [];
     }
 
-    // 兼容旧结构（直接是 key/value）
-    if (!customHeaders.static && !customHeaders.env && !customHeaders.dynamic && !customHeaders.conditional) {
-      return Object.keys(customHeaders);
-    }
-
     const names = new Set<string>();
     const addNames = (headers?: Record<string, string>) => {
       if (!headers) return;

@@ -3,7 +3,7 @@ import { LogLevel } from '../interfaces/process.interface';
 import {
   getEnumColumnOptions,
   getJsonColumnOptions,
-} from '../../../database/db-compat';
+} from '../../../database/database-dialect';
 
 @Entity('process_logs')
 @Index(['serverId'])

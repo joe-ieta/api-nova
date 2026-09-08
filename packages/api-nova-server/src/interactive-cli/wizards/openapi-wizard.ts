@@ -684,12 +684,7 @@ export class OpenAPIWizard {
    * 获取自定义请求头配置
    */
   private async getCustomHeadersConfig(existing?: CustomHeaders): Promise<CustomHeaders | null> {
-    const normalizedExisting: CustomHeaders | undefined =
-      existing && !('static' in existing) && !('env' in existing) && !('dynamic' in existing) && !('conditional' in existing)
-        ? { static: existing as Record<string, string> }
-        : existing;
-
-    let headers = { ...(normalizedExisting?.static || {}) };
+    let headers = { ...(existing?.static || {}) };
 
     while (true) {
       const currentHeaders = Object.entries(headers);
@@ -757,16 +752,16 @@ export class OpenAPIWizard {
 
     const hasStatic = Object.keys(headers).length > 0;
     const hasOther =
-      !!normalizedExisting?.env ||
-      !!normalizedExisting?.dynamic ||
-      !!normalizedExisting?.conditional;
+      !!existing?.env ||
+      !!existing?.dynamic ||
+      !!existing?.conditional;
 
     if (!hasStatic && !hasOther) {
       return null;
     }
 
     return {
-      ...normalizedExisting,
+      ...existing,
       static: headers
     };
   }

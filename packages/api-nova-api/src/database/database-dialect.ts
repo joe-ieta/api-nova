@@ -6,7 +6,9 @@ import { ColumnOptions } from 'typeorm';
 export type SupportedDatabaseType = 'sqlite' | 'postgres';
 
 export function getDatabaseType(value?: string): SupportedDatabaseType {
-  return value === 'postgres' ? 'postgres' : 'sqlite';
+  if (value === undefined || value === 'sqlite') return 'sqlite';
+  if (value === 'postgres') return 'postgres';
+  throw new Error(`Unsupported DB_TYPE: ${value}. Expected sqlite or postgres.`);
 }
 
 export function isSqliteDatabase(type?: string): boolean {
@@ -28,11 +30,11 @@ export function getEnumColumnOptions<T extends Record<string, string>>(
   enumObject: T,
   options: ColumnOptions = {},
 ): ColumnOptions {
-  const normalizedOptions = isSqliteDatabase(dbType)
-    ? options
-    : Object.fromEntries(
-        Object.entries(options).filter(([key]) => key !== 'length'),
-      );
+  // Neither PostgreSQL enums nor SQLite CHECK-backed enums persist a length.
+  // Keeping it in metadata creates perpetual SQLite schema rebuilds.
+  const normalizedOptions = Object.fromEntries(
+    Object.entries(options).filter(([key]) => key !== 'length'),
+  );
 
   return {
     type: isSqliteDatabase(dbType) ? 'simple-enum' : 'enum',

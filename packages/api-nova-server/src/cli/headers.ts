@@ -1,3 +1,4 @@
+import { assertStructuredHeaders } from '../utils/validation';
 import * as fs from 'fs';
 import { ServerOptions, ConfigFile } from './types';
 
@@ -42,19 +43,11 @@ export function parseCustomHeaders(
       };
     }
 
-    // Backward-compatible syntax: Key:Value
-    const colonIndex = trimmed.indexOf(':');
-    if (colonIndex > 0) {
-      return {
-        key: trimmed.slice(0, colonIndex).trim(),
-        value: trimmed.slice(colonIndex + 1).trim()
-      };
-    }
-
     return null;
   };
 
   if (config?.customHeaders) {
+    assertStructuredHeaders(config.customHeaders);
     Object.assign(customHeaders, config.customHeaders);
     hasConfig = true;
   }
@@ -62,10 +55,11 @@ export function parseCustomHeaders(
   if (options['custom-headers-config']) {
     try {
       const configFile = JSON.parse(fs.readFileSync(options['custom-headers-config'], 'utf8'));
+      assertStructuredHeaders(configFile);
       Object.assign(customHeaders, configFile);
       hasConfig = true;
     } catch (error: any) {
-      console.error(`Error loading custom headers config: ${error.message}`);
+      throw new Error(`Error loading custom headers config: ${error.message}`);
     }
   }
 
@@ -75,7 +69,8 @@ export function parseCustomHeaders(
     
     for (const header of staticHeaderArgs) {
       const pair = parseHeaderPair(header);
-      if (pair?.key && pair.value) {
+      if (!pair?.key || !pair.value) throw new Error('Custom headers must use KEY=VALUE');
+      if (pair.key && pair.value) {
         customHeaders.static[pair.key] = pair.value;
         hasConfig = true;
       }

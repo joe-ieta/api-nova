@@ -1,5 +1,5 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, Index } from 'typeorm';
-import { getJsonColumnOptions } from '../../../database/db-compat';
+import { getJsonColumnOptions } from '../../../database/database-dialect';
 
 @Entity('health_check_results')
 @Index(['serverId'])

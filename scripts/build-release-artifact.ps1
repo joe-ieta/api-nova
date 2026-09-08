@@ -44,7 +44,7 @@ foreach ($name in @('RELEASE_NOTES.md', 'QUICK_START.md')) {
 }
 
 if (Test-Path -LiteralPath $outputPath) {
-  Remove-Item -LiteralPath $outputPath -Recurse -Force
+  throw 'OutputDir already exists; use a new, versioned staging attempt'
 }
 New-Item -ItemType Directory -Force -Path $outputPath | Out-Null
 $stageRoot = Join-Path $outputPath 'stage'
@@ -147,11 +147,17 @@ $verification = [ordered]@{
   nativeDependencies = 'passed'
   stagingSmoke = 'passed'
   freshExtractionSmoke = 'passed'
+  offlineNetwork = 'non-loopback TCP and DNS blocked in Node processes'
   verifiedAtUtc = [DateTime]::UtcNow.ToString('o')
 }
 $verificationPath = Join-Path $outputPath "VERIFICATION-$PlatformId.json"
 $verification | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $verificationPath -Encoding UTF8
 
-Remove-Item -LiteralPath $stageRoot, $extractRoot -Recurse -Force
+foreach ($ownedPath in @($stageRoot, $extractRoot)) {
+  if ([IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($ownedPath)) -ne $outputPath) {
+    throw 'Unsafe staging cleanup path'
+  }
+  Remove-Item -LiteralPath $ownedPath -Recurse -Force
+}
 Write-Host "Release artifact created: $archivePath"
 Write-Host "SHA-256: $archiveHash"

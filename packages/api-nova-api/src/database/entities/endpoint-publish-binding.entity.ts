@@ -9,7 +9,7 @@ import {
 import {
   getEnumColumnOptions,
   getTimestampColumnOptions,
-} from '../db-compat';
+} from '../database-dialect';
 
 export enum PublicationReviewStatus {
   PENDING = 'pending',

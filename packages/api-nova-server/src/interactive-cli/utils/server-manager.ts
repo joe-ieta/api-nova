@@ -257,8 +257,7 @@ export class ServerManager extends EventEmitter {
     // 构建认证配置
     const authConfig = this.buildAuthConfig(config);
 
-    // 处理自定义请求头（兼容旧结构）
-    const customHeaders = this.normalizeCustomHeaders(config.customHeaders);
+    const customHeaders = config.customHeaders;
 
     // 构建操作过滤器 - 优先使用接口选择配置中的过滤器
     const operationFilter = this.buildOperationFilter(config.interfaceSelection, config.operationFilter, openApiData);
@@ -365,23 +364,6 @@ export class ServerManager extends EventEmitter {
       console.warn(`未支持的认证类型: ${authType}，将按无认证处理`);
     }
     return { type: 'none' };
-  }
-
-  /**
-   * 兼容旧结构的自定义请求头
-   */
-  private normalizeCustomHeaders(customHeaders?: any): any | undefined {
-    if (!customHeaders) return undefined;
-    const hasStructuredFields = typeof customHeaders === 'object' && (
-      'static' in customHeaders ||
-      'env' in customHeaders ||
-      'dynamic' in customHeaders ||
-      'conditional' in customHeaders
-    );
-    if (hasStructuredFields) {
-      return customHeaders;
-    }
-    return { static: customHeaders };
   }
 
   /**

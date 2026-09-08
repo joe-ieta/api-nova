@@ -133,7 +133,7 @@ export const useThemeStore = defineStore("theme", () => {
 
   const loadThemePreference = () => {
     try {
-      const saved = localStorage.getItem("mcp-gateway-theme");
+      const saved = localStorage.getItem("api-nova-theme");
       if (saved && ["light", "dark", "auto"].includes(saved)) {
         mode.value = saved as ThemeMode;
       }
@@ -144,7 +144,7 @@ export const useThemeStore = defineStore("theme", () => {
 
   const saveThemePreference = () => {
     try {
-      localStorage.setItem("mcp-gateway-theme", mode.value);
+      localStorage.setItem("api-nova-theme", mode.value);
     } catch (error) {
       console.warn("Failed to save theme preference:", error);
     }

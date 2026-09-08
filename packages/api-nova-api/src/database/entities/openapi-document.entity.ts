@@ -13,7 +13,7 @@ import { User } from './user.entity';
 import {
   getEnumColumnOptions,
   getJsonColumnOptions,
-} from '../db-compat';
+} from '../database-dialect';
 
 export enum DocumentStatus {
   DRAFT = 'draft',

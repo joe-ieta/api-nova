@@ -74,11 +74,6 @@ export interface ServerConfig {
   authConfig?: string;
   autoStart?: boolean;
   tags?: string[];
-  // 兼容旧字段
-  endpoint?: string;
-  openApiSpec?: string | File;
-  authentication?: AuthConfig;
-  customHeaders?: Record<string, string>;
 }
 
 export interface ServerMetrics {
@@ -120,8 +115,7 @@ export interface MCPServer {
   lastHealthCheck?: Date;
   createdAt: Date;
   updatedAt: Date;
-  // 兼容旧字段
-  config?: ServerConfig;
+  config?: Record<string, any>;
   tools?: MCPTool[];
   metrics?: ServerMetrics;
   lastError?: string;
@@ -400,7 +394,6 @@ export interface ExportOptions {
 export interface ImportResult {
   success: boolean;
   conflicts?: ConfigConflict[];
-  migrationRequired?: boolean;
   importedServers?: number;
   errors?: string[];
 }
