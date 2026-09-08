@@ -1,5 +1,5 @@
 ---
-doc-version: 1.1.3
+doc-version: 1.2.1
 doc-status: active
 doc-updated: 2026-09-08
 approval-status: approved
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.1.3，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.2.1，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -139,7 +139,7 @@ invocations 按 (timeBasis DESC, invocationId DESC) 排序；其他列表明确�
 | OBS-API-22 | POST /subscriptions/:id/test | obsTestSubscription | monitoring:subscription:manage | OBS-TP-12 |
 | OBS-API-23 | GET /deliveries | obsListDeliveries | monitoring:subscription:manage | OBS-TP-12 |
 | OBS-API-24 | GET /deliveries/:id | obsGetDelivery | monitoring:subscription:manage | OBS-TP-12 |
-| OBS-API-25 | POST /deliveries/:id/retry | obsRetryDelivery | monitoring:delivery:retry | OBS-TP-12 |
+| OBS-API-25 | POST /deliveries/:id/retry | obsRetryDelivery | monitoring:subscription:manage AND monitoring:delivery:retry | OBS-TP-12 |
 | OBS-API-26 | GET /pipeline/status | obsGetPipelineStatus | 基础；系统汇总另需全局资源范围 | OBS-TP-14 |
 | OBS-API-27 | GET /policies | obsGetPolicies | 基础 | OBS-TP-14 |
 | OBS-API-28 | PATCH /policies/:id | obsUpdatePolicy | monitoring:manage | OBS-TP-14 |
@@ -406,6 +406,60 @@ OBS-TP-15 将重复调用日志接口和现有调用方直接收敛到本文的�
 
 对外 sequence 仍为十进制字符串且允许有间隙；内部补零排序键不对客户端暴露。正文摘要中的 capturedDigest 与对象存储完整性摘要用途不同，客户端不得据此假设脱敏前后内容相同。更多实现边界见[存储基础说明](./runtime-observability-storage-foundation.md)。
 
-验证进度更新（2026-09-08）：48 项存储/GC 用例全部通过；PostgreSQL 四进程验证了提交/回滚顺序、未提交不可见、跨进程写入租约和孤立回收，schemaDrift=0、清理退出码 0。Linux 与全链路矩阵尚未执行，pg 非致命弃用警告仍待定位。TP-03 权限与 API 基础已就绪；存储模块尚未接入运行时，GC 也没有自动调度。
+验证进度更新（2026-09-08）：48 项存储/GC 用例全部通过；PostgreSQL 四进程验证了提交/回滚顺序、未提交不可见、跨进程写入租约和孤立回收，schemaDrift=0、清理退出码 0。Linux 与全链路矩阵尚未执行，pg 非致命弃用警告仍待定位。TP-03 权限与 API 基础已进入实施，但新增源码尚未构建或测试；存储模块尚未接入运行时，GC 也没有自动调度。
 
 正文过期后的调用审计元数据仍保留；正文读取接口实现时须维持 PAYLOAD_EXPIRED 语义。目录归属、内部租约、generation、文件路径和 GC 控制入口属于服务端内部机制，不增加对外清理 Endpoint，也不暴露磁盘路径。后续 OBS-API-26/27/28 由 TP-14 提供授权后的治理/健康视图，不能直接透传内部状态行。
+
+## 10. TP-03 公共 API 基础的实现约束
+
+本节对应已写入但未验证/部署的公共原语，不改变全部新 Endpoint 的 PLANNED 状态。本次新增代码不在此前提交 efb4536 中，也不包含新增 Token 签发 Endpoint。
+
+### 10.1 管理身份和细分权限
+
+复用现有管理登录/刷新流程签发访问 Token。新的可观测性 Guard 只接受 Authorization Bearer、HS256、aud=api-nova-management、iss=api-nova、tokenUse=management_access，并校验 exp/iat 与数据库中的当前账号状态。缺少用途声明的旧 Token、刷新 Token 和 Gateway/MCP 业务凭证不得用于新接口；新版本启用后通过既有登录/刷新流程取得管理访问 Token，不增加兼容降级。
+
+JWT_SECRET 至少为 32 字节，缺失或不足时新 Guard 返回 OBSERVABILITY_UNAVAILABLE，不使用默认弱密钥。角色、权限和资源范围每次由服务端读取，不相信 Token 自报的权限数组或用户 preferences/metadata。
+
+所有操作必须满足 monitoring:read 和本接口额外权限，按 AND 组合；正文叠加 monitoring:payload:read，原始 IP 叠加 monitoring:source:read，订阅与投递管理叠加 monitoring:subscription:manage，重投再叠加 monitoring:delivery:retry。monitoring:manage 不自动替代正文或 IP 的读取权限。四项新权限进入现有系统种子定义，但本轮没有执行种子或修改现有用户授权。
+
+### 10.2 资源范围配置
+
+受控角色管理 API 的 metadata.observabilityScope 支持两种形式：
+
+```json
+{"observabilityScope":{"mode":"assets","runtimeAssetIds":["runtime-example"]}}
+```
+
+```json
+{"observabilityScope":{"mode":"all"}}
+```
+
+每个角色最多 1000 个资产 ID；assets 空数组表示没有可见资产，缺少范围配置默认不授予新可观测性资源访问。启用的系统 super_admin 角色具有全局范围；其他账号，包括受管服务账号，均需要显式角色范围。角色创建/更新继续走现有安全管理权限及审计，不能通过请求筛选或用户资料扩大范围。
+
+同一权限的多个角色范围取并集，不同必需权限的范围再取交集；不能把 A 服务器上的正文权限与 B 服务器上的普通读取权限拼成 B 的正文访问权。禁用角色/权限不参与授权，未实现的 permission.conditions 非空条件不得被忽略并放行为无条件权限。
+
+集合查询必须把授权范围与请求范围取交集，空集必须落实为无结果条件；详情检查不可见资源返回通用 NOT_FOUND。跨资源 trace、IP 字段、订阅对象管理范围和系统级汇总仍须由对应服务调用这些基础校验，不能仅挂 Guard 就声称所有对象已授权。
+
+### 10.3 受控查询和签名游标
+
+每个 Endpoint 明确传入适用参数白名单，未知/重复数组/嵌套 query 拒绝。基础解析覆盖标量、枚举、UTC 时间、50/200 分页、时间区间、最多两个分组维度和 1440 个桶限制；支持维度组合、统计必填 scope/interval 等业务校验仍由 TP-09/10 实现。
+
+API_NOVA_OBSERVABILITY_CURSOR_SECRET 为独立的至少 32 字节服务端随机秘密；API_NOVA_OBSERVABILITY_CURSOR_KEY_ID 默认为 v1。HMAC-SHA256 游标绑定用途、Endpoint、排序、当前主体与授权范围摘要、归一化过滤、快照和位置。先验签与授权，再使用游标内容；跨主体/过滤/范围不能复用。默认有效 15 分钟，查询最大 1 小时，事件最大 14 天且不能超过实际事件保留窗口。
+
+续页必须从已验签游标恢复原归一化过滤，再解析本次显式参数并检查过滤一致性，不能重算默认“最近一小时”。页大小和 includeTotal 不改变过滤身份。游标仅签名、不加密，不得装入密钥、正文或原始 IP；客户端将其视为不透明恢复凭据。更换游标签名秘密会使旧游标失效，重新取快照，不承诺旧密钥兼容链。
+
+### 10.4 版本与幂等原语
+
+ETag 绑定资源 ID 摘要和正整数版本；If-Match 只接受一个精确强 ETag，不接受通配符、弱 ETag 或列表。缺失为 428，格式错误为 400，不匹配为 412。对应资源的读取、版本检查、修改和审计必须处于同一加锁事务，单独调用 Header 检查不构成并发保护。
+
+Idempotency-Key 为 1~128 个非空白可见 ASCII 字符。API_NOVA_OBSERVABILITY_IDEMPOTENCY_SECRET 是独立的至少 32 字节服务端随机秘密，用于请求摘要，不复用业务 API Key。幂等身份按主体/方法/规范路径/键生成不可逆摘要；请求内容只存 HMAC 摘要，24 小时记录仅保存安全的结果引用（statusCode/resourceId/version/operationId），不保存秘密或完整响应。
+
+同键重入必须再次校验当前对象授权；同内容复用原操作结果，异内容 409，权限范围变化拒绝复用。数据库修改、审计/Outbox 与幂等记录共用 TP-02 事务，回滚不留下成功记录。回调内禁止网络发送，实际推送由后续分发任务完成。更换请求摘要秘密不改变幂等身份，保留窗口内旧请求摘要无法匹配时返回冲突，不自动重复执行。
+
+本轮 API 构建通过；新增 56 项专项测试在测试模块依赖解析阶段失败，业务断言未执行，上述源码能力尚未达到 VERIFIED。公共错误只返回安全固定文案与服务端 requestId，不回显驱动错误或磁盘路径。成功 envelope/分页 DTO 是公共基础，204 无正文、全局响应拦截器协作、Swagger 路由和读取审计仍须在具体 Endpoint 集成时验证。
+
+## 11. 共享采集器验证进度
+
+TP-04 已提供单次物理上游请求适配器，明确记录 attemptIndex/redirectHopIndex、原始字节观察边界以及流是否完整结束。一次实际请求对应一个 upstream_api 调用；适配器不会自行重试或重复消费流。内部健康包含 attemptsStarted/attemptsCompleted/instrumentationFailures/finalizeFailures，文件失败另由共享写入健康记录；这些计数尚未成为已上线健康 Endpoint。
+
+四组 parser 测试共 60 项及 parser/API 构建已通过，覆盖新增的 16 项上游尝试与故障用例。Gateway/MCP/测试探测接入和 TP-03 专项验收仍未完成。28 个 HTTP Endpoint 与两类推送继续保持 PLANNED，不能将新导出函数等同为对外服务已可调用。

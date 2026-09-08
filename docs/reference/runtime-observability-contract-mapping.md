@@ -1,5 +1,5 @@
 ---
-doc-version: 1.1.0
+doc-version: 1.2.0
 doc-status: active
 doc-updated: 2026-09-08
 ---
@@ -27,7 +27,8 @@ doc-updated: 2026-09-08
 
 | 源路径 | 当前事实/后续改造 | 任务包 |
 | --- | --- | --- |
-| parser/src/audit/runtime-call-audit.ts | 已写入 v2 started/progress/finished、有界正文预算/写入队列及失败计数；接入与完整故障验收待后续完成 | 04 |
+| parser/src/audit/runtime-call-audit.ts | v2 阶段、受限正文预算/队列与失败计数；共享采集包已验收，真实运行时接入归后续包 | 04 |
+| parser/src/audit/runtime-upstream-attempt.ts | 一次回调对应一次物理请求，显式字节/结束观察、尝试与重定向索引、父子上下文及业务不受日志失败影响 | 04 DONE |
 | parser/src/audit/runtime-observability-contract.ts | v2 校验、规范化、scope/去重参考计数；已实现 | 01 |
 | gateway-runtime/services/gateway-runtime.service.ts | 路由、拒绝、缓存与重试外层；建立入口节点和尝试编号 | 05 |
 | gateway-runtime/services/gateway-proxy-engine.service.ts | 实际 HTTP 出站与 body tracker；关联父入口，不当作外部访问 | 05 |
@@ -53,3 +54,9 @@ doc-updated: 2026-09-08
 共享采集器新增阶段测试；此前运行 runtime-observability-contract.test.ts、runtime-call-phases.test.ts、runtime-security-audit.test.ts，3 suites / 44 tests PASS；parser build PASS。这些结果不替代 Gateway/MCP 接入或存储端到端验收。
 
 存储基础于 2026-09-08 写入，详见[存储基础实现说明](./runtime-observability-storage-foundation.md)。本轮仅写入源码/初始化文件，没有运行新的测试、构建或数据库验证。
+
+## TP-04 收口记录
+
+2026-09-08：runtime-upstream-attempt.test.ts 新增 16 项单次上游请求与故障用例，四组 parser 测试合计 60 项 PASS；parser 和 API 构建均 PASS。TP-04 达到共享采集器退出条件，实际 Gateway/MCP/测试探测接入未完成。适配器通过 index.ts 导出，不自行实现业务重试或读取响应流。
+
+Gateway 接入分析已启动：代理引擎仍有旧手动采集，GatewayAccessLogService 仍以 auditRecorded 抑制入口记录，TP-05 必须切换为不同 spanKind 的显式父子事实，而不是互相替代。TP-03 新专项测试尚未通过，不能将该权限基础标为完成。
