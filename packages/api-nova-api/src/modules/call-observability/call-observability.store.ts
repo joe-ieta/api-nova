@@ -47,6 +47,12 @@ export interface CommittedObservabilityEvent {
   eventType: string;
 }
 
+export interface ObservabilityReadTransaction {
+  manager: EntityManager;
+  now: string;
+  snapshotSeq: string;
+}
+
 /** Database-only callback. Never do network I/O or publish before commit. */
 export interface ObservabilityWriteTransaction {
   manager: EntityManager;
@@ -121,6 +127,17 @@ export class CallObservabilityStore {
       counter.updatedAt = now;
       await repository.save(counter);
       return result;
+    }));
+  }
+
+  /** Stable read view without allocating a sequence or updating pipeline state. */
+  async readSnapshot<T>(operation: (tx: ObservabilityReadTransaction) => Promise<T>): Promise<T> {
+    const isolation = this.dataSource.options.type === 'postgres' ? 'REPEATABLE READ' : 'SERIALIZABLE';
+    return this.lane.run(() => this.dataSource.transaction(isolation, async manager => {
+      const counter = await manager.getRepository(RuntimePipelineStateEntity)
+        .findOne({ where: { id: COUNTER_ID } });
+      return operation({ manager, now: new Date().toISOString(),
+        snapshotSeq: publicSequence(counter?.value?.sequence || ZERO_SEQUENCE) });
     }));
   }
 

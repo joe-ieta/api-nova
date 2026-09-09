@@ -1,5 +1,5 @@
 ---
-doc-version: 1.17.0
+doc-version: 1.18.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -8,7 +8,7 @@ implementation-status: in-progress
 # 可观测性开发执行与任务包完成状态
 
 > Document status: Active execution ledger
-> 当前阶段：OBS-TP-01/02/03/04/05/08 完成；TP-06 进行中。9319dbf 已推送；TP-08 源退出与残片节点新增 13 项、跨模块 208 项及 parser 86 项、三包构建和真实 MCP 烟测通过，见第 25 节。
+> 当前阶段：OBS-TP-01/02/03/04/05/08 完成；TP-06、09 进行中。f15b4c3 已推送；TP-09 调用列表/明细节点新增 22 项及联合 230 项、API 构建通过，见第 26 节。
 > 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
 
 ## 1. 当前快照
@@ -20,13 +20,13 @@ implementation-status: in-progress
 | 全新版本决策 | 统一当前格式、接口和数据库初始结构，不增加历史兼容层 |
 | 实现任务总数 | 16 |
 | DONE | 6 |
-| IN_PROGRESS / REVIEW / BLOCKED | 1 / 0 / 0 |
-| READY / BACKLOG | 4 / 5 |
+| IN_PROGRESS / REVIEW / BLOCKED | 2 / 0 / 0 |
+| READY / BACKLOG | 3 / 5 |
 | 代码验收完成率 | 6/16；TP-08 包级收口，不代表公开 API、MCP 整包或全链路完成 |
-| 新 HTTP Endpoint | 28 个，全部 PLANNED |
+| 新 HTTP Endpoint | 28 个；OBS-API-03/04 为 VERIFIED，其余 26 个 PLANNED；均未部署为 AVAILABLE |
 | 新推送契约 | 2 类，全部 PLANNED |
 | 本轮数据库实际操作 | 隔离 SQL.js 内存库、独有临时目录及本机随机端口；未连接或清理业务数据库 |
-| 本轮新增验证 | 源生命周期新增 13 项；Node 联合 208/208、parser 86/86、parser/Server/API 构建及真实 MCP 烟测全部 PASS |
+| 本轮新增验证 | API build PASS；调用查询新增 22 项及 Node 联合 230/230 PASS；本节点未重复 parser/Server 构建或 parser Jest/独立烟测 |
 
 文档已确认与基础包完成都不代表功能已上线。TP-02 的存储、GC 与 PostgreSQL 多进程针对性验证已完成；Linux 矩阵、全系统 SQL.js 并发集成和新接口端到端验收仍未完成。
 
@@ -67,7 +67,7 @@ implementation-status: in-progress
 | OBS-TP-06 | MCP 接入 | 04 | IN_PROGRESS | HTTP/物理上游基线已验收；真实 STDIO 8 项含慢读背压均通过；stdin EOF、stdout 错误/断管及剩余传输矩阵尚未验收 |
 | OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 04 重新验收，恢复就绪；test/probe/internal 实际接入尚未实施 |
 | OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | DONE | 采集/身份/重启/源退出共 45 项专项通过；真实写入进程 UUID/PID、已关闭残片隔离和立即 unknown 恢复已接入。包级退出条件完成，应用启用与全平台集成另归 15/16 |
-| OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | READY | 03、08 已完成，下一优先节点为调用列表/详情 |
+| OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | IN_PROGRESS | 列表/明细 22 项真实 Nest HTTP 与 Swagger 验证通过；正文/读取审计、trace、callers/sources 尚待实现 |
 | OBS-TP-10 | 聚合/状态/能力 API | 03、08 | READY | 03、08 已完成，可启动聚合与能力接口 |
 | OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | READY | 03、08 已完成；持久事件基础已有，仍需历史查询和 Outbox 消费 |
 | OBS-TP-12 | Webhook/订阅/投递 API | 11 | BACKLOG | 11 尚未完成 |
@@ -423,3 +423,19 @@ TP-08 保持 IN_PROGRESS：下一个明确收口项是关闭源文件残片与�
 实际验证：parser 五套 86/86 PASS；parser/Server/API build 全部 PASS；11 个 Node 脚本联合 208/208 PASS（源生命周期新增 13 项）；真实 Streamable/SSE 烟测 RUNTIME_SECURITY_AUDIT_SMOKE_OK。新专项真实 fork 写入进程，注入末尾残片后 SIGKILL；还覆盖首行残片、活跃进程 EOF、改名、丢失/损坏标识、无法探测、发布失败放行、封存文件变化、混合来源、事务重试和真实迟到终态。非确定性 PID 回收/实际 EPERM 使用保守分支夹具，不虚称 OS 强制复用已测试。
 
 按 TP-08 的 AC-06/07/09/10 核心退出条件登记 DONE。当前 DONE=6、IN_PROGRESS=1、READY=4、BACKLOG=5；TP-09/10/11 已就绪。运行模块仍未在业务应用启用，新 Endpoint/推送全部 PLANNED；Linux、PostgreSQL 新 worker 完整矩阵、源标识/封存元数据保留治理及机器断电验证分别归后续集成、治理和总体验收，不扩大本节点通过范围。
+
+## 26. TP-09 调用列表与明细节点（2026-09-09）
+
+新增 CallObservabilityInvocationsService、Controller 与 DTO，模块内注册 obsListInvocations、obsGetInvocation。真实 Nest 夹具使用全局 api/v1 前缀，验证完整路径和程序生成 Swagger；尚未将 CallObservabilityModule 接入业务根应用，因此两个接口登记 VERIFIED 而非 AVAILABLE，其余 26 个 HTTP 与两类推送仍 PLANNED。
+
+CallObservabilityStore.readSnapshot 在 SQLite/SQL.js 共用原有串行通道并使用 SERIALIZABLE；PostgreSQL 分支使用 REPEATABLE READ。读取不创建/更新提交计数器、不分配序号或发事件。列表按历史修订可见区间与固定 snapshotSeq 读取，以 timeBasis DESC、invocationId DESC 分页；明细读取当前版本。排序列来自白名单，requestId/errorCategory 的 JSON 表达式固定且值参数化。includeTotal 仅按同一过滤和资产范围计数，大数保持十进制字符串。
+
+游标恢复归一化时间窗，绑定主体/资产范围/过滤和接口；每次 HTTP 请求重新查当前角色。过期和保留期截止返回明确 410，不伪装最后一页；position 中的固定截止不随续页延长，取初始 15 分钟与结果集最早元数据过期时刻的较早者。后续 TP-14 若支持提前清理/缩短保留策略，还需使相关快照显式失效，不允许静默删页。
+
+返回使用字段白名单，不返回正文、Header、Key/credentialId、路径或存储归属。来源 IP 按 monitoring:read AND monitoring:source:read 的资产交集逐条返回；未授权字段省略并标记 sourceRestricted。跨资产不可见父/根引用和对应 traceId 被裁剪，使用 linksRestricted 而非隐藏节点数量。正文只返回状态/过期时间，readLink=null；publicationSnapshot 尚未采集，返回 null 并进入 missingFields。覆盖范围尚未建模，meta.lagMs/historyCompleteSince=null、isPartial=true，不报假健康。
+
+初次专项为 21/22：新增过期测试错误地要求导入 31 天前记录，被现有 OUTSIDE_METADATA_RETENTION 正确隔离，失败发生在夹具建数而非查询断言。已向用户说明并获得“允许修正并继续”；仅改为合法入库后在自有内存库推进 expiresAt，同时显式断言超期源记录拒绝导入，不改变生产保留逻辑、不放宽查询断言。
+
+实际验证：API build PASS；修正后 12 个 Node 脚本联合 230/230 PASS，0 fail/skip/cancel，其中新增查询 22 项全部通过，覆盖真实管理 JWT、当前权限撤销、资产隔离/IP 交集、全过滤、SQL 注入值、半开区间、两种排序、快照更新与新增并发、游标篡改/过期/范围、隐藏引用、正文与元数据保留、错误安全和 Swagger。该节点没有重新运行 parser Jest、parser/Server 构建或独立 MCP 烟测，不把上一节点的 86 项重复计为本次执行。PostgreSQL 查询分支与 Linux 完整矩阵仍 NOT_RUN。
+
+当前 DONE=6、IN_PROGRESS=2、READY=3、BACKLOG=5，TP-09 整包未完成。下一节点为分侧正文读取及敏感读取审计，随后 trace 和 callers/sources；TP-06/07、聚合/事件/推送/治理/根应用启用继续按依赖执行。本节点仅使用隔离 SQL.js、测试拥有的目录/进程和回环端口；未部署或连接业务数据库。提交推送结果以 Git 回执为准。

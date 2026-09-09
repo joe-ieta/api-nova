@@ -1,5 +1,5 @@
 ---
-doc-version: 1.8.0
+doc-version: 1.9.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -94,3 +94,9 @@ TP-08 第二节点：call-observability-callers.projector.ts 通过唯一 ingest
 TP-08 持久进程节点：test-call-observability-restart.cjs 新增 3 项独立 Node/持久 SQL.js 重开验证；与现有五脚本联合 136 项全部通过。检查点、数据集边界和正文引用跨进程保留；已保存证据后强制终止采集进程不会把重放计作新调用。生产者退出/关闭残片和正式应用启用不在这 3 项证据范围内。
 
 TP-08 已收口：parser/audit/runtime-audit-source.ts 发布真实写入进程标识；API call-observability-source-lifecycle.service.ts 观察并持久化退出证明/文件最终状态；collector/store/worker 接入来源绑定、关闭残片与立即 unknown。新增 test-call-observability-source-lifecycle.cjs 13 项全部通过，跨模块 208 项、parser 86 项及三包构建/真实烟测通过。根应用启用和公开查询/推送仍按后续任务执行。
+
+## TP-09 调用查询映射（2026-09-09）
+
+call-observability-invocations.controller.ts 注册 obsListInvocations / obsGetInvocation；invocations.service.ts 使用 Store.readSnapshot 和修订可见区间，invocations.dto.ts 是程序生成 Swagger 的唯一响应结构来源。查询参数映射固定标量列或两个固定 JSON 文本提取表达式，所有输入值参数化；source/IP 权限按资产交集裁剪，不透传底层 record。
+
+test-call-observability-invocations.cjs 新增 22 项真实 Nest 管理 HTTP/Swagger 用例，API 构建和联合 230/230 通过。初次过期夹具错误获用户批准修正，保留生产 OUTSIDE_METADATA_RETENTION 策略。两接口为 VERIFIED，根模块未启用；正文读取/审计、trace、callers/sources 仍属 TP-09 后续。publicationSnapshot 尚未采集，返回 null/缺失标记；TP-10 覆盖指标未提供前不宣称查询健康完整。PostgreSQL 查询和 Linux 留待矩阵验证。

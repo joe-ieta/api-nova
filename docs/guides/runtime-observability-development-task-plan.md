@@ -1,5 +1,5 @@
 ---
-doc-version: 1.8.0
+doc-version: 1.9.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -20,7 +20,7 @@ implementation-status: in-progress
 
 每个任务包都有进入条件、输出物、适用测试、文档责任和退出标准；只写代码不算完成。接口文档和任务台账在同一任务包中维护，不等最终联调再补写。
 
-全局编码门禁为 OBS-GATE-01，已通过。OBS-TP-01/02/03/04/05 已满足各自退出条件；OBS-TP-06 开始接入分析，OBS-TP-07/08 已就绪。后续按依赖推进，不重复请求计划确认。
+全局编码门禁为 OBS-GATE-01，已通过。OBS-TP-01/02/03/04/05/08 已满足各自退出条件；OBS-TP-06、09 进行中，OBS-TP-07/10/11 已就绪。后续按依赖推进，不重复请求计划确认。
 
 ## 2. 任务包总表
 
@@ -379,3 +379,9 @@ ac56c0b 已提交推送。新增 3 项不同 Node 进程/持久 SQL.js 文件专
 源标识由实际写入进程发布，独立采集端仅在 PID 明确不存在时持久化 UUID 退出证明；关闭文件残片安全隔离、断点重试、混合来源保护、文件最终大小/摘要约束和立即 unknown 恢复已接通。新增 13 项专项，跨模块 208 项、parser 86 项、三包构建和真实 MCP 烟测全部通过。
 
 TP-08 按其核心退出条件 DONE；TP-09/10/11 硬依赖满足，转为 READY。下一优先节点为 TP-09 调用列表/详情，再补正文读取、trace、callers/sources 与读取审计。TP-06/07 仍保留；业务应用启用、治理和全平台/方言完整矩阵按 TP-14/15/16 处理，不能把包级验收等同于部署或全部 API 可用。
+
+## TP-09 首个查询节点（2026-09-09）
+
+OBS-API-03/04 已实现并经真实 Nest HTTP/Swagger 夹具验证，登记 VERIFIED；业务根应用仍未启用模块，不等于 AVAILABLE。readSnapshot、修订快照分页、字段白名单、逐资产来源权限和保留期游标边界落地，API 构建与 22 项新专项/联合 230 项通过。初次 21/22 的过期夹具错误及获准修正保留在执行台账第 26 节。
+
+TP-09=IN_PROGRESS，当前 DONE=6、IN_PROGRESS=2、READY=3、BACKLOG=5。后续依次交付 OBS-API-05 正文与敏感读取审计、OBS-API-06 trace、OBS-API-07~10 callers/sources/标签。publicationSnapshot 暂缺、查询覆盖保守未知、PostgreSQL 查询分支与 Linux 尚未验证，不能把两条元数据路由作为 AC-17 或整个 TP-09 收口依据。TP-10/11 可在已完成汇集基础上推进，TP-14 负责提前保留策略变化与游标失效，TP-15 负责业务根应用启用。

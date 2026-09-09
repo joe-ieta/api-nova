@@ -1,5 +1,5 @@
 ---
-doc-version: 1.8.0
+doc-version: 1.9.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -8,8 +8,8 @@ implementation-status: in-progress
 # 可观测性对外 API Endpoint 文档
 
 > Document status: Maintained consumer contract; approved endpoint contract; implementation in progress
-> Scope decision (2026-09-08, approved): 全新开发版本直接统一旧接口和数据库结构；不提供旧格式导入或旧查询路径兼容。新增 Endpoint 仍为 PLANNED，不能据文档确认推断已经上线。
-> 可用性声明：本文新增的 28 个 HTTP Endpoint 和 2 类推送契约目前均为 PLANNED，尚未实现或部署。路径与示例用于确认和后续联调准备，不能作为已上线能力清单。
+> Scope decision (2026-09-08, approved): 全新开发版本直接统一旧接口和数据库结构；不提供旧格式导入或旧查询路径兼容。接口的实际状态逐项维护，文档确认不等于上线。
+> 可用性声明：28 个 HTTP Endpoint 中 OBS-API-03/04 为 VERIFIED（隔离 Nest HTTP/Swagger 夹具），其余 26 个与两类推送仍 PLANNED。业务根应用尚未启用新模块，没有 AVAILABLE 接口或部署声明。
 > 已确认基线：[需求](../guides/runtime-observability-requirements.md)、[设计](./runtime-observability-design.md)。
 > 开发关联：[任务计划](../guides/runtime-observability-development-task-plan.md)、[执行状态](../guides/runtime-observability-development-execution-status.md)。
 
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.6.2，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.9.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -111,38 +111,38 @@ invocations 按 (timeBasis DESC, invocationId DESC) 排序；其他列表明确�
 
 ## 3. Endpoint 注册表
 
-下表权限在 monitoring:read 与资源授权基础上叠加；“基础”表示没有额外权限。涉及写入仍须校验相应对象管理权。所有状态为 PLANNED。
+下表权限在 monitoring:read 与资源授权基础上叠加；“基础”表示没有额外权限。涉及写入仍须校验相应对象管理权。VERIFIED 只代表所列隔离契约测试通过，不代表部署。
 
-| 编号 | 方法与相对路径 | operationId | 额外权限 | 任务包 |
-| --- | --- | --- | --- | --- |
-| OBS-API-01 | GET /capabilities | obsGetCapabilities | 基础 | OBS-TP-10 |
-| OBS-API-02 | GET /overview | obsGetOverview | 基础 | OBS-TP-10 |
-| OBS-API-03 | GET /invocations | obsListInvocations | 基础 | OBS-TP-09 |
-| OBS-API-04 | GET /invocations/:id | obsGetInvocation | 基础 | OBS-TP-09 |
-| OBS-API-05 | GET /invocations/:id/payloads/:side | obsGetInvocationPayload | monitoring:payload:read | OBS-TP-09 |
-| OBS-API-06 | GET /traces/:traceId | obsGetTrace | 基础 | OBS-TP-09 |
-| OBS-API-07 | GET /callers | obsListCallers | 基础 | OBS-TP-09 |
-| OBS-API-08 | GET /callers/:id | obsGetCaller | 基础 | OBS-TP-09 |
-| OBS-API-09 | PATCH /callers/:id | obsUpdateCallerLabels | monitoring:manage | OBS-TP-09 |
-| OBS-API-10 | GET /sources | obsListSources | 基础；IP 字段需 monitoring:source:read | OBS-TP-09 |
-| OBS-API-11 | GET /statistics/summary | obsGetStatisticsSummary | 基础 | OBS-TP-10 |
-| OBS-API-12 | GET /statistics/time-series | obsGetStatisticsTimeSeries | 基础 | OBS-TP-10 |
-| OBS-API-13 | GET /statistics/groups | obsGetStatisticsGroups | 基础 | OBS-TP-10 |
-| OBS-API-14 | GET /dependencies | obsGetDependencies | 基础 | OBS-TP-10 |
-| OBS-API-15 | GET /servers/status | obsGetServerStatuses | 基础 | OBS-TP-10 |
-| OBS-API-16 | GET /events | obsListEvents | 基础 | OBS-TP-11 |
-| OBS-API-17 | POST /subscriptions | obsCreateSubscription | monitoring:subscription:manage | OBS-TP-12 |
-| OBS-API-18 | GET /subscriptions | obsListSubscriptions | monitoring:subscription:manage | OBS-TP-12 |
-| OBS-API-19 | GET /subscriptions/:id | obsGetSubscription | monitoring:subscription:manage | OBS-TP-12 |
-| OBS-API-20 | PATCH /subscriptions/:id | obsUpdateSubscription | monitoring:subscription:manage | OBS-TP-12 |
-| OBS-API-21 | DELETE /subscriptions/:id | obsDeleteSubscription | monitoring:subscription:manage | OBS-TP-12 |
-| OBS-API-22 | POST /subscriptions/:id/test | obsTestSubscription | monitoring:subscription:manage | OBS-TP-12 |
-| OBS-API-23 | GET /deliveries | obsListDeliveries | monitoring:subscription:manage | OBS-TP-12 |
-| OBS-API-24 | GET /deliveries/:id | obsGetDelivery | monitoring:subscription:manage | OBS-TP-12 |
-| OBS-API-25 | POST /deliveries/:id/retry | obsRetryDelivery | monitoring:subscription:manage AND monitoring:delivery:retry | OBS-TP-12 |
-| OBS-API-26 | GET /pipeline/status | obsGetPipelineStatus | 基础；系统汇总另需全局资源范围 | OBS-TP-14 |
-| OBS-API-27 | GET /policies | obsGetPolicies | 基础 | OBS-TP-14 |
-| OBS-API-28 | PATCH /policies/:id | obsUpdatePolicy | monitoring:manage | OBS-TP-14 |
+| 编号 | 方法与相对路径 | operationId | 额外权限 | 任务包 | 状态 |
+| --- | --- | --- | --- | --- | --- |
+| OBS-API-01 | GET /capabilities | obsGetCapabilities | 基础 | OBS-TP-10 | PLANNED |
+| OBS-API-02 | GET /overview | obsGetOverview | 基础 | OBS-TP-10 | PLANNED |
+| OBS-API-03 | GET /invocations | obsListInvocations | 基础 | OBS-TP-09 | VERIFIED |
+| OBS-API-04 | GET /invocations/:id | obsGetInvocation | 基础 | OBS-TP-09 | VERIFIED |
+| OBS-API-05 | GET /invocations/:id/payloads/:side | obsGetInvocationPayload | monitoring:payload:read | OBS-TP-09 | PLANNED |
+| OBS-API-06 | GET /traces/:traceId | obsGetTrace | 基础 | OBS-TP-09 | PLANNED |
+| OBS-API-07 | GET /callers | obsListCallers | 基础 | OBS-TP-09 | PLANNED |
+| OBS-API-08 | GET /callers/:id | obsGetCaller | 基础 | OBS-TP-09 | PLANNED |
+| OBS-API-09 | PATCH /callers/:id | obsUpdateCallerLabels | monitoring:manage | OBS-TP-09 | PLANNED |
+| OBS-API-10 | GET /sources | obsListSources | 基础；IP 字段需 monitoring:source:read | OBS-TP-09 | PLANNED |
+| OBS-API-11 | GET /statistics/summary | obsGetStatisticsSummary | 基础 | OBS-TP-10 | PLANNED |
+| OBS-API-12 | GET /statistics/time-series | obsGetStatisticsTimeSeries | 基础 | OBS-TP-10 | PLANNED |
+| OBS-API-13 | GET /statistics/groups | obsGetStatisticsGroups | 基础 | OBS-TP-10 | PLANNED |
+| OBS-API-14 | GET /dependencies | obsGetDependencies | 基础 | OBS-TP-10 | PLANNED |
+| OBS-API-15 | GET /servers/status | obsGetServerStatuses | 基础 | OBS-TP-10 | PLANNED |
+| OBS-API-16 | GET /events | obsListEvents | 基础 | OBS-TP-11 | PLANNED |
+| OBS-API-17 | POST /subscriptions | obsCreateSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
+| OBS-API-18 | GET /subscriptions | obsListSubscriptions | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
+| OBS-API-19 | GET /subscriptions/:id | obsGetSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
+| OBS-API-20 | PATCH /subscriptions/:id | obsUpdateSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
+| OBS-API-21 | DELETE /subscriptions/:id | obsDeleteSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
+| OBS-API-22 | POST /subscriptions/:id/test | obsTestSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
+| OBS-API-23 | GET /deliveries | obsListDeliveries | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
+| OBS-API-24 | GET /deliveries/:id | obsGetDelivery | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
+| OBS-API-25 | POST /deliveries/:id/retry | obsRetryDelivery | monitoring:subscription:manage AND monitoring:delivery:retry | OBS-TP-12 | PLANNED |
+| OBS-API-26 | GET /pipeline/status | obsGetPipelineStatus | 基础；系统汇总另需全局资源范围 | OBS-TP-14 | PLANNED |
+| OBS-API-27 | GET /policies | obsGetPolicies | 基础 | OBS-TP-14 | PLANNED |
+| OBS-API-28 | PATCH /policies/:id | obsUpdatePolicy | monitoring:manage | OBS-TP-14 | PLANNED |
 
 Endpoint 状态在当前注册表声明中统一维护；出现不同状态后增加逐行“实现状态/版本”列。首次可用必须以执行台账证据为依据，而非仅改文案。
 
@@ -549,3 +549,19 @@ Axios 默认的超时 ECONNABORTED 仅在确认来源为 Axios 错误时按 time
 TP-08 包级退出条件已通过，新增源生命周期 13 项/跨模块 208 项、parser 86 项、三包构建及真实 MCP 烟测通过。公开 Endpoint 与推送仍为 PLANNED，下一步实现调用列表与详情。
 
 后续 pipeline/source 状态应区分 PID 可见、确认退出、证据不足，PID 可见不等于已证明原写入实例存活。闭合证明绑定 UUID 而非可复用 PID；不得暴露私有标识文件路径或将未确认 EOF 标为已处理。关闭残片产生 SOURCE_CLOSED_PARTIAL_LINE 及 closedSourcePartialRecords/closedSourcePartialBytes，不生成虚构调用或泄露残片文本。unknown 的 sourceExitedAt 与推断时间均不是实际 completedAt。
+
+## 12. OBS-API-03/04 实现与联调边界（2026-09-09）
+
+状态 VERIFIED：API build 与 22 项实际 Nest HTTP/Swagger 测试通过，联合 230 项全部通过。完整路径为 /api/v1/monitoring/observability/invocations 及 /api/v1/monitoring/observability/invocations/{id}，operationId 分别为 obsListInvocations、obsGetInvocation。未在业务根模块启用，外部部署主机仍需 TP-15/16 验证。
+
+列表允许且只允许 from、to、timeBasis、origin、serverType、runtimeAssetId、callerId、sourceId、endpointDefinitionId、toolName、sourceServiceInstanceId、spanKind、outcome、traceId、requestId、errorCategory、limit、includeTotal、cursor。默认最近 1 小时、external、startedAt、limit=50、includeTotal=false；最大区间 30 天、最大 limit=200。详情只允许 timeBasis，默认 startedAt，仅回显，不影响按 ID 查最新版本。重复、嵌套、未知参数和原始 IP 过滤返回 400。
+
+列表 data 为 items、nextCursor、hasMore、timeBasis，includeTotal=true 才附 total；明细 data 为字段对象和 timeBasis。游标固定过滤/资产范围/主体与历史修订水位，续页可只传 cursor，也可调整 limit/includeTotal。timeBasis 确定实际排序时间列；运行中及 reconciled 未知终态的 completedAt=null，不进入 completedAt 时间窗。保留截止是初始 15 分钟与结果集最早 expiresAt 的较早者，续页不延长；到期返回 410 QUERY_CURSOR_EXPIRED，需重新取快照。
+
+当前完整字段以程序生成 DTO/Swagger 为准：lifecycle=running/finished；publicationSnapshot 尚未采集，固定 null 并列入 missingFields；sourceRecordId 映射源 eventId。errorSummary 仅输出由规范 outcome 生成的安全摘要，不直接返回异常或错误堆栈。列表/详情绝不内联正文、Header、credentialId、session 哈希、URL 或 fileKey/storageOwnerId。正文摘要只包含 state/reason/expiresAt/readLink，OBS-API-05 未完成前 readLink 固定 null。
+
+IP 四字段 clientIp/peerIp/ipSource/proxyTrusted 仅在当前主体同时具有 read/source:read 且同一资产可见时出现，其他项 sourceRestricted=true 并省略字段。不可见父/根引用裁剪为 null；相应 traceId 及与该隐藏引用相同的 requestId 同样裁剪，linksRestricted=true，不返回隐藏节点数量。未采集、匿名和权限裁剪不合并为同一种身份状态。
+
+正文 TTL 按当前时间判断，不被列表快照冻结；元数据过期/不存在/不可见统一 404。meta.snapshotSeq 是查询快照，dataWatermark 是该读取事务可见的当前提交水位。TP-10 尚未提供资产级完整覆盖，暂统一 lagMs=null、historyCompleteSince=null、isPartial=true，不输出虚构 gapRanges 或健康零值。成功及错误均 Cache-Control: no-store。
+
+本节点真实验证范围为 Windows/隔离 SQL.js、管理 JWT/HTTP 与生成 Swagger；PostgreSQL 查询分支、Linux、查询性能 SLA 和部署级能力声明尚未验证。后续提前清理元数据或缩短保留策略必须在 TP-14 对已有游标显式失效，不得悄悄跳过缺失页。

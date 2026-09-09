@@ -1,5 +1,5 @@
 ---
-doc-version: 1.3.0
+doc-version: 1.4.0
 doc-status: active
 doc-updated: 2026-09-09
 implementation-status: in-progress
@@ -164,3 +164,11 @@ PostgreSQL 父进程仍有 client.query 弃用警告；子进程警告计数 0 �
 不增加表。runtime_pipeline_state 的 source-exit 前缀行保存 UUID 绑定退出证明，source-seal 前缀行保存文件最终身份/大小/尾摘要；boundary 行增加单来源绑定或 mixedSources。封存先于可能失败的残片入库，断点仍只随成功 quarantine 事务推进，重试不重复消费。
 
 SOURCE_CLOSED_PARTIAL_LINE 记录摘要及安全原因，同事务增加关闭残片数量/字节；退出恢复校验源证明与 invocation.sourceInstanceId 匹配，保留 completedAt/durationMs=null。新增 13 项与跨模块 208 项、parser 86 项、三包构建及真实烟测全部通过。TP-08 包级 DONE，公开 API/根应用仍未启用；这些证据行的治理留给 TP-14，不声称后台清理已运行。
+
+## 12. 查询只读快照基础（2026-09-09）
+
+新增 CallObservabilityStore.readSnapshot(callback)，返回 manager、读取时刻与十进制 snapshotSeq。使用 DataSource 共享串行通道保护 SQLite/SQL.js 事务，隔离级别 SERIALIZABLE；PostgreSQL 分支 REPEATABLE READ。只查询现存提交计数器，空数据集返回 0，不初始化流水线行、更新 updatedAt、生成事件或分配新序号。读回调仅用于数据库读取，不能进行网络或正文文件 I/O。
+
+调用列表读取 runtime_invocation_revisions 的可见区间，明细读取 runtime_invocations 当前行；两者先施加资产和元数据保留过滤。结果集最早 expiresAt 约束游标固定截止，正文对象只批量查询安全元数据并根据自身 TTL 返回状态，不打开私有文件。无新表、列或迁移，无业务数据库处理。
+
+API build、22 项实际查询 HTTP/Swagger 和联合 230/230 回归通过，包括空库读取不写流水线行、晚到更新的旧快照与最新明细、保留期失效。初次失败是过期建数被已有导入保留策略拒绝，用户批准后仅修正隔离夹具，生产保留逻辑不变。PostgreSQL 查询分支、提前元数据清理/策略变更导致的快照失效，以及完整性能矩阵仍待后续验证和治理。

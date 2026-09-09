@@ -1,5 +1,5 @@
 ---
-doc-version: 1.9.0
+doc-version: 1.10.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -558,3 +558,13 @@ worker 以受限目录迭代器发现当前 v2 文件，不处理旧 caller 清�
 runtime_pipeline_state 保存 UUID 退出证明及原生文件身份/最终大小/尾摘要。检查点的来源绑定允许已观察文件改名，混合来源不能由单一进程标识关闭。已确认残片通过摘要隔离、缺口计数和同事务断点处理；file seal 可先持久化，隔离失败仍从原断点重试，不表示残片已消费。后续已封存文件变化拒绝处理，不自动重置或删文件。
 
 完整扫描无未处理证据时，持久退出证明使未完成调用按 process_exit 立即推断 unknown；真实完成时间仍不可知，sourceExitedAt 只是退出观察时刻。其他失联调用保持 45 秒保守阈值与版本 CAS 更正。真实写入子进程强杀/残片等新增 13 项通过，Node 208、parser 86、三包构建及真实 MCP 烟测通过，TP-08 按包级标准完成。证据元数据的保留清理属于 TP-14，全系统应用启用和平台矩阵属于 TP-15/16。
+
+## 16. 调用元数据查询实现（2026-09-09）
+
+OBS-API-03/04 使用独立只读事务快照；SQLite/SQL.js 在现有共享通道内 SERIALIZABLE，PostgreSQL 使用 REPEATABLE READ，不借写事务推进计数器。列表按 validFromSequence <= snapshotSeq < validUntilSequence（NULL 为开放上界）选择历史修订，使用已归一化 timeBasis 和 invocationId 降序 keyset；明细使用当前行。总数仅对授权过滤集合可选计算，SQL 文本计数保留大整数。
+
+游标签名绑定主体/角色资产范围、接口、排序约定和完整过滤；续页继承初始相对时间窗，权限更改显式失效。position 只含时间/ID/固定截止，最迟在结果集中第一条元数据到期前失效，避免到期过程中静默少页。未实现提前删除/保留策略缩短，此类治理必须由 TP-14 联动快照失效；正文 TTL 不因快照延长。
+
+输出白名单而非任意 record。IP 以 read 与 source:read 的资产交集逐条授权；跨范围父/根/trace 引用裁剪并给 linksRestricted，不给隐藏数量。正文当前只暴露安全状态，不提供对象路径或虚构可用链接；publicationSnapshot=null 并明确 missingFields。TP-10 的资产级覆盖尚未完成，所以 lagMs/historyCompleteSince 为 null，meta.isPartial 保守 true。本文字段契约与程序 DTO、Endpoint 文档同步。
+
+当前 API 构建、22 项查询真实 HTTP/Swagger 和联合 230 项通过，初次过期夹具失败与批准修正记录在执行台账。两接口 VERIFIED，TP-09 整包 IN_PROGRESS；尚无根应用启用、PostgreSQL 查询分支/Linux 或性能 SLA 的通过声明。
