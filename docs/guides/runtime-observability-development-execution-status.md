@@ -1,5 +1,5 @@
 ---
-doc-version: 1.5.0
+doc-version: 1.6.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -8,7 +8,7 @@ implementation-status: in-progress
 # 可观测性开发执行与任务包完成状态
 
 > Document status: Active execution ledger
-> 当前阶段：OBS-TP-01/02/03/04 完成，OBS-TP-05 实施中；TP-03 夹具修复后 56 项专项与 48 项回归全部通过，继续 Gateway 接入。
+> 当前阶段：OBS-TP-01/02/03/04/05 完成，OBS-TP-06 进入接入分析；Gateway 新增 21 项专项及 104 项回归共 125 项全部通过。
 > 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
 
 ## 1. 当前快照
@@ -19,14 +19,14 @@ implementation-status: in-progress
 | OBS-GATE-01 | PASSED；用户要求按计划持续推进 |
 | 全新版本决策 | 统一当前格式、接口和数据库初始结构，不增加历史兼容层 |
 | 实现任务总数 | 16 |
-| DONE | 4 |
+| DONE | 5 |
 | IN_PROGRESS / REVIEW / BLOCKED | 1 / 0 / 0 |
-| READY / BACKLOG | 3 / 8 |
-| 代码验收完成率 | 4/16；仅按各包退出条件登记，不代表全链路完成 |
+| READY / BACKLOG | 2 / 8 |
+| 代码验收完成率 | 5/16；仅按各包退出条件登记，不代表全链路完成 |
 | 新 HTTP Endpoint | 28 个，全部 PLANNED |
 | 新推送契约 | 2 类，全部 PLANNED |
-| 本轮数据库实际操作 | 104 项测试使用隔离 SQL.js 内存库、独有目录及本机回环 HTTP 夹具；未连接业务数据库 |
-| 本轮新增验证 | API build PASS；TP-03 56 项与存储/GC 48 项，共 104/104 PASS；上一轮 parser 60 项 PASS 证据保留，不重复累计 |
+| 本轮数据库实际操作 | 125 项测试使用隔离 SQL.js 内存库、独有目录及本机回环 HTTP 服务；未连接业务数据库 |
+| 本轮新增验证 | API build PASS；Gateway 21 项与基础回归 104 项，共 125/125 PASS；之前 parser 60 项证据保留，不重复累计 |
 
 文档已确认与基础包完成都不代表功能已上线。TP-02 的存储、GC 与 PostgreSQL 多进程针对性验证已完成；Linux 矩阵、全系统 SQL.js 并发集成和新接口端到端验收仍未完成。
 
@@ -63,8 +63,8 @@ implementation-status: in-progress
 | OBS-TP-02 | 存储/事务/序号基础 | 01 | DONE | 两方言初始结构、48 项存储/GC 用例及 PostgreSQL 四进程提交/回滚/回收竞争通过；按本包退出条件收口，跨包/平台验收仍归 15、16 |
 | OBS-TP-03 | 权限与 API 基础 | 01、02 | DONE | 补齐夹具依赖后 56 项专项及 48 项存储/GC 回归全部通过，API build PASS；覆盖真实 JWT、AND/资源范围、游标、ETag、并发幂等与回滚；具体 Endpoint 接入另行验收 |
 | OBS-TP-04 | 共享上下文/正文/上游采集 | 01 | DONE | 单次上游适配器、显式重试/跳转索引、字节与结束观察、无阻塞写入及健康计数已补齐；60 项 parser 用例和 parser/API 构建通过；实际服务器接入归 05/06/07 |
-| OBS-TP-05 | Gateway 接入 | 04 | IN_PROGRESS | 硬依赖已完成，已开始接入分析；需替换代理层手动采集，并消除 auditRecorded 对 Gateway 入口记录的错误抑制，补齐入口/上游父子链路；尚未改写该层 |
-| OBS-TP-06 | MCP 接入 | 04 | READY | 共享采集器已完成，可以接入协议/Tool/HTTP 实际尝试 |
+| OBS-TP-05 | Gateway 接入 | 04 | DONE | 入口前置、独立流结束、内部请求 ID、上游适配器/尝试编号、可信身份及取消接入完成；21 项真实回环 HTTP 专项与 104 项回归、API 构建通过；正式应用/监听器矩阵归 15/16 |
+| OBS-TP-06 | MCP 接入 | 04 | IN_PROGRESS | 开始协议/Tool/上游与传输终态接入分析；尚未改写 MCP 层，验证待实施 |
 | OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 共享采集器已完成，可以接入 test/probe/internal 来源 |
 | OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | READY | 存储和共享采集器硬依赖均完成；尚无自动汇集 worker |
 | OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | BACKLOG | 03、08 尚未完成 |
@@ -96,14 +96,14 @@ implementation-status: in-progress
 
 | 场景 | 内容 | 责任任务包 | 结果 |
 | --- | --- | --- | --- |
-| AC-01 | Gateway 正常调用与父子证据 | 05、15 | NOT_RUN |
+| AC-01 | Gateway 正常调用与父子证据 | 05、15 | PARTIAL；Gateway 包级 PASS，剩余集成/MCP 待验收 |
 | AC-02 | MCP 重试与工具/上游分别计数 | 06、15 | NOT_RUN |
-| AC-03 | 缓存/未匹配/拒绝/认证前边界 | 05、06 | NOT_RUN |
-| AC-04 | 连接错误/超时/取消/流中断 | 04、05、06 | NOT_RUN |
+| AC-03 | 缓存/未匹配/拒绝/认证前边界 | 05、06 | PARTIAL；Gateway 包级 PASS，剩余集成/MCP 待验收 |
+| AC-04 | 连接错误/超时/取消/流中断 | 04、05、06 | PARTIAL；Gateway 包级 PASS，剩余集成/MCP 待验收 |
 | AC-05 | HTTP 200 下工具/协议错误 | 06 | NOT_RUN |
 | AC-06 | 主体/凭证/IP 归并 | 08、09 | NOT_RUN |
 | AC-07 | 伪造代理 Header/Key 与高基数 | 04、08 | NOT_RUN |
-| AC-08 | 正文/脱敏/类型/上限/字节 | 04、05、06、09 | NOT_RUN |
+| AC-08 | 正文/脱敏/类型/上限/字节 | 04、05、06、09 | PARTIAL；Gateway 包级 PASS，剩余集成/MCP 待验收 |
 | AC-09 | 半行/重复导入/重启 | 02、08 | NOT_RUN |
 | AC-10 | 未终态/强杀/迟到更正 | 08、10 | NOT_RUN |
 | AC-11 | 多服务器/多桶/去重与比率 | 10 | NOT_RUN |
@@ -152,7 +152,7 @@ implementation-status: in-progress
 
 - TP-03 已按包级退出条件验收；实际查询控制器、资源过滤、读取审计及响应拦截器协作仍由后续接入包验证。Linux 完整矩阵保留在 TP-16，全系统 SQL.js 并发交互和 pg 弃用警告保留在 TP-15。
 - TP-14 接入回收调度、策略、健康与配额闭环；当前 GC 服务没有自动定时器，没有开启业务数据清理。
-- TP-04 已完成；当前继续推进 TP-05 Gateway 接入，TP-06/07/08 已就绪。
+- TP-04/05 已完成；当前开始 TP-06 MCP 接入，TP-07/08 已就绪。
 - 后续 worker 接入调用者归并、断点恢复与状态维护；现阶段只有存储基础，不生成虚假调用者/聚合结果。
 - 权限基础已完成；查询和推送 Endpoint 仍由后续任务落地，大屏 UI 仍为后续范围。
 - 不自动处理现有开发库。如需重建，必须明确指定允许处理的数据库。
@@ -217,3 +217,22 @@ TP-03 测试夹具错误已明确报告，未擅自修复，也没有将该包�
 上一轮 TP-04 已提交为 4879979（feat: complete shared upstream attempt observability）。本轮按授权提交 TP-03 实现、测试与文档后继续 TP-05 Gateway。TP-06/07/08 仍为 READY，TP-09/10/11 仍等待 TP-08，不提前释放。
 
 未部署、未推送、未运行种子初始化、未处理业务库。28 个新 HTTP Endpoint 与两类推送仍为 PLANNED；测试 HTTP 路由仅存在于隔离夹具，不能作为生产接口可用证据。
+
+## 14. 2026-09-09 Gateway 包级验收与持续推进
+
+TP-03 已提交为 64f65e3（feat: complete observability authorization and API foundations）。随后完成 Gateway 接入，本节为最新执行证据；前面各阶段快照保留，不重复累计测试。
+
+| 实际执行 | 结果 | 证据范围 |
+| --- | --- | --- |
+| npm.cmd run build --workspace api-nova-api | PASS；退出码 0 | Gateway 接入与已有基础源码构建 |
+| node --test packages/api-nova-api/scripts/test-gateway-call-observability.cjs packages/api-nova-api/scripts/test-call-observability-api-foundation.cjs packages/api-nova-api/scripts/test-call-observability.cjs packages/api-nova-api/scripts/test-call-observability-gc.cjs | 125/125 PASS；0 fail；0 skipped；退出码 0 | 新 Gateway 21 项 + TP-03 56 项 + 存储/GC 48 项 |
+
+GatewayRequestAudit 在认证/策略执行前开始，非消费式观察 IncomingMessage 的现有读事件和 ServerResponse 的 write/end。入口在客户端 finish/close/aborted 上只终结一次；代理通过 TP-04 适配器独立观察每次物理请求与上游响应结束，不用 auditRecorded 抑制入口。旧访问日志服务不再产生规范调用事实，其旧 DB 写入/查询暂由 TP-15 收敛。
+
+内部 requestId 每请求生成一次；客户端自报 ID 单独保留且限长，不得冒充 trace。重试共用 upstreamOperationId，attemptIndex 递增；当前代理不自动跟随重定向，redirectHopIndex=0。没有请求重放缓冲时，带 Content-Length 正文或 Transfer-Encoding 的请求不重试，避免消费后的空正文重复转发。缓存只产生入口事实，不产生上游事实。
+
+已通过允许/拒绝 API Key、已认证但越权、查询凭证脱敏与移除、限流、未匹配、缓存、HTTP 失败、204 空内容、UTF-8/二进制/超限正文、真实重试、超时、上游中断、客户端取消、8 路并发及磁盘故障测试。磁盘故障用例的五条固定 stderr 警告属于预期注入，业务 200 与单次上游调用仍保持，结束后 activeCalls/captureMemoryBytes=0。
+
+该证据覆盖 AC-01/03/04/08 的 Gateway 包级部分，不等于正式 Nest 控制器、独立监听器、所有代理部署模式和 MCP 的完整矩阵。来源 IP 目前采取保守策略：只使用直接连接端，ipSource=peer、proxyTrusted=false；可信代理逐跳解析仍需在 TP-15 统一接入验证，不能拿 X-Forwarded-For 或 req.ip 猜测真实客户端。
+
+TP-05=DONE，TP-06 开始接入分析，TP-07/08=READY。生产查询控制器、收集 worker、读取审计和推送仍未接入；28 个 HTTP Endpoint 与两类推送继续 PLANNED。未部署、未推送、未处理业务库。

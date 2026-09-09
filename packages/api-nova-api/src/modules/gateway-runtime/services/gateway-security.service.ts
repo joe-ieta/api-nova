@@ -34,6 +34,7 @@ export class GatewaySecurityService {
     resolvedRoute: GatewayResolvedRoute,
     req: Request,
   ): Promise<GatewayRequestAuthContext> {
+    delete (req as Request & { gatewayAuth?: GatewayRequestAuthContext }).gatewayAuth;
     const configuredMode = resolvedRoute.policies.auth.mode;
     const visibility = String(resolvedRoute.routeBinding.routeVisibility || 'internal')
       .trim().toLowerCase();
@@ -75,6 +76,9 @@ export class GatewaySecurityService {
       throw new UnauthorizedException('Gateway API key is invalid');
     }
 
+    const context: GatewayRequestAuthContext = { mode, consumerId: credential.id, keyId: credential.keyId };
+    this.attachAuthContext(req, context);
+
     if (
       credential.routeBindingId &&
       credential.routeBindingId !== resolvedRoute.routeBinding.id
@@ -92,12 +96,6 @@ export class GatewaySecurityService {
     await this.credentialRepository.save(credential);
     void this.recordApiKeyUsageAudit(credential, resolvedRoute, req);
 
-    const context: GatewayRequestAuthContext = {
-      mode,
-      consumerId: credential.id,
-      keyId: credential.keyId,
-    };
-    this.attachAuthContext(req, context);
     return context;
   }
 

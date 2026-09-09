@@ -1,5 +1,5 @@
 ---
-doc-version: 1.3.0
+doc-version: 1.4.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -30,9 +30,9 @@ doc-updated: 2026-09-09
 | parser/src/audit/runtime-call-audit.ts | v2 阶段、受限正文预算/队列与失败计数；共享采集包已验收，真实运行时接入归后续包 | 04 |
 | parser/src/audit/runtime-upstream-attempt.ts | 一次回调对应一次物理请求，显式字节/结束观察、尝试与重定向索引、父子上下文及业务不受日志失败影响 | 04 DONE |
 | parser/src/audit/runtime-observability-contract.ts | v2 校验、规范化、scope/去重参考计数；已实现 | 01 |
-| gateway-runtime/services/gateway-runtime.service.ts | 路由、拒绝、缓存与重试外层；建立入口节点和尝试编号 | 05 |
-| gateway-runtime/services/gateway-proxy-engine.service.ts | 实际 HTTP 出站与 body tracker；关联父入口，不当作外部访问 | 05 |
-| gateway-runtime/services/gateway-access-log.service.ts | 旧 DB 与 fallback 审计；后续收敛为单一规范事实，避免重复 | 05、15 |
+| gateway-runtime/services/gateway-runtime.service.ts | 入口节点、内部请求 ID、缓存与拒绝、独立上游 operation/attempt 已接入 | 05 DONE |
+| gateway-runtime/services/gateway-proxy-engine.service.ts | 使用共享单次适配器，独立观察上游结束与客户端发送；21 项 HTTP 专项通过 | 05 DONE |
+| gateway-runtime/services/gateway-access-log.service.ts | 已移除 fallback 规范事实；旧 DB 写入/查询保留到全链路收敛 | 05 DONE、15 |
 | api-nova-server/src/transportUtils/audit.ts | tools/call 捕获；须补齐协议节点/终态发送结果 | 06 |
 | api-nova-server/src/tools/runtime-security.ts | 逐请求主体和工具权限；拒绝不能虚构成功身份 | 06 |
 | security/guards/permissions.guard.ts | 旧 ANY-OF 不用于新观测接口；专用 call-observability-access.guard.ts 已完成 AND/资源范围及真实 JWT 验证 | 03 DONE |
@@ -59,4 +59,6 @@ doc-updated: 2026-09-09
 
 2026-09-08：runtime-upstream-attempt.test.ts 新增 16 项单次上游请求与故障用例，四组 parser 测试合计 60 项 PASS；parser 和 API 构建均 PASS。TP-04 达到共享采集器退出条件，实际 Gateway/MCP/测试探测接入未完成。适配器通过 index.ts 导出，不自行实现业务重试或读取响应流。
 
-Gateway 接入分析已启动：代理引擎仍有旧手动采集，GatewayAccessLogService 仍以 auditRecorded 抑制入口记录，TP-05 必须切换为不同 spanKind 的显式父子事实，而不是互相替代。2026-09-09：TP-03 夹具修复后 56 项专项与 48 项存储/GC 回归共 104/104 PASS，API build PASS；权限/API 公共基础已验收，生产控制器仍未接入。
+Gateway 已切换为不同 spanKind 的显式父子事实：gateway-request-audit.ts 观察入口现有读写，不消费或重放请求；代理使用共享适配器；auditRecorded 互斥与旧 fallback 规范记录已移除。2026-09-09：TP-03 夹具修复后 56 项专项与 48 项存储/GC 回归共 104/104 PASS，API build PASS；权限/API 公共基础已验收，生产控制器仍未接入。
+
+2026-09-09：Gateway 21 项新增 HTTP 专项和 104 项基础回归共 125/125 PASS，API build PASS，TP-05 按包级退出条件收口。实际 Nest 控制器/独立监听器矩阵、可信代理逐跳解析和旧 DB 日志收敛仍留在 TP-15，不能声称全链路完成。TP-06 进入接入分析，MCP 代码尚未切换。

@@ -8,9 +8,8 @@ import * as http from 'node:http';
 import * as https from 'node:https';
 import { PassThrough } from 'node:stream';
 import { URL } from 'node:url';
-import { resolveRuntimeCredentialRefHeaders, beginRuntimeCall, createAuditBodyTracker,
-  redactAuditHeaders, redactAuditUrl, redactAuditValue } from 'api-nova-parser';
-import { gatewayAuditContext } from './gateway-audit-context';
+import { resolveRuntimeCredentialRefHeaders, runRuntimeUpstreamAttempt } from 'api-nova-parser';
+import { ensureGatewayRequestId, gatewayAuditContext } from './gateway-audit-context';
 import { GatewayRequestCaptureService } from './gateway-request-capture.service';
 import { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
 import { GatewayProxyResult } from '../types/gateway-proxy.types';
@@ -22,189 +21,147 @@ export class GatewayProxyEngineService {
   ) {}
 
   async forward(
-    resolvedRoute: GatewayResolvedRoute,
-    req: Request,
-    res: Response,
-    options?: {
-      captureResponseBodyMaxBytes?: number;
-    },
+    resolvedRoute: GatewayResolvedRoute, req: Request, res: Response,
+    options?: { captureResponseBodyMaxBytes?: number; attemptIndex?: number; upstreamOperationId?: string },
   ): Promise<GatewayProxyResult & { targetUrl: string }> {
-    const targetUrl = this.buildTargetUrl(
-      resolvedRoute.upstreamBaseUrl,
-      resolvedRoute.routeBinding.upstreamPath,
-      req.originalUrl,
-      resolvedRoute.params,
-    );
-    const url = new URL(targetUrl);
+    const url = new URL(this.buildTargetUrl(resolvedRoute.upstreamBaseUrl,
+      resolvedRoute.routeBinding.upstreamPath, req.originalUrl, resolvedRoute.params));
     const consumerQueryKey = resolvedRoute.policies?.auth?.apiKeyQueryParamName;
     if (consumerQueryKey) url.searchParams.delete(consumerQueryKey);
     const transport = url.protocol === 'https:' ? https : http;
-    const timeoutMs =
-      resolvedRoute.policies?.traffic?.timeoutMs ??
-      resolvedRoute.routeBinding.timeoutMs ??
-      30000;
-    const headers = this.buildForwardHeaders(
-      req.headers,
-      url,
-      req,
-      resolvedRoute.sourceServiceInstance.credentialRef,
-    );
-    const requestCapture = this.gatewayRequestCaptureService.createTracker(
-      req.headers['content-type'],
-    );
-    const call = beginRuntimeCall(gatewayAuditContext(req, this.ensureRequestId(req), resolvedRoute), 'api');
-    Object.assign(call.record, { method: resolvedRoute.routeBinding.upstreamMethod,
-      path: resolvedRoute.endpointDefinition.path || resolvedRoute.routeBinding.upstreamPath,
-      url: redactAuditUrl(url.toString()), requestHeaders: redactAuditHeaders(headers,
-        Object.keys(resolveRuntimeCredentialRefHeaders(resolvedRoute.sourceServiceInstance.credentialRef))) });
-    const requestAudit = createAuditBodyTracker(String(req.headers['content-type'] || ''));
-    let responseAudit: ReturnType<typeof createAuditBodyTracker> | undefined;
-
-    return new Promise<GatewayProxyResult & { targetUrl: string }>((resolve, reject) => {
+    const timeoutMs = resolvedRoute.policies?.traffic?.timeoutMs ?? resolvedRoute.routeBinding.timeoutMs ?? 30000;
+    const headers = this.buildForwardHeaders(req.headers, url, req, resolvedRoute.sourceServiceInstance.credentialRef);
+    const requestCapture = this.gatewayRequestCaptureService.createTracker(req.headers['content-type']);
+    let upstreamReq: http.ClientRequest | undefined;
+    let upstreamRes: http.IncomingMessage | undefined;
+    let requestTap: PassThrough | undefined;
+    let rejectAttempt: ((error: Error) => void) | undefined;
+    let rejectClient: (error: Error) => void = () => undefined;
+    let clientFinished: () => void = () => undefined;
+    const cancellation = () => Object.assign(new BadGatewayException('Client disconnected'), { code: 'ABORT_ERR' });
+    const onCancelled = () => {
+      const error = cancellation();
+      rejectAttempt?.(error);
+      rejectClient(error);
+      upstreamReq?.destroy();
+      upstreamRes?.destroy();
+      requestTap?.destroy();
+    };
+    const onClientClose = () => { if (!res.writableFinished) onCancelled(); };
+    const clientCompletion = new Promise<void>((resolve, reject) => {
+      rejectClient = reject;
+      clientFinished = resolve;
+      res.once('finish', clientFinished);
+      res.once('close', onClientClose);
+      res.once('error', onCancelled);
+      req.once('aborted', onCancelled);
+      req.once('error', onCancelled);
+    });
+    const upstream = runRuntimeUpstreamAttempt({
+      context: { ...gatewayAuditContext(req, this.ensureRequestId(req), resolvedRoute),
+        upstreamOperationId: options?.upstreamOperationId },
+      method: resolvedRoute.routeBinding.upstreamMethod, url: url.toString(),
+      attemptIndex: options?.attemptIndex ?? 1, redirectHopIndex: 0,
+      requestHeaders: headers, requestContentType: String(req.headers['content-type'] || ''),
+      credentialHeaderNames: Object.keys(resolveRuntimeCredentialRefHeaders(resolvedRoute.sourceServiceInstance.credentialRef)),
+    }, observer => new Promise<GatewayProxyResult & { targetUrl: string }>((resolve, reject) => {
       let settled = false;
-      const finalizeResolve = async (value: GatewayProxyResult & { targetUrl: string }) => {
-        if (!settled) {
-          settled = true;
-          await call.finish({ outcome: value.statusCode >= 400 ? 'error' : 'success', statusCode: value.statusCode,
-            request: requestAudit.finish(), response: responseAudit?.finish(),
-            responseHeaders: redactAuditValue(value.headers) });
-          value.auditRecorded = true;
-          resolve(value);
-        }
+      const fail = (error: Error) => {
+        if (settled) return;
+        settled = true;
+        reject(error);
       };
-      const finalizeReject = async (error: Error) => {
-        if (!settled) {
+      rejectAttempt = fail;
+      if (req.aborted || res.destroyed) { fail(cancellation()); return; }
+      upstreamReq = transport.request({
+        protocol: url.protocol, hostname: url.hostname, port: url.port,
+        method: resolvedRoute.routeBinding.upstreamMethod, path: url.pathname + url.search, headers,
+      }, response => {
+        upstreamRes = response;
+        const responseCapture = this.gatewayRequestCaptureService.createTracker(response.headers['content-type']);
+        const normalizedHeaders = this.normalizeResponseHeaders(response.headers);
+        const responseBodyChunks: Buffer[] = [];
+        let responseBodyBytes = 0, overflow = false;
+        observer.responseStarted(response.statusCode || 502, normalizedHeaders, String(response.headers['content-type'] || ''));
+        const interrupted = () => fail(Object.assign(new BadGatewayException('Upstream response interrupted'), { code: 'ECONNRESET' }));
+        response.once('error', error => fail(Object.assign(new BadGatewayException('Upstream response failed'),
+          { code: (error as NodeJS.ErrnoException).code || 'ECONNRESET' })));
+        response.once('aborted', interrupted);
+        response.once('close', () => { if (!response.complete) interrupted(); });
+        response.on('data', chunk => {
+          observer.responseChunk(chunk);
+          responseCapture.observeChunk(chunk);
+          if (overflow || !options?.captureResponseBodyMaxBytes || options.captureResponseBodyMaxBytes <= 0) return;
+          const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+          if (responseBodyBytes + buffer.length > options.captureResponseBodyMaxBytes) {
+            overflow = true;
+            responseBodyChunks.length = 0;
+            return;
+          }
+          responseBodyChunks.push(buffer);
+          responseBodyBytes += buffer.length;
+        });
+        response.once('end', () => {
+          observer.responseComplete();
+          if (settled) return;
           settled = true;
-          await call.finish({ outcome: req.aborted || (res.destroyed && !res.writableEnded) ? 'cancelled' : 'error',
-            statusCode: typeof (error as any).getStatus === 'function' ? (error as any).getStatus() : undefined,
-            request: requestAudit.finish(req.complete), response: responseAudit?.finish(false),
-            errorCode: (error as any).code || error.name });
-          reject(error);
-        }
-      };
-
-      const upstreamReq = transport.request(
-        {
-          protocol: url.protocol,
-          hostname: url.hostname,
-          port: url.port,
-          method: resolvedRoute.routeBinding.upstreamMethod,
-          path: `${url.pathname}${url.search}`,
-          headers,
-        },
-        upstreamRes => {
-          const responseCapture = this.gatewayRequestCaptureService.createTracker(
-            upstreamRes.headers['content-type'] as string | string[] | undefined,
-          );
-          responseAudit = createAuditBodyTracker(String(upstreamRes.headers['content-type'] || ''));
-          const responseTap = new PassThrough();
-          const responseBodyChunks: Buffer[] = [];
-          let responseBodyBytes = 0;
-          let responseBodyOverflow = false;
-          let responseCaptureFinalized = false;
-          let finalizedResponseCapture: ReturnType<typeof responseCapture.finalize>;
-          const normalizedHeaders = this.normalizeResponseHeaders(
-            upstreamRes.headers as Record<string, unknown>,
-          );
-          res.status(upstreamRes.statusCode || 502);
+          resolve({
+            statusCode: response.statusCode || 502, headers: normalizedHeaders,
+            requestCapture: requestCapture.finalize(), responseCapture: responseCapture.finalize(),
+            responseBodyBuffer: options?.captureResponseBodyMaxBytes && !overflow
+              ? Buffer.concat(responseBodyChunks) : undefined,
+            targetUrl: url.toString(),
+          });
+        });
+        try {
+          res.status(response.statusCode || 502);
           for (const [key, value] of Object.entries(normalizedHeaders)) {
-            if (value === undefined) {
-              continue;
-            }
-            res.setHeader(key, value as string | string[]);
+            if (value !== undefined) res.setHeader(key, value);
           }
           res.setHeader('x-request-id', this.ensureRequestId(req, res));
           res.flushHeaders?.();
-
-          upstreamRes.on('error', error => {
-            finalizeReject(new BadGatewayException(error.message));
-          });
-          responseTap.on('data', chunk => {
-            responseCapture.observeChunk(chunk);
-            responseAudit!.observe(chunk);
-            if (
-              responseBodyOverflow ||
-              !options?.captureResponseBodyMaxBytes ||
-              options.captureResponseBodyMaxBytes <= 0
-            ) {
-              return;
-            }
-
-            const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-            const remaining = options.captureResponseBodyMaxBytes - responseBodyBytes;
-            if (buffer.byteLength > remaining) {
-              responseBodyOverflow = true;
-              responseBodyChunks.length = 0;
-              return;
-            }
-
-            responseBodyChunks.push(buffer);
-            responseBodyBytes += buffer.byteLength;
-          });
-          res.on('close', () => {
-            if (!res.writableEnded) {
-              upstreamRes.destroy();
-              responseTap.destroy();
-              void finalizeReject(new BadGatewayException('Client closed response'));
-            }
-          });
-          res.on('finish', () => {
-            if (!responseCaptureFinalized) {
-              finalizedResponseCapture = responseCapture.finalize();
-              responseCaptureFinalized = true;
-            }
-            finalizeResolve({
-              statusCode: upstreamRes.statusCode || 502,
-              headers: normalizedHeaders,
-              requestCapture: requestCapture.finalize(),
-              responseCapture: finalizedResponseCapture,
-              responseBodyBuffer:
-                options?.captureResponseBodyMaxBytes && !responseBodyOverflow
-                  ? Buffer.concat(responseBodyChunks)
-                  : undefined,
-              targetUrl: url.toString(),
-            });
-          });
-          responseTap.on('end', () => {
-            finalizedResponseCapture = responseCapture.finalize();
-            responseCaptureFinalized = true;
-          });
-          upstreamRes.pipe(responseTap).pipe(res);
-        },
-      );
-
+          response.pipe(res);
+        } catch (error) { fail(error as Error); }
+      });
       upstreamReq.setTimeout(timeoutMs, () => {
-        upstreamReq.destroy(
-          new GatewayTimeoutException(`Gateway upstream timeout after ${timeoutMs}ms`),
-        );
+        upstreamReq?.destroy(new GatewayTimeoutException('Gateway upstream timeout'));
       });
+      upstreamReq.once('finish', () => observer.requestComplete());
       upstreamReq.on('error', error => {
-        if (error instanceof GatewayTimeoutException) {
-          finalizeReject(error);
-          return;
-        }
+        if (error instanceof GatewayTimeoutException) { fail(error); return; }
         const code = (error as NodeJS.ErrnoException).code;
-        if (code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'EHOSTUNREACH') {
-          finalizeReject(new BadGatewayException(error.message));
-          return;
-        }
-        finalizeReject(error);
+        if (code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'EHOSTUNREACH' || code === 'ECONNRESET') {
+          fail(Object.assign(new BadGatewayException('Gateway upstream connection failed'), { code }));
+        } else fail(error);
       });
-
-      req.on('aborted', () => {
-        upstreamReq.destroy();
-        if (!settled) {
-          finalizeReject(new BadGatewayException('Client aborted request'));
-        }
-      });
-      const requestTap = new PassThrough();
+      requestTap = new PassThrough();
       requestTap.on('data', chunk => {
         requestCapture.observeChunk(chunk);
-        requestAudit.observe(chunk);
+        observer.requestChunk(chunk);
       });
-
-      req.pipe(requestTap).pipe(upstreamReq);
-    });
+      requestTap.once('error', fail);
+      // Only empty-body retries are permitted by the runtime service.
+      if (req.readableEnded) upstreamReq.end();
+      else req.pipe(requestTap).pipe(upstreamReq);
+    }));
+    try {
+      // An upstream completion and a successful client send are separate facts.
+      const [result] = await Promise.all([upstream, clientCompletion]);
+      return result;
+    } catch (error) {
+      upstreamReq?.destroy();
+      upstreamRes?.destroy();
+      requestTap?.destroy();
+      if (res.headersSent && !res.writableFinished && !res.destroyed) res.destroy();
+      throw error;
+    } finally {
+      res.removeListener('finish', clientFinished);
+      res.removeListener('close', onClientClose);
+      res.removeListener('error', onCancelled);
+      req.removeListener('aborted', onCancelled);
+      req.removeListener('error', onCancelled);
+      if (requestTap) req.unpipe(requestTap);
+    }
   }
 
   private buildTargetUrl(
@@ -280,15 +237,7 @@ export class GatewayProxyEngineService {
   }
 
   private ensureRequestId(req: Request, res?: Response) {
-    const existing = req.headers['x-request-id'];
-    const requestId = Array.isArray(existing)
-      ? existing[0]
-      : existing || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    req.headers['x-request-id'] = String(requestId);
-    if (res && !res.headersSent) {
-      res.setHeader('x-request-id', requestId);
-    }
-    return String(requestId);
+    return ensureGatewayRequestId(req, res);
   }
 
   private normalizeResponseHeaders(headers: Record<string, unknown>) {

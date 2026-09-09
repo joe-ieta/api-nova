@@ -6,5 +6,4 @@ export type GatewayProxyResult = {
   requestCapture?: GatewayPayloadCapture;
   responseCapture?: GatewayPayloadCapture;
   responseBodyBuffer?: Buffer;
-  auditRecorded?: boolean;
 };

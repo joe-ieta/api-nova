@@ -1,5 +1,5 @@
 ---
-doc-version: 1.3.0
+doc-version: 1.4.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.3.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.4.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -462,10 +462,20 @@ Idempotency-Key 为 1~128 个非空白可见 ASCII 字符。API_NOVA_OBSERVABILI
 
 TP-04 已提供单次物理上游请求适配器，明确记录 attemptIndex/redirectHopIndex、原始字节观察边界以及流是否完整结束。一次实际请求对应一个 upstream_api 调用；适配器不会自行重试或重复消费流。内部健康包含 attemptsStarted/attemptsCompleted/instrumentationFailures/finalizeFailures，文件失败另由共享写入健康记录；这些计数尚未成为已上线健康 Endpoint。
 
-四组 parser 测试共 60 项及 parser/API 构建已通过，覆盖新增的 16 项上游尝试与故障用例。TP-03 专项验收已完成，Gateway/MCP/测试探测接入仍未完成。28 个 HTTP Endpoint 与两类推送继续保持 PLANNED，不能将新导出函数等同为对外服务已可调用。
+四组 parser 测试共 60 项及 parser/API 构建已通过，覆盖新增的 16 项上游尝试与故障用例。TP-03 专项与 Gateway 包级接入验收已完成，MCP/测试探测和正式应用集成仍未完成。28 个 HTTP Endpoint 与两类推送继续保持 PLANNED，不能将新导出函数等同为对外服务已可调用。
 
 ## 12. 当前对外可用性边界（2026-09-09）
 
 TP-03 的管理身份隔离、AND 权限、显式资源范围、查询归一化、签名游标、资源版本与幂等基础已验收；现有管理登录/刷新流程用于签发符合用途约束的访问 Token。未新增 Token 签发接口，普通角色不会自动获得正文或来源 IP 权限。
 
-生产查询控制器、读取审计、Swagger 路由及全局响应拦截器协作尚未接入。28 个 HTTP Endpoint、Socket.IO 与 Webhook 推送保持 PLANNED；公共基础通过不等于 Endpoint 已开放。Gateway 接入继续由 TP-05 推进，本阶段不新增 Endpoint 或更改路径。
+生产查询控制器、读取审计、Swagger 路由及全局响应拦截器协作尚未接入。28 个 HTTP Endpoint、Socket.IO 与 Webhook 推送保持 PLANNED；公共基础通过不等于 Endpoint 已开放。Gateway 包级接入已由 TP-05 完成，本阶段不新增 Endpoint 或更改路径。
+
+## 13. Gateway 采集语义与验证边界（2026-09-09）
+
+Gateway 包级实现已通过 21 项真实回环 HTTP 专项及 104 项基础回归，API 构建通过。记录维度为独立 gateway_request 与 upstream_api，通过内部 requestId、traceId、parentInvocationId/rootInvocationId 关联。客户端 x-request-id 仅存入受限 clientRequestId；返回及转发的 x-request-id 为服务器新生成的 ID。
+
+入口字节来自现有请求读事件与 ServerResponse 写入，measurementStage=gateway_http；上游字节由单次适配器观察，measurementStage=upstream_http。两侧均为 observed_body，不等于 TCP/TLS 线速流量，不跨阶段相加。未读入的请求正文保持不可用，不能拿 Content-Length 或空字符串伪装观察值。入口成功以客户端响应 finish 为界，上游成功以上游响应完整结束为界；断开和中断不记为成功。
+
+缓存命中只新增入口，cacheHit=true；实际重试使用同一 upstreamOperationId 与递增 attemptIndex。代理不自动跟随重定向，redirectHopIndex=0。没有重放缓冲的带正文请求不自动重试。可信 API Key 身份在路由权限判断前建立，因此“认证成功但拒绝访问”仍保留可信调用者，错误凭证不会生成伪造调用者。
+
+当前 clientIp/peerIp 为直接连接端，ipSource=peer、proxyTrusted=false；不承诺反向代理后的最终客户端地址，逐跳可信解析需集成验证。上述是采集能力，不是 API 开放证明；所有新 Endpoint 和推送保持 PLANNED，生产控制器/监听器完整集成仍由 TP-15 验收。

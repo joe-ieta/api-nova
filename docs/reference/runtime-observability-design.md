@@ -1,5 +1,5 @@
 ---
-doc-version: 1.4.0
+doc-version: 1.5.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -484,3 +484,13 @@ runRuntimeUpstreamAttempt 只包裹一个实际 HTTP 请求的业务回调。调
 共享 AsyncLocalStorage 为单次请求派生父子上下文；成功保留原返回对象，异常保留原异常对象。审计完成进入异步写队列，不等待文件系统延迟；捕获或最终调度失败进入内部健康计数。脱敏覆盖 URL、已声明凭证头和结构化正文；原始异常 message 不写入日志。
 
 新增 16 项测试与原有 44 项组成 60 项通过证据，parser/API 构建通过，TP-04 收口。生产接入留在 TP-05/06/07，采集汇集留在 TP-08，健康 API 与故障闭环留在 TP-14；没有提前开放任何对外 Endpoint。TP-03 初次测试因夹具依赖遗漏失败，历史记录保留；修复后业务断言全部执行并通过，不改变生产 Endpoint 仍未开放的边界。
+
+## TP-05 Gateway 接入实现与语义澄清
+
+2026-09-09：GatewayRequestAudit 在路由/认证策略处理时前置建立入口节点，复用共享 begin/progress/finish；通过观察现有请求 emit(data/end) 与响应 write/end 计量，不主动消费请求流，不建立自动重放缓冲。入口绑定客户端 finish/close/aborted，独立于上游响应结束，每个节点只终结一次。上游由 runRuntimeUpstreamAttempt 统一采集，运行服务提供 upstreamOperationId、attemptIndex，redirectHopIndex=0（当前不跟随跳转）。
+
+请求 ID 由服务端按请求生成一次并向客户端和上游传播，原 x-request-id 仅作为受限 clientRequestId。认证失败没有可信 caller；API Key 验证成功后先建立身份，再判断资产/路由权限，拒绝日志保留已验证主体。缓存命中不生成上游节点。没有安全重放缓冲时禁止带正文请求重试，避免消费后的请求流被当成可再次发送的正文。
+
+两侧字节分别标记 observed_body/gateway_http 与 observed_body/upstream_http，反映应用层 body 读写，不是线速流量；未读入的正文保持未知。客户端 finish 只表示本地发送完成，不证明远端业务已处理。来源当前只接受直接 socket peer，明确 proxyTrusted=false，不把客户端转发头或 req.ip 当成可信最终来源；逐跳代理解析是 TP-15 集成待办，尚未实现。
+
+已移除 GatewayAccessLogService 的 fallback 规范事实和 auditRecorded 互斥；其旧 DB 访问日志仍供现有界面使用，由 TP-15 收敛，不进入新调用统计。新增 21 项 HTTP 专项与 104 项基础回归全部通过，API 构建通过；TP-05=DONE。正式应用/独立监听器矩阵、MCP、查询和推送仍待后续包，不把隔离测试服务冒充生产部署。

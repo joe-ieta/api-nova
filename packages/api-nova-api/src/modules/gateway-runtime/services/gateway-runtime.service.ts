@@ -1,4 +1,4 @@
-import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadGatewayException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { GatewayAccessLogService } from './gateway-access-log.service';
 import { GatewayRuntimeMetricsService } from './gateway-runtime-metrics.service';
@@ -11,6 +11,8 @@ import { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
 import { GatewayProxyResult } from '../types/gateway-proxy.types';
 import { randomUUID } from 'node:crypto';
 import { runtimeChallenge } from 'api-nova-parser';
+import { ensureGatewayRequestId } from './gateway-audit-context';
+import { beginGatewayRequestAudit } from './gateway-request-audit';
 
 @Injectable()
 export class GatewayRuntimeService {
@@ -26,37 +28,27 @@ export class GatewayRuntimeService {
 
   async forwardRequest(routePath: string, req: Request, res: Response): Promise<void> {
     const startedAt = Date.now();
-    const target = this.gatewayRouteSnapshotService.resolve(
-      req.headers.host,
-      req.method,
-      routePath,
-    );
-
-    if (!target) {
-      const requestId = this.resolveRequestId(req, res);
-      const correlationId = this.resolveCorrelationId(req);
-      const latencyMs = Date.now() - startedAt;
-      await this.gatewayRuntimeMetricsService.recordRouteMiss({
-        method: String(req.method || '').toUpperCase(),
-        routePath,
-        host: Array.isArray(req.headers.host) ? req.headers.host[0] : req.headers.host,
-        requestId,
-        correlationId,
-        clientIp: req.ip || req.socket?.remoteAddress,
-      });
-      await this.gatewayAccessLogService.recordUnmatchedRequest({
-        requestId,
-        correlationId,
-        req,
-        routePath,
-        latencyMs,
-        statusCode: 404,
-        errorMessage: `No active gateway route for ${req.method} ${routePath}`,
-      });
-      throw new NotFoundException(`No active gateway route for ${req.method} ${routePath}`);
-    }
-
-    return this.forwardResolvedRoute(target, req, res, startedAt);
+    const requestId = this.resolveRequestId(req, res);
+    const target = this.gatewayRouteSnapshotService.resolve(req.headers.host, req.method, routePath);
+    const audit = beginGatewayRequestAudit(req, res, requestId, target || undefined, routePath);
+    return audit.run(async () => {
+      if (!target) {
+        const correlationId = this.resolveCorrelationId(req);
+        const latencyMs = Date.now() - startedAt;
+        const error = new NotFoundException(`No active gateway route for ${req.method} ${routePath}`);
+        audit.failed(error);
+        await this.gatewayRuntimeMetricsService.recordRouteMiss({
+          method: String(req.method || '').toUpperCase(), routePath,
+          host: Array.isArray(req.headers.host) ? req.headers.host[0] : req.headers.host,
+          requestId, correlationId, clientIp: req.socket?.remoteAddress,
+        });
+        await this.gatewayAccessLogService.recordUnmatchedRequest({
+          requestId, correlationId, req, routePath, latencyMs, statusCode: 404, errorMessage: error.message,
+        });
+        throw error;
+      }
+      return this.forwardResolvedRoute(target, req, res, startedAt);
+    });
   }
 
   async forwardResolvedRoute(
@@ -66,9 +58,12 @@ export class GatewayRuntimeService {
     startedAt = Date.now(),
     options: { bypassCache?: boolean } = {},
   ): Promise<void> {
-    this.resolveRequestId(req, res);
+    const requestId = this.resolveRequestId(req, res);
+    const audit = beginGatewayRequestAudit(req, res, requestId, target);
+    return audit.run(async () => {
     try {
       const authContext = await this.gatewaySecurityService.authorize(target, req);
+      audit.authenticated();
       const admission = await this.gatewayTrafficControlService.admit(target, authContext);
       try {
         const requestId = this.resolveRequestId(req, res);
@@ -90,6 +85,7 @@ export class GatewayRuntimeService {
         }
 
         if (cacheLookup?.hit) {
+          audit.cacheHit();
           this.gatewayCacheService.writeHit(res, cacheLookup.entry, requestId);
           const latencyMs = Date.now() - startedAt;
           const cachedProxyResult = this.buildCachedProxyResult(cacheLookup.entry);
@@ -145,6 +141,7 @@ export class GatewayRuntimeService {
         admission.release();
       }
     } catch (error) {
+      audit.failed(error);
       const latencyMs = Date.now() - startedAt;
       const statusCode = this.resolveStatusCode(error);
       if (!res.headersSent && (statusCode === 401 || statusCode === 403) && target.policies.auth.mode === 'jwt') {
@@ -193,20 +190,11 @@ export class GatewayRuntimeService {
       });
       throw error;
     }
+    });
   }
 
   private resolveRequestId(req: Request, res: Response) {
-    const responseValue =
-      typeof res.getHeader === 'function' ? res.getHeader('x-request-id') : undefined;
-    if (typeof responseValue === 'string') {
-      return responseValue;
-    }
-    const requestValue = req.headers['x-request-id'];
-    const candidate = Array.isArray(requestValue) ? requestValue[0] : requestValue;
-    const requestId = candidate && /^[A-Za-z0-9._:-]{1,120}$/.test(candidate) ? candidate : randomUUID();
-    req.headers['x-request-id'] = requestId;
-    if (!res.headersSent && typeof res.setHeader === 'function') res.setHeader('x-request-id', requestId);
-    return requestId;
+    return ensureGatewayRequestId(req, res);
   }
 
   private resolveCorrelationId(req: Request) {
@@ -230,16 +218,22 @@ export class GatewayRuntimeService {
     res: Response,
   ) {
     const attempts = this.resolveMaxAttempts(target, req);
+    const upstreamOperationId = randomUUID();
     let attempt = 0;
     let lastError: Error | null = null;
 
     while (attempt < attempts) {
+      if (req.aborted || res.destroyed) {
+        throw Object.assign(new BadGatewayException('Client disconnected'), { code: 'ABORT_ERR' });
+      }
       attempt += 1;
       try {
         if (attempt > 1) {
           await this.gatewayTrafficControlService.beforeAttempt(target);
         }
         const result = await this.gatewayProxyEngineService.forward(target, req, res, {
+          attemptIndex: attempt,
+          upstreamOperationId,
           captureResponseBodyMaxBytes: target.policies.cache.enabled
             ? target.policies.cache.maxBodyBytes
             : undefined,
@@ -252,7 +246,7 @@ export class GatewayRuntimeService {
 
         if (
           attempt >= attempts ||
-          res.headersSent ||
+          res.headersSent || req.aborted || res.destroyed ||
           !this.isRetryable(target, req, lastError)
         ) {
           throw lastError;
@@ -271,6 +265,8 @@ export class GatewayRuntimeService {
     req: Request,
     error: Error,
   ) {
+    // A consumed request body cannot be replayed by piping IncomingMessage again.
+    if (req.headers['transfer-encoding'] || Number(req.headers['content-length'] || 0) > 0) return false;
     const code = this.resolveStatusCode(error);
     if (code && code < 500 && code !== 504) {
       return false;

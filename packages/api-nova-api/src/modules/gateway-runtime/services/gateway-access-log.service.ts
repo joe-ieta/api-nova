@@ -5,8 +5,7 @@ import { Repository } from 'typeorm';
 import { GatewayAccessLogEntity } from '../../../database/entities/gateway-access-log.entity';
 import { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
 import { GatewayProxyResult } from '../types/gateway-proxy.types';
-import { beginRuntimeCall, captureAuditBody, redactAuditUrl, redactAuditValue } from 'api-nova-parser';
-import { gatewayAuditContext, gatewayAuditUrl } from './gateway-audit-context';
+import { captureAuditBody, redactAuditUrl, redactAuditValue } from 'api-nova-parser';
 
 @Injectable()
 export class GatewayAccessLogService {
@@ -28,22 +27,7 @@ export class GatewayAccessLogService {
     statusCode?: number;
     errorMessage?: string;
   }) {
-    if (!input.proxyResult?.auditRecorded) {
-      const call = beginRuntimeCall(gatewayAuditContext(input.req, input.requestId, input.resolvedRoute), 'admission');
-      call.record.startedAt = new Date(Date.now() - input.latencyMs).toISOString();
-      const request = captureAuditBody(input.req.body, String(input.req.headers['content-type'] || ''));
-      if (input.req.body === undefined && input.upstreamUrl !== 'cache://gateway') {
-        request.state = 'omitted'; request.reason = 'body_not_consumed_at_admission';
-      }
-      await call.finish({ method: input.req.method, path: input.resolvedRoute.routeBinding.routePath,
-        durationMs: input.latencyMs,
-        url: gatewayAuditUrl(input.req, input.resolvedRoute), request,
-        requestHeaders: this.normalizeHeaders(input.req.headers),
-        outcome: input.upstreamUrl === 'cache://gateway' ? 'cache_hit' : input.errorMessage ? 'error' : 'success',
-        statusCode: input.proxyResult?.statusCode ?? input.statusCode,
-        response: input.proxyResult?.responseBodyBuffer ? captureAuditBody(input.proxyResult.responseBodyBuffer,
-          String(input.proxyResult.headers?.['content-type'] || '')) : undefined });
-    }
+    // Canonical gateway_request evidence is emitted by the ingress observer.
     try {
       const requestHeaders = this.normalizeHeaders(input.req.headers);
       const responseHeaders = input.proxyResult?.headers
@@ -101,10 +85,6 @@ export class GatewayAccessLogService {
     statusCode: number;
     errorMessage: string;
   }) {
-    const call = beginRuntimeCall(gatewayAuditContext(input.req, input.requestId), 'admission');
-    await call.finish({ method: input.req.method, path: input.routePath,
-      url: gatewayAuditUrl(input.req),
-      requestHeaders: this.normalizeHeaders(input.req.headers), statusCode: input.statusCode, outcome: 'error' });
     try {
       const entity = this.gatewayAccessLogRepository.create({
         requestId: input.requestId,
