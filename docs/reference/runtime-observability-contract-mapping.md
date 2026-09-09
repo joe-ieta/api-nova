@@ -1,5 +1,5 @@
 ---
-doc-version: 1.6.2
+doc-version: 1.7.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -84,3 +84,7 @@ Gateway 已切换为不同 spanKind 的显式父子事实：gateway-request-audi
 2026-09-09：在父进程暂停读取期间直接观察持久日志，恢复读取后再要求子进程 flush/health 快照，已修正 Windows 同步 stdout 导致的夹具等待错误。真实 STDIO 8/8、联合回归 163/163 与真实 Streamable/SSE 烟测通过，原不得提前成功和最终唯一终态断言均保留。
 
 生产传输代码未改，本轮未重复构建；发送前 flush 是测试基线，不是新增生产能力。stdin EOF、stdout 错误/断管和完整平台矩阵仍待验收，TP-06 仍 IN_PROGRESS。
+
+## TP-08 单文件采集映射（2026-09-09）
+
+packages/api-nova-api/src/modules/call-observability/call-observability.collector.ts 消费 calls-v2 专用 JSONL，经唯一 CallObservabilityStore.ingest/rejectRecord 事务写入；调用/事件、检查点和尾边界指纹同事务。旧日志与 callers 文件不导入。测试脚本 test-call-observability-collector.cjs 新增 14 项通过；连同存储/GC/权限基础 118 项及 API 构建通过。目录调度、身份归并和公开 API 未在此节点宣告完成。

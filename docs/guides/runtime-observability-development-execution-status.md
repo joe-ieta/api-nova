@@ -1,5 +1,5 @@
 ---
-doc-version: 1.13.0
+doc-version: 1.14.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -8,7 +8,7 @@ implementation-status: in-progress
 # 可观测性开发执行与任务包完成状态
 
 > Document status: Active execution ledger
-> 当前阶段：OBS-TP-01/02/03/04/05 完成；TP-06 真实 STDIO 8 项与联合回归 163 项通过，慢读夹具已修复。7214c46 已推送，当前批次达到阶段提交条件；最新证据见第 21 节。
+> 当前阶段：OBS-TP-01/02/03/04/05 完成；TP-06、TP-08 进行中。fca58c0 已推送；TP-08 单文件有界采集节点新增 14 项及联合回归 118 项、API 构建通过，见第 22 节。
 > 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
 
 ## 1. 当前快照
@@ -20,13 +20,13 @@ implementation-status: in-progress
 | 全新版本决策 | 统一当前格式、接口和数据库初始结构，不增加历史兼容层 |
 | 实现任务总数 | 16 |
 | DONE | 5 |
-| IN_PROGRESS / REVIEW / BLOCKED | 1 / 0 / 0 |
-| READY / BACKLOG | 2 / 8 |
+| IN_PROGRESS / REVIEW / BLOCKED | 2 / 0 / 0 |
+| READY / BACKLOG | 1 / 8 |
 | 代码验收完成率 | 5/16；TP-04 重新验收，不代表 MCP 整包或全链路完成 |
 | 新 HTTP Endpoint | 28 个，全部 PLANNED |
 | 新推送契约 | 2 类，全部 PLANNED |
 | 本轮数据库实际操作 | 隔离 SQL.js 内存库、独有临时目录及本机随机端口；未连接或清理业务数据库 |
-| 本轮新增验证 | Node 联合回归 163/163 PASS（真实 STDIO 8/8、原有 155/155）；真实 Streamable/SSE 烟测 PASS；仅修复测试同步，本轮未重复无变更生产源码的构建 |
+| 本轮新增验证 | API build PASS；采集 14 项 + 存储/GC 48 项 + 权限基础 56 项 = 118/118 PASS；本轮未重复无变更 MCP 专项 |
 
 文档已确认与基础包完成都不代表功能已上线。TP-02 的存储、GC 与 PostgreSQL 多进程针对性验证已完成；Linux 矩阵、全系统 SQL.js 并发集成和新接口端到端验收仍未完成。
 
@@ -66,7 +66,7 @@ implementation-status: in-progress
 | OBS-TP-05 | Gateway 接入 | 04 | DONE | 入口前置、独立流结束、内部请求 ID、上游适配器/尝试编号、可信身份及取消接入完成；21 项真实回环 HTTP 专项与 104 项回归、API 构建通过；正式应用/监听器矩阵归 15/16 |
 | OBS-TP-06 | MCP 接入 | 04 | IN_PROGRESS | HTTP/物理上游基线已验收；真实 STDIO 8 项含慢读背压均通过；stdin EOF、stdout 错误/断管及剩余传输矩阵尚未验收 |
 | OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 04 重新验收，恢复就绪；test/probe/internal 实际接入尚未实施 |
-| OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | READY | 02、04 硬依赖已完成，恢复就绪；尚无自动汇集 worker |
+| OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | IN_PROGRESS | 单文件有界采集、事务边界指纹、初始事件抑制与诊断已通过 14 项专项；调用者归并、目录调度与失联恢复仍待完成 |
 | OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | BACKLOG | 03 已完成，等待 08 |
 | OBS-TP-10 | 聚合/状态/能力 API | 03、08 | BACKLOG | 03 已完成，等待 08 |
 | OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | BACKLOG | 03 已完成，等待 08；事件存储字段不等于分发已实现 |
@@ -88,11 +88,11 @@ implementation-status: in-progress
 | OBS-PUSH-01：Socket.IO | 1 | 13 | PLANNED |
 | OBS-PUSH-02：Webhook | 1 | 12 | PLANNED |
 
-新存储模块目前未接入应用入口，尚无新的 HTTP controller 或自动 collector。不能将实体或事件表字段视为可用接口。
+新存储模块目前未接入应用入口；单文件 collector 已有内部入口，但尚无目录自动调度或新的 HTTP controller。不能将内部采集与事件持久化视为公开接口或已运行的推送。
 
 ## 6. 验收证据矩阵
 
-下列端到端场景仍全部 NOT_RUN；parser、48 项存储/GC 测试、隔离烟测及 PostgreSQL 四进程测试只提供其实际覆盖范围内的基础证据。
+以下逐项记录实际覆盖范围。PARTIAL 表示对应组件已有通过证据，并不表示整条端到端链路或 Windows/Linux、SQLite/PostgreSQL 完整矩阵通过。
 
 | 场景 | 内容 | 责任任务包 | 结果 |
 | --- | --- | --- | --- |
@@ -100,22 +100,22 @@ implementation-status: in-progress
 | AC-02 | MCP 重试与工具/上游分别计数 | 06、15 | NOT_RUN |
 | AC-03 | 缓存/未匹配/拒绝/认证前边界 | 05、06 | PARTIAL；Gateway 包级 PASS，剩余集成/MCP 待验收 |
 | AC-04 | 连接错误/超时/取消/流中断 | 04、05、06 | PARTIAL；Gateway 包级 PASS，剩余集成/MCP 待验收 |
-| AC-05 | HTTP 200 下工具/协议错误 | 06 | PARTIAL；实际 HTTP JSON-RPC error 与模拟 Tool isError 通过，完整真实传输矩阵仍待验收 |
+| AC-05 | HTTP 200 下工具/协议错误 | 06 | PARTIAL；真实 HTTP JSON-RPC error、真实 STDIO Tool isError/协议错误已通过；其余传输组合待验收 |
 | AC-06 | 主体/凭证/IP 归并 | 08、09 | NOT_RUN |
 | AC-07 | 伪造代理 Header/Key 与高基数 | 04、08 | NOT_RUN |
 | AC-08 | 正文/脱敏/类型/上限/字节 | 04、05、06、09 | PARTIAL；Gateway 包级 PASS，剩余集成/MCP 待验收 |
-| AC-09 | 半行/重复导入/重启 | 02、08 | NOT_RUN |
+| AC-09 | 半行/重复导入/重启 | 02、08 | PARTIAL；Windows/SQL.js 单文件采集含半行与 collector 重建、重复/轮转/截断已通过；管理进程/数据库重启集成待验收 |
 | AC-10 | 未终态/强杀/迟到更正 | 08、10 | NOT_RUN |
 | AC-11 | 多服务器/多桶/去重与比率 | 10 | NOT_RUN |
 | AC-12 | Webhook 超时/ACK 丢失/重复 | 12 | NOT_RUN |
 | AC-13 | 重启/暂停/死信/人工重试 | 11、12 | NOT_RUN |
 | AC-14 | 实时补拉/游标/过滤变化 | 11、13 | NOT_RUN |
-| AC-15 | 数据库/磁盘/采集故障 | 04、08、14 | NOT_RUN |
+| AC-15 | 数据库/磁盘/采集故障 | 04、08、14 | PARTIAL；存储异常重试、投影失败回滚、坏行与截断诊断通过；自动恢复及完整故障矩阵待验收 |
 | AC-16 | 正文/事件/去重与清理 | 09、11、14 | NOT_RUN |
 | AC-17 | 权限及自身审计 | 03、09、11、12、13 | NOT_RUN |
 | AC-18 | 测试/探测/报送不污染统计 | 07、12、15 | NOT_RUN |
 | AC-19 | 无流量心跳与新鲜度 | 10、13 | NOT_RUN |
-| AC-20 | 两方言/两平台/STDIO | 02、06、15、16 | NOT_RUN |
+| AC-20 | 两方言/两平台/STDIO | 02、06、15、16 | PARTIAL；两方言基础与 PostgreSQL 独立进程、Windows 真实 STDIO 已有证据；Linux/完整交叉矩阵未运行 |
 
 ## 7. 已有运行证据
 
@@ -373,3 +373,15 @@ HTTP 已通过边界包括实际正文和字节、认证前拒绝不主动排空
 TP-06 保持 IN_PROGRESS，完成数仍 5/16。下一步覆盖 stdin EOF、stdout 错误/断管、剩余取消与传输矩阵，再根据整包退出条件收口；TP-07/08 已就绪。Windows 同步 stdout 的调度限制仍存在，独立观察端需处理新鲜度，Linux/性能矩阵继续留待 TP-16。
 
 本次文档和测试阶段提交/推送的实际结果以 Git 回执为准。未部署、未连接或清理业务数据库，28 个 HTTP Endpoint 与两类推送继续 PLANNED。
+
+## 22. 回顾后关键路径与单文件增量采集（2026-09-09）
+
+TP-08 只依赖已经完成的 TP-02/04，不再等待 TP-06 全传输矩阵。当前先打通文件、身份和恢复，再开放 TP-09/10/11 的明细、统计和事件能力。TP-06 的 EOF/断管仍保留；AC-02 的重试语义不能用重定向代替，也不会为凑验收擅自添加非幂等业务重试。
+
+新增 CallObservabilityCollector：只消费当前 v2 专用文件；单次最多 128 条/4 MiB 读取，单行默认 64 MiB、最高 128 MiB；跨批保留一个有界未完成行，超长行流式计算摘要后隔离。未完成尾行不提交，进程重启回到数据库已提交字节。未知格式、非法 JSON/UTF-8 保存摘要和原因，不复制正文。
+
+receipt、调用/版本、事件、检查点及尾部 64 字节指纹同事务提交。原生文件身份支持改名/轮转；截断、边界变化、硬链接/符号链接和越界路径拒绝处理，不自动重置断点。尾部指纹用于追加文件恢复，不等同于全文件防篡改证明。文件内已观察序号跳跃记录下界，不推断首条之前的未知缺口。
+
+数据集起点持久化；首次现有 v2 终态可入库，但其事件为 suppressed，不进入实时分发引用。新终态仍为 pending；尚无分发器。管道记录最近文件积压、部分行、错误、成功时间和水位，backlogScope=last_visited_file，不把局部扫描伪装为全目录总量。
+
+实际验证：npm.cmd run build --workspace api-nova-api PASS；node --test --test-reporter=spec 的 collector/storage/GC/API-foundation 四脚本共 118/118 PASS、0 skip、0 fail，其中新增 collector 14 项。均为隔离 Windows/SQL.js；未处理业务库、未部署、未新增公开 Endpoint。下一节点为调用者/来源同事务归并及有界目录调度和失联恢复。

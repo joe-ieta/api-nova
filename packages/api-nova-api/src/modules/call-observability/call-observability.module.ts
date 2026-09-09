@@ -10,13 +10,14 @@ import { CALL_OBSERVABILITY_ENTITIES } from '../../database/entities/runtime-cal
 import { RuntimeObservabilityEventEntity } from '../../database/entities/runtime-observability-event.entity';
 import { CallObservabilityPayloadStore } from './call-observability-payload.store';
 import { CallObservabilityGarbageService } from './call-observability-garbage.service';
+import { CallObservabilityCollector } from './call-observability.collector';
 import { CallObservabilityStore } from './call-observability.store';
 
 @Module({
   imports: [ConfigModule, SecurityModule, TypeOrmModule.forFeature([...CALL_OBSERVABILITY_ENTITIES, RuntimeObservabilityEventEntity])],
-  providers: [CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
+  providers: [CallObservabilityCollector, CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
     ObservabilityAccessGuard, ObservabilityApiExceptionFilter, ObservabilityCursorService, ObservabilityCommandStore],
-  exports: [CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
+  exports: [CallObservabilityCollector, CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
     ObservabilityAccessGuard, ObservabilityApiExceptionFilter, ObservabilityCursorService, ObservabilityCommandStore],
 })
 export class CallObservabilityModule {}

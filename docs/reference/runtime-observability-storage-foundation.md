@@ -1,7 +1,7 @@
 ---
-doc-version: 1.1.0
+doc-version: 1.2.0
 doc-status: active
-doc-updated: 2026-09-08
+doc-updated: 2026-09-09
 implementation-status: in-progress
 ---
 # 可观测性存储基础实现说明
@@ -144,3 +144,9 @@ CallObservabilityGarbageService.collect 默认每轮最多扫描 128 个目录�
 新增 16 项 GC 用例覆盖引用保护、过期审计保留、孤立与临时文件、写入和回收租约过期、主事务拒绝失效写入、generation 路径隔离、文件变化、归属冲突及有界续扫。PostgreSQL 场景在真正独立的 Node 进程和连接中验证提交可见性/顺序、回滚序号、并发调用事件和写入期间拒绝 GC，随后验证孤立回收。
 
 PostgreSQL 父进程仍有 client.query 弃用警告；子进程警告计数 0 不代表整次运行无警告。测试脚本仅创建和清理 api_nova_obs_verify_进程号_时间戳 数据库及对应 workspace/tmp 目录，不处理业务库。GC 没有自动定时器；TP-14 完成治理闭环，TP-15 完成跨模块事务集成，TP-16 完成 Linux/完整平台矩阵和负载验证。
+
+## 11. TP-08 首节点扩展（2026-09-09）
+
+不改数据库结构。IngestCheckpoint 可携带 boundaryHash，与现有 receipt/调用/事件/检查点一起提交到 runtime_pipeline_state；文件内已观察序号跳跃更新 sourceSequenceGaps，重放不回退 lastSequence。IngestContext.suppressEvent 保留初始历史事件，但将 dispatchState 设为 suppressed、不返回待分发引用；普通写入保持 pending。
+
+新增单文件 CallObservabilityCollector 导出和 14 项专项。数据集起点与早期管道状态已持久化，但模块尚未接入根应用，目录自动调度、调用者归并与公开 API 仍未完成。API build PASS；collector/storage/GC/API-foundation 合计 118/118 PASS。测试只使用隔离 Windows/SQL.js 和本轮自建临时目录，无业务库操作。

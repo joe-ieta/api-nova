@@ -31,11 +31,14 @@ export interface IngestCheckpoint {
   fileIdentity: string;
   previousOffset: string;
   byteOffset: string;
+  boundaryHash?: string;
 }
 
 export interface IngestContext {
   sourceInstanceId?: string;
   checkpoint?: IngestCheckpoint;
+  /** Retain history without making initial dataset evidence eligible for delivery. */
+  suppressEvent?: boolean;
 }
 
 export interface CommittedObservabilityEvent {
@@ -248,7 +251,8 @@ export class CallObservabilityStore {
           await this.saveProjection(tx, previous, current);
           if (record.phase === 'finished') {
             await this.invocationEvent(tx, current, revisionSequence,
-              previous?.record.completionSource === 'reconciled' ? 'invocation.reconciled' : 'invocation.completed');
+              previous?.record.completionSource === 'reconciled' ? 'invocation.reconciled' : 'invocation.completed',
+              context.suppressEvent);
           }
           if (request.storageFailed || response.storageFailed) {
             await this.diagnostic(tx, 'payloadWriteFailures', Number(request.storageFailed) + Number(response.storageFailed));
@@ -329,7 +333,8 @@ export class CallObservabilityStore {
   }
 
   private async invocationEvent(tx: ObservabilityWriteTransaction, current: RuntimeInvocationEntity,
-    sequence: string, eventType: 'invocation.completed' | 'invocation.reconciled'): Promise<void> {
+    sequence: string, eventType: 'invocation.completed' | 'invocation.reconciled',
+    suppressEvent = false): Promise<void> {
     const row = current.record as CanonicalInvocation;
     const failed = ['error', 'timeout', 'incomplete', 'rejected'].includes(row.outcome || '');
     const event = Object.assign(new RuntimeObservabilityEventEntity(), {
@@ -347,7 +352,7 @@ export class CallObservabilityStore {
       correlationId: row.traceId && row.traceId.length <= 120 ? row.traceId : undefined,
       actorType: RuntimeObservabilityActorType.RUNTIME,
       retentionClass: RuntimeObservabilityRetentionClass.STANDARD,
-      dispatchState: 'pending', expiresAt: new Date(expiresAfter(tx.now, 14)),
+      dispatchState: suppressEvent ? 'suppressed' : 'pending', expiresAt: new Date(expiresAfter(tx.now, 14)),
       dimensions: { runtimeAssetId: row.runtimeAssetId, serverType: row.serverType, origin: row.origin,
         spanKind: row.spanKind, callerId: row.callerId, endpointDefinitionId: row.endpointDefinitionId,
         sourceServiceInstanceId: row.sourceServiceInstanceId },
@@ -362,7 +367,7 @@ export class CallObservabilityStore {
         response: { state: row.response.state, observedBytes: row.response.observedBytes } },
     });
     await tx.manager.getRepository(RuntimeObservabilityEventEntity).insert(event);
-    tx.events.push({ eventId: event.id, sequence: publicSequence(sequence), eventType });
+    if (!suppressEvent) tx.events.push({ eventId: event.id, sequence: publicSequence(sequence), eventType });
   }
 
   private async checkpoint(tx: ObservabilityWriteTransaction,
@@ -378,10 +383,23 @@ export class CallObservabilityStore {
     if (sequenceKey(previous?.byteOffset || '0') !== sequenceKey(checkpoint.previousOffset)) {
       throw new ObservabilityStorageError('CHECKPOINT_CONFLICT');
     }
+    if (previous?.lastSequence && sourceSequence !== null &&
+      BigInt(sourceSequence) > BigInt(previous.lastSequence) + BigInt(1)) {
+      await this.diagnostic(tx, 'sourceSequenceGaps',
+        Number(BigInt(sourceSequence) - BigInt(previous.lastSequence) - BigInt(1)));
+    }
+    if (checkpoint.boundaryHash) {
+      const boundaries = tx.manager.getRepository(RuntimePipelineStateEntity);
+      await boundaries.save(boundaries.create({
+        id: 'call-observability:boundary:' + checkpoint.id,
+        value: { hash: checkpoint.boundaryHash }, updatedAt: tx.now,
+      }));
+    }
     await repository.save(Object.assign(new RuntimeIngestCheckpointEntity(), {
       id: checkpoint.id, fileName: checkpoint.fileName, fileIdentity: checkpoint.fileIdentity,
       byteOffset: offset, lastSequence: sourceSequence === null ? previous?.lastSequence || null :
-        sequenceKey(String(sourceSequence)), updatedAt: tx.now, status: 'active', error: null,
+        sequenceKey(BigInt(sourceSequence) > BigInt(previous?.lastSequence || '0')
+          ? String(sourceSequence) : previous!.lastSequence!), updatedAt: tx.now, status: 'active', error: null,
     }));
   }
 
@@ -391,6 +409,7 @@ export class CallObservabilityStore {
       checkpoint.fileIdentity.length > 500 ||
       !/^calls-v2-[a-zA-Z0-9-]+\.jsonl$/.test(checkpoint.fileName) ||
       checkpoint.fileName.length > 240 ||
+      checkpoint.boundaryHash !== undefined && !/^[a-f0-9]{64}$/.test(checkpoint.boundaryHash) ||
       sequenceKey(checkpoint.byteOffset) <= sequenceKey(checkpoint.previousOffset)) {
       throw new ObservabilityStorageError('INVALID_CHECKPOINT');
     }

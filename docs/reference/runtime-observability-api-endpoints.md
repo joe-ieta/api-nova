@@ -1,5 +1,5 @@
 ---
-doc-version: 1.6.2
+doc-version: 1.7.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -523,3 +523,11 @@ Axios 默认的超时 ECONNABORTED 仅在确认来源为 Axios 错误时按 time
 当前 Windows Node 仍对 stdout 管道同步写入，慢消费者可能阻塞事件循环，进程不一定能及时生成心跳或处理控制消息；观察端新鲜度判断需要独立于生产进程。夹具为了建立观察基线而提前 flush started 记录，不代表生产发送路径新增了同步落盘保障。
 
 主动 server.close 与恢复读取的证据不等于 stdin EOF、stdout 断管或任意退出路径均已验证。上述边界和 Linux/性能仍待完成；全部 28 个 HTTP Endpoint 与两类推送继续 PLANNED，本批不增加公开接口。
+
+## 17. TP-08 采集节点实现进度（2026-09-09）
+
+新增内部单文件 collector，不新增 HTTP 路由，本文全部 Endpoint/推送状态仍为 PLANNED。数据集的 historyCompleteSince/eventLiveSince 已持久化；早于 eventLiveSince 的初始 v2 终态事件标记 suppressed，保留审计历史但不进入实时分发；不能把它们当成当前流量。
+
+后续 health/overview 应明确区分最近成功时间、水位、最近文件积压、部分行、隔离数与已知源序号缺口。当前内部 backlogScope=last_visited_file，不代表全目录积压；采集内存错误独立保存，数据库不可用时持久心跳不会伪装成新鲜。源文件路径与错误正文不对外公开。
+
+本节点 API build 和 118 项联合回归通过（新增采集 14 项）。目录自动汇集、调用者算法、恢复调度及公开查询仍在后续节点完成。
