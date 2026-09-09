@@ -91,3 +91,33 @@ export class ObservabilityInvocationEnvelopeDto {
   @ApiProperty({ type: ObservabilityInvocationDetailDto }) data: ObservabilityInvocationDetailDto;
   @ApiProperty({ type: ObservabilityMetaDto }) meta: ObservabilityMetaDto;
 }
+
+export class ObservabilityTraceEdgeDto {
+  @ApiProperty() parentInvocationId: string;
+  @ApiProperty() childInvocationId: string;
+}
+export class ObservabilityTraceMissingParentDto {
+  @ApiProperty({ description: 'Visible child; never the unavailable parent ID.' }) invocationId: string;
+  @ApiProperty({ enum: ['unavailable_or_restricted'] }) reason: 'unavailable_or_restricted';
+}
+export class ObservabilityTraceIssueDto {
+  @ApiProperty({ description: 'Affected visible node.' }) invocationId: string;
+  @ApiProperty({ enum: ['root_unavailable_or_restricted', 'parent_cycle'] })
+  reason: 'root_unavailable_or_restricted' | 'parent_cycle';
+}
+export class ObservabilityTraceDto {
+  @ApiProperty({ enum: ['external', 'test', 'probe', 'internal'] }) origin: string;
+  @ApiProperty({ type: [ObservabilityInvocationDto] }) nodes: ObservabilityInvocationDto[];
+  @ApiProperty({ type: [ObservabilityTraceEdgeDto] }) edges: ObservabilityTraceEdgeDto[];
+  @ApiProperty({ type: [ObservabilityTraceMissingParentDto] }) missingParentReferences: ObservabilityTraceMissingParentDto[];
+  @ApiProperty({ type: [ObservabilityTraceIssueDto] }) structuralIssues: ObservabilityTraceIssueDto[];
+  @ApiProperty({ description: 'Declared references of returned nodes are present and acyclic; not proof of complete history.' })
+  relationshipsComplete: boolean;
+  @ApiProperty() isPartial: boolean;
+  @ApiProperty({ example: 200 }) maxNodes: number;
+}
+export class ObservabilityTraceEnvelopeDto {
+  @ApiProperty({ enum: ['success'] }) status: string;
+  @ApiProperty({ type: ObservabilityTraceDto }) data: ObservabilityTraceDto;
+  @ApiProperty({ type: ObservabilityMetaDto }) meta: ObservabilityMetaDto;
+}

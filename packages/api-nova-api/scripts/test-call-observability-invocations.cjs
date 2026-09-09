@@ -481,7 +481,8 @@ test('generated Swagger matches real paths, operation IDs, query allowlist and s
   const document = SwaggerModule.createDocument(f.app, new DocumentBuilder().setTitle('Fixture').setVersion('1.0').addBearerAuth().build());
   const listPath = '/api/v1/monitoring/observability/invocations';
   const detailPath = listPath + '/{id}';
-  assert.deepEqual(Object.keys(document.paths).sort(), [listPath, detailPath].sort());
+  assert.deepEqual(Object.keys(document.paths).sort(), [listPath, detailPath,
+    '/api/v1/monitoring/observability/traces/{traceId}'].sort());
   const list = document.paths[listPath].get, detail = document.paths[detailPath].get;
   assert.equal(list.operationId, 'obsListInvocations');
   assert.equal(detail.operationId, 'obsGetInvocation');
@@ -499,4 +500,295 @@ test('generated Swagger matches real paths, operation IDs, query allowlist and s
   for (const field of ['credentialId', 'requestHeaders', 'fileKey', 'record']) assert.equal(schema.properties[field], undefined);
   assert.equal(schema.required.includes('clientIp'), false);
   assert.ok(document.components.schemas.ObservabilityInvocationDetailDto.properties.timeBasis);
+});
+
+const traceRoute = id => '/traces/' + encodeURIComponent(id);
+const traceIds = result => result.body.data.nodes.map(node => node.invocationId);
+
+async function seedTraceProjection(f, count, traceId, runtimeAssetId = 'asset-a') {
+  // Size-bound fixture only: use real metadata/revision tables without 200 body writes.
+  const prefix = randomUUID();
+  const first = await f.ingest({ invocationId: prefix + '-000', traceId, runtimeAssetId,
+    request: undefined, response: undefined });
+  const template = await f.database.getRepository(entities.RuntimeInvocationEntity).findOneBy({ invocationId: first.invocationId });
+  await f.store.transaction(async tx => {
+    let current = [], revisions = [];
+    async function flush() {
+      if (!current.length) return;
+      await tx.manager.getRepository(entities.RuntimeInvocationEntity).insert(current);
+      await tx.manager.getRepository(entities.RuntimeInvocationRevisionEntity).insert(revisions);
+      current = []; revisions = [];
+    }
+    for (let i = 1; i < count; i++) {
+      const invocationId = prefix + '-' + String(i).padStart(3, '0'), sequence = tx.nextSequence();
+      const row = { ...template, invocationId, createdSequence: sequence, updatedSequence: sequence,
+        record: { ...template.record, invocationId, rootInvocationId: invocationId,
+          sourceEventId: randomUUID(), requestId: 'request-' + i } };
+      current.push(row);
+      revisions.push({ ...row, id: randomUUID(), validFromSequence: sequence, validUntilSequence: null });
+      if (current.length === 16) await flush();
+    }
+    await flush();
+  });
+  return prefix;
+}
+
+test('trace returns all retained Gateway/protocol/tool/upstream boundaries without a one-hour cutoff', async t => {
+  const f = await fixture(t), traceId = 'trace-full';
+  f.user.roles = [role([READ], ['asset-a', 'asset-b'])];
+  await f.ingest({ invocationId: 'gateway-root', traceId, startedAt: new Date(f.now - 7200000).toISOString() });
+  await f.ingest({ invocationId: 'protocol', traceId, serverType: 'mcp', spanKind: 'mcp_protocol',
+    runtimeAssetId: 'asset-b', parentInvocationId: 'gateway-root', rootInvocationId: 'gateway-root' });
+  await f.ingest({ invocationId: 'tool', traceId, serverType: 'mcp', spanKind: 'mcp_tool',
+    runtimeAssetId: 'asset-b', parentInvocationId: 'protocol', rootInvocationId: 'gateway-root' });
+  await f.ingest({ invocationId: 'upstream', traceId, serverType: 'mcp', spanKind: 'upstream_api',
+    runtimeAssetId: 'asset-b', parentInvocationId: 'tool', rootInvocationId: 'gateway-root',
+    outcome: 'timeout', statusCode: 504, attemptIndex: 2, upstreamOperationId: 'operation-fixture' });
+  const watermark = await f.store.watermark();
+  const result = await f.request(traceRoute(traceId));
+  assert.equal(result.status, 200);
+  assert.deepEqual(traceIds(result), ['gateway-root', 'protocol', 'tool', 'upstream']);
+  assert.deepEqual(result.body.data.edges, [
+    { parentInvocationId: 'gateway-root', childInvocationId: 'protocol' },
+    { parentInvocationId: 'protocol', childInvocationId: 'tool' },
+    { parentInvocationId: 'tool', childInvocationId: 'upstream' },
+  ]);
+  assert.equal(result.body.data.relationshipsComplete, true);
+  assert.equal(result.body.data.maxNodes, 200);
+  assert.equal(result.body.data.nodes[3].outcome, 'timeout');
+  assert.equal(result.body.data.nodes[3].attemptIndex, 2);
+  assert.equal(result.body.meta.snapshotSeq, watermark);
+  assert.equal(result.body.meta.lagMs, null);
+  assert.equal(result.body.meta.isPartial, true);
+  assert.equal(result.cache, 'no-store');
+  assert.equal(f.payloadReads(), 0);
+  assert.equal(await f.store.watermark(), watermark);
+});
+
+test('trace clips a hidden root without removing authorized child-to-child edges or revealing hidden IDs', async t => {
+  const f = await fixture(t), traceId = 'trace-scoped';
+  await f.ingest({ invocationId: 'private-root', runtimeAssetId: 'asset-b', traceId });
+  await f.ingest({ invocationId: 'visible-tool', spanKind: 'mcp_tool', serverType: 'mcp',
+    traceId, parentInvocationId: 'private-root', rootInvocationId: 'private-root', requestId: 'private-root' });
+  await f.ingest({ invocationId: 'visible-upstream', spanKind: 'upstream_api', traceId,
+    parentInvocationId: 'visible-tool', rootInvocationId: 'private-root' });
+  const result = await f.request(traceRoute(traceId));
+  assert.equal(result.status, 200);
+  assert.deepEqual(traceIds(result), ['visible-tool', 'visible-upstream']);
+  assert.deepEqual(result.body.data.edges, [{ parentInvocationId: 'visible-tool', childInvocationId: 'visible-upstream' }]);
+  assert.deepEqual(result.body.data.missingParentReferences, [{ invocationId: 'visible-tool', reason: 'unavailable_or_restricted' }]);
+  assert.equal(result.body.data.nodes[0].requestId, null);
+  assert.ok(result.body.data.nodes.every(node => node.rootInvocationId === null && node.traceId === null));
+  assert.equal(result.body.data.relationshipsComplete, false);
+  const serialized = JSON.stringify(result.body);
+  assert.equal(serialized.includes('private-root'), false);
+  for (const field of ['hiddenNodeCount', 'totalNodeCount', 'restrictedCount']) assert.equal(serialized.includes(field), false);
+});
+
+test('trace reports absent parents without fabricating nodes or distinguishing absent from inaccessible', async t => {
+  const f = await fixture(t);
+  await f.ingest({ invocationId: 'orphan', traceId: 'trace-orphan',
+    parentInvocationId: 'unknown-parent', rootInvocationId: 'unknown-root', requestId: 'unknown-parent' });
+  const result = await f.request(traceRoute('trace-orphan'));
+  assert.equal(result.status, 200);
+  assert.deepEqual(traceIds(result), ['orphan']);
+  assert.deepEqual(result.body.data.edges, []);
+  assert.deepEqual(result.body.data.missingParentReferences, [{ invocationId: 'orphan', reason: 'unavailable_or_restricted' }]);
+  assert.equal(result.body.data.relationshipsComplete, false);
+  assert.equal(JSON.stringify(result.body).includes('unknown-parent'), false);
+  assert.equal(JSON.stringify(result.body).includes('unknown-root'), false);
+});
+
+test('trace responses stay closed when globally visible references belong to another trace', async t => {
+  const f = await fixture(t), global = f.account([role([READ], null)]);
+  await f.ingest({ invocationId: 'other-trace-parent', traceId: 'trace-other' });
+  await f.ingest({ invocationId: 'child', traceId: 'trace-child',
+    parentInvocationId: 'other-trace-parent', rootInvocationId: 'other-trace-parent' });
+  const result = await f.request(traceRoute('trace-child'), {}, global);
+  assert.equal(result.status, 200);
+  assert.deepEqual(traceIds(result), ['child']);
+  assert.equal(result.body.data.nodes[0].parentInvocationId, null);
+  assert.equal(JSON.stringify(result.body).includes('other-trace-parent'), false);
+  assert.equal(result.body.data.relationshipsComplete, false);
+});
+
+test('hidden, empty-scope, unassigned and nonexistent traces follow the same not-found policy', async t => {
+  const f = await fixture(t);
+  await f.ingest({ invocationId: 'hidden', traceId: 'trace-hidden', runtimeAssetId: 'asset-b' });
+  await f.ingest({ invocationId: 'unassigned', traceId: 'trace-unassigned', runtimeAssetId: null });
+  const nobody = f.account([role([READ], [])]);
+  for (const [traceId, user] of [['trace-hidden', f.user], ['missing-trace', f.user],
+    ['trace-unassigned', f.user], ['trace-hidden', nobody]]) {
+    const result = await f.request(traceRoute(traceId), {}, user);
+    assert.equal(result.status, 404);
+    assert.equal(result.body.error.code, 'NOT_FOUND');
+  }
+  const global = f.account([role([READ], null)]);
+  assert.equal((await f.request(traceRoute('trace-unassigned'), {}, global)).status, 200);
+});
+
+test('trace still requires current management authorization rather than a known correlation ID', async t => {
+  const f = await fixture(t);
+  await f.ingest({ invocationId: 'root', traceId: 'trace-auth' });
+  assert.equal((await f.request(traceRoute('trace-auth'), {}, null)).status, 401);
+  assert.equal((await f.request(traceRoute('trace-auth'), {}, f.sign(f.user, { tokenUse: 'business' }))).status, 401);
+  const denied = f.account([role([], ['asset-a'])]);
+  assert.equal((await f.request(traceRoute('trace-auth'), {}, denied)).status, 403);
+  const token = f.sign(f.user);
+  f.user.roles = [role([READ], ['asset-b'])];
+  assert.equal((await f.request(traceRoute('trace-auth'), {}, token)).status, 404);
+});
+
+test('trace origin defaults to external and does not mix test/probe/internal evidence', async t => {
+  const f = await fixture(t);
+  for (const origin of ['external', 'test', 'probe', 'internal']) {
+    await f.ingest({ invocationId: 'root-' + origin, traceId: 'trace-origins', origin });
+  }
+  assert.deepEqual(traceIds(await f.request(traceRoute('trace-origins'))), ['root-external']);
+  for (const origin of ['test', 'probe', 'internal']) {
+    const result = await f.request(traceRoute('trace-origins'), { origin });
+    assert.deepEqual(traceIds(result), ['root-' + origin]);
+    assert.equal(result.body.data.origin, origin);
+  }
+});
+
+test('trace rejects unsupported filters, repeated origin and malformed correlation IDs', async t => {
+  const f = await fixture(t);
+  for (const query of [{ from: f.range.from, to: f.range.to }, { limit: '1' }, { cursor: 'opaque' },
+    { includeTotal: 'true' }, { callerId: 'caller-a' }, { origin: 'telemetry' }, 'origin=external&origin=internal']) {
+    const result = await f.request(traceRoute('trace-query'), query);
+    assert.equal(result.status, 400);
+    assert.equal(result.body.error.code, 'INVALID_QUERY');
+  }
+  for (const traceId of ['x'.repeat(241), '\u0000']) {
+    assert.equal((await f.request(traceRoute(traceId))).status, 400);
+  }
+});
+
+test('trace ID values are SQL parameters, including quotes and injection-shaped values', async t => {
+  const f = await fixture(t), quoted = "trace' OR 1=1 --";
+  await f.ingest({ invocationId: 'quoted', traceId: quoted });
+  await f.ingest({ invocationId: 'unrelated', traceId: 'another-trace' });
+  const result = await f.request(traceRoute(quoted));
+  assert.equal(result.status, 200);
+  assert.deepEqual(traceIds(result), ['quoted']);
+  assert.equal((await f.request(traceRoute("' OR 1=1 --"))).status, 404);
+});
+
+test('trace selects one latest revision per invocation through running, inferred and observed completion', async t => {
+  const f = await fixture(t);
+  const row = await f.ingest({ invocationId: 'root', traceId: 'trace-revision', phase: 'started' });
+  let result = await f.request(traceRoute('trace-revision'));
+  assert.equal(result.body.data.nodes.length, 1);
+  assert.equal(result.body.data.nodes[0].recordVersion, 1);
+  assert.equal(result.body.data.nodes[0].lifecycle, 'running');
+  await f.store.reconcile(row.invocationId, 1, { reason: 'progress_timeout', observedBefore: new Date().toISOString() });
+  result = await f.request(traceRoute('trace-revision'));
+  assert.equal(result.body.data.nodes.length, 1);
+  assert.equal(result.body.data.nodes[0].recordVersion, 2);
+  assert.equal(result.body.data.nodes[0].outcome, 'unknown');
+  assert.equal(result.body.data.nodes[0].completedAt, null);
+  const finished = await f.store.ingest({ ...row, eventId: randomUUID(), sourceSequence: 2, recordVersion: 2,
+    phase: 'finished', completedAt: new Date().toISOString(), outcome: 'success', statusCode: 200 });
+  assert.equal(finished.status, 'updated');
+  result = await f.request(traceRoute('trace-revision'));
+  assert.equal(result.body.data.nodes.length, 1);
+  assert.equal(result.body.data.nodes[0].recordVersion, 3);
+  assert.equal(result.body.data.nodes[0].outcome, 'success');
+  assert.equal(result.body.meta.snapshotSeq, await f.store.watermark());
+});
+
+test('trace omits expired metadata and marks its retained children as incomplete references', async t => {
+  const f = await fixture(t);
+  await f.ingest({ invocationId: 'expired-parent', traceId: 'trace-retention' });
+  await f.ingest({ invocationId: 'child', traceId: 'trace-retention',
+    parentInvocationId: 'expired-parent', rootInvocationId: 'expired-parent' });
+  const expiresAt = new Date(Date.now() - 1000).toISOString();
+  await f.database.getRepository(entities.RuntimeInvocationEntity).update({ invocationId: 'expired-parent' }, { expiresAt });
+  await f.database.getRepository(entities.RuntimeInvocationRevisionEntity).update({ invocationId: 'expired-parent' }, { expiresAt });
+  const result = await f.request(traceRoute('trace-retention'));
+  assert.deepEqual(traceIds(result), ['child']);
+  assert.equal(result.body.data.missingParentReferences.length, 1);
+  assert.equal(JSON.stringify(result.body).includes('expired-parent'), false);
+});
+
+test('trace removes cyclic parent edges without rewriting stored evidence or dropping descendants', async t => {
+  const f = await fixture(t);
+  await f.ingest({ invocationId: 'a', traceId: 'trace-cycle', parentInvocationId: 'b', rootInvocationId: 'a' });
+  await f.ingest({ invocationId: 'b', traceId: 'trace-cycle', parentInvocationId: 'a', rootInvocationId: 'a' });
+  await f.ingest({ invocationId: 'c', traceId: 'trace-cycle', parentInvocationId: 'b', rootInvocationId: 'a' });
+  const result = await f.request(traceRoute('trace-cycle'));
+  assert.equal(result.status, 200);
+  assert.deepEqual(traceIds(result), ['a', 'b', 'c']);
+  assert.deepEqual(result.body.data.edges, [{ parentInvocationId: 'b', childInvocationId: 'c' }]);
+  assert.deepEqual(result.body.data.structuralIssues, [
+    { invocationId: 'a', reason: 'parent_cycle' }, { invocationId: 'b', reason: 'parent_cycle' },
+  ]);
+  assert.equal(result.body.data.nodes[0].parentInvocationId, null);
+  assert.equal(result.body.data.relationshipsComplete, false);
+  assert.equal((await f.database.getRepository(entities.RuntimeInvocationEntity).findOneBy({ invocationId: 'a' })).parentInvocationId, 'b');
+  await f.ingest({ invocationId: 'self', traceId: 'trace-self', parentInvocationId: 'self', rootInvocationId: 'self' });
+  const self = await f.request(traceRoute('trace-self'));
+  assert.deepEqual(self.body.data.edges, []);
+  assert.deepEqual(self.body.data.structuralIssues, [{ invocationId: 'self', reason: 'parent_cycle' }]);
+});
+
+test('trace retains metadata-only disclosure and asset-wise source permission', async t => {
+  const f = await fixture(t);
+  await f.ingest({ invocationId: 'a', traceId: 'trace-source' });
+  await f.ingest({ invocationId: 'b', traceId: 'trace-source', runtimeAssetId: 'asset-b',
+    parentInvocationId: 'a', rootInvocationId: 'a' });
+  const reader = f.account([role([READ], ['asset-a', 'asset-b']), role([SOURCE], ['asset-b'])]);
+  const result = await f.request(traceRoute('trace-source'), {}, reader);
+  assert.equal(result.status, 200);
+  assert.equal(Object.hasOwn(result.body.data.nodes[0], 'clientIp'), false);
+  assert.equal(result.body.data.nodes[1].clientIp, '192.0.2.10');
+  assert.equal(result.body.data.nodes[1].sourceRestricted, false);
+  assert.equal(f.payloadReads(), 0);
+  for (const value of ['private-marker', 'credentialId', 'requestHeaders', 'fileKey', 'storageOwnerId']) {
+    assert.equal(JSON.stringify(result.body).includes(value), false, value);
+  }
+});
+
+test('trace accepts its exact node bound and rejects a larger visible graph without truncating', async t => {
+  const f = await fixture(t);
+  await seedTraceProjection(f, 200, 'trace-bound');
+  const exact = await f.request(traceRoute('trace-bound'));
+  assert.equal(exact.status, 200);
+  assert.equal(exact.body.data.nodes.length, 200);
+  await f.ingest({ invocationId: 'extra', traceId: 'trace-bound' });
+  const tooLarge = await f.request(traceRoute('trace-bound'));
+  assert.equal(tooLarge.status, 413);
+  assert.equal(tooLarge.body.error.code, 'QUERY_TOO_LARGE');
+  assert.equal(Object.hasOwn(tooLarge.body, 'data'), false);
+});
+
+test('trace node bound is applied only after authorization, not to hidden node counts', async t => {
+  const f = await fixture(t);
+  const hiddenPrefix = await seedTraceProjection(f, 201, 'trace-hidden-bound', 'asset-b');
+  await f.ingest({ invocationId: 'visible', traceId: 'trace-hidden-bound' });
+  const result = await f.request(traceRoute('trace-hidden-bound'));
+  assert.equal(result.status, 200);
+  assert.deepEqual(traceIds(result), ['visible']);
+  assert.equal(JSON.stringify(result.body).includes(hiddenPrefix), false);
+});
+
+test('generated trace Swagger matches its strict query, graph models and error statuses', async t => {
+  const f = await fixture(t);
+  const document = SwaggerModule.createDocument(f.app, new DocumentBuilder().setTitle('Fixture').setVersion('1.0').addBearerAuth().build());
+  const route = '/api/v1/monitoring/observability/traces/{traceId}', operation = document.paths[route].get;
+  assert.equal(operation.operationId, 'obsGetTrace');
+  assert.deepEqual(operation.security, [{ bearer: [] }]);
+  assert.deepEqual(operation.parameters.filter(item => item.in === 'query').map(item => item.name), ['origin']);
+  assert.equal(operation.parameters.find(item => item.name === 'origin').schema.default, 'external');
+  for (const status of ['200', '400', '401', '403', '404', '413', '503']) assert.ok(operation.responses[status]);
+  assert.equal(operation.responses['200'].content['application/json'].schema.$ref,
+    '#/components/schemas/ObservabilityTraceEnvelopeDto');
+  const data = document.components.schemas.ObservabilityTraceDto;
+  for (const field of ['nodes', 'edges', 'missingParentReferences', 'structuralIssues', 'relationshipsComplete', 'isPartial']) {
+    assert.ok(data.properties[field], field);
+  }
+  const missing = document.components.schemas.ObservabilityTraceMissingParentDto;
+  assert.equal(Object.hasOwn(missing.properties, 'parentInvocationId'), false);
+  assert.equal(Object.hasOwn(data.properties, 'totalNodeCount'), false);
 });

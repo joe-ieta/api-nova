@@ -1,5 +1,5 @@
 ---
-doc-version: 1.12.0
+doc-version: 1.13.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -582,3 +582,11 @@ OBS-API-03/04 使用独立只读事务快照；SQLite/SQL.js 在现有共享通�
 正文服务已写入的管理审计现可由 findLogs 按 createdAt、operation/resource/action 关键词和稳定并列次序查询。使用 ORM 日期比较操作符进行方言绑定，JSON/枚举显式转文本但过滤值仍为 SQL 参数。保留通用审计日期含边界语义，不改变观测时间窗的半开契约，也不扩大管理授权。
 
 新增四项检索回归和联合 253 项、API 构建通过；这是存储/服务级闭环，旧管理 HTTP 整体、PostgreSQL 实际运行、其他历史统计/清理和全局入口审计仍需后续验证。下一项继续 trace 及调用者/来源查询，不将 TP-09 整包提前完成。
+
+### 16.3 trace 图查询实现
+
+OBS-API-06 复用只读修订快照，按 origin（默认 external）读取 trace 中保留且授权可见节点，不继承列表一小时时窗。按 startedAt/调用 ID 升序，数据库最多取 201 项以判定 200 节点上限；超限 413 而非悄悄丢失节点，隐藏节点不参与数量判断。
+
+返回图必须闭合，包括全局读者：所选 origin/trace 外的父/根也裁剪。缺失父关系只报告可见子 ID 与 unavailable_or_restricted，缺失根报告 root_unavailable_or_restricted。迭代算法检测 parent_cycle，切断循环成员的父边但保留非循环后代；不递归、不修改持久化证据、不补造关联。必要时清除对应 trace/request 引用，沿用 linksRestricted。
+
+relationshipsComplete 仅陈述返回节点已声明关系的可用性与无环性，不能推断未知后代或全部历史已采集。isPartial 与保守 meta 继续表达缺失字段/覆盖，200 节点限额不是吞吐或全链路 SLA。新增 16 项及联合 269 项、API build 通过；API-06 VERIFIED，实际 PostgreSQL/完整集成仍待验证。

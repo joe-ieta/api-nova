@@ -1,5 +1,5 @@
 ---
-doc-version: 1.11.0
+doc-version: 1.12.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -9,7 +9,7 @@ implementation-status: in-progress
 
 > Document status: Maintained consumer contract; approved endpoint contract; implementation in progress
 > Scope decision (2026-09-08, approved): 全新开发版本直接统一旧接口和数据库结构；不提供旧格式导入或旧查询路径兼容。接口的实际状态逐项维护，文档确认不等于上线。
-> 可用性声明：28 个 HTTP Endpoint 中 OBS-API-03/04/05 为 VERIFIED（隔离 Nest HTTP/Swagger 夹具），其余 25 个与两类推送仍 PLANNED。业务根应用尚未启用新模块，没有 AVAILABLE 接口或部署声明。
+> 可用性声明：28 个 HTTP Endpoint 中 OBS-API-03/04/05/06 为 VERIFIED（隔离 Nest HTTP/Swagger 夹具），其余 24 个与两类推送仍 PLANNED。业务根应用尚未启用新模块，没有 AVAILABLE 接口或部署声明。
 > 已确认基线：[需求](../guides/runtime-observability-requirements.md)、[设计](./runtime-observability-design.md)。
 > 开发关联：[任务计划](../guides/runtime-observability-development-task-plan.md)、[执行状态](../guides/runtime-observability-development-execution-status.md)。
 
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.11.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.12.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -120,7 +120,7 @@ invocations 按 (timeBasis DESC, invocationId DESC) 排序；其他列表明确�
 | OBS-API-03 | GET /invocations | obsListInvocations | 基础 | OBS-TP-09 | VERIFIED |
 | OBS-API-04 | GET /invocations/:id | obsGetInvocation | 基础 | OBS-TP-09 | VERIFIED |
 | OBS-API-05 | GET /invocations/:id/payloads/:side | obsGetInvocationPayload | monitoring:payload:read | OBS-TP-09 | VERIFIED |
-| OBS-API-06 | GET /traces/:traceId | obsGetTrace | 基础 | OBS-TP-09 | PLANNED |
+| OBS-API-06 | GET /traces/:traceId | obsGetTrace | 基础 | OBS-TP-09 | VERIFIED |
 | OBS-API-07 | GET /callers | obsListCallers | 基础 | OBS-TP-09 | PLANNED |
 | OBS-API-08 | GET /callers/:id | obsGetCaller | 基础 | OBS-TP-09 | PLANNED |
 | OBS-API-09 | PATCH /callers/:id | obsUpdateCallerLabels | monitoring:manage | OBS-TP-09 | PLANNED |
@@ -171,7 +171,7 @@ overview 接收 from/to/origin/serverType/runtimeAssetId，返回 businessSummar
 | 正文 | request/response 的 state、reason、expiresAt 和读取链接 |
 | 质量 | schemaVersion、sourceRecordId、ingestedAt、missingFields、isPartial |
 
-traces 返回 nodes、edges、missingParentReferences、isPartial。返回的节点包括所有可访问的协议/工具/上游边界；无权限节点不返回原始 ID 或隐蔽数量，不通过路径透露资源存在。
+traces 返回 origin、nodes、edges、missingParentReferences、structuralIssues、relationshipsComplete、isPartial、maxNodes。仅在所选 origin/trace 内返回保留且可见节点，不给隐藏 ID/数量。关系字段和 200 节点拒绝式上限的精确定义见本文 trace 实现章节；relationshipsComplete 不等于历史采集完整。
 
 内部 outcome 仍在运行时允许为空；unknown 表示缺少终态证据，不能算作成功。httpStatus=200 且 toolIsError=true 的工具仍应 outcome=error。
 
@@ -585,3 +585,26 @@ OBS-API-03/04 对存在正文元数据的项返回受控 readLink，每次跟随
 既有 AuditService.findLogs 已使用实际 createdAt 列过滤/排序，以 id DESC 处理并列时间；通用管理审计 startDate/endDate 继续含边界，新观测 from/to 仍为 [from,to)，两类参数不能混用。action/details 先转换为文本再做参数化 LIKE，支持检索 obsGetInvocationPayload、observability.payload 或 api_called，搜索不会扫描已禁止写入审计的正文。
 
 新增四项检索服务回归通过，正文/管理审计脚本 23 项、联合 253 项及 API 构建全部通过。该补充不新增 Endpoint，不声称 PostgreSQL 实际查询或旧管理控制器完整联调已通过；三条观测查询路由保持 VERIFIED，未部署为 AVAILABLE。历史清理/其他统计方法未在本节点修改或执行。
+
+## 19. OBS-API-06 trace 实现与集成契约（2026-09-09）
+
+GET /api/v1/monitoring/observability/traces/{traceId}，operationId=obsGetTrace，状态 VERIFIED。沿用管理 JWT、当前账号/角色、monitoring:read 与资产范围；知道 traceId 不赋予访问权。traceId 为非空、最长 240 的无控制字符标量，通过 SQL 参数绑定。
+
+仅允许 origin=external|test|probe|internal，默认 external。拒绝 from/to/timeBasis/limit/cursor 等其他参数与重复 origin；不应用列表的默认一小时时间窗。查询所选 origin/trace 内未过期且可访问的当前修订，按 startedAt ASC、invocationId ASC；不混合来源、不打开正文文件。
+
+| data 字段 | 语义 |
+| --- | --- |
+| origin | 实际选择的来源 |
+| nodes | 已有 invocation 安全 DTO 数组；IP 仍需同资产 read AND source:read；正文只有状态与受控读取链接 |
+| edges | 仅含可见且无环的 parentInvocationId、childInvocationId |
+| missingParentReferences | invocationId 为可见子节点，reason 固定 unavailable_or_restricted；不提供缺失父节点 ID |
+| structuralIssues | invocationId 为可见节点，reason 为 root_unavailable_or_restricted 或 parent_cycle |
+| relationshipsComplete | 返回节点所声明父/根引用均可用且父关系无环；不证明历史或未观察后代完整 |
+| isPartial | 节点缺失字段或关系裁剪导致的部分性；不替代 meta 中的采集覆盖语义 |
+| maxNodes | 固定 200 |
+
+缺失/不可见/另一 origin 或 trace 的父、根引用置 null；必要时裁剪关联 traceId/requestId 并设置 linksRestricted。循环/自环仅在返回图中切断，保留非循环后代和原始数据库证据。无隐藏占位节点、隐含节点数或顶层 traceId 回显。
+
+没有可见节点统一 404 NOT_FOUND，不区分不存在和无资产权限。授权过滤后可见节点超过 200 返回 413 QUERY_TOO_LARGE（field=traceId），不返回截断图；恰好 200 正常返回。其他错误沿用 400/401/403/503 和统一 requestId 包装。此接口无分页，固定快照只覆盖一次响应，不扩大保留期。meta 使用已实现的只读水位；lagMs/historyCompleteSince=null、isPartial=true 仍表示未知覆盖，不宣称健康完整。
+
+API 构建、16 项真实 HTTP/Swagger 专项与 269 项联合回归通过，未在业务根应用启用。上层图形展示应把 missingParentReferences/structuralIssues 作为可见节点告警，而非补造父节点或据此估算完整调用链。

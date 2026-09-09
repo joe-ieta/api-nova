@@ -1,5 +1,5 @@
 ---
-doc-version: 1.11.0
+doc-version: 1.12.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -110,3 +110,9 @@ call-observability-payloads.controller/service/dto.ts 实现 OBS-API-05；共享
 ## TP-09 管理审计检索对齐（2026-09-09）
 
 security/services/audit.service.ts 的 findLogs 将日期绑定到 createdAt 并以 createdAt/id 降序查询，action/details 使用固定文本转换与参数化搜索；不修改清理方法或审计权限。test-call-observability-payloads.cjs 追加四项真实留痕列表/日期/关键词/并列分页回归，现 23 项，API build 与联合 253/253 通过。第 27 节提出的通用检索服务问题已解决，完整旧管理 HTTP/实际 PostgreSQL/治理仍是后续边界。
+
+## TP-09 trace 查询映射（2026-09-09）
+
+现有 call-observability-invocations.controller/service/dto.ts 增加 OBS-API-06 / obsGetTrace 和显式图 DTO，复用 readSnapshot、修订可见区间、资产与正文元数据呈现。只接受 origin，查询保留期内当前版本；200 节点上限在权限过滤后执行，超限 413，无默认时间截断。缺失/跨范围引用与 parent_cycle 只在可见节点报告，返回图闭合且不改存储。
+
+test-call-observability-invocations.cjs 新增 16 项 trace 用例，总 38 项；API 构建和联合 269/269 PASS。OBS-API-03~06 VERIFIED，07~10 尚待实施，根应用未启用；实际 PostgreSQL trace、Linux 与性能未验收。

@@ -4,7 +4,8 @@ import { authorizeObservability, ObservabilityAuthorization } from './call-obser
 import { getObservabilityAuthorization, ObservabilityAccess } from './call-observability-access.guard';
 import { ObservabilityApiError, ObservabilityErrorEnvelopeDto } from './call-observability-api.contract';
 import { CallObservabilityInvocationsService, INVOCATION_QUERY_KEYS } from './call-observability-invocations.service';
-import { ObservabilityInvocationEnvelopeDto, ObservabilityInvocationListEnvelopeDto } from './call-observability-invocations.dto';
+import { ObservabilityInvocationEnvelopeDto, ObservabilityInvocationListEnvelopeDto,
+  ObservabilityTraceEnvelopeDto } from './call-observability-invocations.dto';
 
 const ENUMS: Record<string, string[]> = {
   timeBasis: ['startedAt', 'completedAt'], origin: ['external', 'test', 'probe', 'internal'],
@@ -50,6 +51,19 @@ export class CallObservabilityInvocationsController {
   @ApiResponse({ status: 404, type: ObservabilityErrorEnvelopeDto })
   async get(@Param('id') id: string, @Query() query: Record<string, unknown>, @Req() request: any) {
     return this.invocations.get(id, query, getObservabilityAuthorization(request), this.sourceScope(request));
+  }
+
+  @Get('traces/:traceId')
+  @ApiOperation({ operationId: 'obsGetTrace', summary: 'Read up to 200 retained, authorized trace nodes without silent truncation' })
+  @ApiParam({ name: 'traceId', type: String })
+  @ApiQuery({ name: 'origin', required: false, schema: {
+    type: 'string', enum: ['external', 'test', 'probe', 'internal'], default: 'external',
+  } })
+  @ApiResponse({ status: 200, type: ObservabilityTraceEnvelopeDto })
+  @ApiResponse({ status: 404, type: ObservabilityErrorEnvelopeDto })
+  @ApiResponse({ status: 413, type: ObservabilityErrorEnvelopeDto })
+  async trace(@Param('traceId') traceId: string, @Query() query: Record<string, unknown>, @Req() request: any) {
+    return this.invocations.trace(traceId, query, getObservabilityAuthorization(request), this.sourceScope(request));
   }
 
   private sourceScope(request: any): ObservabilityAuthorization | undefined {

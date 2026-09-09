@@ -1,5 +1,5 @@
 ---
-doc-version: 1.6.0
+doc-version: 1.7.0
 doc-status: active
 doc-updated: 2026-09-09
 implementation-status: in-progress
@@ -184,3 +184,9 @@ API 构建、19 项正文新专项和联合 249 项全部通过，前次 22 项�
 ### 12.2 管理审计列表读取对齐
 
 AuditService.findLogs 现使用实体 createdAt 与 ORM Date 比较操作符、createdAt/id 降序和枚举/JSON 文本搜索。真实读取审计写入后通过列表、按日期与关键词查询的四项回归通过；正文/审计脚本 23 项，联合 253/253、API 构建 PASS。不修改数据库结构、权限、历史清理方法，也没有业务数据库操作；PostgreSQL 实际查询和全管理模块集成仍待验收。
+
+### 12.3 trace 的有界只读图查询
+
+无表、列、迁移或业务库操作。trace 查询复用 revision 可见区间与快照序号，先过滤资产、元数据 TTL、traceId/origin，再按 startedAt/invocationId 升序最多读取 201 行，超过 200 返回明确错误。没有读取正文或分配事件序号；晚到真实终态只呈现同一调用最新可见修订，不重复节点。
+
+图关系裁剪/循环诊断完全在响应中执行，不纠正或伪造原始父子证据。规模测试通过独立 SQL.js 投影复制形成 200/201 边界，非生产采集或性能验收。API 构建、新增 16 项和联合 269/269 通过，实际 PostgreSQL trace 分支、Linux、应用启用仍未运行。

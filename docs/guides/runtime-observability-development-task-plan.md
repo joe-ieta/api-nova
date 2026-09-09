@@ -1,5 +1,5 @@
 ---
-doc-version: 1.11.0
+doc-version: 1.12.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -397,3 +397,9 @@ OBS-API-05 新增分侧受控正文读取，复用管理 audit_logs；API 构建
 通用 AuditService.findLogs 已完成 createdAt 日期/排序映射、枚举与 JSON 文本检索和同时间 ID 次序，新增四项回归、API 构建及联合 253 项通过。第 27 节提出的“读取留痕可按时间/关键词查找”缺口已收口，不增加新 Endpoint 数、不改变管理权限或自动运行历史清理。
 
 下一优先任务是 OBS-API-06 trace，然后 OBS-API-07~10 调用者、来源和标签；TP-09 仍 IN_PROGRESS。PostgreSQL 实际查询、旧管理控制器整体验证、全局前置拒绝留痕和其他历史审计清理/统计的治理接入仍分别按 TP-14/15/16 验证，不能复用本节点证据宣称通过。
+
+## TP-09 trace 节点（2026-09-09）
+
+OBS-API-06 VERIFIED：保留期内单 origin 的授权只读快照，最多 200 可见节点，超限 413；隐藏/缺失关系与循环按可见节点显式标记，不返回隐藏 ID 或隐含数量，不把图引用完整当作历史采集完整。新增 16 项、查询脚本合计 38 项及联合 269/269、API 构建通过。
+
+TP-09 仍 IN_PROGRESS，接口 03~06 VERIFIED、07~10 PLANNED。下一节点完成调用者列表/详情及来源查询，明确资产/时间内的观察、分页稳定性和 IP 权限；再实现带 If-Match 的标签修改与管理审计。统计/状态、事件、治理、根应用启用和平台验证按既有依赖推进，不提前标记整包完成。

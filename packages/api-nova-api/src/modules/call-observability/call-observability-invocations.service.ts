@@ -10,8 +10,10 @@ import { ObservabilityCursor, ObservabilityCursorService } from './call-observab
 import { ObservabilityFilter, parseObservabilityQuery } from './call-observability-query';
 import { publicSequence, sequenceKey } from './call-observability-storage';
 import { CallObservabilityStore } from './call-observability.store';
-import { ObservabilityInvocationDto, ObservabilityPayloadMetadataDto } from './call-observability-invocations.dto';
+import { ObservabilityInvocationDto, ObservabilityPayloadMetadataDto, ObservabilityTraceEdgeDto,
+  ObservabilityTraceMissingParentDto, ObservabilityTraceIssueDto } from './call-observability-invocations.dto';
 
+export const MAX_TRACE_NODES = 200;
 export const INVOCATION_QUERY_KEYS = [
   'from', 'to', 'timeBasis', 'origin', 'serverType', 'runtimeAssetId', 'callerId', 'sourceId',
   'endpointDefinitionId', 'toolName', 'sourceServiceInstanceId', 'spanKind', 'outcome',
@@ -133,6 +135,87 @@ export class CallObservabilityInvocationsService {
       const [item] = await this.present(tx.manager, [row], authorization, sourceAuthorization, tx.snapshotSeq, tx.now);
       return observabilitySuccess({ ...item, timeBasis: filter.timeBasis }, this.meta(tx.snapshotSeq, tx.snapshotSeq));
     });
+  }
+
+  async trace(traceId: string, raw: Record<string, unknown>, authorization: ObservabilityAuthorization,
+    sourceAuthorization?: ObservabilityAuthorization) {
+    if (!validId(traceId)) throw new ObservabilityApiError('INVALID_QUERY', 'traceId');
+    const { filter } = parseObservabilityQuery(raw, ['origin']);
+    return this.store.readSnapshot(async tx => {
+      // Apply visibility before the limit; hidden spans cannot trigger a size oracle.
+      const rows = await this.revisions(tx.manager, authorization, tx.snapshotSeq, tx.now)
+        .andWhere('inv.traceId = :traceId', { traceId })
+        .andWhere('inv.origin = :origin', { origin: filter.origin })
+        .orderBy('inv.startedAt', 'ASC').addOrderBy('inv.invocationId', 'ASC')
+        .take(MAX_TRACE_NODES + 1).getMany();
+      if (!rows.length) throw new ObservabilityApiError('NOT_FOUND');
+      if (rows.length > MAX_TRACE_NODES) throw new ObservabilityApiError('QUERY_TOO_LARGE', 'traceId');
+      const nodes = await this.present(tx.manager, rows, authorization, sourceAuthorization, tx.snapshotSeq, tx.now);
+      const nodeIds = new Set(nodes.map(node => node.invocationId));
+      const parents = new Map<string, string>();
+      for (const row of rows) {
+        if (row.parentInvocationId && nodeIds.has(row.parentInvocationId)) {
+          parents.set(row.invocationId, row.parentInvocationId);
+        }
+      }
+      const cycles = this.parentCycles(parents);
+      const edges: ObservabilityTraceEdgeDto[] = [];
+      const missingParentReferences: ObservabilityTraceMissingParentDto[] = [];
+      const structuralIssues: ObservabilityTraceIssueDto[] = [];
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i], row = rows[i];
+        const parentOutside = !!row.parentInvocationId && !nodeIds.has(row.parentInvocationId);
+        const rootOutside = !nodeIds.has(row.record.rootInvocationId);
+        const cyclic = cycles.has(node.invocationId);
+        if (parentOutside) {
+          missingParentReferences.push({ invocationId: node.invocationId, reason: 'unavailable_or_restricted' });
+        }
+        if (rootOutside) {
+          structuralIssues.push({ invocationId: node.invocationId, reason: 'root_unavailable_or_restricted' });
+        }
+        if (cyclic) structuralIssues.push({ invocationId: node.invocationId, reason: 'parent_cycle' });
+        // A trace response is a closed visible graph, including for global readers.
+        // References in another trace/origin are not smuggled into this graph.
+        node.parentInvocationId = parentOutside || cyclic ? null : row.parentInvocationId;
+        node.rootInvocationId = rootOutside ? null : row.record.rootInvocationId;
+        if (parentOutside || rootOutside) {
+          node.traceId = null;
+          node.linksRestricted = true;
+          if ([row.parentInvocationId, row.record.rootInvocationId, row.traceId].includes(node.requestId)) {
+            node.requestId = null;
+          }
+        }
+        node.isPartial = node.isPartial || parentOutside || rootOutside || cyclic;
+        if (node.parentInvocationId) {
+          edges.push({ parentInvocationId: node.parentInvocationId, childInvocationId: node.invocationId });
+        }
+      }
+      return observabilitySuccess({
+        origin: filter.origin, nodes, edges, missingParentReferences, structuralIssues,
+        relationshipsComplete: missingParentReferences.length === 0 && structuralIssues.length === 0,
+        isPartial: nodes.some(node => node.isPartial), maxNodes: MAX_TRACE_NODES,
+      }, this.meta(tx.snapshotSeq, tx.snapshotSeq));
+    });
+  }
+
+  private parentCycles(parents: Map<string, string>): Set<string> {
+    const cycles = new Set<string>(), settled = new Set<string>();
+    for (const start of parents.keys()) {
+      const path: string[] = [], positions = new Map<string, number>();
+      let current: string | undefined = start;
+      while (current !== undefined && !settled.has(current)) {
+        const position = positions.get(current);
+        if (position !== undefined) {
+          for (let i = position; i < path.length; i++) cycles.add(path[i]);
+          break;
+        }
+        positions.set(current, path.length);
+        path.push(current);
+        current = parents.get(current);
+      }
+      for (const id of path) settled.add(id);
+    }
+    return cycles;
   }
 
   private position(cursor: ObservabilityCursor): void {
