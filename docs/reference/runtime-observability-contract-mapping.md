@@ -1,5 +1,5 @@
 ---
-doc-version: 1.17.0
+doc-version: 1.18.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -144,3 +144,9 @@ call-observability-capabilities.service/controller/dto.ts 对应 OBS-API-01/obsG
 接口按实现与当前范围资格分 enabled/restricted/not_implemented，不公布资产 ID/隐藏数量；payload/source/manage 均与基础 read 求交集。未交付聚合/事件/推送明确关闭，有效采集配置、历史完整起点和健康不从默认保留或父进程环境推断。正文的 128 MiB 是单存储对象读取限制，不是总 HTTP 内存预算。
 
 首次构建 TS2739 的同步回调问题获批补 async 后，API 构建、14/14 专项与 334/334 联合通过。01、03~10 九接口 VERIFIED，TP-10 IN_PROGRESS，后续统计/状态及 TP-11 事件/Outbox 按计划推进；根应用未启用，不扩大平台或部署声明。
+
+## TP-10 统计内核映射（2026-09-09）
+
+call-observability-metrics.ts 提供 calculateObservabilityMetrics、MAX_METRIC_OBSERVATIONS 与固定耗时桶边界，复用 parser 的 invocationMatchesScope 和 API 严格 query 解析；只处理调用方已授权/保留/快照可见的观察，不承担仓储或公开路由权限。尚无新 Controller/模块注册，statistics 能力保持未实现。
+
+test-call-observability-metrics.cjs 共 24 项。初次三项把 reconciled 数据库投影误当源记录校验，获批仅修正夹具后 24/24 与 358/358 联合通过，内核加入后的 API 构建通过。生产源完成时间校验、Store 推断终态及计算源码未随夹具修正改动。下一映射为 OBS-API-11 数据库汇总服务、DTO/Controller 与能力清单。

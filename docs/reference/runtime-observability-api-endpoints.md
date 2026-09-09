@@ -1,5 +1,5 @@
 ---
-doc-version: 1.17.0
+doc-version: 1.18.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.17.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.18.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -689,3 +689,13 @@ GET /api/v1/monitoring/observability/capabilities，operationId=obsGetCapabiliti
 overview/statistics/dependencies/serverStatus/eventHistory/webhook/socketPush/pipelineStatus/policyManagement 均为 not_implemented，不进入 enabledFeatures。meta.snapshotSeq/dataWatermark 来自同一只读提交快照，空库为字符串 0，lagMs/historyCompleteSince=null、isPartial=true。读取能力不创建计数器、扫描来源、打开正文或生成新事件。
 
 14 项实际 HTTP/SQL.js/Swagger 专项、334 项联合回归与 API 构建通过，OBS-API-01=VERIFIED。初次异步回调类型遗漏已获批修正；实际 PostgreSQL 查询、Linux、负载与业务根模块启用仍待后续验收。
+
+## 23. 统计计算实现进度与接入约束（2026-09-09）
+
+内部统计计算模块已通过 24 项专项及 358 项联合回归，API 构建通过；尚未注册 OBS-API-11/12/13，因此 statistics 仍 not_implemented，supportedScopes/分组组合仍为空，不可据此调用规划中的路径。
+
+后续汇总接口必须显式选择 scope，并回显 from/to/origin/timeBasis。selectedInvocations 表示选定时间基准下的调用数；totalStarted 只在 startedAt 基准下成立，completedAt 基准返回 null，不能把选中的完成调用数声称为该窗口的全部开始数。未结束观察没有当前进程存活证据时计入 unknownInFlight，不推断健康。
+
+调用者跨资产/时间取可信 ID 并集；匿名来源按已授权注册关联去重，缺失/overflow 另报，来源不是人数。字节按调用边界、计量类型及阶段分组，分侧 measured/unmeasured/partial 与下界标志同时返回；混合组没有一个可相加的顶层字节总数。固定直方图的分位为区间/上界估计，溢出桶上界和估计值为 null，保留明确下界。
+
+上述为下一统计 Endpoint 的接入约束，不是新的可用性声明。查询调用方仍负责数据库快照、资源授权、TTL 与规模限制；本次未增加保留历史、健康证据、推送或部署。

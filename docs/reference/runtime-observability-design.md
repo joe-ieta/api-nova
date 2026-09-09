@@ -1,5 +1,5 @@
 ---
-doc-version: 1.18.0
+doc-version: 1.19.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -626,3 +626,13 @@ OBS-API-01 采用实现清单与当前管理身份范围的交集，而不是枚
 能力服务以异步 Store.readSnapshot 回调获取现存水位，不创建初始计数器、不扫描源或读取正文。功能状态为 enabled/restricted/not_implemented，前者仅表示实现与范围资格；保留配置默认值不证明历史覆盖。生产者未报送的有效采集限制、聚合/事件保留、历史完整起点和运行健康保持 null/unknown。当前聚合维度与分组组合为空，不能因参数解析器支持某些原语就发布不存在的 Endpoint。
 
 具体路由的 query 白名单优先于全局限制提示；errorCategory 是自由文本过滤，建议分类不是封闭枚举。正文单对象读取 128 MiB 不等于采集上限或全局 HTTP 内存配额。14 项实际路由/Swagger/SQL.js 专项、334 项联合与 API 构建通过；初次缺失 async 的类型错误已获批修正。下一节点实现统计指标及时间聚合，TP-10 尚未整包收口。
+
+### 16.9 有界统计计算内核
+
+内核以数据库投影 revision 而非源 recordVersion 选择同一调用的最新观察，再按 scope/origin/时间过滤，不跨授权或历史范围寻找节点。最多 5000 输入观察，无数据库、正文、时钟或事件 I/O；授权/TTL/快照由未来查询服务先行保证。startedAt 下 totalStarted 等于选定调用数；completedAt 下无法推导全窗口开始量，totalStarted=null 并保留 selectedInvocations。
+
+终态计数沿用共享参考口径，failures 已包含 timeout/incomplete，分母不能重复相加。没有明确有效 live 证据的未完成节点进入 unknownInFlight；reconciled finished 则为 unknown 终态。可信 callerId 和匿名 sourceId 各自集合去重；overflow/缺失 source 另计，不把桶或 IP 当人。
+
+字节逐侧累计已知观察，按 spanKind/byteMeasurement/measurementStage 隔离，缺失为 null，下界含部分/缺失覆盖。耗时只采真实已知终态的有限非负 duration；固定 1~60000ms 边界及溢出桶给出分位区间和估计上界，溢出不造有限估计，不平均已有 p95。超安全整数的耗时总和标记不可用，字节则以 BigInt 内部求和后输出安全数或十进制字符串。
+
+24 项组件测试和 358 项联合通过；初次推断终态夹具仅在获批后对齐数据库事实形态，不放松源校验。数据库聚合/桶持久化/事件、公开统计和运行健康尚未接入，不能以纯计算通过替代这些验收。

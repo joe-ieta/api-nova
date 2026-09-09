@@ -1,5 +1,5 @@
 ---
-doc-version: 1.12.0
+doc-version: 1.13.0
 doc-status: active
 doc-updated: 2026-09-09
 implementation-status: in-progress
@@ -218,3 +218,9 @@ PATCH 通过现有 Store 管理事务和 AuditService.log(manager) 原子提交�
 能力接口复用 Store.readSnapshot，显式异步回调符合既有 Promise 类型约束；不改变 Store 签名、隔离级别、计数器/事件协议或初始化结构。空库水位字符串 0 且流水线表仍无记录；已有数据只读取现存提交水位，不扫描来源或打开私有正文。默认调用 30 天/正文 7 天仅为存储默认时长，非有效历史覆盖或实时保留策略保证。
 
 无新表、迁移、业务库操作或根应用启用。获批修正初次回调类型错误后，14 项 HTTP/SQL.js/Swagger 专项和 334 项联合通过，API 构建通过；实际 PostgreSQL 查询、全系统事务集成、Linux 与负载仍按后续包验收。
+
+### 12.9 统计内核不改变持久化
+
+新增统计组件不执行数据库或文件 I/O，不改变实体、初始化结构、聚合桶/贡献表、提交序号、事件或业务根模块。输入数据库 revision 明确区别于源 recordVersion，调用方必须预先裁剪权限、TTL 和快照；此契约留给后续汇总仓储实现。
+
+源 finished 必须具有 completedAt 的规则保持不变。专项夹具从合法 started 源记录构造数据库 reconciled/unknown 空完成时间投影，而非绕过生产源校验。内核 API 构建、24 项专项和 358 项联合通过；没有额外数据库、清理、迁移或部署操作。
