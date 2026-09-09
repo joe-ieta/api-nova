@@ -1,5 +1,5 @@
 ---
-doc-version: 1.7.1
+doc-version: 1.7.2
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -537,3 +537,9 @@ Axios 默认的超时 ECONNABORTED 仅在确认来源为 Axios 错误时按 time
 已提供可信 caller/credential/source/observation 同事务投影和显式启用的目录 worker，API build 与 133 项联合验证通过，全部公开 Endpoint/推送仍为 PLANNED。来源采用带 keyId 的 HMAC；匿名/认证失败来源不等于人数，不包含可认证的原始 Key。来源超限时 sourceOverflow=true、来源桶 ipSource=overflow 且 IP 为 null，后续 sources/health 需表达降级数量，不把它们当作精确去重人数。
 
 内部 worker 状态区分 running、waiting_for_source、degraded，扫描范围为 partial_directory_scan/completed_directory_scan，附部分行、已知文件积压、隔离和错误数量。完整扫描没有已知缺口时才做独立失联推断；unknown 不虚构 completedAt/durationMs，迟到终态增加投影版本而非新增一次调用。公开接口的字段裁剪/授权和运行态报告尚需后续任务接入。
+
+### 17.2 持久重启验证边界
+
+不同采集进程重开持久 SQL.js 后，数据集起点、调用版本、检查点、正文引用和幂等事件已通过 3 项专项；联合 136/136 PASS。unknown 的真实完成更正不增加调用总数，重复源事件不推进事实水位。强杀测试发生在 SQL.js 文件明确保存完成之后，不覆盖机器断电或生产者未刷出内存。
+
+目录 EOF 仍只代表当前没有更多字节，不是源进程结束证明；关闭源残片的缺口状态必须经后续可信退出证据确认。以上是内部链路验证，公开 28 个 Endpoint 及两类推送仍为 PLANNED。

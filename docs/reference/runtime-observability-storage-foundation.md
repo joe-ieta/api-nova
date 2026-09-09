@@ -1,5 +1,5 @@
 ---
-doc-version: 1.2.1
+doc-version: 1.2.2
 doc-status: active
 doc-updated: 2026-09-09
 implementation-status: in-progress
@@ -154,3 +154,7 @@ PostgreSQL 父进程仍有 client.query 弃用警告；子进程警告计数 0 �
 ### 11.1 身份投影与 worker
 
 新增调用者归并 hook 与显式启用的目录/恢复 worker，不新增数据库结构。来源 HMAC、overflow 降级、关联凭证和观察均随调用事务提交；重放不会创建第二个主体或重复降级计数。恢复接口增加 suppressEvent，用于抑制初始历史 unknown 的分发，真实当前终态保持正常事件序列。API build 与新增 15 项/联合 133 项通过；持久进程重启和关闭源残片确认继续下一节点。
+
+### 11.2 持久 SQL.js/独立进程恢复
+
+新增 3 项独立 Node 进程重开同一隔离 SQL.js 文件用例，验证字节断点、正文、数据集边界、调用与事件幂等、强制终止采集进程后的 unknown/迟到终态修正、改名与同名新文件。联合 136/136 PASS。强杀发生在显式保存数据库文件后，不声称机器断电或半写数据库文件恢复通过；生产者退出/关闭源残片仍待对接。不改实体、业务库或初始化基线。
