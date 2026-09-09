@@ -101,6 +101,29 @@ describe('runtime authentication and audit contract', () => {
     expect(captureAuditBody('<password>never-store</password>', 'text/xml').data).not.toContain('never-store');
   });
 
+
+  it.each(['2.0', '1e2', 'true', 'null', '"literal"', ' 2.0 ', '-0', '001'])(
+    'retains the exact JSON scalar string %j during redaction', value => {
+      const nested = captureAuditBody({ jsonrpc: '2.0', value, values: [value, 2, true, null] });
+      expect(JSON.parse(nested.data!)).toEqual({ jsonrpc: '2.0', value, values: [value, 2, true, null] });
+      expect(JSON.parse(captureAuditBody(JSON.stringify(value)).data!)).toBe(value);
+    },
+  );
+
+  it('redacts JSON-encoded objects and arrays without normalizing their scalar strings', () => {
+    const body = captureAuditBody({
+      text: JSON.stringify({ jsonrpc: '2.0', token: 'nested-secret', value: '1e2' }),
+      array: JSON.stringify([{ password: 'array-secret', value: '001' }, 'true', 'null']),
+      bearer: 'Bearer bearer-secret',
+    });
+    const result = JSON.parse(body.data!);
+    expect(JSON.parse(result.text)).toEqual({ jsonrpc: '2.0', token: '[REDACTED]', value: '1e2' });
+    expect(JSON.parse(result.array)).toEqual([{ password: '[REDACTED]', value: '001' }, 'true', 'null']);
+    expect(result.bearer).toBe('Bearer [REDACTED]');
+    expect(body.data).not.toContain('nested-secret');
+    expect(body.data).not.toContain('array-secret');
+  });
+
   it('explicitly omits oversized, malformed and interrupted structured bodies without leaking fragments', () => {
     const tracker = createAuditBodyTracker('application/json', 20);
     tracker.observe('{"password":"never-store-this-secret"}');

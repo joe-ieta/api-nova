@@ -18,9 +18,13 @@ export async function assertMcpToolScopes(body: any): Promise<void> {
   catch (error) {
     const context = getRuntimeCallContext();
     if (context && body?.method === 'tools/call' && error instanceof RuntimeAuthError) {
-      const call = beginRuntimeCall({ ...context, toolName: String(body.params?.name || '') }, 'tool');
-      await call.finish({ request: captureAuditBody(body.params), response: captureAuditBody({ error: error.code }),
-        statusCode: error.status, outcome: 'error', errorCode: error.code });
+      try {
+        const call = beginRuntimeCall({ ...context, toolName: String(body.params?.name || ''),
+          byteMeasurement: 'serialized_payload', measurementStage: 'logical_payload' }, 'tool');
+        void call.finish({ request: captureAuditBody(body.params), response: captureAuditBody({ error: error.code }),
+          statusCode: error.status, outcome: 'error', errorCategory: 'authorization',
+          failureStage: 'admission', errorCode: error.code }).catch(() => undefined);
+      } catch { /* Evidence failure must not replace the authorization rejection. */ }
     }
     throw error;
   }

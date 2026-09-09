@@ -1,5 +1,5 @@
 ---
-doc-version: 1.6.0
+doc-version: 1.7.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -502,3 +502,15 @@ HTTP admission 的 invocationId/traceId/rootInvocationId 进入子执行上下�
 采集等待实际 transport.send Promise，而不是先记成功再发送。发送失败保留原异常并写安全错误码，正文 incomplete 不留片段；关闭竞争幂等终结，异步审计写入不阻塞协议。逻辑 Payload 分别保留完整协议消息与 Tool params/result/error，使用 serialized_payload/logical_payload，不与 HTTP 字节混加。
 
 15 项传输模拟专项与 140 项联合回归、Server/API 构建通过；HTTP 全正文/认证前拒绝/取消、真实 SDK 传输和 parser 实际出站仍待后续实施。TP-06 尚未满足整包退出条件，不增加对外 Endpoint 或兼容旧日志读取。
+
+## TP-06 HTTP 与物理上游实施补充（2026-09-09）
+
+HTTP admission 使用独立 beginMcpHttpAudit 观察已有读写事件，在认证前建立协议节点但不主动读入拒绝请求的正文。正文测量为 observed_body/mcp_http，终态以本地发送 finish、取消或中断为界；SSE 原始帧省略，避免会话地址和原始帧秘密进入正文，Tool 逻辑内容另行采集。
+
+parser transformer 不再以一次 Axios 逻辑调用补写所有上游事实。操作级 HTTP/HTTPS Agent 的实例方法包装每个原生请求，沿用单次 runRuntimeUpstreamAttempt；不修改全局 Agent，不自行消费响应，不增加业务重试/跳转循环。upstreamOperationId 属于逻辑上游操作，attemptIndex=1，redirectHopIndex 按实际请求递增。当前跨操作不复用连接，性能与连接复用评估归 TP-16，不能宣称与原连接池具有相同性能。
+
+响应观察用 prependOnceListener 先于 follow-redirects/Axios 安装：跳转被丢弃的正文不会因迟到 end 变成完整，原 content-encoding 在解压库删除前保存；编码正文仅保留观察字节、状态和 encoded_body，不写入压缩秘密。HTTP、上游与 Tool 计量独立，不能混成一份总流量。
+
+公共脱敏仅对字符串中的 JSON 对象/数组递归解析，标量字符串保真；协议版本 "2.0" 不被改写，不通过宽松版本判断掩盖采集错误。原生 request error 接收到 Axios 权威异常时，Axios 专属 ECONNABORTED 在审计侧映射 timeout，业务异常不修改；一般取消仍保持 cancelled，不分析原始异常消息或猜测耗时。
+
+本轮 86 项 parser、155 项联合回归、真实 Streamable/SSE 和三包构建全部通过；四项失败已修复，TP-04 重新验收。TP-06 仍需真实 STDIO、慢发送/断开与完整传输矩阵，自动汇集和公开 API/推送也未接入，不扩大已确认产品范围。

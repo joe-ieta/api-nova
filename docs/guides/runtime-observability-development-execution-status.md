@@ -1,5 +1,5 @@
 ---
-doc-version: 1.8.0
+doc-version: 1.11.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -8,7 +8,7 @@ implementation-status: in-progress
 # 可观测性开发执行与任务包完成状态
 
 > Document status: Active execution ledger
-> 当前阶段：OBS-TP-01/02/03/04/05 完成；TP-06 首批发送终态与父子关系已通过模拟专项，继续真实 MCP 传输联调。
+> 当前阶段：OBS-TP-01/02/03/04/05 完成；TP-04 已修复并重新验收，TP-06 HTTP 与物理上游专项通过，继续真实 STDIO 等剩余验收。最新证据见第 19 节。
 > 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
 
 ## 1. 当前快照
@@ -22,11 +22,11 @@ implementation-status: in-progress
 | DONE | 5 |
 | IN_PROGRESS / REVIEW / BLOCKED | 1 / 0 / 0 |
 | READY / BACKLOG | 2 / 8 |
-| 代码验收完成率 | 5/16；仅按各包退出条件登记，不代表全链路完成 |
+| 代码验收完成率 | 5/16；TP-04 重新验收，不代表 MCP 整包或全链路完成 |
 | 新 HTTP Endpoint | 28 个，全部 PLANNED |
 | 新推送契约 | 2 类，全部 PLANNED |
-| 本轮数据库实际操作 | 125 项测试使用隔离 SQL.js 内存库、独有目录及本机回环 HTTP 服务；未连接业务数据库 |
-| 本轮新增验证 | MCP Server/API build PASS；140/140 专项/回归 PASS；真实 Streamable/SSE 安全审计场景 PASS，退出码 0 |
+| 本轮数据库实际操作 | 隔离 SQL.js 内存库、独有临时目录及本机随机端口；未连接或清理业务数据库 |
+| 本轮新增验证 | parser/Server/API build PASS；parser 86/86 PASS；Node 联合回归 155/155 PASS；真实 Streamable/SSE 烟测 PASS；四项失败均已修复，未放宽原断言 |
 
 文档已确认与基础包完成都不代表功能已上线。TP-02 的存储、GC 与 PostgreSQL 多进程针对性验证已完成；Linux 矩阵、全系统 SQL.js 并发集成和新接口端到端验收仍未完成。
 
@@ -62,14 +62,14 @@ implementation-status: in-progress
 | OBS-TP-01 | 共享契约与接入映射 | GATE-01 | DONE | v2 契约、23 项契约测试及 parser 类型检查通过 |
 | OBS-TP-02 | 存储/事务/序号基础 | 01 | DONE | 两方言初始结构、48 项存储/GC 用例及 PostgreSQL 四进程提交/回滚/回收竞争通过；按本包退出条件收口，跨包/平台验收仍归 15、16 |
 | OBS-TP-03 | 权限与 API 基础 | 01、02 | DONE | 补齐夹具依赖后 56 项专项及 48 项存储/GC 回归全部通过，API build PASS；覆盖真实 JWT、AND/资源范围、游标、ETag、并发幂等与回滚；具体 Endpoint 接入另行验收 |
-| OBS-TP-04 | 共享上下文/正文/上游采集 | 01 | DONE | 单次上游适配器、显式重试/跳转索引、字节与结束观察、无阻塞写入及健康计数已补齐；60 项 parser 用例和 parser/API 构建通过；实际服务器接入归 05/06/07 |
+| OBS-TP-04 | 共享上下文/正文/上游采集 | 01 | DONE | 公共标量保真与编码正文修复已重新验收；parser 86 项及跨模块 155 项回归通过，三包构建通过；原失败记录保留在第 18 节 |
 | OBS-TP-05 | Gateway 接入 | 04 | DONE | 入口前置、独立流结束、内部请求 ID、上游适配器/尝试编号、可信身份及取消接入完成；21 项真实回环 HTTP 专项与 104 项回归、API 构建通过；正式应用/监听器矩阵归 15/16 |
-| OBS-TP-06 | MCP 接入 | 04 | IN_PROGRESS | send 终态与父子关系、15 项模拟专项及真实 Streamable/SSE 安全审计场景通过；140 项联合回归与 Server/API 构建通过；HTTP 正文/取消、实际 STDIO 与上游适配尚待完成 |
-| OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 共享采集器已完成，可以接入 test/probe/internal 来源 |
-| OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | READY | 存储和共享采集器硬依赖均完成；尚无自动汇集 worker |
-| OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | BACKLOG | 03、08 尚未完成 |
-| OBS-TP-10 | 聚合/状态/能力 API | 03、08 | BACKLOG | 03、08 尚未完成 |
-| OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | BACKLOG | 03、08 尚未完成；事件存储字段已准备，不等于分发已实现 |
+| OBS-TP-06 | MCP 接入 | 04 | IN_PROGRESS | HTTP 15 项、物理上游 17 项及真实 Streamable/SSE 通过；协议/Tool/逐跳上游关系、正文、失败和取消已有证据；真实 STDIO 与剩余传输矩阵待验收 |
+| OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 04 重新验收，恢复就绪；test/probe/internal 实际接入尚未实施 |
+| OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | READY | 02、04 硬依赖已完成，恢复就绪；尚无自动汇集 worker |
+| OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | BACKLOG | 03 已完成，等待 08 |
+| OBS-TP-10 | 聚合/状态/能力 API | 03、08 | BACKLOG | 03 已完成，等待 08 |
+| OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | BACKLOG | 03 已完成，等待 08；事件存储字段不等于分发已实现 |
 | OBS-TP-12 | Webhook/订阅/投递 API | 11 | BACKLOG | 11 尚未完成 |
 | OBS-TP-13 | Socket.IO/快照与恢复 | 10、11 | BACKLOG | 10、11 尚未完成 |
 | OBS-TP-14 | 配额/保留/策略/健康 | 09、10、11、12 | BACKLOG | 前置查询/投递能力尚未完成 |
@@ -100,7 +100,7 @@ implementation-status: in-progress
 | AC-02 | MCP 重试与工具/上游分别计数 | 06、15 | NOT_RUN |
 | AC-03 | 缓存/未匹配/拒绝/认证前边界 | 05、06 | PARTIAL；Gateway 包级 PASS，剩余集成/MCP 待验收 |
 | AC-04 | 连接错误/超时/取消/流中断 | 04、05、06 | PARTIAL；Gateway 包级 PASS，剩余集成/MCP 待验收 |
-| AC-05 | HTTP 200 下工具/协议错误 | 06 | NOT_RUN |
+| AC-05 | HTTP 200 下工具/协议错误 | 06 | PARTIAL；实际 HTTP JSON-RPC error 与模拟 Tool isError 通过，完整真实传输矩阵仍待验收 |
 | AC-06 | 主体/凭证/IP 归并 | 08、09 | NOT_RUN |
 | AC-07 | 伪造代理 Header/Key 与高基数 | 04、08 | NOT_RUN |
 | AC-08 | 正文/脱敏/类型/上限/字节 | 04、05、06、09 | PARTIAL；Gateway 包级 PASS，剩余集成/MCP 待验收 |
@@ -152,7 +152,7 @@ implementation-status: in-progress
 
 - TP-03 已按包级退出条件验收；实际查询控制器、资源过滤、读取审计及响应拦截器协作仍由后续接入包验证。Linux 完整矩阵保留在 TP-16，全系统 SQL.js 并发交互和 pg 弃用警告保留在 TP-15。
 - TP-14 接入回收调度、策略、健康与配额闭环；当前 GC 服务没有自动定时器，没有开启业务数据清理。
-- TP-04/05 已完成；当前开始 TP-06 MCP 接入，TP-07/08 已就绪。
+- TP-04 公共脱敏缺陷已修复并重新验收，TP-05 回归通过；TP-06 继续开发，TP-07/08 已恢复 READY。
 - 后续 worker 接入调用者归并、断点恢复与状态维护；现阶段只有存储基础，不生成虚假调用者/聚合结果。
 - 权限基础已完成；查询和推送 Endpoint 仍由后续任务落地，大屏 UI 仍为后续范围。
 - 不自动处理现有开发库。如需重建，必须明确指定允许处理的数据库。
@@ -262,3 +262,74 @@ TP-06 保持 IN_PROGRESS，完成数仍为 5/16。HTTP 全正文/认证前失败
 此脚本单独登记为一项集成场景，不把其中断言数或三次调用冒充独立测试。之前 140 项专项/回归仍为通过；本批仅修改烟测脚本，没有重新编译无变化源码。实际网络均为本机随机端口，上游为本地 HTTP 夹具，使用临时签名密钥和独有目录，未连接业务库。
 
 TP-06 仍为 IN_PROGRESS、总完成数 5/16。下一批继续 HTTP 全正文/认证前失败/取消路径、parser 单次物理上游适配，以及真实 STDIO 与慢发送/断开矩阵。已有父子关系通过不代表这些剩余能力完成；新 API 和推送仍未开放。
+
+## 17. TP-06 第三批：HTTP 采集的首次构建失败（历史快照）
+
+新增 tools/mcp-http-audit.ts，调整 tools/httpServer.ts、tools/runtime-security.ts，新增 test-mcp-http-observability.cjs 的 15 项实际 HTTP 测试。目标为有界请求/响应字节采集、writeHead 响应头、认证前拒绝、认证与授权失败区分、JSON-RPC 错误、取消/中断及日志故障隔离；SSE 原始帧只计字节并省略内容，Tool 逻辑 Payload 仍独立保留。
+
+实际执行 npm.cmd run build --workspace api-nova-server 失败，退出码 2。mcp-http-audit.ts:55 报 TS2322（IncomingMessage.emit 重载被推断为必须提供第二参数），:60 报 TS2683（this 隐式 any）。串行 API build 未执行，新增 15 项测试及真实传输回归均未执行。之前的 140 项和真实 Streamable/SSE 通过证据只对应上一批，不能用于证明本批通过。
+
+已定位拟修复为显式声明包装函数的 this: IncomingMessage、event: string | symbol、...args: any[]，不改变运行行为；当前尚未修复，等待用户确认。本批未提交，TP-06 保持 IN_PROGRESS，总完成数仍为 5/16，接口/推送未开放，未连接业务库。
+
+## 18. 2026-09-09 类型修复、物理上游接入与失败证据（历史快照）
+
+用户已批准第 17 节的 emit 类型修复。包装函数补齐显式 this、event 和剩余参数类型，不改变运行语义。Server/API 首次重建通过；本轮最后按 parser、Server、API 顺序完整构建也全部通过。第 17 节的构建失败不再是当前阻塞点。
+
+新增 parser/src/audit/runtime-http-agent.ts 与 runtime-http-agent.test.ts，调整 transformer/index.ts 和 runtime-upstream-attempt.ts。操作级 HTTP/HTTPS Agent 拟为每次原生请求建立独立 upstream_api，统一 upstreamOperationId，按跳转递增 redirectHopIndex；保留 Axios 的跳转上限、POST 重放和业务解码，不再以一次逻辑调用补写所有跳转。该接入没有实现自动重试，attemptIndex=1；无实际上游请求的自定义处理器不虚构调用事实。
+
+新增编码正文保护拟保留观察字节，但不存压缩原文，原因 encoded_body；Axios 业务解码与审计正文独立。当前响应头观察时机尚待修复验证，不能将此目标描述为已兑现。每次操作创建 keepAlive=false 的专用 Agent，跨操作连接复用及开销未验收，纳入 TP-16 性能与连接复用评估。
+
+### 18.1 本轮实际验证
+
+| 实际命令 | 结果 | 范围 |
+| --- | --- | --- |
+| npm.cmd run build --workspace api-nova-parser；npm.cmd run build --workspace api-nova-server；npm.cmd run build --workspace api-nova-api | 全部 PASS；串行退出码 0 | 包含本轮物理上游与 HTTP 采集源码，不是仅用历史产物 |
+| node --test packages/api-nova-server/scripts/test-mcp-http-observability.cjs | 14/15 PASS，1 FAIL | HTTP 200 的 JSON-RPC error 被错误分类为 success |
+| npm.cmd run test --workspace api-nova-parser -- --runInBand runtime-observability-contract.test.ts runtime-call-phases.test.ts runtime-security-audit.test.ts runtime-upstream-attempt.test.ts runtime-http-agent.test.ts | 5 suites：4 PASS、1 FAIL；69/72 tests PASS | 原有 60 项全部通过；新增 12 项中 9 PASS、3 FAIL |
+| node --test --test-reporter=dot packages/api-nova-server/scripts/test-mcp-http-observability.cjs packages/api-nova-server/scripts/test-mcp-transport-observability.cjs packages/api-nova-api/scripts/test-gateway-call-observability.cjs packages/api-nova-api/scripts/test-call-observability-api-foundation.cjs packages/api-nova-api/scripts/test-call-observability.cjs packages/api-nova-api/scripts/test-call-observability-gc.cjs | 154/155 PASS，1 FAIL；退出码 1 | 现有 140 项全部通过；新增 HTTP 14 PASS、1 FAIL，失败与单独执行为同一项，不重复计数 |
+| node packages/api-nova-server/scripts/runtime-security-audit-smoke.js | RUNTIME_SECURITY_AUDIT_SMOKE_OK；退出码 0 | 当前重建版本的真实 Streamable/SSE 与三层父子链路；仍不是 STDIO 验收 |
+
+HTTP 已通过边界包括实际正文和字节、认证前拒绝不主动排空正文、直接来源 IP、策略拒绝、SSE 原始帧省略、HEAD/OPTIONS、UTF-8 分块、非法/超限 JSON、部分响应失败、客户端断开、上传中止、Tool 权限父子关系及文件故障隔离。
+
+新增上游已通过正常请求与元数据、GET/204、307 POST 重放、跳转上限、HTTP 503、响应中断、并发父子隔离、自定义处理器零上游和日志故障隔离。通过项不覆盖下表中的未决行为。
+
+### 18.2 未通过项与处理顺序
+
+| 编号 | 失败证据 | 处理方向与当前状态 |
+| --- | --- | --- |
+| OBS-FIX-01 | HTTP 200 JSON-RPC error 预期 error，实际 success；诊断确认公共 redactAuditValue 把字符串 "2.0" 改为 "2" | 保留 JSON 标量字符串原值，只对需要递归脱敏的结构化内容解析；补充正文完整性回归，不放宽 JSON-RPC 版本判断。已报告，尚未修复 |
+| OBS-FIX-02 | 跳转首跳终态预期 incomplete，实际 success | 核实原生响应观察与 follow-redirects 处置的先后关系，按实际完整性决定终态；不为通过而删除断言。尚未修正 |
+| OBS-FIX-03 | gzip 响应省略原因预期 encoded_body，实际 invalid_json | 核实 Axios 修改响应头前的观察时机，保证原始编码与正文状态一致；当前原因属于待验证定位。尚未修复 |
+| OBS-FIX-04 | Axios 超时预期 timeout，实际 cancelled | 原生请求中止不能丢失逻辑调用的权威超时原因；补齐原因传递并保持原业务异常。尚未修复 |
+
+公共脱敏问题属于 TP-04 的依赖契约缺陷，依计划重开为 IN_PROGRESS；原有通过记录作为历史证据保留。TP-07/08 从 READY 返回 BACKLOG，修复并重新验收后恢复。TP-05 的现有 21 项 Gateway 回归通过，暂不撤销其包级验收；公共修复后仍需再回归。
+
+当前 DONE=4、IN_PROGRESS=2、READY=0、BACKLOG=10，共 16 包。本批源码和失败用例均未提交，不把构建成功、真实烟测通过或测试断言数量当作整个 TP-06 验收完成。修复这四项后继续真实 STDIO、慢发送/断开与剩余退出条件，再按需提交。
+
+最新已提交基线仍为 a61618a。本轮未推送、未部署、未连接或清理业务数据库；28 个 HTTP Endpoint 与两类推送仍为 PLANNED，collector 与生产查询控制器仍未接入。
+
+## 19. 2026-09-09 四项修复与重新验收
+
+用户明确批准一并修复四项后继续回归。本轮仅修正审计侧行为，不放宽 JSON-RPC 版本判断，不改变 Axios 业务异常或自行实现跳转/重试。
+
+| 修复项 | 实际处理 | 验证结果 |
+| --- | --- | --- |
+| OBS-FIX-01 标量保真与协议错误 | redactAuditValue 只递归解析字符串中的 JSON 对象/数组，不解析并重写标量字符串；原始 "2.0"、"1e2"、"001"、布尔/null 文本及空白保留 | 8 个标量参数用例、1 个编码对象/数组脱敏用例通过；原 HTTP 200 JSON-RPC error 严格断言通过 |
+| OBS-FIX-02 跳转终态 | prependOnceListener 在 follow-redirects 丢弃正文之前安装响应观察；终结后不再接受迟到 data/end 覆盖正文完整性 | 原 302 incomplete 断言保留并通过；补充 incomplete 正文与无残片断言，跳转后超时仅影响待结束的后续跳 |
+| OBS-FIX-03 编码正文 | 在 Axios 解压和删除 content-encoding 前记录原始响应头；编码正文不保存原文，仅记录实际字节和 encoded_body | gzip 原字节、原 content-encoding、省略原因与业务解压结果同时通过 |
+| OBS-FIX-04 超时与取消 | 原生 error 携带的 Axios isAxiosError=true、ECONNABORTED 仅在审计侧映射为超时；业务异常对象不变，不用消息文本猜测 | Axios 默认/clarifyTimeoutError 两种错误码均保留；显式取消和非 Axios ECONNABORTED 不被误记为 timeout |
+
+本轮修复修改 parser 的 runtime-call-audit.ts、runtime-http-agent.ts 及对应两份测试；前批 HTTP/transformer/单次适配源码同时纳入本轮构建与回归。没有为了得到通过结果修改原四项失败断言的预期值。
+
+| 实际命令 | 结果 | 范围 |
+| --- | --- | --- |
+| npm.cmd run test --workspace api-nova-parser -- --runInBand runtime-observability-contract.test.ts runtime-call-phases.test.ts runtime-security-audit.test.ts runtime-upstream-attempt.test.ts runtime-http-agent.test.ts | 5 suites / 86 tests PASS；0 fail | 原 60 项、物理上游原 12 项及本轮新增 14 项；原失败上游用例均重新执行 |
+| npm.cmd run build --workspace api-nova-parser；npm.cmd run build --workspace api-nova-server；npm.cmd run build --workspace api-nova-api | 三包全部 PASS；串行退出码 0 | 当前共享源码、HTTP/上游接入及 API 依赖产物 |
+| node --test --test-reporter=spec packages/api-nova-server/scripts/test-mcp-http-observability.cjs packages/api-nova-server/scripts/test-mcp-transport-observability.cjs packages/api-nova-api/scripts/test-gateway-call-observability.cjs packages/api-nova-api/scripts/test-call-observability-api-foundation.cjs packages/api-nova-api/scripts/test-call-observability.cjs packages/api-nova-api/scripts/test-call-observability-gc.cjs | 155/155 PASS；0 fail、0 skipped、0 cancelled | HTTP 15、传输模拟 15、Gateway 21、权限/API 基础 56、存储/GC 48 |
+| node packages/api-nova-server/scripts/runtime-security-audit-smoke.js | RUNTIME_SECURITY_AUDIT_SMOKE_OK；退出码 0 | 当前构建版本的真实 Streamable/SSE、认证与三层父子关系 |
+
+86 与 155 为不同测试集合，共 241 项通过；真实 SDK 烟测单列一个集成场景，不重复累计其中断言或三次上游调用。固定文件故障和处理器失败警告来自预期注入，不代表未处理的回归失败。
+
+第 18 节四项问题已全部解决，TP-04 恢复 DONE，TP-07/08 恢复 READY。当前 DONE=5、IN_PROGRESS=1、READY=2、BACKLOG=8；TP-06 不提前收口，后续按计划完成真实 STDIO、慢发送/断开及剩余传输矩阵。操作级 Agent 不复用跨操作连接，其性能与连接复用评估仍归 TP-16。
+
+本轮证据满足阶段提交条件；具体提交号由 Git 记录。未部署、未推送、未连接或清理业务数据库。28 个 HTTP Endpoint 与两类推送仍为 PLANNED，collector、生产查询及推送调度仍未接入。

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.5.0
+doc-version: 1.6.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -27,13 +27,15 @@ doc-updated: 2026-09-09
 
 | 源路径 | 当前事实/后续改造 | 任务包 |
 | --- | --- | --- |
-| parser/src/audit/runtime-call-audit.ts | v2 阶段、受限正文预算/队列与失败计数；共享采集包已验收，真实运行时接入归后续包 | 04 |
-| parser/src/audit/runtime-upstream-attempt.ts | 一次回调对应一次物理请求，显式字节/结束观察、尝试与重定向索引、父子上下文及业务不受日志失败影响 | 04 DONE |
+| parser/src/audit/runtime-call-audit.ts | v2 阶段、正文预算/队列与失败计数；标量字符串保真和嵌套脱敏已重新验收 | 04 DONE |
+| parser/src/audit/runtime-upstream-attempt.ts | 单次物理请求、实际字节与结束观察、父子上下文、编码正文省略及业务故障隔离 | 04 DONE |
+| parser/src/audit/runtime-http-agent.ts、transformer/index.ts | 实例级 Agent 逐跳观察，保留原 Axios 跳转/解压及异常；17 项物理上游专项通过 | 06 IN_PROGRESS |
 | parser/src/audit/runtime-observability-contract.ts | v2 校验、规范化、scope/去重参考计数；已实现 | 01 |
 | gateway-runtime/services/gateway-runtime.service.ts | 入口节点、内部请求 ID、缓存与拒绝、独立上游 operation/attempt 已接入 | 05 DONE |
 | gateway-runtime/services/gateway-proxy-engine.service.ts | 使用共享单次适配器，独立观察上游结束与客户端发送；21 项 HTTP 专项通过 | 05 DONE |
 | gateway-runtime/services/gateway-access-log.service.ts | 已移除 fallback 规范事实；旧 DB 写入/查询保留到全链路收敛 | 05 DONE、15 |
-| api-nova-server/src/transportUtils/audit.ts | tools/call 捕获；须补齐协议节点/终态发送结果 | 06 |
+| api-nova-server/src/transportUtils/audit.ts | 协议/Tool 父子关系与 send Promise 终态；15 项模拟和真实 Streamable/SSE 已验证，真实 STDIO 待验收 | 06 IN_PROGRESS |
+| api-nova-server/src/tools/mcp-http-audit.ts、httpServer.ts | HTTP 正文/计量、认证前拒绝、协议错误、取消与不完整正文；15 项实际 HTTP 专项通过 | 06 IN_PROGRESS |
 | api-nova-server/src/tools/runtime-security.ts | 逐请求主体和工具权限；拒绝不能虚构成功身份 | 06 |
 | security/guards/permissions.guard.ts | 旧 ANY-OF 不用于新观测接口；专用 call-observability-access.guard.ts 已完成 AND/资源范围及真实 JWT 验证 | 03 DONE |
 | database/database-options.ts | 新存储实体与两方言初始基线已完成隔离初始化/零漂移验证；未操作业务库 | 02 DONE |
@@ -64,3 +66,9 @@ Gateway 已切换为不同 spanKind 的显式父子事实：gateway-request-audi
 2026-09-09：Gateway 21 项新增 HTTP 专项和 104 项基础回归共 125/125 PASS，API build PASS，TP-05 按包级退出条件收口。实际 Nest 控制器/独立监听器矩阵、可信代理逐跳解析和旧 DB 日志收敛仍留在 TP-15，不能声称全链路完成。TP-06 进入接入分析，MCP 代码尚未切换。
 
 2026-09-09 TP-06 首批：server/src/transportUtils/audit.ts 已按 send Promise 结束记录 Tool/独立协议终态；server/src/tools/httpServer.ts 传递 HTTP 协议父节点。15 项模拟专项与 140 项联合回归、Server/API 构建通过，真实 SDK 联调待执行；MCP 整包仍 IN_PROGRESS。
+
+## TP-06 HTTP 与物理上游批次验收
+
+2026-09-09：公共脱敏标量保真、跳转终态、压缩响应原始编码观察和 Axios 超时分类修复完成。parser 五组 86 项与 Node 六脚本 155 项全部通过，parser/Server/API 构建及真实 Streamable/SSE 烟测通过。原失败证据保存在执行台账第 18 节，修复与重新验收见第 19 节；TP-04 恢复 DONE，TP-06 整包仍 IN_PROGRESS。
+
+来源适配现在区分 mcp_protocol/mcp_tool/upstream_api，HTTP 与上游分别观察原字节，SSE 原始帧与编码正文只记录省略元数据。入站协议与 Tool/逐跳上游父子关系已有当前版本验证，不把原来逻辑补写方式继续当作单次物理请求。实际 STDIO、内部来源、自动汇集与查询/推送接入仍待后续包，旧格式不导入。

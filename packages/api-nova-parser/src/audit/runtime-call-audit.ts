@@ -144,8 +144,11 @@ export function redactAuditValue(value: unknown): any {
       sensitiveKey(key) ? '[REDACTED]' : redactAuditValue(item)]));
   }
   if (typeof value === 'string') {
-    // MCP text content can contain a JSON-encoded upstream response.
-    try { return JSON.stringify(redactAuditValue(JSON.parse(value))); } catch { /* plain text */ }
+    // MCP text may encode an object/array, but scalar strings must retain their exact value.
+    try {
+      const parsed: unknown = JSON.parse(value);
+      if (parsed !== null && typeof parsed === 'object') return JSON.stringify(redactAuditValue(parsed));
+    } catch { /* plain text */ }
     return value.replace(/```(?:json)?[ \t]*\r?\n([\s\S]*?)```/gi, (block, json) => {
       try { return '```json\n' + JSON.stringify(redactAuditValue(JSON.parse(json))) + '\n```'; }
       catch { return block; }

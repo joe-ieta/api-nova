@@ -1,5 +1,5 @@
 ---
-doc-version: 1.5.1
+doc-version: 1.6.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.5.1，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.6.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -480,7 +480,7 @@ Gateway 包级实现已通过 21 项真实回环 HTTP 专项及 104 项基础回
 
 当前 clientIp/peerIp 为直接连接端，ipSource=peer、proxyTrusted=false；不承诺反向代理后的最终客户端地址，逐跳可信解析需集成验证。上述是采集能力，不是 API 开放证明；所有新 Endpoint 和推送保持 PLANNED，生产控制器/监听器完整集成仍由 TP-15 验收。
 
-## 14. MCP 首批采集语义（2026-09-09，TP-06 未收口）
+## 14. MCP 首批采集语义（2026-09-09，历史快照）
 
 HTTP 协议入口作为 Tool 的父节点，STDIO/程序化请求在没有 HTTP 父节点时建立独立 mcp_protocol；Tool 使用 mcp_tool，后续上游作为其子节点。协议与 Tool 的 Payload 按 serialized_payload/logical_payload 计量，不冒充 HTTP 原始流量。
 
@@ -488,8 +488,28 @@ HTTP 协议入口作为 Tool 的父节点，STDIO/程序化请求在没有 HTTP 
 
 上述能力已通过 15 项传输模拟与 140 项联合回归、Server/API 构建；真实 SDK 传输、HTTP 全正文/认证前失败、上游适配仍未完成。所有 28 个 HTTP Endpoint 和两类推送继续 PLANNED。
 
-## 15. MCP 真实传输验证补充
+## 15. MCP 真实传输首轮验证（历史快照）
 
 2026-09-09：真实 Streamable/SSE 安全审计烟测通过，三次实际上游调用的 HTTP 入口、Tool、上游父子链路以及身份/内部 requestId/trace/root 一致性已验证；同时覆盖认证、会话归属和 Tool 权限拒绝。该集成场景与 140 项专项/回归分别计数。
 
 HTTP 全正文/取消、真实 STDIO 与 parser 上游适配仍在 TP-06 中推进。上述证据不改变 Endpoint/推送 PLANNED 状态，也不代表已有 API 可查询这些新日志。
+
+## 16. MCP HTTP 当前采集语义（2026-09-09）
+
+HTTP 入口按 observed_body/mcp_http 观察已有请求读事件和响应写入；认证前未读正文不被主动排空，也不伪造为空正文。取消或流中断保留完整性状态，不保存未完成的正文片段。SSE 原始帧仅记录观察字节并以 sse_framing_not_captured 省略内容，Tool 逻辑 Payload 独立采集；调用方应显示省略原因而不是将其视为零流量。
+
+HTTP 200 携带 JSON-RPC error 时仍记录协议失败。公共脱敏已修复标量字符串被重写的问题，保留严格 jsonrpc="2.0" 判断，不接受被误改的版本作为兼容形式；JSON 编码对象/数组中的秘密仍递归脱敏。
+
+HTTP 15 项专项在本轮 155 项联合回归中全部通过，真实 Streamable/SSE SDK 烟测通过。该证据是采集端包级验证，不代表新的日志查询 API 已开放。
+
+## 17. 物理上游计量与剩余边界（2026-09-09）
+
+有运行调用上下文的 parser 出站按每次原生 HTTP 请求建立 upstream_api。多个跳转共用 upstreamOperationId，redirectHopIndex 逐跳递增；当前 Axios 不自动重试，attemptIndex=1。跳转不计为重试，不能用整个逻辑调用的最终响应代替各跳证据。upstream_http、mcp_http 与 Tool 的 logical_payload 必须分层展示，不跨阶段相加为网络总量。
+
+响应观察早于跳转丢弃与 Axios 解压处理。正文未观察完整时记录 incomplete，不以 Content-Length 推算实际读入字节。编码正文保留实际观察字节及原始编码头，但不保存未经安全脱敏的压缩原文，省略原因为 encoded_body；业务客户端仍正常解压。此次 gzip 路径已经专项验证，不能据此宣称所有编码算法均完成集成矩阵。
+
+Axios 默认的超时 ECONNABORTED 仅在确认来源为 Axios 错误时按 timeout 记录，ETIMEDOUT 同样记录超时；显式取消与普通原生中止不被一律当作超时。原业务异常码保持不变，日志不保存原始异常消息来推断分类。
+
+当前 parser 86/86、Node 联合回归 155/155、真实 Streamable/SSE 和三包构建全部通过，前版四项失败已解决。真实 STDIO、完整传输矩阵和性能验证仍未完成；操作级 Agent 当前不复用跨操作连接。TP-04 已重新验收，TP-06 仍在进行。
+
+新调用查询、聚合、调用者、事件与推送服务尚未接入运行。全部 28 个 HTTP Endpoint 及两类推送仍为 PLANNED；本次文档版本同步经过验证的采集语义，没有新增公开路径或宣告接口可用。

@@ -1,8 +1,8 @@
 import { IncomingMessage, ServerResponse } from "http";
 import http from "node:http";
 import { randomUUID } from 'node:crypto';
-import { beginRuntimeCall, captureAuditBody, flushRuntimeAudit, redactAuditUrl, redactAuditValue, RuntimeAuthError, runtimeAuthMode,
-  withRuntimeCallContext } from 'api-nova-parser';
+import { flushRuntimeAudit, RuntimeAuthError, withRuntimeCallContext } from 'api-nova-parser';
+import { beginMcpHttpAudit } from './mcp-http-audit';
 import { authenticateMcpRequest, sendMcpAuthError } from './runtime-security';
 
 const LOCAL_HOSTS = ["localhost", "127.0.0.1", "::1", "[::1]"] as const;
@@ -467,30 +467,14 @@ export function createBaseHttpServer(
     const isEndpointRequest = requestMatchesEndpoint(req, endpoint);
     const requestId = randomUUID();
     res.setHeader('x-request-id', requestId);
-    const admission = beginRuntimeCall({ transport: 'mcp', requestId, identitySource: 'anonymous',
-      clientIp: req.socket.remoteAddress }, 'admission');
-    admission.record.method = req.method;
-    admission.record.url = redactAuditUrl(`http://localhost${req.url || '/'}`);
-    admission.record.requestHeaders = redactAuditValue(req.headers);
-    const endResponse = res.end;
-    res.end = function (this: ServerResponse, ...args: any[]) {
-      if (res.statusCode >= 400 && (typeof args[0] === 'string' || Buffer.isBuffer(args[0]))) {
-        admission.record.response = captureAuditBody(args[0], String(res.getHeader('content-type') || 'text/plain'));
-      }
-      return (endResponse as any).apply(this, args);
-    } as typeof res.end;
-    let recorded = false;
-    const recordAdmission = (cancelled = false) => {
-      if (recorded) return;
-      recorded = true;
-      void admission.finish({ statusCode: res.statusCode, outcome: cancelled ? 'cancelled' :
-        res.statusCode >= 400 ? 'error' : 'success' });
-    };
-    res.once('finish', () => recordAdmission());
-    res.once('close', () => recordAdmission(!res.writableFinished));
+    const serverId = process.env.API_NOVA_AUDIT_SERVER_ID || process.env.API_NOVA_MCP_RESOURCE ||
+      process.env.API_NOVA_RUNTIME_RESOURCE || `${handlers.serverType}:${listenHost}:${(httpServer.address() as import('node:net').AddressInfo)?.port || port}${endpoint}`;
+    const protocolTransport = handlers.serverType.includes('SSE') ? 'sse' : 'streamable';
+    const admission = beginMcpHttpAudit(req, res, requestId, protocolTransport, serverId);
 
     const headerValidationError = validateRequestHeaders(req, security);
     if (headerValidationError) {
+      admission.failed(403, 'policy', 'MCP_HEADER_REJECTED');
       if (isEndpointRequest) {
         writeJsonRpcErrorResponse(res, 403, -32000, headerValidationError);
       } else {
@@ -502,6 +486,7 @@ export function createBaseHttpServer(
     // Handle CORS for all requests （跨域）
     const corsAllowed = handleCORS(req, res, security);
     if (!corsAllowed) {
+      admission.failed(403, 'policy', 'MCP_ORIGIN_REJECTED');
       if (isEndpointRequest) {
         writeJsonRpcErrorResponse(res, 403, -32000, "CORS origin not allowed");
       } else {
@@ -531,29 +516,31 @@ export function createBaseHttpServer(
     // 生成接口
     try {
       const context = await authenticateMcpRequest(req, requestId);
-      context.serverId = process.env.API_NOVA_AUDIT_SERVER_ID || process.env.API_NOVA_MCP_RESOURCE ||
-        process.env.API_NOVA_RUNTIME_RESOURCE || `${handlers.serverType}:${listenHost}:${httpServer.address() && typeof httpServer.address() === 'object' ? (httpServer.address() as import('node:net').AddressInfo).port : port}${endpoint}`;
       Object.assign(context, {
-        traceId: admission.record.traceId, rootInvocationId: admission.record.rootInvocationId,
-        parentInvocationId: admission.record.invocationId, spanKind: 'mcp_protocol',
-        protocolTransport: handlers.serverType.includes('SSE') ? 'sse' : 'streamable',
+        serverId, traceId: admission.record.traceId, rootInvocationId: admission.record.rootInvocationId,
+        parentInvocationId: admission.record.invocationId, spanKind: 'mcp_protocol', protocolTransport,
       });
-      // The parent pointer belongs to child execution, not to the admission record itself.
-      Object.assign(admission.record, { ...context, parentInvocationId: admission.record.parentInvocationId });
+      admission.authenticated(context);
       let expiryTimer: ReturnType<typeof setTimeout> | undefined;
       if (context.expiresAt) {
-        expiryTimer = setTimeout(() => res.end(), Math.min(2147483647, Math.max(1, context.expiresAt * 1000 - Date.now())));
+        expiryTimer = setTimeout(() => { admission.cancel('MCP_AUTH_EXPIRED'); res.end(); }, Math.min(2147483647, Math.max(1, context.expiresAt * 1000 - Date.now())));
         expiryTimer.unref();
         res.once('close', () => clearTimeout(expiryTimer));
         res.once('finish', () => clearTimeout(expiryTimer));
       }
       await withRuntimeCallContext(context, () => handlers.handleRequest(req, res));
     } catch (error) {
+      if (error instanceof RuntimeAuthError) {
+        const category = error.status === 401 ? 'authentication'
+          : error.status === 403 ? admission.record.authState === 'authenticated' ? 'authorization' : 'authentication'
+            : error.status === 413 ? 'capacity' : 'protocol';
+        admission.failed(error.status, category, 'MCP_REQUEST_REJECTED');
+      } else admission.failed(500, 'other', 'MCP_HANDLER_FAILED');
       if (error instanceof RuntimeAuthError && !res.headersSent) {
         sendMcpAuthError(res, error);
         return;
       }
-      console.error(`Error in ${handlers.serverType} request handler:`, error);
+      console.error('[MCP_HTTP_HANDLER_FAILED] Request handler failed.');
       if (res.headersSent) {
         res.end();
         return;

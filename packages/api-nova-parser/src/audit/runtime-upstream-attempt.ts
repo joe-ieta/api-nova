@@ -31,6 +31,16 @@ function contentType(headers: Record<string, unknown>): string {
   return typeof value === 'string' ? value : '';
 }
 
+function encoded(headers: Record<string, unknown>): boolean {
+  const value = Object.entries(headers).find(([name]) => name.toLowerCase() === 'content-encoding')?.[1];
+  return value !== undefined && String(value).trim() !== '' && String(value).toLowerCase() !== 'identity';
+}
+
+function encodedBody(body: AuditBody | undefined, isEncoded: boolean): AuditBody | undefined {
+  return body && isEncoded ? { ...body, state: body.state === 'incomplete' ? 'incomplete' : 'omitted',
+    reason: 'encoded_body', data: undefined, capturedBytes: 0 } : body;
+}
+
 function failure(error: unknown): Pick<RuntimeCallRecord, 'outcome' | 'errorCategory' | 'errorCode'> {
   let value = '';
   try {
@@ -61,6 +71,7 @@ export async function runRuntimeUpstreamAttempt<T>(
   let requestSeen = false, requestEnded = false, responseSeen = false, responseEnded = false, finalized = false;
   let statusCode: number | undefined;
   let responseHeaders: Record<string, unknown> | undefined;
+  let requestEncoded = false, responseEncoded = false;
   let childContext: RuntimeCallContext | undefined;
   const safe = <V>(operation: () => V): V | undefined => {
     try { return operation(); } catch { health.instrumentationFailures++; return undefined; }
@@ -80,7 +91,8 @@ export async function runRuntimeUpstreamAttempt<T>(
       url: redactAuditUrl(input.url),
       requestHeaders: redactAuditHeaders(headers, input.credentialHeaderNames || []),
     };
-    requestTracker = createAuditBodyTracker(input.requestContentType || contentType(headers));
+    requestEncoded = encoded(headers);
+    requestTracker = createAuditBodyTracker(input.requestContentType || contentType(headers), requestEncoded ? 0 : undefined);
     call = beginRuntimeCall(startContext, 'api');
     childContext = {
       ...context, traceId: call.record.traceId, rootInvocationId: call.record.rootInvocationId,
@@ -96,7 +108,8 @@ export async function runRuntimeUpstreamAttempt<T>(
         if (!Number.isInteger(status) || status < 200 || status > 599) return;
         statusCode = status;
         responseHeaders = redactAuditHeaders(headers, input.credentialHeaderNames || []);
-        responseTracker = createAuditBodyTracker(type || contentType(headers));
+        responseEncoded = encoded(headers);
+        responseTracker = createAuditBodyTracker(type || contentType(headers), responseEncoded ? 0 : undefined);
         responseSeen = true;
       });
     },
@@ -134,8 +147,8 @@ export async function runRuntimeUpstreamAttempt<T>(
     health.attemptsCompleted++;
     const requestBody = safe(() => requestTracker?.finish(requestEnded));
     const responseBody = safe(() => responseTracker?.finish(responseEnded));
-    const request: AuditBody | undefined = requestSeen ? requestBody : undefined;
-    const response: AuditBody | undefined = responseSeen ? responseBody : undefined;
+    const request: AuditBody | undefined = requestSeen ? encodedBody(requestBody, requestEncoded) : undefined;
+    const response: AuditBody | undefined = responseSeen ? encodedBody(responseBody, responseEncoded) : undefined;
     safe(() => {
       if (call) void call.finish({ ...completion, statusCode, responseHeaders, request, response })
         .catch(() => { health.finalizeFailures++; });

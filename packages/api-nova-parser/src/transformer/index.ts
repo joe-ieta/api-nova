@@ -6,7 +6,8 @@ import { BearerAuthManager } from '../auth/bearer-auth';
 import { CustomHeadersManager } from '../headers/CustomHeadersManager';
 import { resolveRuntimeCredentialRefHeaders } from '../headers/RuntimeCredentialRef';
 import axios, { AxiosResponse, AxiosError } from 'axios';
-import { beginRuntimeCall, captureAuditBody, getRuntimeCallContext, redactAuditHeaders, redactAuditUrl, redactAuditValue } from '../audit/runtime-call-audit';
+import { getRuntimeCallContext, redactAuditHeaders, redactAuditUrl, redactAuditValue } from '../audit/runtime-call-audit';
+import { createRuntimeHttpAuditAgents } from '../audit/runtime-http-agent';
 import { isParserDebugEnabled, parserDebugLog, parserWarnLog } from '../utils/logger';
 
 // Re-export types
@@ -623,13 +624,7 @@ export class OpenAPIToMCPTransformer {
     operation: OperationObject
   ): Promise<MCPToolResponse> {
     const context = getRuntimeCallContext();
-    const call = context ? beginRuntimeCall({ ...context,
-      runtimeAssetId: (operation as any)['x-runtime-asset-id'] || context.runtimeAssetId,
-      endpointDefinitionId: (operation as any)['x-endpoint-definition-id'],
-      sourceServiceInstanceId: (operation as any)['x-source-service-instance-id'],
-      operationId: operation.operationId }, 'api') : undefined;
-    let requestData: unknown;
-    let requestHeaders: Record<string, string> = {};
+    let auditAgents: ReturnType<typeof createRuntimeHttpAuditAgents> | undefined;
     try {
       // 1. 构建请求 URL
       const { url, queryParams } = this.buildUrlWithParams(path, args, operation);
@@ -675,12 +670,17 @@ export class OpenAPIToMCPTransformer {
 
       // 5. 准备请求体
       const requestBody = this.buildRequestBody(args, operation);
-      requestData = requestBody;
-      requestHeaders = headers;
-      if (context) headers['x-request-id'] = context.requestId;
-      if (call) Object.assign(call.record, { method: method.toUpperCase(), path,
-        url: redactAuditUrl(axios.getUri({ url, params: queryParams })),
-        requestHeaders: redactAuditHeaders(headers, credentialNames) });
+      if (context) {
+        headers['x-request-id'] = context.requestId;
+        auditAgents = createRuntimeHttpAuditAgents({ ...context,
+          runtimeAssetId: (operation as any)['x-runtime-asset-id'] || context.runtimeAssetId,
+          runtimeAssetEndpointBindingId: (operation as any)['x-runtime-asset-endpoint-binding-id'] || context.runtimeAssetEndpointBindingId,
+          endpointDefinitionId: (operation as any)['x-endpoint-definition-id'] || context.endpointDefinitionId,
+          sourceServiceAssetId: (operation as any)['x-source-service-asset-id'] || context.sourceServiceAssetId,
+          sourceServiceInstanceId: (operation as any)['x-source-service-instance-id'] || context.sourceServiceInstanceId,
+          operationId: operation.operationId,
+        }, credentialNames);
+      }
       if (isParserDebugEnabled(this.options.debugHeaders)) {
         parserDebugLog(JSON.stringify(redactAuditValue(requestBody), null, 2));
       }
@@ -692,41 +692,21 @@ export class OpenAPIToMCPTransformer {
       
       // 7. 执行 HTTP 请求
       const response = await axios({
-        method: method.toLowerCase() as any,
-        url,
-        params: queryParams,
-        data: requestBody,
-        headers,
+        method: method.toLowerCase() as any, url, params: queryParams, data: requestBody, headers,
         timeout: this.options.requestTimeout,
-        validateStatus: () => true, // 不要自动抛出错误，我们手动处理
-        maxRedirects: 5,
-        responseType: call ? 'arraybuffer' : 'json',
-        ...(call ? { transformResponse: [(data: any) => data] } : {}),
+        validateStatus: () => true,
+        maxRedirects: 5, responseType: 'json',
+        ...(auditAgents ? { httpAgent: auditAgents.httpAgent, httpsAgent: auditAgents.httpsAgent } : {}),
       });
-
-      if (call) {
-        await call.finish({ outcome: response.status >= 400 ? 'error' : 'success', statusCode: response.status,
-          requestHeaders: redactAuditHeaders(response.config.headers?.toJSON() || headers, credentialNames),
-          request: captureAuditBody(response.config?.data ?? requestBody, headers['Content-Type'] || headers['content-type'] || 'application/json'),
-          responseHeaders: redactAuditValue(response.headers),
-          response: captureAuditBody(response.data, String(response.headers['content-type'] || 'text/plain')) });
-        // Preserve upstream bytes in evidence, then restore the existing JSON-mode tool response.
-        if (Buffer.isBuffer(response.data)) response.data = response.data.toString('utf8');
-        if (typeof response.data === 'string') {
-          try { response.data = JSON.parse(response.data); } catch { /* non-JSON response */ }
-        }
-      }
 
       // 6. 处理响应
       return this.formatHttpResponse(response, method, path, operation);
 
     } catch (error) {
-      if (call) await call.finish({ outcome: 'error',
-        request: captureAuditBody((error as AxiosError)?.config?.data ?? requestData,
-          requestHeaders['Content-Type'] || requestHeaders['content-type'] || 'application/json'),
-        errorCode: String((error as any)?.code || 'upstream_request_failed') });
       // 7. 错误处理
       return this.handleRequestError(error, method, path);
+    } finally {
+      auditAgents?.destroy();
     }
   }
 
