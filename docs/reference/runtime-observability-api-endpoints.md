@@ -1,5 +1,5 @@
 ---
-doc-version: 1.12.0
+doc-version: 1.14.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -9,7 +9,7 @@ implementation-status: in-progress
 
 > Document status: Maintained consumer contract; approved endpoint contract; implementation in progress
 > Scope decision (2026-09-08, approved): 全新开发版本直接统一旧接口和数据库结构；不提供旧格式导入或旧查询路径兼容。接口的实际状态逐项维护，文档确认不等于上线。
-> 可用性声明：28 个 HTTP Endpoint 中 OBS-API-03/04/05/06 为 VERIFIED（隔离 Nest HTTP/Swagger 夹具），其余 24 个与两类推送仍 PLANNED。业务根应用尚未启用新模块，没有 AVAILABLE 接口或部署声明。
+> 可用性声明：28 个 HTTP Endpoint 中 OBS-API-03~08、10 共 7 个 VERIFIED，其余 21 个与两类推送仍 PLANNED。业务根应用尚未启用新模块，没有 AVAILABLE 接口或部署声明。
 > 已确认基线：[需求](../guides/runtime-observability-requirements.md)、[设计](./runtime-observability-design.md)。
 > 开发关联：[任务计划](../guides/runtime-observability-development-task-plan.md)、[执行状态](../guides/runtime-observability-development-execution-status.md)。
 
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.12.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.14.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -121,10 +121,10 @@ invocations 按 (timeBasis DESC, invocationId DESC) 排序；其他列表明确�
 | OBS-API-04 | GET /invocations/:id | obsGetInvocation | 基础 | OBS-TP-09 | VERIFIED |
 | OBS-API-05 | GET /invocations/:id/payloads/:side | obsGetInvocationPayload | monitoring:payload:read | OBS-TP-09 | VERIFIED |
 | OBS-API-06 | GET /traces/:traceId | obsGetTrace | 基础 | OBS-TP-09 | VERIFIED |
-| OBS-API-07 | GET /callers | obsListCallers | 基础 | OBS-TP-09 | PLANNED |
-| OBS-API-08 | GET /callers/:id | obsGetCaller | 基础 | OBS-TP-09 | PLANNED |
+| OBS-API-07 | GET /callers | obsListCallers | 基础 | OBS-TP-09 | VERIFIED |
+| OBS-API-08 | GET /callers/:id | obsGetCaller | 基础 | OBS-TP-09 | VERIFIED |
 | OBS-API-09 | PATCH /callers/:id | obsUpdateCallerLabels | monitoring:manage | OBS-TP-09 | PLANNED |
-| OBS-API-10 | GET /sources | obsListSources | 基础；IP 字段需 monitoring:source:read | OBS-TP-09 | PLANNED |
+| OBS-API-10 | GET /sources | obsListSources | 基础；IP 字段需 monitoring:source:read | OBS-TP-09 | VERIFIED |
 | OBS-API-11 | GET /statistics/summary | obsGetStatisticsSummary | 基础 | OBS-TP-10 | PLANNED |
 | OBS-API-12 | GET /statistics/time-series | obsGetStatisticsTimeSeries | 基础 | OBS-TP-10 | PLANNED |
 | OBS-API-13 | GET /statistics/groups | obsGetStatisticsGroups | 基础 | OBS-TP-10 | PLANNED |
@@ -214,16 +214,16 @@ encoding 可为 json、text、base64、multipart。multipart 内容包含经脱�
 
 ### 4.4 OBS-API-07/08/09/10：调用者与来源
 
-callers 按 lastSeenAt DESC、callerId DESC 分页。每项包含 callerId、displayName、identitySource、firstSeenAt、lastSeenAt、serverTypes、授权范围内的 observedServerCount、labels 和区间 summary。统计不足时带 historyCompleteSince，不导入或推算旧历史。
+callers 按 lastSeenAt DESC、callerId DESC 分页。每项包含 callerId、displayName、identitySource、firstSeenAt、lastSeenAt、serverTypes、授权且选定窗口内的 observedServerCount、unassignedInvocationCount、labels 和 summary。first/lastSeen 与 summary 由固定调用修订快照推导，不读取全局累计观察时间；可编辑档案以 profileSnapshot=current 标识。历史覆盖未知时 historyCompleteSince=null、isPartial=true，不推算旧历史。
 
-caller 详情返回凭证 ID/subject 的受限引用，不返回 Key、JWT、secretHash 或其他可用于认证的值。PATCH 仅修改 displayName、note、labels；不得修改可信 issuer/sub、callerId 或历史证据。
+caller 详情只返回当前授权时间窗中实际观察到的 credentialIds，以及当前 note 与查询 window；不读取全局凭证关联、不返回 issuer/sub、Key、JWT、secretHash 或其他可用于认证的值。PATCH（尚未实施）仅修改 displayName、note、labels；不得修改可信主体、callerId 或历史证据。
 
 PATCH 请求需 If-Match，示意：
 ```json
 { "displayName": "订单服务", "note": "生产集成调用者", "labels": ["production", "orders"] }
 ```
 
-sources 按 lastSeenAt DESC、sourceId DESC 排序；支持 authState、serverType/runtimeAssetId 和时间过滤。返回 anonymous/authentication_failed/unknown 来源、first/lastSeen 与访问摘要。有 monitoring:source:read 才返回 clientIp、peerIp、ipSource、proxyTrusted。没有该权限也不提供可用于反向查 IP 的过滤。
+sources 按 lastSeenAt DESC、sourceId DESC 排序；支持 authState、serverType/runtimeAssetId、callerId/sourceId 和时间过滤。返回 authenticated/anonymous/authentication_failed/unknown 来源及选定窗口内 first/lastSeen、summary，默认不限制 authState。read AND source:read 在同一资产授权后才返回 clientIp、peerIp、ipSource、proxyTrusted，否则省略并标记 sourceRestricted；任何权限级别都不提供原始 IP 过滤。
 
 同一 IP 多个可信主体保持分离；同一可信主体的多个 IP 保持关联。匿名来源不是人数，日级 HMAC 标识不保证跨日稳定。
 
@@ -608,3 +608,29 @@ GET /api/v1/monitoring/observability/traces/{traceId}，operationId=obsGetTrace�
 没有可见节点统一 404 NOT_FOUND，不区分不存在和无资产权限。授权过滤后可见节点超过 200 返回 413 QUERY_TOO_LARGE（field=traceId），不返回截断图；恰好 200 正常返回。其他错误沿用 400/401/403/503 和统一 requestId 包装。此接口无分页，固定快照只覆盖一次响应，不扩大保留期。meta 使用已实现的只读水位；lagMs/historyCompleteSince=null、isPartial=true 仍表示未知覆盖，不宣称健康完整。
 
 API 构建、16 项真实 HTTP/Swagger 专项与 269 项联合回归通过，未在业务根应用启用。上层图形展示应把 missingParentReferences/structuralIssues 作为可见节点告警，而非补造父节点或据此估算完整调用链。
+
+## 20. OBS-API-07/08/10 调用者与来源查询契约（2026-09-09）
+
+三接口已 VERIFIED：生产查询源码 API 构建通过；用户批准修正匿名测试夹具后，专项 24/24、联合 293/293 通过。完整路径以前缀 /api/v1/monitoring/observability 加注册表路径构成；仍需管理 JWT、monitoring:read 及当前资产范围。根应用尚未启用。
+
+| 接口 | 支持的查询参数 |
+| --- | --- |
+| GET /callers，obsListCallers | from、to、timeBasis、origin、serverType、runtimeAssetId、sourceId、callerId、limit、includeTotal、cursor |
+| GET /callers/{id}，obsGetCaller | from、to、timeBasis、origin、serverType、runtimeAssetId、sourceId |
+| GET /sources，obsListSources | 调用者列表参数加 authState |
+
+origin 仅允许 external，默认 external；test/probe/internal 和 upstream_api 不构成外部访客。authState 枚举为 authenticated/anonymous/authentication_failed/unknown。timeBasis 默认 startedAt；from/to 必须同时给出，UTC 半开区间 [from,to)，默认过去一小时、最长 30 天。completedAt 时间过滤不含仍无完成时间的 running/推断 unknown。调用者详情没有选定窗口内可见观察时统一 404，即便全局注册表中仍存在该主体。未知/重复/嵌套参数、原始 IP 过滤、标签搜索或详情分页参数返回 400。
+
+列表 data 包含 items、nextCursor、hasMore、可选 total、window 与 maxQueryInvocations=5000。limit 默认 50，范围 1~200；total 是资产与查询过滤后访客组数，不是全局主体数。window 包含实际 from/to/timeBasis/origin。每次查询授权且匹配的修订总数超过 5000 返回 413 QUERY_TOO_LARGE（field=from），应缩小时间/服务器/访客范围；该上限不是单页数量，不能靠调小 limit 绕过，也不会返回部分统计假装全量。
+
+调用者项包含 callerId、identitySource=authenticated、displayName、labels、profileSnapshot=current、firstSeenAt、lastSeenAt、serverTypes、observedServerCount、unassignedInvocationCount、summary。详情另含 note、credentialIds、window。firstSeenAt 为选定调用集合最早开始，lastSeenAt 为该集合最晚真实完成或开始；以 startedAt 选窗时，完成时间可以晚于 to。observedServerCount 按不同已分配 runtimeAssetId 计数；未分配调用单独计数，不能虚构一个服务器。凭证 ID 仅取所选可见调用，不返回可认证凭证、全局累计时间或会随隐藏观察变化的版本号。
+
+来源项包含 sourceId、runtimeAssetId、authState、day、firstSeenAt、lastSeenAt、serverTypes、sourceOverflow、sourceRestricted、summary。IP 四字段仅在同资产 read AND source:read 下出现，overflow 时明确为空且 ipSource=overflow；桶不是用户或人数。sourceId 为日级受控 HMAC 引用，不保证跨日或密钥轮换稳定。按 callerId 筛来源时也验证可信认证，匿名/失败记录中的自报 callerId 不构成关联。
+
+summary.invocationCount 统计调用边界，不是去重业务请求、连接数或人数。summary.groups 按 spanKind、byteMeasurement、measurementStage 分组，各项包括 invocationCount、runningCount、outcomeCounts（七类终态），以及 request/response 的 ObservedBytes、MissingMeasurements、IncompleteMeasurements。HTTP 200 的 Tool 错误仍计 error；不同阶段字节不可相加后宣称总网络流量。所有观测缺失时 ObservedBytes=null，真实空正文为 0，不完整字节保留已观察值并增加 IncompleteMeasurements。部分缺失时总量只是已知值之和；超过 JS 安全整数返回十进制字符串。正文内容、头部、密钥及存储引用不出现在响应中。
+
+分页按 lastSeenAt DESC、callerId/sourceId DESC。签名游标固定原始过滤、调用 snapshotSeq 和最早元数据保留截止，最长 15 分钟；新增调用/迟到终态不改变旧快照的组次序和统计，续页可变更 limit/includeTotal，但不能换端点、主体、资产范围或过滤。档案显示字段按当前读取，不是历史档案快照且不参与排序/过滤；IP 权限每页重算。过期返回 410 QUERY_CURSOR_EXPIRED，不延长留存。meta 的水位可用，但 lagMs/historyCompleteSince 仍 null、isPartial=true，不作全历史覆盖/健康声明。
+
+### 20.1 查询节点验收补充
+
+匿名夹具依照现行契约修正为 identitySource=anonymous 后，24 项真实 HTTP/Swagger 专项及 293 项联合回归通过，不改生产身份/授权规则。07/08/10 已 VERIFIED，不再是待验收实现；5000 修订上限、时间窗、当前档案/调用快照语义和未知覆盖保持不变。实际 PostgreSQL、Linux、全应用、性能和对外部署仍待验证，标签 PATCH 尚未实现。

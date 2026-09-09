@@ -1,5 +1,5 @@
 ---
-doc-version: 1.7.0
+doc-version: 1.9.0
 doc-status: active
 doc-updated: 2026-09-09
 implementation-status: in-progress
@@ -190,3 +190,15 @@ AuditService.findLogs 现使用实体 createdAt 与 ORM Date 比较操作符、c
 无表、列、迁移或业务库操作。trace 查询复用 revision 可见区间与快照序号，先过滤资产、元数据 TTL、traceId/origin，再按 startedAt/invocationId 升序最多读取 201 行，超过 200 返回明确错误。没有读取正文或分配事件序号；晚到真实终态只呈现同一调用最新可见修订，不重复节点。
 
 图关系裁剪/循环诊断完全在响应中执行，不纠正或伪造原始父子证据。规模测试通过独立 SQL.js 投影复制形成 200/201 边界，非生产采集或性能验收。API 构建、新增 16 项和联合 269/269 通过，实际 PostgreSQL trace 分支、Linux、应用启用仍未运行。
+
+### 12.4 访客查询使用已有修订与注册表
+
+无结构、迁移或业务库变更。调用者查询通过 revision 与 runtime_callers 按 callerId 内联，来源查询与 runtime_access_sources 按 sourceId 和同资产内联，所有筛选值参数化。源 authState 使用可信投影的注册值，callerId 关联还检查 canonical 可信认证；不查询正文文件或全局 credential 关联表。
+
+快照内最多读取 5001 条符合授权/保留/外部调用窗口条件的修订，以判定 5000 上限；局部分组输出范围内观察时间与分计量口径总量。源/档案当前行仅提供不影响调用分页的注册属性和受控显示字段，不冒充额外历史修订。调用计数器和水位保持只读；期限/策略提前清理的游标失效仍需治理闭环。
+
+API 构建与既有 269 项通过，新专项 23/24，匿名身份夹具错误待修正；未运行新 293 项联合或真实 PostgreSQL 查询。规模边界采用隔离 SQL.js 合成修订，不作为业务负载或生产采集证据，三接口仅 IMPLEMENTED。
+
+### 12.5 访客查询重新验收
+
+仅修正获批的匿名测试夹具，24 项专项与联合 293 项通过；无生产身份、存储、查询或保留变更。API 构建使用本节点原已通过结果，三条访客接口 VERIFIED；业务库、PostgreSQL 查询分支、Linux、部署和后台治理仍未操作。

@@ -5,6 +5,7 @@ type QueryValue = string | number | boolean | string[];
 export type ObservabilityFilter = Record<string, QueryValue>;
 const ENUMS: Record<string, readonly string[]> = {
   origin: ['external', 'test', 'probe', 'internal'],
+  authState: ['authenticated', 'anonymous', 'authentication_failed', 'unknown'],
   serverType: ['gateway', 'mcp'],
   spanKind: ['gateway_request', 'mcp_protocol', 'mcp_tool', 'upstream_api'],
   outcome: ['success', 'error', 'rejected', 'timeout', 'cancelled', 'incomplete', 'unknown'],

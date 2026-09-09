@@ -1,5 +1,5 @@
 ---
-doc-version: 1.12.0
+doc-version: 1.14.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -116,3 +116,13 @@ security/services/audit.service.ts 的 findLogs 将日期绑定到 createdAt 并
 现有 call-observability-invocations.controller/service/dto.ts 增加 OBS-API-06 / obsGetTrace 和显式图 DTO，复用 readSnapshot、修订可见区间、资产与正文元数据呈现。只接受 origin，查询保留期内当前版本；200 节点上限在权限过滤后执行，超限 413，无默认时间截断。缺失/跨范围引用与 parent_cycle 只在可见节点报告，返回图闭合且不改存储。
 
 test-call-observability-invocations.cjs 新增 16 项 trace 用例，总 38 项；API 构建和联合 269/269 PASS。OBS-API-03~06 VERIFIED，07~10 尚待实施，根应用未启用；实际 PostgreSQL trace、Linux 与性能未验收。
+
+## TP-09 调用者/来源查询映射与待验收项（2026-09-09）
+
+新增 call-observability-visitors.service/controller/dto.ts，映射 obsListCallers、obsGetCaller、obsListSources；观测模块注册该服务/控制器，公共 query 仅增加 authState 枚举。使用现有 revision + caller/source 注册表，不新建表，不以全局 first/lastSeen 或观察计数替代资产/窗口内数据。
+
+调用者需可信认证，凭证引用来自可见调用；来源按实体资产匹配并逐项裁剪 IP，原始 IP 不可过滤。固定调用快照分页、5000 候选上限与按边界/计量阶段分组的 summary 已编码。test-call-observability-visitors.cjs 新增 24 项，初次 23 PASS/1 FAIL；失败为匿名夹具 identitySource=unknown，待许可修正。API 构建及既有 269 项通过，三接口仅 IMPLEMENTED，合计 293 项联合尚未执行。
+
+### 访客查询验收更新
+
+匿名夹具获用户批准修正后，新脚本 24/24、14 脚本联合 293/293 通过，OBS-API-07/08/10 VERIFIED；生产查询与身份源码不变。保留前述初始失败证据。下一映射为 OBS-API-09 档案标签修改、If-Match 与 AuditService 同事务管理审计。

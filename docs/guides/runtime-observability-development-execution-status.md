@@ -1,5 +1,5 @@
 ---
-doc-version: 1.21.0
+doc-version: 1.23.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -8,7 +8,7 @@ implementation-status: in-progress
 # 可观测性开发执行与任务包完成状态
 
 > Document status: Active execution ledger
-> 当前阶段：OBS-TP-01/02/03/04/05/08 完成；TP-06、09 进行中。3873d7e 已推送；trace 新增 16 项及联合 269 项、API 构建通过，见第 29 节。
+> 当前阶段：OBS-TP-01/02/03/04/05/08 完成；TP-06、09 进行中。trace 节点 05af2c4 已推送；匿名夹具获批修正后调用者/来源专项 24/24、联合 293/293 通过，见第 31 节。
 > 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
 
 ## 1. 当前快照
@@ -23,10 +23,10 @@ implementation-status: in-progress
 | IN_PROGRESS / REVIEW / BLOCKED | 2 / 0 / 0 |
 | READY / BACKLOG | 3 / 5 |
 | 代码验收完成率 | 6/16；TP-08 包级收口，不代表公开 API、MCP 整包或全链路完成 |
-| 新 HTTP Endpoint | 28 个；OBS-API-03/04/05/06 为 VERIFIED，其余 24 个 PLANNED；均未部署为 AVAILABLE |
+| 新 HTTP Endpoint | 28 个；03~08、10 共 7 个 VERIFIED，其余 21 个 PLANNED；均未部署为 AVAILABLE |
 | 新推送契约 | 2 类，全部 PLANNED |
 | 本轮数据库实际操作 | 隔离 SQL.js 内存库、独有临时目录及本机随机端口；未连接或清理业务数据库 |
-| 本轮新增验证 | API build PASS；trace 新增 16 项及 Node 联合 269/269 PASS；未重复 parser/Server 构建、parser Jest 或独立烟测 |
+| 本轮新增验证 | API build PASS（生产查询源码未因夹具修正改变）；调用者/来源专项 24/24、14 脚本联合 293/293 PASS；0 fail/cancelled/skipped |
 
 文档已确认与基础包完成都不代表功能已上线。TP-02 的存储、GC 与 PostgreSQL 多进程针对性验证已完成；Linux 矩阵、全系统 SQL.js 并发集成和新接口端到端验收仍未完成。
 
@@ -67,7 +67,7 @@ implementation-status: in-progress
 | OBS-TP-06 | MCP 接入 | 04 | IN_PROGRESS | HTTP/物理上游基线已验收；真实 STDIO 8 项含慢读背压均通过；stdin EOF、stdout 错误/断管及剩余传输矩阵尚未验收 |
 | OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 04 重新验收，恢复就绪；test/probe/internal 实际接入尚未实施 |
 | OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | DONE | 采集/身份/重启/源退出共 45 项专项通过；真实写入进程 UUID/PID、已关闭残片隔离和立即 unknown 恢复已接入。包级退出条件完成，应用启用与全平台集成另归 15/16 |
-| OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | IN_PROGRESS | 列表/明细/trace 38 项、正文/管理审计 23 项通过；trace 16 项已验收，callers/sources/标签尚待完成 |
+| OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | IN_PROGRESS | 调用/trace/正文/调用者/来源 7 接口 VERIFIED；访客 24 项及联合 293 项通过；标签修改与最终包级验收未完成 |
 | OBS-TP-10 | 聚合/状态/能力 API | 03、08 | READY | 03、08 已完成，可启动聚合与能力接口 |
 | OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | READY | 03、08 已完成；持久事件基础已有，仍需历史查询和 Outbox 消费 |
 | OBS-TP-12 | Webhook/订阅/投递 API | 11 | BACKLOG | 11 尚未完成 |
@@ -80,7 +80,7 @@ implementation-status: in-progress
 
 | 接口范围 | 数量 | 主任务包 | 状态 |
 | --- | --- | --- | --- |
-| OBS-API-03~10：调用/正文/trace/调用者/来源 | 8 | 09 | 03~06 VERIFIED；07~10 PLANNED |
+| OBS-API-03~10：调用/正文/trace/调用者/来源 | 8 | 09 | 03~08、10 VERIFIED；09 PLANNED |
 | OBS-API-01/02/11~15：能力/总览/聚合/依赖/状态 | 7 | 10 | PLANNED |
 | OBS-API-16：事件补拉 | 1 | 11 | PLANNED |
 | OBS-API-17~25：订阅/投递/重试 | 9 | 12 | PLANNED |
@@ -483,3 +483,36 @@ OBS-API-06 / obsGetTrace 已实现并 VERIFIED。复用现有调用查询 Servic
 包含完整多边界树、跨资产裁剪、迟到终态/unknown 修正、过期父节点、循环/自环、当前授权、SQL 参数化、IP 裁剪、精确节点上限和生成 Swagger。规模上限用独立 SQL.js 投影数据，不冒充 200 次生产采集或负载 SLA；未运行实际 PostgreSQL trace 查询、Linux、parser/Server 构建或独立烟测。没有业务库操作、应用启用或部署。
 
 TP-09 继续 IN_PROGRESS，完成包仍 6/16；4 条 HTTP VERIFIED、24 条 PLANNED，两类推送 PLANNED。下一节点 OBS-API-07/08/10 调用者与来源查询，随后 OBS-API-09 标签和敏感管理审计。后续聚合/持久事件依赖不变，节点提交推送以 Git 回执为准。
+
+## 30. TP-09 调用者与来源查询初次验证（2026-09-09，历史失败快照）
+
+trace 节点 05af2c4 已普通提交并推送 main。随后新增 call-observability-visitors.service/controller/dto.ts 和 test-call-observability-visitors.cjs，在 opt-in 观测模块注册 OBS-API-07/08/10；共享参数解析增加 authState 枚举。未改数据库结构、生产身份归一化、采集或业务根应用入口。三接口为 IMPLEMENTED，尚未 VERIFIED。
+
+查询依据当前管理授权、资产/时间内的保留调用修订，而非全局调用者/来源累计时间。仅 external 且 gateway_request/mcp_protocol/mcp_tool 边界；上游、测试、探测与内部记录不制造外部访问者。调用者必须可信认证，凭证引用只来自可见窗口；来源支持四类 authState。first/lastSeen、服务器数和 summary 均从选定修订推导；当前显示名/备注/标签以 profileSnapshot=current 明示，不返回会受隐藏观察影响的全局时间或版本号。
+
+列表以 lastSeenAt DESC、visitorId DESC 排序，签名游标固定调用快照、时间窗和保留截止；档案可编辑字段不承诺历史快照。summary 按 spanKind/byteMeasurement/measurementStage 分组，不把协议/工具/HTTP 字节混加；空、未知、不完整字节分别表达，超安全整数总量使用十进制字符串。source IP 按 read AND source:read 的逐资产交集返回，不提供 IP 过滤、正文、密钥或内部对象路径。
+
+首版最多处理 5000 条授权且匹配的当前修订，恰好 5000 正常、超过返回 413 QUERY_TOO_LARGE，不静默截断；限制对一个查询候选集生效，不是单页数。测试使用真实 JWT/Nest HTTP/SQL.js 与现有投影 hook，规模边界用独有内存库中的合成修订数据，不声称是生产采集吞吐、数据库高负载或全局内存 SLA。
+
+| 本节点实际执行 | 结果 |
+| --- | --- |
+| npm.cmd run build --workspace api-nova-api | PASS |
+| node --test --test-reporter=spec packages/api-nova-api/scripts/test-call-observability-visitors.cjs | 24 项：23 PASS、1 FAIL；0 cancelled/skipped |
+| 既有 13 脚本联合回归（不含本次新脚本） | 269/269 PASS；0 fail/cancelled/skipped |
+| 包含新脚本的 14 脚本 / 293 项联合回归 | NOT_RUN |
+
+失败用例为 anonymous and failed authentication observations cannot promote supplied caller or credential IDs，断言位于新脚本 222 行。匿名夹具误设 identitySource=unknown；既有归一化只有 identitySource=anonymous 才归类 anonymous，因此查询 anonymous 得到 0 而非预期 1。已定位为本次编写的夹具不符合现行契约，已向用户请求仅修正夹具并继续回归，尚未修改。生产代码没有为迎合测试放宽身份规则，也没有删减断言。
+
+下一动作：得到修正许可后将匿名场景 identitySource 对齐 anonymous，运行 24 项专项及 293 项联合回归；通过后才能推进三接口 VERIFIED 并提交本节点。随后实现 OBS-API-09 标签修改、If-Match 与管理审计。当前包级状态仍 DONE=6、IN_PROGRESS=2、READY=3、BACKLOG=5，无业务库操作、部署或新推送能力上线。
+
+## 31. TP-09 访客夹具修正与查询节点验收（2026-09-09）
+
+用户明确同意后，仅将新专项中匿名场景的 identitySource 改为 anonymous，认证失败场景保留 unknown。生产身份归一化、查询逻辑、保留策略、数据库结构和业务库均未改动；第 30 节初始 23/24 失败记录保留。
+
+| 实际执行 | 结果 |
+| --- | --- |
+| node --test --test-reporter=spec packages/api-nova-api/scripts/test-call-observability-visitors.cjs | 24/24 PASS |
+| 包含访客脚本的 14 脚本联合回归 | 293/293 PASS；0 fail/cancelled/skipped |
+| API build | 已在同一生产查询源码上通过；本次仅夹具修正，不重复声称新生产构建 |
+
+OBS-API-07/08/10 推进为 VERIFIED，合计 7 条 HTTP VERIFIED、21 条 PLANNED；推送仍 PLANNED、根应用未启用。覆盖匿名/失败身份、资产范围、凭证轮换、固定分页、字节口径、IP AND 权限、5000/5001 精确边界与 Swagger。Windows/SQL.js 证据不外推实际 PostgreSQL、Linux、性能或部署。TP-09 仍 IN_PROGRESS，下一节点为 OBS-API-09 标签修改、If-Match 与事务管理审计；节点提交推送以 Git 回执为准。

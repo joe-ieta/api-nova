@@ -1,5 +1,5 @@
 ---
-doc-version: 1.13.0
+doc-version: 1.15.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -590,3 +590,17 @@ OBS-API-06 复用只读修订快照，按 origin（默认 external）读取 trac
 返回图必须闭合，包括全局读者：所选 origin/trace 外的父/根也裁剪。缺失父关系只报告可见子 ID 与 unavailable_or_restricted，缺失根报告 root_unavailable_or_restricted。迭代算法检测 parent_cycle，切断循环成员的父边但保留非循环后代；不递归、不修改持久化证据、不补造关联。必要时清除对应 trace/request 引用，沿用 linksRestricted。
 
 relationshipsComplete 仅陈述返回节点已声明关系的可用性与无环性，不能推断未知后代或全部历史已采集。isPartial 与保守 meta 继续表达缺失字段/覆盖，200 节点限额不是吞吐或全链路 SLA。新增 16 项及联合 269 项、API build 通过；API-06 VERIFIED，实际 PostgreSQL/完整集成仍待验证。
+
+### 16.4 调用者/来源查询实现与验收边界
+
+调用者/来源注册表的累计 first/lastSeen、版本与凭证集合包含跨资产活动，不能直接作为局部授权响应。新查询在调用 revision 的可见区间上先应用资产、TTL、external、非 upstream 边界和时间过滤，之后按 callerId/sourceId 分组；来源关联要求 sourceId 与资产一致，调用者及 callerId 过滤同时验证 canonical identitySource/authState。作用域为空必须 SQL FALSE。
+
+初版将最多 5000 条匹配修订带入有界分组，5001 条即 413，无静默截断；每页最多 200 组。该约束避免任意范围的无界内存聚合，但不是高负载优化或全局 HTTP 内存配额。后续 TP-10/14/16 负责数据库聚合、治理及负载矩阵；不能把合成规模测试当作吞吐证明。
+
+调用快照确定访客组、first/lastSeen、按边界/字节阶段的 summary 和 keyset 次序；游标固定整个结果集最早 TTL 与 15 分钟上限。名称/标签/备注保持当前可编辑档案语义 profileSnapshot=current，不发布全局累计观察版本。凭证列表仅含选定可见调用中的引用，不暴露跨资产 credential 表全部关联。IP 可选权限每页按资产交集重算。
+
+数据中 invocationCount 是边界数；相同请求的 Gateway/协议/Tool 不冒充一次去重业务请求。分组保留全部七类终态、running、空/未知/不完整字节及超安全整数精度；覆盖仍保守未知。API 构建、23/24 新专项及既有 269 项通过；匿名夹具修正待许可，三路由 IMPLEMENTED，未验收 PostgreSQL、Linux、全平台、业务根应用或部署。
+
+### 16.5 访客查询验收更新
+
+匿名夹具 identitySource 与既有匿名判定契约对齐已获用户批准，专项 24/24 与联合 293/293 通过。原生产设计/实现不改，07/08/10 已 VERIFIED，前节失败记录属于初次验证。后续标签修改需明确全局共享档案的完整资源授权及独立档案版本，不应以单个可见资产授权覆盖隐藏资产，也不能让调用流量改变可编辑字段的并发令牌。
