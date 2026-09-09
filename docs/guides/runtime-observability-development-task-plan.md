@@ -1,7 +1,7 @@
 ---
-doc-version: 1.2.0
+doc-version: 1.3.0
 doc-status: active
-doc-updated: 2026-09-08
+doc-updated: 2026-09-09
 approval-status: approved
 implementation-status: in-progress
 ---
@@ -20,7 +20,7 @@ implementation-status: in-progress
 
 每个任务包都有进入条件、输出物、适用测试、文档责任和退出标准；只写代码不算完成。接口文档和任务台账在同一任务包中维护，不等最终联调再补写。
 
-全局编码门禁为 OBS-GATE-01，已通过。OBS-TP-01/02/04 已满足各自退出条件；OBS-TP-03/05 继续实施，OBS-TP-06/07/08 已就绪。后续按依赖推进，不重复请求计划确认。
+全局编码门禁为 OBS-GATE-01，已通过。OBS-TP-01/02/03/04 已满足各自退出条件；OBS-TP-05 继续实施，OBS-TP-06/07/08 已就绪。后续按依赖推进，不重复请求计划确认。
 
 ## 2. 任务包总表
 
@@ -276,13 +276,13 @@ OBS-TP-02 已完成存储包退出条件：20 个存储实体、调用版本、�
 
 OBS-TP-04 的单次物理上游请求适配器和 16 项故障/边界测试已补齐，四组 parser 测试共 60 项通过，parser/API 构建均通过，按共享采集器退出条件收口为 DONE。实际服务器接入仍归 TP-05/06/07，完整平台矩阵仍归 TP-16。实际完成情况以[执行台账](./runtime-observability-development-execution-status.md)为准。
 
-验证执行更新（2026-09-08）：API build、48 项存储/GC 用例及 PostgreSQL 四进程提交/回滚/回收竞争均已通过。此前两方言隔离烟测均为 63 表、schemaDrift=0；本轮 PostgreSQL 仍为零漂移，脚本清理退出码为 0。按原包级退出标准，TP-02=DONE、TP-03=READY，TP-08 仍等待 TP-04。Linux/完整矩阵留在 TP-16，全系统 SQL.js 并发和非致命 pg 弃用警告留在 TP-15；28 个 HTTP Endpoint 与两类推送仍为 PLANNED。
+历史验证快照（2026-09-08，最新状态见执行台账）：API build、48 项存储/GC 用例及 PostgreSQL 四进程提交/回滚/回收竞争均已通过。此前两方言隔离烟测均为 63 表、schemaDrift=0；本轮 PostgreSQL 仍为零漂移，脚本清理退出码为 0。按原包级退出标准，TP-02=DONE、TP-03=READY，TP-08 仍等待 TP-04。Linux/完整矩阵留在 TP-16，全系统 SQL.js 并发和非致命 pg 弃用警告留在 TP-15；28 个 HTTP Endpoint 与两类推送仍为 PLANNED。
 
 ## TP-03 本轮进度
 
 2026-09-08：按用户指示将此前所有改动提交为 efb4536 后，进入 TP-03。实现受管管理 Token 用途隔离、四个细分权限、角色级显式资源范围、AND guard、响应/错误 DTO、受限参数、签名游标和同事务 If-Match/幂等原语。角色范围复用现有受权限保护的角色管理接口，不使用可自改用户资料，不新增授权数据库表。
 
-本轮 API 构建通过，新增 56 项专项测试，但测试模块缺少 Guard 的 JwtService 等依赖，在初始化时失败，业务断言未执行。原有 48 项存储/GC 用例通过，不能代替 TP-03 专项验收。TP-03 仍为 IN_PROGRESS，修复确认待答复；查询与推送依赖不提前释放。
+2026-09-09：用户批准修复后，测试模块补齐 Guard 的 JwtService、UserService、ConfigService 依赖，新增 56 项专项与原有 48 项存储/GC 回归共 104/104 PASS，API build PASS。允许/拒绝、跨资源、游标与并发幂等退出条件均有证据，TP-03=DONE；查询与推送仍等待 TP-08。此前夹具启动失败保留在执行台账历史记录。
 
 ## TP-04 收口和下一轮接入
 

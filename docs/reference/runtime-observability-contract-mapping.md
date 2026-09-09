@@ -1,7 +1,7 @@
 ---
-doc-version: 1.2.0
+doc-version: 1.3.0
 doc-status: active
-doc-updated: 2026-09-08
+doc-updated: 2026-09-09
 ---
 # 可观测性共享契约与接入映射
 
@@ -35,8 +35,8 @@ doc-updated: 2026-09-08
 | gateway-runtime/services/gateway-access-log.service.ts | 旧 DB 与 fallback 审计；后续收敛为单一规范事实，避免重复 | 05、15 |
 | api-nova-server/src/transportUtils/audit.ts | tools/call 捕获；须补齐协议节点/终态发送结果 | 06 |
 | api-nova-server/src/tools/runtime-security.ts | 逐请求主体和工具权限；拒绝不能虚构成功身份 | 06 |
-| security/guards/permissions.guard.ts | ANY-OF，与新正文权限不兼容；新增明确策略 | 03 |
-| database/database-options.ts | 已登记新存储实体并更新两方言初始基线；未执行数据库初始化/验证 | 02 |
+| security/guards/permissions.guard.ts | 旧 ANY-OF 不用于新观测接口；专用 call-observability-access.guard.ts 已完成 AND/资源范围及真实 JWT 验证 | 03 DONE |
+| database/database-options.ts | 新存储实体与两方言初始基线已完成隔离初始化/零漂移验证；未操作业务库 | 02 DONE |
 | websocket/websocket.gateway.ts | 现有 namespace 和实时广播；新敏感订阅必须鉴权并接持久事件 | 13 |
 
 路径均指 packages 下对应包的 src；实际绝对工作区为 E:/CodexDev/api-nova。
@@ -59,4 +59,4 @@ doc-updated: 2026-09-08
 
 2026-09-08：runtime-upstream-attempt.test.ts 新增 16 项单次上游请求与故障用例，四组 parser 测试合计 60 项 PASS；parser 和 API 构建均 PASS。TP-04 达到共享采集器退出条件，实际 Gateway/MCP/测试探测接入未完成。适配器通过 index.ts 导出，不自行实现业务重试或读取响应流。
 
-Gateway 接入分析已启动：代理引擎仍有旧手动采集，GatewayAccessLogService 仍以 auditRecorded 抑制入口记录，TP-05 必须切换为不同 spanKind 的显式父子事实，而不是互相替代。TP-03 新专项测试尚未通过，不能将该权限基础标为完成。
+Gateway 接入分析已启动：代理引擎仍有旧手动采集，GatewayAccessLogService 仍以 auditRecorded 抑制入口记录，TP-05 必须切换为不同 spanKind 的显式父子事实，而不是互相替代。2026-09-09：TP-03 夹具修复后 56 项专项与 48 项存储/GC 回归共 104/104 PASS，API build PASS；权限/API 公共基础已验收，生产控制器仍未接入。

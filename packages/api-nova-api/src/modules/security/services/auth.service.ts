@@ -21,6 +21,7 @@ import {
 import { UserService } from './user.service';
 import { AuditService } from './audit.service';
 import { RoleService } from './role.service';
+import { MANAGEMENT_TOKEN_AUDIENCE, MANAGEMENT_TOKEN_ISSUER, MANAGEMENT_TOKEN_USE } from '../management-access-token';
 
 export interface JwtPayload {
   sub: string; // user id
@@ -28,6 +29,7 @@ export interface JwtPayload {
   email: string;
   roles: string[];
   permissions: string[];
+  tokenUse: typeof MANAGEMENT_TOKEN_USE;
   iat?: number;
   exp?: number;
 }
@@ -438,6 +440,7 @@ export class AuthService {
     // JWT载荷
     const jwtPayload: JwtPayload = {
       sub: user.id,
+      tokenUse: MANAGEMENT_TOKEN_USE,
       username: user.username,
       email: user.email,
       roles,
@@ -449,6 +452,9 @@ export class AuthService {
     const accessToken = this.jwtService.sign(jwtPayload, {
       secret: process.env.JWT_SECRET,
       expiresIn: accessTokenExpiresIn,
+      algorithm: 'HS256',
+      audience: MANAGEMENT_TOKEN_AUDIENCE,
+      issuer: MANAGEMENT_TOKEN_ISSUER,
     });
 
     // 生成刷新令牌

@@ -19,6 +19,7 @@ import {
   PaginatedResponseDto,
 } from '../dto/security.dto';
 import { AuditService } from './audit.service';
+import { validateObservabilityRoleMetadata } from '../observability-scope';
 
 @Injectable()
 export class RoleService {
@@ -34,6 +35,11 @@ export class RoleService {
     private readonly auditService: AuditService,
   ) {}
 
+  private validateObservabilityScope(metadata: unknown): void {
+    try { validateObservabilityRoleMetadata(metadata); }
+    catch { throw new BadRequestException('Invalid observabilityScope role metadata'); }
+  }
+
   /**
    * 创建角色
    */
@@ -42,6 +48,7 @@ export class RoleService {
     operatorId?: string,
     ipAddress?: string,
   ): Promise<RoleResponseDto> {
+    this.validateObservabilityScope(createRoleDto.metadata);
     const { name, permissionIds, ...roleData } = createRoleDto;
 
     // 检查角色名称是否已存在
@@ -89,6 +96,7 @@ export class RoleService {
         name: savedRole.name,
         type: savedRole.type,
         permissions: permissions.map(p => p.name),
+        observabilityScope: savedRole.metadata?.observabilityScope ?? null,
       },
     });
 
@@ -107,6 +115,7 @@ export class RoleService {
     ipAddress?: string,
   ): Promise<RoleResponseDto> {
     const role = await this.findRoleById(id);
+    this.validateObservabilityScope(updateRoleDto.metadata);
     const { permissionIds, ...updateData } = updateRoleDto;
 
     // 检查是否为系统角色

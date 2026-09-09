@@ -1,14 +1,14 @@
 ---
-doc-version: 1.3.1
+doc-version: 1.4.0
 doc-status: active
-doc-updated: 2026-09-08
+doc-updated: 2026-09-09
 ---
 # 统一调用日志、审计与可观测性设计
 
 > Document status: Approved design baseline; implementation in progress; endpoint integration pending
 > Scope decision (2026-09-08, approved): 用户明确允许统一修改旧接口和数据库结构。新采集仅输出 schemaVersion=2，新查询不导入旧格式、不保留旧接口兼容别名；数据库维护新的初始化基线，不设计旧库升级链。实际旧数据不自动删除。
 > 配套需求：[功能需求文档](../guides/runtime-observability-requirements.md)。
-> 方案及建议默认值已于 2026-09-08 由用户确认，尚未修改程序、数据库或运行配置。
+> 方案及建议默认值已于 2026-09-08 由用户确认，当前按开发计划实施；实际变更和验收证据以执行状态台账为准，未部署或处理业务库。
 > 实施配套：[对外 API Endpoint](./runtime-observability-api-endpoints.md)、[开发任务计划](../guides/runtime-observability-development-task-plan.md)、[执行状态](../guides/runtime-observability-development-execution-status.md)。
 
 ## 1. 设计决策
@@ -469,13 +469,13 @@ GET /events 以 sequence 升序补拉。响应 nextCursor 为本批已扫描位�
 
 ## TP-03 公共安全与 API 原语补充
 
-本轮在提交 efb4536 之后推进 TP-03，源码已写入，尚未构建或测试。新增四项细分权限进入现有 SYSTEM_PERMISSIONS；现有管理访问 Token 签发增加 management_access 用途及固定管理 audience/issuer，专用 Guard 校验这些声明和当前数据库账号，不接受业务 Token、刷新 Token 或客户端自报权限。
+TP-03 在提交 efb4536 之后实施；2026-09-09 夹具修复后 56 项专项与 48 项回归共 104/104 PASS，API 构建通过。新增四项细分权限进入现有 SYSTEM_PERMISSIONS；现有管理访问 Token 签发增加 management_access 用途及固定管理 audience/issuer，专用 Guard 校验这些声明和当前数据库账号，不接受业务 Token、刷新 Token 或客户端自报权限。
 
 资源授权复用受控角色 metadata.observabilityScope，支持 all 或 assets/runtimeAssetIds。普通角色缺省不授权，系统 super_admin 保持全局范围；同一权限的范围取并集，各必需权限之间取交集。角色服务校验范围结构，创建和修改沿用管理审计。用户资料不作为授权源，禁用项和未支持的非空权限条件不放行。不新增授权表，也不扩大已有普通角色的正文/IP 默认权限。
 
 公共原语包含局部 AND guard/安全错误 DTO、白名单参数解析、绑定当前授权与归一化过滤的 HMAC 游标、资源绑定强 ETag，以及复用 TP-02 事务的幂等操作记录。管理 JWT、游标与幂等请求摘要使用各自明确的配置，秘密缺失时关闭相关访问，不生成隐式默认秘密。幂等只保留安全操作引用，重入仍检查当前对象授权，不能在事务内执行 Webhook。
 
-具体配置、轮换影响和消费约束同步维护于[对外 API 文档第 10 节](./runtime-observability-api-endpoints.md#10-tp-03-公共-api-基础的实现约束)。本轮没有新增/运行测试，TP-03 不提前完成；控制器、实际查询授权过滤、读取审计、Swagger 和全局响应封装协作仍待相应接入包验证。
+具体配置、轮换影响和消费约束同步维护于[对外 API 文档第 10 节](./runtime-observability-api-endpoints.md#10-tp-03-公共-api-基础的实现约束)。TP-03 按公共基础退出条件验收完成；控制器、实际查询授权过滤、读取审计、Swagger 和全局响应封装协作仍待相应接入包验证。
 
 ## TP-04 单次上游尝试适配器实现
 
@@ -483,4 +483,4 @@ runRuntimeUpstreamAttempt 只包裹一个实际 HTTP 请求的业务回调。调
 
 共享 AsyncLocalStorage 为单次请求派生父子上下文；成功保留原返回对象，异常保留原异常对象。审计完成进入异步写队列，不等待文件系统延迟；捕获或最终调度失败进入内部健康计数。脱敏覆盖 URL、已声明凭证头和结构化正文；原始异常 message 不写入日志。
 
-新增 16 项测试与原有 44 项组成 60 项通过证据，parser/API 构建通过，TP-04 收口。生产接入留在 TP-05/06/07，采集汇集留在 TP-08，健康 API 与故障闭环留在 TP-14；没有提前开放任何对外 Endpoint。TP-03 构建已通过，但其新测试模块依赖遗漏导致业务断言未运行，验收仍未通过。
+新增 16 项测试与原有 44 项组成 60 项通过证据，parser/API 构建通过，TP-04 收口。生产接入留在 TP-05/06/07，采集汇集留在 TP-08，健康 API 与故障闭环留在 TP-14；没有提前开放任何对外 Endpoint。TP-03 初次测试因夹具依赖遗漏失败，历史记录保留；修复后业务断言全部执行并通过，不改变生产 Endpoint 仍未开放的边界。

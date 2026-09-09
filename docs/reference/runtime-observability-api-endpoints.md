@@ -1,7 +1,7 @@
 ---
-doc-version: 1.2.1
+doc-version: 1.3.0
 doc-status: active
-doc-updated: 2026-09-08
+doc-updated: 2026-09-09
 approval-status: approved
 implementation-status: in-progress
 ---
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.2.1，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.3.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -406,13 +406,13 @@ OBS-TP-15 将重复调用日志接口和现有调用方直接收敛到本文的�
 
 对外 sequence 仍为十进制字符串且允许有间隙；内部补零排序键不对客户端暴露。正文摘要中的 capturedDigest 与对象存储完整性摘要用途不同，客户端不得据此假设脱敏前后内容相同。更多实现边界见[存储基础说明](./runtime-observability-storage-foundation.md)。
 
-验证进度更新（2026-09-08）：48 项存储/GC 用例全部通过；PostgreSQL 四进程验证了提交/回滚顺序、未提交不可见、跨进程写入租约和孤立回收，schemaDrift=0、清理退出码 0。Linux 与全链路矩阵尚未执行，pg 非致命弃用警告仍待定位。TP-03 权限与 API 基础已进入实施，但新增源码尚未构建或测试；存储模块尚未接入运行时，GC 也没有自动调度。
+验证进度更新（2026-09-08）：48 项存储/GC 用例全部通过；PostgreSQL 四进程验证了提交/回滚顺序、未提交不可见、跨进程写入租约和孤立回收，schemaDrift=0、清理退出码 0。Linux 与全链路矩阵尚未执行，pg 非致命弃用警告仍待定位。截至 2026-09-09，TP-03 权限与 API 基础已通过 API 构建及 56 项专项验收；存储模块尚未接入运行时，GC 也没有自动调度。
 
 正文过期后的调用审计元数据仍保留；正文读取接口实现时须维持 PAYLOAD_EXPIRED 语义。目录归属、内部租约、generation、文件路径和 GC 控制入口属于服务端内部机制，不增加对外清理 Endpoint，也不暴露磁盘路径。后续 OBS-API-26/27/28 由 TP-14 提供授权后的治理/健康视图，不能直接透传内部状态行。
 
 ## 10. TP-03 公共 API 基础的实现约束
 
-本节对应已写入但未验证/部署的公共原语，不改变全部新 Endpoint 的 PLANNED 状态。本次新增代码不在此前提交 efb4536 中，也不包含新增 Token 签发 Endpoint。
+本节对应已通过包级测试但未部署的公共原语，不改变全部新 Endpoint 的 PLANNED 状态。TP-03 实现在提交 efb4536 之后完成，不包含新增 Token 签发 Endpoint。
 
 ### 10.1 管理身份和细分权限
 
@@ -456,10 +456,16 @@ Idempotency-Key 为 1~128 个非空白可见 ASCII 字符。API_NOVA_OBSERVABILI
 
 同键重入必须再次校验当前对象授权；同内容复用原操作结果，异内容 409，权限范围变化拒绝复用。数据库修改、审计/Outbox 与幂等记录共用 TP-02 事务，回滚不留下成功记录。回调内禁止网络发送，实际推送由后续分发任务完成。更换请求摘要秘密不改变幂等身份，保留窗口内旧请求摘要无法匹配时返回冲突，不自动重复执行。
 
-本轮 API 构建通过；新增 56 项专项测试在测试模块依赖解析阶段失败，业务断言未执行，上述源码能力尚未达到 VERIFIED。公共错误只返回安全固定文案与服务端 requestId，不回显驱动错误或磁盘路径。成功 envelope/分页 DTO 是公共基础，204 无正文、全局响应拦截器协作、Swagger 路由和读取审计仍须在具体 Endpoint 集成时验证。
+2026-09-09：补齐测试模块依赖后，56 项专项与原有 48 项回归共 104/104 PASS，API 构建通过。验证范围为公共原语及隔离 HTTP 夹具，不代表任何新业务 Endpoint 已达到 VERIFIED。公共错误只返回安全固定文案与服务端 requestId，不回显驱动错误或磁盘路径。成功 envelope/分页 DTO 是公共基础，204 无正文、全局响应拦截器协作、Swagger 路由和读取审计仍须在具体 Endpoint 集成时验证。
 
 ## 11. 共享采集器验证进度
 
 TP-04 已提供单次物理上游请求适配器，明确记录 attemptIndex/redirectHopIndex、原始字节观察边界以及流是否完整结束。一次实际请求对应一个 upstream_api 调用；适配器不会自行重试或重复消费流。内部健康包含 attemptsStarted/attemptsCompleted/instrumentationFailures/finalizeFailures，文件失败另由共享写入健康记录；这些计数尚未成为已上线健康 Endpoint。
 
-四组 parser 测试共 60 项及 parser/API 构建已通过，覆盖新增的 16 项上游尝试与故障用例。Gateway/MCP/测试探测接入和 TP-03 专项验收仍未完成。28 个 HTTP Endpoint 与两类推送继续保持 PLANNED，不能将新导出函数等同为对外服务已可调用。
+四组 parser 测试共 60 项及 parser/API 构建已通过，覆盖新增的 16 项上游尝试与故障用例。TP-03 专项验收已完成，Gateway/MCP/测试探测接入仍未完成。28 个 HTTP Endpoint 与两类推送继续保持 PLANNED，不能将新导出函数等同为对外服务已可调用。
+
+## 12. 当前对外可用性边界（2026-09-09）
+
+TP-03 的管理身份隔离、AND 权限、显式资源范围、查询归一化、签名游标、资源版本与幂等基础已验收；现有管理登录/刷新流程用于签发符合用途约束的访问 Token。未新增 Token 签发接口，普通角色不会自动获得正文或来源 IP 权限。
+
+生产查询控制器、读取审计、Swagger 路由及全局响应拦截器协作尚未接入。28 个 HTTP Endpoint、Socket.IO 与 Webhook 推送保持 PLANNED；公共基础通过不等于 Endpoint 已开放。Gateway 接入继续由 TP-05 推进，本阶段不新增 Endpoint 或更改路径。

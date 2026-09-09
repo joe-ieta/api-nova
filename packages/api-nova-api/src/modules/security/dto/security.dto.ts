@@ -202,7 +202,11 @@ export class CreateRoleDto {
   @IsUUID(4, { each: true })
   permissionIds?: string[];
 
-  @ApiPropertyOptional({ description: '角色元数据', type: 'object' })
+  @ApiPropertyOptional({
+    description: '角色元数据；observabilityScope 为受管可观测性资源范围，缺省不授权',
+    type: 'object',
+    example: { observabilityScope: { mode: 'assets', runtimeAssetIds: ['runtime-example'] } },
+  })
   @IsOptional()
   @IsObject()
   metadata?: any;

@@ -1,14 +1,14 @@
 ---
-doc-version: 1.4.0
+doc-version: 1.5.0
 doc-status: active
-doc-updated: 2026-09-08
+doc-updated: 2026-09-09
 approval-status: approved
 implementation-status: in-progress
 ---
 # 可观测性开发执行与任务包完成状态
 
 > Document status: Active execution ledger
-> 当前阶段：全新版本范围已确认；OBS-TP-01/02/04 完成，OBS-TP-03/05 实施中；TP-03 构建通过但专项测试夹具启动失败，TP-05 已开始接入分析。
+> 当前阶段：OBS-TP-01/02/03/04 完成，OBS-TP-05 实施中；TP-03 夹具修复后 56 项专项与 48 项回归全部通过，继续 Gateway 接入。
 > 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
 
 ## 1. 当前快照
@@ -19,14 +19,14 @@ implementation-status: in-progress
 | OBS-GATE-01 | PASSED；用户要求按计划持续推进 |
 | 全新版本决策 | 统一当前格式、接口和数据库初始结构，不增加历史兼容层 |
 | 实现任务总数 | 16 |
-| DONE | 3 |
-| IN_PROGRESS / REVIEW / BLOCKED | 2 / 0 / 0 |
+| DONE | 4 |
+| IN_PROGRESS / REVIEW / BLOCKED | 1 / 0 / 0 |
 | READY / BACKLOG | 3 / 8 |
-| 代码验收完成率 | 3/16；仅按各包退出条件登记，不代表全链路完成 |
+| 代码验收完成率 | 4/16；仅按各包退出条件登记，不代表全链路完成 |
 | 新 HTTP Endpoint | 28 个，全部 PLANNED |
 | 新推送契约 | 2 类，全部 PLANNED |
-| 本轮数据库实际操作 | 原有 48 项测试使用 SQL.js 内存库和独有目录；未连接业务数据库 |
-| 本轮新增验证 | parser/API build PASS；60 项 parser 测试 PASS；原有 48 项存储/GC 测试 PASS；TP-03 新测试在 Nest 初始化阶段失败，业务断言未执行 |
+| 本轮数据库实际操作 | 104 项测试使用隔离 SQL.js 内存库、独有目录及本机回环 HTTP 夹具；未连接业务数据库 |
+| 本轮新增验证 | API build PASS；TP-03 56 项与存储/GC 48 项，共 104/104 PASS；上一轮 parser 60 项 PASS 证据保留，不重复累计 |
 
 文档已确认与基础包完成都不代表功能已上线。TP-02 的存储、GC 与 PostgreSQL 多进程针对性验证已完成；Linux 矩阵、全系统 SQL.js 并发集成和新接口端到端验收仍未完成。
 
@@ -61,7 +61,7 @@ implementation-status: in-progress
 | --- | --- | --- | --- | --- |
 | OBS-TP-01 | 共享契约与接入映射 | GATE-01 | DONE | v2 契约、23 项契约测试及 parser 类型检查通过 |
 | OBS-TP-02 | 存储/事务/序号基础 | 01 | DONE | 两方言初始结构、48 项存储/GC 用例及 PostgreSQL 四进程提交/回滚/回收竞争通过；按本包退出条件收口，跨包/平台验收仍归 15、16 |
-| OBS-TP-03 | 权限与 API 基础 | 01、02 | IN_PROGRESS | API build PASS；新增 56 项用例，但 FixtureModule 缺少 JwtService 等 Guard 依赖，启动失败，业务断言未执行；修复确认待答复，不满足退出条件 |
+| OBS-TP-03 | 权限与 API 基础 | 01、02 | DONE | 补齐夹具依赖后 56 项专项及 48 项存储/GC 回归全部通过，API build PASS；覆盖真实 JWT、AND/资源范围、游标、ETag、并发幂等与回滚；具体 Endpoint 接入另行验收 |
 | OBS-TP-04 | 共享上下文/正文/上游采集 | 01 | DONE | 单次上游适配器、显式重试/跳转索引、字节与结束观察、无阻塞写入及健康计数已补齐；60 项 parser 用例和 parser/API 构建通过；实际服务器接入归 05/06/07 |
 | OBS-TP-05 | Gateway 接入 | 04 | IN_PROGRESS | 硬依赖已完成，已开始接入分析；需替换代理层手动采集，并消除 auditRecorded 对 Gateway 入口记录的错误抑制，补齐入口/上游父子链路；尚未改写该层 |
 | OBS-TP-06 | MCP 接入 | 04 | READY | 共享采集器已完成，可以接入协议/Tool/HTTP 实际尝试 |
@@ -135,7 +135,7 @@ implementation-status: in-progress
 
 44 个 parser 测试包含之前的 23 个契约测试；48 个存储/GC 测试包含原有 32 个存储用例，不重复累计。PostgreSQL 四进程脚本单独记为一次场景验收，不冒充 20 个独立测试。Linux/负载验证仍未执行。
 
-## 8. 本轮实施记录
+## 8. TP-02 阶段实施记录（历史快照）
 
 | 范围 | 实际变更 | 状态 |
 | --- | --- | --- |
@@ -150,11 +150,11 @@ implementation-status: in-progress
 
 ## 9. 剩余事项
 
-- TP-03 构建已通过；修正已报告的专项测试夹具依赖后重新执行 56 项用例，再决定验收。Linux 完整矩阵保留在 TP-16，全系统 SQL.js 并发交互和 pg 弃用警告保留在 TP-15。
+- TP-03 已按包级退出条件验收；实际查询控制器、资源过滤、读取审计及响应拦截器协作仍由后续接入包验证。Linux 完整矩阵保留在 TP-16，全系统 SQL.js 并发交互和 pg 弃用警告保留在 TP-15。
 - TP-14 接入回收调度、策略、健康与配额闭环；当前 GC 服务没有自动定时器，没有开启业务数据清理。
 - TP-04 已完成；当前继续推进 TP-05 Gateway 接入，TP-06/07/08 已就绪。
 - 后续 worker 接入调用者归并、断点恢复与状态维护；现阶段只有存储基础，不生成虚假调用者/聚合结果。
-- 权限、查询和推送均由后续任务落地；大屏 UI 仍为后续范围。
+- 权限基础已完成；查询和推送 Endpoint 仍由后续任务落地，大屏 UI 仍为后续范围。
 - 不自动处理现有开发库。如需重建，必须明确指定允许处理的数据库。
 
 详细实现：[契约映射](../reference/runtime-observability-contract-mapping.md)、[存储基础说明](../reference/runtime-observability-storage-foundation.md)。
@@ -175,7 +175,7 @@ PostgreSQL 运行期间出现 client.query 并发调用的弃用警告，不影�
 
 本轮 PostgreSQL 父进程仍输出 client.query 并发调用弃用警告；测试输出的 nonFatalWarnings=0 只统计子进程，不能用它声称整次运行没有警告。脚本退出码为 0，独有数据库、测试子进程及临时正文目录均完成清理，现有业务库未触碰。
 
-## 11. TP-03 实施与提交记录
+## 11. TP-03 初始实施与提交记录（历史快照）
 
 用户要求全部提交后，已创建本地提交 efb4536（feat: add observability storage and capture foundations），包含提交当时全部 36 个变更文件，也包含三份发布脚本。未推送远端。下面的 TP-03 工作发生在该提交之后，不把它描述为已包含在 efb4536。
 
@@ -185,7 +185,7 @@ PostgreSQL 运行期间出现 client.query 并发调用的弃用警告，不影�
 
 TP-03 保持 IN_PROGRESS，完成数仍为 2/16。28 个新 HTTP Endpoint 与两类推送仍为 PLANNED；call-observability 模块未接入根应用，既有登录/角色服务的源码调整亦未构建部署。
 
-## 12. 本轮验证与独立任务推进
+## 12. 2026-09-08 验证与独立任务推进（历史快照）
 
 用户明确授权后续同类专项测试、API 构建与按需阶段提交直接执行，并按依赖自动推进。该授权不包含部署、远端推送或清理业务数据库。
 
@@ -202,3 +202,18 @@ TP-04 新文件为 parser/src/audit/runtime-upstream-attempt.ts 与 runtime-upst
 新增用例覆盖并发父子上下文、实际尝试索引、正文/URL/凭证头脱敏、空正文与未观察区别、连接/DNS/TLS/超时/取消/流中断、容量保护、文件失败及 stdout 安全。按 TP-04 原退出条件完成包级验收，真实 Gateway/MCP/探测与端到端 AC 仍由后续包验证。
 
 TP-03 测试夹具错误已明确报告，未擅自修复，也没有将该包标为 DONE。本轮保持其源码和失败测试为未验收工作；独立的 TP-04 可以单独提交。Gateway 的接入分析已启动，实际代码切换和测试尚未完成。
+
+## 13. 2026-09-09 TP-03 验收与下一轮
+
+用户已批准修复测试夹具。FixtureModule 显式注册 JwtService、UserService、ConfigService，并设置 abortOnError=false。该修改仅修复夹具启动，不放宽生产权限或 Token 校验。
+
+| 实际执行 | 结果 | 证据范围 |
+| --- | --- | --- |
+| node --test packages/api-nova-api/scripts/test-call-observability-api-foundation.cjs packages/api-nova-api/scripts/test-call-observability.cjs packages/api-nova-api/scripts/test-call-observability-gc.cjs | 104/104 PASS；0 fail；0 skipped；退出码 0 | 新增 56 项业务断言已执行，原有存储/GC 48 项回归通过 |
+| npm.cmd run build --workspace api-nova-api | PASS；退出码 0 | 当前 TP-03 源码构建 |
+
+专项覆盖元数据/正文/IP/订阅/重投权限的允许与拒绝、跨角色范围交集、真实 JWT 与即时撤权、游标篡改/跨主体/过滤/过期、资源 ETag、12 路并发同键幂等及事务回滚。满足 TP-03 退出条件，登记 DONE；第 11/12 节的历史失败保留供复盘，不代表当前状态。
+
+上一轮 TP-04 已提交为 4879979（feat: complete shared upstream attempt observability）。本轮按授权提交 TP-03 实现、测试与文档后继续 TP-05 Gateway。TP-06/07/08 仍为 READY，TP-09/10/11 仍等待 TP-08，不提前释放。
+
+未部署、未推送、未运行种子初始化、未处理业务库。28 个新 HTTP Endpoint 与两类推送仍为 PLANNED；测试 HTTP 路由仅存在于隔离夹具，不能作为生产接口可用证据。
