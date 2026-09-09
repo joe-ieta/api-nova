@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Like } from 'typeorm';
+import { Repository, Between, Like, EntityManager } from 'typeorm';
 import {
   AuditLog,
   AuditAction,
@@ -38,14 +38,15 @@ export class AuditService {
   /**
    * 记录审计日志
    */
-  async log(data: CreateAuditLogDto): Promise<AuditLog> {
+  async log(data: CreateAuditLogDto, manager?: EntityManager): Promise<AuditLog> {
     try {
-      const auditLog = this.auditLogRepository.create({
+      const repository = manager ? manager.getRepository(AuditLog) : this.auditLogRepository;
+      const auditLog = repository.create({
         ...data,
         createdAt: new Date(),
       });
 
-      const savedLog = await this.auditLogRepository.save(auditLog);
+      const savedLog = await repository.save(auditLog);
 
       // 如果是高风险操作，记录到系统日志
       if (this.isHighRiskOperation(data.action, data.level)) {

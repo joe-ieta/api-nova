@@ -1,5 +1,5 @@
 ---
-doc-version: 1.9.0
+doc-version: 1.10.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -100,3 +100,9 @@ TP-08 已收口：parser/audit/runtime-audit-source.ts 发布真实写入进程�
 call-observability-invocations.controller.ts 注册 obsListInvocations / obsGetInvocation；invocations.service.ts 使用 Store.readSnapshot 和修订可见区间，invocations.dto.ts 是程序生成 Swagger 的唯一响应结构来源。查询参数映射固定标量列或两个固定 JSON 文本提取表达式，所有输入值参数化；source/IP 权限按资产交集裁剪，不透传底层 record。
 
 test-call-observability-invocations.cjs 新增 22 项真实 Nest 管理 HTTP/Swagger 用例，API 构建和联合 230/230 通过。初次过期夹具错误获用户批准修正，保留生产 OUTSIDE_METADATA_RETENTION 策略。两接口为 VERIFIED，根模块未启用；正文读取/审计、trace、callers/sources 仍属 TP-09 后续。publicationSnapshot 尚未采集，返回 null/缺失标记；TP-10 覆盖指标未提供前不宣称查询健康完整。PostgreSQL 查询和 Linux 留待矩阵验证。
+
+## TP-09 正文与管理审计映射（2026-09-09）
+
+call-observability-payloads.controller/service/dto.ts 实现 OBS-API-05；共享 API 异常增加严格 PAYLOAD_EXPIRED 状态/时间详情，元数据 readLink 指向受控路由。AuditService.log 可接受事务 EntityManager，复用既有 audit_logs 写入而非新增业务事件或自造审计表；已有非事务调用方式保持有效。日志只保存安全访问元数据，不复制内容或文件引用。
+
+新增 test-call-observability-payloads.cjs 19 项真实 HTTP/JWT、私有文件、实际 User/AuditLog 外键和 Swagger 用例，API build/联合 249 项通过。OBS-API-03/04/05 VERIFIED，TP-09 整包未完成。既有 audit.findLogs 的 timestamp 时间列与 createdAt 实体不一致，下一节点修正并补检索回归；入口守卫前拒绝统一留痕、全局 HTTP 内存和应用启用仍在 TP-15。

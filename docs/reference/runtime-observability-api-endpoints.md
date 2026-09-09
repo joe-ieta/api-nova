@@ -1,5 +1,5 @@
 ---
-doc-version: 1.9.0
+doc-version: 1.10.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -9,7 +9,7 @@ implementation-status: in-progress
 
 > Document status: Maintained consumer contract; approved endpoint contract; implementation in progress
 > Scope decision (2026-09-08, approved): 全新开发版本直接统一旧接口和数据库结构；不提供旧格式导入或旧查询路径兼容。接口的实际状态逐项维护，文档确认不等于上线。
-> 可用性声明：28 个 HTTP Endpoint 中 OBS-API-03/04 为 VERIFIED（隔离 Nest HTTP/Swagger 夹具），其余 26 个与两类推送仍 PLANNED。业务根应用尚未启用新模块，没有 AVAILABLE 接口或部署声明。
+> 可用性声明：28 个 HTTP Endpoint 中 OBS-API-03/04/05 为 VERIFIED（隔离 Nest HTTP/Swagger 夹具），其余 25 个与两类推送仍 PLANNED。业务根应用尚未启用新模块，没有 AVAILABLE 接口或部署声明。
 > 已确认基线：[需求](../guides/runtime-observability-requirements.md)、[设计](./runtime-observability-design.md)。
 > 开发关联：[任务计划](../guides/runtime-observability-development-task-plan.md)、[执行状态](../guides/runtime-observability-development-execution-status.md)。
 
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.9.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.10.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -119,7 +119,7 @@ invocations 按 (timeBasis DESC, invocationId DESC) 排序；其他列表明确�
 | OBS-API-02 | GET /overview | obsGetOverview | 基础 | OBS-TP-10 | PLANNED |
 | OBS-API-03 | GET /invocations | obsListInvocations | 基础 | OBS-TP-09 | VERIFIED |
 | OBS-API-04 | GET /invocations/:id | obsGetInvocation | 基础 | OBS-TP-09 | VERIFIED |
-| OBS-API-05 | GET /invocations/:id/payloads/:side | obsGetInvocationPayload | monitoring:payload:read | OBS-TP-09 | PLANNED |
+| OBS-API-05 | GET /invocations/:id/payloads/:side | obsGetInvocationPayload | monitoring:payload:read | OBS-TP-09 | VERIFIED |
 | OBS-API-06 | GET /traces/:traceId | obsGetTrace | 基础 | OBS-TP-09 | PLANNED |
 | OBS-API-07 | GET /callers | obsListCallers | 基础 | OBS-TP-09 | PLANNED |
 | OBS-API-08 | GET /callers/:id | obsGetCaller | 基础 | OBS-TP-09 | PLANNED |
@@ -565,3 +565,17 @@ IP 四字段 clientIp/peerIp/ipSource/proxyTrusted 仅在当前主体同时具�
 正文 TTL 按当前时间判断，不被列表快照冻结；元数据过期/不存在/不可见统一 404。meta.snapshotSeq 是查询快照，dataWatermark 是该读取事务可见的当前提交水位。TP-10 尚未提供资产级完整覆盖，暂统一 lagMs=null、historyCompleteSince=null、isPartial=true，不输出虚构 gapRanges 或健康零值。成功及错误均 Cache-Control: no-store。
 
 本节点真实验证范围为 Windows/隔离 SQL.js、管理 JWT/HTTP 与生成 Swagger；PostgreSQL 查询分支、Linux、查询性能 SLA 和部署级能力声明尚未验证。后续提前清理元数据或缩短保留策略必须在 TP-14 对已有游标显式失效，不得悄悄跳过缺失页。
+
+## 13. OBS-API-05 正文读取实现（2026-09-09）
+
+状态 VERIFIED，19 项真实 HTTP/存储/管理审计与 Swagger 专项、联合 249 项及 API 构建通过。相对路径 GET /invocations/{id}/payloads/{side}，operationId=obsGetInvocationPayload。无 query 参数；side 仅 request/response。需要当前管理 JWT、monitoring:read AND monitoring:payload:read 和同一资产范围，文件读取后会再次校验当前账号/角色。该管理能力不由 Gateway/MCP 业务 Key 授权。
+
+返回 data 包含 invocationId、recordVersion、side、state、reason、contentType、encoding、observedBytes、capturedBytes、storedBytes、redacted、readRedacted、redactionPolicyVersion、capturedDigest、digestScope、content、expiresAt。encoding 为 json/text/base64/multipart；JSON 标量保留类型，实际空内容是 captured/""，omitted/unavailable 为 content=null。incomplete 保持 partial 摘要和 isPartial=true，不能解释为完整正文。读时额外脱敏单列 readRedacted，捕获策略版本与摘要仍描述采集证据，不能把观察原文摘要用于校验脱敏后 content。
+
+正文读取前/后和审计落库后检查独立 TTL；返回 410 时使用 error.code=PAYLOAD_EXPIRED、error.details={state:"expired",expiredAt:"UTC ISO"}，不返回 content。元数据过期/不存在/不可见统一 404；没有匹配的分侧正文元数据则 200 unavailable，绝不回退读取其他侧或对象路径。内容损坏/存储/管理审计失败返回固定 503；并发服务读取达到 4 路时返回 429。这个准入限制不代表完整部署的 HTTP 响应内存配额或性能 SLA 已通过。
+
+OBS-API-03/04 对存在正文元数据的项返回受控 readLink，每次跟随链接重新验证权限/保留期；缺失正文元数据仍 null。链接不代表当前调用者拥有正文权限，过期对象链接仍可能返回 410。所有成功和错误均 no-store，无原始路径、Header、凭证或文件下载口。
+
+读取留痕复用管理 audit_logs，resource=observability.payload、action=api_called、details.operation=obsGetInvocationPayload。操作者/时间/内部 requestId/侧/可见调用引用/版本/安全结果可用于复盘；正文不进入审计行。prepared 表示准备返回的内容已通过授权且审计提交，不是客户端收到的证明；HTTP 或 TTL 后续失败不应统计成已送达。进入正文服务后的授权撤销、不可见/不存在、过期、限流和存储失败同样记录；审计提交失败严格不放行内容。
+
+本节点未把未认证/初始守卫拒绝/参数拒绝声称为已产生敏感读取审计，入口统一留痕由 TP-15 整合。旧管理审计通用列表尚有 timestamp/createdAt 字段对齐问题，列入 TP-09 下一节点；本次已验证实际审计写入与按 ID 读取。三条新路由仍未在业务根应用部署启用，PostgreSQL/Linux 查询和整体配额矩阵未验收。

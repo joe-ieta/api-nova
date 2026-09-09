@@ -6,7 +6,7 @@ export class ObservabilityPayloadMetadataDto {
   state: string;
   @ApiProperty({ type: String, nullable: true }) reason: string | null;
   @ApiProperty({ type: String, nullable: true, format: 'date-time' }) expiresAt: string | null;
-  @ApiProperty({ type: String, nullable: true, description: 'Null until payload access is implemented.' })
+  @ApiProperty({ type: String, nullable: true, description: 'Controlled relative endpoint; every read checks permission and retention.' })
   readLink: string | null;
 }
 

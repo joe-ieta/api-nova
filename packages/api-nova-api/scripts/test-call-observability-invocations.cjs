@@ -181,7 +181,7 @@ test('list returns scoped metadata only and opt-in total excludes hidden assets 
   }
   const item = result.body.data.items[0];
   assert.equal(item.request.state, 'captured');
-  assert.equal(item.request.readLink, null);
+  assert.equal(item.request.readLink, '/api/v1/monitoring/observability/invocations/visible/payloads/request');
   assert.equal(item.sourceRestricted, true);
   assert.equal(item.publicationSnapshot, null);
   assert.ok(item.missingFields.includes('publicationSnapshot'));

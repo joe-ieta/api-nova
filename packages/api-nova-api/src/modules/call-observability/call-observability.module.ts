@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { CallObservabilityPayloadsController } from './call-observability-payloads.controller';
+import { CallObservabilityPayloadsService } from './call-observability-payloads.service';
 import { CallObservabilityInvocationsController } from './call-observability-invocations.controller';
 import { CallObservabilityInvocationsService } from './call-observability-invocations.service';
 import { ConfigModule } from '@nestjs/config';
@@ -20,10 +22,10 @@ import { CallObservabilityStore } from './call-observability.store';
 
 @Module({
   imports: [ConfigModule, SecurityModule, TypeOrmModule.forFeature([...CALL_OBSERVABILITY_ENTITIES, RuntimeObservabilityEventEntity])],
-  controllers: [CallObservabilityInvocationsController],
-  providers: [CallObservabilityInvocationsService, CallObservabilitySourceLifecycle, CallObservabilityCallersProjector, CallObservabilityWorker, CallObservabilityCollector, CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
+  controllers: [CallObservabilityInvocationsController, CallObservabilityPayloadsController],
+  providers: [CallObservabilityPayloadsService, CallObservabilityInvocationsService, CallObservabilitySourceLifecycle, CallObservabilityCallersProjector, CallObservabilityWorker, CallObservabilityCollector, CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
     ObservabilityAccessGuard, ObservabilityApiExceptionFilter, ObservabilityCursorService, ObservabilityCommandStore],
-  exports: [CallObservabilityInvocationsService, CallObservabilitySourceLifecycle, CallObservabilityCallersProjector, CallObservabilityWorker, CallObservabilityCollector, CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
+  exports: [CallObservabilityPayloadsService, CallObservabilityInvocationsService, CallObservabilitySourceLifecycle, CallObservabilityCallersProjector, CallObservabilityWorker, CallObservabilityCollector, CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
     ObservabilityAccessGuard, ObservabilityApiExceptionFilter, ObservabilityCursorService, ObservabilityCommandStore],
 })
 export class CallObservabilityModule {}

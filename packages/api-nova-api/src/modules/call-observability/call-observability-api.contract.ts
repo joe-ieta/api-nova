@@ -9,6 +9,7 @@ const ERRORS = {
   FORBIDDEN: [403, 'Access is not permitted'],
   NOT_FOUND: [404, 'Resource not found'],
   IDEMPOTENCY_CONFLICT: [409, 'Idempotency key has different request content'],
+  PAYLOAD_EXPIRED: [410, 'Payload retention has elapsed'],
   QUERY_CURSOR_EXPIRED: [410, 'Query cursor expired; obtain a new snapshot'],
   EVENT_CURSOR_EXPIRED: [410, 'Event cursor expired; obtain a new snapshot'],
   PRECONDITION_FAILED: [412, 'Resource version has changed'],
@@ -20,7 +21,8 @@ const ERRORS = {
 
 export type ObservabilityApiErrorCode = keyof typeof ERRORS;
 export class ObservabilityApiError extends HttpException {
-  constructor(readonly code: ObservabilityApiErrorCode, readonly field?: string) {
+  constructor(readonly code: ObservabilityApiErrorCode, readonly field?: string,
+    readonly resourceMetadata?: { state: 'expired'; expiredAt: string }) {
     super(ERRORS[code][1], ERRORS[code][0]);
   }
 }
@@ -57,8 +59,11 @@ export class ObservabilityErrorDto {
   message: string;
   @ApiProperty()
   requestId: string;
-  @ApiPropertyOptional({ type: 'object', additionalProperties: { type: 'string' } })
-  details?: { field: string };
+  @ApiPropertyOptional({ type: 'object', additionalProperties: false, properties: {
+    field: { type: 'string' }, state: { type: 'string', enum: ['expired'] },
+    expiredAt: { type: 'string', format: 'date-time' },
+  } })
+  details?: { field?: string; state?: 'expired'; expiredAt?: string };
 }
 
 export class ObservabilityErrorEnvelopeDto {
@@ -95,7 +100,14 @@ export class ObservabilityApiExceptionFilter implements ExceptionFilter {
       new ObservabilityApiError(error instanceof HttpException ?
         mapped[error.getStatus()] || 'OBSERVABILITY_UNAVAILABLE' : 'OBSERVABILITY_UNAVAILABLE');
     const requestId = request[OBSERVABILITY_REQUEST_ID] || randomUUID();
-    const details = safe.field && /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(safe.field) ? { field: safe.field } : undefined;
+    let details: ObservabilityErrorDto['details'] = safe.field && /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(safe.field)
+      ? { field: safe.field } : undefined;
+    const metadata = safe.resourceMetadata;
+    if (safe.code === 'PAYLOAD_EXPIRED' && metadata?.state === 'expired' &&
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(metadata.expiredAt) &&
+      Number.isFinite(Date.parse(metadata.expiredAt))) {
+      details = { state: 'expired', expiredAt: metadata.expiredAt };
+    }
     response.setHeader('Cache-Control', 'no-store');
     response.status(safe.getStatus()).json({
       status: 'error', error: { code: safe.code, message: ERRORS[safe.code][1], requestId, ...(details ? { details } : {}) },

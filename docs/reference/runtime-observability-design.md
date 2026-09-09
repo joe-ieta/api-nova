@@ -1,5 +1,5 @@
 ---
-doc-version: 1.10.0
+doc-version: 1.11.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -568,3 +568,11 @@ OBS-API-03/04 使用独立只读事务快照；SQLite/SQL.js 在现有共享通�
 输出白名单而非任意 record。IP 以 read 与 source:read 的资产交集逐条授权；跨范围父/根/trace 引用裁剪并给 linksRestricted，不给隐藏数量。正文当前只暴露安全状态，不提供对象路径或虚构可用链接；publicationSnapshot=null 并明确 missingFields。TP-10 的资产级覆盖尚未完成，所以 lagMs/historyCompleteSince 为 null，meta.isPartial 保守 true。本文字段契约与程序 DTO、Endpoint 文档同步。
 
 当前 API 构建、22 项查询真实 HTTP/Swagger 和联合 230 项通过，初次过期夹具失败与批准修正记录在执行台账。两接口 VERIFIED，TP-09 整包 IN_PROGRESS；尚无根应用启用、PostgreSQL 查询分支/Linux 或性能 SLA 的通过声明。
+
+### 16.1 分侧正文与敏感读取审计
+
+正文服务在当前资产/额外 payload 权限下取当前分侧引用，bounded 文件读前后与管理审计提交后检查正文 TTL，文件读取后再查询当前用户/角色。只返回 JSON 信封，不使用磁盘路径作为输入、静态根目录或下载链接。缺失/错误侧引用只返回 unavailable；损坏、存储或审计失败关闭读取，过期以专用 410 安全详情表达。单服务最多 4 路读取是局部准入，不冒充全响应缓冲/进程内存治理。
+
+沿用 AuditService 与 audit_logs，log 增加可选事务 manager，由 CallObservabilityStore 通道提交，避免观测数据库读取/写入之间另起不受协调的 SQL.js 事务。管理记录不推进调用水位、不产生新的业务遥测循环。audit result=prepared 只表示内容准备与留痕完成，不表示客户端交付；发送前再次到期可留下同 requestId 的失败记录。审计行只存身份和安全引用/结果，不能存正文、原始 Header 或请求提供的审计 requestId。
+
+已验证 JSON 标量、text/base64/multipart、空/省略/残缺、读时再次脱敏和原摘要语义。19 项新专项与联合 249 项、API 构建通过，三条查询路由 VERIFIED。现有管理审计通用列表的历史时间列问题进入下一节点修正，不扩大已验证的按 ID 读取范围；前置守卫/参数失败的统一安全入口审计仍待根应用整合。

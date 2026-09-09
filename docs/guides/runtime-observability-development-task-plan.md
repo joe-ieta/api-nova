@@ -1,5 +1,5 @@
 ---
-doc-version: 1.9.0
+doc-version: 1.10.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -385,3 +385,9 @@ TP-08 按其核心退出条件 DONE；TP-09/10/11 硬依赖满足，转为 READY
 OBS-API-03/04 已实现并经真实 Nest HTTP/Swagger 夹具验证，登记 VERIFIED；业务根应用仍未启用模块，不等于 AVAILABLE。readSnapshot、修订快照分页、字段白名单、逐资产来源权限和保留期游标边界落地，API 构建与 22 项新专项/联合 230 项通过。初次 21/22 的过期夹具错误及获准修正保留在执行台账第 26 节。
 
 TP-09=IN_PROGRESS，当前 DONE=6、IN_PROGRESS=2、READY=3、BACKLOG=5。后续依次交付 OBS-API-05 正文与敏感读取审计、OBS-API-06 trace、OBS-API-07~10 callers/sources/标签。publicationSnapshot 暂缺、查询覆盖保守未知、PostgreSQL 查询分支与 Linux 尚未验证，不能把两条元数据路由作为 AC-17 或整个 TP-09 收口依据。TP-10/11 可在已完成汇集基础上推进，TP-14 负责提前保留策略变化与游标失效，TP-15 负责业务根应用启用。
+
+## TP-09 正文与审计节点（2026-09-09）
+
+OBS-API-05 新增分侧受控正文读取，复用管理 audit_logs；API 构建和 19 项新专项/联合 249 项通过。OBS-API-03/04 的正文链接已接入，三条路由 VERIFIED，但根应用未启用、没有 AVAILABLE 声明。TP-09 仍 IN_PROGRESS，不提升包级完成数。
+
+后续按顺序：先修正既有 AuditService.findLogs 的 audit.timestamp/createdAt 对齐并补日期/检索回归，再交付 trace、callers/sources/标签。初始权限/认证/参数拒绝的全局安全入口留痕在 TP-15 集成；正文服务内成功与失败已经强制留痕，审计写失败不放行内容。政策变化导致的提前元数据清理、审计保留、正文响应缓冲/配额和全平台矩阵仍归 TP-14/15/16，不因本节点通过而取消。

@@ -247,8 +247,7 @@ export class CallObservabilityInvocationsService {
       state: expired ? 'expired' : BODY_STATES.includes(payload.state) ? payload.state : 'unavailable',
       reason: expired ? 'retention_elapsed' : safeText(payload.reason, 200),
       expiresAt: iso(payload.expiresAt) ? payload.expiresAt : null,
-      // TP-09 payload access/auditing is not implemented by the metadata endpoint.
-      readLink: null,
+      readLink: '/api/v1/monitoring/observability/invocations/' + encodeURIComponent(row.invocationId) + '/payloads/' + side,
     };
   }
 }

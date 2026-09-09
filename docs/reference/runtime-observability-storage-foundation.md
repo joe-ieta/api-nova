@@ -1,5 +1,5 @@
 ---
-doc-version: 1.4.0
+doc-version: 1.5.0
 doc-status: active
 doc-updated: 2026-09-09
 implementation-status: in-progress
@@ -172,3 +172,11 @@ SOURCE_CLOSED_PARTIAL_LINE 记录摘要及安全原因，同事务增加关闭�
 调用列表读取 runtime_invocation_revisions 的可见区间，明细读取 runtime_invocations 当前行；两者先施加资产和元数据保留过滤。结果集最早 expiresAt 约束游标固定截止，正文对象只批量查询安全元数据并根据自身 TTL 返回状态，不打开私有文件。无新表、列或迁移，无业务数据库处理。
 
 API build、22 项实际查询 HTTP/Swagger 和联合 230/230 回归通过，包括空库读取不写流水线行、晚到更新的旧快照与最新明细、保留期失效。初次失败是过期建数被已有导入保留策略拒绝，用户批准后仅修正隔离夹具，生产保留逻辑不变。PostgreSQL 查询分支、提前元数据清理/策略变更导致的快照失效，以及完整性能矩阵仍待后续验证和治理。
+
+### 12.1 正文读取与既有管理审计事务
+
+新正文接口复用私有 PayloadStore.read 的完整性/路径/单对象读取边界，不增加表或对外文件能力。当前引用同时按 payloadId/invocationId/side 匹配；保留期在读前、读后和审计后重检，调用快照不延长正文 TTL。
+
+AuditService.log(data, manager?) 可加入调用观测共享事务通道，管理审计写 audit_logs 而不分配调用序号。已有独立调用仍写原仓储。AuditLog/User 真外键及按 ID 读取已在隔离 SQL.js 验证；通用审计列表的 timestamp 字段仍需下一节点对齐 createdAt，不运行历史清理方法。审计失败回滚事务并返回 503，不对外泄露已在内存中准备的正文。
+
+API 构建、19 项正文新专项和联合 249 项全部通过，前次 22 项查询已随受控链接变化回归。服务并发准入 4 路，不承诺治理/数据库其他模块或 HTTP 响应内存已整体协调；这些仍由 TP-14/15/16 验收。
