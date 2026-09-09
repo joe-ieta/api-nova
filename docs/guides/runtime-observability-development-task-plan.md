@@ -1,5 +1,5 @@
 ---
-doc-version: 1.5.0
+doc-version: 1.5.1
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -305,3 +305,9 @@ TP-05 优先建立 Gateway 入口到实际上游尝试的父子关系，替换�
 已实现 HTTP 父节点传播、STDIO/程序化协议节点、Tool 子节点与 send Promise 终态，新增 15 项传输模拟专项；联合回归 140/140 PASS，Server/API 构建通过。该批可阶段提交，不把 TP-06 提前标为 DONE。
 
 下一批先将既有真实 Streamable/SSE 安全审计烟测切换到 v2 文件与 finished 阶段计数，再执行 SDK 联调；随后完成 HTTP 正文/取消和 parser 实际上游适配。STDIO 输出约束、完整平台矩阵和其余退出条件仍须独立提供证据。
+
+## TP-06 第二批执行结果
+
+既有真实 Streamable/SSE 安全审计烟测已切换至当前 v2 文件和 finished 阶段计数，并补齐三层父子关系断言。执行通过，退出码 0，三次真实上游调用仅计为一个集成场景；首批源码已提交为 70c4a56。
+
+接下来推进 HTTP 全正文/认证前失败/取消、parser 单次物理上游适配和真实 STDIO 矩阵。TP-06 继续 IN_PROGRESS，不能因现有安全烟测通过而跳过剩余退出条件。

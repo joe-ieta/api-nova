@@ -1,5 +1,5 @@
 ---
-doc-version: 1.7.0
+doc-version: 1.8.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -26,7 +26,7 @@ implementation-status: in-progress
 | 新 HTTP Endpoint | 28 个，全部 PLANNED |
 | 新推送契约 | 2 类，全部 PLANNED |
 | 本轮数据库实际操作 | 125 项测试使用隔离 SQL.js 内存库、独有目录及本机回环 HTTP 服务；未连接业务数据库 |
-| 本轮新增验证 | MCP Server/API build PASS；新增 15 项传输模拟专项与原有 125 项，共 140/140 PASS；真实 SDK 联调待执行 |
+| 本轮新增验证 | MCP Server/API build PASS；140/140 专项/回归 PASS；真实 Streamable/SSE 安全审计场景 PASS，退出码 0 |
 
 文档已确认与基础包完成都不代表功能已上线。TP-02 的存储、GC 与 PostgreSQL 多进程针对性验证已完成；Linux 矩阵、全系统 SQL.js 并发集成和新接口端到端验收仍未完成。
 
@@ -64,7 +64,7 @@ implementation-status: in-progress
 | OBS-TP-03 | 权限与 API 基础 | 01、02 | DONE | 补齐夹具依赖后 56 项专项及 48 项存储/GC 回归全部通过，API build PASS；覆盖真实 JWT、AND/资源范围、游标、ETag、并发幂等与回滚；具体 Endpoint 接入另行验收 |
 | OBS-TP-04 | 共享上下文/正文/上游采集 | 01 | DONE | 单次上游适配器、显式重试/跳转索引、字节与结束观察、无阻塞写入及健康计数已补齐；60 项 parser 用例和 parser/API 构建通过；实际服务器接入归 05/06/07 |
 | OBS-TP-05 | Gateway 接入 | 04 | DONE | 入口前置、独立流结束、内部请求 ID、上游适配器/尝试编号、可信身份及取消接入完成；21 项真实回环 HTTP 专项与 104 项回归、API 构建通过；正式应用/监听器矩阵归 15/16 |
-| OBS-TP-06 | MCP 接入 | 04 | IN_PROGRESS | 首批协议父子关系与实际 send 终态已实现；15 项传输模拟专项、140 项联合回归及 Server/API 构建通过；HTTP 完整正文、实际 SDK/上游接入仍待完成 |
+| OBS-TP-06 | MCP 接入 | 04 | IN_PROGRESS | send 终态与父子关系、15 项模拟专项及真实 Streamable/SSE 安全审计场景通过；140 项联合回归与 Server/API 构建通过；HTTP 正文/取消、实际 STDIO 与上游适配尚待完成 |
 | OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 共享采集器已完成，可以接入 test/probe/internal 来源 |
 | OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | READY | 存储和共享采集器硬依赖均完成；尚无自动汇集 worker |
 | OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | BACKLOG | 03、08 尚未完成 |
@@ -252,3 +252,13 @@ Tool/独立协议终态等待原始 send Promise：失败保留原异常对象�
 | 上述 MCP 脚本与 Gateway、API foundation、storage、GC 四脚本联合执行 | 140/140 PASS；0 fail；0 skipped | 新增 15 项 + 原有 125 项，不重复累计 |
 
 TP-06 保持 IN_PROGRESS，完成数仍为 5/16。HTTP 全正文/认证前失败/取消、真实 SDK 三类传输矩阵、parser 实际上游适配仍未完成，不能宣布 MCP 全接入。下一步已定位现有 runtime-security-audit-smoke.js 的真实 Streamable/SSE 用例；其文件选择和计数仍是旧格式，需按当前 v2 阶段记录更新后运行，不增加旧格式兼容。新接口与推送仍为 PLANNED，未触碰业务库。
+
+## 16. TP-06 第二批：真实 Streamable/SSE 验证
+
+首批传输采集已提交为 70c4a56（feat: track MCP protocol parents and transport completion）。随后将既有 runtime-security-audit-smoke.js 改为只读取 calls-v2 文件与 finished 阶段，拒绝空证据；不增加旧格式兼容。新增 HTTP 协议入口到 Tool、Tool 到上游的 trace/root/parent 断言，以及临时目录删除前的归属检查。
+
+执行 node packages/api-nova-server/scripts/runtime-security-audit-smoke.js，返回 RUNTIME_SECURITY_AUDIT_SMOKE_OK、退出码 0。真实 Streamable 服务和 SSE SDK 客户端完成认证失败、错误 audience/scope、跨用户会话隔离、Tool 权限拒绝、并发调用、令牌刷新、非法/超限正文及三次实际上游调用。成功调用的三层父子关系、调用者与 requestId/traceId/rootInvocationId 一致性通过，原始 Token 和上游秘密不出现在日志。
+
+此脚本单独登记为一项集成场景，不把其中断言数或三次调用冒充独立测试。之前 140 项专项/回归仍为通过；本批仅修改烟测脚本，没有重新编译无变化源码。实际网络均为本机随机端口，上游为本地 HTTP 夹具，使用临时签名密钥和独有目录，未连接业务库。
+
+TP-06 仍为 IN_PROGRESS、总完成数 5/16。下一批继续 HTTP 全正文/认证前失败/取消路径、parser 单次物理上游适配，以及真实 STDIO 与慢发送/断开矩阵。已有父子关系通过不代表这些剩余能力完成；新 API 和推送仍未开放。

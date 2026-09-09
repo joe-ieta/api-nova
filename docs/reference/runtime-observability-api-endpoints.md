@@ -1,5 +1,5 @@
 ---
-doc-version: 1.5.0
+doc-version: 1.5.1
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.5.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.5.1，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -487,3 +487,9 @@ HTTP 协议入口作为 Tool 的父节点，STDIO/程序化请求在没有 HTTP 
 独立协议节点保存 JSON-RPC 请求/响应；Tool 保存 params 与 result/error 的逻辑内容。发送 Promise 成功才允许成功终态，发送异常记录 MCP_SEND_FAILED 和 incomplete 正文状态，不保留未完成片段。toolIsError 和 protocolErrorCode 可区分工具失败与 JSON-RPC 失败；通知无 ACK，不能记作业务成功。
 
 上述能力已通过 15 项传输模拟与 140 项联合回归、Server/API 构建；真实 SDK 传输、HTTP 全正文/认证前失败、上游适配仍未完成。所有 28 个 HTTP Endpoint 和两类推送继续 PLANNED。
+
+## 15. MCP 真实传输验证补充
+
+2026-09-09：真实 Streamable/SSE 安全审计烟测通过，三次实际上游调用的 HTTP 入口、Tool、上游父子链路以及身份/内部 requestId/trace/root 一致性已验证；同时覆盖认证、会话归属和 Tool 权限拒绝。该集成场景与 140 项专项/回归分别计数。
+
+HTTP 全正文/取消、真实 STDIO 与 parser 上游适配仍在 TP-06 中推进。上述证据不改变 Endpoint/推送 PLANNED 状态，也不代表已有 API 可查询这些新日志。

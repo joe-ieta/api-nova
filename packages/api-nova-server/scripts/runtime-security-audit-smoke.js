@@ -147,11 +147,14 @@ async function main() {
     await sseClient.close();
 
     await flushRuntimeAudit();
-    const files = (await fs.readdir(directory)).filter(file => /^\d{4}-/.test(file));
+    const files = (await fs.readdir(directory)).filter(file => /^calls-v2-/.test(file));
     const lines = (await Promise.all(files.map(file => fs.readFile(path.join(directory, file), 'utf8')))).join('');
     assert.ok(!lines.includes('upstream-secret'));
     assert.ok(!lines.includes(token));
-    const records = lines.trim().split('\n').map(line => JSON.parse(line));
+    const stages = lines.trim().split('\n').filter(Boolean).map(line => JSON.parse(line));
+    assert.ok(stages.length > 0, 'v2 phase records must exist');
+    assert.ok(stages.every(record => record.schemaVersion === 2));
+    const records = stages.filter(record => record.phase === 'finished');
     const apiCalls = records.filter(record => record.kind === 'api');
     const toolCalls = records.filter(record => record.kind === 'tool' && record.outcome === 'success');
     assert.equal(apiCalls.length, 3);
@@ -166,6 +169,14 @@ async function main() {
       assert.ok(parent);
       assert.equal(parent.callerId, call.callerId);
       assert.equal(parent.requestId, call.requestId);
+      assert.equal(parent.traceId, call.traceId);
+      assert.equal(parent.rootInvocationId, call.rootInvocationId);
+      const protocol = records.find(record => record.spanKind === 'mcp_protocol' &&
+        record.invocationId === parent.parentInvocationId);
+      assert.ok(protocol, 'tool must link to its HTTP protocol ingress');
+      assert.equal(protocol.traceId, parent.traceId);
+      assert.equal(protocol.rootInvocationId, parent.rootInvocationId);
+      assert.notEqual(protocol.parentInvocationId, protocol.invocationId);
     }
     const inventory = await listObservedRuntimeCallers();
     assert.equal(inventory.filter(caller => caller.subject === 'caller-a').length, 1);
@@ -177,7 +188,10 @@ async function main() {
     await Promise.all([new Promise(resolve => server.close(resolve)), new Promise(resolve => upstream.close(resolve))]);
     await flushRuntimeAudit();
     process.env = original;
-    await fs.rm(directory, { recursive: true, force: true });
+    const ownedDirectory = path.resolve(directory);
+    assert.equal(path.dirname(ownedDirectory), path.resolve(tmpdir()));
+    assert.ok(path.basename(ownedDirectory).startsWith('api-nova-mcp-audit-'));
+    await fs.rm(ownedDirectory, { recursive: true, force: true });
   }
 }
 
