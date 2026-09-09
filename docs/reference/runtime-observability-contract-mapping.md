@@ -1,5 +1,5 @@
 ---
-doc-version: 1.16.0
+doc-version: 1.17.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -136,3 +136,11 @@ test-call-observability-caller-labels.cjs 的 22 项与联合 315 项、API buil
 ## 档案 ETag 修正与 TP-09 收口
 
 visitors.controller 与 caller-labels.controller 均改为 X-Profile-ETag，JSON profileEtag 和服务内 If-Match 不变；不替换完整响应的 HTTP ETag。标签脚本新增 5 项 Node 原生 HTTP 条件请求，共 27 项；API 构建及联合 320 项通过。03~10 八接口 VERIFIED，TP-09 包级 DONE；实时、治理、平台和应用启用不在此完成声明中。
+
+## TP-10 能力查询映射（2026-09-09）
+
+call-observability-capabilities.service/controller/dto.ts 对应 OBS-API-01/obsGetCapabilities，注册于 opt-in CallObservabilityModule。复用现有管理 JWT/AND 资源权限、严格 query 解析、只读快照与安全信封；query 白名单直接关联已实现调用/访客常量，14 项专项逐一核对九条当前实际 Swagger 路由及 DTO。
+
+接口按实现与当前范围资格分 enabled/restricted/not_implemented，不公布资产 ID/隐藏数量；payload/source/manage 均与基础 read 求交集。未交付聚合/事件/推送明确关闭，有效采集配置、历史完整起点和健康不从默认保留或父进程环境推断。正文的 128 MiB 是单存储对象读取限制，不是总 HTTP 内存预算。
+
+首次构建 TS2739 的同步回调问题获批补 async 后，API 构建、14/14 专项与 334/334 联合通过。01、03~10 九接口 VERIFIED，TP-10 IN_PROGRESS，后续统计/状态及 TP-11 事件/Outbox 按计划推进；根应用未启用，不扩大平台或部署声明。

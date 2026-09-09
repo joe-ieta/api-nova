@@ -1,5 +1,5 @@
 ---
-doc-version: 1.16.0
+doc-version: 1.17.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -172,6 +172,8 @@ flowchart TD
 ### OBS-TP-10 聚合、状态与能力 API
 
 交付 OBS-API-01/02/11~15。实现 timeBasis/scope、去重人数、字节覆盖、直方图、调用者历史桶、迟到修正、依赖影响与 heartbeat/freshness。
+
+当前节点：OBS-API-01 已 VERIFIED，TP-10 为 IN_PROGRESS。能力查询不把尚未实现的聚合/推送或未知历史/健康报告为可用；下一节点先完善统计指标与时间聚合，整包仍需满足下列退出标准。
 
 使用 TP-02 的事件仓储发布 bucket/state 变更，不依赖 TP-11 Webhook 分发完成即可验证；这是避免聚合和事件互相等待的接口边界。
 
@@ -425,3 +427,11 @@ OBS-API-09 已编码，22 项专项及 315 项联合、API 构建通过；实现
 获批分离档案令牌和普通 HTTP ETag 后，新增 5 项真实条件请求、标签专项 27 项与联合 320 项全部通过，API 构建通过。03~10 八接口和对应 Swagger/权限/正文到期/读取与修改审计具备包内证据，TP-09=DONE。AC-17 的实时/全局入口部分、实际 PostgreSQL、Linux、负载与根应用启用不在本包成功范围内，仍由既有责任包验收。
 
 当前 DONE=7、IN_PROGRESS=1、READY=3、BACKLOG=5。接续 TP-10 首节点 capabilities：只报告当前实现与当前身份范围内可用能力，未完成聚合/事件/推送明确关闭；然后推进时间/调用者统计、状态与覆盖数据，TP-11 事件历史及 Outbox 不需等待外部 Webhook 完成。
+
+## TP-10 能力查询首节点（2026-09-09）
+
+OBS-API-01 完成当前权限交集、实际已实现 Endpoint/query 白名单、查询上限、未知保留覆盖与功能状态的发现接口。接口只提供实现与范围资格，不能替代对象授权或推断运行健康；capabilities 本身在空资源范围下可发现，其他数据接口不被误认为全局可访问。
+
+初次同步回调不满足 Store.readSnapshot 的 Promise 类型约束；获批补 async 后 API 构建、14 项专项及 16 脚本 334 项联合均通过。九条 HTTP VERIFIED、十九条 PLANNED，业务根应用仍未启用。任务包状态为 DONE=7、IN_PROGRESS=2、READY=2、BACKLOG=5，不因能力接口通过提前收口 TP-10。
+
+后续按统计 summary/timeseries/grouping、依赖与运行状态、总览/覆盖的节点推进；聚合必须保留 scope 分层、单调用最新修订、字节覆盖与近似分位语义。TP-11 事件历史/Outbox 依赖已满足，可按原计划衔接，治理、全局入口审计、根应用与完整平台验收仍归 TP-14/15/16。

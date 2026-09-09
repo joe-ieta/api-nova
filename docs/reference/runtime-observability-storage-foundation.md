@@ -1,5 +1,5 @@
 ---
-doc-version: 1.11.0
+doc-version: 1.12.0
 doc-status: active
 doc-updated: 2026-09-09
 implementation-status: in-progress
@@ -212,3 +212,9 @@ PATCH 通过现有 Store 管理事务和 AuditService.log(manager) 原子提交�
 ### 12.7 档案令牌边界修正通过
 
 仅分离 HTTP 响应校验与档案令牌，无数据库结构、事务、身份或保留变更。GET/PATCH 使用 X-Profile-ETag 与 JSON profileEtag；5 项实际条件请求、27 项标签专项及 320 项联合通过，API 构建通过。TP-09 按查询/审计包内范围完成，无业务库操作或部署；全局事务集成和实际 PostgreSQL 查询仍需后续验收。
+
+### 12.8 能力查询只读边界
+
+能力接口复用 Store.readSnapshot，显式异步回调符合既有 Promise 类型约束；不改变 Store 签名、隔离级别、计数器/事件协议或初始化结构。空库水位字符串 0 且流水线表仍无记录；已有数据只读取现存提交水位，不扫描来源或打开私有正文。默认调用 30 天/正文 7 天仅为存储默认时长，非有效历史覆盖或实时保留策略保证。
+
+无新表、迁移、业务库操作或根应用启用。获批修正初次回调类型错误后，14 项 HTTP/SQL.js/Swagger 专项和 334 项联合通过，API 构建通过；实际 PostgreSQL 查询、全系统事务集成、Linux 与负载仍按后续包验收。

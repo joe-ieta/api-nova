@@ -1,5 +1,5 @@
 ---
-doc-version: 1.16.0
+doc-version: 1.17.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -9,7 +9,7 @@ implementation-status: in-progress
 
 > Document status: Maintained consumer contract; approved endpoint contract; implementation in progress
 > Scope decision (2026-09-08, approved): 全新开发版本直接统一旧接口和数据库结构；不提供旧格式导入或旧查询路径兼容。接口的实际状态逐项维护，文档确认不等于上线。
-> 可用性声明：28 个 HTTP Endpoint 中 OBS-API-03~10 共 8 个 VERIFIED，其余 20 个与两类推送仍 PLANNED。业务根应用尚未启用，没有 AVAILABLE 接口或部署声明。
+> 可用性声明：28 个 HTTP Endpoint 中 OBS-API-01、03~10 共 9 个 VERIFIED，其余 19 个与两类推送仍 PLANNED。业务根应用尚未启用，没有 AVAILABLE 接口或部署声明。
 > 已确认基线：[需求](../guides/runtime-observability-requirements.md)、[设计](./runtime-observability-design.md)。
 > 开发关联：[任务计划](../guides/runtime-observability-development-task-plan.md)、[执行状态](../guides/runtime-observability-development-execution-status.md)。
 
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.16.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.17.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -92,7 +92,7 @@ isPartial 表示已知覆盖缺口或字段不完整；正常异步延迟单独�
 | sourceServiceInstanceId | 字符串 | 上游实例 |
 | spanKind | gateway_request/mcp_protocol/mcp_tool/upstream_api | 限定调用边界 |
 | outcome | success/error/rejected/timeout/cancelled/incomplete/unknown | started/running 的 outcome 可为空 |
-| errorCategory | 字符串枚举 | 可用枚举由 capabilities 返回 |
+| errorCategory | 自由文本字符串 | capabilities 返回常见建议分类，不限制生产者自定义分类；仍受查询长度/控制字符校验 |
 | traceId、requestId | 字符串 | 查询内部关联；客户端自报 ID 用独立字段，不冒充内部 ID |
 | cursor | 不透明字符串 | 绑定过滤、授权范围、快照及排序位置，不跨查询复用 |
 | limit | 整数，默认 50，最大 200 | 超限返回 400，不静默截断 |
@@ -115,7 +115,7 @@ invocations 按 (timeBasis DESC, invocationId DESC) 排序；其他列表明确�
 
 | 编号 | 方法与相对路径 | operationId | 额外权限 | 任务包 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| OBS-API-01 | GET /capabilities | obsGetCapabilities | 基础 | OBS-TP-10 | PLANNED |
+| OBS-API-01 | GET /capabilities | obsGetCapabilities | 基础 | OBS-TP-10 | VERIFIED |
 | OBS-API-02 | GET /overview | obsGetOverview | 基础 | OBS-TP-10 | PLANNED |
 | OBS-API-03 | GET /invocations | obsListInvocations | 基础 | OBS-TP-09 | VERIFIED |
 | OBS-API-04 | GET /invocations/:id | obsGetInvocation | 基础 | OBS-TP-09 | VERIFIED |
@@ -150,9 +150,9 @@ Endpoint 状态在当前注册表声明中统一维护；出现不同状态后�
 
 ### 4.1 OBS-API-01/02：能力与总览
 
-capabilities 返回 supportedScopes、supportedGroupByCombinations、errorCategories、retentionWindows、maxLimit、maxBuckets、maxQueryRange、payloadLimits、byteMeasurements、eventRetention、schemaVersions 和 enabledFeatures。
+capabilities 已实现当前权限下的接口/query 白名单、功能状态、查询边界与已知/未知限制，详见第 22 节。它只表达实现与授权范围资格，不代表运行健康或所有资源都可访问；未实现的聚合维度和推送保持未启用。
 
-overview 接收 from/to/origin/serverType/runtimeAssetId，返回 businessSummary、upstreamSummary、serverStates、pipeline、recentEvents 及 snapshotSeq。各区块携带自己的 dataWatermark；不能把尚未汇集的上游流量归零。授权不足的区块省略并提供通用 restricted 标记，不泄露隐藏资源数量。
+overview 仍 PLANNED；计划接收 from/to/origin/serverType/runtimeAssetId，返回 businessSummary、upstreamSummary、serverStates、pipeline、recentEvents 及 snapshotSeq。各区块携带自己的 dataWatermark；不能把尚未汇集的上游流量归零。授权不足的区块省略并提供通用 restricted 标记，不泄露隐藏资源数量。
 
 ### 4.2 OBS-API-03/04/06：调用、详情与链路
 
@@ -654,3 +654,38 @@ PATCH /api/v1/monitoring/observability/callers/{id}，operationId=obsUpdateCalle
 先读取有权限的 caller 详情，从 data.profileEtag 或 X-Profile-ETag 取得令牌，原样放入 PATCH 的 If-Match。PATCH 返回新的 profileEtag/X-Profile-ETag；无字段变更时令牌不变但仍有审计。普通 ETag 对应整个响应（包含窗口、统计、水位或审计结果），只用于普通 HTTP 条件请求，不可代替编辑令牌。
 
 只读或未覆盖全部关联资产的管理者仍不获得 profileEtag/X-Profile-ETag。令牌本身不授予权限，每次修改重新检查当前账号和完整资产范围。客户端无需读取自定义头也可使用 JSON 字段；跨域响应头暴露配置和根应用启用在集成包验收。
+
+## 22. OBS-API-01 能力查询实现契约（2026-09-09）
+
+GET /api/v1/monitoring/observability/capabilities，operationId=obsGetCapabilities。仅接受当前管理 JWT 与 monitoring:read，不接受任何 query 参数；未知、重复、嵌套参数返回 400 INVALID_QUERY。返回标准 success/data/meta 信封与 Cache-Control: no-store；错误为 401/403/503 安全信封。只有实际启用新模块的部署才可调用，当前代码验证不构成 AVAILABLE 声明。
+
+| 字段 | 当前含义 |
+| --- | --- |
+| availabilitySemantics | implementation_and_scope_eligibility_not_runtime_health；实现与范围资格，不是健康或配置就绪证明 |
+| resourceScope | all/scoped/none，不返回资产 ID 或数量 |
+| schemaVersions | sourceRecords=2、http=1.0 |
+| endpoints | 当前有范围资格的已实现路由；含 endpointId/operationId/method/path/queryParameters/requiredPermissions/scopeMode/authorizationRule |
+| features | name、state=enabled/restricted/not_implemented、scopeMode=all/scoped/none/null；未实现时 scopeMode=null |
+| enabledFeatures | 仅包含 enabled 项，不是全部规划能力 |
+| maxLimit/defaultLimit | 200/50，适用于支持分页的接口 |
+| maxQueryRange/defaultQueryWindowMs | 2592000000/3600000 毫秒；具体路由不接受时间参数时不能套用 |
+| traceMaxNodes/maxVisitorQueryInvocations | 200/5000，分别约束 trace 可见节点与访客查询匹配修订，超限不截断 |
+| maxQueryCursorLifetimeMs | 900000；实际截止还受结果元数据最早到期约束 |
+| supportedScopes/supportedGroupByCombinations | 当前均为空数组，聚合 Endpoint 尚未实现 |
+| maxBuckets/eventRetention | 当前 null，不把解析器原语或内部事件记录当成公开聚合/历史能力 |
+| errorCategories/errorCategoryMode | timeout/dns/tls/connection/cancelled/response_parse/authorization/other；suggested_values_free_text_filter |
+| byteMeasurements | observed_body、serialized_payload、unavailable；不能混合累计不同计量口径 |
+| retentionWindows | basis=storage_defaults_not_coverage_guarantees；invocationMetadataDefaultMs=2592000000；有正文范围权限才给 payloadDefaultMs=604800000，否则 null |
+| retentionWindows.aggregateRetentionMs/effectiveHistoryCompleteSince | null；默认时长不证明有多少可用历史 |
+| payloadLimits | 仅 read AND payload:read 资产交集非空/显式全局时返回，否则 null |
+| payloadLimits.readObjectMaxBytes/readLimitScope | 134217728；single_stored_object_not_total_http_memory，不是整个 HTTP 响应内存配额 |
+| payloadLimits.effectiveCaptureBytes/capturePolicyState | null/not_reported_by_producers；不使用管理进程环境推断远端或子进程有效采集配置 |
+| observationHealth | unknown，不将空库/无流量误报为健康 |
+
+实现功能为 capabilities、invocationQueries、traceQuery、callerQueries、sourceQuery、payloadRead、sourceIpRead、callerProfileUpdate。额外权限分别求 read AND payload:read/source:read/manage 的资产交集，互不相交的授权不能组合出权限；当前用户/角色在每次请求重新读取，旧 JWT 不固化已撤销权限。
+
+全范围且具备全部额外权限时可见 01、03~10 九条路由；仅有非空 read 范围时七条；空范围只返回自身能力路由。sourceQuery 可用不代表 IP 可见，sourceIpRead 单独受控。callerProfileUpdate 的 authorizationRule=all_registered_caller_assets，仍必须在实际 PATCH 时覆盖目标全部登记资产；capability_only/per_asset 为其他规则标志，不替代路由守卫或对象授权。
+
+overview/statistics/dependencies/serverStatus/eventHistory/webhook/socketPush/pipelineStatus/policyManagement 均为 not_implemented，不进入 enabledFeatures。meta.snapshotSeq/dataWatermark 来自同一只读提交快照，空库为字符串 0，lagMs/historyCompleteSince=null、isPartial=true。读取能力不创建计数器、扫描来源、打开正文或生成新事件。
+
+14 项实际 HTTP/SQL.js/Swagger 专项、334 项联合回归与 API 构建通过，OBS-API-01=VERIFIED。初次异步回调类型遗漏已获批修正；实际 PostgreSQL 查询、Linux、负载与业务根模块启用仍待后续验收。

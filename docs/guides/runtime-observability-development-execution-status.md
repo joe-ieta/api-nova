@@ -1,5 +1,5 @@
 ---
-doc-version: 1.25.0
+doc-version: 1.26.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -8,7 +8,7 @@ implementation-status: in-progress
 # 可观测性开发执行与任务包完成状态
 
 > Document status: Active execution ledger
-> 当前阶段：OBS-TP-01/02/03/04/05/08/09 完成；TP-06 进行中。访客查询 f9b4a44 已推送；标签及 ETag 修正的 27 项专项、320 项联合、API 构建通过，TP-09 按包内退出条件收口，见第 33 节。
+> 当前阶段：OBS-TP-01/02/03/04/05/08/09 完成；TP-06/10 进行中。TP-09 节点 a79720f 已推送；能力查询 14 项专项、334 项联合及 API 构建通过，见第 34 节。
 > 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
 
 ## 1. 当前快照
@@ -20,13 +20,13 @@ implementation-status: in-progress
 | 全新版本决策 | 统一当前格式、接口和数据库初始结构，不增加历史兼容层 |
 | 实现任务总数 | 16 |
 | DONE | 7 |
-| IN_PROGRESS / REVIEW / BLOCKED | 1 / 0 / 0 |
-| READY / BACKLOG | 3 / 5 |
+| IN_PROGRESS / REVIEW / BLOCKED | 2 / 0 / 0 |
+| READY / BACKLOG | 2 / 5 |
 | 代码验收完成率 | 7/16；TP-09 查询与审计包已收口，不代表业务根应用启用、推送或全平台验收 |
-| 新 HTTP Endpoint | 28 个；03~10 共 8 个 VERIFIED，其余 20 个 PLANNED；均未部署为 AVAILABLE |
+| 新 HTTP Endpoint | 28 个；01、03~10 共 9 个 VERIFIED，其余 19 个 PLANNED；均未部署为 AVAILABLE |
 | 新推送契约 | 2 类，全部 PLANNED |
 | 本轮数据库实际操作 | 隔离 SQL.js 内存库、独有临时目录及本机随机端口；未连接或清理业务数据库 |
-| 本轮新增验证 | API build PASS；标签/条件请求 27/27、15 脚本联合 320/320 PASS；0 fail/cancelled/skipped |
+| 本轮新增验证 | API build PASS；能力查询 14/14、16 脚本联合 334/334 PASS；0 fail/cancelled/skipped |
 
 文档已确认与基础包完成都不代表功能已上线。TP-02 的存储、GC 与 PostgreSQL 多进程针对性验证已完成；Linux 矩阵、全系统 SQL.js 并发集成和新接口端到端验收仍未完成。
 
@@ -68,7 +68,7 @@ implementation-status: in-progress
 | OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 04 重新验收，恢复就绪；test/probe/internal 实际接入尚未实施 |
 | OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | DONE | 采集/身份/重启/源退出共 45 项专项通过；真实写入进程 UUID/PID、已关闭残片隔离和立即 unknown 恢复已接入。包级退出条件完成，应用启用与全平台集成另归 15/16 |
 | OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | DONE | 03~10 八接口 VERIFIED；调用/trace 38、正文/审计 23、访客 24、标签/条件请求 27 项通过；联合 320 项和 API 构建通过 |
-| OBS-TP-10 | 聚合/状态/能力 API | 03、08 | READY | 03、08 已完成，可启动聚合与能力接口 |
+| OBS-TP-10 | 聚合/状态/能力 API | 03、08 | IN_PROGRESS | OBS-API-01 能力查询 VERIFIED；当前授权/实现清单、边界与未知状态明确；聚合、总览、依赖和状态仍待实施 |
 | OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | READY | 03、08 已完成；持久事件基础已有，仍需历史查询和 Outbox 消费 |
 | OBS-TP-12 | Webhook/订阅/投递 API | 11 | BACKLOG | 11 尚未完成 |
 | OBS-TP-13 | Socket.IO/快照与恢复 | 10、11 | BACKLOG | 10、11 尚未完成 |
@@ -81,14 +81,15 @@ implementation-status: in-progress
 | 接口范围 | 数量 | 主任务包 | 状态 |
 | --- | --- | --- | --- |
 | OBS-API-03~10：调用/正文/trace/调用者/来源 | 8 | 09 | VERIFIED；未部署 |
-| OBS-API-01/02/11~15：能力/总览/聚合/依赖/状态 | 7 | 10 | PLANNED |
+| OBS-API-01：能力 | 1 | 10 | VERIFIED；未部署 |
+| OBS-API-02/11~15：总览/聚合/依赖/状态 | 6 | 10 | PLANNED |
 | OBS-API-16：事件补拉 | 1 | 11 | PLANNED |
 | OBS-API-17~25：订阅/投递/重试 | 9 | 12 | PLANNED |
 | OBS-API-26~28：健康/策略 | 3 | 14 | PLANNED |
 | OBS-PUSH-01：Socket.IO | 1 | 13 | PLANNED |
 | OBS-PUSH-02：Webhook | 1 | 12 | PLANNED |
 
-新观测模块已包含通过隔离 HTTP/Swagger 验证的调用列表、明细、正文和 trace 控制器，但业务根应用未启用；collector/worker 支持显式启用的目录后台调度。不能将隔离验证、内部采集与事件持久化视为已部署接口或已运行的推送。
+新观测模块已包含通过隔离 HTTP/Swagger 验证的能力、调用列表、明细、正文、trace、访客与标签控制器，但业务根应用未启用；collector/worker 支持显式启用的目录后台调度。不能将隔离验证、内部采集与事件持久化视为已部署接口或已运行的推送。
 
 ## 6. 验收证据矩阵
 
@@ -563,3 +564,19 @@ TP-09 保持 IN_PROGRESS，DONE=6、IN_PROGRESS=2、READY=3、BACKLOG=5。修正
 OBS-TP-09=DONE，DONE=7、IN_PROGRESS=1（06）、READY=3（07/10/11）、BACKLOG=5。八条 HTTP VERIFIED、二十条 PLANNED；两类推送仍 PLANNED。AC-17 仅本包 HTTP 部分通过，不外推实时权限或全局入口留痕。未启用业务根模块、迁移/清理业务库、发布运行包或部署。
 
 下一节点 TP-10 先交付 capabilities，精确区分当前已实现/按权限可用的接口、查询边界与尚未实现的聚合/推送；再推进统计与状态，TP-11 事件/Outbox 按已满足依赖继续。实际 PostgreSQL 查询、Linux、负载及全系统 SQL.js 并发、根应用启用继续由后续包验证。节点提交推送以 Git 回执为准。
+
+## 34. TP-10 能力查询与类型修正验收（2026-09-09）
+
+上一节点 a79720f 已普通提交并推送 main。新增 capabilities Service/Controller/DTO 和 14 项实际 Nest HTTP/SQL.js/Swagger 专项，注册到 opt-in 观测模块，未启用业务根应用。初次 API 构建因本次新增 readSnapshot 回调未返回 Promise 而报 TS2739，专项未执行；用户批准后仅补 async，未改 Store 签名、数据库或生产保留策略。
+
+| 已执行 | 结果 |
+| --- | --- |
+| npm.cmd run build --workspace api-nova-api | PASS |
+| test-call-observability-capabilities.cjs | 14/14 PASS |
+| 16 脚本联合回归 | 334/334 PASS；0 fail/cancelled/skipped |
+
+OBS-API-01 只说明代码已实现及当前管理身份资源范围是否具备使用资格，不承诺运行健康、根模块启用或每个目标资源都可访问。权限按 read 与可选 payload/source/manage 求资产交集；不返回资产 ID/隐藏数量，空范围仅保留自身发现。共享档案修改仍需全部登记关联资产覆盖，能力标志不替代具体对象授权。
+
+显式报告分页/时间/trace/访客边界和分侧正文单对象读取上限；默认保留时长不等于已有历史覆盖。未知有效采集配置、历史完整起点、lag 和健康保持 null/unknown/partial；尚未交付的聚合维度、桶数、事件保留与推送能力不伪造启用。查询只读现存水位，不扫描来源、不读正文、不初始化计数器或生成事件。errorCategory 为自由文本过滤，返回分类仅为建议值。
+
+TP-10=IN_PROGRESS，DONE=7、IN_PROGRESS=2（06/10）、READY=2（07/11）、BACKLOG=5。01、03~10 共九条 HTTP VERIFIED，十九条 PLANNED；两类推送仍 PLANNED。下一节点推进统计聚合及可解释指标，再补总览/状态/覆盖；TP-11 按现有依赖接续。Windows/SQL.js 包内证据不外推实际 PostgreSQL 查询、Linux、负载或部署。节点提交推送以 Git 回执为准。
