@@ -1,5 +1,5 @@
 ---
-doc-version: 1.7.0
+doc-version: 1.7.1
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -88,3 +88,5 @@ Gateway 已切换为不同 spanKind 的显式父子事实：gateway-request-audi
 ## TP-08 单文件采集映射（2026-09-09）
 
 packages/api-nova-api/src/modules/call-observability/call-observability.collector.ts 消费 calls-v2 专用 JSONL，经唯一 CallObservabilityStore.ingest/rejectRecord 事务写入；调用/事件、检查点和尾边界指纹同事务。旧日志与 callers 文件不导入。测试脚本 test-call-observability-collector.cjs 新增 14 项通过；连同存储/GC/权限基础 118 项及 API 构建通过。目录调度、身份归并和公开 API 未在此节点宣告完成。
+
+TP-08 第二节点：call-observability-callers.projector.ts 通过唯一 ingest/reconcile 的 ProjectionHook 写入身份/来源关联；call-observability.worker.ts 只做受控目录发现、周期调度和恢复，不重试业务请求、不删除源文件。新增 test-call-observability-worker.cjs 15 项通过，API build 与联合 133 项通过；实际业务应用尚未启用此模块。

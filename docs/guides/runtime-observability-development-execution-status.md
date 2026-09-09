@@ -1,5 +1,5 @@
 ---
-doc-version: 1.14.0
+doc-version: 1.15.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -8,7 +8,7 @@ implementation-status: in-progress
 # 可观测性开发执行与任务包完成状态
 
 > Document status: Active execution ledger
-> 当前阶段：OBS-TP-01/02/03/04/05 完成；TP-06、TP-08 进行中。fca58c0 已推送；TP-08 单文件有界采集节点新增 14 项及联合回归 118 项、API 构建通过，见第 22 节。
+> 当前阶段：OBS-TP-01/02/03/04/05 完成；TP-06、TP-08 进行中。17e9733 已推送；TP-08 调用者归并和目录/恢复 worker 新增 15 项及联合回归 133 项、API 构建通过，见第 23 节。
 > 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
 
 ## 1. 当前快照
@@ -26,7 +26,7 @@ implementation-status: in-progress
 | 新 HTTP Endpoint | 28 个，全部 PLANNED |
 | 新推送契约 | 2 类，全部 PLANNED |
 | 本轮数据库实际操作 | 隔离 SQL.js 内存库、独有临时目录及本机随机端口；未连接或清理业务数据库 |
-| 本轮新增验证 | API build PASS；采集 14 项 + 存储/GC 48 项 + 权限基础 56 项 = 118/118 PASS；本轮未重复无变更 MCP 专项 |
+| 本轮新增验证 | API build PASS；worker/调用者 15 项 + 采集 14 项 + 存储/GC 48 项 + 权限基础 56 项 = 133/133 PASS；未重复无变更 MCP 专项 |
 
 文档已确认与基础包完成都不代表功能已上线。TP-02 的存储、GC 与 PostgreSQL 多进程针对性验证已完成；Linux 矩阵、全系统 SQL.js 并发集成和新接口端到端验收仍未完成。
 
@@ -66,7 +66,7 @@ implementation-status: in-progress
 | OBS-TP-05 | Gateway 接入 | 04 | DONE | 入口前置、独立流结束、内部请求 ID、上游适配器/尝试编号、可信身份及取消接入完成；21 项真实回环 HTTP 专项与 104 项回归、API 构建通过；正式应用/监听器矩阵归 15/16 |
 | OBS-TP-06 | MCP 接入 | 04 | IN_PROGRESS | HTTP/物理上游基线已验收；真实 STDIO 8 项含慢读背压均通过；stdin EOF、stdout 错误/断管及剩余传输矩阵尚未验收 |
 | OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 04 重新验收，恢复就绪；test/probe/internal 实际接入尚未实施 |
-| OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | IN_PROGRESS | 单文件有界采集、事务边界指纹、初始事件抑制与诊断已通过 14 项专项；调用者归并、目录调度与失联恢复仍待完成 |
+| OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | IN_PROGRESS | 单文件采集、调用者/来源归并、有界目录调度及 unknown 迟到更正已有 29 项专项通过；持久库/真实管理进程重启、关闭源残片及应用集成仍待验收 |
 | OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | BACKLOG | 03 已完成，等待 08 |
 | OBS-TP-10 | 聚合/状态/能力 API | 03、08 | BACKLOG | 03 已完成，等待 08 |
 | OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | BACKLOG | 03 已完成，等待 08；事件存储字段不等于分发已实现 |
@@ -88,7 +88,7 @@ implementation-status: in-progress
 | OBS-PUSH-01：Socket.IO | 1 | 13 | PLANNED |
 | OBS-PUSH-02：Webhook | 1 | 12 | PLANNED |
 
-新存储模块目前未接入应用入口；单文件 collector 已有内部入口，但尚无目录自动调度或新的 HTTP controller。不能将内部采集与事件持久化视为公开接口或已运行的推送。
+新存储模块目前未接入应用入口；collector/worker 已支持显式启用的目录后台调度，但业务应用未启用，尚无新的 HTTP controller。不能将内部采集与事件持久化视为公开接口或已运行的推送。
 
 ## 6. 验收证据矩阵
 
@@ -101,11 +101,11 @@ implementation-status: in-progress
 | AC-03 | 缓存/未匹配/拒绝/认证前边界 | 05、06 | PARTIAL；Gateway 包级 PASS，剩余集成/MCP 待验收 |
 | AC-04 | 连接错误/超时/取消/流中断 | 04、05、06 | PARTIAL；Gateway 包级 PASS，剩余集成/MCP 待验收 |
 | AC-05 | HTTP 200 下工具/协议错误 | 06 | PARTIAL；真实 HTTP JSON-RPC error、真实 STDIO Tool isError/协议错误已通过；其余传输组合待验收 |
-| AC-06 | 主体/凭证/IP 归并 | 08、09 | NOT_RUN |
-| AC-07 | 伪造代理 Header/Key 与高基数 | 04、08 | NOT_RUN |
+| AC-06 | 主体/凭证/IP 归并 | 08、09 | PARTIAL；稳定 callerId、凭证轮换、同 IP 不同主体与重复阶段归并通过；公开查询/真实认证全链路待验收 |
+| AC-07 | 伪造代理 Header/Key 与高基数 | 04、08 | PARTIAL；忽略未认证主体/凭证、不信任伪造转发来源、HMAC 与有界 overflow 通过；共享可信代理规则端到端仍待验收 |
 | AC-08 | 正文/脱敏/类型/上限/字节 | 04、05、06、09 | PARTIAL；Gateway 包级 PASS，剩余集成/MCP 待验收 |
 | AC-09 | 半行/重复导入/重启 | 02、08 | PARTIAL；Windows/SQL.js 单文件采集含半行与 collector 重建、重复/轮转/截断已通过；管理进程/数据库重启集成待验收 |
-| AC-10 | 未终态/强杀/迟到更正 | 08、10 | NOT_RUN |
+| AC-10 | 未终态/强杀/迟到更正 | 08、10 | PARTIAL；独立失联阈值推断 unknown、半行抑制推断和迟到终态仅更正一次通过；真实强杀/持久进程重启矩阵待验收 |
 | AC-11 | 多服务器/多桶/去重与比率 | 10 | NOT_RUN |
 | AC-12 | Webhook 超时/ACK 丢失/重复 | 12 | NOT_RUN |
 | AC-13 | 重启/暂停/死信/人工重试 | 11、12 | NOT_RUN |
@@ -385,3 +385,15 @@ receipt、调用/版本、事件、检查点及尾部 64 字节指纹同事务�
 数据集起点持久化；首次现有 v2 终态可入库，但其事件为 suppressed，不进入实时分发引用。新终态仍为 pending；尚无分发器。管道记录最近文件积压、部分行、错误、成功时间和水位，backlogScope=last_visited_file，不把局部扫描伪装为全目录总量。
 
 实际验证：npm.cmd run build --workspace api-nova-api PASS；node --test --test-reporter=spec 的 collector/storage/GC/API-foundation 四脚本共 118/118 PASS、0 skip、0 fail，其中新增 collector 14 项。均为隔离 Windows/SQL.js；未处理业务库、未部署、未新增公开 Endpoint。下一节点为调用者/来源同事务归并及有界目录调度和失联恢复。
+
+## 23. 调用者归并、目录调度与恢复节点（2026-09-09）
+
+新增 CallObservabilityCallersProjector，将可信 caller、凭证引用、来源和关联观察放入调用投影事务。沿用认证层 callerId，换凭证/换 IP 不换稳定主体；相同 IP 不合并不同主体。匿名/失败来源不创建 caller 或采信传入 Key/sub。test/probe/internal 和 upstream_api 不制造外部访问者。IP 使用有效 socket peer；只有生产者已经标明 trusted_proxy 且 proxyTrusted=true 才沿用可信客户端地址。
+
+来源 HMAC 使用专用 API_NOVA_OBSERVABILITY_SOURCE_ID_SECRET（至少 32 字节）与 SOURCE_ID_KEY_ID（默认 v1）；无弱回退，配置缺失保留待处理文件/断点重试。API_NOVA_OBSERVABILITY_SOURCES_PER_DAY 默认 10000、上限 100000，以资产/UTC 日/认证状态限制来源，超限归入有界 overflow；降级数按新 invocation 计，不冒充独立人数。
+
+CallObservabilityWorker 有界发现 v2 文件，默认每轮最多 32 目录项/4 MiB/128 条，忽略旧日志与 caller 清单。显式 API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED=true 才启动每轮结束后间隔 1 秒的后台循环；退出等待活动批次。单管理实例模型不变，未接入根模块或启动业务实例。
+
+只有完整扫描无已知积压、半行、坏行和读取故障时，才对扫描开始前至少 45 秒未更新的 started/progress 调用进行有界恢复（最多 128）。结果为 unknown/completionSource=reconciled，完成时间和耗时保持 null；真实终态可更正，历史推断事件同样抑制首次分发。不存在的源目录返回 waiting_for_source，不伪报无流量健康。
+
+实际验证：API build PASS；worker 新增 15 项，连同 collector 14、存储/GC 48、权限基础 56，总计 133/133 PASS、0 skip、0 fail。包含真实共享生产器落盘后经目录发现入库，以及实际定时启停；失联等待通过隔离库观察时刻夹具推进，不声称实际等待 45 秒或强杀已经通过。下一节点补充独立管理进程与持久 SQL.js 文件重开证据；关闭后残片确认、生产应用接入和全平台矩阵继续保留。

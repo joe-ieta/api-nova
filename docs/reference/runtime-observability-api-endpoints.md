@@ -1,5 +1,5 @@
 ---
-doc-version: 1.7.0
+doc-version: 1.7.1
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -531,3 +531,9 @@ Axios 默认的超时 ECONNABORTED 仅在确认来源为 Axios 错误时按 time
 后续 health/overview 应明确区分最近成功时间、水位、最近文件积压、部分行、隔离数与已知源序号缺口。当前内部 backlogScope=last_visited_file，不代表全目录积压；采集内存错误独立保存，数据库不可用时持久心跳不会伪装成新鲜。源文件路径与错误正文不对外公开。
 
 本节点 API build 和 118 项联合回归通过（新增采集 14 项）。目录自动汇集、调用者算法、恢复调度及公开查询仍在后续节点完成。
+
+### 17.1 调用者/来源与 worker 的已实现内部语义
+
+已提供可信 caller/credential/source/observation 同事务投影和显式启用的目录 worker，API build 与 133 项联合验证通过，全部公开 Endpoint/推送仍为 PLANNED。来源采用带 keyId 的 HMAC；匿名/认证失败来源不等于人数，不包含可认证的原始 Key。来源超限时 sourceOverflow=true、来源桶 ipSource=overflow 且 IP 为 null，后续 sources/health 需表达降级数量，不把它们当作精确去重人数。
+
+内部 worker 状态区分 running、waiting_for_source、degraded，扫描范围为 partial_directory_scan/completed_directory_scan，附部分行、已知文件积压、隔离和错误数量。完整扫描没有已知缺口时才做独立失联推断；unknown 不虚构 completedAt/durationMs，迟到终态增加投影版本而非新增一次调用。公开接口的字段裁剪/授权和运行态报告尚需后续任务接入。

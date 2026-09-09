@@ -1,5 +1,5 @@
 ---
-doc-version: 1.2.0
+doc-version: 1.2.1
 doc-status: active
 doc-updated: 2026-09-09
 implementation-status: in-progress
@@ -38,7 +38,7 @@ implementation-status: in-progress
 | 管道状态/策略/幂等 | runtime_pipeline_state、runtime_observability_policies、runtime_observability_idempotency |
 | 持久事件 | 复用 runtime_observability_events，不新增另一张同义事件表 |
 
-调用者归并、聚合计算、订阅管理和后台投递目前仅有实体，算法与 API 尚未接入。既有生命周期事件生产者的统一接入在后续集成包完成。
+调用者/凭证/来源/观察归并已由 TP-08 投影 hook 实现；聚合、订阅管理和后台投递仍仅有实体。公开 API 与根应用尚未接入，既有生命周期事件生产者统一接入在后续集成包完成。
 
 ## 3. 事务和序号
 
@@ -150,3 +150,7 @@ PostgreSQL 父进程仍有 client.query 弃用警告；子进程警告计数 0 �
 不改数据库结构。IngestCheckpoint 可携带 boundaryHash，与现有 receipt/调用/事件/检查点一起提交到 runtime_pipeline_state；文件内已观察序号跳跃更新 sourceSequenceGaps，重放不回退 lastSequence。IngestContext.suppressEvent 保留初始历史事件，但将 dispatchState 设为 suppressed、不返回待分发引用；普通写入保持 pending。
 
 新增单文件 CallObservabilityCollector 导出和 14 项专项。数据集起点与早期管道状态已持久化，但模块尚未接入根应用，目录自动调度、调用者归并与公开 API 仍未完成。API build PASS；collector/storage/GC/API-foundation 合计 118/118 PASS。测试只使用隔离 Windows/SQL.js 和本轮自建临时目录，无业务库操作。
+
+### 11.1 身份投影与 worker
+
+新增调用者归并 hook 与显式启用的目录/恢复 worker，不新增数据库结构。来源 HMAC、overflow 降级、关联凭证和观察均随调用事务提交；重放不会创建第二个主体或重复降级计数。恢复接口增加 suppressEvent，用于抑制初始历史 unknown 的分发，真实当前终态保持正常事件序列。API build 与新增 15 项/联合 133 项通过；持久进程重启和关闭源残片确认继续下一节点。

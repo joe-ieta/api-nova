@@ -266,7 +266,7 @@ export class CallObservabilityStore {
 
   /** Only the recovery worker calls this after establishing lost terminal evidence. */
   async reconcile(invocationId: string, expectedVersion: number,
-    evidence: { reason: 'process_exit' | 'progress_timeout'; observedBefore: string },
+    evidence: { reason: 'process_exit' | 'progress_timeout'; observedBefore: string; suppressEvent?: boolean },
     project?: ProjectionHook): Promise<IngestResult> {
     const observedBefore = Date.parse(evidence.observedBefore);
     if (!Number.isFinite(observedBefore) || observedBefore > Date.now()) {
@@ -289,7 +289,7 @@ export class CallObservabilityStore {
       });
       if (project) await project(tx, previous, current);
       await this.saveProjection(tx, previous, current);
-      await this.invocationEvent(tx, current, sequence, 'invocation.reconciled');
+      await this.invocationEvent(tx, current, sequence, 'invocation.reconciled', evidence.suppressEvent);
       return this.result(tx, 'updated', current);
     });
   }
