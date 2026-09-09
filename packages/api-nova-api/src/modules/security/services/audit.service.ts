@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Like, EntityManager } from 'typeorm';
+import { Repository, Between, Like, EntityManager, MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 import {
   AuditLog,
   AuditAction,
@@ -109,7 +109,7 @@ export class AuditService {
     // 搜索条件
     if (search) {
       queryBuilder.andWhere(
-        '(audit.action LIKE :search OR audit.resource LIKE :search OR audit.details LIKE :search)',
+        '(CAST(audit.action AS TEXT) LIKE :search OR audit.resource LIKE :search OR CAST(audit.details AS TEXT) LIKE :search)',
         { search: `%${search}%` },
       );
     }
@@ -138,24 +138,17 @@ export class AuditService {
       queryBuilder.andWhere('audit.ipAddress = :ipAddress', { ipAddress });
     }
 
-    // 时间范围
+    // Use mapped Date operators so each database driver binds its timestamp type.
     if (startDate && endDate) {
-      queryBuilder.andWhere('audit.timestamp BETWEEN :startDate AND :endDate', {
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-      });
+      queryBuilder.andWhere({ createdAt: Between(new Date(startDate), new Date(endDate)) });
     } else if (startDate) {
-      queryBuilder.andWhere('audit.timestamp >= :startDate', {
-        startDate: new Date(startDate),
-      });
+      queryBuilder.andWhere({ createdAt: MoreThanOrEqual(new Date(startDate)) });
     } else if (endDate) {
-      queryBuilder.andWhere('audit.timestamp <= :endDate', {
-        endDate: new Date(endDate),
-      });
+      queryBuilder.andWhere({ createdAt: LessThanOrEqual(new Date(endDate)) });
     }
 
     // 排序
-    queryBuilder.orderBy('audit.timestamp', 'DESC');
+    queryBuilder.orderBy('audit.createdAt', 'DESC').addOrderBy('audit.id', 'DESC');
 
     // 分页
     const offset = (page - 1) * limit;

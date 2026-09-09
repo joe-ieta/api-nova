@@ -383,3 +383,64 @@ test('generated payload Swagger exposes one guarded JSON route with explicit exp
   assert.equal(payload.properties.fileKey, undefined);
   assert.equal(document.components.schemas.ObservabilityErrorDto.properties.details.properties.state.enum[0], 'expired');
 });
+
+test('management audit list can retrieve the sensitive read evidence using the current entity schema', async t => {
+  const f = await fixture(t), row = await f.ingest();
+  assert.equal((await f.request(row.invocationId)).status, 200);
+  const result = await f.audit.findLogs({ resource: 'observability.payload', page: 1, limit: 10 });
+  assert.equal(result.total, 1);
+  assert.equal(result.data[0].resourceId, row.invocationId);
+  assert.equal(result.data[0].details.operation, 'obsGetInvocationPayload');
+  assert.equal(result.data[0].user.id, f.user.id);
+  assert.equal(result.totalPages, 1);
+  assert.equal(result.hasNext, false);
+  assert.equal(result.hasPrev, false);
+});
+
+test('management audit date filters bind mapped timestamps and retain inclusive legacy boundaries', async t => {
+  const f = await fixture(t), repository = f.database.getRepository(AuditLog);
+  const records = [];
+  for (const hour of [10, 11, 12]) {
+    const row = await f.audit.log({ action: AuditAction.API_CALLED, level: AuditLevel.INFO,
+      status: AuditStatus.SUCCESS, userId: f.user.id, resource: 'date-fixture' });
+    await repository.update({ id: row.id }, { createdAt: new Date('2026-09-09T' + hour + ':00:00.000Z') });
+    records.push(row.id);
+  }
+  const both = await f.audit.findLogs({ startDate: '2026-09-09T11:00:00.000Z', endDate: '2026-09-09T12:00:00.000Z' });
+  assert.deepEqual(both.data.map(row => row.id), [records[2], records[1]]);
+  const after = await f.audit.findLogs({ startDate: '2026-09-09T11:00:00.000Z' });
+  assert.deepEqual(after.data.map(row => row.id), [records[2], records[1]]);
+  const before = await f.audit.findLogs({ endDate: '2026-09-09T11:00:00.000Z' });
+  assert.deepEqual(before.data.map(row => row.id), [records[1], records[0]]);
+  const outside = await f.audit.findLogs({ startDate: '2026-09-10T00:00:00.000Z' });
+  assert.equal(outside.total, 0);
+});
+
+test('management audit search casts JSON and enum values while keeping search input parameterized', async t => {
+  const f = await fixture(t), row = await f.ingest();
+  assert.equal((await f.request(row.invocationId)).status, 200);
+  for (const search of ['obsGetInvocationPayload', 'observability.payload', 'api_called']) {
+    const result = await f.audit.findLogs({ search });
+    assert.equal(result.total, 1, search);
+    assert.equal(result.data[0].resourceId, row.invocationId);
+  }
+  assert.equal((await f.audit.findLogs({ search: "' OR 1=1 --" })).total, 0);
+  assert.equal((await f.audit.findLogs({ search: 'private-password' })).total, 0);
+});
+
+test('management audit pagination uses an ID tie-breaker for identical creation timestamps', async t => {
+  const f = await fixture(t), repository = f.database.getRepository(AuditLog), expected = [];
+  for (let i = 0; i < 4; i++) {
+    const row = await f.audit.log({ action: AuditAction.API_CALLED, level: AuditLevel.INFO,
+      status: AuditStatus.SUCCESS, userId: f.user.id, resource: 'page-fixture' });
+    await repository.update({ id: row.id }, { createdAt: new Date('2026-09-09T12:00:00.000Z') });
+    expected.push(row.id);
+  }
+  expected.sort().reverse();
+  const first = await f.audit.findLogs({ page: 1, limit: 2, resource: 'page-fixture' });
+  const second = await f.audit.findLogs({ page: 2, limit: 2, resource: 'page-fixture' });
+  assert.deepEqual(first.data.map(row => row.id), expected.slice(0, 2));
+  assert.deepEqual(second.data.map(row => row.id), expected.slice(2));
+  assert.equal(first.total, 4); assert.equal(second.total, 4);
+  assert.equal(first.hasNext, true); assert.equal(second.hasPrev, true); assert.equal(second.hasNext, false);
+});

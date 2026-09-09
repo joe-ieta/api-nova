@@ -1,5 +1,5 @@
 ---
-doc-version: 1.10.0
+doc-version: 1.11.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -106,3 +106,7 @@ test-call-observability-invocations.cjs 新增 22 项真实 Nest 管理 HTTP/Swa
 call-observability-payloads.controller/service/dto.ts 实现 OBS-API-05；共享 API 异常增加严格 PAYLOAD_EXPIRED 状态/时间详情，元数据 readLink 指向受控路由。AuditService.log 可接受事务 EntityManager，复用既有 audit_logs 写入而非新增业务事件或自造审计表；已有非事务调用方式保持有效。日志只保存安全访问元数据，不复制内容或文件引用。
 
 新增 test-call-observability-payloads.cjs 19 项真实 HTTP/JWT、私有文件、实际 User/AuditLog 外键和 Swagger 用例，API build/联合 249 项通过。OBS-API-03/04/05 VERIFIED，TP-09 整包未完成。既有 audit.findLogs 的 timestamp 时间列与 createdAt 实体不一致，下一节点修正并补检索回归；入口守卫前拒绝统一留痕、全局 HTTP 内存和应用启用仍在 TP-15。
+
+## TP-09 管理审计检索对齐（2026-09-09）
+
+security/services/audit.service.ts 的 findLogs 将日期绑定到 createdAt 并以 createdAt/id 降序查询，action/details 使用固定文本转换与参数化搜索；不修改清理方法或审计权限。test-call-observability-payloads.cjs 追加四项真实留痕列表/日期/关键词/并列分页回归，现 23 项，API build 与联合 253/253 通过。第 27 节提出的通用检索服务问题已解决，完整旧管理 HTTP/实际 PostgreSQL/治理仍是后续边界。

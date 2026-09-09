@@ -1,5 +1,5 @@
 ---
-doc-version: 1.11.0
+doc-version: 1.12.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -576,3 +576,9 @@ OBS-API-03/04 使用独立只读事务快照；SQLite/SQL.js 在现有共享通�
 沿用 AuditService 与 audit_logs，log 增加可选事务 manager，由 CallObservabilityStore 通道提交，避免观测数据库读取/写入之间另起不受协调的 SQL.js 事务。管理记录不推进调用水位、不产生新的业务遥测循环。audit result=prepared 只表示内容准备与留痕完成，不表示客户端交付；发送前再次到期可留下同 requestId 的失败记录。审计行只存身份和安全引用/结果，不能存正文、原始 Header 或请求提供的审计 requestId。
 
 已验证 JSON 标量、text/base64/multipart、空/省略/残缺、读时再次脱敏和原摘要语义。19 项新专项与联合 249 项、API 构建通过，三条查询路由 VERIFIED。现有管理审计通用列表的历史时间列问题进入下一节点修正，不扩大已验证的按 ID 读取范围；前置守卫/参数失败的统一安全入口审计仍待根应用整合。
+
+### 16.2 管理审计检索闭环
+
+正文服务已写入的管理审计现可由 findLogs 按 createdAt、operation/resource/action 关键词和稳定并列次序查询。使用 ORM 日期比较操作符进行方言绑定，JSON/枚举显式转文本但过滤值仍为 SQL 参数。保留通用审计日期含边界语义，不改变观测时间窗的半开契约，也不扩大管理授权。
+
+新增四项检索回归和联合 253 项、API 构建通过；这是存储/服务级闭环，旧管理 HTTP 整体、PostgreSQL 实际运行、其他历史统计/清理和全局入口审计仍需后续验证。下一项继续 trace 及调用者/来源查询，不将 TP-09 整包提前完成。

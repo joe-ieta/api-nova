@@ -1,5 +1,5 @@
 ---
-doc-version: 1.5.0
+doc-version: 1.6.0
 doc-status: active
 doc-updated: 2026-09-09
 implementation-status: in-progress
@@ -180,3 +180,7 @@ API build、22 项实际查询 HTTP/Swagger 和联合 230/230 回归通过，包
 AuditService.log(data, manager?) 可加入调用观测共享事务通道，管理审计写 audit_logs 而不分配调用序号。已有独立调用仍写原仓储。AuditLog/User 真外键及按 ID 读取已在隔离 SQL.js 验证；通用审计列表的 timestamp 字段仍需下一节点对齐 createdAt，不运行历史清理方法。审计失败回滚事务并返回 503，不对外泄露已在内存中准备的正文。
 
 API 构建、19 项正文新专项和联合 249 项全部通过，前次 22 项查询已随受控链接变化回归。服务并发准入 4 路，不承诺治理/数据库其他模块或 HTTP 响应内存已整体协调；这些仍由 TP-14/15/16 验收。
+
+### 12.2 管理审计列表读取对齐
+
+AuditService.findLogs 现使用实体 createdAt 与 ORM Date 比较操作符、createdAt/id 降序和枚举/JSON 文本搜索。真实读取审计写入后通过列表、按日期与关键词查询的四项回归通过；正文/审计脚本 23 项，联合 253/253、API 构建 PASS。不修改数据库结构、权限、历史清理方法，也没有业务数据库操作；PostgreSQL 实际查询和全管理模块集成仍待验收。

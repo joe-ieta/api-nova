@@ -1,5 +1,5 @@
 ---
-doc-version: 1.19.0
+doc-version: 1.20.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -8,7 +8,7 @@ implementation-status: in-progress
 # 可观测性开发执行与任务包完成状态
 
 > Document status: Active execution ledger
-> 当前阶段：OBS-TP-01/02/03/04/05/08 完成；TP-06、09 进行中。dea4e04 已推送；TP-09 正文读取/管理审计新增 19 项及联合 249 项、API 构建通过，见第 27 节。
+> 当前阶段：OBS-TP-01/02/03/04/05/08 完成；TP-06、09 进行中。d96b9f6 已推送；管理审计检索新增 4 项及联合 253 项、API 构建通过，见第 28 节。
 > 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
 
 ## 1. 当前快照
@@ -26,7 +26,7 @@ implementation-status: in-progress
 | 新 HTTP Endpoint | 28 个；OBS-API-03/04/05 为 VERIFIED，其余 25 个 PLANNED；均未部署为 AVAILABLE |
 | 新推送契约 | 2 类，全部 PLANNED |
 | 本轮数据库实际操作 | 隔离 SQL.js 内存库、独有临时目录及本机随机端口；未连接或清理业务数据库 |
-| 本轮新增验证 | API build PASS；正文/管理审计新增 19 项及 Node 联合 249/249 PASS；未重复 parser/Server 构建、parser Jest 或独立烟测 |
+| 本轮新增验证 | API build PASS；管理审计检索新增 4 项及 Node 联合 253/253 PASS；未重复 parser/Server 构建、parser Jest 或独立烟测 |
 
 文档已确认与基础包完成都不代表功能已上线。TP-02 的存储、GC 与 PostgreSQL 多进程针对性验证已完成；Linux 矩阵、全系统 SQL.js 并发集成和新接口端到端验收仍未完成。
 
@@ -67,7 +67,7 @@ implementation-status: in-progress
 | OBS-TP-06 | MCP 接入 | 04 | IN_PROGRESS | HTTP/物理上游基线已验收；真实 STDIO 8 项含慢读背压均通过；stdin EOF、stdout 错误/断管及剩余传输矩阵尚未验收 |
 | OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 04 重新验收，恢复就绪；test/probe/internal 实际接入尚未实施 |
 | OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | DONE | 采集/身份/重启/源退出共 45 项专项通过；真实写入进程 UUID/PID、已关闭残片隔离和立即 unknown 恢复已接入。包级退出条件完成，应用启用与全平台集成另归 15/16 |
-| OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | IN_PROGRESS | 列表/明细 22 项、正文/管理审计 19 项真实 HTTP/Swagger 通过；trace、callers/sources 和审计列表整合待完成 |
+| OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | IN_PROGRESS | 列表/明细 22 项、正文/管理审计 23 项通过，通用审计日期/检索已对齐；trace、callers/sources 尚待完成 |
 | OBS-TP-10 | 聚合/状态/能力 API | 03、08 | READY | 03、08 已完成，可启动聚合与能力接口 |
 | OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | READY | 03、08 已完成；持久事件基础已有，仍需历史查询和 Outbox 消费 |
 | OBS-TP-12 | Webhook/订阅/投递 API | 11 | BACKLOG | 11 尚未完成 |
@@ -112,7 +112,7 @@ implementation-status: in-progress
 | AC-14 | 实时补拉/游标/过滤变化 | 11、13 | NOT_RUN |
 | AC-15 | 数据库/磁盘/采集故障 | 04、08、14 | PARTIAL；存储异常重试、投影失败回滚、坏行与截断诊断通过；自动恢复及完整故障矩阵待验收 |
 | AC-16 | 正文/事件/去重与清理 | 09、11、14 | PARTIAL；正文 API TTL、读取期间到期及保留元数据通过；事件/去重清理和策略联动待验收 |
-| AC-17 | 权限及自身审计 | 03、09、11、12、13 | PARTIAL；三条查询路由的管理 JWT、AND/资产隔离、正文留痕及审计失败关闭通过；其余接口/实时/通用审计列表整合待验收 |
+| AC-17 | 权限及自身审计 | 03、09、11、12、13 | PARTIAL；三条路由权限、正文留痕/失败关闭、按 ID/时间/搜索审计检索通过；其余接口、入口统一审计和实时仍待验收 |
 | AC-18 | 测试/探测/报送不污染统计 | 07、12、15 | NOT_RUN |
 | AC-19 | 无流量心跳与新鲜度 | 10、13 | NOT_RUN |
 | AC-20 | 两方言/两平台/STDIO | 02、06、15、16 | PARTIAL；两方言基础与 PostgreSQL 独立进程、Windows 真实 STDIO 已有证据；Linux/完整交叉矩阵未运行 |
@@ -455,3 +455,13 @@ CallObservabilityStore.readSnapshot 在 SQLite/SQL.js 共用原有串行通道�
 实际验证：API build PASS；13 个 Node 脚本联合 249/249 PASS，0 fail/skip/cancel，新增正文 19 项全部通过。使用真实 Nest/JWT/SQL.js、实际私有文件、真实 audit_logs/User 外键及按 ID 审计查询；覆盖四类编码、标量/空值、残缺/省略、再次脱敏、过期和短时真实跨 TTL、读取期间撤权、同资产 AND、隐藏引用、文件损坏、审计失败、4 路准入和旧 log 调用方式，Swagger 路径/响应/错误模型一致。未运行业务库、部署、全 HTTP 内存/性能或 PostgreSQL/Linux 查询矩阵。
 
 TP-09 仍 IN_PROGRESS，DONE=6、IN_PROGRESS=2、READY=3、BACKLOG=5。下一项先完成通用管理审计检索对齐，再推进 OBS-API-06 trace 和 OBS-API-07~10 callers/sources/标签；随后按依赖进入聚合、事件/推送、治理与应用启用。提交推送结果以 Git 回执为准。
+
+## 28. TP-09 既有管理审计检索对齐（2026-09-09）
+
+d96b9f6 正文读取节点已经提交并推送。继续修正复用时发现的 AuditService.findLogs 旧时间列引用：过滤和排序统一实体的 createdAt，日期使用 TypeORM Between/MoreThanOrEqual/LessThanOrEqual 映射绑定，保留该通用管理查询原有 startDate/endDate 含边界语义；不改变新观测 from/to 的 [from,to) 契约。相同时间以 id DESC 打破排序并列。
+
+关键词查询将 action 与 details 显式 CAST AS TEXT，避免枚举/JSON 直接 LIKE 的方言类型问题；查询值继续参数化，不把用户输入拼接进 SQL。未改变现有管理权限、返回用户/资源范围或新增 Endpoint；未调用或改动历史审计清理方法。
+
+新增四项隔离回归覆盖“实际正文读取产生留痕后在通用列表查到”、双/单侧时间边界与无匹配日期、operation/resource/action 关键词及 SQL 注入字符串、同时间多记录分页。API build PASS，13 脚本联合 253/253 PASS、0 fail/skip/cancel；正文/管理审计脚本现为 23 项。数据库为 SQL.js，PostgreSQL 实际执行、旧管理 HTTP 控制器整体联调和全平台验收仍待后续，不把服务检索通过外推为整套旧 API 已重新发布。
+
+TP-09 已完成列表/明细、分侧正文及本节点管理审计检索，整包仍 IN_PROGRESS，3 条 HTTP VERIFIED/25 条 PLANNED、两类推送 PLANNED；没有业务根模块启用或部署。下一优先项 OBS-API-06 trace，再继续 OBS-API-07~10 callers/sources/标签；完成数仍 6/16。已知其他历史审计统计/清理方法不在本次检索修正范围，后续治理接入前应单独验证，不能据此启用旧清理任务。

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.10.0
+doc-version: 1.11.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.10.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.11.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -578,4 +578,10 @@ OBS-API-03/04 对存在正文元数据的项返回受控 readLink，每次跟随
 
 读取留痕复用管理 audit_logs，resource=observability.payload、action=api_called、details.operation=obsGetInvocationPayload。操作者/时间/内部 requestId/侧/可见调用引用/版本/安全结果可用于复盘；正文不进入审计行。prepared 表示准备返回的内容已通过授权且审计提交，不是客户端收到的证明；HTTP 或 TTL 后续失败不应统计成已送达。进入正文服务后的授权撤销、不可见/不存在、过期、限流和存储失败同样记录；审计提交失败严格不放行内容。
 
-本节点未把未认证/初始守卫拒绝/参数拒绝声称为已产生敏感读取审计，入口统一留痕由 TP-15 整合。旧管理审计通用列表尚有 timestamp/createdAt 字段对齐问题，列入 TP-09 下一节点；本次已验证实际审计写入与按 ID 读取。三条新路由仍未在业务根应用部署启用，PostgreSQL/Linux 查询和整体配额矩阵未验收。
+本节点未把未认证/初始守卫拒绝/参数拒绝声称为已产生敏感读取审计，入口统一留痕由 TP-15 整合。旧管理审计通用列表的 createdAt 日期/排序及枚举/JSON 搜索已在后续四项服务回归中对齐，实际读取留痕可以按 ID、日期和关键词检索；完整旧管理 HTTP 控制器仍待集成验证。三条新路由仍未在业务根应用部署启用，PostgreSQL/Linux 查询和整体配额矩阵未验收。
+
+## 14. 管理审计检索实现补充（2026-09-09）
+
+既有 AuditService.findLogs 已使用实际 createdAt 列过滤/排序，以 id DESC 处理并列时间；通用管理审计 startDate/endDate 继续含边界，新观测 from/to 仍为 [from,to)，两类参数不能混用。action/details 先转换为文本再做参数化 LIKE，支持检索 obsGetInvocationPayload、observability.payload 或 api_called，搜索不会扫描已禁止写入审计的正文。
+
+新增四项检索服务回归通过，正文/管理审计脚本 23 项、联合 253 项及 API 构建全部通过。该补充不新增 Endpoint，不声称 PostgreSQL 实际查询或旧管理控制器完整联调已通过；三条观测查询路由保持 VERIFIED，未部署为 AVAILABLE。历史清理/其他统计方法未在本节点修改或执行。
