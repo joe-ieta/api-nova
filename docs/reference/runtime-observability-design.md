@@ -1,5 +1,5 @@
 ---
-doc-version: 1.19.0
+doc-version: 1.20.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -636,3 +636,11 @@ OBS-API-01 采用实现清单与当前管理身份范围的交集，而不是枚
 字节逐侧累计已知观察，按 spanKind/byteMeasurement/measurementStage 隔离，缺失为 null，下界含部分/缺失覆盖。耗时只采真实已知终态的有限非负 duration；固定 1~60000ms 边界及溢出桶给出分位区间和估计上界，溢出不造有限估计，不平均已有 p95。超安全整数的耗时总和标记不可用，字节则以 BigInt 内部求和后输出安全数或十进制字符串。
 
 24 项组件测试和 358 项联合通过；初次推断终态夹具仅在获批后对齐数据库事实形态，不放松源校验。数据库聚合/桶持久化/事件、公开统计和运行健康尚未接入，不能以纯计算通过替代这些验收。
+
+### 16.10 授权汇总查询接入
+
+OBS-API-11 在 Store.readSnapshot 中先按资产、TTL、snapshot 修订可见区间、时间和 scope 过滤，再最多读 5001 行判定 5000 上限。STDIO 排除也前置，隐藏/不匹配行不能耗尽预算；来源 ID 和资产须同时匹配。字段名来自固定白名单，查询值参数绑定。
+
+queryMode=retained_invocation_snapshot，只表示保留明细计算，不以提交水位冒充桶版本或聚合作业新鲜度。livenessEvaluated=false，覆盖与健康未知，未结束节点没有 live 证明；statistics 只表示汇总，time-series/groups 独立关闭。
+
+20 项真实 HTTP/SQL.js/Swagger、能力 14 项与联合 378 项、API 构建通过。sourceId 本就按 serverType 隔离，初次错误测试获批仅修正预期/注释。TP-10 尚需多桶、持久贡献/迟到更正、依赖/心跳/总览及事件验收。

@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { STATISTICS_SCOPES, STATISTICS_SUMMARY_QUERY_KEYS } from './call-observability-statistics.service';
+import { MAX_METRIC_OBSERVATIONS } from './call-observability-metrics';
 import { User } from '../../database/entities/user.entity';
 import { authorizeObservability, ObservabilityAuthorization, ObservabilityPermission } from './call-observability-access';
 import { ObservabilityApiError, observabilitySuccess } from './call-observability-api.contract';
@@ -39,7 +41,8 @@ export class CallObservabilityCapabilitiesService {
       { name: 'payloadRead', implemented: true, grant: payload },
       { name: 'sourceIpRead', implemented: true, grant: source },
       { name: 'callerProfileUpdate', implemented: true, grant: manage },
-      ...['overview', 'statistics', 'dependencies', 'serverStatus', 'eventHistory', 'webhook',
+      { name: 'statistics', implemented: true, grant: read },
+      ...['overview', 'statisticsTimeSeries', 'statisticsGroups', 'dependencies', 'serverStatus', 'eventHistory', 'webhook',
         'socketPush', 'pipelineStatus', 'policyManagement'].map(name => ({ name, implemented: false })),
     ];
     const features = featureInputs.map(feature => ({
@@ -65,19 +68,20 @@ export class CallObservabilityCapabilitiesService {
     endpoint('OBS-API-08', 'obsGetCaller', 'GET', '/callers/{id}', CALLER_DETAIL_QUERY_KEYS, read);
     endpoint('OBS-API-09', 'obsUpdateCallerLabels', 'PATCH', '/callers/{id}', [], manage, 'all_registered_caller_assets');
     endpoint('OBS-API-10', 'obsListSources', 'GET', '/sources', SOURCE_QUERY_KEYS, read);
+    endpoint('OBS-API-11', 'obsGetStatisticsSummary', 'GET', '/statistics/summary', STATISTICS_SUMMARY_QUERY_KEYS, read);
     const day = 86400000;
     const data: ObservabilityCapabilitiesDto = {
       availabilitySemantics: 'implementation_and_scope_eligibility_not_runtime_health',
       resourceScope: scopeMode(read), schemaVersions: { sourceRecords: 2, http: '1.0' },
       endpoints, features, enabledFeatures: features.filter(feature => feature.state === 'enabled').map(feature => feature.name),
       // Validation primitives and stored events do not make an aggregation or event API available.
-      supportedScopes: [], supportedGroupByCombinations: [], maxBuckets: null,
+      supportedScopes: hasScope(read) ? [...STATISTICS_SCOPES] : [], supportedGroupByCombinations: [], maxBuckets: null,
       errorCategories: ['timeout', 'dns', 'tls', 'connection', 'cancelled', 'response_parse', 'authorization', 'other'],
       errorCategoryMode: 'suggested_values_free_text_filter',
       byteMeasurements: ['observed_body', 'serialized_payload', 'unavailable'],
       maxLimit: 200, defaultLimit: 50, maxQueryRange: 30 * day, defaultQueryWindowMs: 3600000,
       traceMaxNodes: MAX_TRACE_NODES, maxVisitorQueryInvocations: MAX_VISITOR_QUERY_INVOCATIONS,
-      maxQueryCursorLifetimeMs: 900000,
+      maxStatisticsQueryInvocations: MAX_METRIC_OBSERVATIONS, maxQueryCursorLifetimeMs: 900000,
       retentionWindows: { basis: 'storage_defaults_not_coverage_guarantees',
         invocationMetadataDefaultMs: 30 * day, payloadDefaultMs: hasScope(payload) ? 7 * day : null,
         aggregateRetentionMs: null, effectiveHistoryCompleteSince: null },

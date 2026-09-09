@@ -1,5 +1,5 @@
 ---
-doc-version: 1.27.0
+doc-version: 1.28.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -8,7 +8,7 @@ implementation-status: in-progress
 # 可观测性开发执行与任务包完成状态
 
 > Document status: Active execution ledger
-> 当前阶段：OBS-TP-01/02/03/04/05/08/09 完成；TP-06/10 进行中。能力查询 fb295ff 已推送；统计计算内核 24 项专项、358 项联合通过，见第 35 节。统计公开接口仍待接入。
+> 当前阶段：OBS-TP-01/02/03/04/05/08/09 完成；TP-06/10 进行中。统计内核 46d50b9 已推送；汇总 20 项、能力 14 项与 378 项联合回归通过，见第 36 节。
 > 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
 
 ## 1. 当前快照
@@ -23,10 +23,10 @@ implementation-status: in-progress
 | IN_PROGRESS / REVIEW / BLOCKED | 2 / 0 / 0 |
 | READY / BACKLOG | 2 / 5 |
 | 代码验收完成率 | 7/16；TP-09 查询与审计包已收口，不代表业务根应用启用、推送或全平台验收 |
-| 新 HTTP Endpoint | 28 个；01、03~10 共 9 个 VERIFIED，其余 19 个 PLANNED；均未部署为 AVAILABLE |
+| 新 HTTP Endpoint | 28 个；01、03~11 共 10 个 VERIFIED，其余 18 个 PLANNED；均未部署为 AVAILABLE |
 | 新推送契约 | 2 类，全部 PLANNED |
 | 本轮数据库实际操作 | 隔离 SQL.js 内存库、独有临时目录及本机随机端口；未连接或清理业务数据库 |
-| 本轮新增验证 | 统计内核 API build PASS；夹具修正后 24/24 专项、17 脚本联合 358/358 PASS；0 fail/cancelled/skipped |
+| 本轮新增验证 | 汇总节点 API build PASS；汇总 20/20、能力 14/14、18 脚本联合 378/378 PASS；0 fail/cancelled/skipped |
 
 文档已确认与基础包完成都不代表功能已上线。TP-02 的存储、GC 与 PostgreSQL 多进程针对性验证已完成；Linux 矩阵、全系统 SQL.js 并发集成和新接口端到端验收仍未完成。
 
@@ -68,7 +68,7 @@ implementation-status: in-progress
 | OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 04 重新验收，恢复就绪；test/probe/internal 实际接入尚未实施 |
 | OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | DONE | 采集/身份/重启/源退出共 45 项专项通过；真实写入进程 UUID/PID、已关闭残片隔离和立即 unknown 恢复已接入。包级退出条件完成，应用启用与全平台集成另归 15/16 |
 | OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | DONE | 03~10 八接口 VERIFIED；调用/trace 38、正文/审计 23、访客 24、标签/条件请求 27 项通过；联合 320 项和 API 构建通过 |
-| OBS-TP-10 | 聚合/状态/能力 API | 03、08 | IN_PROGRESS | OBS-API-01 VERIFIED；统计纯计算内核 24 项通过；统计数据库查询/公开路由、时间桶、总览、依赖与状态待实施 |
+| OBS-TP-10 | 聚合/状态/能力 API | 03、08 | IN_PROGRESS | OBS-API-01/11 VERIFIED；授权修订快照汇总和 5000 条边界已验收；时间桶/排行、持久聚合、总览、依赖和状态待实施 |
 | OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | READY | 03、08 已完成；持久事件基础已有，仍需历史查询和 Outbox 消费 |
 | OBS-TP-12 | Webhook/订阅/投递 API | 11 | BACKLOG | 11 尚未完成 |
 | OBS-TP-13 | Socket.IO/快照与恢复 | 10、11 | BACKLOG | 10、11 尚未完成 |
@@ -82,7 +82,8 @@ implementation-status: in-progress
 | --- | --- | --- | --- |
 | OBS-API-03~10：调用/正文/trace/调用者/来源 | 8 | 09 | VERIFIED；未部署 |
 | OBS-API-01：能力 | 1 | 10 | VERIFIED；未部署 |
-| OBS-API-02/11~15：总览/聚合/依赖/状态 | 6 | 10 | PLANNED |
+| OBS-API-11：统计汇总 | 1 | 10 | VERIFIED；未部署 |
+| OBS-API-02/12~15：总览/时间桶/排行/依赖/状态 | 5 | 10 | PLANNED |
 | OBS-API-16：事件补拉 | 1 | 11 | PLANNED |
 | OBS-API-17~25：订阅/投递/重试 | 9 | 12 | PLANNED |
 | OBS-API-26~28：健康/策略 | 3 | 14 | PLANNED |
@@ -107,7 +108,7 @@ implementation-status: in-progress
 | AC-08 | 正文/脱敏/类型/上限/字节 | 04、05、06、09 | PARTIAL；Gateway 包级 PASS，剩余集成/MCP 待验收 |
 | AC-09 | 半行/重复导入/重启 | 02、08 | PARTIAL；Windows/持久 SQL.js 独立采集进程重启、半行、重复、改名/轮转通过；完整业务管理应用及 Linux/PostgreSQL 交叉链路待验收 |
 | AC-10 | 未终态/强杀/迟到更正 | 08、10 | PARTIAL；独立失联/迟到更正、采集进程强杀重启、真实写入进程强杀后的残片隔离和立即 unknown 通过；具体 Gateway/MCP 生产进程管理全链路及断电未验收 |
-| AC-11 | 多服务器/多桶/去重与比率 | 10 | PARTIAL；纯计算 scope/修订去重/比率/字节/直方图通过；数据库、公开统计和多桶仍待验收 |
+| AC-11 | 多服务器/多桶/去重与比率 | 10 | PARTIAL；纯计算及 SQL.js/HTTP 授权汇总、去重/比率/字节/直方图通过；多桶、长期聚合及完整方言矩阵待验收 |
 | AC-12 | Webhook 超时/ACK 丢失/重复 | 12 | NOT_RUN |
 | AC-13 | 重启/暂停/死信/人工重试 | 11、12 | NOT_RUN |
 | AC-14 | 实时补拉/游标/过滤变化 | 11、13 | NOT_RUN |
@@ -598,3 +599,21 @@ TP-10=IN_PROGRESS，DONE=7、IN_PROGRESS=2（06/10）、READY=2（07/11）、BAC
 范围最多 5000 输入观察；超限明确失败，不能视为吞吐验收。completedAt 选择时 selectedInvocations 有值而 totalStarted=null，避免把完成窗口偷换为开始总量。历史覆盖、健康继续未知；内核不是数据库权限边界或聚合作业。九条 HTTP VERIFIED、十九条 PLANNED，任务状态保持 7 DONE/2 IN_PROGRESS/2 READY/5 BACKLOG。
 
 用户现要求提交后继续。下一节点接入 OBS-API-11 汇总的授权只读数据库查询、显式 DTO/Swagger、能力清单与真实 HTTP 回归；时间桶/排行、依赖/状态、事件与治理继续按原计划推进。不将此纯计算验收外推为实际 PostgreSQL 查询、Linux、负载或根应用部署。
+
+## 36. OBS-API-11 汇总接口与来源筛选验收（2026-09-09）
+
+统计内核 46d50b9 已普通提交并推送 main。新增 statistics Service/Controller/DTO 与 20 项实际 Nest/SQL.js/Swagger 专项，在 opt-in 模块注册。capabilities 同步汇总路由、五类 scope 和 5000 条限制；statistics 仅指 summary，statisticsTimeSeries/statisticsGroups 仍 not_implemented。
+
+同一只读事务先应用资产范围、TTL、修订可见区间、scope/origin/时间及等值筛选，再最多读取 5001 条判定上限；越限 413，不截断。HTTP ingress 在数据库内排除 STDIO，隐藏/不匹配行不消耗可见预算。来源必须同资产关联，仅选 ID/overflow 判定列，不返回关联标识、IP、正文或凭证。
+
+初次 API build PASS，能力 14/14、汇总 19/20。唯一失败是新测试误认为 Gateway/MCP 在同资产/IP/日期下共用 sourceId；现有 HMAC 包含 serverType，两个源本应分开。用户批准后仅修改断言与注释，不改生产身份或查询逻辑。
+
+| 已执行 | 结果 |
+| --- | --- |
+| 汇总节点 API 构建 | PASS；测试修正后生产源码未改，未重复构建 |
+| 汇总/能力专项 | 20/20 + 14/14 PASS |
+| 18 脚本联合回归 | 378/378 PASS；0 fail/cancelled/skipped |
+
+queryMode=retained_invocation_snapshot，不冒充长期聚合；completedAt 下 totalStarted=null。livenessEvaluated=false，未读取心跳，不把未结束调用当作已确认存活。覆盖、lag 与健康仍为 null/partial/unknown；不写 bucket/contribution/event 或推进水位。
+
+01、03~11 共十条 HTTP VERIFIED，十八条 PLANNED；根应用未启用，两类推送仍 PLANNED，TP-10 未整包完成。下一节点为时间序列/排行及持久桶、迟到更正，随后依赖、状态、总览和 TP-11 事件/Outbox。证据仅 Windows/SQL.js/回环 HTTP，不外推 PostgreSQL 实际查询、Linux、负载、业务库或部署。提交推送以 Git 回执为准。

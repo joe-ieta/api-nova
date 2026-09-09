@@ -53,6 +53,7 @@ export class ObservabilityCapabilitiesDto {
   @ApiProperty({ type: Number, nullable: true }) maxBuckets: number | null;
   @ApiProperty() traceMaxNodes: number;
   @ApiProperty() maxVisitorQueryInvocations: number;
+  @ApiProperty() maxStatisticsQueryInvocations: number;
   @ApiProperty() maxQueryCursorLifetimeMs: number;
   @ApiProperty({ type: ObservabilityRetentionCapabilitiesDto }) retentionWindows: ObservabilityRetentionCapabilitiesDto;
   @ApiProperty({ type: ObservabilityPayloadLimitsDto, nullable: true }) payloadLimits: ObservabilityPayloadLimitsDto | null;

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.13.0
+doc-version: 1.14.0
 doc-status: active
 doc-updated: 2026-09-09
 implementation-status: in-progress
@@ -224,3 +224,9 @@ PATCH 通过现有 Store 管理事务和 AuditService.log(manager) 原子提交�
 新增统计组件不执行数据库或文件 I/O，不改变实体、初始化结构、聚合桶/贡献表、提交序号、事件或业务根模块。输入数据库 revision 明确区别于源 recordVersion，调用方必须预先裁剪权限、TTL 和快照；此契约留给后续汇总仓储实现。
 
 源 finished 必须具有 completedAt 的规则保持不变。专项夹具从合法 started 源记录构造数据库 reconciled/unknown 空完成时间投影，而非绕过生产源校验。内核 API 构建、24 项专项和 358 项联合通过；没有额外数据库、清理、迁移或部署操作。
+
+### 12.10 汇总只读仓储
+
+汇总使用现有 runtime_invocation_revisions 和同资产 runtime_access_sources 左关联，以数据库 recordVersion 作为计算输入。资产/TTL/时间/scope/快照均在 limit 前筛选，JSON 文本表达式只使用固定字段名和绑定值。当前只实际运行 Windows/SQL.js，不据此宣称 PostgreSQL 分支通过。
+
+不读正文、不改调用/事件/计数器、不写 buckets/contributions，不变更初始化结构或根应用。20 项汇总、14 项能力、联合 378 项与 API 构建通过；真实 Store.reconcile 及晚到终态仅计一次最新数据库修订，超限和异常安全失败，不伪造历史覆盖。

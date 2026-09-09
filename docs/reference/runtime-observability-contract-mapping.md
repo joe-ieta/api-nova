@@ -1,5 +1,5 @@
 ---
-doc-version: 1.18.0
+doc-version: 1.19.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -150,3 +150,11 @@ call-observability-capabilities.service/controller/dto.ts 对应 OBS-API-01/obsG
 call-observability-metrics.ts 提供 calculateObservabilityMetrics、MAX_METRIC_OBSERVATIONS 与固定耗时桶边界，复用 parser 的 invocationMatchesScope 和 API 严格 query 解析；只处理调用方已授权/保留/快照可见的观察，不承担仓储或公开路由权限。尚无新 Controller/模块注册，statistics 能力保持未实现。
 
 test-call-observability-metrics.cjs 共 24 项。初次三项把 reconciled 数据库投影误当源记录校验，获批仅修正夹具后 24/24 与 358/358 联合通过，内核加入后的 API 构建通过。生产源完成时间校验、Store 推断终态及计算源码未随夹具修正改动。下一映射为 OBS-API-11 数据库汇总服务、DTO/Controller 与能力清单。
+
+## TP-10 统计汇总路由映射（2026-09-09）
+
+call-observability-statistics.service/controller/dto.ts 对应 OBS-API-11/obsGetStatisticsSummary，注册于 opt-in 模块。资产/TTL/修订快照、时间和 scope 过滤先于 5000 项预算；JSON 字段名固定，值参数绑定。source 同资产左关联只选 ID/ipSource，不返回标识、IP 或正文。
+
+capabilities 同步 STATISTICS_SCOPES/STATISTICS_SUMMARY_QUERY_KEYS 和 maxStatisticsQueryInvocations；statistics 仅代表 summary，statisticsTimeSeries/Groups 仍关闭。34 项专项、378 项联合和 API 构建通过；初次来源测试忽略 serverType，获批仅改断言/注释，生产身份未变。
+
+十条 HTTP VERIFIED、十八条 PLANNED。后续为时间序列/分组、持久桶与事件/状态；保留明细汇总不等于长期历史、进程存活或部署。
