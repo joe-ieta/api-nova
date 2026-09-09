@@ -1,5 +1,5 @@
 ---
-doc-version: 1.7.2
+doc-version: 1.8.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -92,3 +92,5 @@ packages/api-nova-api/src/modules/call-observability/call-observability.collecto
 TP-08 第二节点：call-observability-callers.projector.ts 通过唯一 ingest/reconcile 的 ProjectionHook 写入身份/来源关联；call-observability.worker.ts 只做受控目录发现、周期调度和恢复，不重试业务请求、不删除源文件。新增 test-call-observability-worker.cjs 15 项通过，API build 与联合 133 项通过；实际业务应用尚未启用此模块。
 
 TP-08 持久进程节点：test-call-observability-restart.cjs 新增 3 项独立 Node/持久 SQL.js 重开验证；与现有五脚本联合 136 项全部通过。检查点、数据集边界和正文引用跨进程保留；已保存证据后强制终止采集进程不会把重放计作新调用。生产者退出/关闭残片和正式应用启用不在这 3 项证据范围内。
+
+TP-08 已收口：parser/audit/runtime-audit-source.ts 发布真实写入进程标识；API call-observability-source-lifecycle.service.ts 观察并持久化退出证明/文件最终状态；collector/store/worker 接入来源绑定、关闭残片与立即 unknown。新增 test-call-observability-source-lifecycle.cjs 13 项全部通过，跨模块 208 项、parser 86 项及三包构建/真实烟测通过。根应用启用和公开查询/推送仍按后续任务执行。

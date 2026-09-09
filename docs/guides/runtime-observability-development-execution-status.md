@@ -1,5 +1,5 @@
 ---
-doc-version: 1.16.0
+doc-version: 1.17.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -8,7 +8,7 @@ implementation-status: in-progress
 # 可观测性开发执行与任务包完成状态
 
 > Document status: Active execution ledger
-> 当前阶段：OBS-TP-01/02/03/04/05 完成；TP-06、TP-08 进行中。17e9733、ac56c0b 已推送；持久 SQL.js/独立采集进程重启新增 3 项及联合回归 136 项通过，见第 24 节。
+> 当前阶段：OBS-TP-01/02/03/04/05/08 完成；TP-06 进行中。9319dbf 已推送；TP-08 源退出与残片节点新增 13 项、跨模块 208 项及 parser 86 项、三包构建和真实 MCP 烟测通过，见第 25 节。
 > 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
 
 ## 1. 当前快照
@@ -19,14 +19,14 @@ implementation-status: in-progress
 | OBS-GATE-01 | PASSED；用户要求按计划持续推进 |
 | 全新版本决策 | 统一当前格式、接口和数据库初始结构，不增加历史兼容层 |
 | 实现任务总数 | 16 |
-| DONE | 5 |
-| IN_PROGRESS / REVIEW / BLOCKED | 2 / 0 / 0 |
-| READY / BACKLOG | 1 / 8 |
-| 代码验收完成率 | 5/16；TP-04 重新验收，不代表 MCP 整包或全链路完成 |
+| DONE | 6 |
+| IN_PROGRESS / REVIEW / BLOCKED | 1 / 0 / 0 |
+| READY / BACKLOG | 4 / 5 |
+| 代码验收完成率 | 6/16；TP-08 包级收口，不代表公开 API、MCP 整包或全链路完成 |
 | 新 HTTP Endpoint | 28 个，全部 PLANNED |
 | 新推送契约 | 2 类，全部 PLANNED |
 | 本轮数据库实际操作 | 隔离 SQL.js 内存库、独有临时目录及本机随机端口；未连接或清理业务数据库 |
-| 本轮新增验证 | 持久进程重启 3 项 + worker/调用者 15 项 + 采集 14 项 + 存储/GC 48 项 + 权限基础 56 项 = 136/136 PASS；前节点 API build PASS，本节点仅加测试/文档未重复构建 |
+| 本轮新增验证 | 源生命周期新增 13 项；Node 联合 208/208、parser 86/86、parser/Server/API 构建及真实 MCP 烟测全部 PASS |
 
 文档已确认与基础包完成都不代表功能已上线。TP-02 的存储、GC 与 PostgreSQL 多进程针对性验证已完成；Linux 矩阵、全系统 SQL.js 并发集成和新接口端到端验收仍未完成。
 
@@ -66,10 +66,10 @@ implementation-status: in-progress
 | OBS-TP-05 | Gateway 接入 | 04 | DONE | 入口前置、独立流结束、内部请求 ID、上游适配器/尝试编号、可信身份及取消接入完成；21 项真实回环 HTTP 专项与 104 项回归、API 构建通过；正式应用/监听器矩阵归 15/16 |
 | OBS-TP-06 | MCP 接入 | 04 | IN_PROGRESS | HTTP/物理上游基线已验收；真实 STDIO 8 项含慢读背压均通过；stdin EOF、stdout 错误/断管及剩余传输矩阵尚未验收 |
 | OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 04 重新验收，恢复就绪；test/probe/internal 实际接入尚未实施 |
-| OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | IN_PROGRESS | 单文件采集、调用者/来源归并、目录调度、unknown 更正及持久库/独立采集进程重启共 32 项专项通过；关闭源残片/生产者退出证据仍待对接，应用集成另归 15 |
-| OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | BACKLOG | 03 已完成，等待 08 |
-| OBS-TP-10 | 聚合/状态/能力 API | 03、08 | BACKLOG | 03 已完成，等待 08 |
-| OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | BACKLOG | 03 已完成，等待 08；事件存储字段不等于分发已实现 |
+| OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | DONE | 采集/身份/重启/源退出共 45 项专项通过；真实写入进程 UUID/PID、已关闭残片隔离和立即 unknown 恢复已接入。包级退出条件完成，应用启用与全平台集成另归 15/16 |
+| OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | READY | 03、08 已完成，下一优先节点为调用列表/详情 |
+| OBS-TP-10 | 聚合/状态/能力 API | 03、08 | READY | 03、08 已完成，可启动聚合与能力接口 |
+| OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | READY | 03、08 已完成；持久事件基础已有，仍需历史查询和 Outbox 消费 |
 | OBS-TP-12 | Webhook/订阅/投递 API | 11 | BACKLOG | 11 尚未完成 |
 | OBS-TP-13 | Socket.IO/快照与恢复 | 10、11 | BACKLOG | 10、11 尚未完成 |
 | OBS-TP-14 | 配额/保留/策略/健康 | 09、10、11、12 | BACKLOG | 前置查询/投递能力尚未完成 |
@@ -105,7 +105,7 @@ implementation-status: in-progress
 | AC-07 | 伪造代理 Header/Key 与高基数 | 04、08 | PARTIAL；忽略未认证主体/凭证、不信任伪造转发来源、HMAC 与有界 overflow 通过；共享可信代理规则端到端仍待验收 |
 | AC-08 | 正文/脱敏/类型/上限/字节 | 04、05、06、09 | PARTIAL；Gateway 包级 PASS，剩余集成/MCP 待验收 |
 | AC-09 | 半行/重复导入/重启 | 02、08 | PARTIAL；Windows/持久 SQL.js 独立采集进程重启、半行、重复、改名/轮转通过；完整业务管理应用及 Linux/PostgreSQL 交叉链路待验收 |
-| AC-10 | 未终态/强杀/迟到更正 | 08、10 | PARTIAL；独立失联 unknown/半行抑制/迟到更正、已刷出证据后的采集进程强杀重启通过；生产者强杀/关闭残片与断电场景未验收 |
+| AC-10 | 未终态/强杀/迟到更正 | 08、10 | PARTIAL；独立失联/迟到更正、采集进程强杀重启、真实写入进程强杀后的残片隔离和立即 unknown 通过；具体 Gateway/MCP 生产进程管理全链路及断电未验收 |
 | AC-11 | 多服务器/多桶/去重与比率 | 10 | NOT_RUN |
 | AC-12 | Webhook 超时/ACK 丢失/重复 | 12 | NOT_RUN |
 | AC-13 | 重启/暂停/死信/人工重试 | 11、12 | NOT_RUN |
@@ -409,3 +409,17 @@ CallObservabilityWorker 有界发现 v2 文件，默认每轮最多 32 目录项
 实际命令：node --test --test-reporter=spec 的 restart/worker/collector/storage/GC/API-foundation 六脚本，136/136 PASS、0 fail、0 skip。新增 3 项真实进程用例；本节点不改生产代码，因此沿用前节点 API 构建结果，不登记新的构建执行。
 
 TP-08 保持 IN_PROGRESS：下一个明确收口项是关闭源文件残片与生产者退出证据对接，不能仅凭读取到 EOF 就认定进程已退出并丢弃残片。随后按退出条件评估 TP-09/10/11 就绪；TP-06 EOF/断管、TP-07 内部来源、全链路应用启用及 Linux/PostgreSQL 完整矩阵仍按原计划推进。
+
+## 25. TP-08 源生命周期与包级收口（2026-09-09）
+
+实际写入进程在首条 v2 源日志前发布 source-v2-UUID.json，包含当前格式、UUID、真实 process.pid 和启动时间，不含调用者或凭证。通过私有临时文件、sync 和不覆盖 link 发布；失败增加 sourceManifestFailures，但不阻止调用日志和业务响应。没有依赖 Windows shell 包装进程退出，也没有改变现有进程启动方式。
+
+采集端有界读取并校验标识，仅 process.kill(pid,0) 返回 ESRCH 才持久化 UUID 绑定的退出证明。PID 存在只说明该 PID 当前可见，可能已复用，不据此确认原进程存活身份；EPERM/不支持/缺失/损坏标识均不确认关闭。这里信任受部署 ACL 保护的本机源目录，不提供远端证明或对任意进程的控制接口。
+
+检查点记录单一来源绑定，混合来源禁止以一个标识关闭整个文件；已观察文件改名继续使用其绑定。确认关闭后保存最终文件身份、大小及尾摘要；后续追加/边界变化显式拒绝。残片仅保存 hash/reason，quarantine、缺口字节计数与检查点同事务，失败保留原断点重试，不删除原文件、不伪造调用。
+
+完整无未处理积压扫描可直接按持久退出证明将未完成调用记为 unknown/process_exit，无需人为推进 45 秒；completedAt/durationMs 为 null，sourceExitedAt 单独记录。尚无退出证明的流量继续使用保守的新鲜度阈值，真实迟到终态仍可更正同一调用。
+
+实际验证：parser 五套 86/86 PASS；parser/Server/API build 全部 PASS；11 个 Node 脚本联合 208/208 PASS（源生命周期新增 13 项）；真实 Streamable/SSE 烟测 RUNTIME_SECURITY_AUDIT_SMOKE_OK。新专项真实 fork 写入进程，注入末尾残片后 SIGKILL；还覆盖首行残片、活跃进程 EOF、改名、丢失/损坏标识、无法探测、发布失败放行、封存文件变化、混合来源、事务重试和真实迟到终态。非确定性 PID 回收/实际 EPERM 使用保守分支夹具，不虚称 OS 强制复用已测试。
+
+按 TP-08 的 AC-06/07/09/10 核心退出条件登记 DONE。当前 DONE=6、IN_PROGRESS=1、READY=4、BACKLOG=5；TP-09/10/11 已就绪。运行模块仍未在业务应用启用，新 Endpoint/推送全部 PLANNED；Linux、PostgreSQL 新 worker 完整矩阵、源标识/封存元数据保留治理及机器断电验证分别归后续集成、治理和总体验收，不扩大本节点通过范围。

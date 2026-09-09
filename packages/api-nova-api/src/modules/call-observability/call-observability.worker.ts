@@ -1,4 +1,4 @@
-import { Injectable, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnApplicationBootstrap, OnModuleDestroy, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { promises as fs } from 'fs';
 import type { Dir } from 'fs';
@@ -10,6 +10,8 @@ import { CallObservabilityCollector, CollectorLimits, isCallSourceFile } from '.
 import { CallObservabilityCallersProjector } from './call-observability-callers.projector';
 import { CallObservabilityStore } from './call-observability.store';
 import { ObservabilityStorageError } from './call-observability-storage';
+
+import { CallObservabilitySourceLifecycle, SOURCE_EXIT_PREFIX } from './call-observability-source-lifecycle.service';
 
 export const COLLECTOR_WORKER_ID = 'call-observability:collector-worker';
 interface ScanCycle {
@@ -47,6 +49,7 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
     private readonly callers: CallObservabilityCallersProjector,
     private readonly store: CallObservabilityStore,
     private readonly config: ConfigService,
+    @Optional() private readonly sourceLifecycle?: CallObservabilitySourceLifecycle,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -152,7 +155,8 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
           const code = error instanceof ObservabilityStorageError ? error.code :
             error?.code === 'ENOENT' ? 'SOURCE_FILE_MISSING' : '';
           if (!['SOURCE_FILE_MISSING', 'SOURCE_FILE_TRUNCATED', 'SOURCE_BOUNDARY_CHANGED',
-            'SOURCE_FILE_CHANGED', 'UNSAFE_SOURCE_FILE', 'UNSUPPORTED_SOURCE_IDENTITY'].includes(code)) {
+            'SOURCE_FILE_CHANGED', 'UNSAFE_SOURCE_FILE', 'UNSUPPORTED_SOURCE_IDENTITY',
+            'SOURCE_SEALED_FILE_CHANGED', 'SOURCE_EXIT_PROOF_CONFLICT'].includes(code)) {
             throw error; // Retain pendingFile; retry it before discovering later files.
           }
           report.scan.errors[code] = (report.scan.errors[code] || 0) + 1;
@@ -180,16 +184,24 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
   private async recover(scanStartedAt: string): Promise<number> {
     // Conservative independent observation: never infer while known file backlog/partial evidence exists.
     const observedBefore = new Date(Date.parse(scanStartedAt) - 45000).toISOString();
-    const candidates = await this.store.transaction(tx => tx.manager.getRepository(RuntimeInvocationEntity)
-      .createQueryBuilder('invocation').where('invocation.phase <> :phase', { phase: 'finished' })
-      .andWhere('invocation.ingestedAt <= :cutoff', { cutoff: observedBefore })
-      .orderBy('invocation.ingestedAt', 'ASC').addOrderBy('invocation.invocationId', 'ASC')
-      .take(128).getMany());
+    const snapshot = await this.store.transaction(async tx => {
+      const query = tx.manager.getRepository(RuntimeInvocationEntity).createQueryBuilder('invocation')
+        .where('invocation.phase <> :phase', { phase: 'finished' });
+      if (this.sourceLifecycle) {
+        query.leftJoin(RuntimePipelineStateEntity, 'closed',
+          'closed.id = :prefix || invocation.sourceInstanceId', { prefix: SOURCE_EXIT_PREFIX })
+          .andWhere('(invocation.ingestedAt <= :cutoff OR closed.id IS NOT NULL)', { cutoff: observedBefore });
+      } else query.andWhere('invocation.ingestedAt <= :cutoff', { cutoff: observedBefore });
+      return { observedBefore: tx.now, candidates: await query.orderBy('invocation.ingestedAt', 'ASC')
+        .addOrderBy('invocation.invocationId', 'ASC').take(128).getMany() };
+    });
     const dataset = await this.collector.initialize();
     let recovered = 0;
-    for (const row of candidates) {
+    for (const row of snapshot.candidates) {
+      const sourceExitProofId = await this.sourceLifecycle?.persistedProofId(row.sourceInstanceId);
       const result = await this.store.reconcile(row.invocationId, row.recordVersion, {
-        reason: 'progress_timeout', observedBefore,
+        reason: sourceExitProofId ? 'process_exit' : 'progress_timeout', sourceExitProofId,
+        observedBefore: sourceExitProofId ? snapshot.observedBefore : observedBefore,
         suppressEvent: Date.parse(row.startedAt) < Date.parse(dataset.eventLiveSince),
       }, this.callers.project);
       recovered += Number(result.status === 'updated');

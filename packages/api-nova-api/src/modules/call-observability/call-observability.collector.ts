@@ -1,10 +1,10 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, Optional } from '@nestjs/common';
 import { constants, promises as fs } from 'fs';
 import type { FileHandle } from 'fs/promises';
 import { join, resolve } from 'path';
 import { createHash, Hash } from 'crypto';
 import { TextDecoder } from 'util';
-import { auditDirectory, InvalidRuntimeAuditRecord } from 'api-nova-parser';
+import { auditDirectory, InvalidRuntimeAuditRecord, isRuntimeAuditSourceId } from 'api-nova-parser';
 import {
   RuntimeIngestCheckpointEntity, RuntimePipelineStateEntity,
 } from '../../database/entities/runtime-call-observability.entity';
@@ -12,6 +12,8 @@ import { CallObservabilityStore, IngestContext, ProjectionHook } from './call-ob
 import {
   canonicalJson, contentHash, ObservabilityStorageError, publicSequence, SerialStorageLane,
 } from './call-observability-storage';
+
+import { CallObservabilitySourceLifecycle, SOURCE_FILE_SEAL_PREFIX } from './call-observability-source-lifecycle.service';
 
 export const COLLECTOR_DATASET_ID = 'call-observability:dataset';
 export const COLLECTOR_STATUS_ID = 'call-observability:collector';
@@ -35,6 +37,10 @@ export interface CollectionReport {
   pendingFileBytes: number;
   hasMore: boolean;
   snapshotSeq: string;
+  sourceState: 'active' | 'closed' | 'unknown';
+  sourceStateReason: string | null;
+  closedPartialRecords: number;
+  closedPartialBytes: number;
 }
 interface ReadSession {
   id: string;
@@ -60,7 +66,8 @@ export class CallObservabilityCollector implements OnModuleDestroy {
   private dataset?: Promise<{ historyCompleteSince: string; eventLiveSince: string }>;
   private lastError: string | null = null;
 
-  constructor(private readonly store: CallObservabilityStore) {}
+  constructor(private readonly store: CallObservabilityStore,
+    @Optional() private readonly sourceLifecycle?: CallObservabilitySourceLifecycle) {}
 
   get volatileError(): string | null { return this.lastError; }
 
@@ -107,7 +114,14 @@ export class CallObservabilityCollector implements OnModuleDestroy {
           checkpoint: await tx.manager.getRepository(RuntimeIngestCheckpointEntity).findOneBy({ id }),
           boundary: await tx.manager.getRepository(RuntimePipelineStateEntity)
             .findOneBy({ id: checkpointBoundaryId(id) }),
+          seal: await tx.manager.getRepository(RuntimePipelineStateEntity)
+            .findOneBy({ id: SOURCE_FILE_SEAL_PREFIX + id }),
         }));
+        if (state.seal && (state.seal.value.fileIdentity !== identity ||
+          state.seal.value.finalSize !== String(opened.size) ||
+          state.seal.value.boundaryHash !== contentHash(await this.tail(handle, opened.size)))) {
+          throw new ObservabilityStorageError('SOURCE_SEALED_FILE_CHANGED');
+        }
         const offset = Number(state.checkpoint?.byteOffset || '0');
         if (!Number.isSafeInteger(offset) || opened.size < offset) {
           throw new ObservabilityStorageError('SOURCE_FILE_TRUNCATED');
@@ -130,6 +144,7 @@ export class CallObservabilityCollector implements OnModuleDestroy {
           checkpointId: id, byteOffset: String(offset), bytesRead: 0, processedRecords: 0,
           quarantinedRecords: 0, duplicateRecords: 0, partialBytes: 0,
           pendingFileBytes: opened.size - offset, hasMore: false, snapshotSeq: await this.store.watermark(),
+          sourceState: 'unknown', sourceStateReason: 'not_observed', closedPartialRecords: 0, closedPartialBytes: 0,
         };
         // Pin this pass to the opened size. New appends belong to the next pass.
         while (session.readOffset < opened.size && report.bytesRead < maximumRead &&
@@ -196,10 +211,48 @@ export class CallObservabilityCollector implements OnModuleDestroy {
             report.snapshotSeq = result.snapshotSeq;
           }
         }
+        if (this.sourceLifecycle && session.readOffset === opened.size) {
+          const binding = await this.store.transaction(tx => tx.manager.getRepository(RuntimePipelineStateEntity)
+            .findOneBy({ id: checkpointBoundaryId(id) }));
+          const suffixId = fileName.slice(-42, -6);
+          const sourceId = binding?.value?.mixedSources ? null : binding?.value?.sourceInstanceId ||
+            (isRuntimeAuditSourceId(suffixId) ? suffixId : null);
+          const observation = await this.sourceLifecycle.observe(sourceId);
+          report.sourceState = observation.state;
+          report.sourceStateReason = binding?.value?.mixedSources ? 'mixed_source_file' : observation.reason;
+          if (observation.state === 'closed') {
+            const end = await handle.stat();
+            if (end.size < opened.size) throw new ObservabilityStorageError('SOURCE_FILE_TRUNCATED');
+            if (end.size === opened.size) {
+              if (!session.tail.equals(await this.tail(handle, session.readOffset))) {
+                throw new ObservabilityStorageError('SOURCE_BOUNDARY_CHANGED');
+              }
+              await this.sourceLifecycle.sealFile(id, identity, end.size, contentHash(session.tail), observation);
+              if (session.lineBytes > 0 && report.processedRecords < maximumRecords) {
+                const result = await this.store.rejectRecord({ sourceInstanceId: sourceId || undefined, checkpoint: {
+                  id, fileName, fileIdentity: identity, previousOffset: String(session.committedOffset),
+                  byteOffset: String(session.readOffset), boundaryHash: contentHash(session.tail),
+                } }, session.hash.digest('hex'), 'SOURCE_CLOSED_PARTIAL_LINE');
+                report.processedRecords++;
+                report.quarantinedRecords++;
+                report.closedPartialRecords = 1;
+                report.closedPartialBytes = session.lineBytes;
+                report.snapshotSeq = result.snapshotSeq;
+                session.committedOffset = session.readOffset;
+                session.lineBytes = 0;
+                session.chunks = [];
+                session.hash = createHash('sha256');
+              }
+            } else {
+              // The producer appended before its exit was observed. Read that evidence next.
+              report.hasMore = true;
+            }
+          }
+        }
         report.byteOffset = String(session.committedOffset);
         report.partialBytes = session.lineBytes;
         report.pendingFileBytes = Math.max(0, opened.size - session.committedOffset);
-        report.hasMore = session.readOffset < opened.size;
+        report.hasMore = report.hasMore || session.readOffset < opened.size;
         // EOF fragments are uncommitted and reread when a producer appends their remainder.
         if (!report.hasMore) this.session = undefined;
         await this.store.transaction(async tx => {

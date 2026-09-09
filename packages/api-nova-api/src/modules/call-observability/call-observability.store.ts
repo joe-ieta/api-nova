@@ -195,7 +195,7 @@ export class CallObservabilityStore {
           const repository = tx.manager.getRepository(RuntimeInvocationEntity);
           const previous = await repository.findOne({ where: { invocationId: record.invocationId } });
           if (previousReceipt) {
-            await this.checkpoint(tx, context.checkpoint, source.sourceSequence);
+            await this.checkpoint(tx, context.checkpoint, source.sourceSequence, source.sourceInstanceId);
             return this.result(tx, 'duplicate', previous);
           }
           if (previous && this.identityConflict(previous, record)) {
@@ -215,7 +215,7 @@ export class CallObservabilityStore {
             recordHash, invocationId: record.invocationId, createdAt: tx.now, expiresAt: expiresAfter(tx.now, 32),
           });
           if (previous && record.recordVersion <= previous.sourceRecordVersion) {
-            await this.checkpoint(tx, context.checkpoint, source.sourceSequence);
+            await this.checkpoint(tx, context.checkpoint, source.sourceSequence, source.sourceInstanceId);
             return this.result(tx, recordHash === previous.recordHash ? 'duplicate' : 'stale', previous);
           }
           if (Date.parse(expiresAfter(retainFrom, 30)) <= Date.parse(tx.now)) {
@@ -226,7 +226,7 @@ export class CallObservabilityStore {
           if (revision > 2147483647) throw new ObservabilityStorageError('RECORD_VERSION_EXHAUSTED');
           // Recover inferred unknown state only from an observed terminal record.
           if (previous?.record.completionSource === 'reconciled' && record.phase !== 'finished') {
-            await this.checkpoint(tx, context.checkpoint, source.sourceSequence);
+            await this.checkpoint(tx, context.checkpoint, source.sourceSequence, source.sourceInstanceId);
             return this.result(tx, 'stale', previous);
           }
           await this.persistPayload(tx, request);
@@ -257,7 +257,7 @@ export class CallObservabilityStore {
           if (request.storageFailed || response.storageFailed) {
             await this.diagnostic(tx, 'payloadWriteFailures', Number(request.storageFailed) + Number(response.storageFailed));
           }
-          await this.checkpoint(tx, context.checkpoint, source.sourceSequence);
+          await this.checkpoint(tx, context.checkpoint, source.sourceSequence, source.sourceInstanceId);
           return this.result(tx, previous ? 'updated' : 'inserted', current);
         });
       });
@@ -266,7 +266,8 @@ export class CallObservabilityStore {
 
   /** Only the recovery worker calls this after establishing lost terminal evidence. */
   async reconcile(invocationId: string, expectedVersion: number,
-    evidence: { reason: 'process_exit' | 'progress_timeout'; observedBefore: string; suppressEvent?: boolean },
+    evidence: { reason: 'process_exit' | 'progress_timeout'; observedBefore: string; suppressEvent?: boolean;
+      sourceExitProofId?: string },
     project?: ProjectionHook): Promise<IngestResult> {
     const observedBefore = Date.parse(evidence.observedBefore);
     if (!Number.isFinite(observedBefore) || observedBefore > Date.now()) {
@@ -276,6 +277,17 @@ export class CallObservabilityStore {
       const previous = await tx.manager.getRepository(RuntimeInvocationEntity).findOne({ where: { invocationId } });
       if (!previous || previous.recordVersion !== expectedVersion || previous.phase === 'finished' ||
         Date.parse(previous.ingestedAt) > observedBefore) return this.result(tx, 'stale', previous);
+      let sourceExitedAt: string | undefined;
+      if (evidence.sourceExitProofId) {
+        const proof = await tx.manager.getRepository(RuntimePipelineStateEntity)
+          .findOneBy({ id: evidence.sourceExitProofId });
+        if (evidence.reason !== 'process_exit' ||
+          evidence.sourceExitProofId !== 'call-observability:source-exit:' + previous.sourceInstanceId ||
+          proof?.value?.state !== 'closed' || proof.value.sourceInstanceId !== previous.sourceInstanceId) {
+          throw new ObservabilityStorageError('INVALID_RECONCILIATION_EVIDENCE');
+        }
+        sourceExitedAt = proof.value.observedAt;
+      }
       const revision = previous.recordVersion + 1;
       if (revision > 2147483647) throw new ObservabilityStorageError('RECORD_VERSION_EXHAUSTED');
       const sequence = tx.nextSequence();
@@ -284,7 +296,7 @@ export class CallObservabilityStore {
         phase: 'finished', outcome: 'unknown', ingestedAt: tx.now,
         record: { ...previous.record, recordVersion: revision, phase: 'finished',
           outcome: 'unknown', completionSource: 'reconciled', completedAt: null, durationMs: null,
-          reconciledAt: tx.now, reconciliationReason: evidence.reason,
+          reconciledAt: tx.now, reconciliationReason: evidence.reason, sourceExitedAt,
           missingFields: [...new Set([...(previous.record.missingFields || []), 'terminalRecord', 'completedAt'])] },
       });
       if (project) await project(tx, previous, current);
@@ -371,7 +383,7 @@ export class CallObservabilityStore {
   }
 
   private async checkpoint(tx: ObservabilityWriteTransaction,
-    checkpoint: IngestCheckpoint | undefined, sourceSequence: number | null): Promise<void> {
+    checkpoint: IngestCheckpoint | undefined, sourceSequence: number | null, sourceInstanceId?: string): Promise<void> {
     if (!checkpoint) return;
     const repository = tx.manager.getRepository(RuntimeIngestCheckpointEntity);
     const previous = await repository.findOne({ where: { id: checkpoint.id } });
@@ -390,9 +402,14 @@ export class CallObservabilityStore {
     }
     if (checkpoint.boundaryHash) {
       const boundaries = tx.manager.getRepository(RuntimePipelineStateEntity);
-      await boundaries.save(boundaries.create({
-        id: 'call-observability:boundary:' + checkpoint.id,
-        value: { hash: checkpoint.boundaryHash }, updatedAt: tx.now,
+      const id = 'call-observability:boundary:' + checkpoint.id;
+      const boundary = await boundaries.findOneBy({ id });
+      const boundSource = boundary?.value?.sourceInstanceId;
+      const mixedSources = boundary?.value?.mixedSources === true ||
+        !!(boundSource && sourceInstanceId && boundSource !== sourceInstanceId);
+      await boundaries.save(boundaries.create({ id,
+        value: { hash: checkpoint.boundaryHash, mixedSources,
+          sourceInstanceId: mixedSources ? null : sourceInstanceId || boundSource || null }, updatedAt: tx.now,
       }));
     }
     await repository.save(Object.assign(new RuntimeIngestCheckpointEntity(), {
@@ -426,7 +443,13 @@ export class CallObservabilityStore {
       recordHash, reason, createdAt: tx.now, expiresAt: expiresAfter(tx.now, 30),
     }).orIgnore().execute();
     await this.diagnostic(tx, 'quarantinedRecords', 1);
-    await this.checkpoint(tx, context.checkpoint, record?.sourceSequence || null);
+    if (reason === 'SOURCE_CLOSED_PARTIAL_LINE' && context.checkpoint) {
+      await this.diagnostic(tx, 'closedSourcePartialRecords', 1);
+      await this.diagnostic(tx, 'closedSourcePartialBytes',
+        Number(BigInt(context.checkpoint.byteOffset) - BigInt(context.checkpoint.previousOffset)));
+    }
+    await this.checkpoint(tx, context.checkpoint, record?.sourceSequence || null,
+      record?.sourceInstanceId || context.sourceInstanceId);
     return { ...this.result(tx, 'quarantined', null), invocationId: record?.invocationId || null, reason };
   }
 

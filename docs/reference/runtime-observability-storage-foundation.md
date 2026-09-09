@@ -1,5 +1,5 @@
 ---
-doc-version: 1.2.2
+doc-version: 1.3.0
 doc-status: active
 doc-updated: 2026-09-09
 implementation-status: in-progress
@@ -158,3 +158,9 @@ PostgreSQL 父进程仍有 client.query 弃用警告；子进程警告计数 0 �
 ### 11.2 持久 SQL.js/独立进程恢复
 
 新增 3 项独立 Node 进程重开同一隔离 SQL.js 文件用例，验证字节断点、正文、数据集边界、调用与事件幂等、强制终止采集进程后的 unknown/迟到终态修正、改名与同名新文件。联合 136/136 PASS。强杀发生在显式保存数据库文件后，不声称机器断电或半写数据库文件恢复通过；生产者退出/关闭源残片仍待对接。不改实体、业务库或初始化基线。
+
+### 11.3 源退出/封存与 TP-08 完成
+
+不增加表。runtime_pipeline_state 的 source-exit 前缀行保存 UUID 绑定退出证明，source-seal 前缀行保存文件最终身份/大小/尾摘要；boundary 行增加单来源绑定或 mixedSources。封存先于可能失败的残片入库，断点仍只随成功 quarantine 事务推进，重试不重复消费。
+
+SOURCE_CLOSED_PARTIAL_LINE 记录摘要及安全原因，同事务增加关闭残片数量/字节；退出恢复校验源证明与 invocation.sourceInstanceId 匹配，保留 completedAt/durationMs=null。新增 13 项与跨模块 208 项、parser 86 项、三包构建及真实烟测全部通过。TP-08 包级 DONE，公开 API/根应用仍未启用；这些证据行的治理留给 TP-14，不声称后台清理已运行。

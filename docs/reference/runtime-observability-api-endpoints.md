@@ -1,5 +1,5 @@
 ---
-doc-version: 1.7.2
+doc-version: 1.8.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -543,3 +543,9 @@ Axios 默认的超时 ECONNABORTED 仅在确认来源为 Axios 错误时按 time
 不同采集进程重开持久 SQL.js 后，数据集起点、调用版本、检查点、正文引用和幂等事件已通过 3 项专项；联合 136/136 PASS。unknown 的真实完成更正不增加调用总数，重复源事件不推进事实水位。强杀测试发生在 SQL.js 文件明确保存完成之后，不覆盖机器断电或生产者未刷出内存。
 
 目录 EOF 仍只代表当前没有更多字节，不是源进程结束证明；关闭源残片的缺口状态必须经后续可信退出证据确认。以上是内部链路验证，公开 28 个 Endpoint 及两类推送仍为 PLANNED。
+
+### 17.3 源退出、残片与查询前置任务完成
+
+TP-08 包级退出条件已通过，新增源生命周期 13 项/跨模块 208 项、parser 86 项、三包构建及真实 MCP 烟测通过。公开 Endpoint 与推送仍为 PLANNED，下一步实现调用列表与详情。
+
+后续 pipeline/source 状态应区分 PID 可见、确认退出、证据不足，PID 可见不等于已证明原写入实例存活。闭合证明绑定 UUID 而非可复用 PID；不得暴露私有标识文件路径或将未确认 EOF 标为已处理。关闭残片产生 SOURCE_CLOSED_PARTIAL_LINE 及 closedSourcePartialRecords/closedSourcePartialBytes，不生成虚构调用或泄露残片文本。unknown 的 sourceExitedAt 与推断时间均不是实际 completedAt。

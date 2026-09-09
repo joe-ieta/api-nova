@@ -4,6 +4,7 @@ import { appendFile, mkdir, readdir } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { resolve, join } from 'node:path';
+import { publishRuntimeAuditSource } from './runtime-audit-source';
 import type { AuditRecordPhase, InvocationKind, InvocationOutcome, ObservabilityOrigin, ByteMeasurement } from './runtime-observability-contract';
 
 export interface RuntimeCallContext {
@@ -94,13 +95,14 @@ export interface RuntimeCallRecord extends RuntimeCallContext {
 
 const contextStorage = new AsyncLocalStorage<RuntimeCallContext>();
 const processId = randomUUID();
+let sourceManifestDirectory: string | undefined;
 let sequence = 0;
 let writeChain: Promise<void> = Promise.resolve();
 let captureMemoryBytes = 0;
 let pendingWriteBytes = 0;
 let pendingWrites = 0;
 let activeCalls = 0;
-const auditHealth = { writtenRecords: 0, writeFailures: 0, droppedRecords: 0,
+const auditHealth = { writtenRecords: 0, writeFailures: 0, sourceManifestFailures: 0, droppedRecords: 0,
   omittedBodies: 0, lastWriteAt: null as string | null };
 
 function memoryBudget(): number {
@@ -393,6 +395,10 @@ export async function writeRuntimeCall(record: RuntimeCallRecord): Promise<void>
   pendingWriteBytes += reservation;
   const write = writeChain.then(async () => {
     await mkdir(directory, { recursive: true, mode: 0o700 });
+    if (sourceManifestDirectory !== directory) {
+      try { await publishRuntimeAuditSource(directory, processId); sourceManifestDirectory = directory; }
+      catch { auditHealth.sourceManifestFailures++; storageWarning(); }
+    }
     await appendFile(file, line, { encoding: 'utf8', mode: 0o600 });
     auditHealth.writtenRecords++;
     auditHealth.lastWriteAt = new Date().toISOString();
