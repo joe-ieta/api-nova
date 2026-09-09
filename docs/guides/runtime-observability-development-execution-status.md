@@ -1,5 +1,5 @@
 ---
-doc-version: 1.11.0
+doc-version: 1.13.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -8,7 +8,7 @@ implementation-status: in-progress
 # 可观测性开发执行与任务包完成状态
 
 > Document status: Active execution ledger
-> 当前阶段：OBS-TP-01/02/03/04/05 完成；TP-04 已修复并重新验收，TP-06 HTTP 与物理上游专项通过，继续真实 STDIO 等剩余验收。最新证据见第 19 节。
+> 当前阶段：OBS-TP-01/02/03/04/05 完成；TP-06 真实 STDIO 8 项与联合回归 163 项通过，慢读夹具已修复。7214c46 已推送，当前批次达到阶段提交条件；最新证据见第 21 节。
 > 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
 
 ## 1. 当前快照
@@ -26,7 +26,7 @@ implementation-status: in-progress
 | 新 HTTP Endpoint | 28 个，全部 PLANNED |
 | 新推送契约 | 2 类，全部 PLANNED |
 | 本轮数据库实际操作 | 隔离 SQL.js 内存库、独有临时目录及本机随机端口；未连接或清理业务数据库 |
-| 本轮新增验证 | parser/Server/API build PASS；parser 86/86 PASS；Node 联合回归 155/155 PASS；真实 Streamable/SSE 烟测 PASS；四项失败均已修复，未放宽原断言 |
+| 本轮新增验证 | Node 联合回归 163/163 PASS（真实 STDIO 8/8、原有 155/155）；真实 Streamable/SSE 烟测 PASS；仅修复测试同步，本轮未重复无变更生产源码的构建 |
 
 文档已确认与基础包完成都不代表功能已上线。TP-02 的存储、GC 与 PostgreSQL 多进程针对性验证已完成；Linux 矩阵、全系统 SQL.js 并发集成和新接口端到端验收仍未完成。
 
@@ -64,7 +64,7 @@ implementation-status: in-progress
 | OBS-TP-03 | 权限与 API 基础 | 01、02 | DONE | 补齐夹具依赖后 56 项专项及 48 项存储/GC 回归全部通过，API build PASS；覆盖真实 JWT、AND/资源范围、游标、ETag、并发幂等与回滚；具体 Endpoint 接入另行验收 |
 | OBS-TP-04 | 共享上下文/正文/上游采集 | 01 | DONE | 公共标量保真与编码正文修复已重新验收；parser 86 项及跨模块 155 项回归通过，三包构建通过；原失败记录保留在第 18 节 |
 | OBS-TP-05 | Gateway 接入 | 04 | DONE | 入口前置、独立流结束、内部请求 ID、上游适配器/尝试编号、可信身份及取消接入完成；21 项真实回环 HTTP 专项与 104 项回归、API 构建通过；正式应用/监听器矩阵归 15/16 |
-| OBS-TP-06 | MCP 接入 | 04 | IN_PROGRESS | HTTP 15 项、物理上游 17 项及真实 Streamable/SSE 通过；协议/Tool/逐跳上游关系、正文、失败和取消已有证据；真实 STDIO 与剩余传输矩阵待验收 |
+| OBS-TP-06 | MCP 接入 | 04 | IN_PROGRESS | HTTP/物理上游基线已验收；真实 STDIO 8 项含慢读背压均通过；stdin EOF、stdout 错误/断管及剩余传输矩阵尚未验收 |
 | OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 04 重新验收，恢复就绪；test/probe/internal 实际接入尚未实施 |
 | OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | READY | 02、04 硬依赖已完成，恢复就绪；尚无自动汇集 worker |
 | OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | BACKLOG | 03 已完成，等待 08 |
@@ -333,3 +333,43 @@ HTTP 已通过边界包括实际正文和字节、认证前拒绝不主动排空
 第 18 节四项问题已全部解决，TP-04 恢复 DONE，TP-07/08 恢复 READY。当前 DONE=5、IN_PROGRESS=1、READY=2、BACKLOG=8；TP-06 不提前收口，后续按计划完成真实 STDIO、慢发送/断开及剩余传输矩阵。操作级 Agent 不复用跨操作连接，其性能与连接复用评估仍归 TP-16。
 
 本轮证据满足阶段提交条件；具体提交号由 Git 记录。未部署、未推送、未连接或清理业务数据库。28 个 HTTP Endpoint 与两类推送仍为 PLANNED，collector、生产查询及推送调度仍未接入。
+
+## 20. 2026-09-09 推送请求与真实 STDIO 首轮验收（历史快照）
+
+开始本轮时工作区干净，当前本地 main 最新提交为 7214c46，上游为 origin/main。按用户要求执行 git push origin main 被自动安全审批拒绝，理由为尚未获得对具体代码发送到具体 GitHub 远端的明确确认；没有成功建立推送结果，也没有改用其他传输方式绕过。已向用户请求确认 https://github.com/joe-ieta/api-nova.git，当前仍待答复。不能将本地提交标为已推送。
+
+独立推进 TP-06：新增 scripts/test-mcp-stdio-observability.cjs，直接启动真实 Node 子进程、调用公开 createMcpServer/startStdioMcpServer，并使用 SDK STDIO 解析与发送。测试控制信息走独立 IPC，仅供夹具使用，不占用 stdout 或新增生产 Endpoint。package.json 新增 test:stdio-audit，并将脚本加入服务器标准测试链；本批没有修改生产传输代码。
+
+| 实际执行 | 结果 | 范围 |
+| --- | --- | --- |
+| npm.cmd run build --workspace api-nova-server | PASS | 当前服务器构建；parser/API 源码未改，本轮未重复其构建 |
+| node --test --test-reporter=spec packages/api-nova-server/scripts/test-mcp-stdio-observability.cjs packages/api-nova-server/scripts/test-mcp-http-observability.cjs packages/api-nova-server/scripts/test-mcp-transport-observability.cjs packages/api-nova-api/scripts/test-gateway-call-observability.cjs packages/api-nova-api/scripts/test-call-observability-api-foundation.cjs packages/api-nova-api/scripts/test-call-observability.cjs packages/api-nova-api/scripts/test-call-observability-gc.cjs | 162/163 PASS，1 FAIL；0 skipped、0 cancelled；退出码 1 | 原 155 项全部通过；新增真实 STDIO 8 项中 7 通过 |
+| 串行后续 runtime-security-audit-smoke.js | NOT_RUN | 前一命令失败后停止；第 19 节通过记录仅为上一批证据 |
+
+已通过的真实子进程场景：启动前发送 initialize 与 debug 模式 stdout 纯协议、工具发现不虚构 Tool/上游、逻辑 Payload 标量保真/秘密脱敏、实际转换 Tool 的 protocol/tool/upstream 三层关系和字节、Tool isError 与 JSON-RPC 错误、8 路并发独立 trace 和唯一终态、主动 server.close 后取消待完成调用并 flush 再自然退出、日志目录故障不改变业务成功。
+
+未通过场景：暂停父进程读取 stdout 后发送 8 MiB 响应，再通过 IPC 要求子进程 flush/health 快照，在 8 秒后超时，尚未完成恢复读取后的成功终态断言。当前 Node v24.15.0/win32 的内置 net 实现明确对 fd 1/2 的管道调用 setBlocking(true) 和 makeSyncWrite；等待被同步输出阻塞的同一子进程响应 IPC 是夹具同步设计错误，不能据此直接认定审计终态错误。
+
+拟修正为暂停期间由父进程直接观察调用日志，恢复读取后再请求 flush/health 快照；保留发送完成前不得记录成功及结束后唯一成功的严格断言，不扩大超时或跳过 Windows 用例。已报告并请求批准，尚未修正或重跑。
+
+本批测试和脚本接入保持未提交，不将 7 个通过场景等同于 8/8 或整包完成。TP-06=IN_PROGRESS，当前仍完成 5/16；STDIO 的 stdin EOF、stdout 错误/断管、完整取消矩阵与 Linux/性能边界仍未验收。28 个 HTTP Endpoint 和两类推送保持 PLANNED；未部署、未访问业务数据库。
+
+## 21. 2026-09-09 推送授权、STDIO 慢读修复与阶段验收
+
+用户明确同意目标远端推送及慢读测试修正。执行 git push origin main 成功，Git 回执为 547d2e0..7214c46 main -> main，目标 https://github.com/joe-ieta/api-nova.git；第 20 节的推送审批阻拦已解除，未使用强制推送或绕过方式。
+
+本轮只修正 test-mcp-stdio-observability.cjs 的同步方法。夹具生成大响应后先 flush started 记录，再发送测试控制通知；父进程暂停 stdout 消费并确认有实际响应字节进入管道后，直接读取已持久化日志，断言当前协议/Tool 各有一个 started 且均无 finished。恢复读取后才通过 IPC 获取 flush/health 快照，验证响应完整、两层唯一成功终态及 activeCalls=0。
+
+没有删除原禁止提前成功的要求，没有扩大超时时间或跳过 Windows 用例，也没有为此修改生产传输、SDK 发送行为或认证策略。发送前 flush 仅是夹具建立观察基线的措施，不承诺生产环境所有 started 记录都在同步管道阻塞前持久化。
+
+| 实际执行 | 结果 | 范围 |
+| --- | --- | --- |
+| node --test --test-reporter=spec packages/api-nova-server/scripts/test-mcp-stdio-observability.cjs packages/api-nova-server/scripts/test-mcp-http-observability.cjs packages/api-nova-server/scripts/test-mcp-transport-observability.cjs packages/api-nova-api/scripts/test-gateway-call-observability.cjs packages/api-nova-api/scripts/test-call-observability-api-foundation.cjs packages/api-nova-api/scripts/test-call-observability.cjs packages/api-nova-api/scripts/test-call-observability-gc.cjs | 163/163 PASS；0 fail、0 skipped、0 cancelled | 新真实 STDIO 8 项和原 155 项回归；慢读恢复后的终态断言已实际执行 |
+| node packages/api-nova-server/scripts/runtime-security-audit-smoke.js | RUNTIME_SECURITY_AUDIT_SMOKE_OK；退出码 0 | 当前产物真实 Streamable/SSE 与三层关系回归 |
+| 构建 | 本轮 NOT_RUN | 仅调整测试代码，生产源码未变；沿用第 20 节 Server build PASS 及此前 parser/API 构建产物，不冒充本轮重建 |
+
+新增脚本已接入 test:stdio-audit 及服务器标准测试链。本批具备阶段提交条件；163 项不与其内含的 155 项重复累计，也不将上一批 parser 86 项算成本轮重新执行。
+
+TP-06 保持 IN_PROGRESS，完成数仍 5/16。下一步覆盖 stdin EOF、stdout 错误/断管、剩余取消与传输矩阵，再根据整包退出条件收口；TP-07/08 已就绪。Windows 同步 stdout 的调度限制仍存在，独立观察端需处理新鲜度，Linux/性能矩阵继续留待 TP-16。
+
+本次文档和测试阶段提交/推送的实际结果以 Git 回执为准。未部署、未连接或清理业务数据库，28 个 HTTP Endpoint 与两类推送继续 PLANNED。

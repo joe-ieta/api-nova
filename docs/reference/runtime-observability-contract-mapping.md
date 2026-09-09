@@ -1,5 +1,5 @@
 ---
-doc-version: 1.6.0
+doc-version: 1.6.2
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -72,3 +72,15 @@ Gateway 已切换为不同 spanKind 的显式父子事实：gateway-request-audi
 2026-09-09：公共脱敏标量保真、跳转终态、压缩响应原始编码观察和 Axios 超时分类修复完成。parser 五组 86 项与 Node 六脚本 155 项全部通过，parser/Server/API 构建及真实 Streamable/SSE 烟测通过。原失败证据保存在执行台账第 18 节，修复与重新验收见第 19 节；TP-04 恢复 DONE，TP-06 整包仍 IN_PROGRESS。
 
 来源适配现在区分 mcp_protocol/mcp_tool/upstream_api，HTTP 与上游分别观察原字节，SSE 原始帧与编码正文只记录省略元数据。入站协议与 Tool/逐跳上游父子关系已有当前版本验证，不把原来逻辑补写方式继续当作单次物理请求。实际 STDIO、内部来源、自动汇集与查询/推送接入仍待后续包，旧格式不导入。
+
+## 真实 STDIO 首轮接入证据（历史快照）
+
+2026-09-09：新增 server/scripts/test-mcp-stdio-observability.cjs，通过公开服务器创建/STDIO 启动函数在实际子进程管道验证生产代码。7 项通过，慢读用例因 Windows 同步 stdout 与夹具 IPC 快照互相等待而失败，尚未修正。Server build PASS，联合回归 162/163 PASS；不能用已有模拟传输通过记录替代该失败场景。
+
+脚本通过独立 IPC 控制夹具快照与主动关闭，不是生产状态推送接口。stdin EOF、stdout 错误/断管及完整平台矩阵仍待 TP-06/16 验收；TP-06 保持 IN_PROGRESS。
+
+## STDIO 慢读修复后的有效证据
+
+2026-09-09：在父进程暂停读取期间直接观察持久日志，恢复读取后再要求子进程 flush/health 快照，已修正 Windows 同步 stdout 导致的夹具等待错误。真实 STDIO 8/8、联合回归 163/163 与真实 Streamable/SSE 烟测通过，原不得提前成功和最终唯一终态断言均保留。
+
+生产传输代码未改，本轮未重复构建；发送前 flush 是测试基线，不是新增生产能力。stdin EOF、stdout 错误/断管和完整平台矩阵仍待验收，TP-06 仍 IN_PROGRESS。

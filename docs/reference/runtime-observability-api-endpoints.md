@@ -1,5 +1,5 @@
 ---
-doc-version: 1.6.0
+doc-version: 1.6.2
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.6.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.6.2，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -513,3 +513,13 @@ Axios 默认的超时 ECONNABORTED 仅在确认来源为 Axios 错误时按 time
 当前 parser 86/86、Node 联合回归 155/155、真实 Streamable/SSE 和三包构建全部通过，前版四项失败已解决。真实 STDIO、完整传输矩阵和性能验证仍未完成；操作级 Agent 当前不复用跨操作连接。TP-04 已重新验收，TP-06 仍在进行。
 
 新调用查询、聚合、调用者、事件与推送服务尚未接入运行。全部 28 个 HTTP Endpoint 及两类推送仍为 PLANNED；本次文档版本同步经过验证的采集语义，没有新增公开路径或宣告接口可用。
+
+## 18. 真实 STDIO 验证补充与平台限制（2026-09-09）
+
+实际子进程已验证 stdout 纯协议（含 debug 启动）、STDIO 协议/Tool/物理上游的父子关系、逻辑正文脱敏、错误与并发，以及主动关闭时待完成调用取消并在进程退出前完成日志 flush。STDIO 未经网络认证时只记录实际匿名上下文，不凭本地进程连接虚构可信用户或来源 IP；工具逻辑字节不冒充 HTTP 流量。
+
+新增 8 项全部通过，联合回归 163/163 和真实 Streamable/SSE 烟测通过。慢读测试已修正 Windows 同步管道下的控制通道等待：父进程暂停消费、确认实际响应写入开始后检查两层调用无终态，恢复读取后验证完整响应与唯一成功终态。该验证不等于远端业务已处理响应。
+
+当前 Windows Node 仍对 stdout 管道同步写入，慢消费者可能阻塞事件循环，进程不一定能及时生成心跳或处理控制消息；观察端新鲜度判断需要独立于生产进程。夹具为了建立观察基线而提前 flush started 记录，不代表生产发送路径新增了同步落盘保障。
+
+主动 server.close 与恢复读取的证据不等于 stdin EOF、stdout 断管或任意退出路径均已验证。上述边界和 Linux/性能仍待完成；全部 28 个 HTTP Endpoint 与两类推送继续 PLANNED，本批不增加公开接口。
