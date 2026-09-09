@@ -1,5 +1,5 @@
 ---
-doc-version: 1.9.0
+doc-version: 1.11.0
 doc-status: active
 doc-updated: 2026-09-09
 implementation-status: in-progress
@@ -202,3 +202,13 @@ API 构建与既有 269 项通过，新专项 23/24，匿名身份夹具错误�
 ### 12.5 访客查询重新验收
 
 仅修正获批的匿名测试夹具，24 项专项与联合 293 项通过；无生产身份、存储、查询或保留变更。API 构建使用本节点原已通过结果，三条访客接口 VERIFIED；业务库、PostgreSQL 查询分支、Linux、部署和后台治理仍未操作。
+
+### 12.6 档案版本与管理审计事务
+
+无需新表或列。runtime_callers.version 转为只在真实档案编辑时递增，观察 hook 保留已有版本值；达到整数上限时拒绝继续编辑，但不能影响新的调用采集。完整资源授权同时检查 runtime_caller_observations 的已登记资产与保留 current invocations，不因隐藏记录过期就授予共享档案编辑权。
+
+PATCH 通过现有 Store 管理事务和 AuditService.log(manager) 原子提交档案/审计，既不改写调用修订，也不分配新的调用序号或假造调用事件。审计故障与并发 ETag 冲突通过独立 SQL.js 实测。API 构建、22 新专项和 315 联合回归通过；另发现详情 HTTP 条件请求令牌范围错误，待许可修正，不因存储事务验证成功宣称整个 Endpoint 已验收或部署。
+
+### 12.7 档案令牌边界修正通过
+
+仅分离 HTTP 响应校验与档案令牌，无数据库结构、事务、身份或保留变更。GET/PATCH 使用 X-Profile-ETag 与 JSON profileEtag；5 项实际条件请求、27 项标签专项及 320 项联合通过，API 构建通过。TP-09 按查询/审计包内范围完成，无业务库操作或部署；全局事务集成和实际 PostgreSQL 查询仍需后续验收。

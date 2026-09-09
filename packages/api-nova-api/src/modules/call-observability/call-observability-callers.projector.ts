@@ -83,10 +83,9 @@ export class CallObservabilityCallersProjector {
       const lastSeenAt = previous ? last(previous.lastSeenAt, seenAt) : seenAt;
       const changed = !previous || previous.firstSeenAt !== firstSeenAt || previous.lastSeenAt !== lastSeenAt;
       if (changed) {
-        if ((previous?.version || 0) >= 2147483647) throw new ObservabilityStorageError('CALLER_VERSION_EXHAUSTED');
         await callers.save(callers.create({ ...previous, callerId, identitySource: 'authenticated',
           displayName: previous?.displayName || null, note: previous?.note || null,
-          labels: previous?.labels || [], firstSeenAt, lastSeenAt, version: (previous?.version || 0) + 1 }));
+          labels: previous?.labels || [], firstSeenAt, lastSeenAt, version: previous?.version || 1 }));
       }
       if (row.credentialId) {
         const credentials = tx.manager.getRepository(RuntimeCallerCredentialEntity);

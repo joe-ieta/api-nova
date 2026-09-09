@@ -1,5 +1,5 @@
 ---
-doc-version: 1.14.0
+doc-version: 1.16.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -126,3 +126,13 @@ test-call-observability-invocations.cjs 新增 16 项 trace 用例，总 38 项�
 ### 访客查询验收更新
 
 匿名夹具获用户批准修正后，新脚本 24/24、14 脚本联合 293/293 通过，OBS-API-07/08/10 VERIFIED；生产查询与身份源码不变。保留前述初始失败证据。下一映射为 OBS-API-09 档案标签修改、If-Match 与 AuditService 同事务管理审计。
+
+## TP-09 档案标签实现与待修正边界（2026-09-09）
+
+新增 call-observability-caller-profile.ts 负责完整登记资产范围和档案令牌；caller-labels.service/controller.ts 负责 OBS-API-09、严格字段、事务内新鲜权限、If-Match 与 AuditService 留痕。visitors 的详情增加可选 profileEtag；callers.projector 只维护观察时间、不再因流量推进档案编辑 version。既有实体、迁移和业务库不变。
+
+test-call-observability-caller-labels.cjs 的 22 项与联合 315 项、API build 均通过，但额外 Express 条件请求实验发现档案令牌误用为完整详情 ETag，可导致错误 304。08/09 暂 IMPLEMENTED，修正和真实路由边界回归待用户许可；不是已部署回归，也未把问题修复计入成功数字。版本/字段审计不存自由文本历史。
+
+## 档案 ETag 修正与 TP-09 收口
+
+visitors.controller 与 caller-labels.controller 均改为 X-Profile-ETag，JSON profileEtag 和服务内 If-Match 不变；不替换完整响应的 HTTP ETag。标签脚本新增 5 项 Node 原生 HTTP 条件请求，共 27 项；API 构建及联合 320 项通过。03~10 八接口 VERIFIED，TP-09 包级 DONE；实时、治理、平台和应用启用不在此完成声明中。

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.23.0
+doc-version: 1.25.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -8,7 +8,7 @@ implementation-status: in-progress
 # 可观测性开发执行与任务包完成状态
 
 > Document status: Active execution ledger
-> 当前阶段：OBS-TP-01/02/03/04/05/08 完成；TP-06、09 进行中。trace 节点 05af2c4 已推送；匿名夹具获批修正后调用者/来源专项 24/24、联合 293/293 通过，见第 31 节。
+> 当前阶段：OBS-TP-01/02/03/04/05/08/09 完成；TP-06 进行中。访客查询 f9b4a44 已推送；标签及 ETag 修正的 27 项专项、320 项联合、API 构建通过，TP-09 按包内退出条件收口，见第 33 节。
 > 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
 
 ## 1. 当前快照
@@ -19,14 +19,14 @@ implementation-status: in-progress
 | OBS-GATE-01 | PASSED；用户要求按计划持续推进 |
 | 全新版本决策 | 统一当前格式、接口和数据库初始结构，不增加历史兼容层 |
 | 实现任务总数 | 16 |
-| DONE | 6 |
-| IN_PROGRESS / REVIEW / BLOCKED | 2 / 0 / 0 |
+| DONE | 7 |
+| IN_PROGRESS / REVIEW / BLOCKED | 1 / 0 / 0 |
 | READY / BACKLOG | 3 / 5 |
-| 代码验收完成率 | 6/16；TP-08 包级收口，不代表公开 API、MCP 整包或全链路完成 |
-| 新 HTTP Endpoint | 28 个；03~08、10 共 7 个 VERIFIED，其余 21 个 PLANNED；均未部署为 AVAILABLE |
+| 代码验收完成率 | 7/16；TP-09 查询与审计包已收口，不代表业务根应用启用、推送或全平台验收 |
+| 新 HTTP Endpoint | 28 个；03~10 共 8 个 VERIFIED，其余 20 个 PLANNED；均未部署为 AVAILABLE |
 | 新推送契约 | 2 类，全部 PLANNED |
 | 本轮数据库实际操作 | 隔离 SQL.js 内存库、独有临时目录及本机随机端口；未连接或清理业务数据库 |
-| 本轮新增验证 | API build PASS（生产查询源码未因夹具修正改变）；调用者/来源专项 24/24、14 脚本联合 293/293 PASS；0 fail/cancelled/skipped |
+| 本轮新增验证 | API build PASS；标签/条件请求 27/27、15 脚本联合 320/320 PASS；0 fail/cancelled/skipped |
 
 文档已确认与基础包完成都不代表功能已上线。TP-02 的存储、GC 与 PostgreSQL 多进程针对性验证已完成；Linux 矩阵、全系统 SQL.js 并发集成和新接口端到端验收仍未完成。
 
@@ -67,7 +67,7 @@ implementation-status: in-progress
 | OBS-TP-06 | MCP 接入 | 04 | IN_PROGRESS | HTTP/物理上游基线已验收；真实 STDIO 8 项含慢读背压均通过；stdin EOF、stdout 错误/断管及剩余传输矩阵尚未验收 |
 | OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 04 重新验收，恢复就绪；test/probe/internal 实际接入尚未实施 |
 | OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | DONE | 采集/身份/重启/源退出共 45 项专项通过；真实写入进程 UUID/PID、已关闭残片隔离和立即 unknown 恢复已接入。包级退出条件完成，应用启用与全平台集成另归 15/16 |
-| OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | IN_PROGRESS | 调用/trace/正文/调用者/来源 7 接口 VERIFIED；访客 24 项及联合 293 项通过；标签修改与最终包级验收未完成 |
+| OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | DONE | 03~10 八接口 VERIFIED；调用/trace 38、正文/审计 23、访客 24、标签/条件请求 27 项通过；联合 320 项和 API 构建通过 |
 | OBS-TP-10 | 聚合/状态/能力 API | 03、08 | READY | 03、08 已完成，可启动聚合与能力接口 |
 | OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | READY | 03、08 已完成；持久事件基础已有，仍需历史查询和 Outbox 消费 |
 | OBS-TP-12 | Webhook/订阅/投递 API | 11 | BACKLOG | 11 尚未完成 |
@@ -80,7 +80,7 @@ implementation-status: in-progress
 
 | 接口范围 | 数量 | 主任务包 | 状态 |
 | --- | --- | --- | --- |
-| OBS-API-03~10：调用/正文/trace/调用者/来源 | 8 | 09 | 03~08、10 VERIFIED；09 PLANNED |
+| OBS-API-03~10：调用/正文/trace/调用者/来源 | 8 | 09 | VERIFIED；未部署 |
 | OBS-API-01/02/11~15：能力/总览/聚合/依赖/状态 | 7 | 10 | PLANNED |
 | OBS-API-16：事件补拉 | 1 | 11 | PLANNED |
 | OBS-API-17~25：订阅/投递/重试 | 9 | 12 | PLANNED |
@@ -112,7 +112,7 @@ implementation-status: in-progress
 | AC-14 | 实时补拉/游标/过滤变化 | 11、13 | NOT_RUN |
 | AC-15 | 数据库/磁盘/采集故障 | 04、08、14 | PARTIAL；存储异常重试、投影失败回滚、坏行与截断诊断通过；自动恢复及完整故障矩阵待验收 |
 | AC-16 | 正文/事件/去重与清理 | 09、11、14 | PARTIAL；正文 API TTL、读取期间到期及保留元数据通过；事件/去重清理和策略联动待验收 |
-| AC-17 | 权限及自身审计 | 03、09、11、12、13 | PARTIAL；三条路由权限、正文留痕/失败关闭、按 ID/时间/搜索审计检索通过；其余接口、入口统一审计和实时仍待验收 |
+| AC-17 | 权限及自身审计 | 03、09、11、12、13 | PARTIAL；TP-09 八个 HTTP 接口权限、正文/管理变更留痕及条件请求通过；入口统一审计与实时部分仍待 11/12/13/15 |
 | AC-18 | 测试/探测/报送不污染统计 | 07、12、15 | NOT_RUN |
 | AC-19 | 无流量心跳与新鲜度 | 10、13 | NOT_RUN |
 | AC-20 | 两方言/两平台/STDIO | 02、06、15、16 | PARTIAL；两方言基础与 PostgreSQL 独立进程、Windows 真实 STDIO 已有证据；Linux/完整交叉矩阵未运行 |
@@ -516,3 +516,50 @@ trace 节点 05af2c4 已普通提交并推送 main。随后新增 call-observabi
 | API build | 已在同一生产查询源码上通过；本次仅夹具修正，不重复声称新生产构建 |
 
 OBS-API-07/08/10 推进为 VERIFIED，合计 7 条 HTTP VERIFIED、21 条 PLANNED；推送仍 PLANNED、根应用未启用。覆盖匿名/失败身份、资产范围、凭证轮换、固定分页、字节口径、IP AND 权限、5000/5001 精确边界与 Swagger。Windows/SQL.js 证据不外推实际 PostgreSQL、Linux、性能或部署。TP-09 仍 IN_PROGRESS，下一节点为 OBS-API-09 标签修改、If-Match 与事务管理审计；节点提交推送以 Git 回执为准。
+
+## 32. TP-09 标签实现与条件请求待修正项（2026-09-09，历史问题快照）
+
+访客查询节点 f9b4a44 已普通提交并推送 main。新增 caller-profile 权限/ETag 辅助、caller-labels Service/Controller，以及 22 项实际 HTTP/SQL.js 专项；注册到 opt-in 模块并扩展访客详情 DTO。未改数据库结构、业务根模块、生产身份或保留策略。当前标签节点尚未提交。
+
+PATCH /callers/{id} 只修改 displayName/note/labels。管理权限必须是 read AND manage 在全部登记关联资产上的覆盖；关联包含未清理的历史观察，不能只借一个可见窗口修改共享档案。未分配资产需要显式全局范围；必须仍有保留的可信外部调用。权限在事务内重新读取账号/角色；不存在和不完整授权统一 404，拒绝审计不复制隐藏调用者 ID。
+
+GET 详情新增可选 profileEtag，仅给完整管理者。If-Match 在同一串行事务内验证；真实变更推进已有 version，普通观察不再推进档案编辑版本。保留已有版本值，不执行数据重置；版本耗尽时编辑失败，采集仍可继续。规范化 no-op 保留版本但写审计。成功修改与 AuditService.log 同事务提交；审计失败回滚，普通日志、事件和调用修订不被伪造成标签更新。
+
+审计记录 actor、服务器生成的 requestId、字段名、前后版本和标签数量，不复制自由文本、IP、密钥、原始头或正文。它支持追踪谁修改了哪些字段/版本，不提供旧备注或标签值的完整重建。可判定的资源/参数/版本拒绝在返回错误前留痕；初始认证/守卫或刷新授权失败、HTTP JSON 解析失败仍在 TP-15 全局入口审计边界内。
+
+| 已执行验证 | 结果 |
+| --- | --- |
+| API build | PASS |
+| test-call-observability-caller-labels.cjs | 22/22 PASS |
+| 15 脚本联合回归 | 315/315 PASS；0 fail/cancelled/skipped |
+| 额外本机 Express 条件请求实验 | 第一次 200 observation=1，第二次 observation 已变为 2，但携带相同 If-None-Match 得到 304 |
+
+新增问题：本次把档案专用版本写入 GET 详情的通用 ETag 头，而该响应还包含会随调用变化的统计、水位和时间窗。框架实验表明 Cache-Control=no-store 不能阻止这个不正确的条件请求判断。上述 22/315 用例没有覆盖此边界；实验不是已完成真实调用者路由修正回归，不能据其掩盖问题或宣称已修复。
+
+已请求用户允许：将编辑预条件继续放在 JSON profileEtag，并改用专用 X-Profile-ETag 响应头，不替换完整 GET 响应的普通 ETag；补真实 HTTP If-None-Match 回归，再构建/联合回归/提交。尚未修改相关实现。由于工作树中的 OBS-API-08 详情发生该变化，08 从已验证查询基线暂退至 IMPLEMENTED，09 也仅 IMPLEMENTED；6 条 HTTP VERIFIED、2 条 IMPLEMENTED、20 条 PLANNED，根应用未启用。
+
+TP-09 保持 IN_PROGRESS，DONE=6、IN_PROGRESS=2、READY=3、BACKLOG=5。修正后再按八接口的参数/分页/正文过期/资源权限/审计/Swagger 退出条件收口；之后推进 TP-10 聚合/状态/能力和 TP-11 事件/Outbox。跨平台、实际 PostgreSQL、本体部署与实时推送不在此次成功测试证据范围。
+
+## 33. ETag 修正与 TP-09 包级收口（2026-09-09）
+
+用户明确要求修正并继续。GET 详情和 PATCH 响应现在将档案编辑令牌放在 data.profileEtag 与 X-Profile-ETag，不覆盖完整响应的普通 HTTP ETag。If-Match 仍使用档案令牌，不接受普通响应校验值；并发保护、资产授权和事务审计语义不变。接口文档与 Swagger 同步更新，初始问题记录保留在第 32 节。
+
+新增 5 项真实 Nest/HTTP 回归使用 Node 原生 http 客户端，避免 fetch 自动 no-cache 掩盖条件请求问题。验证档案令牌不会触发统计响应的错误 304；完整响应未变仍能合法 304，调用/窗口变化得到 200；管理权限撤销后不复用旧令牌；PATCH 正确使用独立编辑令牌。
+
+| 已执行 | 结果 |
+| --- | --- |
+| npm.cmd run build --workspace api-nova-api | PASS |
+| 标签/条件请求专项 | 27/27 PASS（原 22 项 + 新 5 项） |
+| 15 脚本联合回归 | 320/320 PASS；0 fail/cancelled/skipped |
+
+| TP-09 退出条件 | 包内证据 |
+| --- | --- |
+| 03~10 全部接口、查询参数/响应/错误与 Swagger 对齐 | 调用/trace 38、正文/审计 23、访客 24、标签/条件请求 27 项；共 112 项相关 HTTP/服务/Swagger 回归 |
+| 管理身份、AND 资源范围、跨资产 trace 裁剪 | 真实 JWT/当前角色、隐藏节点/来源/共享档案用例通过 |
+| 正文状态、过期与敏感读取审计 | 到期前后复核、完整性/失败关闭、管理审计检索与回滚通过 |
+| 修改预条件、并发和管理审计 | 同事务权限/If-Match/版本/审计、no-op、并发唯一成功、失败回滚与条件请求通过 |
+| 覆盖范围不伪造 | 缺失 publicationSnapshot、未知历史/lag 均显式 null/partial；历史覆盖汇总继续由 TP-10 实现 |
+
+OBS-TP-09=DONE，DONE=7、IN_PROGRESS=1（06）、READY=3（07/10/11）、BACKLOG=5。八条 HTTP VERIFIED、二十条 PLANNED；两类推送仍 PLANNED。AC-17 仅本包 HTTP 部分通过，不外推实时权限或全局入口留痕。未启用业务根模块、迁移/清理业务库、发布运行包或部署。
+
+下一节点 TP-10 先交付 capabilities，精确区分当前已实现/按权限可用的接口、查询边界与尚未实现的聚合/推送；再推进统计与状态，TP-11 事件/Outbox 按已满足依赖继续。实际 PostgreSQL 查询、Linux、负载及全系统 SQL.js 并发、根应用启用继续由后续包验证。节点提交推送以 Git 回执为准。

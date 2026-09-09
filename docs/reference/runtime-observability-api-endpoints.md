@@ -1,5 +1,5 @@
 ---
-doc-version: 1.14.0
+doc-version: 1.16.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -9,7 +9,7 @@ implementation-status: in-progress
 
 > Document status: Maintained consumer contract; approved endpoint contract; implementation in progress
 > Scope decision (2026-09-08, approved): 全新开发版本直接统一旧接口和数据库结构；不提供旧格式导入或旧查询路径兼容。接口的实际状态逐项维护，文档确认不等于上线。
-> 可用性声明：28 个 HTTP Endpoint 中 OBS-API-03~08、10 共 7 个 VERIFIED，其余 21 个与两类推送仍 PLANNED。业务根应用尚未启用新模块，没有 AVAILABLE 接口或部署声明。
+> 可用性声明：28 个 HTTP Endpoint 中 OBS-API-03~10 共 8 个 VERIFIED，其余 20 个与两类推送仍 PLANNED。业务根应用尚未启用，没有 AVAILABLE 接口或部署声明。
 > 已确认基线：[需求](../guides/runtime-observability-requirements.md)、[设计](./runtime-observability-design.md)。
 > 开发关联：[任务计划](../guides/runtime-observability-development-task-plan.md)、[执行状态](../guides/runtime-observability-development-execution-status.md)。
 
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.14.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.16.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -123,7 +123,7 @@ invocations 按 (timeBasis DESC, invocationId DESC) 排序；其他列表明确�
 | OBS-API-06 | GET /traces/:traceId | obsGetTrace | 基础 | OBS-TP-09 | VERIFIED |
 | OBS-API-07 | GET /callers | obsListCallers | 基础 | OBS-TP-09 | VERIFIED |
 | OBS-API-08 | GET /callers/:id | obsGetCaller | 基础 | OBS-TP-09 | VERIFIED |
-| OBS-API-09 | PATCH /callers/:id | obsUpdateCallerLabels | monitoring:manage | OBS-TP-09 | PLANNED |
+| OBS-API-09 | PATCH /callers/:id | obsUpdateCallerLabels | monitoring:manage | OBS-TP-09 | VERIFIED |
 | OBS-API-10 | GET /sources | obsListSources | 基础；IP 字段需 monitoring:source:read | OBS-TP-09 | VERIFIED |
 | OBS-API-11 | GET /statistics/summary | obsGetStatisticsSummary | 基础 | OBS-TP-10 | PLANNED |
 | OBS-API-12 | GET /statistics/time-series | obsGetStatisticsTimeSeries | 基础 | OBS-TP-10 | PLANNED |
@@ -216,7 +216,7 @@ encoding 可为 json、text、base64、multipart。multipart 内容包含经脱�
 
 callers 按 lastSeenAt DESC、callerId DESC 分页。每项包含 callerId、displayName、identitySource、firstSeenAt、lastSeenAt、serverTypes、授权且选定窗口内的 observedServerCount、unassignedInvocationCount、labels 和 summary。first/lastSeen 与 summary 由固定调用修订快照推导，不读取全局累计观察时间；可编辑档案以 profileSnapshot=current 标识。历史覆盖未知时 historyCompleteSince=null、isPartial=true，不推算旧历史。
 
-caller 详情只返回当前授权时间窗中实际观察到的 credentialIds，以及当前 note 与查询 window；不读取全局凭证关联、不返回 issuer/sub、Key、JWT、secretHash 或其他可用于认证的值。PATCH（尚未实施）仅修改 displayName、note、labels；不得修改可信主体、callerId 或历史证据。
+caller 详情只返回当前授权时间窗中实际观察到的 credentialIds，以及当前 note 与查询 window；不读取全局凭证关联、不返回 issuer/sub、Key、JWT、secretHash 或其他可用于认证的值。PATCH 已 VERIFIED，仅修改 displayName、note、labels；不得修改可信主体、callerId 或历史证据。使用 data.profileEtag 或 X-Profile-ETag 作为 If-Match，不使用完整详情的普通 HTTP ETag，见第 21 节。
 
 PATCH 请求需 If-Match，示意：
 ```json
@@ -305,7 +305,7 @@ POST retry 需要 Idempotency-Key，且需该资源管理范围和 monitoring:de
 
 ### 5.4 变更并发与幂等
 
-PATCH/DELETE 对象要求 If-Match 为 GET 返回的 ETag/版本；缺失返回 428 PRECONDITION_REQUIRED，版本过期返回 412 PRECONDITION_FAILED。JSON 中的 version 用于展示，不覆盖服务器版本。
+PATCH/DELETE 对象要求 If-Match 为 GET 提供的对象编辑令牌；caller 使用 data.profileEtag 或 X-Profile-ETag，不能使用含动态统计的完整响应 ETag。缺失返回 428 PRECONDITION_REQUIRED，版本过期返回 412 PRECONDITION_FAILED。JSON 中展示的 version 不覆盖服务器版本。
 
 创建订阅、测试推送、retry 接受 Idempotency-Key；retry 为必填。幂等键按调用主体、方法、路径及请求摘要隔离，建议保留 24 小时。同键同内容返回原操作结果，同键不同内容返回 409 IDEMPOTENCY_CONFLICT；记录不能保存秘密明文。
 
@@ -611,7 +611,7 @@ API 构建、16 项真实 HTTP/Swagger 专项与 269 项联合回归通过，未
 
 ## 20. OBS-API-07/08/10 调用者与来源查询契约（2026-09-09）
 
-三接口已 VERIFIED：生产查询源码 API 构建通过；用户批准修正匿名测试夹具后，专项 24/24、联合 293/293 通过。完整路径以前缀 /api/v1/monitoring/observability 加注册表路径构成；仍需管理 JWT、monitoring:read 及当前资产范围。根应用尚未启用。
+访客查询基线 f9b4a44 已通过验证；后续新增的档案 ETag 条件请求问题经批准修正，并通过 27 项标签/条件请求专项及 320 项联合回归，08 恢复 VERIFIED，07/10 保持 VERIFIED。完整路径使用 /api/v1/monitoring/observability 前缀；仍需管理 JWT、monitoring:read 及当前资产范围，根应用尚未启用。
 
 | 接口 | 支持的查询参数 |
 | --- | --- |
@@ -634,3 +634,23 @@ summary.invocationCount 统计调用边界，不是去重业务请求、连接�
 ### 20.1 查询节点验收补充
 
 匿名夹具依照现行契约修正为 identitySource=anonymous 后，24 项真实 HTTP/Swagger 专项及 293 项联合回归通过，不改生产身份/授权规则。07/08/10 已 VERIFIED，不再是待验收实现；5000 修订上限、时间窗、当前档案/调用快照语义和未知覆盖保持不变。实际 PostgreSQL、Linux、全应用、性能和对外部署仍待验证，标签 PATCH 尚未实现。
+
+## 21. OBS-API-09 档案编辑实现与已知阻断项（2026-09-09）
+
+PATCH /api/v1/monitoring/observability/callers/{id}，operationId=obsUpdateCallerLabels，VERIFIED。API 构建、27 项标签/条件请求专项及 320 项联合回归通过；相关 GET 详情的条件请求问题已修正，08/09 已验收但未部署。
+
+管理者必须具备 monitoring:read AND monitoring:manage，且资产交集覆盖调用者的全部已登记观察关联与当前保留调用。关联中的未分配资产只接受显式全局范围；过期但尚未清理的其他资产关联仍参与所有权判断。缺少所需权限为 403；有权限但范围不完整、无登记关联、无保留可信外部调用或未知主体统一 404，不回显隐藏 ID/数量。GET 当前可见时间窗只是查询范围，不能缩小共享档案的修改授权范围。
+
+请求不接受查询参数。JSON 至少一个、最多三个字段，未知字段拒绝；编码后输入预算 16 KiB。displayName 为不超过 200 个 UTF-16 单元的字符串或 null，note 不超过 2000 单元或 null；labels 为最多 32 个非空字符串，每项最多 64 单元，不能为 null。字符串修剪空白，空名称/备注归一化为 null，备注允许换行/制表且 CRLF 归一为 LF；其余控制字符拒绝。标签修剪、脱敏并排序，规范化后重复拒绝，空数组清空。未提交字段保持不变，不允许修改 callerId、可信身份、凭证、观察时间或版本。
+
+只接受一个精确强 If-Match：缺失 428、格式错误 400、过期或另一个主体令牌 412。仅完整资产管理者能在详情的可选 profileEtag 字段获得编辑令牌，普通只读或局部管理者不获得档案版本。并发提交同一令牌只允许一次真实变更成功；字段值未变化时仍成功留痕，但不推进版本。普通采集观察不再增加档案编辑版本，流量不能无故制造编辑冲突。
+
+成功 data 包含 callerId、displayName、note、labels、profileEtag、changed、changedFields、auditId。管理审计与档案修改原子提交；成功/可判定拒绝均记录安全操作、字段和版本元数据，不复制备注/标签值、原始 HTTP 头、IP 或正文。因此审计支持字段/操作者/版本追踪，不保证恢复旧自由文本。审计存储失败返回 503 并回滚修改；标签更新不改变调用证据或调用提交水位，也不冒充已分发的实时事件。
+
+已修正的历史问题：档案专用令牌不再写入通用 HTTP ETag。GET/PATCH 使用 data.profileEtag 和 X-Profile-ETag；普通 ETag 由完整响应产生，供 If-None-Match 使用，不是档案 If-Match 令牌。即便配置 no-store 也保持正确的条件请求语义，新增真实 HTTP 回归覆盖合法 304、变化后 200 与撤权。Swagger 已按实际专用头对齐。
+
+### 21.1 档案编辑令牌使用示例
+
+先读取有权限的 caller 详情，从 data.profileEtag 或 X-Profile-ETag 取得令牌，原样放入 PATCH 的 If-Match。PATCH 返回新的 profileEtag/X-Profile-ETag；无字段变更时令牌不变但仍有审计。普通 ETag 对应整个响应（包含窗口、统计、水位或审计结果），只用于普通 HTTP 条件请求，不可代替编辑令牌。
+
+只读或未覆盖全部关联资产的管理者仍不获得 profileEtag/X-Profile-ETag。令牌本身不授予权限，每次修改重新检查当前账号和完整资产范围。客户端无需读取自定义头也可使用 JSON 字段；跨域响应头暴露配置和根应用启用在集成包验收。

@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { CallObservabilityCallerLabelsController } from './call-observability-caller-labels.controller';
+import { CallObservabilityCallerLabelsService } from './call-observability-caller-labels.service';
 import { CallObservabilityVisitorsController } from './call-observability-visitors.controller';
 import { CallObservabilityVisitorsService } from './call-observability-visitors.service';
 import { CallObservabilityPayloadsController } from './call-observability-payloads.controller';
@@ -24,10 +26,10 @@ import { CallObservabilityStore } from './call-observability.store';
 
 @Module({
   imports: [ConfigModule, SecurityModule, TypeOrmModule.forFeature([...CALL_OBSERVABILITY_ENTITIES, RuntimeObservabilityEventEntity])],
-  controllers: [CallObservabilityVisitorsController, CallObservabilityInvocationsController, CallObservabilityPayloadsController],
-  providers: [CallObservabilityVisitorsService, CallObservabilityPayloadsService, CallObservabilityInvocationsService, CallObservabilitySourceLifecycle, CallObservabilityCallersProjector, CallObservabilityWorker, CallObservabilityCollector, CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
+  controllers: [CallObservabilityCallerLabelsController, CallObservabilityVisitorsController, CallObservabilityInvocationsController, CallObservabilityPayloadsController],
+  providers: [CallObservabilityCallerLabelsService, CallObservabilityVisitorsService, CallObservabilityPayloadsService, CallObservabilityInvocationsService, CallObservabilitySourceLifecycle, CallObservabilityCallersProjector, CallObservabilityWorker, CallObservabilityCollector, CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
     ObservabilityAccessGuard, ObservabilityApiExceptionFilter, ObservabilityCursorService, ObservabilityCommandStore],
-  exports: [CallObservabilityVisitorsService, CallObservabilityPayloadsService, CallObservabilityInvocationsService, CallObservabilitySourceLifecycle, CallObservabilityCallersProjector, CallObservabilityWorker, CallObservabilityCollector, CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
+  exports: [CallObservabilityCallerLabelsService, CallObservabilityVisitorsService, CallObservabilityPayloadsService, CallObservabilityInvocationsService, CallObservabilitySourceLifecycle, CallObservabilityCallersProjector, CallObservabilityWorker, CallObservabilityCollector, CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
     ObservabilityAccessGuard, ObservabilityApiExceptionFilter, ObservabilityCursorService, ObservabilityCommandStore],
 })
 export class CallObservabilityModule {}

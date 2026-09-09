@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { canManageCallerProfile, callerProfileEtag } from './call-observability-caller-profile';
 import { EntityManager, In } from 'typeorm';
 import { isIP } from 'net';
 import { redactAuditValue } from 'api-nova-parser';
@@ -52,7 +53,8 @@ export class CallObservabilityVisitorsService {
     sourceAuthorization?: ObservabilityAuthorization) {
     return this.list('source', raw, authorization, sourceAuthorization);
   }
-  async caller(id: string, raw: Record<string, unknown>, authorization: ObservabilityAuthorization) {
+  async caller(id: string, raw: Record<string, unknown>, authorization: ObservabilityAuthorization,
+    manageAuthorization?: ObservabilityAuthorization) {
     if (!validId(id)) throw new ObservabilityApiError('INVALID_QUERY', 'id');
     const { filter } = parseObservabilityQuery(raw, CALLER_DETAIL_QUERY_KEYS);
     this.external(filter);
@@ -63,7 +65,10 @@ export class CallObservabilityVisitorsService {
       const profile = await tx.manager.getRepository(RuntimeCallerEntity).findOneBy({ callerId: id });
       if (!profile) throw new ObservabilityApiError('NOT_FOUND');
       const credentialIds = [...new Set(rows.map(row => safeText(row.record?.credentialId, 240)).filter(Boolean))].sort() as string[];
+      const profileEtag = manageAuthorization && manageAuthorization.principalId === authorization.principalId &&
+        await canManageCallerProfile(tx.manager, id, manageAuthorization, tx.now) ? callerProfileEtag(profile) : undefined;
       return observabilitySuccess({ ...this.callerItem(group, profile), note: safeText(profile.note, 2000),
+        ...(profileEtag ? { profileEtag } : {}),
         credentialIds, window: this.window(filter) }, this.meta(tx.snapshotSeq, tx.snapshotSeq));
     });
   }

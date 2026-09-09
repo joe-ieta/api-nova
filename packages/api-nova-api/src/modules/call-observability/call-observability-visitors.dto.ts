@@ -49,6 +49,8 @@ export class ObservabilityCallerDto {
   @ApiProperty({ type: ObservabilityVisitorSummaryDto }) summary: ObservabilityVisitorSummaryDto;
 }
 export class ObservabilityCallerDetailDto extends ObservabilityCallerDto {
+  @ApiPropertyOptional({ description: 'Strong ETag supplied only when management covers all registered caller assets.' })
+  profileEtag?: string;
   @ApiProperty({ type: String, nullable: true }) note: string | null;
   @ApiProperty({ type: [String], description: 'Credential IDs observed in this authorized window, never credential secrets.' })
   credentialIds: string[];
@@ -99,5 +101,30 @@ export class ObservabilityCallerEnvelopeDto {
 export class ObservabilitySourceListEnvelopeDto {
   @ApiProperty({ enum: ['success'] }) status: string;
   @ApiProperty({ type: ObservabilitySourcePageDto }) data: ObservabilitySourcePageDto;
+  @ApiProperty({ type: ObservabilityMetaDto }) meta: ObservabilityMetaDto;
+}
+
+export const OBSERVABILITY_CALLER_PATCH_SCHEMA = {
+  type: 'object' as const, additionalProperties: false, minProperties: 1, maxProperties: 3,
+  properties: {
+    displayName: { type: 'string' as const, nullable: true, maxLength: 200 },
+    note: { type: 'string' as const, nullable: true, maxLength: 2000 },
+    labels: { type: 'array' as const, maxItems: 32, uniqueItems: true,
+      items: { type: 'string' as const, minLength: 1, maxLength: 64 } },
+  },
+};
+export class ObservabilityCallerMutationDto {
+  @ApiProperty() callerId: string;
+  @ApiProperty({ type: String, nullable: true }) displayName: string | null;
+  @ApiProperty({ type: String, nullable: true }) note: string | null;
+  @ApiProperty({ type: [String] }) labels: string[];
+  @ApiProperty() profileEtag: string;
+  @ApiProperty() changed: boolean;
+  @ApiProperty({ type: [String] }) changedFields: string[];
+  @ApiProperty() auditId: string;
+}
+export class ObservabilityCallerMutationEnvelopeDto {
+  @ApiProperty({ enum: ['success'] }) status: string;
+  @ApiProperty({ type: ObservabilityCallerMutationDto }) data: ObservabilityCallerMutationDto;
   @ApiProperty({ type: ObservabilityMetaDto }) meta: ObservabilityMetaDto;
 }
