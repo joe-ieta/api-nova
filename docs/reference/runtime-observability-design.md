@@ -1,5 +1,5 @@
 ---
-doc-version: 1.5.0
+doc-version: 1.6.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -494,3 +494,11 @@ runRuntimeUpstreamAttempt 只包裹一个实际 HTTP 请求的业务回调。调
 两侧字节分别标记 observed_body/gateway_http 与 observed_body/upstream_http，反映应用层 body 读写，不是线速流量；未读入的正文保持未知。客户端 finish 只表示本地发送完成，不证明远端业务已处理。来源当前只接受直接 socket peer，明确 proxyTrusted=false，不把客户端转发头或 req.ip 当成可信最终来源；逐跳代理解析是 TP-15 集成待办，尚未实现。
 
 已移除 GatewayAccessLogService 的 fallback 规范事实和 auditRecorded 互斥；其旧 DB 访问日志仍供现有界面使用，由 TP-15 收敛，不进入新调用统计。新增 21 项 HTTP 专项与 104 项基础回归全部通过，API 构建通过；TP-05=DONE。正式应用/独立监听器矩阵、MCP、查询和推送仍待后续包，不把隔离测试服务冒充生产部署。
+
+## TP-06 第一批实现边界
+
+HTTP admission 的 invocationId/traceId/rootInvocationId 进入子执行上下文，admission 自身父指针不改写为自己。STDIO/程序化请求无 HTTP 协议父节点时另建 mcp_protocol，Tool 作为子节点，显式传播根/父/trace；通知只确认 dispatch，不声称业务成功。
+
+采集等待实际 transport.send Promise，而不是先记成功再发送。发送失败保留原异常并写安全错误码，正文 incomplete 不留片段；关闭竞争幂等终结，异步审计写入不阻塞协议。逻辑 Payload 分别保留完整协议消息与 Tool params/result/error，使用 serialized_payload/logical_payload，不与 HTTP 字节混加。
+
+15 项传输模拟专项与 140 项联合回归、Server/API 构建通过；HTTP 全正文/认证前拒绝/取消、真实 SDK 传输和 parser 实际出站仍待后续实施。TP-06 尚未满足整包退出条件，不增加对外 Endpoint 或兼容旧日志读取。

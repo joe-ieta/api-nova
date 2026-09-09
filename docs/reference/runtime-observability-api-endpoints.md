@@ -1,5 +1,5 @@
 ---
-doc-version: 1.4.0
+doc-version: 1.5.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.4.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.5.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -479,3 +479,11 @@ Gateway 包级实现已通过 21 项真实回环 HTTP 专项及 104 项基础回
 缓存命中只新增入口，cacheHit=true；实际重试使用同一 upstreamOperationId 与递增 attemptIndex。代理不自动跟随重定向，redirectHopIndex=0。没有重放缓冲的带正文请求不自动重试。可信 API Key 身份在路由权限判断前建立，因此“认证成功但拒绝访问”仍保留可信调用者，错误凭证不会生成伪造调用者。
 
 当前 clientIp/peerIp 为直接连接端，ipSource=peer、proxyTrusted=false；不承诺反向代理后的最终客户端地址，逐跳可信解析需集成验证。上述是采集能力，不是 API 开放证明；所有新 Endpoint 和推送保持 PLANNED，生产控制器/监听器完整集成仍由 TP-15 验收。
+
+## 14. MCP 首批采集语义（2026-09-09，TP-06 未收口）
+
+HTTP 协议入口作为 Tool 的父节点，STDIO/程序化请求在没有 HTTP 父节点时建立独立 mcp_protocol；Tool 使用 mcp_tool，后续上游作为其子节点。协议与 Tool 的 Payload 按 serialized_payload/logical_payload 计量，不冒充 HTTP 原始流量。
+
+独立协议节点保存 JSON-RPC 请求/响应；Tool 保存 params 与 result/error 的逻辑内容。发送 Promise 成功才允许成功终态，发送异常记录 MCP_SEND_FAILED 和 incomplete 正文状态，不保留未完成片段。toolIsError 和 protocolErrorCode 可区分工具失败与 JSON-RPC 失败；通知无 ACK，不能记作业务成功。
+
+上述能力已通过 15 项传输模拟与 140 项联合回归、Server/API 构建；真实 SDK 传输、HTTP 全正文/认证前失败、上游适配仍未完成。所有 28 个 HTTP Endpoint 和两类推送继续 PLANNED。

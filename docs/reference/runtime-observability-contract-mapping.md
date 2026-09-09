@@ -1,5 +1,5 @@
 ---
-doc-version: 1.4.0
+doc-version: 1.5.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -62,3 +62,5 @@ doc-updated: 2026-09-09
 Gateway 已切换为不同 spanKind 的显式父子事实：gateway-request-audit.ts 观察入口现有读写，不消费或重放请求；代理使用共享适配器；auditRecorded 互斥与旧 fallback 规范记录已移除。2026-09-09：TP-03 夹具修复后 56 项专项与 48 项存储/GC 回归共 104/104 PASS，API build PASS；权限/API 公共基础已验收，生产控制器仍未接入。
 
 2026-09-09：Gateway 21 项新增 HTTP 专项和 104 项基础回归共 125/125 PASS，API build PASS，TP-05 按包级退出条件收口。实际 Nest 控制器/独立监听器矩阵、可信代理逐跳解析和旧 DB 日志收敛仍留在 TP-15，不能声称全链路完成。TP-06 进入接入分析，MCP 代码尚未切换。
+
+2026-09-09 TP-06 首批：server/src/transportUtils/audit.ts 已按 send Promise 结束记录 Tool/独立协议终态；server/src/tools/httpServer.ts 传递 HTTP 协议父节点。15 项模拟专项与 140 项联合回归、Server/API 构建通过，真实 SDK 联调待执行；MCP 整包仍 IN_PROGRESS。

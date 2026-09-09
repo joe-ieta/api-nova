@@ -1,5 +1,5 @@
 ---
-doc-version: 1.4.0
+doc-version: 1.5.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -299,3 +299,9 @@ TP-05 优先建立 Gateway 入口到实际上游尝试的父子关系，替换�
 请求没有可靠重放缓冲时，不因 allowNonIdempotent 配置而重发已经消费的正文；该策略避免默默发送空正文，不额外实现业务重放。直接来源 IP 可用，可信代理逐跳解析、正式应用/独立监听器矩阵和旧 DB 日志收敛归 TP-15，Linux/负载归 TP-16。
 
 下一轮 TP-06 先定位 MCP 协议入口、tools/call、认证拒绝和传输结束，再接入独立 protocol/tool/upstream 节点；继续保持 STDIO 不输出普通日志、不更换协议版本。TP-07/08 保持 READY，不提前登记查询/推送完成。
+
+## TP-06 第一批执行结果
+
+已实现 HTTP 父节点传播、STDIO/程序化协议节点、Tool 子节点与 send Promise 终态，新增 15 项传输模拟专项；联合回归 140/140 PASS，Server/API 构建通过。该批可阶段提交，不把 TP-06 提前标为 DONE。
+
+下一批先将既有真实 Streamable/SSE 安全审计烟测切换到 v2 文件与 finished 阶段计数，再执行 SDK 联调；随后完成 HTTP 正文/取消和 parser 实际上游适配。STDIO 输出约束、完整平台矩阵和其余退出条件仍须独立提供证据。

@@ -533,7 +533,13 @@ export function createBaseHttpServer(
       const context = await authenticateMcpRequest(req, requestId);
       context.serverId = process.env.API_NOVA_AUDIT_SERVER_ID || process.env.API_NOVA_MCP_RESOURCE ||
         process.env.API_NOVA_RUNTIME_RESOURCE || `${handlers.serverType}:${listenHost}:${httpServer.address() && typeof httpServer.address() === 'object' ? (httpServer.address() as import('node:net').AddressInfo).port : port}${endpoint}`;
-      Object.assign(admission.record, context);
+      Object.assign(context, {
+        traceId: admission.record.traceId, rootInvocationId: admission.record.rootInvocationId,
+        parentInvocationId: admission.record.invocationId, spanKind: 'mcp_protocol',
+        protocolTransport: handlers.serverType.includes('SSE') ? 'sse' : 'streamable',
+      });
+      // The parent pointer belongs to child execution, not to the admission record itself.
+      Object.assign(admission.record, { ...context, parentInvocationId: admission.record.parentInvocationId });
       let expiryTimer: ReturnType<typeof setTimeout> | undefined;
       if (context.expiresAt) {
         expiryTimer = setTimeout(() => res.end(), Math.min(2147483647, Math.max(1, context.expiresAt * 1000 - Date.now())));
