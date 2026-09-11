@@ -1,14 +1,14 @@
 ---
-doc-version: 1.31.0
+doc-version: 1.32.0
 doc-status: active
-doc-updated: 2026-09-09
+doc-updated: 2026-09-11
 approval-status: approved
 implementation-status: in-progress
 ---
 # 可观测性开发执行与任务包完成状态
 
 > Document status: Active execution ledger
-> 当前阶段：OBS-TP-01/02/03/04/05/08/09 完成；TP-06/10 进行中。时间序列/分组 ef66443 已推送；TP10-B01 桶键/修订规划已完成，API build、50 项专项与 430 项联合回归通过，下一节点为 B02 持久事务投影，见第 39 节。
+> 当前阶段：基线 1c70067 已提交推送；7 个任务包 DONE，2 个 IN_PROGRESS，2 个 READY，5 个 BACKLOG。最新既有联合回归 430/430 PASS，本次为文档/源码入口复核，未重跑测试；9 个任务包尚未完成，详见第 40 节及《任务完成情况复核与未完成清单》。
 > 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
 
 ## 1. 当前快照
@@ -679,3 +679,15 @@ B01 为 DONE，B02 READY，B03/B04 待依赖。HTTP 12 VERIFIED、16 PLANNED，�
 ### 39.4 未完成边界与接续
 
 该内核尚未接入持久表和事务投影，不会产生可读取的持久桶、bucketVersion、覆盖或推送事件。下一节点为 B02：持久贡献引用、桶失效状态、事务版本条件和恢复/回滚专项；随后再推进重算、覆盖、长期读取与事件报送。
+
+## 40. 当前计划完成情况复核（2026-09-11）
+
+开始复核时工作区无未提交变更，origin/main 已包含 1c70067、ef66443、85ee198，普通 push 返回 Everything up-to-date。没有业务代码需要补交，本次文档修改单独提交推送。
+
+复核查验新模块、根应用、旧监控/WebSocket 模块、采集 Worker、摄取/事件事务和实体基础，并结合已知接口实现与上一节点真实验收记录。没有执行新的测试或部署，不将 430/430 记成今日新重跑结果。
+
+当前汇总：DONE=7、IN_PROGRESS=2、READY=2、BACKLOG=5；HTTP 12 VERIFIED、16 PLANNED；两类新推送契约 PLANNED；AVAILABLE=0。B01 DONE，B02 READY，B03/B04 PLANNED。任务包完成只覆盖各自既定范围，完整需求闭环仍部分完成。
+
+[复核及未完成清单](./runtime-observability-completion-review.md)为本次主要交付，含逐包标注、FR-01~10 对照、16 个未完成 Endpoint、推送边界、REM-01~13 依赖清单和待验收性能/平台目标。
+
+特别纠偏：聚合/订阅/投递实体已经定义，不能写成没有任何基础；但 Worker 当前调用的是调用者投影，B01 尚未接入持久事务，事件 pending 也不是投递成功。需求页“implementation not started”已更新为实现进行中。

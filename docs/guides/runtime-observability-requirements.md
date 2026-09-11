@@ -1,13 +1,13 @@
 ---
-doc-version: 1.2.0
+doc-version: 1.3.0
 doc-status: active
-doc-updated: 2026-09-08
+doc-updated: 2026-09-11
 ---
 # 统一调用日志、审计与可观测性功能需求
 
-> Document status: Approved requirements baseline; implementation not started
+> Document status: Approved requirements baseline; implementation in progress; end-to-end delivery incomplete
 > Scope decision (2026-09-08, approved): 当前为全新开发版本，统一采用新的日志 schema、对外 API 和数据库初始化结构；不实现旧格式导入、旧接口别名或历史数据库迁移。结构调整不授权自动清空现有数据。开发计划已确认并开始执行。
-> 需求、设计与建议默认值已于 2026-09-08 由用户确认。本文件是已确认的需求基线，不代表功能已经实现；开发任务计划确认后开始编码。
+> 需求、设计与建议默认值已于 2026-09-08 由用户确认。本文件是已确认的需求基线；当前已进入实现与专项验收，不代表所有需求或部署交付完成。未完成部分见《任务完成情况复核与未完成清单》。
 > 配套设计：[统一调用日志、审计与可观测性设计](../reference/runtime-observability-design.md)。
 > 配套交付：[对外 API Endpoint](../reference/runtime-observability-api-endpoints.md)、[开发任务计划](./runtime-observability-development-task-plan.md)、[完成状态](./runtime-observability-development-execution-status.md)。
 
@@ -231,3 +231,11 @@ WebSocket 提供事件游标、补拉和过期提示，不为每个浏览器建�
 - [现有安全调用与日志审计契约](./runtime-security-and-call-audit.md)
 - [管理可观测性基线](../reference/management-observability-baseline.md)
 - [管理权限矩阵](../reference/management-permission-matrix.md)
+
+## 当前实现状态说明（2026-09-11）
+
+以[任务完成情况复核与未完成清单](./runtime-observability-completion-review.md)和[最新执行状态](./runtime-observability-development-execution-status.md)为准：任务包 7 DONE、2 IN_PROGRESS、2 READY、5 BACKLOG；HTTP 12 VERIFIED、16 PLANNED，两类推送 PLANNED，AVAILABLE=0。
+
+核心调用采集、查询、正文审计和部分统计已验证；持久聚合、统一状态、事件历史/主动报送、完整治理及平台/性能/部署验收尚未全部完成。大屏 UI 仍按已批准范围延后。
+
+本次只纠正“尚未开始实现”的过时状态并补充验收映射，不改变已批准需求、默认保留策略、性能目标或现有数据，不以降低要求代替完成待办。

@@ -1,7 +1,7 @@
 ---
-doc-version: 1.22.0
+doc-version: 1.23.0
 doc-status: active
-doc-updated: 2026-09-09
+doc-updated: 2026-09-11
 ---
 # 可观测性共享契约与接入映射
 
@@ -185,3 +185,11 @@ OBS-API-12/13 已 VERIFIED：专项 60/60、联合 404/404 PASS。此前 2026-09
 | HTTP 与消息契约 | 已验证的 12 个 HTTP Endpoint、两类待实现推送 | B01 不改变能力声明或可用性，不把纯计算映射为主动报送 |
 
 本节点 API build、50 项专项、430 项联合回归 PASS。所有较新修订均使共有桶重算，避免在键未变时漏掉结局、字节、延迟和去重身份变化。
+
+## 当前完成状态复核（2026-09-11）
+
+契约实现分层以[任务完成情况复核与未完成清单](../guides/runtime-observability-completion-review.md)为准：7 个任务包完成、9 个未完成；12 个 HTTP VERIFIED、16 个 PLANNED，两类推送 PLANNED。
+
+CallObservabilityStore 已在事务内写 invocation.completed/reconciled 事件和 pending/suppressed 状态；这只证明事件入库，不证明历史 API、分发和外部接收已完成。RuntimeMetricBucket/Contribution、Subscription/Delivery 等实体只证明结构基础，不证明生产流程已连接。旧 RuntimeObservabilityModule/MonitoringGateway 不等同于本轮统一契约实现。
+
+B01 使用数据库修订规划，不改变当前数据库 recordVersion 上限，也不解除现有身份冲突/终态不可变约束。后续适配须消费存储层接受的有效修订。

@@ -53,13 +53,14 @@ active 表示文档正在维护，不表示接口已经实现。需求、设计�
 
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
-| [可观测性功能需求](./guides/runtime-observability-requirements.md) | 1.2.0 | active | 2026-09-08 |
-| [可观测性设计](./reference/runtime-observability-design.md) | 1.23.0 | active | 2026-09-09 |
-| [可观测性 API Endpoint](./reference/runtime-observability-api-endpoints.md) | 1.22.0 | active | 2026-09-09 |
-| [可观测性开发任务计划](./guides/runtime-observability-development-task-plan.md) | 1.22.0 | active | 2026-09-09 |
-| [可观测性执行与完成状态](./guides/runtime-observability-development-execution-status.md) | 1.31.0 | active | 2026-09-09 |
-| [可观测性契约与接入映射](./reference/runtime-observability-contract-mapping.md) | 1.22.0 | active | 2026-09-09 |
-| [可观测性存储基础](./reference/runtime-observability-storage-foundation.md) | 1.17.0 | active | 2026-09-09 |
+| [可观测性功能需求](./guides/runtime-observability-requirements.md) | 1.3.0 | active | 2026-09-11 |
+| [可观测性设计](./reference/runtime-observability-design.md) | 1.24.0 | active | 2026-09-11 |
+| [可观测性 API Endpoint](./reference/runtime-observability-api-endpoints.md) | 1.23.0 | active | 2026-09-11 |
+| [可观测性开发任务计划](./guides/runtime-observability-development-task-plan.md) | 1.23.0 | active | 2026-09-11 |
+| [可观测性执行与完成状态](./guides/runtime-observability-development-execution-status.md) | 1.32.0 | active | 2026-09-11 |
+| [任务完成情况复核](./guides/runtime-observability-completion-review.md) | 1.0.0 | active | 2026-09-11 |
+| [可观测性契约与接入映射](./reference/runtime-observability-contract-mapping.md) | 1.23.0 | active | 2026-09-11 |
+| [可观测性存储基础](./reference/runtime-observability-storage-foundation.md) | 1.18.0 | active | 2026-09-11 |
 
 ## 归档文档
 

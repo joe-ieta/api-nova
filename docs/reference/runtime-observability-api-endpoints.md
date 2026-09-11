@@ -1,7 +1,7 @@
 ---
-doc-version: 1.22.0
+doc-version: 1.23.0
 doc-status: active
-doc-updated: 2026-09-09
+doc-updated: 2026-09-11
 approval-status: approved
 implementation-status: in-progress
 ---
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.22.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.23.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -787,3 +787,11 @@ TP10-B01 已完成桶键/修订规划纯内核及 26 项专项，API build PASS�
 已验证的 summary/time-series/groups 仍使用 retained_invocation_snapshot；bucketVersion=null、bucketVersionSemantics=not_persisted、未知覆盖及 5000 条明细边界不变。能力发现不新增 persistentAggregation 等已实现声明，12 个 HTTP VERIFIED、16 个 PLANNED 和 AVAILABLE=0 不变。
 
 持久桶读取、长期保留、真实 bucketVersion、桶修订事件及相应能力声明必须等待 B02/B03/B04 分别接入并验收后再更新本契约。桶规划键是内部身份，不作为当前 API 可访问资源 ID。
+
+## 28. 计划接口完成情况复核（2026-09-11）
+
+OBS-API-01、03~13 为 VERIFIED，共 12 个；OBS-API-02、14~28 仍为 PLANNED，共 16 个。两类新推送契约 PLANNED，所有新接口 AVAILABLE=0。主矩阵状态不因数据库实体定义、旧接口存在或 B01 纯规划通过而升级。
+
+完整待办路径/operationId 清单已同步到[任务完成情况复核与未完成清单](../guides/runtime-observability-completion-review.md)。当前按需统计仍受保留明细、5000 条上限及未知覆盖约束；缓存命中聚合、真实存活统计、长期桶/状态/事件/投递/治理尚未整体完成。
+
+本次只复核文档与实现入口，不改变接口行为，不重跑测试，不启用根应用或部署。

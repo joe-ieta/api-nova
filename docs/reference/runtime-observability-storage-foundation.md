@@ -1,7 +1,7 @@
 ---
-doc-version: 1.17.0
+doc-version: 1.18.0
 doc-status: active
-doc-updated: 2026-09-09
+doc-updated: 2026-09-11
 implementation-status: in-progress
 ---
 # 可观测性存储基础实现说明
@@ -261,3 +261,13 @@ B01 不保存计数，不触发重算任务或事件，不改变当前明细保�
 6. 主动报送仅消费已提交的持久事件，不对纯规划输出发送成功状态。
 
 验收：API build PASS，桶规划 26 项及指标 24 项 PASS，20 脚本联合 430/430 PASS。本节点没有新增数据库、PostgreSQL/Linux、部署或持久事件验收声明。
+
+### 12.14 存储基础与未完成流程的复核（2026-09-11）
+
+已存在 RuntimeMetricBucketEntity、RuntimeCallerBucketEntity、RuntimeMetricContributionEntity、RuntimeEventSubscriptionEntity、RuntimeSubscriptionRevisionEntity、RuntimeEventDeliveryEntity、RuntimeEventDeliveryAttemptEntity、RuntimePipelineStateEntity 与 RuntimeObservabilityPolicyEntity 等基础定义。B02 是核对并接入这些实体及版本契约，不表示所有表需从零创建。
+
+当前 Worker 将调用者投影传给 collector/reconcile；B01 纯规划未接入该写入链路。Store 的调用、修订、回执、检查点与调用事件原子提交已经实现，但 pending/suppressed 事件状态不等于分发 Worker 或投递器已完成。不能把这一基础验收扩大为长期聚合、Webhook 或新版实时订阅验收。
+
+入库及数据库修订当前明确受 2147483647 版本上限保护；B01 的 uint64 表示能力不是数据库范围变更。规划输入必须遵守已接受修订和既有不可变身份，不能用通用测试中的资产/时间修正能力开放历史事实任意修改。
+
+未完成项、依赖与验收条件见[任务完成情况复核与未完成清单](../guides/runtime-observability-completion-review.md)。本次无结构调整、数据清理、部署或新增运行验证。
