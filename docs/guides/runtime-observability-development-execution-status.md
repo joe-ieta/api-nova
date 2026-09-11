@@ -1,5 +1,5 @@
 ---
-doc-version: 1.28.0
+doc-version: 1.30.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -8,7 +8,7 @@ implementation-status: in-progress
 # 可观测性开发执行与任务包完成状态
 
 > Document status: Active execution ledger
-> 当前阶段：OBS-TP-01/02/03/04/05/08/09 完成；TP-06/10 进行中。统计内核 46d50b9 已推送；汇总 20 项、能力 14 项与 378 项联合回归通过，见第 36 节。
+> 当前阶段：OBS-TP-01/02/03/04/05/08/09 完成；TP-06/10 进行中。时间序列/分组已通过 60 项专项及 404 项联合回归，OBS-API-12/13 已 VERIFIED；下一节点为持久聚合桶键与修订规划内核，见第 38 节。
 > 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
 
 ## 1. 当前快照
@@ -23,10 +23,10 @@ implementation-status: in-progress
 | IN_PROGRESS / REVIEW / BLOCKED | 2 / 0 / 0 |
 | READY / BACKLOG | 2 / 5 |
 | 代码验收完成率 | 7/16；TP-09 查询与审计包已收口，不代表业务根应用启用、推送或全平台验收 |
-| 新 HTTP Endpoint | 28 个；01、03~11 共 10 个 VERIFIED，其余 18 个 PLANNED；均未部署为 AVAILABLE |
+| 新 HTTP Endpoint | 28 个；01、03~13 共 12 个 VERIFIED，其余 16 个 PLANNED；均未部署为 AVAILABLE |
 | 新推送契约 | 2 类，全部 PLANNED |
 | 本轮数据库实际操作 | 隔离 SQL.js 内存库、独有临时目录及本机随机端口；未连接或清理业务数据库 |
-| 本轮新增验证 | 汇总节点 API build PASS；汇总 20/20、能力 14/14、18 脚本联合 378/378 PASS；0 fail/cancelled/skipped |
+| 本轮新增验证 | 时间序列/分组节点 API build PASS；专项 60/60、19 脚本联合 404/404 PASS；0 fail/cancelled/skipped |
 
 文档已确认与基础包完成都不代表功能已上线。TP-02 的存储、GC 与 PostgreSQL 多进程针对性验证已完成；Linux 矩阵、全系统 SQL.js 并发集成和新接口端到端验收仍未完成。
 
@@ -68,7 +68,7 @@ implementation-status: in-progress
 | OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 04 重新验收，恢复就绪；test/probe/internal 实际接入尚未实施 |
 | OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | DONE | 采集/身份/重启/源退出共 45 项专项通过；真实写入进程 UUID/PID、已关闭残片隔离和立即 unknown 恢复已接入。包级退出条件完成，应用启用与全平台集成另归 15/16 |
 | OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | DONE | 03~10 八接口 VERIFIED；调用/trace 38、正文/审计 23、访客 24、标签/条件请求 27 项通过；联合 320 项和 API 构建通过 |
-| OBS-TP-10 | 聚合/状态/能力 API | 03、08 | IN_PROGRESS | OBS-API-01/11 VERIFIED；授权修订快照汇总和 5000 条边界已验收；时间桶/排行、持久聚合、总览、依赖和状态待实施 |
+| OBS-TP-10 | 聚合/状态/能力 API | 03、08 | IN_PROGRESS | OBS-API-01/11/12/13 VERIFIED；下一节点为持久聚合桶键及修订规划内核；事务投影、持久聚合、总览、依赖和状态待实施 |
 | OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | READY | 03、08 已完成；持久事件基础已有，仍需历史查询和 Outbox 消费 |
 | OBS-TP-12 | Webhook/订阅/投递 API | 11 | BACKLOG | 11 尚未完成 |
 | OBS-TP-13 | Socket.IO/快照与恢复 | 10、11 | BACKLOG | 10、11 尚未完成 |
@@ -83,7 +83,8 @@ implementation-status: in-progress
 | OBS-API-03~10：调用/正文/trace/调用者/来源 | 8 | 09 | VERIFIED；未部署 |
 | OBS-API-01：能力 | 1 | 10 | VERIFIED；未部署 |
 | OBS-API-11：统计汇总 | 1 | 10 | VERIFIED；未部署 |
-| OBS-API-02/12~15：总览/时间桶/排行/依赖/状态 | 5 | 10 | PLANNED |
+| OBS-API-12/13：时间桶/排行 | 2 | 10 | VERIFIED |
+| OBS-API-02/14/15：总览/依赖/状态 | 3 | 10 | PLANNED |
 | OBS-API-16：事件补拉 | 1 | 11 | PLANNED |
 | OBS-API-17~25：订阅/投递/重试 | 9 | 12 | PLANNED |
 | OBS-API-26~28：健康/策略 | 3 | 14 | PLANNED |
@@ -617,3 +618,40 @@ TP-10=IN_PROGRESS，DONE=7、IN_PROGRESS=2（06/10）、READY=2（07/11）、BAC
 queryMode=retained_invocation_snapshot，不冒充长期聚合；completedAt 下 totalStarted=null。livenessEvaluated=false，未读取心跳，不把未结束调用当作已确认存活。覆盖、lag 与健康仍为 null/partial/unknown；不写 bucket/contribution/event 或推进水位。
 
 01、03~11 共十条 HTTP VERIFIED，十八条 PLANNED；根应用未启用，两类推送仍 PLANNED，TP-10 未整包完成。下一节点为时间序列/排行及持久桶、迟到更正，随后依赖、状态、总览和 TP-11 事件/Outbox。证据仅 Windows/SQL.js/回环 HTTP，不外推 PostgreSQL 实际查询、Linux、负载、业务库或部署。提交推送以 Git 回执为准。
+
+## 37. 时间序列/分组实现与专项失败记录（2026-09-09）
+
+### 37.1 本轮变更
+
+- 在同一授权修订快照上增加 OBS-API-12 time-series 和 OBS-API-13 groups，复用 summary 的筛选、5000 条边界与指标内核。
+- 时间序列支持 4 种 UTC 桶宽、1440 个触达桶、边缘裁剪和保留未知语义的补零；按需桶版本为 null。
+- 分组支持 7 个维度的 28 种单维/双维组合、闭集排序、确定性并列顺序、最多 100 项排行与全量去重总计。
+- 同步能力声明、DTO、Swagger、Endpoint 文档、设计、映射、存储说明和任务计划。新增专项脚本 test-call-observability-series-groups.cjs，26 项。
+
+### 37.2 实际验证证据
+
+- npm run build --workspace api-nova-api：PASS。
+- 时间序列/分组专项：26/26 PASS。
+- 汇总回归：20/20 PASS。
+- 能力回归：10/14 PASS，4 FAIL。
+- 本次 3 脚本合计：60 tests，56 pass，4 fail，0 cancelled/skipped。
+- 19 脚本联合回归：尚未执行；不得沿用上一节点的 378 项结果作为本节点通过证据。
+
+失败均出现在能力测试端点数量断言的批量更新：3 项 ERR_MISSING_ARGS，1 项 operations112 未定义。原因是本轮替换脚本错误地处理了捕获组，损坏测试断言；当前构建及新增接口专项未报告生产实现失败。待获准仅修正这些断言及过时测试标题后继续回归。
+
+### 37.3 状态与紧接任务
+
+本轮代码未提交，OBS-API-12/13 仍待联合验收。保持 HTTP 28 个中 10 个 VERIFIED、18 个 PLANNED，两个推送契约 PLANNED，业务根模块未启用，AVAILABLE=0。任务包计数不变。
+
+下一步先完成测试夹具修正和专项/联合回归，再将 12/13 升级为 VERIFIED、记录真实结果并提交推送。随后继续持久聚合、覆盖/存活依据、总览/依赖/服务器状态以及持久事件和主动报送，不把当前按需查询等同于这些后续能力。
+
+## 38. 时间序列/分组联合验收完成（2026-09-11）
+
+用户授权后，仅修正能力测试 4 处数量断言及 2 个过时标题，生产代码未变。初轮错误和处理过程保留于第 37 节。
+
+- 3 脚本专项：60/60 PASS，其中新增 26、汇总 20、能力 14。
+- 19 脚本联合：404/404 PASS，0 fail/cancelled/skipped。
+- API build：本节点生产代码完成时已 PASS；测试限定修正未改变该生产代码。
+- OBS-API-12/13：VERIFIED；整体 HTTP 12 VERIFIED、16 PLANNED，两类推送 PLANNED，AVAILABLE=0。
+
+本节点进入提交及普通推送步骤。后续按任务计划 TP10-B01 -> B02 -> B03 -> B04 推进持久聚合；B01 先实现纯桶键/修订规划，不宣称持久表、恢复、事件或长期趋势已可用。TP-10 仍 IN_PROGRESS。

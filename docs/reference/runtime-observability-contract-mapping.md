@@ -1,5 +1,5 @@
 ---
-doc-version: 1.19.0
+doc-version: 1.21.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -158,3 +158,18 @@ call-observability-statistics.service/controller/dto.ts 对应 OBS-API-11/obsGet
 capabilities 同步 STATISTICS_SCOPES/STATISTICS_SUMMARY_QUERY_KEYS 和 maxStatisticsQueryInvocations；statistics 仅代表 summary，statisticsTimeSeries/Groups 仍关闭。34 项专项、378 项联合和 API 构建通过；初次来源测试忽略 serverType，获批仅改断言/注释，生产身份未变。
 
 十条 HTTP VERIFIED、十八条 PLANNED。后续为时间序列/分组、持久桶与事件/状态；保留明细汇总不等于长期历史、进程存活或部署。
+
+## 时间序列及分组契约映射补充（2026-09-09）
+
+| 契约 | 当前代码映射 | 验收边界 |
+| --- | --- | --- |
+| OBS-API-12 / obsGetStatisticsTimeSeries | statistics controller.timeSeries -> service.timeSeries -> 共享只读快照 -> makeTimeSeries -> 指标内核 | UTC 对齐、边缘裁剪、4 种间隔、1440 桶、fill=none/zero；按需桶版本 null，不是持久桶事件 |
+| OBS-API-13 / obsGetStatisticsGroups | statistics controller.groups -> service.groups -> 共享只读快照 -> makeGroups -> 指标内核 | 7 个白名单维度、最多两维、28 组合；闭集降序排行、top<=100、完整总计 |
+| 能力声明 | statisticsTimeSeries/statisticsGroups、两个真实查询白名单、maxBuckets/maxGroupLimit/supportedGroupByCombinations | 空 read 范围不扩大为全局；实现声明不代表部署或联合验收完成 |
+| 覆盖与健康 | summary/series/groups 共用 coverage 和 livenessEvaluated=false | 不读取心跳，不把未知覆盖、合成空桶或零计数报告为健康 |
+
+API 构建及新增 26 项、汇总 20 项通过；能力回归 4 项测试断言更新错误待修正，故 12/13 验收状态仍为 PLANNED。本节优先限定当前按需实现，不覆盖后续持久化 bucketVersion、修订事件和长期趋势的原设计要求。
+
+## 时间序列及分组验收更新（2026-09-11）
+
+OBS-API-12/13 已 VERIFIED：专项 60/60、联合 404/404 PASS。此前 2026-09-09 的待验收记录为历史初轮状态。当前 12 个 HTTP Endpoint VERIFIED、16 个 PLANNED；两类推送与业务启用状态不变。桶版本仍为 null，按需查询不映射为已实现的持久聚合或桶事件。

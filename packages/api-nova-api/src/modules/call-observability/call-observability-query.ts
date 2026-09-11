@@ -13,6 +13,7 @@ const ENUMS: Record<string, readonly string[]> = {
   scope: ['business', 'http_ingress', 'tool', 'protocol', 'upstream'],
   interval: ['1m', '5m', '1h', '1d'],
   fill: ['none', 'zero'],
+  orderBy: ['selectedInvocations', 'failures', 'successes', 'uniqueCallers', 'upstreamRequests'],
 };
 const TEXT = [
   'runtimeAssetId', 'callerId', 'sourceId', 'endpointDefinitionId', 'toolName',
@@ -21,7 +22,7 @@ const TEXT = [
 const PAGING = ['cursor', 'after', 'afterSequence', 'limit', 'includeTotal'];
 const KNOWN = [...Object.keys(ENUMS), ...TEXT, ...PAGING, 'from', 'to', 'groupBy', 'top'];
 const DEFAULTS: Record<string, string> = {
-  origin: 'external', timeBasis: 'startedAt', limit: '50', includeTotal: 'false', top: '20', fill: 'none',
+  origin: 'external', timeBasis: 'startedAt', limit: '50', includeTotal: 'false', top: '20', fill: 'none', orderBy: 'selectedInvocations',
 };
 
 function invalid(field: string): never { throw new ObservabilityApiError('INVALID_QUERY', field); }

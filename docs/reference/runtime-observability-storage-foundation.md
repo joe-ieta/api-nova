@@ -1,5 +1,5 @@
 ---
-doc-version: 1.14.0
+doc-version: 1.16.0
 doc-status: active
 doc-updated: 2026-09-09
 implementation-status: in-progress
@@ -230,3 +230,17 @@ PATCH 通过现有 Store 管理事务和 AuditService.log(manager) 原子提交�
 汇总使用现有 runtime_invocation_revisions 和同资产 runtime_access_sources 左关联，以数据库 recordVersion 作为计算输入。资产/TTL/时间/scope/快照均在 limit 前筛选，JSON 文本表达式只使用固定字段名和绑定值。当前只实际运行 Windows/SQL.js，不据此宣称 PostgreSQL 分支通过。
 
 不读正文、不改调用/事件/计数器、不写 buckets/contributions，不变更初始化结构或根应用。20 项汇总、14 项能力、联合 378 项与 API 构建通过；真实 Store.reconcile 及晚到终态仅计一次最新数据库修订，超限和异常安全失败，不伪造历史覆盖。
+
+### 12.11 按需时间序列与分组的存储边界（2026-09-09）
+
+本轮不变更数据库结构、业务保留策略或根模块启用状态。summary、time-series、groups 共用修订快照、当前有效版本、TTL 与资产交集 SQL，保留来源关联的同资产约束；在权限和筛选完成后应用 5000 条上限。
+
+分桶及分组只在选中行上计算，不逐桶/组追加数据库查询，不读取 Payload 文件，也不写聚合桶、健康状态或事件。dataWatermark 是读取快照序号，不可视为桶的持久版本；bucketVersion=null 明确表达尚未持久化。
+
+默认保留明细不保证长期历史趋势；empty/synthetic 桶不填补历史覆盖空洞。后续持久聚合仍须设计桶级幂等修订、迟到完成替换、统计保留策略及恢复重算，不能简单累加当前接口返回的 distinct 指标。
+
+本轮 API build、26 项新增专项和 20 项汇总通过；能力回归 4 项断言待修正，联合回归未执行。没有新 PostgreSQL、Linux、性能或部署验收声明。
+
+### 12.12 时间序列/分组验收及持久聚合接续（2026-09-11）
+
+初轮能力测试错误仅涉及断言，经授权修正后专项 60/60、联合 404/404 PASS；无数据库结构或生产代码追加变更。下一节点 TP10-B01 先计算数据库修订影响的稳定桶集合；B02 再接入贡献引用、事务条件和可恢复队列，B03 验收持久重算及覆盖。不会把纯规划结果、源端生命周期版本或读取 watermark 当作持久 bucketVersion。

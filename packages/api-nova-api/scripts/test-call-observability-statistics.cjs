@@ -429,16 +429,15 @@ test('generated Swagger matches exact summary queries, required scope, nested DT
   assert.equal(schemas.ObservabilityLatencyIntervalDto.properties.upperBoundMs.nullable, true);
 });
 
-test('capabilities advertise only the implemented summary route and scoped statistic bounds', async t => {
-  const f = await fixture(t), cap = data(await f.request('/capabilities'));
-  assert.equal(feature(cap, 'statistics').state, 'enabled');
-  assert.equal(feature(cap, 'statisticsTimeSeries').state, 'not_implemented');
-  assert.equal(feature(cap, 'statisticsGroups').state, 'not_implemented');
-  assert.deepEqual(cap.supportedScopes, [...STATISTICS_SCOPES]);
-  assert.deepEqual(cap.supportedGroupByCombinations, []); assert.equal(cap.maxBuckets, null);
-  assert.equal(cap.maxStatisticsQueryInvocations, MAX_METRIC_OBSERVATIONS);
-  const endpoint = cap.endpoints.find(item => item.endpointId === 'OBS-API-11');
-  assert.equal(endpoint.operationId, 'obsGetStatisticsSummary');
-  assert.deepEqual(endpoint.queryParameters, [...STATISTICS_SUMMARY_QUERY_KEYS]);
-  assert.equal(cap.endpoints.some(item => ['OBS-API-12', 'OBS-API-13'].includes(item.endpointId)), false);
+test('capabilities advertise implemented statistics routes and scoped bounds', async t => {
+  const f = await fixture(t);
+  const value = data(await f.request());
+  assert.equal(endpointIds(value).includes('OBS-API-11'), true);
+  assert.equal(endpointIds(value).includes('OBS-API-12'), true);
+  assert.equal(endpointIds(value).includes('OBS-API-13'), true);
+  assert.equal(value.maxStatisticsQueryInvocations, 5000);
+  assert.equal(value.maxBuckets, 1440);
+  assert.equal(value.maxGroupLimit, 100);
+  assert.equal(value.supportedGroupByCombinations.length, 28);
+  assert.deepEqual(value.supportedScopes, ['business', 'http_ingress', 'tool', 'protocol', 'upstream']);
 });

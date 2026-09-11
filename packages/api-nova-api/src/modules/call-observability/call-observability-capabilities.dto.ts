@@ -54,6 +54,7 @@ export class ObservabilityCapabilitiesDto {
   @ApiProperty() traceMaxNodes: number;
   @ApiProperty() maxVisitorQueryInvocations: number;
   @ApiProperty() maxStatisticsQueryInvocations: number;
+  @ApiProperty() maxGroupLimit: number;
   @ApiProperty() maxQueryCursorLifetimeMs: number;
   @ApiProperty({ type: ObservabilityRetentionCapabilitiesDto }) retentionWindows: ObservabilityRetentionCapabilitiesDto;
   @ApiProperty({ type: ObservabilityPayloadLimitsDto, nullable: true }) payloadLimits: ObservabilityPayloadLimitsDto | null;

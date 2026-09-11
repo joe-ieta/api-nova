@@ -124,3 +124,41 @@ export class ObservabilityStatisticsSummaryEnvelopeDto {
   @ApiProperty({ type: ObservabilityMetaDto }) meta: ObservabilityMetaDto;
 }
 
+
+export class ObservabilityStatisticsBucketDto {
+  @ApiProperty({ format: 'date-time' }) bucketStart: string;
+  @ApiProperty({ format: 'date-time' }) bucketEnd: string;
+  @ApiProperty({ format: 'date-time' }) effectiveFrom: string;
+  @ApiProperty({ format: 'date-time' }) effectiveTo: string;
+  @ApiProperty({ type: Number, nullable: true, description: 'Always null: these on-demand buckets are not persisted.' }) bucketVersion: number | null;
+  @ApiProperty() dataWatermark: string;
+  @ApiProperty() synthetic: boolean;
+  @ApiProperty({ type: ObservabilityStatisticsMetricsDto }) metrics: ObservabilityStatisticsMetricsDto;
+  @ApiProperty({ type: ObservabilityStatisticsCoverageDto }) coverage: ObservabilityStatisticsCoverageDto;
+}
+export class ObservabilityStatisticsTimeSeriesDto extends ObservabilityStatisticsSummaryDto {
+  @ApiProperty({ enum: ['1m', '5m', '1h', '1d'] }) interval: string;
+  @ApiProperty({ enum: ['none', 'zero'] }) fill: string;
+  @ApiProperty() maxBuckets: number;
+  @ApiProperty({ enum: ['not_persisted'] }) bucketVersionSemantics: string;
+  @ApiProperty({ type: [ObservabilityStatisticsBucketDto] }) items: ObservabilityStatisticsBucketDto[];
+}
+export class ObservabilityStatisticsGroupDto {
+  @ApiProperty() rank: number;
+  @ApiProperty({ type: 'object', additionalProperties: { type: 'string', nullable: true } }) dimensionValues: Record<string, string | null>;
+  @ApiProperty({ type: ObservabilityStatisticsMetricsDto }) metrics: ObservabilityStatisticsMetricsDto;
+}
+export class ObservabilityStatisticsGroupsDto extends ObservabilityStatisticsSummaryDto {
+  @ApiProperty({ type: [String] }) groupBy: string[];
+  @ApiProperty({ enum: ['selectedInvocations', 'failures', 'successes', 'uniqueCallers', 'upstreamRequests'] }) orderBy: string;
+  @ApiProperty() top: number;
+  @ApiProperty() totalGroups: number;
+  @ApiProperty() hasMoreGroups: boolean;
+  @ApiProperty({ type: [ObservabilityStatisticsGroupDto] }) items: ObservabilityStatisticsGroupDto[];
+}
+export class ObservabilityStatisticsTimeSeriesEnvelopeDto extends ObservabilityStatisticsSummaryEnvelopeDto {
+  @ApiProperty({ type: ObservabilityStatisticsTimeSeriesDto }) data: ObservabilityStatisticsTimeSeriesDto;
+}
+export class ObservabilityStatisticsGroupsEnvelopeDto extends ObservabilityStatisticsSummaryEnvelopeDto {
+  @ApiProperty({ type: ObservabilityStatisticsGroupsDto }) data: ObservabilityStatisticsGroupsDto;
+}

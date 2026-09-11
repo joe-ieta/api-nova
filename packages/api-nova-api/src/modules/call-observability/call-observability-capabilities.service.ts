@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { STATISTICS_SCOPES, STATISTICS_SUMMARY_QUERY_KEYS } from './call-observability-statistics.service';
+import { STATISTICS_SCOPES, STATISTICS_SUMMARY_QUERY_KEYS, STATISTICS_TIME_SERIES_QUERY_KEYS,
+  STATISTICS_GROUPS_QUERY_KEYS, STATISTICS_GROUP_COMBINATIONS, MAX_STATISTICS_BUCKETS,
+  MAX_STATISTICS_GROUP_LIMIT } from './call-observability-statistics.service';
 import { MAX_METRIC_OBSERVATIONS } from './call-observability-metrics';
 import { User } from '../../database/entities/user.entity';
 import { authorizeObservability, ObservabilityAuthorization, ObservabilityPermission } from './call-observability-access';
@@ -42,7 +44,9 @@ export class CallObservabilityCapabilitiesService {
       { name: 'sourceIpRead', implemented: true, grant: source },
       { name: 'callerProfileUpdate', implemented: true, grant: manage },
       { name: 'statistics', implemented: true, grant: read },
-      ...['overview', 'statisticsTimeSeries', 'statisticsGroups', 'dependencies', 'serverStatus', 'eventHistory', 'webhook',
+      { name: 'statisticsTimeSeries', implemented: true, grant: read },
+      { name: 'statisticsGroups', implemented: true, grant: read },
+      ...['overview', 'dependencies', 'serverStatus', 'eventHistory', 'webhook',
         'socketPush', 'pipelineStatus', 'policyManagement'].map(name => ({ name, implemented: false })),
     ];
     const features = featureInputs.map(feature => ({
@@ -69,19 +73,22 @@ export class CallObservabilityCapabilitiesService {
     endpoint('OBS-API-09', 'obsUpdateCallerLabels', 'PATCH', '/callers/{id}', [], manage, 'all_registered_caller_assets');
     endpoint('OBS-API-10', 'obsListSources', 'GET', '/sources', SOURCE_QUERY_KEYS, read);
     endpoint('OBS-API-11', 'obsGetStatisticsSummary', 'GET', '/statistics/summary', STATISTICS_SUMMARY_QUERY_KEYS, read);
+    endpoint('OBS-API-12', 'obsGetStatisticsTimeSeries', 'GET', '/statistics/time-series', STATISTICS_TIME_SERIES_QUERY_KEYS, read);
+    endpoint('OBS-API-13', 'obsGetStatisticsGroups', 'GET', '/statistics/groups', STATISTICS_GROUPS_QUERY_KEYS, read);
     const day = 86400000;
     const data: ObservabilityCapabilitiesDto = {
       availabilitySemantics: 'implementation_and_scope_eligibility_not_runtime_health',
       resourceScope: scopeMode(read), schemaVersions: { sourceRecords: 2, http: '1.0' },
       endpoints, features, enabledFeatures: features.filter(feature => feature.state === 'enabled').map(feature => feature.name),
       // Validation primitives and stored events do not make an aggregation or event API available.
-      supportedScopes: hasScope(read) ? [...STATISTICS_SCOPES] : [], supportedGroupByCombinations: [], maxBuckets: null,
+      supportedScopes: hasScope(read) ? [...STATISTICS_SCOPES] : [], supportedGroupByCombinations: hasScope(read) ? STATISTICS_GROUP_COMBINATIONS.map(combination => [...combination]) : [],
+      maxBuckets: hasScope(read) ? MAX_STATISTICS_BUCKETS : null,
       errorCategories: ['timeout', 'dns', 'tls', 'connection', 'cancelled', 'response_parse', 'authorization', 'other'],
       errorCategoryMode: 'suggested_values_free_text_filter',
       byteMeasurements: ['observed_body', 'serialized_payload', 'unavailable'],
       maxLimit: 200, defaultLimit: 50, maxQueryRange: 30 * day, defaultQueryWindowMs: 3600000,
       traceMaxNodes: MAX_TRACE_NODES, maxVisitorQueryInvocations: MAX_VISITOR_QUERY_INVOCATIONS,
-      maxStatisticsQueryInvocations: MAX_METRIC_OBSERVATIONS, maxQueryCursorLifetimeMs: 900000,
+      maxStatisticsQueryInvocations: MAX_METRIC_OBSERVATIONS, maxGroupLimit: MAX_STATISTICS_GROUP_LIMIT, maxQueryCursorLifetimeMs: 900000,
       retentionWindows: { basis: 'storage_defaults_not_coverage_guarantees',
         invocationMetadataDefaultMs: 30 * day, payloadDefaultMs: hasScope(payload) ? 7 * day : null,
         aggregateRetentionMs: null, effectiveHistoryCompleteSince: null },

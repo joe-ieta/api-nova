@@ -192,11 +192,11 @@ test('capabilities require current management JWT and base read permission', asy
   assert.equal((await f.request()).status, 401);
 });
 
-test('read-only grants advertise eight eligible routes and no private payload or management capability', async t => {
+test('read-only grants advertise ten eligible routes and no private payload or management capability', async t => {
   const f = await fixture(t), value = data(await f.request());
   assert.equal(value.resourceScope, 'scoped');
   assert.deepEqual(endpointIds(value), ['OBS-API-01', 'OBS-API-03', 'OBS-API-04', 'OBS-API-06',
-    'OBS-API-07', 'OBS-API-08', 'OBS-API-10', 'OBS-API-11']);
+    'OBS-API-07', 'OBS-API-08', 'OBS-API-10', 'OBS-API-11', 'OBS-API-12', 'OBS-API-13']);
   for (const name of ['payloadRead', 'sourceIpRead', 'callerProfileUpdate']) {
     assert.equal(feature(value, name).state, 'restricted');
     assert.equal(feature(value, name).scopeMode, 'none');
@@ -207,10 +207,10 @@ test('read-only grants advertise eight eligible routes and no private payload or
   assert.ok(value.endpoints.every(item => item.requiredPermissions.length === 1 && item.requiredPermissions[0] === READ));
 });
 
-test('explicit all-resource grants expose ten implemented endpoints and qualified payload object limits', async t => {
+test('explicit all-resource grants expose twelve implemented endpoints and qualified payload object limits', async t => {
   const f = await fixture(t), viewer = f.account([role(allPermissions, null)]);
   const value = data(await f.request('/capabilities', {}, viewer));
-  assert.equal(value.resourceScope, 'all'); assert.equal(value.endpoints.length, 10);
+  assert.equal(value.resourceScope, 'all'); assert.equal(value.endpoints.length, 12);
   assert.equal(value.maxStatisticsQueryInvocations, MAX_METRIC_OBSERVATIONS);
   assert.equal(feature(value, 'statistics').state, 'enabled');
   assert.deepEqual(value.endpoints.find(item => item.endpointId === 'OBS-API-11').queryParameters, [...STATISTICS_SUMMARY_QUERY_KEYS]);
@@ -230,7 +230,7 @@ test('optional permissions intersect base-read assets rather than unioning unrel
     role([READ], ['asset-a']), role([PAYLOAD, SOURCE], ['private-asset-b']), role([MANAGE], ['private-asset-c']),
   ]);
   const value = data(await f.request('/capabilities', {}, viewer));
-  assert.equal(value.resourceScope, 'scoped'); assert.equal(value.endpoints.length, 8);
+  assert.equal(value.resourceScope, 'scoped'); assert.equal(value.endpoints.length, 10);
   for (const name of ['payloadRead', 'sourceIpRead', 'callerProfileUpdate']) {
     assert.equal(feature(value, name).state, 'restricted');
   }
@@ -269,17 +269,17 @@ test('empty explicit asset scope retains only self discovery, not global data ac
   assert.equal(value.endpoints[0].authorizationRule, 'capability_only');
 });
 
-test('time-series, groups, runtime states, event history and push remain unavailable even for global grants', async t => {
+test('runtime states, event history and push remain unavailable even for global grants', async t => {
   const f = await fixture(t), viewer = f.account([role(allPermissions, null)]);
   const value = data(await f.request('/capabilities', {}, viewer));
-  for (const name of ['overview', 'statisticsTimeSeries', 'statisticsGroups', 'dependencies', 'serverStatus',
+  for (const name of ['overview', 'dependencies', 'serverStatus',
     'eventHistory', 'webhook', 'socketPush', 'pipelineStatus', 'policyManagement']) {
     assert.equal(feature(value, name).state, 'not_implemented');
     assert.equal(feature(value, name).scopeMode, null);
     assert.equal(value.enabledFeatures.includes(name), false);
   }
-  assert.deepEqual(value.supportedScopes, [...STATISTICS_SCOPES]); assert.deepEqual(value.supportedGroupByCombinations, []);
-  assert.equal(value.maxBuckets, null); assert.equal(value.eventRetention, null);
+  assert.deepEqual(value.supportedScopes, [...STATISTICS_SCOPES]); assert.deepEqual(value.supportedGroupByCombinations.length, 28);
+  assert.equal(value.maxBuckets, 1440); assert.equal(value.eventRetention, null);
   assert.equal(value.retentionWindows.aggregateRetentionMs, null);
 });
 
@@ -331,7 +331,7 @@ test('capability inventory and explicit DTOs match all actual module Swagger ope
   const operations = Object.entries(swagger.paths).flatMap(([route, item]) =>
     Object.entries(item).filter(([method]) => ['get', 'patch'].includes(method)).map(([method, operation]) =>
       ({ route, method, operation })));
-  assert.equal(operations.length, 10); assert.equal(value.endpoints.length, operations.length);
+  assert.equal(operations.length, 12); assert.equal(value.endpoints.length, operations.length);
   for (const endpoint of value.endpoints) {
     const actual = operations.find(item => item.route === endpoint.path && item.method === endpoint.method.toLowerCase());
     assert.ok(actual, endpoint.endpointId);
@@ -380,7 +380,7 @@ test('current optional grants are refreshed with the same JWT while coverage and
   assert.equal(initial.maxQueryCursorLifetimeMs, 900000);
   viewer.roles = [role([READ], null)];
   const revoked = data(await f.request('/capabilities', {}, token));
-  assert.equal(revoked.payloadLimits, null); assert.equal(revoked.endpoints.length, 8);
+  assert.equal(revoked.payloadLimits, null); assert.equal(revoked.endpoints.length, 10);
   assert.equal(revoked.observationHealth, 'unknown');
   viewer.roles = [];
   assert.equal((await f.request('/capabilities', {}, token)).status, 403);
