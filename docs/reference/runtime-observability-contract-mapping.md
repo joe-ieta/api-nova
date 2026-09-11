@@ -1,5 +1,5 @@
 ---
-doc-version: 1.21.0
+doc-version: 1.22.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -173,3 +173,15 @@ API 构建及新增 26 项、汇总 20 项通过；能力回归 4 项测试断�
 ## 时间序列及分组验收更新（2026-09-11）
 
 OBS-API-12/13 已 VERIFIED：专项 60/60、联合 404/404 PASS。此前 2026-09-09 的待验收记录为历史初轮状态。当前 12 个 HTTP Endpoint VERIFIED、16 个 PLANNED；两类推送与业务启用状态不变。桶版本仍为 null，按需查询不映射为已实现的持久聚合或桶事件。
+
+## TP10-B01 内部契约映射（2026-09-11）
+
+| 内部契约 | 代码映射 | 状态与限制 |
+| --- | --- | --- |
+| 数据库修订比较与桶规划 | call-observability-bucket-plan.ts / planBucketRevision | 已通过 26 项专项；输出 apply/duplicate/stale 和版本条件，不执行事务 |
+| 持久桶键 v1 | JSON 身份元组 -> SHA-256 bkt_ ID | 按资产/origin/scope/timeBasis/interval/UTC 起点分区；内部规划键，不是当前 HTTP 资源 |
+| 修订影响 | invalidations / added、removed、updated / recompute | 最多 32 桶；不累计阶段、不直接修改计数、不生成持久桶版本 |
+| 后续持久投影 | TP10-B02 | READY，未接入；必须原子提交版本条件、贡献引用和待重算桶 |
+| HTTP 与消息契约 | 已验证的 12 个 HTTP Endpoint、两类待实现推送 | B01 不改变能力声明或可用性，不把纯计算映射为主动报送 |
+
+本节点 API build、50 项专项、430 项联合回归 PASS。所有较新修订均使共有桶重算，避免在键未变时漏掉结局、字节、延迟和去重身份变化。

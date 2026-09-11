@@ -1,5 +1,5 @@
 ---
-doc-version: 1.21.0
+doc-version: 1.22.0
 doc-status: active
 doc-updated: 2026-09-09
 approval-status: approved
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.21.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 1.22.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -779,3 +779,11 @@ data 增加 groupBy、orderBy、top、totalGroups、hasMoreGroups、items。每�
 时间序列/分组 26/26、汇总 20/20、能力 14/14，专项合计 60/60 PASS；加入新脚本后的 19 脚本联合回归 404/404 PASS，0 fail/cancelled/skipped。API build 已在本节点生产代码完成时通过。
 
 OBS-API-12/13 提升为 VERIFIED。当前 28 个 HTTP Endpoint 中 01、03~13 共 12 个 VERIFIED、16 个 PLANNED；两类推送仍 PLANNED，根模块未启用，无 AVAILABLE 或部署声明。接口字段、权限与按需快照边界沿用第 25 节，不新增持久桶、健康或历史完整性承诺。
+
+## 27. 持久聚合规划内核的对外边界（2026-09-11）
+
+TP10-B01 已完成桶键/修订规划纯内核及 26 项专项，API build PASS，20 脚本联合 430/430 PASS。该内核仅计算需要重算的桶集合，没有新增 HTTP Endpoint、持久桶、事件或主动推送。
+
+已验证的 summary/time-series/groups 仍使用 retained_invocation_snapshot；bucketVersion=null、bucketVersionSemantics=not_persisted、未知覆盖及 5000 条明细边界不变。能力发现不新增 persistentAggregation 等已实现声明，12 个 HTTP VERIFIED、16 个 PLANNED 和 AVAILABLE=0 不变。
+
+持久桶读取、长期保留、真实 bucketVersion、桶修订事件及相应能力声明必须等待 B02/B03/B04 分别接入并验收后再更新本契约。桶规划键是内部身份，不作为当前 API 可访问资源 ID。

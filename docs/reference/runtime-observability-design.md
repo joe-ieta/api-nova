@@ -1,5 +1,5 @@
 ---
-doc-version: 1.22.0
+doc-version: 1.23.0
 doc-status: active
 doc-updated: 2026-09-09
 ---
@@ -660,3 +660,19 @@ API build、新增 26 项以及汇总 20 项通过；能力测试存在 4 项断
 ### 16.12 时间序列与分组验收结论（2026-09-11）
 
 仅修正初轮能力测试断言与标题后，专项 60/60、19 脚本联合 404/404 PASS；API build 已通过。OBS-API-12/13 为 VERIFIED，TP-10 仍 IN_PROGRESS。下一实施节点为持久聚合桶键及数据库修订规划内核：先确定受修订影响的桶集合，再接入事务投影、持久重算与事件；不以简单累加代替生命周期修订。
+
+### 16.13 TP10-B01：桶键与修订规划纯内核（2026-09-11）
+
+实现文件为 packages/api-nova-api/src/modules/call-observability/call-observability-bucket-plan.ts。该模块无数据库、文件、时钟或事件 I/O，不注册为业务生产投影。
+
+输入为上一数据库修订（可空）和下一数据库修订，包含 recordVersion 与规范化调用的最少分桶字段。数据库版本支持正的安全整数或规范 uint64 十进制字符串，比较保持精度；源端生命周期版本不能替代数据库修订版本。相同版本输出 duplicate、较旧版本输出 stale，两者均不触发桶失效；同版本依赖数据库修订不可变保证，不在本模块重新判断摄取内容冲突。不同 invocationId 不允许比较。
+
+桶键 v1 使用 JSON 元组 [版本, runtimeAssetId, origin, scope, timeBasis, interval, bucketStart] 的 SHA-256，使用 bkt_ 前缀。null 资产保留为 null，不与字符串 null、通配符或其他资产合并。UTC 桶宽固定为 1m/5m/1h/1d；startedAt/completedAt 独立分配，未完成调用不生成完成时间桶。输入时间为规范 UTC 毫秒 ISO 时间；本模块不猜测时区，不判断存活和历史覆盖。
+
+scope 与现有指标一致：Gateway 进入 business/http_ingress，Tool 进入 business/tool，MCP 协议进入 protocol，只有明确 HTTP 类 transport 才同时进入 http_ingress，上游调用进入 upstream。origin 四类完全分区。
+
+输出包含 expectedRecordVersion、incomingRecordVersion 与按桶 ID 排序的 invalidations。每项标记 added/removed/updated，统一 action=recompute；即使分桶字段未变，较新修订也要求重算共有桶，因为结局、字节、延迟或去重身份可能变化。单次修订最多涉及 32 个桶。迟到完成会更新开始桶、增加完成桶；时间或资产修正同时使旧、新归属失效。
+
+本模块不做计数增减，不生成持久 bucketVersion，不把规划当作提交。B02 必须在同一事务重新检查版本条件，原子更新贡献引用及待重算桶；B03 再根据当前有效贡献重算非可加指标，不能相加去重人数、分位数或均值。
+
+验收：新增 26/26、指标 24/24，专项 50/50 PASS；API build PASS；20 脚本联合 430/430 PASS，0 fail/cancelled/skipped。持久表、队列、重算恢复、覆盖、长期读取及事件尚未接入。
