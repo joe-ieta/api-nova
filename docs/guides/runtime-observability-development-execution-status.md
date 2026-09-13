@@ -680,6 +680,16 @@ B01/B02/B03 为 DONE，HTTP 12 VERIFIED、16 PLANNED，两类推送 PLANNED，AV
 
 该内核在 B02 已接入持久事务投影与重算标记。`test-call-observability-bucket-projection-recovery.cjs` 已执行通过（4/4）；TP10-B03 已追加并完成验收（新增 6/6，含覆盖/保留期回填和 malformed marker 边界），并闭环重放恢复、并发与回滚一致性。现已补齐持久读取兼容路径；下一节点为 B04：事件报送与状态钩子，随后再推进统一事件与治理收口。
 
+## 43. OBS-API-16 授权事件历史验收（2026-09-13）
+
+实现 GET /events：当前管理授权和资产隔离、规范持久事件元数据、历史补入标记、固定高水位、after/until 签名游标、过滤空页进度和保留期 410 恢复提示。默认 50、最多返回 200，每页检查最多 1000 条授权事件；桶事件使用版本和 refreshRequired=true，不内联完整统计。原始正文、Header、IP、存储引用和 traceId 不进入响应。
+
+能力发现新增 eventHistory 和 OBS-API-16；HTTP 13 VERIFIED、15 PLANNED，两类推送 PLANNED，AVAILABLE=0。TP-11 从 READY 改为 IN_PROGRESS，当前 DONE=7、IN_PROGRESS=3、READY=1、BACKLOG=5；纠正旧待办将事件历史归 TP-07、Webhook 归 TP-11 的错误，分别归 TP-11/12。
+
+API build PASS。事件专项 16/16，能力/统计关联组共 78/78；正文审计/文件身份/采集/恢复另组 82/82，总计 10 脚本 160/160 PASS，0 fail/cancelled/skipped。初轮旧断言、SQLite 批量夹具上限及短时间过期夹具已修正后回归通过。
+
+下一步为 Outbox 提交后消费、持久租约/分发水位与恢复。B04/TP-11 未整体完成；根应用启用、提前清理游标失效、PostgreSQL/Linux、性能和实际推送验收仍待进行。
+
 ## 42. Windows 文件身份回归修复与联合验收（2026-09-13）
 
 此前持久聚合、桶/采集状态事件及文档已提交为 3dcded3，本节覆盖第 41 节的采集阻塞状态。

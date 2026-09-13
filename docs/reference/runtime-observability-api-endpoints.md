@@ -130,7 +130,7 @@ invocations 按 (timeBasis DESC, invocationId DESC) 排序；其他列表明确�
 | OBS-API-13 | GET /statistics/groups | obsGetStatisticsGroups | 基础 | OBS-TP-10 | VERIFIED |
 | OBS-API-14 | GET /dependencies | obsGetDependencies | 基础 | OBS-TP-10 | PLANNED |
 | OBS-API-15 | GET /servers/status | obsGetServerStatuses | 基础 | OBS-TP-10 | PLANNED |
-| OBS-API-16 | GET /events | obsListEvents | 基础 | OBS-TP-11 | PLANNED |
+| OBS-API-16 | GET /events | obsListEvents | 基础 | OBS-TP-11 | VERIFIED |
 | OBS-API-17 | POST /subscriptions | obsCreateSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
 | OBS-API-18 | GET /subscriptions | obsListSubscriptions | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
 | OBS-API-19 | GET /subscriptions/:id | obsGetSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
@@ -256,6 +256,18 @@ PATCH /policies/:id 使用 If-Match，接受该策略支持字段的部分更新
 ## 5. 事件历史、订阅与投递 Endpoint
 
 ### 5.1 OBS-API-16：事件历史与补拉
+
+2026-09-13 已实现并验收。事件历史专项 16/16；10 个相关脚本分两组执行共 160/160 PASS，API build PASS。当前 HTTP 13 VERIFIED、15 PLANNED，AVAILABLE=0；Outbox 分发和两类主动推送未完成。
+
+实现边界：每次使用当前管理 JWT、monitoring:read 和资产范围，资产未绑定事件仅全局授权可见。仅查询 schemaVersion=1.0 且带持久 sequence 的规范事件，历史 suppressed 事件可查并标 historical=true，不把旧监控日志转换为新事件。
+
+limit 默认 50、最大 200；每页最多载入 1001 条授权事件，其中最多检查 1000 条，第 1001 条用于判断后续页。枚举列表以逗号分隔，列表内部 OR、字段之间 AND；重复/嵌套/未知参数拒绝。HTTP 历史接口不接受裸 afterSequence 或调用查询 cursor；快照到订阅的 afterSequence 衔接仍归后续推送节点。
+
+highWatermark 是十进制 sequence，highWatermarkCursor 是同范围签名上界，可作为 until。nextCursor 始终返回，含已扫描位置；hasMore=true 时保持原高水位，完成后使用 nextCursor 发起下一轮可获取新增事件。游标绑定主体、当前授权、端点和规范化过滤，续页允许省略原过滤；不能扩展原未完成窗口。
+
+游标最长 15 分钟，同时受剩余授权事件最早 expiresAt 限制，翻页不续期。过期返回 410 EVENT_CURSOR_EXPIRED 和 details.resnapshotRequired=true、availableFrom（当前授权/显式资产范围内可用的最早 sequence，无可用事件为 null；不是签名游标）。不自动跳过过期区间。未来提前物理清理或缩短保留策略必须补充游标失效机制后才可启用。
+
+响应仅含白名单元数据，不返回原始 details、正文、Header、IP、存储引用或未裁剪 traceId。桶事件返回 subject.version、bucketVersion 及 refreshRequired=true，消费者按版本刷新统计；本节点不输出完整桶指标替换载荷。扫描数量仅统计授权事件，覆盖/运行健康继续未知。
 
 after、until 是事件游标，区间为 (after,until]；不与调用列表 cursor 混用。未提供 after 时从授权且仍在保留期内的可用起点读取，生产集成建议先从 overview 获取 snapshotSeq。支持 eventTypes、severities、spanKinds、outcomes、runtimeAssetId、serverType、callerId、endpointDefinitionId、toolName 与 limit。
 

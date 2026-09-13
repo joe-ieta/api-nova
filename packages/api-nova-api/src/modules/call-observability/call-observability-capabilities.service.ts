@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { EVENT_QUERY_KEYS } from './call-observability-events.service';
 import { STATISTICS_SCOPES, STATISTICS_SUMMARY_QUERY_KEYS, STATISTICS_TIME_SERIES_QUERY_KEYS,
   STATISTICS_GROUPS_QUERY_KEYS, STATISTICS_GROUP_COMBINATIONS, MAX_STATISTICS_BUCKETS,
   MAX_STATISTICS_GROUP_LIMIT } from './call-observability-statistics.service';
@@ -46,7 +47,8 @@ export class CallObservabilityCapabilitiesService {
       { name: 'statistics', implemented: true, grant: read },
       { name: 'statisticsTimeSeries', implemented: true, grant: read },
       { name: 'statisticsGroups', implemented: true, grant: read },
-      ...['overview', 'dependencies', 'serverStatus', 'eventHistory', 'webhook',
+      { name: 'eventHistory', implemented: true, grant: read },
+      ...['overview', 'dependencies', 'serverStatus', 'webhook',
         'socketPush', 'pipelineStatus', 'policyManagement'].map(name => ({ name, implemented: false })),
     ];
     const features = featureInputs.map(feature => ({
@@ -75,6 +77,7 @@ export class CallObservabilityCapabilitiesService {
     endpoint('OBS-API-11', 'obsGetStatisticsSummary', 'GET', '/statistics/summary', STATISTICS_SUMMARY_QUERY_KEYS, read);
     endpoint('OBS-API-12', 'obsGetStatisticsTimeSeries', 'GET', '/statistics/time-series', STATISTICS_TIME_SERIES_QUERY_KEYS, read);
     endpoint('OBS-API-13', 'obsGetStatisticsGroups', 'GET', '/statistics/groups', STATISTICS_GROUPS_QUERY_KEYS, read);
+    endpoint('OBS-API-16', 'obsListEvents', 'GET', '/events', EVENT_QUERY_KEYS, read);
     const day = 86400000;
     const data: ObservabilityCapabilitiesDto = {
       availabilitySemantics: 'implementation_and_scope_eligibility_not_runtime_health',
@@ -94,7 +97,7 @@ export class CallObservabilityCapabilitiesService {
         aggregateRetentionMs: null, effectiveHistoryCompleteSince: null },
       payloadLimits: hasScope(payload) ? { readObjectMaxBytes: 128 * 1024 * 1024, effectiveCaptureBytes: null,
         capturePolicyState: 'not_reported_by_producers', readLimitScope: 'single_stored_object_not_total_http_memory' } : null,
-      eventRetention: null, observationHealth: 'unknown',
+      eventRetention: hasScope(read) ? 14 * day : null, observationHealth: 'unknown',
     };
     // A genuine read snapshot, not a health check, source scan, or policy mutation.
     return this.store.readSnapshot(async tx => observabilitySuccess(data, { snapshotSeq: tx.snapshotSeq,

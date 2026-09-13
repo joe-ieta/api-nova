@@ -189,7 +189,9 @@ OBS-API-12/13 已 VERIFIED：专项 60/60、联合 404/404 PASS。此前 2026-09
 
 ## 当前完成状态复核（2026-09-11）
 
-契约实现分层以[任务完成情况复核与未完成清单](../guides/runtime-observability-completion-review.md)为准：7 个任务包完成、9 个未完成；12 个 HTTP VERIFIED、16 个 PLANNED，两类推送 PLANNED。
+契约实现分层以[任务完成情况复核与未完成清单](../guides/runtime-observability-completion-review.md)为准：7 个任务包完成、9 个未完成；13 个 HTTP VERIFIED、15 个 PLANNED，两类推送 PLANNED。
+
+2026-09-13：OBS-API-16 由 CallObservabilityEventsController/Service 接入，复用 RuntimeObservabilityEventEntity、当前授权和事件签名游标。支持持久顺序历史、固定高水位、过滤空页推进和过期恢复提示。桶事件是版本化刷新通知，完整指标需重新查询。API build、事件专项 16/16 和 10 脚本分组回归 160/160 PASS；Outbox 分发及网络推送尚未实现。
 
 CallObservabilityStore 已在事务内写 invocation.completed/reconciled 事件和 pending/suppressed 状态；这只证明事件入库，不证明历史 API、分发和外部接收已完成。RuntimeMetricBucket/Contribution、Subscription/Delivery 等实体只证明结构基础，不证明生产流程已连接。旧 RuntimeObservabilityModule/MonitoringGateway 不等同于本轮统一契约实现。
 

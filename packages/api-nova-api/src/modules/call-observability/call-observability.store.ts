@@ -818,7 +818,7 @@ export class CallObservabilityStore {
         sourceServiceInstanceId: row.sourceServiceInstanceId },
       // Push is metadata-only. Raw bodies, headers, source IPs and paths are excluded.
       details: { invocationId: row.invocationId, recordVersion: current.recordVersion,
-        traceId: row.traceId, spanKind: row.spanKind, serverType: row.serverType, origin: row.origin,
+        traceId: row.traceId, spanKind: row.spanKind, serverType: row.serverType, origin: row.origin, toolName: row.toolName,
         callerId: row.callerId, runtimeAssetId: row.runtimeAssetId, outcome: row.outcome,
         httpStatus: row.httpStatus, toolIsError: row.toolIsError, errorCategory: row.errorCategory,
         durationMs: row.durationMs, completionSource: row.completionSource,

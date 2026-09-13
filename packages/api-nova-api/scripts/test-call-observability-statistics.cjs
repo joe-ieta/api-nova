@@ -93,6 +93,7 @@ async function fixture(t, sourceCap = 10000) {
   Module({
     controllers: Reflect.getMetadata('controllers', CallObservabilityModule),
     providers: [
+      { provide: require('../dist/src/modules/call-observability/call-observability-events.service.js').CallObservabilityEventsService, useValue: {} },
       { provide: CallObservabilityCapabilitiesService, useValue: new CallObservabilityCapabilitiesService(store) },
       { provide: CallObservabilityStatisticsService, useValue: new CallObservabilityStatisticsService(store) },
       { provide: CallObservabilityInvocationsService, useValue: new CallObservabilityInvocationsService(store, cursors) },
@@ -400,14 +401,16 @@ test('database failures return a safe unavailable envelope without leaking drive
 
 test('summary watermark is a genuine read snapshot and queries do not advance facts or events', async t => {
   const f = await fixture(t); await f.ingest();
+  const buckets = await f.database.getRepository(entities.RuntimeMetricBucketEntity).count();
+  const contributions = await f.database.getRepository(entities.RuntimeMetricContributionEntity).count();
   const before = await f.store.readSnapshot(tx => tx.snapshotSeq);
   const events = await f.database.getRepository(RuntimeObservabilityEventEntity).count();
   const result = await summary(f);
   assert.equal(result.body.meta.snapshotSeq, before); assert.equal(result.body.meta.dataWatermark, before);
   assert.equal(await f.store.readSnapshot(tx => tx.snapshotSeq), before);
   assert.equal(await f.database.getRepository(RuntimeObservabilityEventEntity).count(), events);
-  assert.equal(await f.database.getRepository(entities.RuntimeMetricBucketEntity).count(), 0);
-  assert.equal(await f.database.getRepository(entities.RuntimeMetricContributionEntity).count(), 0);
+  assert.equal(await f.database.getRepository(entities.RuntimeMetricBucketEntity).count(), buckets);
+  assert.equal(await f.database.getRepository(entities.RuntimeMetricContributionEntity).count(), contributions);
 });
 
 test('generated Swagger matches exact summary queries, required scope, nested DTOs and safe errors', async t => {

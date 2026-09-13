@@ -94,6 +94,7 @@ async function fixture(t, sourceCap = 10000) {
   Module({
     controllers: Reflect.getMetadata('controllers', CallObservabilityModule),
     providers: [
+      { provide: require('../dist/src/modules/call-observability/call-observability-events.service.js').CallObservabilityEventsService, useValue: {} },
       { provide: CallObservabilityCapabilitiesService, useValue: new CallObservabilityCapabilitiesService(store) },
       { provide: CallObservabilityStatisticsService, useValue: new CallObservabilityStatisticsService(store) },
       { provide: CallObservabilityInvocationsService, useValue: new CallObservabilityInvocationsService(store, cursors) },
