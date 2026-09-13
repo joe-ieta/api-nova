@@ -181,7 +181,7 @@ flowchart TD
 
 ### OBS-TP-11 持久事件与 Outbox
 
-当前 IN_PROGRESS：OBS-API-16 已完成授权历史、固定高水位、签名游标、保留期错误及白名单响应，专项 16/16、相关 10 脚本分组回归合计 160/160 PASS。剩余租约、分发水位、提交后消费与恢复，不提前关闭任务包。
+当前 DONE：OBS-API-16 已完成授权历史、固定高水位、签名游标、保留期错误及白名单响应；Outbox 已完成提交后消费、按 sequence 的半开修订选路、持久 delivery 去重、租约恢复及无缺口分发水位。事件专项 16/16、Outbox 专项 11/11 PASS，API build PASS；网络发送、重试与死信归 TP-12。
 
 交付 OBS-API-16。规范已入库事件的对外信封、sequence、订阅配置生效点、租约/分发水位、过滤授权、事件游标与补拉。
 
@@ -492,8 +492,8 @@ B02 实施时需在存储事务内重新读取已投影数据库版本，原子�
 
 > 当前总览以[任务完成情况复核与未完成清单](./runtime-observability-completion-review.md)为准。该文档逐包列出状态、逐条列出 16 个未完成 HTTP Endpoint，并以 REM-01~13 列出剩余工作与完成条件。
 
-OBS-TP-01/02/03/04/05/08/09 为 DONE；OBS-TP-06/10/11 为 IN_PROGRESS；OBS-TP-07 为 READY；OBS-TP-12~16 为 BACKLOG。共 9 个任务包未完成，DONE=7、IN_PROGRESS=3、READY=1、BACKLOG=5。READY 只表示可开始，不能计入完成。
+OBS-TP-01/02/03/04/05/08/09/11 为 DONE；OBS-TP-06/10 为 IN_PROGRESS；OBS-TP-07/12 为 READY；OBS-TP-13~16 为 BACKLOG。共 8 个任务包未完成，DONE=8、IN_PROGRESS=2、READY=2、BACKLOG=4。READY 只表示可开始，不能计入完成。
 
-TP10-B01 已完成纯规划，不代表持久聚合完成。B02 已接入事务投影与重算标记，TP10-B03 已推进且持久读取回退已上线；同时补齐并发/重启恢复边界与失败回滚验收、B03/B04、统一状态/剩余指标、事件历史、Webhook、WebSocket、治理与完整验收仍待推进。现有调用事件入库和旧监控模块是基础，不等于新报送闭环。
+TP10-B01~B03 已完成，B04、统一状态/剩余指标仍待推进。TP-11 已完成授权事件历史与持久 Outbox，但这只产生 durable delivery，不发送网络请求；Webhook、WebSocket、治理与完整验收仍待推进。现有 delivery 任务和旧监控模块都不等于新报送闭环。
 
 大屏 UI 延后不影响后端状态/事件契约仍为必做事项。平台、性能、完整启动与部署验收没有通过前，不将独立模块测试扩大为 AVAILABLE。

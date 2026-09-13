@@ -69,8 +69,8 @@ implementation-status: in-progress
 | OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | DONE | 采集/身份/重启/源退出共 45 项专项通过；真实写入进程 UUID/PID、已关闭残片隔离和立即 unknown 恢复已接入。包级退出条件完成，应用启用与全平台集成另归 15/16 |
 | OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | DONE | 03~10 八接口 VERIFIED；调用/trace 38、正文/审计 23、访客 24、标签/条件请求 27 项通过；联合 320 项和 API 构建通过 |
 | OBS-TP-10 | 聚合、状态与能力 API | 03、08 | IN_PROGRESS | OBS-API-01/11/12/13 VERIFIED；B01/B02/B03 均已通过验收，`test-call-observability-bucket-projection-recovery.cjs` 新增 B03 场景补齐并执行通过（6/6）；`test-call-observability-bucket-projection-recovery.cjs` 中 B02 场景已执行通过（4/4） |
-| OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | READY | 03、08 已完成；持久事件基础已有，仍需历史查询和 Outbox 消费 |
-| OBS-TP-12 | Webhook/订阅/投递 API | 11 | BACKLOG | 11 尚未完成 |
+| OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | DONE | OBS-API-16 与提交后 Outbox 消费已验收；订阅修订选路、持久 delivery 去重、租约恢复及无缺口分发水位完成，网络发送归 TP-12 |
+| OBS-TP-12 | Webhook/订阅/投递 API | 11 | READY | 11 已完成；可开始订阅管理、签名发送、重试/死信和投递查询 |
 | OBS-TP-13 | Socket.IO/快照与恢复 | 10、11 | BACKLOG | 10、11 尚未完成 |
 | OBS-TP-14 | 配额/保留/策略/健康 | 09、10、11、12 | BACKLOG | 前置查询/投递能力尚未完成 |
 | OBS-TP-15 | 全链路集成与旧能力收敛 | 05、06、07、09、10、12、13、14 | BACKLOG | 同步切换旧接口；覆盖全系统 SQL.js 事务交互并定位 pg 弃用警告，不再做兼容适配 |
@@ -674,7 +674,7 @@ ef66443 feat(observability): add scoped time-series and grouped statistics 已�
 
 API build PASS；桶规划 26/26、指标 24/24，专项合计 50/50 PASS。加入新脚本后的 20 脚本联合回归 430/430 PASS，0 fail/cancelled/skipped。
 
-B01/B02/B03 为 DONE，HTTP 12 VERIFIED、16 PLANNED，两类推送 PLANNED，AVAILABLE=0；TP-06/10 仍 IN_PROGRESS，父任务包计数不变。
+B01/B02/B03 为 DONE，HTTP 13 VERIFIED、15 PLANNED，两类推送 PLANNED，AVAILABLE=0；当前 DONE=8、IN_PROGRESS=2、READY=2、BACKLOG=4，TP-06/10 仍 IN_PROGRESS，TP-07/12 READY。
 
 ### 39.4 未完成边界与接续
 
@@ -689,6 +689,16 @@ B01/B02/B03 为 DONE，HTTP 12 VERIFIED、16 PLANNED，两类推送 PLANNED，AV
 API build PASS。事件专项 16/16，能力/统计关联组共 78/78；正文审计/文件身份/采集/恢复另组 82/82，总计 10 脚本 160/160 PASS，0 fail/cancelled/skipped。初轮旧断言、SQLite 批量夹具上限及短时间过期夹具已修正后回归通过。
 
 下一步为 Outbox 提交后消费、持久租约/分发水位与恢复。B04/TP-11 未整体完成；根应用启用、提前清理游标失效、PostgreSQL/Linux、性能和实际推送验收仍待进行。
+
+## 44. TP-11 持久 Outbox 收口（2026-09-13）
+
+新增 `CallObservabilityOutboxService`，仅消费已经提交、未过期且为规范 schema 的 pending 事件。Worker 使用短期持久租约；过期租约可被恢复，活动租约不被抢占。PostgreSQL 路径使用悲观锁与 skip locked，本地 SQL.js 通过事务串行化；同一进程的重入调用共享当前批次。
+
+订阅配置按事件 sequence 选择当时生效的修订，有效区间固定为 `[effectiveFromSequence, effectiveUntilSequence)`。禁用、撤销、暂停期不创建、资产 scope 及白名单过滤均在物化前执行。每个匹配结果创建持久 delivery，唯一键保持 `(subscriptionId,eventId)`；delivery 创建、事件 materialized 状态和安全分发水位在同一事务提交，失败全部回滚。水位停在最早未解决事件之前，可跨越 suppressed、过期及非规范记录，不因处理顺序形成假进度。
+
+后台循环默认关闭，仅在 `API_NOVA_OBSERVABILITY_OUTBOX_ENABLED=true` 时启动；本节点不执行网络请求、不增加 attempt，也不把 materialized 解释为 delivered。API build PASS；`test-call-observability-outbox.cjs` 11/11 PASS，覆盖提交/回滚、修订选路、范围与过滤、重复运行/重启、租约恢复、本地并发、插入失败回滚、无效事件、水位缺口、恶意配置和生命周期。最终边界修正前的事件/桶/Worker 联合组 51/51 PASS；边界修正后重新构建并完成 Outbox 11/11 专项。
+
+OBS-TP-11=DONE，当前 DONE=8、IN_PROGRESS=2、READY=2、BACKLOG=4；OBS-TP-12 转 READY。实际 Webhook 地址管理、SSRF 约束、密钥/签名、网络超时、重试/死信、人工重投、尝试详情及管理审计继续归 TP-12；根应用启用归 TP-15，PostgreSQL 多进程、Linux、负载和部署矩阵归 TP-16。
 
 ## 42. Windows 文件身份回归修复与联合验收（2026-09-13）
 
