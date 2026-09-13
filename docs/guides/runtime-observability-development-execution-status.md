@@ -19,11 +19,11 @@ implementation-status: in-progress
 | OBS-GATE-01 | PASSED；用户要求按计划持续推进 |
 | 全新版本决策 | 统一当前格式、接口和数据库初始结构，不增加历史兼容层 |
 | 实现任务总数 | 16 |
-| DONE | 7 |
-| IN_PROGRESS / REVIEW / BLOCKED | 2 / 0 / 0 |
-| READY / BACKLOG | 2 / 5 |
-| 代码验收完成率 | 7/16；TP-09 查询与审计包已收口，不代表业务根应用启用、推送或全平台验收 |
-| 新 HTTP Endpoint | 28 个；01、03~13 共 12 个 VERIFIED，其余 16 个 PLANNED；均未部署为 AVAILABLE |
+| DONE | 8 |
+| IN_PROGRESS / REVIEW / BLOCKED | 3 / 0 / 0 |
+| READY / BACKLOG | 1 / 4 |
+| 代码验收完成率 | 8/16；TP-11 持久事件与 Outbox 已收口，不代表业务根应用启用、网络推送或全平台验收 |
+| 新 HTTP Endpoint | 28 个；01、03~13、16、17 共 14 个 VERIFIED，其余 14 个 PLANNED；均未部署为 AVAILABLE |
 | 新推送契约 | 2 类，全部 PLANNED |
 | 本轮数据库实际操作 | 隔离 SQL.js 内存库、独有临时目录及本机随机端口；未连接或清理业务数据库 |
 | 本轮新增验证 | B01 API build PASS；桶规划 26/26、指标 24/24，专项 50/50、20 脚本联合 430/430 PASS；0 fail/cancelled/skipped |
@@ -70,7 +70,7 @@ implementation-status: in-progress
 | OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | DONE | 03~10 八接口 VERIFIED；调用/trace 38、正文/审计 23、访客 24、标签/条件请求 27 项通过；联合 320 项和 API 构建通过 |
 | OBS-TP-10 | 聚合、状态与能力 API | 03、08 | IN_PROGRESS | OBS-API-01/11/12/13 VERIFIED；B01/B02/B03 均已通过验收，`test-call-observability-bucket-projection-recovery.cjs` 新增 B03 场景补齐并执行通过（6/6）；`test-call-observability-bucket-projection-recovery.cjs` 中 B02 场景已执行通过（4/4） |
 | OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | DONE | OBS-API-16 与提交后 Outbox 消费已验收；订阅修订选路、持久 delivery 去重、租约恢复及无缺口分发水位完成，网络发送归 TP-12 |
-| OBS-TP-12 | Webhook/订阅/投递 API | 11 | READY | 11 已完成；可开始订阅管理、签名发送、重试/死信和投递查询 |
+| OBS-TP-12 | Webhook/订阅/投递 API | 11 | IN_PROGRESS | OBS-API-17 创建订阅已验收；18~25、签名发送、重试/死信仍待实施 |
 | OBS-TP-13 | Socket.IO/快照与恢复 | 10、11 | BACKLOG | 10、11 尚未完成 |
 | OBS-TP-14 | 配额/保留/策略/健康 | 09、10、11、12 | BACKLOG | 前置查询/投递能力尚未完成 |
 | OBS-TP-15 | 全链路集成与旧能力收敛 | 05、06、07、09、10、12、13、14 | BACKLOG | 同步切换旧接口；覆盖全系统 SQL.js 事务交互并定位 pg 弃用警告，不再做兼容适配 |
@@ -85,8 +85,9 @@ implementation-status: in-progress
 | OBS-API-11：统计汇总 | 1 | 10 | VERIFIED；未部署 |
 | OBS-API-12/13：时间桶/排行 | 2 | 10 | VERIFIED |
 | OBS-API-02/14/15：总览/依赖/状态 | 3 | 10 | PLANNED |
-| OBS-API-16：事件补拉 | 1 | 11 | PLANNED |
-| OBS-API-17~25：订阅/投递/重试 | 9 | 12 | PLANNED |
+| OBS-API-16：事件补拉 | 1 | 11 | VERIFIED；未部署 |
+| OBS-API-17：创建订阅 | 1 | 12 | VERIFIED；未部署 |
+| OBS-API-18~25：订阅/投递/重试 | 8 | 12 | PLANNED |
 | OBS-API-26~28：健康/策略 | 3 | 14 | PLANNED |
 | OBS-PUSH-01：Socket.IO | 1 | 13 | PLANNED |
 | OBS-PUSH-02：Webhook | 1 | 12 | PLANNED |
@@ -699,6 +700,14 @@ API build PASS。事件专项 16/16，能力/统计关联组共 78/78；正文�
 后台循环默认关闭，仅在 `API_NOVA_OBSERVABILITY_OUTBOX_ENABLED=true` 时启动；本节点不执行网络请求、不增加 attempt，也不把 materialized 解释为 delivered。API build PASS；`test-call-observability-outbox.cjs` 11/11 PASS，覆盖提交/回滚、修订选路、范围与过滤、重复运行/重启、租约恢复、本地并发、插入失败回滚、无效事件、水位缺口、恶意配置和生命周期。最终边界修正前的事件/桶/Worker 联合组 51/51 PASS；边界修正后重新构建并完成 Outbox 11/11 专项。
 
 OBS-TP-11=DONE，当前 DONE=8、IN_PROGRESS=2、READY=2、BACKLOG=4；OBS-TP-12 转 READY。实际 Webhook 地址管理、SSRF 约束、密钥/签名、网络超时、重试/死信、人工重投、尝试详情及管理审计继续归 TP-12；根应用启用归 TP-15，PostgreSQL 多进程、Linux、负载和部署矩阵归 TP-16。
+
+## 45. TP-12 首节点：OBS-API-17 创建订阅（2026-09-13）
+
+新增 POST /subscriptions，要求 `monitoring:read` 与 `monitoring:subscription:manage` 的当前交集范围。创建事务分配当前水位之后的生效 sequence，原子写入订阅当前行、版本 1 修订、脱敏管理审计及可选幂等回执；审计失败时订阅、修订和 sequence 全部回滚。首次禁用订阅记录 paused 起点，不补发此前历史。
+
+请求严格限制名称、Webhook 地址、secretRef、九类过滤、enabled 与 reason。订阅范围不能超过当前授权；未显式列资产时固定为当前授权快照，不随未来授权扩大。目的地址默认 HTTPS，必须命中部署 host 允许项，禁止 URL 凭证/query/fragment及云元数据地址；HTTP 仅可由隔离环境显式打开。secretRef 必须命中部署引用清单，持久层和响应都不接触签名秘密；响应仅返回 signingKeyId、secretConfigured 与编辑 ETag。DNS 解析后复核及真实发送仍未实现。
+
+API build PASS。创建专项 9/9 PASS（含真实回环 HTTP 的无 Token、缺权限和成功 201）；能力专项 14/14、权限/幂等基础与 Outbox 关联组 67/67 PASS。能力发现新增 `subscriptionManagement` 与 OBS-API-17，但 `webhook` 仍为 not_implemented。HTTP 14 VERIFIED、14 PLANNED，两类推送仍 PLANNED，AVAILABLE=0。TP-12=IN_PROGRESS，当前 DONE=8、IN_PROGRESS=3、READY=1、BACKLOG=4；下一节点为 OBS-API-18~21 查询、版本更新、暂停恢复与软删除。
 
 ## 42. Windows 文件身份回归修复与联合验收（2026-09-13）
 

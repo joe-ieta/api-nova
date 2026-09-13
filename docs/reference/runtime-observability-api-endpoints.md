@@ -131,7 +131,7 @@ invocations 按 (timeBasis DESC, invocationId DESC) 排序；其他列表明确�
 | OBS-API-14 | GET /dependencies | obsGetDependencies | 基础 | OBS-TP-10 | PLANNED |
 | OBS-API-15 | GET /servers/status | obsGetServerStatuses | 基础 | OBS-TP-10 | PLANNED |
 | OBS-API-16 | GET /events | obsListEvents | 基础 | OBS-TP-11 | VERIFIED |
-| OBS-API-17 | POST /subscriptions | obsCreateSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
+| OBS-API-17 | POST /subscriptions | obsCreateSubscription | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
 | OBS-API-18 | GET /subscriptions | obsListSubscriptions | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
 | OBS-API-19 | GET /subscriptions/:id | obsGetSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
 | OBS-API-20 | PATCH /subscriptions/:id | obsUpdateSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
@@ -298,6 +298,8 @@ POST /subscriptions 返回 201；请求示意：
 filter 支持 runtimeAssetIds、serverTypes、eventTypes、severities、spanKinds、outcomes、callerIds、endpointDefinitionIds、toolNames。同一数组内 OR，不同字段间 AND；不适用的字段不会命中。若订阅设置 outcomes，仅包含状态结果的调用事件能匹配，心跳不强行填 outcome；需要不同筛选时建两个订阅。
 
 订阅资源范围不得超过创建者权限。目的地按部署允许列表和地址校验约束；secretRef 只引用已授权的签名秘密，不接受在 URL 或请求中直接内嵌业务 API Key。读取返回 signingKeyId 和 secretConfigured，不回显秘密。
+
+当前创建节点使用 `API_NOVA_OBSERVABILITY_WEBHOOK_ALLOWED_HOSTS`（逗号分隔、精确 host，含非默认端口）和 `API_NOVA_OBSERVABILITY_WEBHOOK_SECRET_REFS`（逗号分隔引用）作为部署授权边界；两者缺失时返回 503。默认只接受 HTTPS，隔离测试如需 HTTP 必须显式设置 `API_NOVA_OBSERVABILITY_WEBHOOK_ALLOW_HTTP=true`。URL 禁止凭证、query 和 fragment，云元数据地址即使列入允许项也拒绝；DNS 解析后复核仍由实际发送节点执行。
 
 订阅返回 id、version、state、filter、effectiveFromSeq、destination 的安全视图和健康摘要。首次创建只匹配之后的新事件，不自动发送全部历史。GET 列表按 createdAt DESC、id DESC 排序，限定管理者有权访问的订阅。
 

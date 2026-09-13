@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { CallObservabilityEventsController } from './call-observability-events.controller';
 import { CallObservabilityEventsService } from './call-observability-events.service';
 import { CallObservabilityOutboxService } from './call-observability-outbox.service';
+import { CallObservabilitySubscriptionsController } from './call-observability-subscriptions.controller';
+import { CallObservabilitySubscriptionsService } from './call-observability-subscriptions.service';
 import { CallObservabilityStatisticsController } from './call-observability-statistics.controller';
 import { CallObservabilityStatisticsService } from './call-observability-statistics.service';
 import { CallObservabilityCapabilitiesController } from './call-observability-capabilities.controller';
@@ -33,10 +35,10 @@ import { CallObservabilityStore } from './call-observability.store';
 
 @Module({
   imports: [ConfigModule, SecurityModule, TypeOrmModule.forFeature([...CALL_OBSERVABILITY_ENTITIES, RuntimeObservabilityEventEntity])],
-  controllers: [CallObservabilityEventsController, CallObservabilityStatisticsController, CallObservabilityCapabilitiesController, CallObservabilityCallerLabelsController, CallObservabilityVisitorsController, CallObservabilityInvocationsController, CallObservabilityPayloadsController],
+  controllers: [CallObservabilitySubscriptionsController, CallObservabilityEventsController, CallObservabilityStatisticsController, CallObservabilityCapabilitiesController, CallObservabilityCallerLabelsController, CallObservabilityVisitorsController, CallObservabilityInvocationsController, CallObservabilityPayloadsController],
   providers: [CallObservabilityStatisticsService, CallObservabilityCapabilitiesService, CallObservabilityCallerLabelsService, CallObservabilityVisitorsService, CallObservabilityPayloadsService, CallObservabilityInvocationsService, CallObservabilitySourceLifecycle, CallObservabilityCallersProjector, CallObservabilityWorker, CallObservabilityCollector, CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
-    CallObservabilityEventsService, CallObservabilityOutboxService, ObservabilityAccessGuard, ObservabilityApiExceptionFilter, ObservabilityCursorService, ObservabilityCommandStore],
+    CallObservabilitySubscriptionsService, CallObservabilityEventsService, CallObservabilityOutboxService, ObservabilityAccessGuard, ObservabilityApiExceptionFilter, ObservabilityCursorService, ObservabilityCommandStore],
   exports: [CallObservabilityStatisticsService, CallObservabilityCapabilitiesService, CallObservabilityCallerLabelsService, CallObservabilityVisitorsService, CallObservabilityPayloadsService, CallObservabilityInvocationsService, CallObservabilitySourceLifecycle, CallObservabilityCallersProjector, CallObservabilityWorker, CallObservabilityCollector, CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
-    CallObservabilityEventsService, CallObservabilityOutboxService, ObservabilityAccessGuard, ObservabilityApiExceptionFilter, ObservabilityCursorService, ObservabilityCommandStore],
+    CallObservabilitySubscriptionsService, CallObservabilityEventsService, CallObservabilityOutboxService, ObservabilityAccessGuard, ObservabilityApiExceptionFilter, ObservabilityCursorService, ObservabilityCommandStore],
 })
 export class CallObservabilityModule {}

@@ -35,6 +35,7 @@ export class CallObservabilityCapabilitiesService {
     };
     const payload = optional('monitoring:payload:read'), source = optional('monitoring:source:read');
     const manage = optional('monitoring:manage');
+    const subscription = optional('monitoring:subscription:manage');
     const featureInputs: Array<{ name: string; implemented: boolean; grant?: ObservabilityAuthorization }> = [
       { name: 'capabilities', implemented: true, grant: read },
       { name: 'invocationQueries', implemented: true, grant: read },
@@ -48,6 +49,7 @@ export class CallObservabilityCapabilitiesService {
       { name: 'statisticsTimeSeries', implemented: true, grant: read },
       { name: 'statisticsGroups', implemented: true, grant: read },
       { name: 'eventHistory', implemented: true, grant: read },
+      { name: 'subscriptionManagement', implemented: true, grant: subscription },
       ...['overview', 'dependencies', 'serverStatus', 'webhook',
         'socketPush', 'pipelineStatus', 'policyManagement'].map(name => ({ name, implemented: false })),
     ];
@@ -78,6 +80,7 @@ export class CallObservabilityCapabilitiesService {
     endpoint('OBS-API-12', 'obsGetStatisticsTimeSeries', 'GET', '/statistics/time-series', STATISTICS_TIME_SERIES_QUERY_KEYS, read);
     endpoint('OBS-API-13', 'obsGetStatisticsGroups', 'GET', '/statistics/groups', STATISTICS_GROUPS_QUERY_KEYS, read);
     endpoint('OBS-API-16', 'obsListEvents', 'GET', '/events', EVENT_QUERY_KEYS, read);
+    endpoint('OBS-API-17', 'obsCreateSubscription', 'POST', '/subscriptions', [], subscription);
     const day = 86400000;
     const data: ObservabilityCapabilitiesDto = {
       availabilitySemantics: 'implementation_and_scope_eligibility_not_runtime_health',

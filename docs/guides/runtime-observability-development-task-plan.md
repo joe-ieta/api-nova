@@ -193,6 +193,8 @@ flowchart TD
 
 交付 OBS-API-17~25 与 OBS-PUSH-02。实现订阅修订/启停、secretRef/HMAC、出站地址约束、超时、六次有限重试、租约恢复、死信、幂等人工重投和尝试查询。
 
+当前 IN_PROGRESS：OBS-API-17 创建订阅已完成并通过 9/9 专项（含真实回环 HTTP）、14/14 能力专项及 67/67 权限/幂等/Outbox 关联回归。已具备授权范围冻结、版本 1 修订、可选幂等、静态地址允许项、secretRef 引用校验、脱敏响应与同事务管理审计；实际密钥解析、DNS 后复核和网络发送仍未实现。下一节点为 OBS-API-18~21。
+
 退出：AC-12/13/17 通过；2xx 确认丢失可重复但 eventId 不变；订阅地址/权限变更明确作用于任务；日志投递不再触发无限业务审计循环。文档包含实际请求 Header 和接收端验签夹具。
 
 ### OBS-TP-13 Socket.IO 与快照恢复
@@ -492,7 +494,7 @@ B02 实施时需在存储事务内重新读取已投影数据库版本，原子�
 
 > 当前总览以[任务完成情况复核与未完成清单](./runtime-observability-completion-review.md)为准。该文档逐包列出状态、逐条列出 16 个未完成 HTTP Endpoint，并以 REM-01~13 列出剩余工作与完成条件。
 
-OBS-TP-01/02/03/04/05/08/09/11 为 DONE；OBS-TP-06/10 为 IN_PROGRESS；OBS-TP-07/12 为 READY；OBS-TP-13~16 为 BACKLOG。共 8 个任务包未完成，DONE=8、IN_PROGRESS=2、READY=2、BACKLOG=4。READY 只表示可开始，不能计入完成。
+OBS-TP-01/02/03/04/05/08/09/11 为 DONE；OBS-TP-06/10/12 为 IN_PROGRESS；OBS-TP-07 为 READY；OBS-TP-13~16 为 BACKLOG。共 8 个任务包未完成，DONE=8、IN_PROGRESS=3、READY=1、BACKLOG=4。READY 只表示可开始，不能计入完成。
 
 TP10-B01~B03 已完成，B04、统一状态/剩余指标仍待推进。TP-11 已完成授权事件历史与持久 Outbox，但这只产生 durable delivery，不发送网络请求；Webhook、WebSocket、治理与完整验收仍待推进。现有 delivery 任务和旧监控模块都不等于新报送闭环。
 

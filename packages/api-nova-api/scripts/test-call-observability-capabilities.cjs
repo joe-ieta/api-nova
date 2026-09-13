@@ -39,9 +39,11 @@ const { CallObservabilityModule } = require('../dist/src/modules/call-observabil
 const { CallObservabilityInvocationsService, INVOCATION_QUERY_KEYS, MAX_TRACE_NODES } = require('../dist/src/modules/call-observability/call-observability-invocations.service.js');
 const { CallObservabilityPayloadsService } = require('../dist/src/modules/call-observability/call-observability-payloads.service.js');
 const { CallObservabilityCallerLabelsService } = require('../dist/src/modules/call-observability/call-observability-caller-labels.service.js');
+const { CallObservabilitySubscriptionsService } = require('../dist/src/modules/call-observability/call-observability-subscriptions.service.js');
 const { parseObservabilityQuery } = require('../dist/src/modules/call-observability/call-observability-query.js');
 const root = path.resolve(__dirname, '../../../tmp/observability-capabilities-tests');
-const READ = 'monitoring:read', SOURCE = 'monitoring:source:read', PAYLOAD = 'monitoring:payload:read', MANAGE = 'monitoring:manage';
+const READ = 'monitoring:read', SOURCE = 'monitoring:source:read', PAYLOAD = 'monitoring:payload:read',
+  MANAGE = 'monitoring:manage', SUBSCRIBE = 'monitoring:subscription:manage';
 
 function role(names = [READ], assets = ['asset-a']) {
   return Object.assign(new Role(), {
@@ -100,6 +102,7 @@ async function fixture(t, sourceCap = 10000) {
       // These controllers are registered for their actual Swagger contracts, never invoked here.
       { provide: CallObservabilityPayloadsService, useValue: {} },
       { provide: CallObservabilityCallerLabelsService, useValue: {} },
+      { provide: CallObservabilitySubscriptionsService, useValue: {} },
       { provide: CallObservabilityVisitorsService, useValue: service },
       { provide: ConfigService, useValue: config }, { provide: JwtService, useValue: jwt },
       { provide: UserService, useValue: resolver }, ObservabilityAccessGuard, ObservabilityApiExceptionFilter,
@@ -164,7 +167,7 @@ const data = result => { assert.equal(result.status, 200, JSON.stringify(result.
 
 const feature = (value, name) => value.features.find(item => item.name === name);
 const endpointIds = value => value.endpoints.map(item => item.endpointId);
-const allPermissions = [READ, PAYLOAD, SOURCE, MANAGE];
+const allPermissions = [READ, PAYLOAD, SOURCE, MANAGE, SUBSCRIBE];
 
 test('empty capabilities are a read-only snapshot, not a healthy zero or an initialized pipeline', async t => {
   const f = await fixture(t), result = await f.request(), value = data(result);
@@ -198,7 +201,7 @@ test('read-only grants advertise eleven eligible routes and no private payload o
   assert.equal(value.resourceScope, 'scoped');
   assert.deepEqual(endpointIds(value), ['OBS-API-01', 'OBS-API-03', 'OBS-API-04', 'OBS-API-06',
     'OBS-API-07', 'OBS-API-08', 'OBS-API-10', 'OBS-API-11', 'OBS-API-12', 'OBS-API-13', 'OBS-API-16']);
-  for (const name of ['payloadRead', 'sourceIpRead', 'callerProfileUpdate']) {
+  for (const name of ['payloadRead', 'sourceIpRead', 'callerProfileUpdate', 'subscriptionManagement']) {
     assert.equal(feature(value, name).state, 'restricted');
     assert.equal(feature(value, name).scopeMode, 'none');
     assert.equal(value.enabledFeatures.includes(name), false);
@@ -208,14 +211,14 @@ test('read-only grants advertise eleven eligible routes and no private payload o
   assert.ok(value.endpoints.every(item => item.requiredPermissions.length === 1 && item.requiredPermissions[0] === READ));
 });
 
-test('explicit all-resource grants expose thirteen implemented endpoints and qualified payload object limits', async t => {
+test('explicit all-resource grants expose fourteen implemented endpoints and qualified payload object limits', async t => {
   const f = await fixture(t), viewer = f.account([role(allPermissions, null)]);
   const value = data(await f.request('/capabilities', {}, viewer));
-  assert.equal(value.resourceScope, 'all'); assert.equal(value.endpoints.length, 13);
+  assert.equal(value.resourceScope, 'all'); assert.equal(value.endpoints.length, 14);
   assert.equal(value.maxStatisticsQueryInvocations, MAX_METRIC_OBSERVATIONS);
   assert.equal(feature(value, 'statistics').state, 'enabled');
   assert.deepEqual(value.endpoints.find(item => item.endpointId === 'OBS-API-11').queryParameters, [...STATISTICS_SUMMARY_QUERY_KEYS]);
-  for (const name of ['payloadRead', 'sourceIpRead', 'callerProfileUpdate']) {
+  for (const name of ['payloadRead', 'sourceIpRead', 'callerProfileUpdate', 'subscriptionManagement']) {
     assert.equal(feature(value, name).state, 'enabled');
     assert.equal(feature(value, name).scopeMode, 'all');
   }
@@ -270,7 +273,7 @@ test('empty explicit asset scope retains only self discovery, not global data ac
   assert.equal(value.endpoints[0].authorizationRule, 'capability_only');
 });
 
-test('runtime states and push remain unavailable while event history is enabled', async t => {
+test('runtime states and push remain unavailable while event history and subscription creation are enabled', async t => {
   const f = await fixture(t), viewer = f.account([role(allPermissions, null)]);
   const value = data(await f.request('/capabilities', {}, viewer));
   for (const name of ['overview', 'dependencies', 'serverStatus',
@@ -282,6 +285,7 @@ test('runtime states and push remain unavailable while event history is enabled'
   assert.deepEqual(value.supportedScopes, [...STATISTICS_SCOPES]); assert.deepEqual(value.supportedGroupByCombinations.length, 28);
   assert.equal(value.maxBuckets, 1440); assert.equal(value.eventRetention, 14 * 86400000);
   assert.equal(feature(value, 'eventHistory').state, 'enabled');
+  assert.equal(feature(value, 'subscriptionManagement').state, 'enabled');
   assert.equal(value.retentionWindows.aggregateRetentionMs, null);
 });
 
@@ -331,9 +335,9 @@ test('capability inventory and explicit DTOs match all actual module Swagger ope
   const value = data(await f.request('/capabilities', {}, viewer));
   const swagger = SwaggerModule.createDocument(f.app, new DocumentBuilder().setTitle('Capabilities').setVersion('1').build());
   const operations = Object.entries(swagger.paths).flatMap(([route, item]) =>
-    Object.entries(item).filter(([method]) => ['get', 'patch'].includes(method)).map(([method, operation]) =>
+    Object.entries(item).filter(([method]) => ['get', 'post', 'patch'].includes(method)).map(([method, operation]) =>
       ({ route, method, operation })));
-  assert.equal(operations.length, 13); assert.equal(value.endpoints.length, operations.length);
+  assert.equal(operations.length, 14); assert.equal(value.endpoints.length, operations.length);
   for (const endpoint of value.endpoints) {
     const actual = operations.find(item => item.route === endpoint.path && item.method === endpoint.method.toLowerCase());
     assert.ok(actual, endpoint.endpointId);
