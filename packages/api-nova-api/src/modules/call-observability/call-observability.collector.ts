@@ -4,6 +4,7 @@ import type { FileHandle } from 'fs/promises';
 import { join, resolve } from 'path';
 import { createHash, Hash } from 'crypto';
 import { TextDecoder } from 'util';
+import { matchesOpenedSource } from './call-observability-source-identity';
 import { auditDirectory, InvalidRuntimeAuditRecord, isRuntimeAuditSourceId } from 'api-nova-parser';
 import {
   RuntimeIngestCheckpointEntity, RuntimePipelineStateEntity,
@@ -108,7 +109,7 @@ export class CallObservabilityCollector implements OnModuleDestroy {
         handle = await fs.open(file, constants.O_RDONLY | (constants.O_NOFOLLOW || 0));
         const opened = await handle.stat();
         const identity = this.identity(opened);
-        if (identity !== this.identity(expected)) throw new ObservabilityStorageError('SOURCE_FILE_CHANGED');
+        if (!await matchesOpenedSource(file, expected, opened, process.platform, handle)) throw new ObservabilityStorageError('SOURCE_FILE_CHANGED');
         const id = contentHash(canonicalJson([this.sourceDirectory, identity]));
         const state = await this.store.transaction(async tx => ({
           checkpoint: await tx.manager.getRepository(RuntimeIngestCheckpointEntity).findOneBy({ id }),

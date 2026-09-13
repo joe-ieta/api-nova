@@ -271,7 +271,7 @@ test('independent stale-progress recovery infers unknown and a late real termina
   assert.equal(call.record.durationMs, null);
   assert.equal(call.record.completionSource, 'reconciled');
   assert.equal(call.sourceRecordVersion, 1);
-  assert.equal((await f.repository(Event).find())[0].dispatchState, 'suppressed');
+  assert.equal((await f.repository(Event).findBy({ eventName: 'invocation.reconciled' }))[0].dispatchState, 'suppressed');
   const end = terminal(start);
   await fs.appendFile(f.file, encode(end) + encode(end));
   await sweep(f.makeWorker());
@@ -282,7 +282,7 @@ test('independent stale-progress recovery infers unknown and a late real termina
   assert.equal(call.record.completionSource, 'observed');
   assert.equal(await f.repository(entities.RuntimeInvocationEntity).count(), 1);
   assert.equal(await f.repository(entities.RuntimeCallerEntity).count(), 1);
-  assert.equal(await f.repository(Event).count(), 2);
+  assert.equal(await f.repository(Event).countBy({ eventName: 'invocation.reconciled' }), 2);
 });
 
 test('partial terminal evidence prevents inference until its remainder arrives', async t => {

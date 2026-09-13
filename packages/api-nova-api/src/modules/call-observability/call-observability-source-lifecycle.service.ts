@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { constants, promises as fs } from 'fs';
 import { join, resolve } from 'path';
 import { TextDecoder } from 'util';
+import { matchesOpenedSource } from './call-observability-source-identity';
 import { auditDirectory, isRuntimeAuditSourceId, normalizeRuntimeAuditSourceManifest } from 'api-nova-parser';
 import { RuntimePipelineStateEntity } from '../../database/entities/runtime-call-observability.entity';
 import { CallObservabilityStore } from './call-observability.store';
@@ -42,7 +43,7 @@ export class CallObservabilitySourceLifecycle {
       const handle = await fs.open(file, constants.O_RDONLY | (constants.O_NOFOLLOW || 0));
       try {
         const before = await handle.stat();
-        if (before.ino !== expected.ino || before.dev !== expected.dev || before.size !== expected.size) {
+        if (!await matchesOpenedSource(file, expected, before, process.platform, handle) || before.size !== expected.size) {
           return unknown('source_manifest_changed');
         }
         const bytes = Buffer.alloc(before.size);

@@ -104,7 +104,7 @@ HTTP 合计 28 个，OBS-API-01、03~13 共 12 个 VERIFIED；以下 16 个为 P
 | TP10-B01 | 纯桶键和数据库修订规划，26 项专项 | 不承担存储、投影、重算或事件职责 | DONE，仅限纯规划 |
 | TP10-B02 | RuntimeMetricBucketEntity/RuntimeCallerBucketEntity/RuntimeMetricContributionEntity 等已定义，B01 已就绪 | 核对现有实体与键契约，接入贡献引用、事务版本条件、桶失效标记 | DONE，核心写入与验收脚本 `test-call-observability-bucket-projection-recovery.cjs` 已执行通过（4/4）；并发重放、失败回滚与重启重放边界闭环 |
 | TP10-B03 | 指标内核、按需查询 | 有效贡献重算、脏桶与可读版本分离、保留期/回填/覆盖及长期读取；持久桶兼容读取与回退路径已接入 | DONE；`test-call-observability-bucket-projection-recovery.cjs` 中 TP10-B03 子场景新增 2 处验收，含 malformed marker 与多桶重算，共 6/6 执行通过 |
-| TP10-B04 | 桶修订与采集状态事件已事务持久化，补入抑制、版本与回滚已测 | 授权历史、可恢复分发、Webhook/WebSocket 及采集回归阻塞处理 | IN_PROGRESS，持久事件不等于投递成功 |
+| TP10-B04 | 桶修订与采集状态事件已事务持久化，Windows 采集回归已修复，87/87 联合通过 | 授权历史、可恢复分发、Webhook/WebSocket | IN_PROGRESS，持久事件不等于投递成功 |
 
 重要存储边界：B01 能精确表示 uint64 版本，不代表数据库当前版本范围已扩大。现有摄取/修订路径仍限制 recordVersion<=2147483647。B02 应消费存储层已经接受的数据库修订，不能因规划内核能处理资产、起始时间或 scope 变更，就绕过既有身份冲突和终态不可变检查。B01 的通用修正规划不是修改历史证据的授权。
 
@@ -126,9 +126,9 @@ HTTP 合计 28 个，OBS-API-01、03~13 共 12 个 VERIFIED；以下 16 个为 P
 | REM-12 启用与部署交付 | P1 | 核心能力及验收就绪 | 按授权接入根模块及启动配置，确认权限/密钥/数据目录/保留/运维流程，部署验证后才标 AVAILABLE |
 | REM-13 大屏 UI | 延后 | 原需求已允许后续实现 | 不占用当前后端必做闭环；未来基于窗口、覆盖、截断、游标和真实状态展示 |
 
-推荐顺序：B04 已接入桶和采集状态持久事件；先处理 Windows 文件身份检查回归阻塞，再推进 REM-03 授权历史与分发，随后衔接 Webhook/WebSocket。状态、治理、安全及验收继续保留。
+推荐顺序：B04 已接入桶和采集状态持久事件，Windows 文件身份检查阻塞已解除；下一步推进 REM-03 授权历史与分发，随后衔接 Webhook/WebSocket。状态、治理、安全及整个平台验收继续保留。
 
-2026-09-13 验证：API build PASS；桶恢复 8/8、时间序列/分组 28/28，共 36/36 PASS；Worker 16 项中 3 PASS、13 FAIL，新增状态事件用例通过。采集失败报告 SOURCE_FILE_CHANGED，lstat 与 fstat 返回不同 dev，扩大执行权限后仍复现；尚未完成完整 B04 或平台验收。
+2026-09-13 最新验证：API build PASS；文件身份 8/8、采集器 14/14、Worker 16/16、生命周期 13/13、桶恢复 8/8、时间序列/分组 28/28，共 87/87 PASS，0 fail/cancelled/skipped。此前 SOURCE_FILE_CHANGED 阻塞已解除：Windows 缺失路径设备号时增加句柄交叉确认，大文件编号使用精确整数复核；保留替换、截断、符号链接和硬链接检查。仅限本机隔离测试，不扩大为完整 B04、PostgreSQL/Linux 或生产验收。
 
 ## 8. 尚未取得整体验收证据的非功能目标
 
