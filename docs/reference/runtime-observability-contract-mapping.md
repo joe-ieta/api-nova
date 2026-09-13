@@ -163,16 +163,16 @@ capabilities 同步 STATISTICS_SCOPES/STATISTICS_SUMMARY_QUERY_KEYS 和 maxStati
 
 | 契约 | 当前代码映射 | 验收边界 |
 | --- | --- | --- |
-| OBS-API-12 / obsGetStatisticsTimeSeries | statistics controller.timeSeries -> service.timeSeries -> 共享只读快照 -> makeTimeSeries -> 指标内核 | UTC 对齐、边缘裁剪、4 种间隔、1440 桶、fill=none/zero；按需桶版本 null，不是持久桶事件 |
+| OBS-API-12 / obsGetStatisticsTimeSeries | statistics controller.timeSeries -> service.timeSeries -> 共享只读快照 -> makeTimeSeries 或 makeTimeSeriesFromPersistentBuckets -> 指标内核 | UTC 对齐、边缘裁剪、4 种间隔、1440 桶、fill=none/zero；当查询与持久桶键完全匹配且可读时返回 persisted（含 bucketVersion），否则回退 on-demand 并返回 not_persisted |
 | OBS-API-13 / obsGetStatisticsGroups | statistics controller.groups -> service.groups -> 共享只读快照 -> makeGroups -> 指标内核 | 7 个白名单维度、最多两维、28 组合；闭集降序排行、top<=100、完整总计 |
 | 能力声明 | statisticsTimeSeries/statisticsGroups、两个真实查询白名单、maxBuckets/maxGroupLimit/supportedGroupByCombinations | 空 read 范围不扩大为全局；实现声明不代表部署或联合验收完成 |
 | 覆盖与健康 | summary/series/groups 共用 coverage 和 livenessEvaluated=false | 不读取心跳，不把未知覆盖、合成空桶或零计数报告为健康 |
 
-API 构建及新增 26 项、汇总 20 项通过；能力回归 4 项测试断言更新错误待修正，故 12/13 验收状态仍为 PLANNED。本节优先限定当前按需实现，不覆盖后续持久化 bucketVersion、修订事件和长期趋势的原设计要求。
+API 构建及新增 26 项、汇总 20 项通过；能力回归 4 项测试断言更新错误待修正，故 12/13 验收状态仍为 PLANNED。本节优先限定当前按需实现，不覆盖后续持久化桶修订事件、长期状态/报送闭环与扩展趋势诉求。
 
 ## 时间序列及分组验收更新（2026-09-11）
 
-OBS-API-12/13 已 VERIFIED：专项 60/60、联合 404/404 PASS。此前 2026-09-09 的待验收记录为历史初轮状态。当前 12 个 HTTP Endpoint VERIFIED、16 个 PLANNED；两类推送与业务启用状态不变。桶版本仍为 null，按需查询不映射为已实现的持久聚合或桶事件。
+OBS-API-12/13 已 VERIFIED：专项 60/60、联合 404/404 PASS。此前 2026-09-09 的待验收记录为历史初轮状态。当前 12 个 HTTP Endpoint VERIFIED、16 个 PLANNED；两类推送与业务启用状态不变。时间序列现在会在兼容条件下回读 persisted 桶并报告 `bucketVersionSemantics='persisted'`，否则回退 on-demand 并保持 `not_persisted`；不因该回退路径将按需结果映射为完整持久聚合。
 
 ## TP10-B01 内部契约映射（2026-09-11）
 
@@ -181,7 +181,8 @@ OBS-API-12/13 已 VERIFIED：专项 60/60、联合 404/404 PASS。此前 2026-09
 | 数据库修订比较与桶规划 | call-observability-bucket-plan.ts / planBucketRevision | 已通过 26 项专项；输出 apply/duplicate/stale 和版本条件，不执行事务 |
 | 持久桶键 v1 | JSON 身份元组 -> SHA-256 bkt_ ID | 按资产/origin/scope/timeBasis/interval/UTC 起点分区；内部规划键，不是当前 HTTP 资源 |
 | 修订影响 | invalidations / added、removed、updated / recompute | 最多 32 桶；不累计阶段、不直接修改计数、不生成持久桶版本 |
-| 后续持久投影 | TP10-B02 | READY，未接入；必须原子提交版本条件、贡献引用和待重算桶 |
+| 后续持久投影 | TP10-B02 | DONE，已接入；持续闭环包括原子提交版本条件、贡献引用和待重算桶 |
+| 重算与回填 | TP10-B03 | DONE；`test-call-observability-bucket-projection-recovery.cjs` 新增 B03 验收场景已通过（6/6） |
 | HTTP 与消息契约 | 已验证的 12 个 HTTP Endpoint、两类待实现推送 | B01 不改变能力声明或可用性，不把纯计算映射为主动报送 |
 
 本节点 API build、50 项专项、430 项联合回归 PASS。所有较新修订均使共有桶重算，避免在键未变时漏掉结局、字节、延迟和去重身份变化。

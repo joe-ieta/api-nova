@@ -7,7 +7,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { randomUUID } = require('node:crypto');
+const { randomUUID, createHash } = require('node:crypto');
 const { DataSource } = require('typeorm');
 const { Module, NotFoundException } = require('@nestjs/common');
 const { NestFactory } = require('@nestjs/core');
@@ -40,6 +40,7 @@ const { CallObservabilityInvocationsService, INVOCATION_QUERY_KEYS, MAX_TRACE_NO
 const { CallObservabilityPayloadsService } = require('../dist/src/modules/call-observability/call-observability-payloads.service.js');
 const { CallObservabilityCallerLabelsService } = require('../dist/src/modules/call-observability/call-observability-caller-labels.service.js');
 const { parseObservabilityQuery } = require('../dist/src/modules/call-observability/call-observability-query.js');
+const { calculateObservabilityMetrics } = require('../dist/src/modules/call-observability/call-observability-metrics.js');
 const root = path.resolve(__dirname, '../../../tmp/observability-series-groups-tests');
 const READ = 'monitoring:read', SOURCE = 'monitoring:source:read', PAYLOAD = 'monitoring:payload:read', MANAGE = 'monitoring:manage';
 
@@ -198,6 +199,108 @@ test('series and groups reject missing required fields and non-whitelisted queri
   ]) {
     assert.equal((await f.request(route, { ...f.range, ...query })).status, 400, JSON.stringify(query));
   }
+});
+
+test('series prefers persisted buckets when bucket key and filters are compatible', async t => {
+  const f = await fixture(t);
+  const base = Math.floor(f.now / 60000) * 60000 - 180000;
+  const source = await put(f, { startedAt: iso(base + 20000), completedAt: iso(base + 20010), durationMs: 10 }, base + 20000);
+  const bucketStart = Math.floor(Date.parse(source.startedAt) / 60000) * 60000;
+  const bucket = `bkt_${createHash('sha256').update(JSON.stringify([
+    1, source.runtimeAssetId, 'external', 'business', 'startedAt', '1m', new Date(bucketStart).toISOString(),
+  ]), 'utf8').digest('hex')}`;
+  const metrics = calculateObservabilityMetrics([{
+    revision: source.recordVersion,
+    invocation: source,
+  }], {
+    from: new Date(bucketStart).toISOString(), to: new Date(bucketStart + 60000).toISOString(),
+    scope: 'business', origin: 'external', timeBasis: 'startedAt',
+  }).metrics;
+  const coverage = calculateObservabilityMetrics([{
+    revision: source.recordVersion,
+    invocation: source,
+  }], {
+    from: new Date(bucketStart).toISOString(), to: new Date(bucketStart + 60000).toISOString(),
+    scope: 'business', origin: 'external', timeBasis: 'startedAt',
+  }).coverage;
+  const repository = f.database.getRepository(entities.RuntimeMetricBucketEntity);
+  await repository.save(Object.assign(repository.create({
+    id: bucket,
+    scope: 'business',
+    bucketStart: new Date(bucketStart).toISOString(),
+    bucketEnd: new Date(bucketStart + 60000).toISOString(),
+    dimensions: {
+      keySchemaVersion: 1, runtimeAssetId: source.runtimeAssetId, origin: 'external', scope: 'business',
+      timeBasis: 'startedAt', interval: '1m',
+    },
+    metrics: { metrics, coverage },
+    version: 7,
+    dataWatermark: '1',
+    expiresAt: new Date(f.now + 86400000).toISOString(),
+  })));
+  const response = await series(f, { from: iso(base), to: iso(base + 60000), scope: 'business', interval: '1m' });
+  assert.equal(response.status, 200);
+  const value = data(response);
+  assert.equal(value.bucketVersionSemantics, 'persisted');
+  assert.equal(value.items.length, 1);
+  assert.equal(value.items[0].bucketVersion, 7);
+  assert.equal(value.items[0].metrics.selectedInvocations, 1);
+  assert.equal(value.items[0].synthetic, false);
+  assert.equal(value.items[0].coverage.observationHealth, coverage.observationHealth);
+  assert.equal(value.bucketVersionSemantics, 'persisted');
+
+  const partial = await series(f, { from: iso(base + 10000), to: iso(base + 70000), scope: 'business', interval: '1m' });
+  assert.equal(partial.status, 200);
+  assert.equal(data(partial).bucketVersionSemantics, 'not_persisted');
+
+  const fallback = await series(f, { from: iso(base + 10000), to: iso(base + 70000), scope: 'business',
+    interval: '1m', callerId: source.callerId || 'fallback' });
+  assert.equal(fallback.status, 200);
+  assert.equal(data(fallback).bucketVersionSemantics, 'not_persisted');
+});
+
+test('series falls back to on-demand when persisted bucket row is marked for recompute', async t => {
+  const f = await fixture(t);
+  const base = Math.floor(f.now / 60000) * 60000 - 180000;
+  const source = await put(f, { startedAt: iso(base + 20000), completedAt: iso(base + 20010), durationMs: 10 }, base + 20000);
+  const bucketStart = Math.floor(Date.parse(source.startedAt) / 60000) * 60000;
+  const bucket = `bkt_${createHash('sha256').update(JSON.stringify([
+    1, source.runtimeAssetId, 'external', 'business', 'startedAt', '1m', new Date(bucketStart).toISOString(),
+  ]), 'utf8').digest('hex')}`;
+  const repository = f.database.getRepository(entities.RuntimeMetricBucketEntity);
+  await repository.save(Object.assign(repository.create({
+    id: bucket,
+    scope: 'business',
+    bucketStart: new Date(bucketStart).toISOString(),
+    bucketEnd: new Date(bucketStart + 60000).toISOString(),
+    dimensions: {
+      keySchemaVersion: 1, runtimeAssetId: source.runtimeAssetId, origin: 'external', scope: 'business',
+      timeBasis: 'startedAt', interval: '1m',
+    },
+    metrics: {
+      recompute: {
+        state: 'pending',
+        action: 'replace',
+        membershipChange: false,
+        incomingRecordVersion: source.recordVersion,
+        expectedRecordVersion: 0,
+        queuedAt: f.now,
+        invocationId: source.invocationId,
+        callerId: source.callerId,
+      },
+    },
+    version: 7,
+    dataWatermark: '1',
+    expiresAt: new Date(f.now + 86400000).toISOString(),
+  })));
+  const response = await series(f, { from: iso(base + 10000), to: iso(base + 70000), scope: 'business', interval: '1m' });
+  assert.equal(response.status, 200);
+  const value = data(response);
+  assert.equal(value.bucketVersionSemantics, 'not_persisted');
+  assert.equal(value.items.length, 1);
+  assert.equal(value.items[0].synthetic, false);
+  assert.equal(value.items[0].bucketVersion, null);
+  assert.equal(value.items[0].metrics.selectedInvocations, 1);
 });
 
 test('series align to UTC and expose clipped edge windows without persisted versions', async t => {

@@ -68,7 +68,7 @@ implementation-status: in-progress
 | OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 04 重新验收，恢复就绪；test/probe/internal 实际接入尚未实施 |
 | OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | DONE | 采集/身份/重启/源退出共 45 项专项通过；真实写入进程 UUID/PID、已关闭残片隔离和立即 unknown 恢复已接入。包级退出条件完成，应用启用与全平台集成另归 15/16 |
 | OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | DONE | 03~10 八接口 VERIFIED；调用/trace 38、正文/审计 23、访客 24、标签/条件请求 27 项通过；联合 320 项和 API 构建通过 |
-| OBS-TP-10 | 聚合/状态/能力 API | 03、08 | IN_PROGRESS | OBS-API-01/11/12/13 VERIFIED；B01 桶键/修订规划已完成；B02 持久事务投影 READY，持久重算、总览、依赖和状态待实施 |
+| OBS-TP-10 | 聚合、状态与能力 API | 03、08 | IN_PROGRESS | OBS-API-01/11/12/13 VERIFIED；B01/B02/B03 均已通过验收，`test-call-observability-bucket-projection-recovery.cjs` 新增 B03 场景补齐并执行通过（6/6）；`test-call-observability-bucket-projection-recovery.cjs` 中 B02 场景已执行通过（4/4） |
 | OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | READY | 03、08 已完成；持久事件基础已有，仍需历史查询和 Outbox 消费 |
 | OBS-TP-12 | Webhook/订阅/投递 API | 11 | BACKLOG | 11 尚未完成 |
 | OBS-TP-13 | Socket.IO/快照与恢复 | 10、11 | BACKLOG | 10、11 尚未完成 |
@@ -674,11 +674,24 @@ ef66443 feat(observability): add scoped time-series and grouped statistics 已�
 
 API build PASS；桶规划 26/26、指标 24/24，专项合计 50/50 PASS。加入新脚本后的 20 脚本联合回归 430/430 PASS，0 fail/cancelled/skipped。
 
-B01 为 DONE，B02 READY，B03/B04 待依赖。HTTP 12 VERIFIED、16 PLANNED，两类推送 PLANNED，AVAILABLE=0；TP-06/10 仍 IN_PROGRESS，父任务包计数不变。
+B01/B02/B03 为 DONE，HTTP 12 VERIFIED、16 PLANNED，两类推送 PLANNED，AVAILABLE=0；TP-06/10 仍 IN_PROGRESS，父任务包计数不变。
 
 ### 39.4 未完成边界与接续
 
-该内核尚未接入持久表和事务投影，不会产生可读取的持久桶、bucketVersion、覆盖或推送事件。下一节点为 B02：持久贡献引用、桶失效状态、事务版本条件和恢复/回滚专项；随后再推进重算、覆盖、长期读取与事件报送。
+该内核在 B02 已接入持久事务投影与重算标记。`test-call-observability-bucket-projection-recovery.cjs` 已执行通过（4/4）；TP10-B03 已追加并完成验收（新增 6/6，含覆盖/保留期回填和 malformed marker 边界），并闭环重放恢复、并发与回滚一致性。现已补齐持久读取兼容路径；下一节点为 B04：事件报送与状态钩子，随后再推进统一事件与治理收口。
+
+## 41. TP10-B04 持久事件阶段进展（2026-09-13）
+
+本节为最新进展，后面的第 40 节保留历史复核。
+
+- 桶重算与 metrics.bucket_updated 同事务提交，事件写入失败回滚桶、事件和序列并保留待重算状态。
+- 桶失效不再清零版本；空闲重算和重启不制造重复事件。历史补入保持 suppressed；混合实时贡献保持 pending。
+- Worker 初始状态与变化持久化 pipeline.state_changed，状态版本递增。重算失败标记 degraded，服务器健康与覆盖仍 unknown。
+- 修正持久查询引用不存在的 bucket.interval 列；仅完整 UTC 窗口、单资产及全部可读桶匹配时使用持久数据，缺桶、部分窗口和多资产回退明细聚合。
+- API build PASS；桶恢复 8/8、时间序列/分组 28/28，共 36/36 PASS。Worker 16 项：3 PASS、13 FAIL；新增状态变化和未知健康断言通过。
+- 采集失败定位到 SOURCE_FILE_CHANGED：本机 lstat.dev=0，fstat.dev=1287713624，ino/birthtime 一致；扩大执行权限后仍失败。根因尚未确认，保留文件身份安全检查，Windows 采集验收仍未通过。
+
+B04 为 IN_PROGRESS。REM-03 授权历史、稳定游标与可恢复分发，以及 Webhook/WebSocket 实际报送仍待完成。pending 仅表示持久待处理。父任务包计数、HTTP 12 VERIFIED/16 PLANNED、推送 PLANNED、AVAILABLE=0 不变。本轮未提交、推送或部署。
 
 ## 40. 当前计划完成情况复核（2026-09-11）
 
@@ -686,7 +699,7 @@ B01 为 DONE，B02 READY，B03/B04 待依赖。HTTP 12 VERIFIED、16 PLANNED，�
 
 复核查验新模块、根应用、旧监控/WebSocket 模块、采集 Worker、摄取/事件事务和实体基础，并结合已知接口实现与上一节点真实验收记录。没有执行新的测试或部署，不将 430/430 记成今日新重跑结果。
 
-当前汇总：DONE=7、IN_PROGRESS=2、READY=2、BACKLOG=5；HTTP 12 VERIFIED、16 PLANNED；两类新推送契约 PLANNED；AVAILABLE=0。B01 DONE，B02 READY，B03/B04 PLANNED。任务包完成只覆盖各自既定范围，完整需求闭环仍部分完成。
+当前汇总：DONE=7、IN_PROGRESS=2、READY=2、BACKLOG=5；HTTP 12 VERIFIED、16 PLANNED；两类新推送契约 PLANNED；AVAILABLE=0。B01/B02/B03 DONE（B03 新增验收 6/6 通过），B04 PLANNED。任务包完成只覆盖各自既定范围，完整需求闭环仍部分完成。
 
 [复核及未完成清单](./runtime-observability-completion-review.md)为本次主要交付，含逐包标注、FR-01~10 对照、16 个未完成 Endpoint、推送边界、REM-01~13 依赖清单和待验收性能/平台目标。
 

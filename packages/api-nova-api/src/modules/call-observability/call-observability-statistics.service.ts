@@ -1,13 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { CanonicalInvocation, redactAuditValue } from 'api-nova-parser';
-import { RuntimeInvocationRevisionEntity, RuntimeAccessSourceEntity } from '../../database/entities/runtime-call-observability.entity';
+import {
+  RuntimeInvocationRevisionEntity,
+  RuntimeAccessSourceEntity,
+  RuntimeMetricBucketEntity,
+} from '../../database/entities/runtime-call-observability.entity';
 import { ObservabilityAuthorization, intersectObservabilityAssets } from './call-observability-access';
 import { ObservabilityApiError, observabilitySuccess } from './call-observability-api.contract';
 import { ObservabilityFilter, parseObservabilityQuery } from './call-observability-query';
 import { sequenceKey } from './call-observability-storage';
 import { CallObservabilityStore } from './call-observability.store';
 import { calculateObservabilityMetrics, MAX_METRIC_OBSERVATIONS } from './call-observability-metrics';
+import { BUCKET_KEY_SCHEMA_VERSION, PERSISTENT_BUCKET_INTERVALS } from './call-observability-bucket-plan';
 import { ObservabilityStatisticsSummaryDto, ObservabilityStatisticsTimeSeriesDto,
   ObservabilityStatisticsBucketDto, ObservabilityStatisticsGroupsDto } from './call-observability-statistics.dto';
 
@@ -29,6 +34,8 @@ const COLUMNS = ['serverType', 'callerId', 'sourceId', 'endpointDefinitionId', '
   'sourceServiceInstanceId', 'spanKind', 'outcome', 'traceId'] as const;
 type Row = RuntimeInvocationRevisionEntity & { metricSource?: Pick<RuntimeAccessSourceEntity, 'sourceId' | 'ipSource'> };
 type StatisticsMode = 'summary' | 'time-series' | 'groups';
+type SnapshotTx = { manager: EntityManager; now: string; snapshotSeq: string };
+type StoredBucketPayload = { metrics: any; coverage: any };
 
 @Injectable()
 export class CallObservabilityStatisticsService {
@@ -58,51 +65,171 @@ export class CallObservabilityStatisticsService {
       throw new ObservabilityApiError('INVALID_QUERY', 'groupBy');
     }
     return this.store.readSnapshot(async tx => {
-      const query = tx.manager.getRepository(RuntimeInvocationRevisionEntity).createQueryBuilder('inv')
-        .leftJoinAndMapOne('inv.metricSource', RuntimeAccessSourceEntity, 'source',
-          'source.sourceId = inv.sourceId AND (source.runtimeAssetId = inv.runtimeAssetId OR ' +
-          '(source.runtimeAssetId IS NULL AND inv.runtimeAssetId IS NULL))')
-        .select(['inv', 'source.sourceId', 'source.ipSource'])
-        .where('inv.validFromSequence <= :snapshot', { snapshot: sequenceKey(tx.snapshotSeq) })
-        .andWhere('(inv.validUntilSequence IS NULL OR inv.validUntilSequence > :snapshot)')
-        .andWhere('inv.expiresAt > :now', { now: tx.now })
-        .andWhere('inv.origin = :origin', { origin: filter.origin });
-      const assets = intersectObservabilityAssets(authorization,
-        filter.runtimeAssetId === undefined ? undefined : [String(filter.runtimeAssetId)]);
-      if (assets !== null) {
-        if (!assets.length) query.andWhere('1 = 0');
-        else query.andWhere('inv.runtimeAssetId IN (:...assets)', { assets: [...assets] });
-      }
-      const kinds = { business: ['gateway_request', 'mcp_tool'], http_ingress: ['gateway_request', 'mcp_protocol'],
-        tool: ['mcp_tool'], protocol: ['mcp_protocol'], upstream: ['upstream_api'] }[String(filter.scope)]!;
-      query.andWhere('inv.spanKind IN (:...kinds)', { kinds });
-      if (filter.scope === 'http_ingress') {
-        query.andWhere("(inv.spanKind = 'gateway_request' OR " + this.jsonText(tx.manager, 'transport') +
-          ' IN (:...httpTransports))', { httpTransports: ['http', 'sse', 'streamable', 'streamable-http'] });
-      }
-      const basis = filter.timeBasis === 'completedAt' ? 'completedAt' : 'startedAt';
-      query.andWhere('inv.' + basis + ' >= :from AND inv.' + basis + ' < :to', { from: filter.from, to: filter.to });
-      for (const key of COLUMNS) {
-        if (filter[key] !== undefined) query.andWhere('inv.' + key + ' = :' + key, { [key]: filter[key] });
-      }
-      for (const key of ['requestId', 'errorCategory'] as const) {
-        if (filter[key] !== undefined) query.andWhere(this.jsonText(tx.manager, key) + ' = :' + key, { [key]: filter[key] });
-      }
-      if (filter.callerId !== undefined) {
-        query.andWhere(this.jsonText(tx.manager, 'identitySource') + ' = :authenticated', { authenticated: 'authenticated' })
-          .andWhere(this.jsonText(tx.manager, 'authState') + ' = :authenticated');
-      }
+      const query = this.makeInvocationQuery(tx, filter, authorization);
       const rows = await query.orderBy('inv.invocationId', 'ASC').limit(MAX_METRIC_OBSERVATIONS + 1).getMany() as Row[];
       if (rows.length > MAX_METRIC_OBSERVATIONS) throw new ObservabilityApiError('QUERY_TOO_LARGE', 'from');
       const result = this.aggregate(rows, filter);
       const common: ObservabilityStatisticsSummaryDto = { ...result,
         queryMode: 'retained_invocation_snapshot', maxQueryInvocations: MAX_METRIC_OBSERVATIONS, livenessEvaluated: false };
       let data: ObservabilityStatisticsSummaryDto | ObservabilityStatisticsTimeSeriesDto | ObservabilityStatisticsGroupsDto = common;
-      if (mode === 'time-series') data = this.makeTimeSeries(rows, filter, common, String(tx.snapshotSeq));
+      if (mode === 'time-series') {
+        const persisted = await this.makeTimeSeriesFromPersistentBuckets(tx, filter, common, authorization);
+        data = persisted || this.makeTimeSeries(rows, filter, common, String(tx.snapshotSeq));
+      }
       if (mode === 'groups') data = this.makeGroups(rows, filter, groupBy, common);
       return observabilitySuccess(data, { snapshotSeq: tx.snapshotSeq, dataWatermark: tx.snapshotSeq,
         lagMs: null, historyCompleteSince: null, isPartial: true });
     });
+  }
+
+  private makeInvocationQuery(tx: SnapshotTx, filter: ObservabilityFilter, authorization: ObservabilityAuthorization) {
+    const query = tx.manager.getRepository(RuntimeInvocationRevisionEntity).createQueryBuilder('inv')
+      .leftJoinAndMapOne('inv.metricSource', RuntimeAccessSourceEntity, 'source',
+        'source.sourceId = inv.sourceId AND (source.runtimeAssetId = inv.runtimeAssetId OR ' +
+        '(source.runtimeAssetId IS NULL AND inv.runtimeAssetId IS NULL))')
+      .select(['inv', 'source.sourceId', 'source.ipSource'])
+      .where('inv.validFromSequence <= :snapshot', { snapshot: sequenceKey(tx.snapshotSeq) })
+      .andWhere('(inv.validUntilSequence IS NULL OR inv.validUntilSequence > :snapshot)')
+      .andWhere('inv.expiresAt > :now', { now: tx.now })
+      .andWhere('inv.origin = :origin', { origin: filter.origin });
+    const assets = intersectObservabilityAssets(authorization,
+      filter.runtimeAssetId === undefined ? undefined : [String(filter.runtimeAssetId)]);
+    if (assets !== null) {
+      if (!assets.length) query.andWhere('1 = 0');
+      else query.andWhere('inv.runtimeAssetId IN (:...assets)', { assets: [...assets] });
+    }
+    const kinds = { business: ['gateway_request', 'mcp_tool'], http_ingress: ['gateway_request', 'mcp_protocol'],
+      tool: ['mcp_tool'], protocol: ['mcp_protocol'], upstream: ['upstream_api'] }[String(filter.scope)]!;
+    query.andWhere('inv.spanKind IN (:...kinds)', { kinds });
+    if (filter.scope === 'http_ingress') {
+      query.andWhere("(inv.spanKind = 'gateway_request' OR " + this.jsonText(tx.manager, 'transport') +
+        ' IN (:...httpTransports))', { httpTransports: ['http', 'sse', 'streamable', 'streamable-http'] });
+    }
+    const basis = filter.timeBasis === 'completedAt' ? 'completedAt' : 'startedAt';
+    query.andWhere('inv.' + basis + ' >= :from AND inv.' + basis + ' < :to', { from: filter.from, to: filter.to });
+    for (const key of COLUMNS) {
+      if (filter[key] !== undefined) query.andWhere('inv.' + key + ' = :' + key, { [key]: filter[key] });
+    }
+    for (const key of ['requestId', 'errorCategory'] as const) {
+      if (filter[key] !== undefined) query.andWhere(this.jsonText(tx.manager, key) + ' = :' + key, { [key]: filter[key] });
+    }
+    if (filter.callerId !== undefined) {
+      query.andWhere(this.jsonText(tx.manager, 'identitySource') + ' = :authenticated', { authenticated: 'authenticated' })
+        .andWhere(this.jsonText(tx.manager, 'authState') + ' = :authenticated');
+    }
+    return query;
+  }
+
+  private async makeTimeSeriesFromPersistentBuckets(tx: SnapshotTx, filter: ObservabilityFilter, common: ObservabilityStatisticsSummaryDto,
+    authorization: ObservabilityAuthorization): Promise<ObservabilityStatisticsTimeSeriesDto | null> {
+    if (!this.canReadPersistentTimeSeries(filter)) return null;
+    const interval = String(filter.interval) as keyof typeof PERSISTENT_BUCKET_INTERVALS;
+    const width = PERSISTENT_BUCKET_INTERVALS[interval];
+    if (!width) return null;
+    const from = Date.parse(String(filter.from));
+    const to = Date.parse(String(filter.to));
+    const first = Math.floor(from / width) * width;
+    const count = Math.ceil(to / width) - Math.floor(from / width);
+    if (count > MAX_STATISTICS_BUCKETS || count <= 0) return null;
+
+    const assets = intersectObservabilityAssets(authorization,
+      filter.runtimeAssetId === undefined ? undefined : [String(filter.runtimeAssetId)]);
+    if (assets !== null && !assets.length) return null;
+    // Partial windows and multi-asset distinct metrics require retained detail aggregation.
+    if (from % width !== 0 || to % width !== 0 || assets === null || assets.length !== 1) return null;
+
+    const expectedBucketStarts = new Array(count).fill(0).map((_, index) => first + index * width);
+    const repository = tx.manager.getRepository(RuntimeMetricBucketEntity);
+    const candidates = await repository.createQueryBuilder('bucket')
+      .where('bucket.scope = :scope', { scope: String(filter.scope) })
+      .andWhere('bucket.bucketStart >= :from', { from: new Date(expectedBucketStarts[0]).toISOString() })
+      .andWhere('bucket.bucketStart <= :to', { to: new Date(expectedBucketStarts[expectedBucketStarts.length - 1]).toISOString() })
+      .andWhere('bucket.expiresAt > :now', { now: tx.now })
+      .getMany();
+
+    const readyBuckets = new Map<number, RuntimeMetricBucketEntity>();
+    for (const row of candidates) {
+      if (!this.isPersistentBucketMatch(filter, row, assets)) continue;
+      const payload = this.readPersistedBucketPayload(row);
+      if (!payload) return null;
+      const bucketStart = Date.parse(row.bucketStart);
+      if (!Number.isFinite(bucketStart)) return null;
+      if (row.version < 1 || Date.parse(row.bucketEnd) !== bucketStart + width || readyBuckets.has(bucketStart)) return null;
+      readyBuckets.set(bucketStart, row);
+    }
+    // Missing durable buckets are not proof of zero traffic or completed coverage.
+    if (expectedBucketStarts.some(start => !readyBuckets.has(start))) return null;
+
+    const items: ObservabilityStatisticsBucketDto[] = [];
+    for (const bucketStart of expectedBucketStarts) {
+      const bucketEnd = bucketStart + width;
+      const effectiveFrom = new Date(Math.max(from, bucketStart)).toISOString();
+      const effectiveTo = new Date(Math.min(to, bucketEnd)).toISOString();
+      const row = readyBuckets.get(bucketStart);
+      if (!row) {
+        if (filter.fill !== 'zero') continue;
+        const zero = this.makeSyntheticBucket(filter, bucketStart, bucketEnd);
+        items.push({ bucketStart: new Date(bucketStart).toISOString(), bucketEnd: new Date(bucketEnd).toISOString(),
+          effectiveFrom, effectiveTo, bucketVersion: null, synthetic: true, dataWatermark: String(tx.snapshotSeq),
+          metrics: zero.metrics, coverage: zero.coverage });
+        continue;
+      }
+      const payload = this.readPersistedBucketPayload(row);
+      if (!payload) return null;
+      items.push({ bucketStart: new Date(bucketStart).toISOString(), bucketEnd: new Date(bucketEnd).toISOString(),
+        effectiveFrom, effectiveTo, bucketVersion: row.version, dataWatermark: row.dataWatermark,
+        synthetic: false, metrics: payload.metrics, coverage: payload.coverage });
+    }
+    return { ...common, interval, fill: String(filter.fill || 'none'), maxBuckets: MAX_STATISTICS_BUCKETS,
+      bucketVersionSemantics: 'persisted', items };
+  }
+
+  private canReadPersistentTimeSeries(filter: ObservabilityFilter): boolean {
+    const supported = new Set(['from', 'to', 'scope', 'origin', 'runtimeAssetId', 'timeBasis', 'interval', 'fill']);
+    return Object.keys(filter).every(key => supported.has(key)) && filter.interval !== undefined;
+  }
+
+  private isPersistentBucketMatch(filter: ObservabilityFilter, row: RuntimeMetricBucketEntity,
+    assets: readonly string[] | null): boolean {
+    const dimensions = row.dimensions as {
+      keySchemaVersion: number | string;
+      runtimeAssetId: string | null;
+      origin: string;
+      scope: string;
+      timeBasis: string;
+      interval: string;
+    } | null;
+    if (!dimensions) return false;
+    if (Number(dimensions.keySchemaVersion) !== BUCKET_KEY_SCHEMA_VERSION) return false;
+    if (dimensions.scope !== String(filter.scope) || dimensions.origin !== String(filter.origin)) return false;
+    if (dimensions.interval !== String(filter.interval)) return false;
+    if (dimensions.timeBasis !== String(filter.timeBasis || 'startedAt')) return false;
+    if (filter.runtimeAssetId !== undefined) return dimensions.runtimeAssetId === String(filter.runtimeAssetId);
+    if (assets === null) return true;
+    if (dimensions.runtimeAssetId === null) return false;
+    return assets.includes(String(dimensions.runtimeAssetId));
+  }
+
+  private readPersistedBucketPayload(row: RuntimeMetricBucketEntity): StoredBucketPayload | null {
+    const raw = row.metrics;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    if ('recompute' in raw && raw.recompute && typeof raw.recompute === 'object') return null;
+
+    if (raw.metrics && raw.coverage) return { metrics: raw.metrics, coverage: raw.coverage };
+    if (raw.selectedInvocations !== undefined && raw.coverage) {
+      return { metrics: raw, coverage: raw.coverage };
+    }
+    return null;
+  }
+
+  private makeSyntheticBucket(filter: ObservabilityFilter, start: number, end: number) {
+    const effectiveFrom = new Date(start).toISOString();
+    const effectiveTo = new Date(end).toISOString();
+    const result = this.aggregate([], {
+      ...filter, from: effectiveFrom, to: effectiveTo,
+      timeBasis: filter.timeBasis || 'startedAt',
+    });
+    return { metrics: result.metrics, coverage: result.coverage };
   }
 
   private aggregate(rows: Row[], filter: ObservabilityFilter) {
