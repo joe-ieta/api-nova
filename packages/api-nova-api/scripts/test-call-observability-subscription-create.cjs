@@ -11,6 +11,7 @@ const entities = require('../dist/src/database/entities/runtime-call-observabili
 const { CallObservabilityStore } = require('../dist/src/modules/call-observability/call-observability.store');
 const { ObservabilityCommandStore } = require('../dist/src/modules/call-observability/call-observability-command.store');
 const { CallObservabilitySubscriptionsService } = require('../dist/src/modules/call-observability/call-observability-subscriptions.service');
+const { ObservabilityCursorService } = require('../dist/src/modules/call-observability/call-observability-cursor.service');
 const { CallObservabilitySubscriptionsController } = require('../dist/src/modules/call-observability/call-observability-subscriptions.controller');
 const { ObservabilityAccessGuard } = require('../dist/src/modules/call-observability/call-observability-access.guard');
 const { ObservabilityApiExceptionFilter } = require('../dist/src/modules/call-observability/call-observability-api.contract');
@@ -21,10 +22,12 @@ const defaultConfig = {
   API_NOVA_OBSERVABILITY_IDEMPOTENCY_SECRET: 'i'.repeat(32),
   API_NOVA_OBSERVABILITY_WEBHOOK_ALLOWED_HOSTS: 'monitor.example,127.0.0.1:18080',
   API_NOVA_OBSERVABILITY_WEBHOOK_SECRET_REFS: 'webhook-orders-v1,local-test-key',
+  API_NOVA_OBSERVABILITY_CURSOR_SECRET: 'c'.repeat(32),
+  API_NOVA_OBSERVABILITY_CURSOR_KEY_ID: 'v1',
 };
 const scoped = { principalId: 'owner-a', runtimeAssetIds: ['runtime-a'],
-  requiredPermissions: ['monitoring:read', 'monitoring:subscription:manage'], fingerprint: 'scope-a' };
-const global = { ...scoped, runtimeAssetIds: null, fingerprint: 'scope-all' };
+  requiredPermissions: ['monitoring:read', 'monitoring:subscription:manage'], fingerprint: 'a'.repeat(64) };
+const global = { ...scoped, runtimeAssetIds: null, fingerprint: 'b'.repeat(64) };
 const body = {
   name: 'Orders runtime',
   destination: { type: 'webhook', url: 'https://monitor.example/api-nova/events' },
@@ -48,7 +51,7 @@ async function fixture(t, overrides = {}, auditFailure = false) {
     return { id: randomUUID() };
   } };
   const service = new CallObservabilitySubscriptionsService(store,
-    new ObservabilityCommandStore(store, config), config, audit);
+    new ObservabilityCommandStore(store, config), config, audit, new ObservabilityCursorService(config));
   return { database, store, service, config, auditEntries,
     subscriptions: database.getRepository(entities.RuntimeEventSubscriptionEntity),
     revisions: database.getRepository(entities.RuntimeSubscriptionRevisionEntity),
@@ -162,7 +165,84 @@ test('audit failure rolls back subscription, revision and allocated sequence', a
   assert.equal(await f.store.watermark(), '0');
 });
 
-test('real HTTP route enforces management JWT and subscription permission before returning 201', async t => {
+test('list and detail enforce scope while signed cursors retain a fixed filter and snapshot', async t => {
+  const f = await fixture(t);
+  const scopeB = { ...scoped, principalId: 'owner-b', runtimeAssetIds: ['runtime-b'], fingerprint: 'c'.repeat(64) };
+  const first = await f.service.create(body, {}, undefined, scoped, randomUUID());
+  const second = await f.service.create({ ...body, name: 'Runtime B', filter: { runtimeAssetIds: ['runtime-b'] } },
+    {}, undefined, scopeB, randomUUID());
+  const page = await f.service.list({ limit: '1', state: 'enabled' }, global);
+  assert.equal(page.data.items.length, 1);
+  assert.equal(page.data.hasMore, true);
+  assert.ok(page.data.nextCursor);
+  const remaining = page.data.items[0].id === first.data.id ? second : first;
+  await f.service.update(remaining.data.id, { name: 'Changed after snapshot' }, {},
+    remaining.data.editEtag, global, randomUUID());
+  const next = await f.service.list({ cursor: page.data.nextCursor }, global);
+  assert.equal(next.data.items.length, 1);
+  assert.notEqual(next.data.items[0].id, page.data.items[0].id);
+  assert.notEqual(next.data.items[0].name, 'Changed after snapshot');
+  assert.equal(next.data.items[0].version, 1);
+  await assert.rejects(() => f.service.list({ cursor: page.data.nextCursor, state: 'paused' }, global),
+    code('CURSOR_SCOPE_MISMATCH'));
+  await assert.rejects(() => f.service.list({ cursor: page.data.nextCursor }, scoped),
+    code('CURSOR_SCOPE_MISMATCH'));
+  const visible = await f.service.list({}, scoped);
+  assert.deepEqual(visible.data.items.map(item => item.id), [first.data.id]);
+  const detail = await f.service.get(first.data.id, {}, scoped);
+  assert.equal(detail.data.id, first.data.id);
+  await assert.rejects(() => f.service.get(first.data.id, {}, scopeB), code('NOT_FOUND'));
+});
+
+test('updates create half-open revisions and report the exact paused gap on resume', async t => {
+  const f = await fixture(t);
+  const created = await f.service.create(body, {}, undefined, scoped, randomUUID());
+  const paused = await f.service.update(created.data.id, { enabled: false, reason: 'maintenance' }, {},
+    created.data.editEtag, scoped, randomUUID());
+  assert.equal(paused.data.version, 2);
+  assert.equal(paused.data.state, 'paused');
+  assert.equal(paused.data.changed, true);
+  await assert.rejects(() => f.service.update(created.data.id, { name: 'stale' }, {},
+    created.data.editEtag, scoped, randomUUID()), code('PRECONDITION_FAILED'));
+  const resume = await f.service.update(created.data.id, { enabled: true }, {},
+    paused.data.editEtag, scoped, randomUUID());
+  assert.equal(resume.data.version, 3);
+  assert.deepEqual(resume.data.pausedGapRange, { from: '2', to: '3' });
+  const revisions = await f.revisions.find({ where: { subscriptionId: created.data.id }, order: { version: 'ASC' } });
+  assert.equal(revisions.length, 3);
+  assert.equal(revisions[0].effectiveUntilSequence, revisions[1].effectiveFromSequence);
+  assert.equal(revisions[1].effectiveUntilSequence, revisions[2].effectiveFromSequence);
+  const unchanged = await f.service.update(created.data.id, { name: body.name }, {},
+    resume.data.editEtag, scoped, randomUUID());
+  assert.equal(unchanged.data.changed, false);
+  assert.equal(unchanged.data.version, 3);
+});
+
+test('updates cannot widen scope and delete revokes routing plus cancels unfinished deliveries', async t => {
+  const f = await fixture(t);
+  const created = await f.service.create(body, {}, undefined, scoped, randomUUID());
+  await assert.rejects(() => f.service.update(created.data.id,
+    { filter: { runtimeAssetIds: ['runtime-b'] } }, {}, created.data.editEtag, scoped, randomUUID()), code('FORBIDDEN'));
+  const deliveries = f.database.getRepository(entities.RuntimeEventDeliveryEntity);
+  await deliveries.insert(deliveries.create({ id: randomUUID(), subscriptionId: created.data.id,
+    subscriptionRevision: 1, eventId: randomUUID(), eventSequence: '00000000000000000001',
+    status: 'pending', version: 1, attemptCount: 0, replayGeneration: 0,
+    nextAttemptAt: new Date().toISOString(), leaseOwner: null, leaseUntil: null, lastError: {},
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 86400000).toISOString() }));
+  await f.service.remove(created.data.id, {}, created.data.editEtag, scoped, randomUUID());
+  const deleted = await f.subscriptions.findOneByOrFail({ id: created.data.id });
+  assert.equal(deleted.state, 'deleted');
+  assert.ok(deleted.deletedAt);
+  assert.equal((await deliveries.findOneByOrFail({ subscriptionId: created.data.id })).status, 'cancelled');
+  assert.ok((await f.revisions.findBy({ subscriptionId: created.data.id })).every(revision => revision.revoked));
+  assert.equal((await f.service.list({}, scoped)).data.items.length, 0);
+  await assert.rejects(() => f.service.get(created.data.id, {}, scoped), code('NOT_FOUND'));
+  await assert.rejects(() => f.service.remove(created.data.id, {}, created.data.editEtag, scoped, randomUUID()),
+    code('NOT_FOUND'));
+});
+
+test('real HTTP routes enforce management JWT and complete the authorized subscription CRUD lifecycle', async t => {
   const jwtSecret = 'j'.repeat(32);
   const f = await fixture(t, { JWT_SECRET: jwtSecret });
   const jwt = new JwtService();
@@ -204,4 +284,21 @@ test('real HTTP route enforces management JWT and subscription permission before
   const payload = await response.json();
   assert.equal(payload.status, 'success');
   assert.equal(payload.data.secretConfigured, true);
+  const authorization = { authorization: 'Bearer ' + token(allowed) };
+  const listed = await fetch(url, { headers: authorization });
+  assert.equal(listed.status, 200);
+  assert.equal((await listed.json()).data.items.length, 1);
+  const itemUrl = url + '/' + payload.data.id;
+  const detail = await fetch(itemUrl, { headers: authorization });
+  assert.equal(detail.status, 200);
+  assert.equal((await detail.json()).data.id, payload.data.id);
+  const paused = await fetch(itemUrl, { method: 'PATCH', headers: { ...authorization,
+    'content-type': 'application/json', 'if-match': payload.data.editEtag }, body: JSON.stringify({ enabled: false }) });
+  assert.equal(paused.status, 200);
+  const pausedPayload = await paused.json();
+  assert.equal(pausedPayload.data.state, 'paused');
+  const removed = await fetch(itemUrl, { method: 'DELETE', headers: {
+    ...authorization, 'if-match': pausedPayload.data.editEtag } });
+  assert.equal(removed.status, 204);
+  assert.equal((await fetch(itemUrl, { headers: authorization })).status, 404);
 });

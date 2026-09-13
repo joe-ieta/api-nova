@@ -81,6 +81,10 @@ export class CallObservabilityCapabilitiesService {
     endpoint('OBS-API-13', 'obsGetStatisticsGroups', 'GET', '/statistics/groups', STATISTICS_GROUPS_QUERY_KEYS, read);
     endpoint('OBS-API-16', 'obsListEvents', 'GET', '/events', EVENT_QUERY_KEYS, read);
     endpoint('OBS-API-17', 'obsCreateSubscription', 'POST', '/subscriptions', [], subscription);
+    endpoint('OBS-API-18', 'obsListSubscriptions', 'GET', '/subscriptions', ['state', 'cursor', 'limit'], subscription);
+    endpoint('OBS-API-19', 'obsGetSubscription', 'GET', '/subscriptions/{id}', [], subscription);
+    endpoint('OBS-API-20', 'obsUpdateSubscription', 'PATCH', '/subscriptions/{id}', [], subscription);
+    endpoint('OBS-API-21', 'obsDeleteSubscription', 'DELETE', '/subscriptions/{id}', [], subscription);
     const day = 86400000;
     const data: ObservabilityCapabilitiesDto = {
       availabilitySemantics: 'implementation_and_scope_eligibility_not_runtime_health',

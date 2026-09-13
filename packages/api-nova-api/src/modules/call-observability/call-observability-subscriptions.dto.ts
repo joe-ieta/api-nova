@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ObservabilityMetaDto } from './call-observability-api.contract';
 
 export class ObservabilitySubscriptionDestinationDto {
@@ -27,13 +27,29 @@ export class ObservabilitySubscriptionDto {
   @ApiProperty() createdAt: string;
   @ApiProperty() updatedAt: string;
   @ApiProperty({ type: ObservabilitySubscriptionHealthDto }) health: ObservabilitySubscriptionHealthDto;
-  @ApiProperty() replayed: boolean;
-  @ApiProperty() auditId: string;
+  @ApiPropertyOptional() replayed?: boolean;
+  @ApiPropertyOptional() auditId?: string;
+  @ApiPropertyOptional() changed?: boolean;
+  @ApiPropertyOptional({ type: 'object', properties: { from: { type: 'string' }, to: { type: 'string' } } })
+  pausedGapRange?: { from: string; to: string };
 }
 
 export class ObservabilitySubscriptionEnvelopeDto {
   @ApiProperty({ enum: ['success'] }) status: string;
   @ApiProperty({ type: ObservabilitySubscriptionDto }) data: ObservabilitySubscriptionDto;
+  @ApiProperty({ type: ObservabilityMetaDto }) meta: ObservabilityMetaDto;
+}
+
+export class ObservabilitySubscriptionPageDto {
+  @ApiProperty({ type: [ObservabilitySubscriptionDto] }) items: ObservabilitySubscriptionDto[];
+  @ApiProperty({ type: String, nullable: true }) nextCursor: string | null;
+  @ApiProperty() hasMore: boolean;
+  @ApiProperty() scannedSubscriptions: number;
+}
+
+export class ObservabilitySubscriptionPageEnvelopeDto {
+  @ApiProperty({ enum: ['success'] }) status: string;
+  @ApiProperty({ type: ObservabilitySubscriptionPageDto }) data: ObservabilitySubscriptionPageDto;
   @ApiProperty({ type: ObservabilityMetaDto }) meta: ObservabilityMetaDto;
 }
 
@@ -49,4 +65,9 @@ export const OBSERVABILITY_SUBSCRIPTION_CREATE_SCHEMA = {
     enabled: { type: 'boolean', default: true },
     reason: { type: 'string', minLength: 1, maxLength: 500 },
   },
+};
+
+export const OBSERVABILITY_SUBSCRIPTION_PATCH_SCHEMA = {
+  ...OBSERVABILITY_SUBSCRIPTION_CREATE_SCHEMA,
+  required: [],
 };

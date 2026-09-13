@@ -132,10 +132,10 @@ invocations 按 (timeBasis DESC, invocationId DESC) 排序；其他列表明确�
 | OBS-API-15 | GET /servers/status | obsGetServerStatuses | 基础 | OBS-TP-10 | PLANNED |
 | OBS-API-16 | GET /events | obsListEvents | 基础 | OBS-TP-11 | VERIFIED |
 | OBS-API-17 | POST /subscriptions | obsCreateSubscription | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
-| OBS-API-18 | GET /subscriptions | obsListSubscriptions | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
-| OBS-API-19 | GET /subscriptions/:id | obsGetSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
-| OBS-API-20 | PATCH /subscriptions/:id | obsUpdateSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
-| OBS-API-21 | DELETE /subscriptions/:id | obsDeleteSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
+| OBS-API-18 | GET /subscriptions | obsListSubscriptions | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
+| OBS-API-19 | GET /subscriptions/:id | obsGetSubscription | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
+| OBS-API-20 | PATCH /subscriptions/:id | obsUpdateSubscription | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
+| OBS-API-21 | DELETE /subscriptions/:id | obsDeleteSubscription | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
 | OBS-API-22 | POST /subscriptions/:id/test | obsTestSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
 | OBS-API-23 | GET /deliveries | obsListDeliveries | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
 | OBS-API-24 | GET /deliveries/:id | obsGetDelivery | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
@@ -301,7 +301,7 @@ filter 支持 runtimeAssetIds、serverTypes、eventTypes、severities、spanKind
 
 当前创建节点使用 `API_NOVA_OBSERVABILITY_WEBHOOK_ALLOWED_HOSTS`（逗号分隔、精确 host，含非默认端口）和 `API_NOVA_OBSERVABILITY_WEBHOOK_SECRET_REFS`（逗号分隔引用）作为部署授权边界；两者缺失时返回 503。默认只接受 HTTPS，隔离测试如需 HTTP 必须显式设置 `API_NOVA_OBSERVABILITY_WEBHOOK_ALLOW_HTTP=true`。URL 禁止凭证、query 和 fragment，云元数据地址即使列入允许项也拒绝；DNS 解析后复核仍由实际发送节点执行。
 
-订阅返回 id、version、state、filter、effectiveFromSeq、destination 的安全视图和健康摘要。首次创建只匹配之后的新事件，不自动发送全部历史。GET 列表按 createdAt DESC、id DESC 排序，限定管理者有权访问的订阅。
+订阅返回 id、version、state、filter、effectiveFromSeq、destination 的安全视图和健康摘要。首次创建只匹配之后的新事件，不自动发送全部历史。GET 列表按 createdAt DESC、id DESC 排序，限定管理者完整覆盖 scope 的订阅；签名游标固定授权、筛选和 snapshot sequence，后续页按该 sequence 读取当时生效的配置修订，更新不会污染已建立的分页快照。每页最多返回 200、最多扫描 1000 条，授权过滤空页仍可推进游标。
 
 PATCH 使用 If-Match；修改地址/过滤/启停创建新配置 revision。暂停期间不创建新投递，并暂停现有任务重试，恢复后继续已有任务，响应给出 pausedGapRange。旧任务绑定旧配置修订；撤销旧修订后任务 cancelled，需要显式选择当前授权修订进行人工 retry。
 

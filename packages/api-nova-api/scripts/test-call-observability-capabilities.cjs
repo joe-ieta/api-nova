@@ -211,10 +211,10 @@ test('read-only grants advertise eleven eligible routes and no private payload o
   assert.ok(value.endpoints.every(item => item.requiredPermissions.length === 1 && item.requiredPermissions[0] === READ));
 });
 
-test('explicit all-resource grants expose fourteen implemented endpoints and qualified payload object limits', async t => {
+test('explicit all-resource grants expose eighteen implemented endpoints and qualified payload object limits', async t => {
   const f = await fixture(t), viewer = f.account([role(allPermissions, null)]);
   const value = data(await f.request('/capabilities', {}, viewer));
-  assert.equal(value.resourceScope, 'all'); assert.equal(value.endpoints.length, 14);
+  assert.equal(value.resourceScope, 'all'); assert.equal(value.endpoints.length, 18);
   assert.equal(value.maxStatisticsQueryInvocations, MAX_METRIC_OBSERVATIONS);
   assert.equal(feature(value, 'statistics').state, 'enabled');
   assert.deepEqual(value.endpoints.find(item => item.endpointId === 'OBS-API-11').queryParameters, [...STATISTICS_SUMMARY_QUERY_KEYS]);
@@ -273,7 +273,7 @@ test('empty explicit asset scope retains only self discovery, not global data ac
   assert.equal(value.endpoints[0].authorizationRule, 'capability_only');
 });
 
-test('runtime states and push remain unavailable while event history and subscription creation are enabled', async t => {
+test('runtime states and push remain unavailable while event history and subscription management are enabled', async t => {
   const f = await fixture(t), viewer = f.account([role(allPermissions, null)]);
   const value = data(await f.request('/capabilities', {}, viewer));
   for (const name of ['overview', 'dependencies', 'serverStatus',
@@ -335,9 +335,9 @@ test('capability inventory and explicit DTOs match all actual module Swagger ope
   const value = data(await f.request('/capabilities', {}, viewer));
   const swagger = SwaggerModule.createDocument(f.app, new DocumentBuilder().setTitle('Capabilities').setVersion('1').build());
   const operations = Object.entries(swagger.paths).flatMap(([route, item]) =>
-    Object.entries(item).filter(([method]) => ['get', 'post', 'patch'].includes(method)).map(([method, operation]) =>
+    Object.entries(item).filter(([method]) => ['get', 'post', 'patch', 'delete'].includes(method)).map(([method, operation]) =>
       ({ route, method, operation })));
-  assert.equal(operations.length, 14); assert.equal(value.endpoints.length, operations.length);
+  assert.equal(operations.length, 18); assert.equal(value.endpoints.length, operations.length);
   for (const endpoint of value.endpoints) {
     const actual = operations.find(item => item.route === endpoint.path && item.method === endpoint.method.toLowerCase());
     assert.ok(actual, endpoint.endpointId);

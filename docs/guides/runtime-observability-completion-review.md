@@ -48,7 +48,7 @@ doc-updated: 2026-09-13
 | OBS-TP-09 | 调用列表/正文/trace/callers/sources API 与读取审计 | DONE | 已完成本包既定开发/专项范围；不代表依赖功能或生产部署完成。 |
 | OBS-TP-10 | 聚合/去重/直方图、总览/依赖/状态、能力 API | IN_PROGRESS | API-01/11/12/13 与 TP10-B01~B03 验收通过；B04、总览/依赖/服务器状态及剩余指标未完成。 |
 | OBS-TP-11 | 规范持久事件、事务 Outbox 分发、事件历史/游标 API | DONE | OBS-API-16 与持久 Outbox 已验收；提交后消费、修订选路、delivery 去重、租约恢复和无缺口水位完成，网络发送不在本包。 |
-| OBS-TP-12 | Webhook 订阅、签名、投递、重试/死信与管理 API | IN_PROGRESS | OBS-API-17 已 VERIFIED；18~25、签名发送、重试/死信、重投及投递查询待实施。 |
+| OBS-TP-12 | Webhook 订阅、签名、投递、重试/死信与管理 API | IN_PROGRESS | OBS-API-17~21 已 VERIFIED；22~25、签名发送、重试/死信、重投及投递查询待实施。 |
 | OBS-TP-13 | 现有 Socket.IO 统一事件接入、快照衔接、补拉与慢消费 | BACKLOG | 已规划但未完成；局部基础/已有专项不替代本包完整验收，见 REM 清单。 |
 | OBS-TP-14 | 保留/配额/策略 API、采集健康、清理与故障降级闭环 | BACKLOG | 已规划但未完成；局部基础/已有专项不替代本包完整验收，见 REM 清单。 |
 | OBS-TP-15 | Gateway/MCP 与全部查询报送集成、旧能力收敛、切换/回退 | BACKLOG | 已规划但未完成；局部基础/已有专项不替代本包完整验收，见 REM 清单。 |
@@ -73,7 +73,7 @@ doc-updated: 2026-09-13
 
 ## 5. 计划但未完成的 HTTP Endpoint
 
-HTTP 合计 28 个，OBS-API-01、03~13、16、17 共 14 个 VERIFIED；以下 14 个为 PLANNED，必须继续实现和验收。名称、路径和 operationId 沿用 Endpoint 主文档，不能用旧同类接口替代这些新契约。
+HTTP 合计 28 个，OBS-API-01、03~13、16~21 共 18 个 VERIFIED；以下 10 个为 PLANNED，必须继续实现和验收。名称、路径和 operationId 沿用 Endpoint 主文档，不能用旧同类接口替代这些新契约。
 
 | Endpoint | 方法与路径 | operationId | 原任务归属 | 当前标注 |
 | --- | --- | --- | --- | --- |
@@ -81,10 +81,6 @@ HTTP 合计 28 个，OBS-API-01、03~13、16、17 共 14 个 VERIFIED；以下 1
 | OBS-API-02 | GET /overview | obsGetOverview | OBS-TP-10 | 未完成（PLANNED），待实现与验收 |
 | OBS-API-14 | GET /dependencies | obsGetDependencies | OBS-TP-10 | 未完成（PLANNED），待实现与验收 |
 | OBS-API-15 | GET /servers/status | obsGetServerStatuses | OBS-TP-10 | 未完成（PLANNED），待实现与验收 |
-| OBS-API-18 | GET /subscriptions | obsListSubscriptions | OBS-TP-12 | 未完成（PLANNED），待实现与验收 |
-| OBS-API-19 | GET /subscriptions/:id | obsGetSubscription | OBS-TP-12 | 未完成（PLANNED），待实现与验收 |
-| OBS-API-20 | PATCH /subscriptions/:id | obsUpdateSubscription | OBS-TP-12 | 未完成（PLANNED），待实现与验收 |
-| OBS-API-21 | DELETE /subscriptions/:id | obsDeleteSubscription | OBS-TP-12 | 未完成（PLANNED），待实现与验收 |
 | OBS-API-22 | POST /subscriptions/:id/test | obsTestSubscription | OBS-TP-12 | 未完成（PLANNED），待实现与验收 |
 | OBS-API-23 | GET /deliveries | obsListDeliveries | OBS-TP-12 | 未完成（PLANNED），待实现与验收 |
 | OBS-API-24 | GET /deliveries/:id | obsGetDelivery | OBS-TP-12 | 未完成（PLANNED），待实现与验收 |

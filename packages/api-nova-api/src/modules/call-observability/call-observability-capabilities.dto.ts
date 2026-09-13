@@ -9,7 +9,7 @@ export class ObservabilityFeatureCapabilityDto {
 export class ObservabilityEndpointCapabilityDto {
   @ApiProperty() endpointId: string;
   @ApiProperty() operationId: string;
-  @ApiProperty({ enum: ['GET', 'POST', 'PATCH'] }) method: string;
+  @ApiProperty({ enum: ['GET', 'POST', 'PATCH', 'DELETE'] }) method: string;
   @ApiProperty() path: string;
   @ApiProperty({ type: [String] }) queryParameters: string[];
   @ApiProperty({ type: [String] }) requiredPermissions: string[];
