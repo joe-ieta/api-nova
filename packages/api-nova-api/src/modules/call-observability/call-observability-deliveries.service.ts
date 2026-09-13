@@ -316,7 +316,8 @@ export class CallObservabilityDeliveriesService {
     return { deliveryId: delivery.id, eventId: delivery.eventId, subscriptionId: delivery.subscriptionId,
       subscriptionRevision: delivery.subscriptionRevision, version: delivery.version, status: delivery.status,
       attemptCount: delivery.attemptCount, replayGeneration: delivery.replayGeneration,
-      suspendedBySubscription: subscription.state === 'paused', nextAttemptAt: delivery.nextAttemptAt || null,
+      suspendedBySubscription: subscription.state === 'paused',
+      nextAttemptAt: ['pending', 'retry_wait'].includes(delivery.status) ? delivery.nextAttemptAt : null,
       lastError: this.safeError(delivery.lastError), createdAt: delivery.createdAt, updatedAt: delivery.updatedAt,
       expiresAt: delivery.expiresAt };
   }

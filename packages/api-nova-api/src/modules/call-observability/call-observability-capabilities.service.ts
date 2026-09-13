@@ -55,7 +55,8 @@ export class CallObservabilityCapabilitiesService {
       { name: 'statisticsGroups', implemented: true, grant: read },
       { name: 'eventHistory', implemented: true, grant: read },
       { name: 'subscriptionManagement', implemented: true, grant: subscription },
-      ...['overview', 'dependencies', 'serverStatus', 'webhook',
+      { name: 'webhook', implemented: true, grant: subscription },
+      ...['overview', 'dependencies', 'serverStatus',
         'socketPush', 'pipelineStatus', 'policyManagement'].map(name => ({ name, implemented: false })),
     ];
     const features = featureInputs.map(feature => ({

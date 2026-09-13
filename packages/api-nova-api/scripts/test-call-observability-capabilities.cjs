@@ -274,11 +274,11 @@ test('empty explicit asset scope retains only self discovery, not global data ac
   assert.equal(value.endpoints[0].authorizationRule, 'capability_only');
 });
 
-test('runtime states and push remain unavailable while event history and subscription management are enabled', async t => {
+test('runtime states and socket push remain unavailable while event history and webhook are enabled', async t => {
   const f = await fixture(t), viewer = f.account([role(allPermissions, null)]);
   const value = data(await f.request('/capabilities', {}, viewer));
   for (const name of ['overview', 'dependencies', 'serverStatus',
-    'webhook', 'socketPush', 'pipelineStatus', 'policyManagement']) {
+    'socketPush', 'pipelineStatus', 'policyManagement']) {
     assert.equal(feature(value, name).state, 'not_implemented');
     assert.equal(feature(value, name).scopeMode, null);
     assert.equal(value.enabledFeatures.includes(name), false);
@@ -287,6 +287,7 @@ test('runtime states and push remain unavailable while event history and subscri
   assert.equal(value.maxBuckets, 1440); assert.equal(value.eventRetention, 14 * 86400000);
   assert.equal(feature(value, 'eventHistory').state, 'enabled');
   assert.equal(feature(value, 'subscriptionManagement').state, 'enabled');
+  assert.equal(feature(value, 'webhook').state, 'enabled');
   assert.equal(value.retentionWindows.aggregateRetentionMs, null);
 });
 
