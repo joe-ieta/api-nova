@@ -81,10 +81,10 @@ HTTP 合计 28 个，OBS-API-01、03~13、16~21 共 18 个 VERIFIED；以下 10 
 | OBS-API-02 | GET /overview | obsGetOverview | OBS-TP-10 | 未完成（PLANNED），待实现与验收 |
 | OBS-API-14 | GET /dependencies | obsGetDependencies | OBS-TP-10 | 未完成（PLANNED），待实现与验收 |
 | OBS-API-15 | GET /servers/status | obsGetServerStatuses | OBS-TP-10 | 未完成（PLANNED），待实现与验收 |
-| OBS-API-22 | POST /subscriptions/:id/test | obsTestSubscription | OBS-TP-12 | 未完成（PLANNED），待实现与验收 |
-| OBS-API-23 | GET /deliveries | obsListDeliveries | OBS-TP-12 | 未完成（PLANNED），待实现与验收 |
-| OBS-API-24 | GET /deliveries/:id | obsGetDelivery | OBS-TP-12 | 未完成（PLANNED），待实现与验收 |
-| OBS-API-25 | POST /deliveries/:id/retry | obsRetryDelivery | OBS-TP-12 | 未完成（PLANNED），待实现与验收 |
+| OBS-API-22 | POST /subscriptions/:id/test | obsTestSubscription | OBS-TP-12 | 已完成（VERIFIED），未部署 |
+| OBS-API-23 | GET /deliveries | obsListDeliveries | OBS-TP-12 | 已完成（VERIFIED），未部署 |
+| OBS-API-24 | GET /deliveries/:id | obsGetDelivery | OBS-TP-12 | 已完成（VERIFIED），未部署 |
+| OBS-API-25 | POST /deliveries/:id/retry | obsRetryDelivery | OBS-TP-12 | 已完成（VERIFIED），未部署 |
 | OBS-API-26 | GET /pipeline/status | obsGetPipelineStatus | OBS-TP-14 | 未完成（PLANNED），待实现与验收 |
 | OBS-API-27 | GET /policies | obsGetPolicies | OBS-TP-14 | 未完成（PLANNED），待实现与验收 |
 | OBS-API-28 | PATCH /policies/:id | obsUpdatePolicy | OBS-TP-14 | 未完成（PLANNED），待实现与验收 |

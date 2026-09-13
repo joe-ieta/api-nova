@@ -36,6 +36,11 @@ export class CallObservabilityCapabilitiesService {
     const payload = optional('monitoring:payload:read'), source = optional('monitoring:source:read');
     const manage = optional('monitoring:manage');
     const subscription = optional('monitoring:subscription:manage');
+    let retry: ObservabilityAuthorization | undefined;
+    try { retry = authorizeObservability(user, ['monitoring:subscription:manage', 'monitoring:delivery:retry']); }
+    catch (error) {
+      if (!(error instanceof ObservabilityApiError) || error.code !== 'FORBIDDEN') throw error;
+    }
     const featureInputs: Array<{ name: string; implemented: boolean; grant?: ObservabilityAuthorization }> = [
       { name: 'capabilities', implemented: true, grant: read },
       { name: 'invocationQueries', implemented: true, grant: read },
@@ -85,6 +90,11 @@ export class CallObservabilityCapabilitiesService {
     endpoint('OBS-API-19', 'obsGetSubscription', 'GET', '/subscriptions/{id}', [], subscription);
     endpoint('OBS-API-20', 'obsUpdateSubscription', 'PATCH', '/subscriptions/{id}', [], subscription);
     endpoint('OBS-API-21', 'obsDeleteSubscription', 'DELETE', '/subscriptions/{id}', [], subscription);
+    endpoint('OBS-API-22', 'obsTestSubscription', 'POST', '/subscriptions/{id}/test', [], subscription);
+    endpoint('OBS-API-23', 'obsListDeliveries', 'GET', '/deliveries',
+      ['subscriptionId', 'eventId', 'status', 'from', 'to', 'cursor', 'limit'], subscription);
+    endpoint('OBS-API-24', 'obsGetDelivery', 'GET', '/deliveries/{id}', ['attemptsCursor', 'attemptsLimit'], subscription);
+    endpoint('OBS-API-25', 'obsRetryDelivery', 'POST', '/deliveries/{id}/retry', [], retry);
     const day = 86400000;
     const data: ObservabilityCapabilitiesDto = {
       availabilitySemantics: 'implementation_and_scope_eligibility_not_runtime_health',

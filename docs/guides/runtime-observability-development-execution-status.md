@@ -87,7 +87,7 @@ implementation-status: in-progress
 | OBS-API-02/14/15：总览/依赖/状态 | 3 | 10 | PLANNED |
 | OBS-API-16：事件补拉 | 1 | 11 | VERIFIED；未部署 |
 | OBS-API-17~21：订阅创建/查询/更新/删除 | 5 | 12 | VERIFIED；未部署 |
-| OBS-API-22~25：测试推送/投递/重试 | 4 | 12 | PLANNED |
+| OBS-API-22~25：测试推送/投递/重试 | 4 | 12 | VERIFIED；未部署 |
 | OBS-API-26~28：健康/策略 | 3 | 14 | PLANNED |
 | OBS-PUSH-01：Socket.IO | 1 | 13 | PLANNED |
 | OBS-PUSH-02：Webhook | 1 | 12 | PLANNED |
@@ -715,7 +715,9 @@ API build PASS。创建专项 9/9 PASS（含真实回环 HTTP 的无 Token、缺
 
 PATCH 在同一加锁事务内校验强 If-Match，配置变化关闭旧修订并创建下一修订；无变化只留管理审计，不虚增版本。暂停记录起点，恢复返回明确 pausedGapRange，暂停期不补建 delivery。DELETE 软删除当前行、撤销全部修订、创建撤销墓碑修订并取消 pending/in_flight/retry_wait delivery；事件和历史尝试保留。所有更新、删除、sequence 与管理审计原子提交。
 
-API build PASS；订阅专项 12/12 PASS，包含真实回环 HTTP 的创建、列表、详情、暂停更新、删除和删除后 404；能力专项 14/14、Outbox 专项 11/11 PASS。OBS-API-17~21 VERIFIED，HTTP 18 VERIFIED、10 PLANNED；Webhook/Socket 推送仍 PLANNED，AVAILABLE=0。TP-12 继续 IN_PROGRESS，下一节点为 OBS-API-22 测试事件、OBS-API-23/24 投递查询、OBS-API-25 人工重投，之后接入签名发送与有限重试 Worker。
+API build PASS；订阅专项 12/12 PASS，包含真实回环 HTTP 的创建、列表、详情、暂停更新、删除和删除后 404；能力专项 14/14、Outbox 专项 11/11 PASS。OBS-API-17~21 VERIFIED，HTTP 18 VERIFIED、10 PLANNED；Webhook/Socket 推送仍 PLANNED，AVAILABLE=0。
+
+OBS-API-22~25 已实现并完成专项验收：测试事件与单一受控 delivery 同事务落库，不同步访问订阅地址且暂停订阅不被恢复；投递列表按订阅授权范围裁剪并使用签名创建快照游标；详情提供固定上界、分页且脱敏的 attempts；人工重投强制 Idempotency-Key，只接受 dead 或显式绑定有效当前修订的 cancelled 投递，保留 eventId、deliveryId 与历史 attempts 并递增 replayGeneration。API build、投递专项与更新后的能力专项 PASS。HTTP 22 VERIFIED、6 PLANNED；Webhook/Socket 推送仍 PLANNED，AVAILABLE=0。TP-12 继续 IN_PROGRESS，下一节点为实际密钥解析、DNS 后复核、签名发送与六次有限重试 Worker。
 
 ## 42. Windows 文件身份回归修复与联合验收（2026-09-13）
 

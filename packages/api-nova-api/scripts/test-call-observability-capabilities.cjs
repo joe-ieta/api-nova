@@ -103,6 +103,7 @@ async function fixture(t, sourceCap = 10000) {
       { provide: CallObservabilityPayloadsService, useValue: {} },
       { provide: CallObservabilityCallerLabelsService, useValue: {} },
       { provide: CallObservabilitySubscriptionsService, useValue: {} },
+      { provide: require('../dist/src/modules/call-observability/call-observability-deliveries.service.js').CallObservabilityDeliveriesService, useValue: {} },
       { provide: CallObservabilityVisitorsService, useValue: service },
       { provide: ConfigService, useValue: config }, { provide: JwtService, useValue: jwt },
       { provide: UserService, useValue: resolver }, ObservabilityAccessGuard, ObservabilityApiExceptionFilter,
@@ -167,7 +168,7 @@ const data = result => { assert.equal(result.status, 200, JSON.stringify(result.
 
 const feature = (value, name) => value.features.find(item => item.name === name);
 const endpointIds = value => value.endpoints.map(item => item.endpointId);
-const allPermissions = [READ, PAYLOAD, SOURCE, MANAGE, SUBSCRIBE];
+const allPermissions = [READ, PAYLOAD, SOURCE, MANAGE, SUBSCRIBE, 'monitoring:delivery:retry'];
 
 test('empty capabilities are a read-only snapshot, not a healthy zero or an initialized pipeline', async t => {
   const f = await fixture(t), result = await f.request(), value = data(result);
@@ -211,10 +212,10 @@ test('read-only grants advertise eleven eligible routes and no private payload o
   assert.ok(value.endpoints.every(item => item.requiredPermissions.length === 1 && item.requiredPermissions[0] === READ));
 });
 
-test('explicit all-resource grants expose eighteen implemented endpoints and qualified payload object limits', async t => {
+test('explicit all-resource grants expose twenty-two implemented endpoints and qualified payload object limits', async t => {
   const f = await fixture(t), viewer = f.account([role(allPermissions, null)]);
   const value = data(await f.request('/capabilities', {}, viewer));
-  assert.equal(value.resourceScope, 'all'); assert.equal(value.endpoints.length, 18);
+  assert.equal(value.resourceScope, 'all'); assert.equal(value.endpoints.length, 22);
   assert.equal(value.maxStatisticsQueryInvocations, MAX_METRIC_OBSERVATIONS);
   assert.equal(feature(value, 'statistics').state, 'enabled');
   assert.deepEqual(value.endpoints.find(item => item.endpointId === 'OBS-API-11').queryParameters, [...STATISTICS_SUMMARY_QUERY_KEYS]);
@@ -337,7 +338,7 @@ test('capability inventory and explicit DTOs match all actual module Swagger ope
   const operations = Object.entries(swagger.paths).flatMap(([route, item]) =>
     Object.entries(item).filter(([method]) => ['get', 'post', 'patch', 'delete'].includes(method)).map(([method, operation]) =>
       ({ route, method, operation })));
-  assert.equal(operations.length, 18); assert.equal(value.endpoints.length, operations.length);
+  assert.equal(operations.length, 22); assert.equal(value.endpoints.length, operations.length);
   for (const endpoint of value.endpoints) {
     const actual = operations.find(item => item.route === endpoint.path && item.method === endpoint.method.toLowerCase());
     assert.ok(actual, endpoint.endpointId);
