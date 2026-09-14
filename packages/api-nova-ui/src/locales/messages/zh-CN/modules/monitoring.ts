@@ -331,6 +331,7 @@ export default {
         cacheHits: "缓存命中",
         cacheMisses: "缓存未命中",
         authModes: "认证模式",
+        authPolicyMissing: "未配置（阻止发布）",
         jwtRoutes: "JWT {count}",
         apiKeyRoutes: "API Key {count}",
         anonymousRoutes: "匿名 {count}",

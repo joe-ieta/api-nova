@@ -233,7 +233,7 @@
             <template #default="{ row }">
               <div class="membership-governance">
                 <el-tag size="small" type="info">
-                  {{ row.gatewayRouteBinding?.authPolicyRef || t("monitoring.runtimeAssets.detail.anonymousPolicy") }}
+                  {{ row.gatewayRouteBinding?.authPolicyRef || t("monitoring.runtimeAssets.detail.authPolicyMissing") }}
                 </el-tag>
                 <el-tag
                   v-if="row.gatewayRouteBinding?.cachePolicyRef"

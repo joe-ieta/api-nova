@@ -333,6 +333,7 @@ export default {
         cacheHits: "Cache Hits",
         cacheMisses: "Cache Misses",
         authModes: "Auth Modes",
+        authPolicyMissing: "Not configured (publication blocked)",
         jwtRoutes: "JWT {count}",
         apiKeyRoutes: "API key {count}",
         anonymousRoutes: "Anonymous {count}",
