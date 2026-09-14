@@ -16,7 +16,12 @@
 | --- | --- | --- | --- |
 | [docs/audits/2026-09-04-manual-registration-publication.md](./audits/2026-09-04-manual-registration-publication.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/audits/2026-09-07-reviewed-merge.md](./audits/2026-09-07-reviewed-merge.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/audits/README.md](./audits/README.md) | 1.1.0 | active | 2026-09-08 |
+| [docs/audits/README.md](./audits/README.md) | 1.7.0 | active | 2026-09-14 |
+| [单跳凭据、容量样本与诊断UI](./audits/2026-09-14-single-hop-capacity-diagnostics-wave.md) | 1.0.0 | active | 2026-09-14 |
+| [路由观测、可信映射与策略UI](./audits/2026-09-14-routing-policy-mapping-wave.md) | 1.0.0 | active | 2026-09-14 |
+| [MCP可信操作映射](./guides/mcp-trusted-operation-bindings.md) | 1.1.0 | active | 2026-09-14 |
+| [正文保留与消费端推进](./audits/2026-09-14-retention-consumer-wave.md) | 1.0.0 | active | 2026-09-14 |
+| [管理心跳、请求头与Gateway消费者](./audits/2026-09-14-heartbeat-header-consumer-wave.md) | 1.0.0 | active | 2026-09-14 |
 | [docs/baseline/PRODUCT_CONSTRAINTS.md](./baseline/PRODUCT_CONSTRAINTS.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/baseline/PROJECT_BASELINE.md](./baseline/PROJECT_BASELINE.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/guides/api-gateway-architecture-and-requirements.md](./guides/api-gateway-architecture-and-requirements.md) | 1.0.0 | active | 2026-09-07 |
@@ -39,7 +44,7 @@
 | [docs/reference/management-permission-matrix.md](./reference/management-permission-matrix.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/mcp-jsonrpc-relationship.md](./reference/mcp-jsonrpc-relationship.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/nodejs-module-systems-guide.md](./reference/nodejs-module-systems-guide.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/reference/open-items.md](./reference/open-items.md) | 1.1.0 | active | 2026-09-08 |
+| [docs/reference/open-items.md](./reference/open-items.md) | 1.7.0 | active | 2026-09-14 |
 | [docs/reference/README.md](./reference/README.md) | 1.3.0 | active | 2026-09-14 |
 | [docs/reference/versioning-policy.md](./reference/versioning-policy.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/release/api-nova-release-requirements.md](./release/api-nova-release-requirements.md) | 1.1.0 | active | 2026-09-08 |
@@ -47,22 +52,43 @@
 
 | [docs/audits/2026-09-08-persistence-cleanup.md](./audits/2026-09-08-persistence-cleanup.md) | 1.0.0 | active | 2026-09-08 |
 
+| [活跃任务依赖与并发推进](./audits/2026-09-14-active-task-dependencies.md) | 1.0.0 | active | 2026-09-14 |
+
+| [按规划继续执行](./audits/2026-09-14-planned-next-wave.md) | 1.0.0 | active | 2026-09-14 |
+
+## 安全开发文档
+
+2026-09-14 按依赖完成 C3 稳定文件读取与 Gateway 配置激活：Parser 全量 342/342、Gateway 完整专项 123/123、三包构建通过；旧夹具 4 项失败已修复。新增文件激活手册和 D1/F3 draft 契约（30 项矩阵）。下一关键节点为 MCP 可信绑定到发送链路；Watch/管理 API、Header Allowlist、网络控制和 Linux 权限证据仍未闭环。
+
+| 文档 | 版本 | 状态 | 更新时间 |
+| --- | --- | --- | --- |
+| [安全任务计划](./guides/security-development-task-plan.md) | 1.8.0 | active | 2026-09-14 |
+| [安全执行状态](./guides/security-development-execution-status.md) | 1.13.0 | active | 2026-09-14 |
+| [安全功能需求](./guides/security-functional-requirements.md) | 1.0.0 | active | 2026-09-14 |
+| [安全设计](./reference/security-design-and-implementation.md) | 1.2.0 | active | 2026-09-14 |
+| [Gateway 文件激活](./guides/gateway-upstream-credential-file-activation.md) | 1.1.0 | active | 2026-09-14 |
+| [D1/F3 边界契约](./guides/security-header-network-boundary-contract.md) | 0.3.0 | draft | 2026-09-14 |
+| [安全调用与日志审计](./guides/runtime-security-and-call-audit.md) | 1.2.0 | active | 2026-09-14 |
+| [安全验收用例](./testing/runtime-security-audit-cases.md) | 1.2.0 | active | 2026-09-14 |
+
+[安全历史归档](./archive/summaries/security-2026-09-14/README.md)的四份原始快照为 archived，页内旧状态仅供追溯。
+
 ## 可观测性增强文档
 
 `active` 表示文档正在维护，不表示已部署。当前完成情况、剩余任务及实现边界以[完成情况复核](./guides/runtime-observability-completion-review.md)为统一入口；验收结果和环境范围以[执行状态](./guides/runtime-observability-development-execution-status.md)为准。需求和设计保留规范目标，不能代替代码或验收证据。
 
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
-| [可观测性功能需求](./guides/runtime-observability-requirements.md) | 2.1.0 | active | 2026-09-14 |
-| [可观测性设计](./reference/runtime-observability-design.md) | 2.1.0 | active | 2026-09-14 |
-| [可观测性 API Endpoint](./reference/runtime-observability-api-endpoints.md) | 2.1.0 | active | 2026-09-14 |
-| [可观测性开发任务计划](./guides/runtime-observability-development-task-plan.md) | 2.1.0 | active | 2026-09-14 |
-| [可观测性执行与完成状态](./guides/runtime-observability-development-execution-status.md) | 2.1.0 | active | 2026-09-14 |
-| [任务完成情况复核](./guides/runtime-observability-completion-review.md) | 2.1.0 | active | 2026-09-14 |
+| [可观测性功能需求](./guides/runtime-observability-requirements.md) | 2.2.0 | active | 2026-09-14 |
+| [可观测性设计](./reference/runtime-observability-design.md) | 2.2.0 | active | 2026-09-14 |
+| [可观测性 API Endpoint](./reference/runtime-observability-api-endpoints.md) | 2.7.0 | active | 2026-09-14 |
+| [可观测性开发任务计划](./guides/runtime-observability-development-task-plan.md) | 2.7.0 | active | 2026-09-14 |
+| [可观测性执行与完成状态](./guides/runtime-observability-development-execution-status.md) | 2.7.0 | active | 2026-09-14 |
+| [任务完成情况复核](./guides/runtime-observability-completion-review.md) | 2.7.0 | active | 2026-09-14 |
 | [可观测性契约与接入映射](./reference/runtime-observability-contract-mapping.md) | 2.1.0 | active | 2026-09-14 |
 | [可观测性存储基础](./reference/runtime-observability-storage-foundation.md) | 2.1.0 | active | 2026-09-14 |
-| [运行集成指南](./guides/runtime-observability-integration.md) | 2.1.0 | active | 2026-09-14 |
-| [订阅集成指南](./guides/runtime-observability-subscription-integration.md) | 2.1.0 | active | 2026-09-14 |
+| [运行集成指南](./guides/runtime-observability-integration.md) | 2.7.0 | active | 2026-09-14 |
+| [订阅集成指南](./guides/runtime-observability-subscription-integration.md) | 2.4.0 | active | 2026-09-14 |
 | [外部验收交接](./guides/runtime-observability-external-validation-handoff.md) | 2.1.0 | active | 2026-09-14 |
 
 ### 2026-09-14 可观测性历史归档
@@ -172,3 +198,9 @@
 | ui | [mcp-swagger-ui-technical-documentation](./archive/ui/mcp-swagger-ui-technical-documentation.md) | archived | 历史记录，仅回溯用 |
 | ui | [mcp-swagger-ui-upgrade-summary](./archive/ui/mcp-swagger-ui-upgrade-summary.md) | archived | 历史记录，仅回溯用 |
 | guides | [offline-dependency-migration-pnpm](./archive/guides/offline-dependency-migration-pnpm.md) | archived | 旧 pnpm 迁移记录，当前使用 npm |
+
+## 上游凭证 Linux 专项操作
+
+| 文档 | doc-version | 状态 | 说明 |
+| --- | --- | --- | --- |
+| [upstream-secret-provider-linux.md](testing/upstream-secret-provider-linux.md) | 1.0.0 | active | 待执行的隔离操作说明，不是 Linux 验收通过证据 |

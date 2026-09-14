@@ -184,4 +184,39 @@ describe('GatewaySecurityService', () => {
       .resolves.toEqual({ mode: 'jwt', principal });
   });
 
+
+  describe.each([false, true])('invalid policy with existing identity=%s', existingIdentity => {
+    const invalidPolicies: Array<[string, any]> = [
+      ['missing policies', undefined],
+      ['missing auth', {}],
+      ['null auth', { auth: null }],
+      ...[undefined, null, '', 'unknown', 'oauth', 'runtime-api-key', 'JWT', 'API_KEY', 'Anonymous', ' jwt ']
+        .map(mode => [`mode ${String(mode)}`, { auth: { mode } }] as [string, any]),
+    ];
+    it.each(invalidPolicies)('rejects %s before authentication or identity mutation', async (_label, policies) => {
+      const { service, credentialRepository, auditService } = buildService();
+      credentialRepository.findOne.mockResolvedValue({
+        id: 'consumer-1', keyId: 'key-live', status: 'active', runtimeAssetId: 'runtime-1',
+        secretHash: createHash('sha256').update('secret-live').digest('hex'),
+      });
+      const authenticate = jest.fn().mockResolvedValue({ callerId: 'new-identity' });
+      (service as any).authenticateJwt = authenticate;
+      const identity = Object.freeze({ mode: 'jwt', principal: Object.freeze({ callerId: 'existing-caller' }) });
+      const req: any = { headers: { 'x-api-key': 'key-live.secret-live', authorization: 'Bearer valid-token' }, query: {} };
+      if (existingIdentity) Object.defineProperty(req, 'gatewayAuth', {
+        value: identity, enumerable: true, writable: false, configurable: false,
+      });
+      const route = resolvedRoute('api_key');
+      route.policies = policies;
+      await expect(service.authorize(route, req)).rejects.toMatchObject({
+        status: 503, response: 'gateway_auth_policy_invalid',
+      });
+      expect(credentialRepository.findOne).not.toHaveBeenCalled();
+      expect(credentialRepository.save).not.toHaveBeenCalled();
+      expect(authenticate).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalled();
+      expect(Object.prototype.hasOwnProperty.call(req, 'gatewayAuth')).toBe(existingIdentity);
+      expect(req.gatewayAuth).toBe(existingIdentity ? identity : undefined);
+    });
+  });
 });

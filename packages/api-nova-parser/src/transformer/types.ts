@@ -3,6 +3,8 @@
  */
 
 import { AuthConfig } from '../auth/types';
+import type { SingleHopUpstreamCredentialPolicy } from '../credentials/single-hop-execution';
+import type { TrustedOperationBinding } from '../credentials/trusted-operation-bindings';
 import { OperationObject } from '../types/openapi';
 
 /**
@@ -242,6 +244,10 @@ export interface OperationFilter {
  * Transformer Options
  */
 export interface TransformerOptions {
+  /** Trusted in-process identity registry; never populate this from untrusted OpenAPI x-* fields. */
+  trustedOperationBindings?: readonly TrustedOperationBinding[];
+  /** Standard HTTP handlers only; requires trustedOperationBindings, replaces legacy auth, returns redirects without following. */
+  upstreamCredentialPolicy?: SingleHopUpstreamCredentialPolicy;
   baseUrl?: string;
   sourceOrigin?: string;
   includeDeprecated?: boolean;

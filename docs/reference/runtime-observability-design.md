@@ -1,5 +1,5 @@
 ---
-doc-version: 2.1.0
+doc-version: 2.2.0
 doc-status: active
 doc-updated: 2026-09-14
 ---
@@ -435,7 +435,7 @@ overview 的 invocationSnapshotSeq 及其授权/到期信息仅适用于 invocat
 
 目标为默认每 15 秒汇报一次状态快照，无业务调用也发送。45 秒无心跳先标 stale/unknown；只有受管进程明确退出或探测确认时标 offline。单次上游失败产生调用事件，按配置窗口/阈值再影响 dependencyHealth，不能直接把整台 Gateway 标离线。
 
-当前 servers/status 依据授权资产与持久运行状态返回实际证据，overview 不补造心跳/健康/全局覆盖；server.snapshot 事件类型存在也不能证明已有定时心跳。实时在途、无流量心跳及独立失联判断仍需 TP-10/13/14 闭环。
+当前 servers/status 依据授权资产与持久运行状态返回实际证据，overview 不补造心跳/健康/全局覆盖；server.snapshot 事件类型存在也不能证明已有定时心跳。独立管理进程心跳已实现单租约持有者的存储往返证据，不据此判断业务健康；业务实时在途、无流量心跳及独立失联判断仍需TP-10/13/14闭环。
 
 ## 12. 权限与管理审计
 
@@ -514,4 +514,3 @@ capabilities 描述实际开放的参数、历史维度和限制，不从实体�
 本文维护批准设计与明确实现边界；[完成情况复核](../guides/runtime-observability-completion-review.md)是当前状态唯一汇总，[执行状态](../guides/runtime-observability-development-execution-status.md)是证据索引和真实剩余清单。历史测试次数、逐轮故障修复和已过时的 remaining-work 不在本文持续维护。
 
 完整旧设计及历史执行锚点见[归档设计](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-design.md)。归档用于追溯，不能覆盖当前远端主链协议或批准需求。
-

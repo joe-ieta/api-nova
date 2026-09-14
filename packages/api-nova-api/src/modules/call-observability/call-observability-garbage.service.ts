@@ -3,7 +3,7 @@ import {
   RuntimeInvocationEntity, RuntimeInvocationRevisionEntity, RuntimePayloadEntity, RuntimePipelineStateEntity,
 } from '../../database/entities/runtime-call-observability.entity';
 import { CallObservabilityStore } from './call-observability.store';
-import { CallObservabilityPayloadStore } from './call-observability-payload.store';
+import { CallObservabilityPayloadStore, PayloadScanUsage } from './call-observability-payload.store';
 import { DAY_MS, ObservabilityStorageError } from './call-observability-storage';
 
 export const PAYLOAD_GC_STATUS_ID = 'call-observability:payload-gc-status';
@@ -20,6 +20,7 @@ export interface PayloadGarbageReport {
   nextShard: number;
   hasMore: boolean;
   generation: string | null;
+  scanUsage?: PayloadScanUsage;
 }
 
 /** No timer is started here. The retention scheduler owns periodic execution. */
@@ -60,6 +61,7 @@ export class CallObservabilityGarbageService {
       report.scanned = batch.scanned;
       report.nextShard = batch.nextShard;
       report.hasMore = batch.hasMore;
+      report.scanUsage = batch.scanUsage;
       for (const candidate of batch.candidates) {
         await this.store.transaction(async tx => {
           await this.store.payloadCoordination.assertGc(tx, lease);

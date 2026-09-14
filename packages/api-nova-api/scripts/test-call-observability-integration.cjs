@@ -1,10 +1,18 @@
 'use strict';
+const { API_GLOBAL_PREFIX } = require('../dist/src/common/http-api-paths.js');
 process.env.NODE_ENV = 'test';
 process.env.DB_TYPE = 'sqlite';
 require('reflect-metadata');
-const { test } = require('node:test');
+const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
+const previousJwtSecret = process.env.JWT_SECRET;
+const testJwtSecret = randomUUID() + randomUUID();
+process.env.JWT_SECRET = testJwtSecret;
+after(() => {
+  if (previousJwtSecret === undefined) delete process.env.JWT_SECRET;
+  else process.env.JWT_SECRET = previousJwtSecret;
+});
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { DataSource } = require('typeorm');
@@ -35,15 +43,16 @@ const tokens = require(base + 'modules/security/management-access-token.js');
 
 test('root imports real observability module and collection remains opt-in', () => {
   assert.ok(Reflect.getMetadata('imports', AppModule).includes(CallObservabilityModule));
-  const result = validationSchema.validate({});
+  const managementConfig = { JWT_SECRET: testJwtSecret };
+  const result = validationSchema.validate({ ...managementConfig });
   assert.equal(result.error, undefined);
   assert.equal(result.value.API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED, 'false');
   assert.equal(result.value.API_NOVA_OBSERVABILITY_OUTBOX_ENABLED, 'false');
   assert.equal(result.value.API_NOVA_OBSERVABILITY_WEBHOOK_ENABLED, 'false');
-  assert.ok(validationSchema.validate({ API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED: 'true' }).error);
-  assert.ok(validationSchema.validate({ API_NOVA_OBSERVABILITY_CURSOR_SECRET: 'short' }).error);
-  assert.ok(validationSchema.validate({ API_NOVA_OBSERVABILITY_SOURCES_PER_DAY: 100001 }).error);
-  assert.equal(validationSchema.validate({ API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED: 'true',
+  assert.ok(validationSchema.validate({ ...managementConfig, API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED: 'true' }).error);
+  assert.ok(validationSchema.validate({ ...managementConfig, API_NOVA_OBSERVABILITY_CURSOR_SECRET: 'short' }).error);
+  assert.ok(validationSchema.validate({ ...managementConfig, API_NOVA_OBSERVABILITY_SOURCES_PER_DAY: 100001 }).error);
+  assert.equal(validationSchema.validate({ ...managementConfig, API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED: 'true',
     API_NOVA_OBSERVABILITY_SOURCE_ID_SECRET: 's'.repeat(32) }).error, undefined);
 });
 
@@ -63,7 +72,7 @@ test('real module resolves and serves authenticated HTTP with disabled collector
     if (path.dirname(path.resolve(directory)) !== testRoot) throw new Error('Unsafe integration cleanup');
     await fs.rm(directory, { recursive: true, force: true });
   });
-  const secret = randomUUID() + randomUUID();
+  const secret = testJwtSecret;
   const config = new ConfigService({ JWT_SECRET: secret, API_NOVA_OBSERVABILITY_CURSOR_SECRET: secret,
     API_NOVA_OBSERVABILITY_SOURCE_ID_SECRET: secret, API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED: 'false',
     API_NOVA_OBSERVABILITY_OUTBOX_ENABLED: 'false', API_NOVA_OBSERVABILITY_WEBHOOK_ENABLED: 'false' });
@@ -83,10 +92,10 @@ test('real module resolves and serves authenticated HTTP with disabled collector
   const collectOnce = app.get(CallObservabilityWorker).runOnce.bind(app.get(CallObservabilityWorker));
   let scans = 0;
   app.get(CallObservabilityWorker).runOnce = async () => { scans++; throw new Error('Disabled collector ran'); };
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix(API_GLOBAL_PREFIX);
   await app.listen(0, '127.0.0.1');
   assert.equal(scans, 0);
-  const address = 'http://127.0.0.1:' + app.getHttpServer().address().port + '/api/v1/monitoring/observability';
+  const address = 'http://127.0.0.1:' + app.getHttpServer().address().port + '/api/monitoring/observability';
   const denied = await fetch(address + '/capabilities');
   assert.equal(denied.status, 401);
   assert.equal(denied.headers.get('cache-control'), 'no-store');
@@ -98,8 +107,8 @@ test('real module resolves and serves authenticated HTTP with disabled collector
   const body = await response.json();
   assert.equal(body.status, 'success');
   assert.equal(body.data.observationHealth, 'unknown');
-  assert.equal(body.data.endpoints.length, 26);
-  assert.equal(Reflect.getMetadata('controllers', CallObservabilityModule).length, 13);
+  assert.equal(body.data.endpoints.length, 28);
+  assert.equal(Reflect.getMetadata('controllers', CallObservabilityModule).length, 14);
   const swagger = SwaggerModule.createDocument(app, new DocumentBuilder().addBearerAuth().build());
   for (const endpoint of body.data.endpoints) {
     assert.equal(swagger.paths[endpoint.path][endpoint.method.toLowerCase()].operationId, endpoint.operationId);

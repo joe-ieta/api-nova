@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Transformer } from "../core";
 import type { TransformOptions } from "../types";
 import { serverDebugLog, serverErrorLog } from "../utils/logger";
+import { assertMcpToolExecutionScopes, installMcpToolListScopeFilter } from '../tools/runtime-security';
 
 /**
  * Initialize tools from an OpenAPI file while keeping transport-sensitive
@@ -29,12 +30,16 @@ export async function initTools(
           description: tool.description,
           inputSchema: tool.inputSchema,
         },
-        tool.handler,
+        async (...args: Parameters<typeof tool.handler>) => {
+          await assertMcpToolExecutionScopes(tool.name);
+          return tool.handler(...args);
+        },
       );
 
       serverDebugLog(`Registered tool: ${tool.name}`);
     }
 
+    installMcpToolListScopeFilter(server);
     serverDebugLog("Tool initialization completed successfully");
   } catch (error) {
     serverErrorLog("Failed to initialize tools:", error);
@@ -65,12 +70,16 @@ export async function initToolsFromUrl(
           description: tool.description,
           inputSchema: tool.inputSchema,
         },
-        tool.handler,
+        async (...args: Parameters<typeof tool.handler>) => {
+          await assertMcpToolExecutionScopes(tool.name);
+          return tool.handler(...args);
+        },
       );
 
       serverDebugLog(`Registered tool: ${tool.name}`);
     }
 
+    installMcpToolListScopeFilter(server);
     serverDebugLog("Tool initialization from URL completed successfully");
   } catch (error) {
     serverErrorLog("Failed to initialize tools from URL:", error);
@@ -101,12 +110,16 @@ export async function initToolsFromSpec(
           description: tool.description,
           inputSchema: tool.inputSchema,
         },
-        tool.handler,
+        async (...args: Parameters<typeof tool.handler>) => {
+          await assertMcpToolExecutionScopes(tool.name);
+          return tool.handler(...args);
+        },
       );
 
       serverDebugLog(`Registered tool: ${tool.name}`);
     }
 
+    installMcpToolListScopeFilter(server);
     serverDebugLog("Tool initialization from spec completed successfully");
   } catch (error) {
     serverErrorLog("Failed to initialize tools from spec:", error);

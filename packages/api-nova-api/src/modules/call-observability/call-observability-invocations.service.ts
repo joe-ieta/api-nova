@@ -1,3 +1,4 @@
+import { OBSERVABILITY_PUBLIC_BASE } from '../../common/http-api-paths';
 import { Injectable } from '@nestjs/common';
 import { EntityManager, SelectQueryBuilder } from 'typeorm';
 import { CanonicalInvocation, redactAuditValue } from 'api-nova-parser';
@@ -330,7 +331,7 @@ export class CallObservabilityInvocationsService {
       state: expired ? 'expired' : BODY_STATES.includes(payload.state) ? payload.state : 'unavailable',
       reason: expired ? 'retention_elapsed' : safeText(payload.reason, 200),
       expiresAt: iso(payload.expiresAt) ? payload.expiresAt : null,
-      readLink: '/api/v1/monitoring/observability/invocations/' + encodeURIComponent(row.invocationId) + '/payloads/' + side,
+      readLink: OBSERVABILITY_PUBLIC_BASE + '/invocations/' + encodeURIComponent(row.invocationId) + '/payloads/' + side,
     };
   }
 }

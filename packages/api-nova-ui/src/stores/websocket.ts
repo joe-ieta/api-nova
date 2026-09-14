@@ -1,13 +1,40 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { websocketService, type WebSocketEvents } from "@/services/websocket";
 import type { MCPServer } from "@/types";
 import { useAppStore } from "./app";
 import { useServerStore } from "./server";
 import { useMonitoringStore } from "./monitoring";
+import { useAuthStore } from "./auth";
+import { io } from "socket.io-client";
+import { ObservabilityStreamClient, fetchObservabilitySnapshot } from "@/services/observability-stream";
 
 export const useWebSocketStore = defineStore("websocket", () => {
   const appStore = useAppStore();
+  const authStore = useAuthStore();
+  const monitoring = useMonitoringStore();
+  let streamEnabled = false;
+  const callStream = new ObservabilityStreamClient({
+    socket: token => io("/monitoring", {
+      auth: { observability: true, token }, forceNew: true, autoConnect: false,
+      reconnection: false, timeout: 5000, transports: ["websocket", "polling"],
+    }),
+    snapshot: fetchObservabilitySnapshot,
+    snapshotReceived: data => monitoring.applyCallSnapshot(data),
+    pageReceived: items => monitoring.applyCallEventPage(items),
+    reset: () => monitoring.resetCallObservability(),
+    state: (status, error) => monitoring.setCallStreamState(status, error),
+  });
+  const restartCallStream = () => {
+    streamEnabled = true;
+    callStream.stop();
+    syncCallSession();
+  };
+  const syncCallSession = () => {
+    callStream.setSession(streamEnabled ? authStore.accessToken : null,
+      streamEnabled ? authStore.currentUser?.id || null : null);
+  };
+  watch([() => authStore.accessToken, () => authStore.currentUser?.id], syncCallSession, { flush: "sync" });
 
   // 状态
   const connected = ref(false);
@@ -55,6 +82,8 @@ export const useWebSocketStore = defineStore("websocket", () => {
 
   // 连接WebSocket
   const connect = async (): Promise<boolean> => {
+    streamEnabled = true;
+    syncCallSession();
     if (connected.value || connecting.value) {
       return connected.value;
     }
@@ -125,6 +154,8 @@ export const useWebSocketStore = defineStore("websocket", () => {
 
   // 断开连接
   const disconnect = () => {
+    streamEnabled = false;
+    callStream.stop();
     websocketService.disconnect();
     setConnected(false);
     setConnecting(false);
@@ -362,7 +393,11 @@ export const useWebSocketStore = defineStore("websocket", () => {
           type: "error", title: "Runtime error", message: error, duration: 5000,
         });
       }
-      monitoringStore.scheduleRefresh("ws-runtime-event");
+      // Invocation facts are consumed exclusively from the authorized, acknowledged stream.
+      // Legacy events still carry manager lifecycle/configuration signals.
+      if (["runtime.lifecycle", "runtime.health", "runtime.control"].includes(payload?.family)) {
+        monitoringStore.scheduleRefresh("ws-runtime-event");
+      }
     });
 
     websocketService.on("runtime:log", (entry: any) => {
@@ -517,6 +552,7 @@ export const useWebSocketStore = defineStore("websocket", () => {
     websocketService,
 
     // Actions
+    restartCallStream,
     connect,
     disconnect,
     reconnect,

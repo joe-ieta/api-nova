@@ -1,3 +1,4 @@
+import { CallObservabilityModule } from '../call-observability/call-observability.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -26,6 +27,7 @@ import { LogEntryEntity } from '../../database/entities/log-entry.entity';
     DocumentsModule,
     RuntimeAssetsModule,
     RuntimeObservabilityModule,
+    CallObservabilityModule,
     ServersModule,
   ],
   providers: [

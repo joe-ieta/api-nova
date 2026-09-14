@@ -1,4 +1,13 @@
+import { CallObservabilityModule } from '../call-observability/call-observability.module';
+import { GatewayRoutingObservationWorker } from './services/gateway-routing-observation.worker';
+import { GatewayUpstreamCredentialAdminController } from './gateway-upstream-credential-admin.controller';
+import { GatewayUpstreamCredentialAdminService } from './services/gateway-upstream-credential-admin.service';
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import {
+  gatewayUpstreamCredentialRegistryProvider,
+  gatewayUpstreamCredentialResolverProvider,
+} from './services/gateway-upstream-credential.providers';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EndpointDefinitionEntity } from '../../database/entities/endpoint-definition.entity';
 import { EndpointPublishBindingEntity } from '../../database/entities/endpoint-publish-binding.entity';
@@ -26,6 +35,8 @@ import { GatewayTrafficControlService } from './services/gateway-traffic-control
 
 @Module({
   imports: [
+    CallObservabilityModule,
+    ConfigModule,
     TypeOrmModule.forFeature([
       EndpointDefinitionEntity,
       EndpointPublishBindingEntity,
@@ -41,8 +52,12 @@ import { GatewayTrafficControlService } from './services/gateway-traffic-control
     RuntimeUpstreamBindingsModule,
     SecurityModule,
   ],
-  controllers: [GatewayRuntimeController],
+  controllers: [GatewayUpstreamCredentialAdminController, GatewayRuntimeController],
   providers: [
+    GatewayRoutingObservationWorker,
+    GatewayUpstreamCredentialAdminService,
+    gatewayUpstreamCredentialRegistryProvider,
+    gatewayUpstreamCredentialResolverProvider,
     GatewayRuntimeService,
     GatewayRuntimeMetricsService,
     GatewayRouteSnapshotService,

@@ -1,3 +1,8 @@
+import { CallObservabilityHeartbeatWorker } from './call-observability-heartbeat.worker';
+import { CallObservabilityRetentionWorker } from './call-observability-retention.worker';
+import { CallObservabilityPoliciesController } from './call-observability-policies.controller';
+import { CallObservabilityPoliciesService } from './call-observability-policies.service';
+import { CallObservabilityRealtimeService } from './call-observability-realtime.service';
 import { CallObservabilityOverviewSnapshotAuthorizer } from './call-observability-overview-snapshot-authorizer.service';
 import { EVENTS_SNAPSHOT_AUTHORIZER } from './call-observability-events.service';
 import { CallObservabilityOverviewService } from './call-observability-overview.service';
@@ -48,12 +53,12 @@ import { CallObservabilityStore } from './call-observability.store';
 
 @Module({
   imports: [ConfigModule, SecurityModule, TypeOrmModule.forFeature([...CALL_OBSERVABILITY_ENTITIES, RuntimeObservabilityEventEntity])],
-  controllers: [CallObservabilityOverviewController, CallObservabilityDependenciesController, CallObservabilityServerStatusController, CallObservabilityPipelineController, CallObservabilitySubscriptionsController, CallObservabilityDeliveriesController, CallObservabilityEventsController, CallObservabilityStatisticsController, CallObservabilityCapabilitiesController, CallObservabilityCallerLabelsController, CallObservabilityVisitorsController, CallObservabilityInvocationsController, CallObservabilityPayloadsController],
-  providers: [CallObservabilityOverviewSnapshotAuthorizer,
+  controllers: [CallObservabilityPoliciesController, CallObservabilityOverviewController, CallObservabilityDependenciesController, CallObservabilityServerStatusController, CallObservabilityPipelineController, CallObservabilitySubscriptionsController, CallObservabilityDeliveriesController, CallObservabilityEventsController, CallObservabilityStatisticsController, CallObservabilityCapabilitiesController, CallObservabilityCallerLabelsController, CallObservabilityVisitorsController, CallObservabilityInvocationsController, CallObservabilityPayloadsController],
+  providers: [CallObservabilityHeartbeatWorker, CallObservabilityRetentionWorker, CallObservabilityPoliciesService, CallObservabilityRealtimeService, CallObservabilityOverviewSnapshotAuthorizer,
     { provide: EVENTS_SNAPSHOT_AUTHORIZER, useExisting: CallObservabilityOverviewSnapshotAuthorizer },
     CallObservabilityOverviewService, CallObservabilityDependenciesService, CallObservabilityServerStatusService, CallObservabilityPipelineService, CallObservabilityStatisticsService, CallObservabilityCapabilitiesService, CallObservabilityCallerLabelsService, CallObservabilityVisitorsService, CallObservabilityPayloadsService, CallObservabilityInvocationsService, CallObservabilitySourceLifecycle, CallObservabilityCallersProjector, CallObservabilityWorker, CallObservabilityCollector, CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
     CallObservabilitySubscriptionsService, CallObservabilityDeliveriesService, CallObservabilityDeliveryWorker, CallObservabilityEventsService, CallObservabilityOutboxService, ObservabilityAccessGuard, ObservabilityApiExceptionFilter, ObservabilityCursorService, ObservabilityCommandStore],
-  exports: [CallObservabilityOverviewService, CallObservabilityDependenciesService, CallObservabilityServerStatusService, CallObservabilityPipelineService, CallObservabilityStatisticsService, CallObservabilityCapabilitiesService, CallObservabilityCallerLabelsService, CallObservabilityVisitorsService, CallObservabilityPayloadsService, CallObservabilityInvocationsService, CallObservabilitySourceLifecycle, CallObservabilityCallersProjector, CallObservabilityWorker, CallObservabilityCollector, CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
+  exports: [CallObservabilityHeartbeatWorker, CallObservabilityRetentionWorker, CallObservabilityPoliciesService, CallObservabilityRealtimeService, CallObservabilityOverviewService, CallObservabilityDependenciesService, CallObservabilityServerStatusService, CallObservabilityPipelineService, CallObservabilityStatisticsService, CallObservabilityCapabilitiesService, CallObservabilityCallerLabelsService, CallObservabilityVisitorsService, CallObservabilityPayloadsService, CallObservabilityInvocationsService, CallObservabilitySourceLifecycle, CallObservabilityCallersProjector, CallObservabilityWorker, CallObservabilityCollector, CallObservabilityPayloadStore, CallObservabilityStore, CallObservabilityGarbageService,
     CallObservabilitySubscriptionsService, CallObservabilityDeliveriesService, CallObservabilityDeliveryWorker, CallObservabilityEventsService, CallObservabilityOutboxService, ObservabilityAccessGuard, ObservabilityApiExceptionFilter, ObservabilityCursorService, ObservabilityCommandStore],
 })
 export class CallObservabilityModule {}

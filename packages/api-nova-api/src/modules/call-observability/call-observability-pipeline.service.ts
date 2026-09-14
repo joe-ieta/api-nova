@@ -1,3 +1,7 @@
+import { managementHeartbeatView } from './call-observability-heartbeat.dto';
+import { MANAGEMENT_HEARTBEAT_ID } from './call-observability-heartbeat.worker';
+import { retentionPipelineView } from './call-observability-pipeline-retention';
+import { RETENTION_WORKER_ID, RETENTION_ERROR_CODES } from './call-observability-retention.worker';
 import { Injectable } from '@nestjs/common';
 import { RuntimeObservabilityEventEntity } from '../../database/entities/runtime-observability-event.entity';
 import { OUTBOX_WORKER_STATE_ID } from './call-observability-outbox.service';
@@ -84,6 +88,7 @@ export class CallObservabilityPipelineService {
         lastRunRecomputeFailures: count(value?.recomputeFailures), countsObservedAt: tx.now,
       };
       const states = tx.manager.getRepository(RuntimePipelineStateEntity);
+      const managementHeartbeat = managementHeartbeatView(await states.findOneBy({ id: MANAGEMENT_HEARTBEAT_ID }), now, tx.snapshotSeq);
       const outbox = await states.findOneBy({ id: OUTBOX_WORKER_STATE_ID });
       const webhook = await states.findOneBy({ id: WEBHOOK_WORKER_ID });
       const outboxValue = object(outbox?.value), webhookValue = object(webhook?.value);
@@ -131,10 +136,11 @@ export class CallObservabilityPipelineService {
           retrying: count(webhookValue?.retrying), dead: count(webhookValue?.dead), cancelled: count(webhookValue?.cancelled),
         },
       };
-      return observabilitySuccess({ resourceScope: 'global', semantics: 'persisted_observations_not_live_health',
-        evaluatedAt: tx.now, ingest, aggregation, dispatch },
+      const retentionRow = await tx.manager.getRepository(RuntimePipelineStateEntity).findOneBy({ id: RETENTION_WORKER_ID });
+      const retention = retentionPipelineView(retentionRow, now, RETENTION_ERROR_CODES);
+      return observabilitySuccess({ managementHeartbeat, resourceScope: 'global', semantics: 'persisted_observations_not_live_health',
+        evaluatedAt: tx.now, ingest, aggregation, dispatch, retention },
       { snapshotSeq: tx.snapshotSeq, lagMs: null, isPartial: true, historyCompleteSince: null });
     });
   }
 }
-

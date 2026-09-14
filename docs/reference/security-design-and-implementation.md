@@ -1,8 +1,13 @@
+---
+doc-version: 1.2.0
+doc-status: active
+doc-updated: 2026-09-14
+---
 # ApiNova 安全设计与实现方案
 
-> Document status: Draft for approval
-> Last reviewed: 2026-09-08
-> Implementation status: 已进入实现；Batch 1 状态见 [安全开发执行与状态记录](../guides/security-development-execution-status.md)
+> Document status: Approved, active normative baseline
+> Last reviewed: 2026-09-14
+> Implementation status: 已按当前代码复核，规范目标不等于已实现；状态见 [安全开发执行与状态记录](../guides/security-development-execution-status.md)
 
 ## 架构
 
@@ -94,8 +99,8 @@ Endpoint 从 Declared 到 Configured 再到 Verified。API Key Header、Bearer/J
 | Key 摘要、Scope、撤销 | 已实现 | [gateway-consumer-credential.entity.ts](../../packages/api-nova-api/src/database/entities/gateway-consumer-credential.entity.ts) |
 | 未知策略 Fail Closed | 已实现，待审核 | [gateway-policy.service.ts](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-policy.service.ts) 对缺失、未知和旧模式拒绝编译 |
 | Env Header Reference | 已实现 | [RuntimeCredentialRef.ts](../../packages/api-nova-parser/src/headers/RuntimeCredentialRef.ts) |
-| Gateway Header 隔离 | 部分 | [gateway-proxy-engine.service.ts](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-proxy-engine.service.ts) 先复制入站 Header |
-| Site/Endpoint Registry | 未实现 | 未发现 Active Resolver |
+| Gateway Header 隔离 | 部分；共享 Resolver 已经 Gateway 显式配置激活 | 已剥离消费者/逐跳/托管 Header 并注入当前凭据；业务 Header Allowlist 与 redirect/DNS/SSRF 尚未闭环 |
+| Site/Endpoint Registry | 部分；安全文件源到 Gateway 激活已实现 | C1-C4 纯逻辑、reloadText/reloadFile、双次 Stable Read、启动前异步 Registry Provider 已实现；Watch、受权管理 API、资产归属、审计、多进程及 MCP 尚缺 |
 | OpenAPI Security 分析 | 已实现 | [security-extractor.ts](../../packages/api-nova-parser/src/extractors/security-extractor.ts) |
 | 广义 Auth 数据模型 | 仅模型或部分 | [auth-config.entity.ts](../../packages/api-nova-api/src/database/entities/auth-config.entity.ts) |
 | MCP 上游 Bearer | 已实现 | [auth.ts](../../packages/api-nova-server/src/cli/auth.ts)、[bearer-auth.ts](../../packages/api-nova-parser/src/auth/bearer-auth.ts) |
@@ -114,3 +119,5 @@ Endpoint 从 Declared 到 Configured 再到 Verified。API Key Header、Bearer/J
 
 编码前审核：YAML+JSON Schema；Env/File 首期范围；新 Runtime 默认 API Key；Query Key 处置；是否完全禁止认证头透传；MCP 协议版本基线与 Private Auth 兼容范围。
 
+
+> 2026-09-14：本页保留批准设计，不是本轮验收报告。完整 Provider/Registry/Resolver、SSRF/撤销、命令行秘密移除和平台验收仍需独立闭环。

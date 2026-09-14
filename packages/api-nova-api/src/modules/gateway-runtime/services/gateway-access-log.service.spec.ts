@@ -1,3 +1,10 @@
+import * as http from 'node:http';
+import { AddressInfo } from 'node:net';
+import { once } from 'node:events';
+import { UnauthorizedException } from '@nestjs/common';
+import { flushRuntimeAudit, getRuntimeAuditHealth, normalizeRuntimeAuditRecord } from 'api-nova-parser';
+import { beginGatewayRequestAudit } from './gateway-request-audit';
+import { ensureGatewayRequestId } from './gateway-audit-context';
 import { GatewayAccessLogService } from './gateway-access-log.service';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -5,31 +12,66 @@ import { join } from 'node:path';
 
 describe('GatewayAccessLogService', () => {
   it('records denied admissions and cache hits without fabricating upstream calls', async () => {
+    await flushRuntimeAudit();
     const directory = await mkdtemp(join(tmpdir(), 'api-nova-admission-audit-'));
     const previous = process.env.API_NOVA_AUDIT_DIR;
+    const health = getRuntimeAuditHealth();
     process.env.API_NOVA_AUDIT_DIR = directory;
+    const { service, repository } = buildService();
+    const route = { runtimeAsset: { id: 'runtime-1' }, membership: { id: 'member-1' },
+      routeBinding: { id: 'route-1', routePath: '/orders' }, endpointDefinition: { id: 'api-1' },
+      policies: { auth: { mode: 'anonymous' } } } as any;
+    const body = JSON.stringify({ value: 'x'.repeat(9000), password: 'cached-secret' });
+    const gateway = http.createServer(async (req, res) => {
+      (req as any).originalUrl = req.url;
+      const requestId = ensureGatewayRequestId(req as any, res as any);
+      const audit = beginGatewayRequestAudit(req as any, res as any, requestId, route);
+      await audit.run(async () => {
+        if (req.url!.startsWith('/denied')) {
+          audit.failed(new UnauthorizedException('invalid_token'));
+          await service.recordRequest({ resolvedRoute: route, req: req as any, requestId,
+            statusCode: 401, latencyMs: 10, errorMessage: 'invalid_token' });
+          res.writeHead(401).end();
+        } else {
+          audit.cacheHit();
+          await service.recordRequest({ resolvedRoute: route, req: req as any, requestId,
+            upstreamUrl: 'cache://gateway', latencyMs: 10,
+            proxyResult: { statusCode: 200, headers: { 'content-type': 'application/json' },
+              responseBodyBuffer: Buffer.from(body) } });
+          res.writeHead(200, { 'content-type': 'application/json' }).end(body);
+        }
+      });
+    });
+    gateway.listen(0, '127.0.0.1');
+    await once(gateway, 'listening');
     try {
-      const { service } = buildService();
-      const input = { resolvedRoute: { runtimeAsset: { id: 'runtime-1' }, membership: { id: 'member-1' },
-        routeBinding: { id: 'route-1', routePath: '/orders' }, endpointDefinition: { id: 'api-1' } } as any,
-        req: { method: 'GET', originalUrl: '/orders?token=secret', headers: { authorization: 'Bearer private-token' } } as any,
-        latencyMs: 10 };
-      await service.recordRequest({ ...input, requestId: 'denied', statusCode: 401, errorMessage: 'invalid_token' });
-      await service.recordRequest({ ...input, requestId: 'cached', upstreamUrl: 'cache://gateway',
-        proxyResult: { statusCode: 200, headers: { 'content-type': 'application/json' },
-          responseBodyBuffer: Buffer.from(JSON.stringify({ value: 'x'.repeat(9000), password: 'cached-secret' })) } });
-      const file = (await readdir(directory)).find(name => /^\d{4}-/.test(name))!;
-      const raw = await readFile(join(directory, file), 'utf8');
+      const base = `http://127.0.0.1:${(gateway.address() as AddressInfo).port}`;
+      const deniedResponse = await fetch(base + '/denied?token=secret', { headers: { authorization: 'Bearer private-token' } });
+      expect(deniedResponse.status).toBe(401);
+      await deniedResponse.text();
+      const cachedResponse = await fetch(base + '/cached');
+      expect(cachedResponse.status).toBe(200);
+      expect(await cachedResponse.text()).toBe(body);
+      const { raw, records } = await readCanonicalAudit(directory);
       expect(raw).not.toMatch(/private-token|cached-secret|token=secret/);
-      const [denied, cached] = raw.trim().split('\n').map(line => JSON.parse(line));
-      expect(denied).toMatchObject({ kind: 'admission', endpointDefinitionId: 'api-1', outcome: 'error', statusCode: 401,
-        request: { state: 'omitted', reason: 'body_not_consumed_at_admission' } });
-      expect(denied.response).toBeUndefined();
-      expect(cached).toMatchObject({ kind: 'admission', outcome: 'cache_hit', statusCode: 200 });
-      expect(JSON.parse(cached.response.data).value).toHaveLength(9000);
+      expect(records).toHaveLength(2);
+      expect(records.every(row => row.spanKind === 'gateway_request' && row.parentInvocationId === null)).toBe(true);
+      const denied = records.find(row => row.requestId === deniedResponse.headers.get('x-request-id'))!;
+      const cached = records.find(row => row.requestId === cachedResponse.headers.get('x-request-id'))!;
+      expect(denied).toMatchObject({ endpointDefinitionId: 'api-1', outcome: 'rejected', httpStatus: 401,
+        request: { state: 'unavailable', observedBytes: null }, response: { observedBytes: 0 } });
+      expect(denied.request.data).toBeUndefined();
+      expect(cached).toMatchObject({ spanKind: 'gateway_request', outcome: 'success', cacheHit: true, httpStatus: 200,
+        response: { observedBytes: Buffer.byteLength(body) } });
+      expect(JSON.parse(cached.response.data!).value).toHaveLength(9000);
+      expect(repository.save).toHaveBeenCalledTimes(2);
     } finally {
+      gateway.closeAllConnections();
+      await new Promise<void>(resolve => gateway.close(() => resolve()));
+      await flushRuntimeAudit();
       if (previous === undefined) delete process.env.API_NOVA_AUDIT_DIR; else process.env.API_NOVA_AUDIT_DIR = previous;
       await rm(directory, { recursive: true, force: true });
+      expectHealthyAudit(health);
     }
   });
   const buildService = () => {
@@ -186,3 +228,42 @@ describe('GatewayAccessLogService', () => {
     );
   });
 });
+
+// Producer phases are complete snapshots, not patches. Project each row through
+// the shared contract, then choose the terminal version per invocation only.
+async function readCanonicalAudit(directory: string) {
+  await flushRuntimeAudit();
+  const files = (await readdir(directory)).filter(name => /^calls-v2-.*\.jsonl$/.test(name));
+  expect(files.length).toBeGreaterThan(0);
+  const raw = (await Promise.all(files.map(name => readFile(join(directory, name), 'utf8')))).join('\n');
+  const groups = new Map<string, ReturnType<typeof normalizeRuntimeAuditRecord>[]>();
+  for (const line of raw.split('\n').filter(line => line.trim())) {
+    const row = normalizeRuntimeAuditRecord(JSON.parse(line));
+    const group = groups.get(row.invocationId) || [];
+    group.push(row);
+    groups.set(row.invocationId, group);
+  }
+  const records = [...groups.values()].map(group => {
+    group.sort((a, b) => a.recordVersion - b.recordVersion);
+    expect(group[0]).toMatchObject({ phase: 'started', recordVersion: 1 });
+    expect(new Set(group.map(row => row.recordVersion)).size).toBe(group.length);
+    expect(group.filter(row => row.phase === 'finished')).toHaveLength(1);
+    for (const row of group) {
+      expect(row).toMatchObject({ sourceInstanceId: group[0].sourceInstanceId,
+        requestId: group[0].requestId, spanKind: group[0].spanKind,
+        parentInvocationId: group[0].parentInvocationId, traceId: group[0].traceId });
+    }
+    const terminal = group[group.length - 1];
+    expect(terminal.phase).toBe('finished');
+    return terminal;
+  });
+  return { raw, records };
+}
+
+function expectHealthyAudit(before: ReturnType<typeof getRuntimeAuditHealth>) {
+  const after = getRuntimeAuditHealth();
+  expect(after.writeFailures).toBe(before.writeFailures);
+  expect(after.sourceManifestFailures).toBe(before.sourceManifestFailures);
+  expect(after.droppedRecords).toBe(before.droppedRecords);
+  expect(after.pendingWrites).toBe(0);
+}

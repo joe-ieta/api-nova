@@ -1,5 +1,5 @@
 ---
-doc-version: 2.1.0
+doc-version: 2.4.0
 doc-status: active
 doc-updated: 2026-09-14
 ---
@@ -7,17 +7,17 @@ doc-updated: 2026-09-14
 
 ## Document status
 
-Active, version 2.1.0, updated 2026-09-14. The current integration baseline is the lead agent's supplied remote `950e150` context, not a Git verification performed here. The [completion review](runtime-observability-completion-review.md) is the current summary; [execution status](runtime-observability-development-execution-status.md) is the evidence index.
+Active, version 2.4.0, updated 2026-09-14. The current integration baseline is the lead agent's supplied remote `950e150` context, not a Git verification performed here. The [completion review](runtime-observability-completion-review.md) is the current summary; [execution status](runtime-observability-development-execution-status.md) is the evidence index.
 
-Current reported status: 26/28 verified; API-27/API-28 (policies and Socket.IO) not implemented; TP11/TP12 done; AVAILABLE=0. Signed delivery, destination safety checks and manual replay already exist and are not reopened development tasks. OUTBOX and WEBHOOK automatic loops default off.
+Current reported status: 28/28 verified within their limited contracts; API-27/API-28 implement new-event retention only; bounded Socket.IO event pages implemented, full state/snapshot protocol incomplete; TP11/TP12 done; AVAILABLE=0. Signed delivery, destination safety checks and manual replay already exist and are not reopened development tasks. OUTBOX and WEBHOOK automatic loops default off.
 
-This round is static documentation/configuration checking only. The previous round's three passing builds and Parser 103, MCP 53, API 548 results are historical evidence, not new executions. No code, tests, configuration values or deployment were changed. Real-environment deployment and acceptance remain unperformed. The [archived remaining-work record](../archive/summaries/runtime-observability-2026-09-14/remaining-work-2026-09-14.md) is historical, not the active backlog.
+This round implements bounded Socket.IO event pages and separates new delivery retention (30 days) from event validity (14 days). Current test evidence is recorded in the execution status; prior Parser 103, MCP 53 and API 548 counts remain historical. No deployment or production cleanup is implied. The [archived remaining-work record](../archive/summaries/runtime-observability-2026-09-14/remaining-work-2026-09-14.md) is historical, not the active backlog.
 
 ## Scope and availability
 
 This guide describes the retained remote implementation in the lead agent's supplied `950e150` integration context. Public subscription and delivery controllers, their services, the outbox, and `CallObservabilityDeliveryWorker` are already registered in `CallObservabilityModule`. Integrators should use those APIs rather than add a module factory, duplicate sender, or custom secret-backend composition.
 
-This is a source-aligned integration guide, not deployment evidence. Real-environment deployment and validation remain unperformed. No network requests, tests, or builds were run for this documentation update.
+This is a source-aligned integration guide, not deployment evidence. Real-environment deployment and validation remain unperformed. See the execution status for current isolated tests and build; these are not deployment evidence.
 
 ## Base path and authentication
 
@@ -119,3 +119,7 @@ Subscription admission reads `API_NOVA_OBSERVABILITY_WEBHOOK_ALLOWED_HOSTS` and 
 The actual worker signs `timestamp + "." + raw UTF-8 body` with HMAC-SHA256 and sends `X-ApiNova-Signature: sha256=<lowercase hex>`, `X-ApiNova-Timestamp`, `X-ApiNova-Event-Id`, and `X-ApiNova-Delivery-Id`. There is no emitted key-ID header. Coordinate key selection/rotation with the receiver; do not infer that changing a local secret value safely rotates immutable historical revisions.
 
 Consult `runtime-observability-external-validation-handoff.md` in this directory for the complete actual variable table, network/timeout limitations, retry bounds, and pending deployment checklist. The remaining work is controlled real-environment acceptance of existing functionality, not rebuilding the remote public APIs from zero.
+
+## 本轮调用事实UI接入（2026-09-14）
+
+Dashboard的调用事实已通过隔离Socket.IO模式消费授权overview水位与事件页。游标仅在本地页成功应用后推进/ACK，统计另取授权快照；缓存最多200条事件。账号或token变化清空旧水位/数据；过期或范围变化重取快照，网络故障有界重试，错误可手工重试。旧管理/生命周期订阅保持，不能据此宣布全部旧UI与全局状态快照协议完成。

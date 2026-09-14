@@ -1,4 +1,5 @@
 'use strict';
+const { API_GLOBAL_PREFIX } = require('../dist/src/common/http-api-paths.js');
 process.env.DB_TYPE = 'sqlite';
 require('reflect-metadata');
 const { test } = require('node:test');
@@ -46,7 +47,7 @@ async function fixture(t, assets = ['asset-a']) {
     ObservabilityAccessGuard, ObservabilityApiExceptionFilter,
   ] })(Fixture);
   const app = await NestFactory.create(Fixture, { logger: false, abortOnError: false });
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix(API_GLOBAL_PREFIX);
   await app.listen(0, '127.0.0.1');
   t.after(async () => { await app.close(); await database.destroy(); });
   async function request(query = {}, auth = true) {
@@ -54,7 +55,7 @@ async function fixture(t, assets = ['asset-a']) {
     const bearer = jwt.sign({ sub: user.id, tokenUse: token.MANAGEMENT_TOKEN_USE }, { secret, algorithm: 'HS256',
       issuer: token.MANAGEMENT_TOKEN_ISSUER, audience: token.MANAGEMENT_TOKEN_AUDIENCE, expiresIn: '5m' });
     const response = await fetch('http://127.0.0.1:' + app.getHttpServer().address().port +
-      '/api/v1/monitoring/observability/events?' + qs, { headers: auth ? { authorization: 'Bearer ' + bearer } : {} });
+      '/api/monitoring/observability/events?' + qs, { headers: auth ? { authorization: 'Bearer ' + bearer } : {} });
     return { status: response.status, body: await response.json(), cache: response.headers.get('cache-control') };
   }
   async function insert(inputs = [{}]) {
@@ -224,7 +225,7 @@ test('history opens one consistent read snapshot and never writes a sequence', a
 test('Swagger advertises the authorized endpoint and its bounded query contract', async t => {
   const f = await fixture(t);
   const spec = SwaggerModule.createDocument(f.app, new DocumentBuilder().addBearerAuth().build());
-  const operation = spec.paths['/api/v1/monitoring/observability/events'].get;
+  const operation = spec.paths['/api/monitoring/observability/events'].get;
   assert.equal(operation.operationId, 'obsListEvents');
   assert.equal(operation.parameters.find(param => param.name === 'limit').schema.maximum, 200);
   assert.ok(operation.responses['410']);

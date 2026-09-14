@@ -5,6 +5,7 @@ import { transformOpenApiToMcpTools, MCPTool } from "../transform";
 import { AuthConfig } from 'api-nova-parser';
 import type { CallToolResult, ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import { isServerDebugEnabled, serverDebugLog, serverWarnLog } from "../utils/logger";
+import { assertMcpToolExecutionScopes, installMcpToolListScopeFilter } from './runtime-security';
 
 interface ToolInitializationOptions {
   openApiData?: any;
@@ -66,6 +67,7 @@ export async function initTools(
     });
 
     await registerTools(server, preparedTools);
+    installMcpToolListScopeFilter(server);
 
     if (debugEnabled) {
       serverDebugLog('Tool initialization completed');
@@ -78,6 +80,7 @@ export async function initTools(
       try {
         const preparedTools = await getPreparedTools();
         await registerTools(server, preparedTools);
+    installMcpToolListScopeFilter(server);
         serverDebugLog('Default configuration initialization completed');
         return;
       } catch (fallbackError) {
@@ -261,8 +264,10 @@ async function registerTools(server: McpServer, preparedTools: PreparedToolRegis
       registerTool(
         tool.name,
         registration,
-        async (args: Record<string, unknown>): Promise<CallToolResult> =>
-          (await tool.handler(args)) as unknown as CallToolResult,
+        async (args: Record<string, unknown>): Promise<CallToolResult> => {
+          await assertMcpToolExecutionScopes(tool.name);
+          return (await tool.handler(args)) as unknown as CallToolResult;
+        },
       );
 
       successCount++;

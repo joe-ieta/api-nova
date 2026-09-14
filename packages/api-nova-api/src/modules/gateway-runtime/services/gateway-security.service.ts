@@ -34,8 +34,11 @@ export class GatewaySecurityService {
     resolvedRoute: GatewayResolvedRoute,
     req: Request,
   ): Promise<GatewayRequestAuthContext> {
+    const configuredMode = resolvedRoute.policies?.auth?.mode;
+    if (configuredMode !== 'jwt' && configuredMode !== 'api_key' && configuredMode !== 'anonymous') {
+      throw new HttpException('gateway_auth_policy_invalid', 503);
+    }
     delete (req as Request & { gatewayAuth?: GatewayRequestAuthContext }).gatewayAuth;
-    const configuredMode = resolvedRoute.policies.auth.mode;
     const visibility = String(resolvedRoute.routeBinding.routeVisibility || 'internal')
       .trim().toLowerCase();
     const mode = configuredMode === 'anonymous' && visibility !== 'external'

@@ -1,3 +1,5 @@
+import { ObservabilityManagementHeartbeatDto } from './call-observability-heartbeat.dto';
+import { ObservabilityPipelineRetentionDto } from './call-observability-pipeline-retention';
 import { ApiProperty } from '@nestjs/swagger';
 import { ObservabilityMetaDto } from './call-observability-api.contract';
 
@@ -69,6 +71,8 @@ export class ObservabilityPipelineDispatchDto extends ObservabilityPipelineStage
   @ApiProperty({ type: ObservabilityPipelineWebhookDto }) webhook: ObservabilityPipelineWebhookDto;
 }
 export class ObservabilityPipelineStatusDto {
+  @ApiProperty({ type: ObservabilityManagementHeartbeatDto }) managementHeartbeat: ObservabilityManagementHeartbeatDto;
+  @ApiProperty({ type: ObservabilityPipelineRetentionDto }) retention: ObservabilityPipelineRetentionDto;
   @ApiProperty({ enum: ['global'] }) resourceScope: string;
   @ApiProperty({ enum: ['persisted_observations_not_live_health'] }) semantics: string;
   @ApiProperty() evaluatedAt: string;
@@ -81,4 +85,3 @@ export class ObservabilityPipelineStatusEnvelopeDto {
   @ApiProperty({ type: ObservabilityPipelineStatusDto }) data: ObservabilityPipelineStatusDto;
   @ApiProperty({ type: ObservabilityMetaDto }) meta: ObservabilityMetaDto;
 }
-

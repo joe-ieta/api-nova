@@ -1,3 +1,4 @@
+import { OBSERVABILITY_PUBLIC_BASE } from '../../common/http-api-paths';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { RuntimeObservabilityEventEntity } from '../../database/entities/runtime-observability-event.entity';
 import { intersectObservabilityAssets, ObservabilityAuthorization } from './call-observability-access';
@@ -204,7 +205,7 @@ export class CallObservabilityEventsService {
         id: row.subjectId || null, version: row.subjectVersion ?? null },
       historical: row.dispatchState === 'suppressed', data,
       links: invocation && row.subjectId ? {
-        invocation: '/api/v1/monitoring/observability/invocations/' + encodeURIComponent(row.subjectId),
+        invocation: OBSERVABILITY_PUBLIC_BASE + '/invocations/' + encodeURIComponent(row.subjectId),
       } : {} };
   }
 }

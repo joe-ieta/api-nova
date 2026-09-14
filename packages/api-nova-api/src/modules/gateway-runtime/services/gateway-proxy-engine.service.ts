@@ -1,7 +1,10 @@
 import {
   BadGatewayException,
   GatewayTimeoutException,
+  Inject,
   Injectable,
+  Optional,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import * as http from 'node:http';
@@ -13,11 +16,19 @@ import { ensureGatewayRequestId, gatewayAuditContext } from './gateway-audit-con
 import { GatewayRequestCaptureService } from './gateway-request-capture.service';
 import { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
 import { GatewayProxyResult } from '../types/gateway-proxy.types';
+import {
+  GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER,
+  type GatewayUpstreamCredentialHeaders,
+  type GatewayUpstreamCredentialResolver,
+} from './gateway-upstream-credential-resolver';
 
 @Injectable()
 export class GatewayProxyEngineService {
   constructor(
     private readonly gatewayRequestCaptureService: GatewayRequestCaptureService,
+    @Optional()
+    @Inject(GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER)
+    private readonly upstreamCredentialResolver?: GatewayUpstreamCredentialResolver,
   ) {}
 
   async forward(
@@ -28,9 +39,10 @@ export class GatewayProxyEngineService {
       resolvedRoute.routeBinding.upstreamPath, req.originalUrl, resolvedRoute.params));
     const consumerQueryKey = resolvedRoute.policies?.auth?.apiKeyQueryParamName;
     if (consumerQueryKey) url.searchParams.delete(consumerQueryKey);
+    const credentials = await this.resolveCredentialHeaders(resolvedRoute, url);
     const transport = url.protocol === 'https:' ? https : http;
     const timeoutMs = resolvedRoute.policies?.traffic?.timeoutMs ?? resolvedRoute.routeBinding.timeoutMs ?? 30000;
-    const headers = this.buildForwardHeaders(req.headers, url, req, resolvedRoute.sourceServiceInstance.credentialRef);
+    const headers = this.buildForwardHeaders(req.headers, url, req, credentials.headers, credentials.managedHeaderNames);
     const requestCapture = this.gatewayRequestCaptureService.createTracker(req.headers['content-type']);
     let upstreamReq: http.ClientRequest | undefined;
     let upstreamRes: http.IncomingMessage | undefined;
@@ -63,7 +75,7 @@ export class GatewayProxyEngineService {
       method: resolvedRoute.routeBinding.upstreamMethod, url: url.toString(),
       attemptIndex: options?.attemptIndex ?? 1, redirectHopIndex: 0,
       requestHeaders: headers, requestContentType: String(req.headers['content-type'] || ''),
-      credentialHeaderNames: Object.keys(resolveRuntimeCredentialRefHeaders(resolvedRoute.sourceServiceInstance.credentialRef)),
+      credentialHeaderNames: [...credentials.credentialHeaderNames],
     }, observer => new Promise<GatewayProxyResult & { targetUrl: string }>((resolve, reject) => {
       let settled = false;
       const fail = (error: Error) => {
@@ -164,6 +176,23 @@ export class GatewayProxyEngineService {
     }
   }
 
+  private async resolveCredentialHeaders(
+    resolvedRoute: GatewayResolvedRoute,
+    url: URL,
+  ): Promise<GatewayUpstreamCredentialHeaders> {
+    if (!this.upstreamCredentialResolver) {
+      const headers = Object.freeze(resolveRuntimeCredentialRefHeaders(
+        resolvedRoute.sourceServiceInstance.credentialRef,
+      ));
+      const names = Object.freeze(Object.keys(headers));
+      return Object.freeze({ headers, credentialHeaderNames: names, managedHeaderNames: names });
+    }
+    try {
+      return await this.upstreamCredentialResolver.resolve(resolvedRoute, url.toString());
+    } catch {
+      throw new ServiceUnavailableException('gateway_upstream_credential_unavailable');
+    }
+  }
   private buildTargetUrl(
     baseUrl: string,
     upstreamPath: string,
@@ -190,15 +219,31 @@ export class GatewayProxyEngineService {
     headers: Request['headers'],
     url: URL,
     req: Request,
-    credentialRef?: string,
+    credentialHeadersOrRef?: Readonly<Record<string, string>> | string,
+    managedHeaderNames: readonly string[] = [],
   ): Record<string, string> {
+    const credentialHeaders = typeof credentialHeadersOrRef === 'string' || credentialHeadersOrRef === undefined
+      ? resolveRuntimeCredentialRefHeaders(credentialHeadersOrRef)
+      : credentialHeadersOrRef;
+    const protectedCredentialNames = managedHeaderNames.length > 0
+      ? managedHeaderNames
+      : Object.keys(credentialHeaders);
     const nextHeaders: Record<string, string> = {};
+    // Middleware/adapters may supply mixed-case keys even though native HTTP input
+    // is lowercase. Every Connection field contributes to the removal set.
+    const connectionTokens = Object.entries(headers)
+      .filter(([name]) => name.toLowerCase() === 'connection')
+      .flatMap(([, value]) => Array.isArray(value) ? value : [value || ''])
+      .flatMap(value => String(value).split(','))
+      .map(header => header.trim().toLowerCase())
+      .filter(Boolean);
     const ignoredHeaders = new Set([
       'connection',
       'keep-alive',
       'proxy-authenticate',
       'proxy-authorization',
       'te',
+      'trailer',
       'trailers',
       'transfer-encoding',
       'upgrade',
@@ -206,6 +251,13 @@ export class GatewayProxyEngineService {
       'authorization',
       'x-api-key',
       'cookie',
+      // These fields have one authoritative value from the proxy generator.
+      'x-forwarded-host',
+      'x-forwarded-proto',
+      'x-forwarded-for',
+      'x-request-id',
+      ...protectedCredentialNames.map(name => name.toLowerCase()),
+      ...connectionTokens,
     ]);
 
     for (const [key, value] of Object.entries(headers)) {
@@ -219,18 +271,20 @@ export class GatewayProxyEngineService {
       nextHeaders[key] = Array.isArray(value) ? value.join(',') : String(value);
     }
 
-    Object.assign(nextHeaders, resolveRuntimeCredentialRefHeaders(credentialRef));
+    Object.assign(nextHeaders, credentialHeaders);
     nextHeaders.host = url.host;
     nextHeaders['x-forwarded-host'] = String(req.headers.host || '');
     nextHeaders['x-forwarded-proto'] = String(req.protocol || url.protocol.replace(':', ''));
-    nextHeaders['x-forwarded-for'] = this.buildForwardedForHeader(req);
+    nextHeaders['x-forwarded-for'] = this.buildForwardedForHeader(req, !connectionTokens.includes('x-forwarded-for'));
     nextHeaders['x-request-id'] = this.ensureRequestId(req);
 
     return nextHeaders;
   }
 
-  private buildForwardedForHeader(req: Request) {
-    const current = req.headers['x-forwarded-for'];
+  private buildForwardedForHeader(req: Request, preservePresented = true) {
+    // Preserve the existing append policy, except Connection-nominated input must
+    // not be reintroduced after hop-by-hop filtering. This chain is not trusted identity.
+    const current = preservePresented ? req.headers['x-forwarded-for'] : undefined;
     const prior = Array.isArray(current) ? current.join(',') : String(current || '');
     const remoteAddress = req.socket.remoteAddress || '';
     return prior ? `${prior}, ${remoteAddress}` : remoteAddress;

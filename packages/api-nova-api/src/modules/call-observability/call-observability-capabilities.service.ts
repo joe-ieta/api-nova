@@ -1,3 +1,5 @@
+import { readEventRetentionPolicy } from './call-observability-policy';
+import { OBSERVABILITY_PUBLIC_BASE } from '../../common/http-api-paths';
 import { OBSERVABILITY_OVERVIEW_QUERY_KEYS } from './call-observability-overview-query';
 import { Injectable } from '@nestjs/common';
 import { EVENT_QUERY_KEYS } from './call-observability-events.service';
@@ -55,13 +57,17 @@ export class CallObservabilityCapabilitiesService {
       { name: 'statisticsTimeSeries', implemented: true, grant: read },
       { name: 'statisticsGroups', implemented: true, grant: read },
       { name: 'eventHistory', implemented: true, grant: read },
+      // Bounded event pages only; complete state/snapshot Socket.IO remains a separate contract.
+      { name: 'socketEventStream', implemented: true, grant: read },
       { name: 'subscriptionManagement', implemented: true, grant: subscription },
       { name: 'webhook', implemented: true, grant: subscription },
       { name: 'overview', implemented: true, grant: read },
       { name: 'dependencies', implemented: true, grant: read },
       { name: 'serverStatus', implemented: true, grant: read },
       { name: 'pipelineStatus', implemented: true, grant: read.runtimeAssetIds === null ? read : undefined },
-      ...['socketPush', 'policyManagement'].map(name => ({ name, implemented: false })),
+      { name: 'policyRead', implemented: true, grant: read },
+      { name: 'policyManagement', implemented: true, grant: manage?.runtimeAssetIds === null ? manage : undefined },
+      { name: 'socketPush', implemented: false },
     ];
     const features = featureInputs.map(feature => ({
       name: feature.name, state: !feature.implemented ? 'not_implemented'
@@ -73,7 +79,7 @@ export class CallObservabilityCapabilitiesService {
       query: readonly string[], authorization: ObservabilityAuthorization | undefined,
       rule = 'per_asset') => {
       if (rule !== 'capability_only' && !hasScope(authorization)) return;
-      endpoints.push({ endpointId, operationId, method, path: '/api/v1/monitoring/observability' + path,
+      endpoints.push({ endpointId, operationId, method, path: OBSERVABILITY_PUBLIC_BASE + path,
         queryParameters: [...query], requiredPermissions: [...authorization!.requiredPermissions],
         scopeMode: scopeMode(authorization), authorizationRule: rule });
     };
@@ -105,6 +111,9 @@ export class CallObservabilityCapabilitiesService {
     endpoint('OBS-API-15', 'obsGetServerStatuses', 'GET', '/servers/status', OBSERVABILITY_OVERVIEW_QUERY_KEYS, read);
     endpoint('OBS-API-26', 'obsGetPipelineStatus', 'GET', '/pipeline/status', [],
       read.runtimeAssetIds === null ? read : undefined, 'explicit_global_scope');
+    endpoint('OBS-API-27', 'obsGetPolicies', 'GET', '/policies', [], read);
+    endpoint('OBS-API-28', 'obsUpdatePolicy', 'PATCH', '/policies/{id}', [],
+      manage?.runtimeAssetIds === null ? manage : undefined, 'explicit_global_scope');
     endpoints.sort((left, right) => left.endpointId.localeCompare(right.endpointId));
     const day = 86400000;
     const data: ObservabilityCapabilitiesDto = {
@@ -125,10 +134,17 @@ export class CallObservabilityCapabilitiesService {
         aggregateRetentionMs: null, effectiveHistoryCompleteSince: null },
       payloadLimits: hasScope(payload) ? { readObjectMaxBytes: 128 * 1024 * 1024, effectiveCaptureBytes: null,
         capturePolicyState: 'not_reported_by_producers', readLimitScope: 'single_stored_object_not_total_http_memory' } : null,
-      eventRetention: hasScope(read) ? 14 * day : null, observationHealth: 'unknown',
+      eventRetention: null, observationHealth: 'unknown',
     };
     // A genuine read snapshot, not a health check, source scan, or policy mutation.
-    return this.store.readSnapshot(async tx => observabilitySuccess(data, { snapshotSeq: tx.snapshotSeq,
-      dataWatermark: tx.snapshotSeq, lagMs: null, historyCompleteSince: null, isPartial: true }));
+    return this.store.readSnapshot(async tx => {
+      if (hasScope(read)) {
+        const policy = await readEventRetentionPolicy(tx.manager);
+        data.eventRetention = policy.eventDays * day;
+        data.retentionWindows.payloadDefaultMs = hasScope(payload) ? policy.payloadDays * day : null;
+      }
+      return observabilitySuccess(data, { snapshotSeq: tx.snapshotSeq,
+      dataWatermark: tx.snapshotSeq, lagMs: null, historyCompleteSince: null, isPartial: true });
+    });
   }
 }

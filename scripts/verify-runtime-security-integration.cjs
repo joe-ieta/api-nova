@@ -48,6 +48,13 @@ async function prepareDatabase(fixture) {
 async function childMode(mode) {
   const fixture = JSON.parse(await fs.readFile(process.env.INTEGRATION_FIXTURE, 'utf8'));
   if (mode === '--prepare') { await prepareDatabase(fixture); return; }
+  process.on('message', message => {
+    if (!message || typeof message !== 'object' || message.type !== 'flush-audit') return;
+    void parser.flushRuntimeAudit().then(
+      () => { if (process.connected) process.send({ type: 'audit-flushed', id: message.id, ok: true }); },
+      () => { if (process.connected) process.send({ type: 'audit-flushed', id: message.id, ok: false }); },
+    );
+  });
   if (mode === '--api') {
     require(path.join(apiDist, 'main.js'));
     process.on('message', message => { if (message === 'stop') process.emit('SIGTERM'); });
@@ -69,6 +76,37 @@ async function childMode(mode) {
   };
   process.on('message', message => { if (message === 'stop') void stop(); });
   process.on('disconnect', () => void stop());
+}
+
+function flushChildAudit(child) {
+  return new Promise((resolve, reject) => {
+    const id = randomUUID();
+    let settled = false;
+    const finish = error => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      child.off('message', onMessage);
+      child.off('exit', onExit);
+      if (error) reject(error); else resolve();
+    };
+    const onMessage = message => {
+      if (!message || typeof message !== 'object' || message.type !== 'audit-flushed' || message.id !== id) return;
+      finish(message.ok ? undefined : new Error('Test child audit flush failed'));
+    };
+    const onExit = () => finish(new Error('Test child exited before audit flush'));
+    const timer = setTimeout(() => finish(new Error('Test child audit flush timed out')), 5000);
+    timer.unref();
+    child.on('message', onMessage);
+    child.once('exit', onExit);
+    try {
+      child.send({ type: 'flush-audit', id }, error => {
+        if (error) finish(new Error('Unable to request test child audit flush'));
+      });
+    } catch {
+      finish(new Error('Unable to request test child audit flush'));
+    }
+  });
 }
 
 async function port() {
@@ -253,11 +291,26 @@ async function main() {
     assert.equal(callerRows.length, 1); assert.deepEqual(callerRows[0].transports.sort(), ['gateway', 'mcp']);
     check('protected management caller inventory merges both processes without registration');
     await mcpClient.close(); mcpClient = undefined;
-    const files = (await fs.readdir(env.API_NOVA_AUDIT_DIR)).filter(file => /^\d{4}-/.test(file));
-    const raw = (await Promise.all(files.map(file => fs.readFile(path.join(env.API_NOVA_AUDIT_DIR, file), 'utf8')))).join('');
+    const runningChildren = children.filter(child => child.connected && child.exitCode === null && child.signalCode === null);
+    assert.equal(runningChildren.length, 2, 'both test producers remain available for audit flush');
+    for (const child of runningChildren) await flushChildAudit(child);
+    const files = (await fs.readdir(env.API_NOVA_AUDIT_DIR)).filter(file => /^calls-v2-\d{4}-\d{2}-\d{2}-.+\.jsonl$/.test(file));
+    assert.ok(files.length >= 2, 'both processes publish current v2 call records');
+    const rawFiles = await Promise.all(files.map(file => fs.readFile(path.join(env.API_NOVA_AUDIT_DIR, file), 'utf8')));
+    for (const contents of rawFiles) {
+      assert.ok(contents.length > 0 && contents.endsWith('\n'), 'flushed audit files contain complete JSONL lines');
+    }
+    const raw = rawFiles.join('');
     for (const secret of [upstreamCredential, gatewayToken, mcpToken, 'response-private-value']) assert.ok(!raw.includes(secret), 'no credentials in audit');
-    const calls = raw.trim().split('\n').map(line => JSON.parse(line)).filter(item => item.kind === 'api');
+    const records = raw.split('\n').filter(Boolean).map(line => JSON.parse(line));
+    for (const record of records) assert.equal(record.schemaVersion, 2, 'current call record schema');
+    const calls = records.filter(item => item.phase === 'finished' && item.kind === 'api' && item.spanKind === 'upstream_api');
     assert.equal(calls.length, 3); assert.equal(new Set(calls.map(call => call.callerId)).size, 1);
+    assert.equal(new Set(calls.map(call => call.invocationId)).size, 3, 'one terminal record per actual upstream call');
+    for (const call of calls) {
+      assert.ok(records.some(record => record.invocationId === call.invocationId && record.phase === 'started'),
+        'terminal upstream evidence retains its invocation start');
+    }
     for (const call of calls) {
       assert.equal(call.endpointDefinitionId, fixture.endpointId);
       assert.equal(call.runtimeAssetId, call.transport === 'mcp' ? fixture.mcpRuntimeId : fixture.runtimeId);

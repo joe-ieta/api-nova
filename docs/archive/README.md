@@ -31,3 +31,7 @@ The cleanup archived completed Gateway Phase 1/2 task documents, Stage 4/6 imple
 ## 2026-09-14 Observability Status Cleanup
 
 [Observability archive index](./summaries/runtime-observability-2026-09-14/README.md): the superseded pre-merge remaining-work report was moved out of active guides; seven pre-cleanup document snapshots preserve the original stage history. Current requirements, design contracts and unfinished work remain active. No historical evidence was deleted.
+
+## 2026-09-14 Security Status Reconciliation
+
+[Security historical snapshots](./summaries/security-2026-09-14/README.md) preserve the previous task ledger, plan and dated audit/acceptance descriptions. Current contracts remain active; historical evidence is not a new validation result.

@@ -9,6 +9,7 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
+import { CallObservabilityRealtimeService } from '../call-observability/call-observability-realtime.service';
 import { Server, Socket } from 'socket.io';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -131,6 +132,7 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
     private readonly wsMetricsService: WebSocketMetricsService,
     private readonly runtimeAssetsService: RuntimeAssetsService,
     private readonly runtimeObservabilityService: RuntimeObservabilityService,
+    private readonly observabilityRealtime: CallObservabilityRealtimeService,
   ) {}
 
   afterInit(server: Server) {
@@ -138,7 +140,24 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
     this.setupEventListeners();
   }
 
-  handleConnection(client: Socket) {
+  async handleConnection(client: Socket) {
+    if (client.handshake.auth?.observability === true) {
+      // New protocol sockets cannot enter legacy rooms or receive their unscoped initial snapshots.
+      client.use(([event], next) => {
+        if (!['subscribe-observability', 'unsubscribe-observability'].includes(event)) {
+          client.disconnect(true);
+          return;
+        }
+        next();
+      });
+      await client.join('observability-v1');
+      try { await this.observabilityRealtime.authorize(client); }
+      catch {
+        client.emit('observability-error', { code: 'UNAUTHENTICATED' });
+        client.disconnect(true);
+      }
+      return;
+    }
     // 仅关键日志
     const clientInfo: ClientInfo = {
       id: client.id,
@@ -178,7 +197,23 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
     this.sendInitialData(client);
   }
 
+  @SubscribeMessage('subscribe-observability')
+  async handleSubscribeObservability(@ConnectedSocket() client: Socket,
+    @MessageBody() query: Record<string, unknown>) {
+    if (client.handshake.auth?.observability !== true) {
+      client.emit('observability-error', { code: 'INVALID_QUERY' });
+      return;
+    }
+    await this.observabilityRealtime.subscribe(client, query);
+  }
+
+  @SubscribeMessage('unsubscribe-observability')
+  handleUnsubscribeObservability(@ConnectedSocket() client: Socket) {
+    this.observabilityRealtime.unsubscribe(client);
+  }
+
   handleDisconnect(client: Socket) {
+    this.observabilityRealtime.unsubscribe(client);
     const clientInfo = this.clients.get(client.id);
     if (clientInfo) {
       this.logger.log(`Client disconnected: ${client.id} from ${client.handshake.address}`);
@@ -529,7 +564,6 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
       timestamp: input.timestamp.toISOString(),
     };
 
-    this.server.emit('runtime-event', payload);
     if (runtimeAssetId) {
       this.emitToRoom(`runtime-events-${runtimeAssetId}`, 'runtime-event', payload);
       if (this.getRoomInternalSize(`runtime-asset-${runtimeAssetId}`) > 0) {
@@ -674,7 +708,7 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
     message: string;
     severity?: string;
   }) {
-    this.server.emit('system-notification', {
+    this.server.except('observability-v1').emit('system-notification', {
       ...notification,
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString(),

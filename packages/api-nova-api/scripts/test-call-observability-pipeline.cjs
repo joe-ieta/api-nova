@@ -343,3 +343,90 @@ test('malformed or ahead outbox watermarks do not hide actual pending counts or 
   const view = (await f.service.get({}, globalScope)).data.dispatch;
   assert.equal(view.pendingCount, 0); assert.equal(view.observationAgeMs, null); assert.equal(view.freshnessStatus, 'unknown');
 });
+test('retention report is absent rather than fabricated disabled and does not initialize storage', async t => {
+  const f = await fixture(t), before = await f.repository.count();
+  const view = (await f.service.get({}, globalScope)).data.retention;
+  assert.equal(view.state, 'unknown'); assert.equal(view.workerConfigured, null);
+  assert.equal(view.observedAt, null); assert.equal(view.lastReport, null);
+  assert.equal(view.freshnessStatus, 'unknown'); assert.equal(view.cleanupScope, 'payload_objects_only');
+  assert.equal(await f.repository.count(), before);
+});
+
+test('retention evidence uses bounded schedule freshness and whitelists counters without paths', async t => {
+  const f = await fixture(t);
+  const { RETENTION_WORKER_ID, RETENTION_ERROR_CODES } = require(base + 'call-observability-retention.worker.ts');
+  const observedAt = new Date(Date.now() - 180000).toISOString();
+  await f.repository.save({ id: RETENTION_WORKER_ID, updatedAt: observedAt, value: {
+    state: 'degraded', workerConfigured: true, intervalMs: 60000, stateVersion: 3,
+    lastAttemptAt: observedAt, lastFailureAt: observedAt, errorCode: RETENTION_ERROR_CODES[0],
+    secret: 'do-not-expose', nextRunAt: 'do-not-expose',
+    lastReport: { status: 'completed', scanned: 8, deleted: 2, missing: 1, changed: 0,
+      protected: 5, danglingReferences: 0, hasMore: true, path: 'do-not-expose' },
+  } });
+  const view = (await f.service.get({}, globalScope)).data.retention;
+  assert.equal(view.freshnessStatus, 'stale'); assert.equal(view.staleAfterMs, 120000);
+  assert.equal(view.lastReport.deleted, 2); assert.equal(view.stateVersion, 3);
+  assert.equal(view.lastFailureAt, observedAt);
+  assert.equal(JSON.stringify(view).includes('do-not-expose'), false);
+  assert.equal(view.errorCode, RETENTION_ERROR_CODES[0]);
+});
+
+test('malformed retention diagnostics never become trusted times, counters or free-text errors', async t => {
+  const f = await fixture(t);
+  const { RETENTION_WORKER_ID } = require(base + 'call-observability-retention.worker.ts');
+  const future = new Date(Date.now() + 600000).toISOString();
+  await f.repository.save({ id: RETENTION_WORKER_ID, updatedAt: future, value: {
+    state: 'do-not-expose', workerConfigured: 'true', intervalMs: 1, stateVersion: -1,
+    lastAttemptAt: future, errorCode: 'do-not-expose', lastReport: { deleted: -1, scanned: '9', hasMore: 'true' },
+  } });
+  const view = (await f.service.get({}, globalScope)).data.retention;
+  assert.equal(view.state, 'unknown'); assert.equal(view.workerConfigured, null);
+  assert.equal(view.observedAt, null); assert.equal(view.lastAttemptAt, null);
+  assert.equal(view.lastReport.deleted, null); assert.equal(view.lastReport.scanned, null);
+  assert.equal(view.errorCode, null); assert.equal(view.intervalMs, null);
+});
+
+test('pipeline exposes the committed management heartbeat without claiming collector or business liveness', async t => {
+  const f = await fixture(t);
+  const { CallObservabilityHeartbeatWorker } = require(base + 'call-observability-heartbeat.worker.ts');
+  const worker = new CallObservabilityHeartbeatWorker(f.store,
+    new ConfigService({ API_NOVA_OBSERVABILITY_HEARTBEAT_ENABLED: 'true' }));
+  t.after(() => worker.onModuleDestroy());
+  assert.equal((await f.service.get({}, globalScope)).data.managementHeartbeat.reportedState, 'unknown');
+  await worker.runOnce();
+  const result = await f.service.get({}, globalScope);
+  assert.equal(result.data.managementHeartbeat.reportedState, 'reporting');
+  assert.equal(result.data.managementHeartbeat.evidenceScope, 'management_process_store_roundtrip');
+  assert.equal(result.data.managementHeartbeat.businessServerLivenessEvaluated, false);
+  assert.equal(result.data.managementHeartbeat.freshnessStatus, 'recent');
+  assert.ok(BigInt(result.data.managementHeartbeat.dataWatermark) <= BigInt(result.meta.snapshotSeq));
+  assert.equal(result.data.ingest.state, 'unknown');
+  assert.equal(result.data.ingest.freshnessStatus, 'unknown');
+  assert.equal(JSON.stringify(result.data.managementHeartbeat).includes('leaseUntil'), false);
+  await worker.onModuleDestroy();
+  assert.equal((await f.service.get({}, globalScope)).data.managementHeartbeat.reportedState, 'stopped');
+});
+
+test('pipeline capacity is a prior scan sample, not current disk usage or freshened by worker stop', async t => {
+  const f = await fixture(t);
+  const { RETENTION_WORKER_ID } = require(base + 'call-observability-retention.worker.ts');
+  const measured = new Date(Date.now() - 180000).toISOString();
+  const value = { state: 'stopped', intervalMs: 60000, currentAttemptComplete: true, lastReportAt: measured,
+    lastReport: { status: 'completed', scanUsage: { measurement: 'logical_file_length_before_cleanup',
+      scanCoverage: 'partial', scanStartedAt: measured, scanCompletedAt: measured,
+      observedBytes: 42, observedFiles: 2, scannedEntries: 3, traversedShards: 1, missingShards: 1, unmeasuredEntries: 1,
+      truncated: true, startedAtShardBoundary: true } } };
+  await f.repository.save({ id: RETENTION_WORKER_ID, updatedAt: new Date().toISOString(), value });
+  const sample = (await f.service.get({}, globalScope)).data.retention.scanUsage;
+  assert.equal(sample.observedBytes, 42);
+  assert.equal(sample.scanCoverage, 'partial');
+  assert.equal(sample.freshnessStatus, 'stale');
+  assert.equal(sample.currentTotalBytes, null);
+  assert.equal(sample.filesystemAvailableBytes, null);
+  assert.equal(sample.quotaEnforced, false);
+  value.currentAttemptComplete = false;
+  await f.repository.save({ id: RETENTION_WORKER_ID, updatedAt: new Date().toISOString(), value });
+  const failed = (await f.service.get({}, globalScope)).data.retention.scanUsage;
+  assert.equal(failed.scanCoverage, 'unknown');
+  assert.equal(failed.observedBytes, null);
+});

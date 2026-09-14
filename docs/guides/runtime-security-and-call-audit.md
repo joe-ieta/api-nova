@@ -1,9 +1,20 @@
+---
+doc-version: 1.2.0
+doc-status: active
+doc-updated: 2026-09-14
+---
 # 安全调用与日志审计
 
 > Document status: Active implementation contract
-> Last reviewed: 2026-09-08
+> Last reviewed: 2026-09-14
 
 > Scope note (2026-09-07): Runtime Auth 已收敛为 JWT、API Key、显式 Anonymous；OAuth2 与 MCP 2026-07 无状态协议均不在当前范围。实施状态以 [安全开发执行与状态记录](./security-development-execution-status.md) 为准。
+
+## 文档适用范围
+
+本文保留安全调用与原始审计契约，开发流水和数字属于注明日期。项目已经另有统一可观测性查询、持久事件及 Webhook，不能将本安全基线早期排除查询分析的范围解释为项目尚无查询能力；见[可观测性当前清单](./runtime-observability-completion-review.md)。
+
+安全状态以[执行台账](./security-development-execution-status.md)为准。下述历史记录不自动计为本轮通过，当前验证结果见执行台账；原始全文见[历史快照](../archive/summaries/security-2026-09-14/runtime-security-and-call-audit.md)。
 
 ## 目标与本次范围
 
@@ -11,7 +22,7 @@ Gateway 与 MCP 统一调用记录格式。每次实际 API 调用记录调用�
 
 本次同时实施安全调用：MCP HTTP 入站逐请求校验，Gateway 可采用相同的外部 JWT 或内部 API Key 校验器。不得把未经校验的客户端 Header、IP 或 MCP 会话 ID 标记为已认证身份。
 
-## 改造前的能力缺口
+## 改造前的能力缺口（历史背景，不是当前待办）
 
 1. `gateway_access_logs` 已关联 `endpointDefinitionId`、runtime、membership 和路由，具有 API 粒度基础。
 2. 当前正文仅为 4096 字节预览；multipart 被省略、二进制无预览。`full_body` 只存在于策略解析，未控制实际采集。
@@ -113,7 +124,7 @@ CLI 的 `--auth-type`、`--bearer-token`、`--bearer-env` 仍用于上游 API �
 
 本次采用独立、追加写入的结构化 JSONL 调用日志作为完整调用证据；既有 Gateway 元数据表保留原有用途。Gateway、受管 MCP 和独立 server 使用同一 schema；进程间共享绝对日志目录，每个进程独立文件，避免多进程行交错。日志不混入 STDIO 协议 stdout，不通过现有普通日志 UI 暴露正文。
 
-默认目录为进程工作目录下的 `data/runtime-audit`，受管子进程继承 API 解析后的绝对目录。调用文件为 `YYYY-MM-DD-<process UUID>.jsonl`；调用者清单使用 `callers-<process UUID>.jsonl` 观察记录，清单接口按 callerId 合并，不读取调用正文。每日切分调用文件，当前不自动删除历史文件。多主机需共同日志存储/收集器，本次只完成单机多进程收集。
+默认目录为进程工作目录下的 `data/runtime-audit`，受管子进程继承 API 解析后的绝对目录。调用文件为 `calls-v2-YYYY-MM-DD-<process UUID>.jsonl`；调用者清单使用 `callers-<process UUID>.jsonl` 观察记录，清单接口按 callerId 合并，不读取调用正文。每日切分调用文件，当前不自动删除历史文件。多主机需共同日志存储/收集器，本次只完成单机多进程收集。
 
 目录必须限制为运维授权人员可读，生产配置独立磁盘配额与保留周期。Unix 新建目录/文件使用 0700/0600；Windows 需运维设置 NTFS ACL，不能将 Unix mode 当作 Windows 权限保证。文件本身不额外加密，二进制、文件内容和业务字段可能含敏感信息，需采用受控加密磁盘/备份并设置业务脱敏字段。
 
@@ -144,10 +155,24 @@ npm run verify:parser-chain
 
 ## 2026-09-06 多进程联调补充
 
-已增加 `npm run verify:runtime-security-integration`：临时 SQLite、完整 API 入口、独立 MCP 进程、临时 HTTPS 代理/证书、HTTPS JWKS 服务和 SDK 客户端共同运行。检查对外前缀、资源元数据/challenge、Origin 预检、audience 隔离、JWT 密钥轮换、同主体会话续用、管理鉴权和跨进程调用者归并。API 与 MCP 使用不同的运行资产标识，同一个 API 资产 ID 保持一致。
+已增加 `npm run verify:runtime-security-integration`：临时 SQLite、完整 API 入口、独立 MCP 进程、临时 HTTPS 代理/证书、HTTPS JWKS 服务和 SDK 客户端共同运行。检查对外前缀、Discovery 不支持/challenge、Origin 预检、audience 隔离、JWT 密钥轮换、同主体会话续用、管理鉴权和跨进程调用者归并。API 与 MCP 使用不同的运行资产标识，同一个 API 资产 ID 保持一致。
 
 联调修复两项入口缺口：关闭 Nest 自动追加的正文解析器，防止其提前消费 Gateway 请求流；普通请求日志跳过 Gateway 流式响应，由统一审计器负责采集。管理 API 仍保留 JSON/表单解析。HTTP 异常日志中的敏感 Query 同样脱敏。
 
-`config_overrides`、`config_backups` 及三张进程/健康检查表均纳入 PG/SQLite 单一初始迁移，当前为 43 张业务表。`DB_SYNCHRONIZE=true` 被拒绝；应先构建、确认配置指向全新空库、执行 `npm run migration:run --workspace api-nova-api`，再启动 API。应用与迁移 CLI 统一加载 API 包内 `.env` 系列文件，进程环境优先，也可用 `API_NOVA_ENV_FILE` 指定文件。隔离建库与冒烟入口见 [数据库策略](database-strategy.md)。本地 PG/SQLite 已完成真实初始化、持久化与 API 启动验证；不提供历史数据迁移，也未操作现有业务库。
+`config_overrides`、`config_backups` 及三张进程/健康检查表均纳入 PG/SQLite 单一初始迁移，2026-09-08 验收时为 43 张业务表，不能据此推定当前表数。`DB_SYNCHRONIZE=true` 被拒绝；应先构建、确认配置指向全新空库、执行 `npm run migration:run --workspace api-nova-api`，再启动 API。应用与迁移 CLI 统一加载 API 包内 `.env` 系列文件，进程环境优先，也可用 `API_NOVA_ENV_FILE` 指定文件。隔离建库与冒烟入口见 [数据库策略](database-strategy.md)。本地 PG/SQLite 已完成真实初始化、持久化与 API 启动验证；不提供历史数据迁移，也未操作现有业务库。
 
 测试只信任本次生成的临时证书，不关闭 TLS 验证，不修改系统证书库。Windows 默认使用 Git 附带的 OpenSSL，也可通过 `API_NOVA_TEST_OPENSSL` 指定路径；Linux 使用 PATH 中的 OpenSSL。运行前先执行 `npm run build:packages`。测试夹具直接构造已部署路由快照，不代表注册、治理、发布全过程验收；本地 JWKS 服务不代表外部 OAuth 登录/用户同意流程。外部身份提供方与生产运维验收仍在 open-items 中，本地隔离 PostgreSQL 验证结果见 [清理审查记录](../audits/2026-09-08-persistence-cleanup.md)。
+
+## 管理 JWT 默认值加固（2026-09-14）
+
+启动 Schema、签发端和校验端现在共用严格密钥检查；缺失或不合格 JWT_SECRET 拒绝启动，错误不回显输入。没有自动生成或替换真实密钥；请通过现有私密环境配置渠道提供合格值，不将其写入日志或提交仓库。
+
+管理 JWT 拒绝型专项 41/41 通过，包含在本轮 Gateway/JWT 的 106 项中；自有隔离 SQLite 的跨进程集成也覆盖了真实管理登录和受保护接口。四项构建及本轮专项复验通过，不代表完整发布、真实外部身份系统或部署验收。精确日志与未完成范围见[安全执行台账](./security-development-execution-status.md)第 11 节。
+
+## 当前审计协议与复验边界（2026-09-14）
+
+当前调用审计使用 `schemaVersion: 2`，写入 `calls-v2-YYYY-MM-DD-<process UUID>.jsonl`，包含 `started`、`progress`、`finished` 阶段。同一调用通过 `invocationId` 和 `recordVersion` 关联；按物理上游调用计数时，应选择 `finished` 且 `kind: api`、`spanKind: upstream_api` 的终态，不能把所有阶段或 Gateway 入口记录重复计为上游调用。终态包含完整最终快照，测试读取前必须等待审计写入刷新。调用者视图文件 `callers-<process UUID>.jsonl` 不是上游调用明细。
+
+本轮四项构建、Parser 218 项、Gateway/JWT 106 项、MCP 新授权 20 项及既有 53 项、3 个 smoke、跨进程集成 7 项、API 可观测性 547 项均通过；准确范围见[安全执行台账](./security-development-execution-status.md)第 11 节。跨进程集成使用真实测试子进程和自有隔离 SQLite，并非真实外部服务或生产数据库。
+
+MCP 执行前检查重新读取 scope 规则但复用已认证上下文，不重新认证或实施跨进程撤销；Gateway Header 过滤不是完整业务白名单。真实 PostgreSQL、联网依赖审计、完整 UI/平台/部署矩阵未在本轮运行。运行环境仍须显式提供至少 32 字符、无空白和控制字符的管理 `JWT_SECRET`；测试随机密钥不属于部署配置，管理密钥不得与运行时 JWT/JWKS、消费者或上游凭证混用。

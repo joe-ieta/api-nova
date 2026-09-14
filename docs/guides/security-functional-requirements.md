@@ -1,8 +1,13 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-14
+---
 # ApiNova 安全功能需求
 
-> Document status: Draft for approval
-> Last reviewed: 2026-09-07
-> Implementation status: 已批准并进入 Batch 1；以 [执行状态记录](./security-development-execution-status.md) 为准
+> Document status: Approved, active normative baseline
+> Last reviewed: 2026-09-14
+> Implementation status: 已批准；当前实现和剩余退出条件已静态复核；以 [执行状态记录](./security-development-execution-status.md) 为准
 
 ## 安全模型
 
@@ -73,3 +78,5 @@
 | OAuth2 | 后续产品能力 | 当前仅保留类型模型和禁用 UI 占位，不可创建、发布或执行 |
 | 完整 SSRF | 未举证 | 生产阻断项 |
 
+
+> 2026-09-14：本页是批准需求，不是本轮验收报告。既有认证、Env 引用和实例绑定保留；动态 Registry、File Provider、完整 SSRF/撤销和平台验收未闭环。可观测性验收不能替代安全任务退出条件。

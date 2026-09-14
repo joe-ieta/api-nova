@@ -118,6 +118,8 @@ export class Transformer implements ITransformer {
       const transformerOptions: TransformerOptions = {
         baseUrl: options.baseUrl,
         sourceOrigin: options.sourceOrigin,
+        trustedOperationBindings: options.trustedOperationBindings,
+        upstreamCredentialPolicy: options.upstreamCredentialPolicy,
         includeDeprecated: options.includeDeprecated,
         requestTimeout: options.requestTimeout,
         pathPrefix: options.pathPrefix,

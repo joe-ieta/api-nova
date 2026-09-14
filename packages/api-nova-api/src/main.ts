@@ -1,3 +1,4 @@
+import { API_GLOBAL_PREFIX } from './common/http-api-paths';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -97,7 +98,7 @@ async function bootstrap() {
     }));
 
     // 全局前缀
-    app.setGlobalPrefix('api', {
+    app.setGlobalPrefix(API_GLOBAL_PREFIX, {
       exclude: ['/', '/health', '/metrics', '/favicon.ico']
     });
 

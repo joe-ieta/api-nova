@@ -28,6 +28,42 @@
       </div>
     </div>
 
+    <ObservabilityPolicies />
+    <ObservabilityDiagnostics />
+    <el-card class="logs-card" style="margin-bottom: 16px">
+      <template #header>
+        <div class="section-header">
+          <span>{{ t("monitoring.callStream.title") }}</span>
+          <el-tag :type="monitoringStore.callStreamStatus === 'live' ? 'success' : 'warning'">
+            {{ t("monitoring.callStream.states." + monitoringStore.callStreamStatus) }}
+          </el-tag>
+        </div>
+      </template>
+      <p>
+        {{ t("monitoring.callStream.observed") }}:
+        <strong>{{ monitoringStore.callOverview?.businessSummary?.metrics?.selectedInvocations ?? "—" }}</strong>
+        · {{ t("monitoring.callStream.failures") }}:
+        <strong>{{ monitoringStore.callOverview?.businessSummary?.metrics?.failures ?? "—" }}</strong>
+        <span v-if="monitoringStore.callOverviewStale"> · {{ t("monitoring.callStream.updating") }}</span>
+      </p>
+      <p v-if="monitoringStore.callOverview?.window">
+        {{ formatDateTime(monitoringStore.callOverview.window.from) }} —
+        {{ formatDateTime(monitoringStore.callOverview.window.to) }}
+      </p>
+      <p>{{ t("monitoring.callStream.partial") }}</p>
+      <el-alert v-if="monitoringStore.callStreamError" type="warning" :closable="false"
+        :title="t('monitoring.callStream.unavailable')" show-icon />
+      <el-button v-if="monitoringStore.callStreamStatus === 'error'" size="small"
+        @click="websocketStore.restartCallStream()">{{ t("monitoring.callStream.retry") }}</el-button>
+      <el-table :data="monitoringStore.callEvents.slice(0, 10)" stripe size="small">
+        <el-table-column :label="t('monitoring.dashboard.time')" min-width="160">
+          <template #default="{ row }">{{ formatDateTime(row.occurredAt) }}</template>
+        </el-table-column>
+        <el-table-column prop="eventType" :label="t('monitoring.callStream.change')" min-width="180" />
+        <el-table-column prop="server.runtimeAssetId" :label="t('monitoring.callStream.asset')" min-width="160" />
+        <el-table-column prop="data.outcome" :label="t('monitoring.callStream.outcome')" width="120" />
+      </el-table>
+    </el-card>
     <el-row :gutter="16" class="summary-row">
       <el-col :span="6">
         <MetricCard
@@ -270,34 +306,14 @@
                 :value="asset.asset?.id"
               />
             </el-select>
-            <el-select
-              v-model="gatewayLogFilters.method"
-              clearable
-              size="small"
-              :placeholder="t('monitoring.dashboard.filters.method')"
-              @change="applyGatewayLogFilters"
-            >
-              <el-option
-                v-for="method in gatewayLogMethodOptions"
-                :key="method"
-                :label="method"
-                :value="method"
-              />
+            <el-select v-model="gatewayLogFilters.outcome" clearable size="small"
+              :placeholder="t('monitoring.gatewayInvocations.outcome')" @change="applyGatewayLogFilters">
+              <el-option v-for="outcome in gatewayLogOutcomeOptions" :key="outcome"
+                :label="outcome" :value="outcome" />
             </el-select>
-            <el-select
-              v-model="gatewayLogFilters.statusCode"
-              clearable
-              size="small"
-              :placeholder="t('monitoring.dashboard.filters.statusCode')"
-              @change="applyGatewayLogFilters"
-            >
-              <el-option
-                v-for="status in gatewayLogStatusOptions"
-                :key="status"
-                :label="String(status)"
-                :value="status"
-              />
-            </el-select>
+            <el-input v-model="gatewayLogFilters.requestId" clearable size="small"
+              :placeholder="t('monitoring.gatewayInvocations.requestId')" maxlength="500"
+              @change="applyGatewayLogFilters" />
             <el-button size="small" @click="resetGatewayLogFilters">
               {{ t("monitoring.dashboard.filters.reset") }}
             </el-button>
@@ -305,26 +321,38 @@
         </div>
       </template>
 
-      <el-table :data="gatewayAccessLogs" stripe size="small">
+      <p>{{ t("monitoring.gatewayInvocations.scope") }}</p>
+      <p v-if="monitoringStore.gatewayLogPage.from">
+        {{ formatDateTime(monitoringStore.gatewayLogPage.from) }} —
+        {{ formatDateTime(monitoringStore.gatewayLogPage.to!) }}
+        · {{ t("monitoring.gatewayInvocations.page", { page: monitoringStore.gatewayLogPage.page }) }}
+      </p>
+      <el-alert v-if="monitoringStore.gatewayLogPage.error" type="warning" :closable="false"
+        :title="t('monitoring.gatewayInvocations.unavailable')" show-icon />
+      <el-table :data="gatewayAccessLogs" v-loading="monitoringStore.gatewayLogPage.loading" stripe size="small">
         <el-table-column :label="t('monitoring.dashboard.time')" min-width="160">
-          <template #default="{ row }">
-            {{ formatDateTime(row.createdAt) }}
-          </template>
+          <template #default="{ row }">{{ formatDateTime(row.startedAt) }}</template>
         </el-table-column>
-        <el-table-column prop="method" :label="t('monitoring.dashboard.method')" width="100" />
-        <el-table-column prop="routePath" :label="t('monitoring.dashboard.routePath')" min-width="220" />
+        <el-table-column prop="invocationId" :label="t('monitoring.gatewayInvocations.invocation')" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="runtimeAssetId" :label="t('monitoring.callStream.asset')" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="requestId" :label="t('monitoring.gatewayInvocations.requestId')" min-width="160" show-overflow-tooltip />
+        <el-table-column :label="t('monitoring.gatewayInvocations.outcome')" width="120">
+          <template #default="{ row }">{{ row.outcome ?? t("monitoring.dashboard.unknown") }}</template>
+        </el-table-column>
         <el-table-column :label="t('monitoring.dashboard.statusCode')" width="110">
-          <template #default="{ row }">
-            {{ row.statusCode ?? "-" }}
-          </template>
+          <template #default="{ row }">{{ row.httpStatus ?? "—" }}</template>
         </el-table-column>
         <el-table-column :label="t('monitoring.dashboard.latency')" width="120">
-          <template #default="{ row }">
-            {{ row.latencyMs != null ? `${row.latencyMs} ms` : "-" }}
-          </template>
+          <template #default="{ row }">{{ row.durationMs == null ? "—" : row.durationMs + " ms" }}</template>
         </el-table-column>
-        <el-table-column prop="requestBodyPreview" :label="t('monitoring.dashboard.requestPreview')" min-width="280" show-overflow-tooltip />
       </el-table>
+      <div class="filter-row">
+        <el-button size="small" :disabled="monitoringStore.gatewayLogPage.loading" @click="applyGatewayLogFilters">
+          {{ t("monitoring.gatewayInvocations.latest") }}
+        </el-button>
+        <el-button size="small" :disabled="monitoringStore.gatewayLogPage.loading || !monitoringStore.gatewayLogPage.hasMore"
+          @click="monitoringStore.nextGatewayLogPage()">{{ t("monitoring.gatewayInvocations.next") }}</el-button>
+      </div>
     </el-card>
   </div>
 </template>
@@ -336,6 +364,8 @@ import { Monitor, Refresh, Connection, Service, Grid, Promotion } from "@element
 import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";
 import MetricCard from "../components/monitoring/MetricCard.vue";
+import ObservabilityPolicies from "../components/monitoring/ObservabilityPolicies.vue";
+import ObservabilityDiagnostics from "../components/monitoring/ObservabilityDiagnostics.vue";
 import SystemStatusCard from "../components/monitoring/SystemStatusCard.vue";
 import AlertsPanel from "../components/monitoring/AlertsPanel.vue";
 import { useMonitoringStore } from "@/stores/monitoring";
@@ -349,8 +379,8 @@ const autoRefresh = ref(true);
 const isRefreshing = ref(false);
 const gatewayLogFilters = ref<{
   runtimeAssetId?: string;
-  method?: string;
-  statusCode?: number;
+  outcome?: string;
+  requestId?: string;
 }>({});
 
 let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
@@ -429,8 +459,7 @@ const governanceEventSummary = computed(() =>
     },
   ),
 );
-const gatewayLogMethodOptions = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"];
-const gatewayLogStatusOptions = [200, 201, 204, 400, 401, 403, 404, 429, 500, 502, 503, 504];
+const gatewayLogOutcomeOptions = ["success", "error", "rejected", "timeout", "cancelled", "incomplete", "unknown"];
 const routeRuntimeAssetQuery = computed(() =>
   normalizeRouteQueryValue(route.query.runtimeAssetId),
 );
@@ -549,10 +578,9 @@ async function handleRefresh() {
 
 async function applyGatewayLogFilters() {
   await monitoringStore.fetchGatewayAccessLogs({
-    limit: 20,
     runtimeAssetId: gatewayLogFilters.value.runtimeAssetId,
-    method: gatewayLogFilters.value.method,
-    statusCode: gatewayLogFilters.value.statusCode,
+    outcome: gatewayLogFilters.value.outcome,
+    requestId: gatewayLogFilters.value.requestId,
   });
 }
 
@@ -623,8 +651,10 @@ function exportLogs() {
 
 async function refreshDashboard(reason = "manual") {
   await monitoringStore.refreshAll(reason);
-  applyRouteGatewayLogFilters();
-  await applyGatewayLogFilters();
+  if (reason !== "auto") {
+    applyRouteGatewayLogFilters();
+    await applyGatewayLogFilters();
+  }
 }
 
 function resetAutoRefresh() {

@@ -154,3 +154,14 @@ export const DEFAULT_TRANSFORMER_OPTIONS: TransformerOptions = {
 };
 
 export * from './audit/runtime-http-agent';
+
+// Upstream credential contracts and opt-in loaders/providers; no automatic runtime activation.
+export * from './credentials/types';
+export { validateUpstreamCredentialBindings, UpstreamCredentialValidationError, UPSTREAM_CREDENTIAL_LIMITS } from './credentials/schema';
+export * from './credentials/loader';
+export * from './credentials/file-source';
+export * from './credentials/secret-provider';
+export * from './credentials/registry';
+export * from './credentials/resolver';
+export * from './credentials/trusted-operation-bindings';
+export * from './credentials/single-hop-execution';

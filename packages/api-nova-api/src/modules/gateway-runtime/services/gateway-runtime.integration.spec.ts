@@ -1,4 +1,9 @@
+import { GatewayTimeoutException } from '@nestjs/common';
+import { flushRuntimeAudit } from 'api-nova-parser';
+import { mkdtemp, rm } from 'node:fs/promises';
 import * as http from 'node:http';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { PassThrough, Writable } from 'node:stream';
 import { GatewayProxyEngineService } from './gateway-proxy-engine.service';
 import { GatewayRequestCaptureService } from './gateway-request-capture.service';
@@ -70,8 +75,25 @@ describe('GatewayProxyEngine integration', () => {
   let upstreamPort: number;
   let service: GatewayProxyEngineService;
 
-  beforeAll(() => {
+  let auditDirectory: string;
+  let previousAuditDirectory: string | undefined;
+
+  beforeAll(async () => {
     jest.setTimeout(20000);
+    await flushRuntimeAudit();
+    previousAuditDirectory = process.env.API_NOVA_AUDIT_DIR;
+    auditDirectory = await mkdtemp(join(tmpdir(), 'api-nova-gateway-proxy-test-'));
+    process.env.API_NOVA_AUDIT_DIR = auditDirectory;
+  });
+
+  afterAll(async () => {
+    try {
+      await flushRuntimeAudit();
+    } finally {
+      if (previousAuditDirectory === undefined) delete process.env.API_NOVA_AUDIT_DIR;
+      else process.env.API_NOVA_AUDIT_DIR = previousAuditDirectory;
+      if (auditDirectory) await rm(auditDirectory, { recursive: true, force: true });
+    }
   });
 
   beforeEach(async () => {
@@ -122,7 +144,14 @@ describe('GatewayProxyEngine integration', () => {
   });
 
   afterEach(async () => {
-    await new Promise<void>(resolve => upstreamServer.close(() => resolve()));
+    try {
+      await new Promise<void>((resolve, reject) => {
+        upstreamServer.close(error => error ? reject(error) : resolve());
+        upstreamServer.closeAllConnections();
+      });
+    } finally {
+      await flushRuntimeAudit();
+    }
   });
 
   const resolvedRouteFor = (path: string, method = 'GET') => ({
@@ -274,6 +303,10 @@ describe('GatewayProxyEngine integration', () => {
     const forwardPromise = service.forward(slowRoute, req as any, res as any);
     req.end();
 
-    await expect(forwardPromise).rejects.toThrow('Gateway upstream timeout after 20ms');
+    await expect(forwardPromise).rejects.toBeInstanceOf(GatewayTimeoutException);
+    await expect(forwardPromise).rejects.toMatchObject({
+      message: 'Gateway upstream timeout',
+      status: 504,
+    });
   });
 });

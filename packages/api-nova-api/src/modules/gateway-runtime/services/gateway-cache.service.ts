@@ -110,13 +110,17 @@ export class GatewayCacheService {
       return null;
     }
 
+    const consumer = this.resolveCacheIdentity(resolvedRoute, authContext);
+    if (!consumer) {
+      return null;
+    }
+
     const originalUrl = String(req.originalUrl || req.url || '');
     const url = new URL(originalUrl, 'http://gateway.local');
     const varyQueryKeys = resolvedRoute.policies.cache.varyQueryKeys;
     const varyHeaderKeys = resolvedRoute.policies.cache.varyHeaderKeys;
     const queryEntries = this.normalizeQueryEntries(url, varyQueryKeys);
     const headerEntries = this.normalizeHeaderEntries(req, varyHeaderKeys);
-    const consumerKey = authContext?.principal?.callerId || authContext?.actorId || authContext?.consumerId;
 
     return JSON.stringify({
       runtimeAssetId: resolvedRoute.runtimeAsset.id,
@@ -125,8 +129,52 @@ export class GatewayCacheService {
       pathname: url.pathname,
       query: queryEntries,
       headers: headerEntries,
-      consumer: consumerKey,
+      consumer,
     });
+  }
+
+  private resolveCacheIdentity(
+    resolvedRoute: GatewayResolvedRoute,
+    authContext?: GatewayRequestAuthContext,
+  ) {
+    const configuredMode = resolvedRoute.policies?.auth?.mode;
+    if (configuredMode !== 'jwt' && configuredMode !== 'api_key' && configuredMode !== 'anonymous') {
+      return null;
+    }
+    const visibility = String(resolvedRoute.routeBinding.routeVisibility || 'internal').trim().toLowerCase();
+    const mode = configuredMode === 'anonymous' && visibility !== 'external' ? 'jwt' : configuredMode;
+    if (!authContext || authContext.mode !== mode) {
+      return null;
+    }
+    if (mode === 'anonymous') {
+      return { mode };
+    }
+    if (mode === 'api_key') {
+      if (!this.isIdentity(authContext.consumerId) || !this.isIdentity(authContext.keyId)) {
+        return null;
+      }
+      return { mode, consumerId: authContext.consumerId, keyId: authContext.keyId };
+    }
+    const principal = authContext.principal;
+    // Only the authorization service's verified principal is a JWT cache identity.
+    // Request headers and legacy actor IDs must never supply an anonymous fallback.
+    if (principal?.identitySource !== 'authenticated' || !this.isIdentity(principal.callerId) ||
+      !Array.isArray(principal.scopes) || principal.scopes.some(scope => typeof scope !== 'string')) {
+      return null;
+    }
+    return {
+      mode,
+      callerId: principal.callerId,
+      issuer: principal.issuer,
+      subject: principal.subject,
+      clientId: principal.clientId,
+      credentialId: principal.credentialId,
+      scopes: [...new Set(principal.scopes)].sort(),
+    };
+  }
+
+  private isIdentity(value: unknown): value is string {
+    return typeof value === 'string' && value.trim().length > 0;
   }
 
   private isEligible(resolvedRoute: GatewayResolvedRoute, req: Request) {

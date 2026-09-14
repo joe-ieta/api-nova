@@ -230,6 +230,10 @@ export class CallObservabilityDeliveryWorker implements OnApplicationBootstrap, 
       }
       const signature = createHmac('sha256', secret).update(timestamp + '.' + body).digest('hex');
       const remaining = timeout - (Date.now() - started);
+      // Retained delivery history never extends the event's send eligibility.
+      if (!claimed.event.expiresAt || claimed.event.expiresAt.getTime() <= Date.now()) {
+        return this.outcome('dead', 'event_expired', Date.now() - started, null, null);
+      }
       if (remaining <= 0) this.deliveryError('timeout');
       const response = await this.post(destination, address, body, {
         'content-type': 'application/json', 'content-length': String(Buffer.byteLength(body)),
@@ -272,8 +276,8 @@ export class CallObservabilityDeliveryWorker implements OnApplicationBootstrap, 
       if (outcome.disposition === 'retry') {
         const delay = Math.max(this.retryDelay(delivery.id, claimed.generationAttempt), outcome.retryAfterMs || 0);
         const deadline = Math.min(Date.parse(claimed.generationStartedAt) + ACTIVE_RETRY_MS,
-          Date.parse(delivery.expiresAt));
-        if (claimed.generationAttempt >= MAX_ATTEMPTS || Date.parse(tx.now) + delay > deadline) status = 'dead';
+          Date.parse(delivery.expiresAt), claimed.event.expiresAt.getTime());
+        if (claimed.generationAttempt >= MAX_ATTEMPTS || Date.parse(tx.now) + delay >= deadline) status = 'dead';
         else { status = 'retry_wait'; nextAttemptAt = new Date(Date.parse(tx.now) + delay).toISOString(); }
       }
       Object.assign(delivery, {

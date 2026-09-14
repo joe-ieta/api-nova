@@ -3,9 +3,9 @@
 > 2026-09-08: 数据库与持久化清理、43 表 PG/SQLite 空库及完整回归结果见 [本轮清理审查记录](./2026-09-08-persistence-cleanup.md)。旧报告中的 38/40 表与环境阻塞结论保留为历史证据。
 
 ---
-doc-version: 1.1.0
+doc-version: 1.7.0
 doc-status: active
-doc-updated: 2026-09-08
+doc-updated: 2026-09-14
 ---
 # ApiNova 审查报告索引
 
@@ -34,6 +34,10 @@ doc-updated: 2026-09-08
 | A1 | [2026-09-04-manual-registration-publication.md](./2026-09-04-manual-registration-publication.md) | 2026-09-04 | 手工服务注册 → 发布为代理服务（MCP / Gateway）能力与实现 | 11 | 3 高 | `已整改` | 2026-09-04 |
 
 | A2 | [2026-09-08-persistence-cleanup.md](./2026-09-08-persistence-cleanup.md) | 2026-09-08 | 数据库、持久化及关联历史兼容清理 | 7 | 4 P1 | `已整改`（本地验证范围） | 2026-09-08 |
+
+| A3 | [活跃任务依赖与并发推进](./2026-09-14-active-task-dependencies.md) | 2026-09-14 | 39包状态、依赖及TP13/14与D2并发切片 | - | - | 部分完成 | 2026-09-14 |
+
+| A4 | [按规划继续执行](./2026-09-14-planned-next-wave.md) | 2026-09-14 | 新事件策略、状态覆盖、固定源Reload及公开路径 | - | - | 部分完成 | 2026-09-14 |
 
 ## 整改完成情况跟踪
 
@@ -72,3 +76,15 @@ doc-updated: 2026-09-08
 
 - [Documentation Index](../README.md)
 - 本审查依据的工程现状文档：[Publication Resource Baseline](../guides/publication-resource-baseline.md)、[Open Items](../reference/open-items.md)
+
+
+- [2026-09-14 正文保留与消费端推进](./2026-09-14-retention-consumer-wave.md)：正文TTL、默认关闭有界GC及调用事实UI切片完成；整包仍部分完成。
+
+
+- [2026-09-14 管理心跳、请求头与Gateway消费者](./2026-09-14-heartbeat-header-consumer-wave.md)：三路切片已验证，整包退出条件仍部分完成。
+
+
+- [2026-09-14 路由观测、可信映射与策略UI](./2026-09-14-routing-policy-mapping-wave.md)：四包构建及联合回归通过；业务存活、完整发送安全与治理仍部分完成。
+
+
+- [2026-09-14 单跳凭据、容量样本与诊断UI](./2026-09-14-single-hop-capacity-diagnostics-wave.md)：三路切片与四包构建通过；已修复两项实际审查发现，整包仍有退出条件。

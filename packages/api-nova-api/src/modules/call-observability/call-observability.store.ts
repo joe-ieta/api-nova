@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { readEventRetentionPolicy } from './call-observability-policy';
 import { DataSource, EntityManager, In } from 'typeorm';
 import { randomUUID } from 'crypto';
 import {
@@ -248,13 +249,24 @@ export class CallObservabilityStore {
       return this.payloadCoordination.withWriter(async lease => {
         const now = new Date().toISOString();
         const retainFrom = record.completedAt || record.startedAt;
-        const bodyExpiresAt = expiresAfter(retainFrom, 7);
+        // Snapshot the active policy before filesystem I/O. Existing invocation sides keep
+        // their original deadline, including expired tombstones, across source revisions.
+        const bodyExpiry = await this.readSnapshot(async tx => {
+          const policy = await readEventRetentionPolicy(tx.manager);
+          const previous = await tx.manager.getRepository(RuntimeInvocationEntity)
+            .findOneBy({ invocationId: record.invocationId });
+          const payloads = tx.manager.getRepository(RuntimePayloadEntity);
+          const request = previous?.requestPayloadId ? await payloads.findOneBy({ id: previous.requestPayloadId }) : null;
+          const response = previous?.responsePayloadId ? await payloads.findOneBy({ id: previous.responsePayloadId }) : null;
+          const defaultExpiry = expiresAfter(retainFrom, policy.payloadDays);
+          return { request: request?.expiresAt ?? defaultExpiry, response: response?.expiresAt ?? defaultExpiry };
+        });
         const request = await this.payloadStore.prepare({
           sourceInstanceId: record.sourceInstanceId, invocationId: record.invocationId, side: 'request',
-        }, record.request, now, bodyExpiresAt, lease.generation);
+        }, record.request, now, bodyExpiry.request, lease.generation);
         const response = await this.payloadStore.prepare({
           sourceInstanceId: record.sourceInstanceId, invocationId: record.invocationId, side: 'response',
-        }, record.response, now, bodyExpiresAt, lease.generation);
+        }, record.response, now, bodyExpiry.response, lease.generation);
         const receiptId = contentHash(canonicalJson([record.sourceInstanceId, record.sourceEventId]));
         return this.transaction(async tx => {
           await this.payloadCoordination.assertWriter(tx, lease);
@@ -299,6 +311,16 @@ export class CallObservabilityStore {
           if (previous?.record.completionSource === 'reconciled' && record.phase !== 'finished') {
             await this.checkpoint(tx, context.checkpoint, source.sourceSequence, source.sourceInstanceId);
             return this.result(tx, 'stale', previous);
+          }
+          // Another process may have committed a source revision after the pre-I/O
+          // snapshot. Recheck the current references under the write transaction.
+          if (previous) {
+            const payloads = tx.manager.getRepository(RuntimePayloadEntity);
+            for (const [prepared, payloadId] of [[request, previous.requestPayloadId], [response, previous.responsePayloadId]] as const) {
+              if (!payloadId) continue;
+              const existing = await payloads.findOneBy({ id: payloadId });
+              if (existing) prepared.entity.expiresAt = existing.expiresAt;
+            }
           }
           await this.persistPayload(tx, request);
           await this.persistPayload(tx, response);
@@ -786,7 +808,7 @@ export class CallObservabilityStore {
       actorType: RuntimeObservabilityActorType.SYSTEM,
       occurredAt: new Date(tx.now), createdAt: new Date(tx.now),
       retentionClass: RuntimeObservabilityRetentionClass.STANDARD,
-      dispatchState: suppressEvent ? 'suppressed' : 'pending', expiresAt: new Date(expiresAfter(tx.now, 14)),
+      dispatchState: suppressEvent ? 'suppressed' : 'pending', expiresAt: new Date(expiresAfter(tx.now, (await readEventRetentionPolicy(tx.manager)).eventDays)),
     });
     await tx.manager.getRepository(RuntimeObservabilityEventEntity).insert(event);
     if (!suppressEvent) tx.events.push({ eventId: event.id, sequence: publicSequence(sequence), eventType });
@@ -812,7 +834,7 @@ export class CallObservabilityStore {
       correlationId: row.traceId && row.traceId.length <= 120 ? row.traceId : undefined,
       actorType: RuntimeObservabilityActorType.RUNTIME,
       retentionClass: RuntimeObservabilityRetentionClass.STANDARD,
-      dispatchState: suppressEvent ? 'suppressed' : 'pending', expiresAt: new Date(expiresAfter(tx.now, 14)),
+      dispatchState: suppressEvent ? 'suppressed' : 'pending', expiresAt: new Date(expiresAfter(tx.now, (await readEventRetentionPolicy(tx.manager)).eventDays)),
       dimensions: { runtimeAssetId: row.runtimeAssetId, serverType: row.serverType, origin: row.origin,
         spanKind: row.spanKind, callerId: row.callerId, endpointDefinitionId: row.endpointDefinitionId,
         sourceServiceInstanceId: row.sourceServiceInstanceId },

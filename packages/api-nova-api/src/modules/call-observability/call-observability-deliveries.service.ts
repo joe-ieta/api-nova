@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { readEventRetentionPolicy } from './call-observability-policy';
 import { randomUUID } from 'crypto';
 import {
   RuntimeEventDeliveryAttemptEntity, RuntimeEventDeliveryEntity, RuntimeEventSubscriptionEntity,
@@ -18,9 +19,11 @@ import { parseObservabilityQuery } from './call-observability-query';
 import { sequenceKey } from './call-observability-storage';
 import { CallObservabilityStore, ObservabilityWriteTransaction } from './call-observability.store';
 
+import { DELIVERY_RETENTION_MS } from './call-observability-outbox.service';
+
 const STATUSES = ['pending', 'in_flight', 'retry_wait', 'succeeded', 'dead', 'cancelled'] as const;
 const MAX_SCAN = 1000;
-const EVENT_RETENTION_MS = 14 * 86400000;
+
 function invalid(field = 'body'): never { throw new ObservabilityApiError('INVALID_QUERY', field); }
 function object(value: unknown): value is Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -159,7 +162,7 @@ export class CallObservabilityDeliveriesService {
       .findOneBy({ subscriptionId, version: subscription.version });
     if (!revision || revision.revoked) throw new ObservabilityApiError('OBSERVABILITY_UNAVAILABLE');
     const sequence = tx.nextSequence(), eventId = randomUUID(), deliveryId = randomUUID();
-    const expiresAt = new Date(Date.parse(tx.now) + EVENT_RETENTION_MS);
+    const expiresAt = new Date(Date.parse(tx.now) + (await readEventRetentionPolicy(tx.manager)).eventDays * 86400000);
     await tx.manager.getRepository(RuntimeObservabilityEventEntity).insert({
       id: eventId, eventFamily: RuntimeObservabilityEventFamily.RUNTIME_CONTROL, eventName: 'subscription.test',
       severity: RuntimeObservabilitySeverity.INFO, status: RuntimeObservabilityStatus.SUCCESS,
@@ -173,7 +176,7 @@ export class CallObservabilityDeliveriesService {
       id: deliveryId, subscriptionId, subscriptionRevision: revision.version, eventId, eventSequence: sequence,
       status: 'pending', version: 1, attemptCount: 0, replayGeneration: 0, nextAttemptAt: tx.now,
       leaseOwner: null, leaseUntil: null, lastError: {}, createdAt: tx.now, updatedAt: tx.now,
-      expiresAt: expiresAt.toISOString(),
+      expiresAt: new Date(Date.parse(tx.now) + DELIVERY_RETENTION_MS).toISOString(),
     });
     const log = await this.audit.log({ action: AuditAction.API_TESTED, level: AuditLevel.INFO,
       status: AuditStatus.SUCCESS, userId: authorization.principalId,

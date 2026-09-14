@@ -1,5 +1,5 @@
 ---
-doc-version: 2.1.0
+doc-version: 2.7.0
 doc-status: active
 doc-updated: 2026-09-14
 approval-status: approved
@@ -7,9 +7,9 @@ implementation-status: in-progress
 ---
 # 可观测性对外 API Endpoint 文档
 
-> 当前消费者契约，版本 **2.1.0**，更新于 **2026-09-14**。以远端优先整合基线 950e150 及其后保留的查询/cache/origin/MCP 实现为准。
-> **OBS-API-01~26：限定契约 VERIFIED；OBS-API-27/28：PLANNED；Socket.IO 新协议未实现；Webhook 闭环保留但默认关闭；AVAILABLE=0。**
-> 本次是静态文档核对，不是新一轮测试、部署或发布验收。VERIFIED 依据既有执行证据，不扩大为完整需求、平台矩阵或真实存活验证。
+> 当前消费者契约，版本 **2.7.0**，更新于 **2026-09-14**。以远端优先整合基线 950e150 及其后保留的查询/cache/origin/MCP 实现为准。
+> **OBS-API-01~28：限定契约 VERIFIED；27/28覆盖新事件与新正文留存；Socket.IO 有界事件页切片已实现，完整状态快照未闭合；Webhook 闭环保留但默认关闭；AVAILABLE=0。**
+> 本次同步 TP13/14 源码切片与专项验证；HTTP VERIFIED 仍按限定契约解释，不扩大为完整需求、平台矩阵、真实存活或部署验证。
 > 当前汇总：[完成情况复核](../guides/runtime-observability-completion-review.md)、[执行状态](../guides/runtime-observability-development-execution-status.md)、[任务计划](../guides/runtime-observability-development-task-plan.md)。
 > 旧版正文及逐次追加记录已原样归档：[2026-09-14 历史版本](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)。历史进度不覆盖本文当前契约。
 
@@ -19,13 +19,13 @@ Endpoint 编号和 operationId 不因重构改变。新增或修改接口应同�
 
 状态规则：PLANNED 为规划；IMPLEMENTED 为代码存在；VERIFIED 为所列限定契约已有验证证据；AVAILABLE 必须另有发布版本、部署范围及部署验证；DEPRECATED 表示弃用。模块已接入不等于已部署，默认关闭不等于未实现。不得将旧记录中的 12/28、未接入根模块或 Webhook 未实现当作当前状态。
 
-本文版本 2.1.0 与 HTTP/event 的 schemaVersion=1.0 是不同版本。需求和完整设计见[需求](../guides/runtime-observability-requirements.md)、[设计](./runtime-observability-design.md)；设计中尚未落地的字段不是消费者可依赖的承诺。
+本文版本 2.7.0 与 HTTP/event 的 schemaVersion=1.0 是不同版本。需求和完整设计见[需求](../guides/runtime-observability-requirements.md)、[设计](./runtime-observability-design.md)；设计中尚未落地的字段不是消费者可依赖的承诺。
 
 ## 2. 基础约定
 
 | 项目 | 当前契约 |
 | --- | --- |
-| Base URL | `https://{deployment-host}/api/v1/monitoring/observability` |
+| Base URL | 直连应用为 `https://{deployment-host}/api/monitoring/observability`；若部署明确配置 `/api/v1` 重写，以该配置为准 |
 | 认证 | `Authorization: Bearer <management-access-token>`；既有管理登录/刷新流程签发 |
 | 权限 | `monitoring:read` AND 各接口额外权限；对应资产范围也取交集 |
 | 凭证边界 | 业务 API Key、业务 JWT、刷新 Token 不自动具备管理 API 权限；无新增 Token 签发 Endpoint |
@@ -36,7 +36,7 @@ Endpoint 编号和 operationId 不因重构改变。新增或修改接口应同�
 | 未知值 | null、unknown、isPartial 必须按字段解释，不能自动转换为零或健康 |
 | 缓存与错误 | 可观测性路由使用 `Cache-Control: no-store`；安全错误不回显驱动异常、秘密或隐藏资源 |
 
-路径已含 `/api/v1`，不可重复拼接。Socket.IO 的 `/monitoring` 是既有 namespace，不代表本文新推送协议已实现。
+当前 main.ts 只注册全局前缀 api。能力列表、事件 links 和正文 readLink 已与应用共享 API_GLOBAL_PREFIX，返回 /api/monitoring/observability。内部命令幂等身份保留原字符串，不用于注册或展示HTTP路由。Socket.IO namespace 是 /monitoring，默认 path 为 /socket.io；不拼接 HTTP API 前缀。
 
 ### 2.1 公共响应
 
@@ -93,8 +93,8 @@ Endpoint 编号和 operationId 不因重构改变。新增或修改接口应同�
 | OBS-API-24 | GET /deliveries/:id | obsGetDelivery | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
 | OBS-API-25 | POST /deliveries/:id/retry | obsRetryDelivery | monitoring:subscription:manage AND monitoring:delivery:retry | OBS-TP-12 | VERIFIED |
 | OBS-API-26 | GET /pipeline/status | obsGetPipelineStatus | 基础 AND 显式全局资源范围 | OBS-TP-14 | VERIFIED |
-| OBS-API-27 | GET /policies | obsGetPolicies | 规划：基础 | OBS-TP-14 | PLANNED |
-| OBS-API-28 | PATCH /policies/:id | obsUpdatePolicy | 规划：monitoring:manage | OBS-TP-14 | PLANNED |
+| OBS-API-27 | GET /policies | obsGetPolicies | monitoring:read | OBS-TP-14 | VERIFIED（新事件留存） |
+| OBS-API-28 | PATCH /policies/:id | obsUpdatePolicy | read AND manage，交集为全局 | OBS-TP-14 | VERIFIED（新事件留存） |
 
 ## 4. 查询接口对象与行为
 
@@ -109,9 +109,9 @@ Endpoint 编号和 operationId 不因重构改变。新增或修改接口应同�
 | 非空 scoped、仅 monitoring:read | 14（不含 API26） |
 | 空资源范围 | 1（capabilities 自身） |
 
-webhook/subscriptionManagement 已实现，但没有 subscription:manage 的用户看到 restricted；socketPush/policyManagement 为 not_implemented。pipelineStatus 只对全局 read 启用，authorizationRule=`explicit_global_scope`，不另要求 monitoring:manage。
+webhook/subscriptionManagement 已实现，但没有 subscription:manage 的用户看到 restricted；socketPush 为 not_implemented；policyRead 对非空read范围开放，policyManagement仅对read/manage交集为全局的主体开放。pipelineStatus 只对全局 read 启用，authorizationRule=`explicit_global_scope`，不另要求 monitoring:manage。
 
-非空 read 范围下 maxBuckets=1440、maxGroupLimit=100、eventRetention=1209600000ms；空范围的 maxBuckets/eventRetention 为 null。maxStatisticsQueryInvocations=5000、traceMaxNodes=200、maxVisitorQueryInvocations=5000；maxQueryCursorLifetimeMs=900000。payloadLimits 仅对正文权限交集有效：readObjectMaxBytes=134217728，仅是单存储对象读取上限；effectiveCaptureBytes=null、capturePolicyState=not_reported_by_producers。aggregateRetentionMs/effectiveHistoryCompleteSince 仍 null。
+非空 read 范围下 maxBuckets=1440、maxGroupLimit=100、eventRetention读取当前新事件策略，默认1209600000ms，非历史覆盖保证；空范围的 maxBuckets/eventRetention 为 null。maxStatisticsQueryInvocations=5000、traceMaxNodes=200、maxVisitorQueryInvocations=5000；maxQueryCursorLifetimeMs=900000。payloadLimits 仅对正文权限交集有效：readObjectMaxBytes=134217728，仅是单存储对象读取上限；effectiveCaptureBytes=null、capturePolicyState=not_reported_by_producers。aggregateRetentionMs/effectiveHistoryCompleteSince 仍 null。
 
 **overview** 接受 `from,to,origin,serverType,runtimeAssetId`。data 包含 window、snapshotSeq、businessSummary、upstreamSummary、serverStates、unavailableSections、restricted，以及 invocationSnapshotSeq/Scope/Authorized/ExpiresAt。`pipeline` 和 `recentEvents` 仍列为 unavailableSections，不返回伪造区块；pipeline 的独立 API26 不改变这个限制。
 
@@ -165,6 +165,8 @@ byteGroups 按 spanKind/byteMeasurement/measurementStage 区分；分侧带测�
 
 ### 4.6 OBS-API-15/26/27/28：状态与策略
 
+servers/status及overview.servers新增coverage，说明授权目录、选窗业务事实与历史报告覆盖：registeredServers、serversWithBusinessObservations、serversWithReportedState、unrepresentedBusinessServers、unattributedBusinessInvocations及gaps。每服务器businessObservationStatus仅为observed/not_observed；没有事实不等于空闲或离线。目录删除/类型不匹配可形成缺口，但不返回隐藏资产计数。heartbeat/health/freshness仍unknown。
+
 **servers/status** 使用 overview 五个查询键，返回有界 items 与 maxServers/maxQueryInvocations/maxStateRows、stateBasis=current_database_snapshot、readAt、invocationDataWatermark、livenessEvaluated=false 等。资产 lifecycleStatus 来自 runtime_assets；reportedState 是持久旧报告，不能解释为最新存活证据。
 
 healthStatus/dependencyHealth/freshnessStatus 当前 unknown；lastHeartbeatAt/processInstanceId/activeInvocations/stateVersion 为 null。unknownInFlight、observedBusinessRequests、lastSuccessAt/lastFailureAt 仅根据选定开始时间窗内调用计算。服务器状态的 dataWatermark=null，因为旧资产/报告更新不推进调用序号；invocationDataWatermark 仅覆盖调用派生统计。
@@ -173,7 +175,13 @@ healthStatus/dependencyHealth/freshnessStatus 当前 unknown；lastHeartbeatAt/p
 
 dispatch.dataWatermarkScope=outbox_materialization_not_webhook_acknowledgement；水位不是接收端 ACK。aggregation 待处理计数包含 Store 会选择的持久标记，不是完整长期趋势保证。Webhook 的 workerConfigured、lastAttemptAt、claimed/succeeded/retrying/dead/cancelled 是最近持久报告，不是当前开关或实时健康。diskUsage/effectiveQuota/gapRanges 等未实现计量保持 null。
 
-**policies 两接口未实现**。GET 有效策略、PATCH 保留/配额/脱敏设置、effectiveAt/retentionImpact 均属规划，不提供当前可调用示例。默认存储时长也不是用户可通过 API27/28 修改的能力。
+**policies 两接口的新事件及正文留存契约已验证**。GET 返回 items；当前 id 仍为 global-event-retention，空资产权限范围返回空列表。retention 包含 eventDays（默认14）与 payloadDays（默认7），旧event-only策略兼容读取且不自动推进revision/ETag。
+
+PATCH 必须携带强 If-Match 和 reason（1–500字符、无控制字符），例如 `{ "retention": { "payloadDays": 3 }, "reason": "调整新正文保留周期" }`。两个天数字段均为1–365整数，至少提供一项，未提供项保持；未知设置拒绝。要求当前read/manage权限交集为全局；缺If-Match返回428、旧版本412。策略、序号、管理审计同事务，审计失败回滚；无变化不推进版本但仍审计。
+
+eventDays作用于之后创建的统一事件；payloadDays从调用completedAt或startedAt计算，仅用于新正文侧。准备文件前固定策略快照，提交时复核既有正文期限，历史到期不可延长、过期对象不复活。响应retentionImpact=new_observability_events_and_payloads_only、payloadRetentionAnchor=completedAt_or_startedAt、existingPayloadExpiryPreserved=true。既有记录不改、PATCH不触发清理，delivery仍30天。capabilities同步持久策略；payloadDefaultMs仅对正文读取权限范围可见。
+
+pipeline/status新增retention诊断，仅显式全局read可读。其来源是默认关闭的正文worker最后持久报告，不是实时存活保证；包含state、observedAt、freshnessStatus、lastReportAt、currentAttemptComplete及有界计数。失败保留旧报告，因此必须结合报告时间/本次完成标志解释。无报告为unknown；不返回文件路径、原始异常或fence。完整配额、脱敏与元数据生命周期继续归TP14。
 
 ## 5. 事件历史、订阅与投递 Endpoint
 
@@ -225,7 +233,7 @@ PATCH 是**部分更新**，只接受 name/destination/secretRef/filter/enabled/
 
 投递 data 包含 deliveryId/eventId/subscriptionId/subscriptionRevision/version/status/attemptCount/replayGeneration/suspendedBySubscription/nextAttemptAt/lastError/createdAt/updatedAt/expiresAt。详情再含 attempts，其项为 attemptNo/startedAt/completedAt/durationMs/httpStatus/result/errorCategory/responseSummary；摘要受限且脱敏，不返回原始响应正文、lease 或实际秘密。
 
-retry 必填 Idempotency-Key 与 JSON reason，可选正整数 subscriptionRevision。仅 dead/cancelled 可进入重投；不符合返回 409 DELIVERY_NOT_RETRYABLE。cancelled 必须显式选定当前 enabled 订阅的有效修订。事件不可用/过期返回 410 EVENT_EXPIRED；不重建历史事件。成功 202，保留 eventId/deliveryId/旧 attempts，增加 replayGeneration 并记录审计。
+新建投递记录（含订阅测试）默认保留创建后30天，不再随14天事件同步到期；已存在记录不自动回填。事件过期/不存在后记录仍可查，但不得再次发送；实际磁盘清理和管理审计保留不由该字段保证。retry 必填 Idempotency-Key 与 JSON reason，可选正整数 subscriptionRevision。仅 dead/cancelled 可进入重投；不符合返回 409 DELIVERY_NOT_RETRYABLE。cancelled 必须显式选定当前 enabled 订阅的有效修订。事件不可用/过期返回 410 EVENT_EXPIRED；不重建历史事件。成功 202，保留 eventId/deliveryId/旧 attempts，增加 replayGeneration 并记录审计。
 
 ### 5.4 变更并发与幂等
 
@@ -237,8 +245,19 @@ If-Match 缺失为 428 PRECONDITION_REQUIRED、格式错误为 400、版本不�
 
 ### OBS-PUSH-01：Socket.IO 实时订阅与恢复
 
-**PLANNED，尚无本文新协议实现。**设计中的 subscribe-observability、subscription-confirmed、observability-event、历史/实时切换、慢消费者和撤权处理均不能作为当前可调用接口。既有 monitoring/runtime-event 不代表新调用事件协议已授权闭环。需求说明留在[设计](./runtime-observability-design.md)，后续 TP13 应复用远端持久事件与水位，另行验收。
+**有界事件页切片 VERIFIED；专项证据见执行台账。完整状态/全局快照与旧消费者迁移仍未完成。**
 
+沿用 `/monitoring` namespace、默认 `/socket.io` path，以 `auth: { observability: true, token: <管理访问Token> }` 建立专用连接。该模式跳过旧初始快照、不能订阅旧监控房间，也不接收旧全局通知。不得把 Token 放入 URL query。
+
+发送 `subscribe-observability`，参数复用 HTTP `/events` 的过滤；必填 `after`（已取得的签名游标）或 `afterSequence`（此前经相同权限/过滤签发的 overview 调用事实快照序号）之一。禁止自定义 `until`、`limit`。原始序号不是任意历史起点；跨主体/权限/过滤复用均拒绝。
+
+`subscription-confirmed` 返回 `protocol=observability.v1`、`snapshotScope=invocation_facts_only`、highWatermark、pageSize=50、ackTimeoutMs=5000。`observability-event` 的每帧是完整 HTTP events 页 `{status,data,meta}`，包括空页检查点；不是单个事件信封。客户端处理并持久化整页及 nextCursor 后，通过该帧 Socket.IO ACK 回传 `{nextCursor}`。按 eventId 去重、subject version 替换；不能按消息数累加统计。
+
+服务端一次只保留一个待确认页；固定每页最多50条，单次连续补拉最多扫描10000条，空闲轮询1秒，最多100个活跃订阅/在途读取。每页读取前后重新核验管理 Token、数据库角色和资产范围。ACK 超时或错误返回 SLOW_CONSUMER 并断开；撤权、权限指纹变化和游标过期返回相应 observability-error 并断开。`unsubscribe-observability` 取消订阅；在途读取释放前不得反复重订绕过单飞限制。
+
+恢复使用最后**完整处理**页的签名 nextCursor；没有服务器持久浏览器 ACK。沿用 HTTP 游标的最长15分钟链式有效期，过期需重新取得调用事实快照，不保证无期限自动续期；固定高水位的历史页读完后才推进实时高水位。snapshotScope 不包含服务器/管线完整状态。capabilities 用 `socketEventStream` 表达此切片；`socketPush` 仍为 not_implemented，表示完整设计契约尚未闭合。
+
+旧 UI 仍消费订阅房间内的 runtime-event，旧无条件 runtime-event 全局广播已移除；这不代表旧监控全部授权或 UI 迁移已经完成。真实浏览器、长期多进程及跨平台负载另行验收。
 ### OBS-PUSH-02：Webhook 接收协议
 
 远端闭环包含订阅/投递 API、Outbox 物化、租约发送、密钥解析、每次发送地址检查、签名、有限重试/死信及人工重投；默认关闭，未声明 AVAILABLE。COLLECTOR_ENABLED、OUTBOX_ENABLED、WEBHOOK_ENABLED 三个开关默认均为字符串 false，互不替代。
@@ -277,20 +296,20 @@ If-Match 缺失为 428 PRECONDITION_REQUIRED、格式错误为 400、版本不�
 3. 使用统计/调用/正文查询，各自遵守参数与权限；overview 仅提供限定调用快照及持久状态视图。
 4. 如需事件补拉，先取获授权的 invocationSnapshotSeq，并在有效期内以匹配的 origin/serverType/runtimeAssetId 调用 afterSequence，后续使用服务返回的签名 after。
 5. 如需 Webhook，先配置目的地与 secret 允许名单、密钥及独立 worker 开关，再创建订阅、测试推送并通过 deliveries 查询；接收端实现验签/去重。
-6. Socket.IO、policies 和实时存活/完整治理不是当前集成前提能力，等待后续明确实现与验收。
+6. Socket.IO 有界事件页可按上述协议接入；完整策略治理与真实存活仍不可假定存在。
 
 ## 9. 接口收敛与版本记录
 
 | 版本 | 日期 | 范围 |
 | --- | --- | --- |
-| 2.1.0 | 2026-09-14 | 静态对齐远端优先整合后的26项限定契约，明确快照、事件/投递响应、权限及运行限制；压缩历史追加记录 |
+| 2.7.0 | 2026-09-14 | 静态对齐远端优先整合后的26项限定契约，明确快照、事件/投递响应、权限及运行限制；压缩历史追加记录 |
 | 2.0.0 及历史追加 | 截至2026-09-14 | [原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)，不作为当前状态来源 |
 
 旧接口/旧消费者收敛、身份审计联动、Linux/PostgreSQL 实际查询与负载、部署 AVAILABLE 仍须在[当前复核](../guides/runtime-observability-completion-review.md)和[执行状态](../guides/runtime-observability-development-execution-status.md)分别登记。本文不重放历史测试数量，也不把主代理之外的文档整理记作新运行证据。
 
 ## 当前开发进度与接入边界
 
-API01~26 的限定契约 VERIFIED；API27/28 与新 Socket.IO 协议 PLANNED；AVAILABLE=0。当前模块注册13个 controller、26个 HTTP operation，独立 worker 默认关闭。overview 的 pipeline/recentEvents 区块、心跳和实时 stateVersion、有效策略/配额/磁盘计量、全局覆盖证明仍未完成。HTTP 与 Webhook 信封差异、订阅静态 health/密钥引用视图限制保留为真实边界。
+API01~28 的限定契约 VERIFIED；API27/28覆盖新事件与新正文留存，Socket.IO 有界事件页已实现但完整实时协议未闭合；AVAILABLE=0。当前模块注册14个 controller、28个 HTTP operation，独立 worker 默认关闭。overview 的 pipeline/recentEvents 区块、心跳和实时 stateVersion、有效策略/配额/磁盘计量、全局覆盖证明仍未完成。HTTP 与 Webhook 信封差异、订阅静态 health/密钥引用视图限制保留为真实边界。
 
 ## 10. TP-03 公共 API 基础的实现约束
 
@@ -439,3 +458,21 @@ API_NOVA_OBSERVABILITY_CURSOR_SECRET 是独立至少32字节秘密，KEY_ID 默�
 ## 2026-09-14：远端优先整合后的附加查询
 
 历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
+
+## 管理心跳增量契约（2026-09-14）
+
+servers/status和overview.serverStates新增managementHeartbeat：全局授权返回严格白名单诊断，资产范围为null。pipeline/status（本身仅全局read）复用同一对象。字段为evidenceScope=management_process_store_roundtrip、coverage=single_lease_holder、businessServerLivenessEvaluated=false，以及reportedState、freshnessStatus、processInstanceId、lastHeartbeatAt、stoppedAt、observationAgeMs、intervalMs、staleAfterMs、stateVersion、dataWatermark。无证据或坏报告为unknown；过期为stale，不推出业务离线。水位不能大于查询快照，无路径/秘密/原始异常/租约字段。
+
+管理周期事件使用既有pipeline.state_changed，subject为固定管理心跳标识，无runtimeAssetId，不生成虚假业务资产状态；事件按eventDays策略保留。公开页仍遵循既有字段白名单，完整心跳字段从状态接口读取。
+
+## Gateway路由注册观测增量（2026-09-14）
+
+servers/status、overview.serverStates中Gateway资产条目新增gatewayRoutingObservation；MCP条目为null。该字段跟随资产授权，不暴露隐藏资产计数。固定evidenceScope=local_process_routing_registry、coverage=single_lease_holder_process、isPartial=true、businessServerLivenessEvaluated=false。registrationStatus为registered/no_registered_routes/unknown，observerState为reporting/stopped/unknown；freshnessStatus、activeRouteCount及观察时间/版本/水位均源于白名单持久报告。未来水位或坏资产映射不作为可信证据。业务healthStatus、lastHeartbeatAt与livenessEvaluated原语义不变。
+
+每个观察使用既有pipeline.state_changed并带runtimeAssetId；订阅仍执行既有资产范围过滤。字段与配置详见[运行集成](../guides/runtime-observability-integration.md)。
+
+## 留存扫描容量增量契约（2026-09-14）
+
+pipeline/status.retention新增scanUsage对象，沿用全局read授权。固定evidenceSource=retention_worker_payload_scan、scope=recognized_payload_objects_and_temporary_files、measurement=logical_file_length_before_cleanup。字段包含scanCoverage、freshnessStatus、scanStartedAt、scanCompletedAt、observationAgeMs、staleAfterMs、observedBytes、observedFiles、scannedEntries、traversedShards、missingShards、unmeasuredEntries、truncated及startedAtShardBoundary。
+
+currentTotalBytes/filesystemAvailableBytes为null，quotaEnforced=false。complete只表示该扫描窗口覆盖完整，不能称当前磁盘总量或配额保证。currentAttemptComplete非true、busy、坏值或旧报告无scanUsage时容量为unknown；独立扫描时间决定新鲜度。路径/分片名称/对象ID不公开，返回计数不扩大授权范围。

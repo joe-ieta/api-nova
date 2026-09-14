@@ -25,6 +25,21 @@ export interface PayloadGarbageCandidate {
   inode: number;
 }
 
+export interface PayloadScanUsage {
+  measurement: 'logical_file_length_before_cleanup';
+  scanCoverage: 'complete' | 'partial';
+  scanStartedAt: string;
+  scanCompletedAt: string;
+  observedBytes: number;
+  observedFiles: number;
+  scannedEntries: number;
+  missingShards: number;
+  traversedShards: number;
+  unmeasuredEntries: number;
+  startedAtShardBoundary: boolean;
+  truncated: boolean;
+}
+
 export interface PreparedPayload {
   entity: RuntimePayloadEntity;
   body: Omit<InvocationBody, 'data'>;
@@ -196,7 +211,7 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
   }
 
   async scanGarbage(scanLimit: number, candidateLimit: number, olderThan: number,
-    shardHint?: number): Promise<{ candidates: PayloadGarbageCandidate[]; scanned: number; nextShard: number; hasMore: boolean }> {
+    shardHint?: number): Promise<{ candidates: PayloadGarbageCandidate[]; scanned: number; nextShard: number; hasMore: boolean; scanUsage: PayloadScanUsage }> {
     return this.scanner.run(async () => {
       await this.assertOwnedRoot();
       if (!Number.isInteger(scanLimit) || scanLimit < 1 || scanLimit > 1000 ||
@@ -207,6 +222,9 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
         await this.closeScanner();
         this.scanShard = shardHint;
       }
+      const scanStartedAt = new Date().toISOString();
+      const startedAtShardBoundary = !this.scanDirectory;
+      let observedBytes = 0, observedFiles = 0, missingShards = 0, unmeasuredEntries = 0;
       const candidates: PayloadGarbageCandidate[] = [];
       let scanned = 0;
       let directories = 0;
@@ -218,6 +236,7 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
             this.scanDirectory = await fs.opendir(dirname(probe));
           } catch (error) {
             if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+            missingShards++;
             this.scanShard = (this.scanShard + 1) % 256;
             directories++;
             continue;
@@ -232,20 +251,31 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
         }
         scanned++;
         const match = /^([a-f0-9]{64})\.body(?:\.([a-f0-9-]{36})\.tmp)?$/.exec(entry.name);
-        if (!match || match[1].slice(0, 2) !== shard || !entry.isFile() || entry.isSymbolicLink()) continue;
+        if (!match || match[1].slice(0, 2) !== shard || !entry.isFile() || entry.isSymbolicLink()) { unmeasuredEntries++; continue; }
         const key = shard + '/' + entry.name;
         try {
           const file = await this.candidatePath(key);
           const stat = await fs.lstat(file);
-          if (!stat.isFile() || stat.isSymbolicLink() || stat.mtimeMs > olderThan) continue;
+          if (!stat.isFile() || stat.isSymbolicLink()) { unmeasuredEntries++; continue; }
+          if (!Number.isSafeInteger(stat.size) || stat.size < 0 || !Number.isSafeInteger(observedBytes + stat.size)) {
+            throw new ObservabilityStorageError('INVALID_PAYLOAD_SIZE');
+          }
+          // Count every measured recognized object, even if too young to be a GC candidate.
+          observedBytes += stat.size; observedFiles++;
+          if (stat.mtimeMs > olderThan) continue;
           candidates.push({ id: match[1], key, temporary: !!match[2],
             modifiedAt: stat.mtimeMs, size: stat.size, inode: stat.ino });
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+          unmeasuredEntries++;
         }
       }
-      return { candidates, scanned, nextShard: this.scanShard,
-        hasMore: scanned >= scanLimit || candidates.length >= candidateLimit };
+      const truncated = scanned >= scanLimit || candidates.length >= candidateLimit;
+      const scanUsage: PayloadScanUsage = { measurement: 'logical_file_length_before_cleanup',
+        scanCoverage: !truncated && directories === 256 && startedAtShardBoundary && missingShards === 0 && unmeasuredEntries === 0 ? 'complete' : 'partial',
+        scanStartedAt, scanCompletedAt: new Date().toISOString(), observedBytes, observedFiles, scannedEntries: scanned,
+        missingShards, traversedShards: directories, unmeasuredEntries, startedAtShardBoundary, truncated };
+      return { candidates, scanned, nextShard: this.scanShard, hasMore: truncated, scanUsage };
     });
   }
 

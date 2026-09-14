@@ -6,12 +6,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { GatewayProxyEngineService } from './gateway-proxy-engine.service';
 import { GatewayRequestCaptureService } from './gateway-request-capture.service';
-import { auditDigest } from 'api-nova-parser';
+import { auditDigest, flushRuntimeAudit, getRuntimeAuditHealth, normalizeRuntimeAuditRecord } from 'api-nova-parser';
+import { beginGatewayRequestAudit } from './gateway-request-audit';
+import { ensureGatewayRequestId } from './gateway-audit-context';
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { GatewaySecurityService } from './gateway-security.service';
 
 describe('Gateway real HTTP audit', () => {
   it('marks a client-cancelled response as incomplete', async () => {
+    await flushRuntimeAudit();
+    const health = getRuntimeAuditHealth();
     const directory = await mkdtemp(join(tmpdir(), 'api-nova-gateway-cancel-'));
     const previous = process.env.API_NOVA_AUDIT_DIR;
     process.env.API_NOVA_AUDIT_DIR = directory;
@@ -30,7 +34,8 @@ describe('Gateway real HTTP audit', () => {
     const gateway = http.createServer(async (req, res) => {
       (req as any).originalUrl = req.url;
       (res as any).status = (code: number) => { res.statusCode = code; return res; };
-      try { await engine.forward(route, req as any, res as any); } catch { /* client disconnected */ }
+      const ingress = beginGatewayRequestAudit(req as any, res as any, ensureGatewayRequestId(req as any, res as any), route);
+      try { await ingress.run(() => engine.forward(route, req as any, res as any)); } catch (error) { ingress.failed(error); }
       finally { finish(); }
     });
     gateway.listen(0, '127.0.0.1');
@@ -41,21 +46,27 @@ describe('Gateway real HTTP audit', () => {
       expect((await result.body!.getReader().read()).value).toBeDefined();
       controller.abort();
       await completed;
-      const file = (await readdir(directory)).find(name => /^\d{4}-/.test(name))!;
-      const record = JSON.parse((await readFile(join(directory, file), 'utf8')).trim());
+      const { records } = await readCanonicalAudit(directory);
+      const { ingress: root, attempt: record } = expectAttemptTree(records);
       expect(record).toMatchObject({ outcome: 'cancelled', endpointDefinitionId: 'stream-api',
-        response: { state: 'incomplete', reason: 'stream_interrupted', totalBytes: 11 } });
+        response: { state: 'incomplete', reason: 'stream_interrupted', observedBytes: 11 } });
       expect(record.response.data).toBeUndefined();
+      expect(root).toMatchObject({ outcome: 'cancelled', response: { state: 'incomplete', observedBytes: 11 } });
+      expect(root.response.data).toBeUndefined();
     } finally {
       gateway.closeAllConnections(); upstream.closeAllConnections();
       await Promise.all([new Promise<void>(resolve => gateway.close(() => resolve())),
         new Promise<void>(resolve => upstream.close(() => resolve()))]);
+      await flushRuntimeAudit();
       if (previous === undefined) delete process.env.API_NOVA_AUDIT_DIR; else process.env.API_NOVA_AUDIT_DIR = previous;
       await rm(directory, { recursive: true, force: true });
+      expectHealthyAudit(health);
     }
   });
 
   it('persists an upstream timeout without inventing a response body', async () => {
+    await flushRuntimeAudit();
+    const health = getRuntimeAuditHealth();
     const directory = await mkdtemp(join(tmpdir(), 'api-nova-gateway-timeout-'));
     const oldDir = process.env.API_NOVA_AUDIT_DIR;
     process.env.API_NOVA_AUDIT_DIR = directory;
@@ -70,8 +81,9 @@ describe('Gateway real HTTP audit', () => {
     const gateway = http.createServer(async (req, res) => {
       (req as any).originalUrl = req.url;
       (res as any).status = (code: number) => { res.statusCode = code; return res; };
-      try { await engine.forward(route, req as any, res as any); }
-      catch (error: any) { res.writeHead(error.getStatus()).end('timeout'); }
+      const ingress = beginGatewayRequestAudit(req as any, res as any, ensureGatewayRequestId(req as any, res as any), route);
+      try { await ingress.run(() => engine.forward(route, req as any, res as any)); }
+      catch (error: any) { ingress.failed(error); res.writeHead(error.getStatus()).end('timeout'); }
     });
     gateway.listen(0, '127.0.0.1');
     await once(gateway, 'listening');
@@ -79,20 +91,26 @@ describe('Gateway real HTTP audit', () => {
       const result = await fetch(`http://127.0.0.1:${(gateway.address() as AddressInfo).port}/slow`);
       expect(result.status).toBe(504);
       await result.text();
-      const file = (await readdir(directory)).find(file => /^\d{4}-/.test(file))!;
-      const record = JSON.parse((await readFile(join(directory, file), 'utf8')).trim());
-      expect(record).toMatchObject({ outcome: 'error', statusCode: 504, endpointDefinitionId: 'slow-api' });
-      expect(record.response).toBeUndefined();
+      const { records } = await readCanonicalAudit(directory);
+      const { ingress: root, attempt: record } = expectAttemptTree(records);
+      expect(record).toMatchObject({ outcome: 'timeout', httpStatus: null, endpointDefinitionId: 'slow-api',
+        response: { state: 'unavailable', observedBytes: null } });
+      expect(record.response.data).toBeUndefined();
+      expect(root).toMatchObject({ outcome: 'timeout', httpStatus: 504, response: { observedBytes: 7, data: 'timeout' } });
     } finally {
       gateway.closeAllConnections(); upstream.closeAllConnections();
       await Promise.all([new Promise<void>(resolve => gateway.close(() => resolve())),
         new Promise<void>(resolve => upstream.close(() => resolve()))]);
+      await flushRuntimeAudit();
       if (oldDir === undefined) delete process.env.API_NOVA_AUDIT_DIR; else process.env.API_NOVA_AUDIT_DIR = oldDir;
       await rm(directory, { recursive: true, force: true });
+      expectHealthyAudit(health);
     }
   });
 
   it('captures real request/response bytes, redacts secrets, and correlates upstream identity', async () => {
+    await flushRuntimeAudit();
+    const health = getRuntimeAuditHealth();
     const directory = await mkdtemp(join(tmpdir(), 'api-nova-gateway-audit-'));
     const oldEnv = { ...process.env };
     process.env.API_NOVA_AUDIT_DIR = directory;
@@ -131,8 +149,9 @@ describe('Gateway real HTTP audit', () => {
     const gateway = http.createServer(async (req, res) => {
       (req as any).originalUrl = req.url;
       (res as any).status = (code: number) => { res.statusCode = code; return res; };
-      try { await security.authorize(route, req as any); finish(await engine.forward(route, req as any, res as any)); }
-      catch (error) { finish(error); res.end(); }
+      const ingress = beginGatewayRequestAudit(req as any, res as any, ensureGatewayRequestId(req as any, res as any), route);
+      try { await security.authorize(route, req as any); ingress.authenticated(); finish(await ingress.run(() => engine.forward(route, req as any, res as any))); }
+      catch (error) { ingress.failed(error); finish(error); res.end(); }
     });
     gateway.listen(0, '127.0.0.1');
     await once(gateway, 'listening');
@@ -148,23 +167,85 @@ describe('Gateway real HTTP audit', () => {
       expect(upstreamHeaders.authorization).toBeUndefined();
       expect(upstreamHeaders['x-api-key']).toBeUndefined();
       expect(upstreamHeaders['x-request-id']).toBe(result.headers.get('x-request-id'));
-      const logFile = (await readdir(directory)).find(file => /^\d{4}-/.test(file))!;
-      const raw = await readFile(join(directory, logFile), 'utf8');
+      const { raw, records } = await readCanonicalAudit(directory);
       expect(raw).not.toMatch(/request-secret|response-secret|ingress-secret|ingress-key/);
       expect(raw).not.toContain(token);
-      const record = JSON.parse(raw.trim());
-      expect(record).toMatchObject({ kind: 'api', endpointDefinitionId: 'api-1', sourceServiceInstanceId: 'instance-1',
-        identitySource: 'authenticated', outcome: 'success', statusCode: 200 });
-      expect(JSON.parse(record.request.data).message).toHaveLength(9000);
-      expect(JSON.parse(record.response.data).result).toHaveLength(9000);
+      const { ingress: root, attempt: record } = expectAttemptTree(records);
+      expect(record).toMatchObject({ spanKind: 'upstream_api', endpointDefinitionId: 'api-1', sourceServiceInstanceId: 'instance-1',
+        identitySource: 'authenticated', outcome: 'success', httpStatus: 200 });
+      expect(JSON.parse(record.request.data!).message).toHaveLength(9000);
+      expect(JSON.parse(record.response.data!).result).toHaveLength(9000);
+      expect(record.request.observedBytes).toBe(Buffer.byteLength(requestBody));
+      expect(record.response.observedBytes).toBe(Buffer.byteLength(responseBody));
+      expect(root).toMatchObject({ outcome: 'success', httpStatus: 200, identitySource: 'authenticated',
+        callerId: record.callerId, request: { observedBytes: Buffer.byteLength(requestBody) },
+        response: { observedBytes: Buffer.byteLength(responseBody) } });
+      expect(JSON.parse(root.request.data!).message).toHaveLength(9000);
+      expect(JSON.parse(root.response.data!).result).toHaveLength(9000);
       expect(record.requestId).toBe(upstreamHeaders['x-request-id']);
       expect(record.callerId).toBe(auditDigest('https://issuer.example\0external-user'));
     } finally {
       gateway.closeAllConnections(); upstream.closeAllConnections();
       await Promise.all([new Promise<void>(resolve => gateway.close(() => resolve())),
         new Promise<void>(resolve => upstream.close(() => resolve()))]);
+      await flushRuntimeAudit();
       process.env = oldEnv;
       await rm(directory, { recursive: true, force: true });
+      expectHealthyAudit(health);
     }
   });
 });
+
+// Producer phases are complete snapshots, not patches. Project each row through
+// the shared contract, then choose the terminal version per invocation only.
+async function readCanonicalAudit(directory: string) {
+  await flushRuntimeAudit();
+  const files = (await readdir(directory)).filter(name => /^calls-v2-.*\.jsonl$/.test(name));
+  expect(files.length).toBeGreaterThan(0);
+  const raw = (await Promise.all(files.map(name => readFile(join(directory, name), 'utf8')))).join('\n');
+  const groups = new Map<string, ReturnType<typeof normalizeRuntimeAuditRecord>[]>();
+  for (const line of raw.split('\n').filter(line => line.trim())) {
+    const row = normalizeRuntimeAuditRecord(JSON.parse(line));
+    const group = groups.get(row.invocationId) || [];
+    group.push(row);
+    groups.set(row.invocationId, group);
+  }
+  const records = [...groups.values()].map(group => {
+    group.sort((a, b) => a.recordVersion - b.recordVersion);
+    expect(group[0]).toMatchObject({ phase: 'started', recordVersion: 1 });
+    expect(new Set(group.map(row => row.recordVersion)).size).toBe(group.length);
+    expect(group.filter(row => row.phase === 'finished')).toHaveLength(1);
+    for (const row of group) {
+      expect(row).toMatchObject({ sourceInstanceId: group[0].sourceInstanceId,
+        requestId: group[0].requestId, spanKind: group[0].spanKind,
+        parentInvocationId: group[0].parentInvocationId, traceId: group[0].traceId });
+    }
+    const terminal = group[group.length - 1];
+    expect(terminal.phase).toBe('finished');
+    return terminal;
+  });
+  return { raw, records };
+}
+
+function expectHealthyAudit(before: ReturnType<typeof getRuntimeAuditHealth>) {
+  const after = getRuntimeAuditHealth();
+  expect(after.writeFailures).toBe(before.writeFailures);
+  expect(after.sourceManifestFailures).toBe(before.sourceManifestFailures);
+  expect(after.droppedRecords).toBe(before.droppedRecords);
+  expect(after.pendingWrites).toBe(0);
+}
+function expectAttemptTree(records: Awaited<ReturnType<typeof readCanonicalAudit>>['records']) {
+  expect(records).toHaveLength(2);
+  const ingress = records.filter(row => row.spanKind === 'gateway_request');
+  const attempts = records.filter(row => row.spanKind === 'upstream_api');
+  expect(ingress).toHaveLength(1);
+  expect(attempts).toHaveLength(1);
+  const root = ingress[0], attempt = attempts[0];
+  expect(root.parentInvocationId).toBeNull();
+  expect(root.rootInvocationId).toBe(root.invocationId);
+  expect(attempt.invocationId).not.toBe(root.invocationId);
+  expect(attempt).toMatchObject({ parentInvocationId: root.invocationId,
+    rootInvocationId: root.invocationId, traceId: root.traceId, requestId: root.requestId,
+    attemptIndex: 1, redirectHopIndex: 0 });
+  return { ingress: root, attempt };
+}

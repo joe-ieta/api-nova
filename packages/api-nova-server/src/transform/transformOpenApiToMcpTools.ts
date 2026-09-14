@@ -1,7 +1,7 @@
 import { join } from 'path';
 import * as fs from 'fs';
 import { parseFromFile, parseFromString, transformToMCPTools } from 'api-nova-parser';
-import type { MCPTool, ValidationError, AuthConfig } from 'api-nova-parser';
+import type { MCPTool, ValidationError, AuthConfig, TrustedOperationBinding, SingleHopUpstreamCredentialPolicy } from 'api-nova-parser';
 import { isServerDebugEnabled, serverDebugLog, serverWarnLog } from '../utils/logger';
 
 export async function transformOpenApiToMcpTools(
@@ -13,6 +13,8 @@ export async function transformOpenApiToMcpTools(
   debugHeaders?: boolean,
   operationFilter?: any,
   sourceOrigin?: string,
+  trustedOperationBindings?: readonly TrustedOperationBinding[],
+  upstreamCredentialPolicy?: SingleHopUpstreamCredentialPolicy,
 ): Promise<MCPTool[]> {
   try {
     let parseResult: any;
@@ -70,6 +72,8 @@ export async function transformOpenApiToMcpTools(
     const tools = transformToMCPTools(parseResult.spec, {
       baseUrl,
       sourceOrigin,
+      trustedOperationBindings,
+      upstreamCredentialPolicy,
       includeDeprecated: false,
       requestTimeout: 30000,
       pathPrefix: '',

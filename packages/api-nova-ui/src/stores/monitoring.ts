@@ -1,4 +1,5 @@
-import { computed, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
+import { useAuthStore } from "./auth";
 import { defineStore } from "pinia";
 import type {
   ChartSeries,
@@ -7,6 +8,8 @@ import type {
   PerformanceAlert,
 } from "@/types";
 import { runtimeAssetsAPI, runtimeObservabilityAPI } from "@/services/api";
+import { fetchObservabilitySnapshot, type StreamStatus } from "@/services/observability-stream";
+import { GatewayInvocationPager, gatewayInvocationPageState, type GatewayInvocationFilters } from "@/services/gateway-invocations";
 
 interface LogEntry {
   id: string;
@@ -70,11 +73,80 @@ export const useMonitoringStore = defineStore("monitoring", () => {
   const lastUpdate = ref<Date>(new Date());
   const isMonitoring = ref(false);
 
+  const callOverview = ref<any | null>(null);
+  const callEvents = ref<any[]>([]);
+  const callStreamStatus = ref<StreamStatus>("stopped");
+  const callStreamError = ref<string | null>(null);
+  const callOverviewStale = ref(false);
+  let callGeneration = 0;
+  let callEventVersion = 0;
+  let callRefresh: AbortController | null = null;
+  function resetCallObservability() {
+    callGeneration++;
+    gatewayPager.reset();
+    callRefresh?.abort();
+    callRefresh = null;
+    callOverview.value = null;
+    callEvents.value = [];
+    callOverviewStale.value = false;
+  }
+  function setCallStreamState(status: StreamStatus, code: string | null) {
+    callStreamStatus.value = status;
+    callStreamError.value = code;
+  }
+  function applyCallSnapshot(data: any) {
+    callOverview.value = data;
+    callOverviewStale.value = false;
+  }
+  function applyCallEventPage(items: any[]) {
+    // Validate before mutation so malformed pages cannot be acknowledged or partially applied.
+    if (items.some(item => !item || typeof item.eventId !== "string" || typeof item.sequence !== "string" ||
+      !/^(0|[1-9]\d{0,19})$/.test(item.sequence) || typeof item.eventType !== "string")) {
+      throw new Error("INVALID_EVENT");
+    }
+    if (!items.length) return;
+    callEventVersion++;
+    const unique = new Map(callEvents.value.map(item => [item.eventId, item]));
+    for (const item of items) unique.set(item.eventId, item);
+    callEvents.value = [...unique.values()].sort((a, b) =>
+      BigInt(a.sequence) > BigInt(b.sequence) ? -1 : BigInt(a.sequence) < BigInt(b.sequence) ? 1 : 0).slice(0, 200);
+    callOverviewStale.value = true;
+    scheduleRefresh("ws-call-event");
+  }
+  async function refreshCallOverview() {
+    const token = localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+    if (!token || !callOverview.value || callRefresh) return;
+    const generation = callGeneration, eventVersion = callEventVersion, controller = new AbortController();
+    callRefresh = controller;
+    const deadline = setTimeout(() => controller.abort(), 10000);
+    try {
+      const data = await fetchObservabilitySnapshot(token, controller.signal);
+      if (generation === callGeneration &&
+        token === (localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token"))) {
+        applyCallSnapshot(data);
+        callOverviewStale.value = eventVersion !== callEventVersion;
+      }
+    } catch (failure: any) {
+      if (generation === callGeneration && !controller.signal.aborted) {
+        callOverviewStale.value = true;
+        callStreamError.value = failure?.code || "SNAPSHOT_UNAVAILABLE";
+      }
+    } finally {
+      clearTimeout(deadline);
+      if (callRefresh === controller) callRefresh = null;
+    }
+  }
+
   const overview = ref<any | null>(null);
   const runtimeAssets = ref<any[]>([]);
   const runtimeEvents = ref<any[]>([]);
   const runtimeAudit = ref<any[]>([]);
-  const gatewayAccessLogs = ref<any[]>([]);
+  const authStore = useAuthStore();
+  const gatewayLogPage = reactive(gatewayInvocationPageState());
+  const gatewayPager = new GatewayInvocationPager(gatewayLogPage,
+    () => authStore.currentUser?.id ? authStore.accessToken : null);
+  watch([() => authStore.accessToken, () => authStore.currentUser?.id], () => gatewayPager.reset(), { flush: "sync" });
+  const gatewayAccessLogs = computed(() => gatewayLogPage.items);
   const acknowledgedAlertIds = ref<Set<string>>(new Set());
   const dismissedAlertIds = ref<Set<string>>(new Set());
   const metricsHistory = ref<RuntimeMetricsSnapshot[]>([]);
@@ -552,60 +624,16 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     return runtimeAudit.value;
   }
 
-  async function fetchGatewayAccessLogs(options?: {
-    page?: number;
-    limit?: number;
-    runtimeAssetId?: string;
-    runtimeMembershipId?: string;
-    routeBindingId?: string;
-    requestId?: string;
-    statusCode?: number;
-    method?: string;
-  }) {
-    if (!hasAuthToken()) {
-      gatewayAccessLogs.value = [];
-      return gatewayAccessLogs.value;
-    }
-    if (!managementApiAvailable.value) {
-      gatewayAccessLogs.value = [];
-      return gatewayAccessLogs.value;
-    }
-
-    let response: any;
-    try {
-      response = await runtimeObservabilityAPI.getGatewayAccessLogs({
-        page: options?.page || 1,
-        limit: options?.limit || 20,
-        runtimeAssetId: options?.runtimeAssetId,
-        runtimeMembershipId: options?.runtimeMembershipId,
-        routeBindingId: options?.routeBindingId,
-        requestId: options?.requestId,
-        statusCode: options?.statusCode,
-        method: options?.method,
-      });
-    } catch (fetchError: any) {
-      if (isMissingManagementApi(fetchError)) {
-        managementApiAvailable.value = false;
-        gatewayAccessLogs.value = [];
-        return gatewayAccessLogs.value;
-      }
-      if (isMonitoringAccessDenied(fetchError)) {
-        gatewayAccessLogs.value = [];
-        return gatewayAccessLogs.value;
-      }
-      throw fetchError;
-    }
-    gatewayAccessLogs.value = Array.isArray(response?.data) ? response.data : [];
+  async function fetchGatewayAccessLogs(filters?: GatewayInvocationFilters) {
+    await gatewayPager.latest(filters);
     return gatewayAccessLogs.value;
   }
-
+  const nextGatewayLogPage = () => gatewayPager.next();
   function scheduleRefresh(reason = "websocket") {
     if (!realTimeEnabled.value) {
       return;
     }
-    if (refreshTimer) {
-      clearTimeout(refreshTimer);
-    }
+    if (refreshTimer) return;
     refreshTimer = setTimeout(() => {
       refreshTimer = null;
       void refreshAll(reason);
@@ -623,10 +651,10 @@ export const useMonitoringStore = defineStore("monitoring", () => {
       return;
     }
 
-    refreshInFlight = Promise.all([
+    refreshInFlight = Promise.all([refreshCallOverview(),
       fetchOverview(),
       fetchAudit({ limit: 50 }),
-      fetchGatewayAccessLogs({ limit: 20 }),
+      gatewayPager.refresh(),
     ]).then(() => undefined);
 
     try {
@@ -786,6 +814,8 @@ export const useMonitoringStore = defineStore("monitoring", () => {
   }
 
   return {
+    callOverview, callEvents, callStreamStatus, callStreamError, callOverviewStale,
+    applyCallSnapshot, applyCallEventPage, resetCallObservability, setCallStreamState, refreshCallOverview,
     metrics,
     currentMetrics,
     alerts,
@@ -807,7 +837,7 @@ export const useMonitoringStore = defineStore("monitoring", () => {
     runtimeAssets,
     runtimeEvents,
     runtimeAudit,
-    gatewayAccessLogs,
+    gatewayAccessLogs, gatewayLogPage, nextGatewayLogPage,
     cpuSeries,
     memorySeries,
     networkInSeries,

@@ -11,7 +11,7 @@ import { CallObservabilityStore, ObservabilityWriteTransaction } from './call-ob
 
 export const OUTBOX_WORKER_STATE_ID = 'call-observability:outbox-materializer';
 const EVENT_LEASE_MS = 15000;
-const DELIVERY_RETENTION_DAYS = 14;
+export const DELIVERY_RETENTION_MS = 30 * 86400000;
 
 export interface OutboxMaterializationReport {
   claimed: number;
@@ -133,8 +133,7 @@ export class CallObservabilityOutboxService implements OnApplicationBootstrap, O
           status: 'pending', version: 1, attemptCount: 0, replayGeneration: 0,
           nextAttemptAt: tx.now, leaseOwner: null, leaseUntil: null, lastError: {},
           createdAt: tx.now, updatedAt: tx.now,
-          expiresAt: new Date(Math.min(event.expiresAt.getTime(),
-            Date.parse(tx.now) + DELIVERY_RETENTION_DAYS * 86400000)).toISOString() }));
+          expiresAt: new Date(Date.parse(tx.now) + DELIVERY_RETENTION_MS).toISOString() }));
         created++;
       }
       event.dispatchState = 'materialized';

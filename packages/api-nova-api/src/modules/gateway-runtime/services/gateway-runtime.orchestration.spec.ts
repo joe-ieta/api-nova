@@ -7,6 +7,17 @@ import { GatewayRuntimeService } from './gateway-runtime.service';
 import { GatewaySecurityService } from './gateway-security.service';
 import { GatewayTrafficControlService } from './gateway-traffic-control.service';
 
+// These orchestration fixtures do not implement the HTTP stream lifecycle.
+// Real ingress audit coverage lives in gateway-audit.integration.spec.ts.
+jest.mock('./gateway-request-audit', () => ({
+  beginGatewayRequestAudit: () => ({
+    run: <T>(operation: () => T): T => operation(),
+    authenticated: jest.fn(),
+    failed: jest.fn(),
+    cacheHit: jest.fn(),
+  }),
+}));
+
 class MockResponse {
   public statusCode = 200;
   public headersSent = false;
@@ -195,10 +206,15 @@ describe('GatewayRuntimeService orchestration', () => {
     await harness.runtimeService.forwardRequest('/orders', req, res as any);
 
     expect(req.gatewayAuth).toEqual({ mode: 'jwt', principal });
+    expect(req.headers['x-request-id']).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    expect(req.headers['x-request-id']).not.toBe('req-jwt-success');
+    expect(res.getHeader('x-request-id')).toBe(req.headers['x-request-id']);
     expect(harness.proxyEngineService.forward).toHaveBeenCalledTimes(1);
     expect(harness.runtimeObservabilityService.recordGatewayRequestResult).toHaveBeenCalledWith(
       expect.objectContaining({
-        requestId: 'req-jwt-success',
+        requestId: req.headers['x-request-id'],
         success: true,
         statusCode: 200,
       }),
@@ -418,7 +434,7 @@ describe('GatewayRuntimeService orchestration', () => {
         policies: {
           auth: { mode: 'anonymous' },
           traffic: {
-            retryPolicy: { attempts: 2 },
+            retryPolicy: { attempts: 2, baseDelayMs: 25 },
             trafficControl: {
               breaker: {
                 failureThreshold: 2,
@@ -446,16 +462,22 @@ describe('GatewayRuntimeService orchestration', () => {
         }),
         new MockResponse() as any,
       );
-      await jest.runAllTimersAsync();
+      await jest.advanceTimersByTimeAsync(0);
+      expect(harness.proxyEngineService.forward).toHaveBeenCalledTimes(1);
+      await jest.advanceTimersByTimeAsync(24);
+      expect(harness.proxyEngineService.forward).toHaveBeenCalledTimes(1);
+      await jest.advanceTimersByTimeAsync(1);
       await retryPromise;
 
       expect(harness.proxyEngineService.forward).toHaveBeenCalledTimes(2);
+      expect(jest.getTimerCount()).toBe(0);
       expect(harness.metricsService.getRuntimeAssetMetrics('runtime-1').policyCounts).toEqual(
         expect.objectContaining({
           'gateway.retry_attempt': 1,
         }),
       );
     } finally {
+      jest.clearAllTimers();
       jest.useRealTimers();
     }
   });
@@ -565,15 +587,23 @@ describe('GatewayRuntimeService orchestration', () => {
     expect(harness.proxyEngineService.forward).toHaveBeenCalledTimes(1);
     expect(secondRes.getHeader('x-apinova-cache')).toBe('HIT');
     expect(secondRes.bodyAsText()).toBe('{"cached":true}');
+    const firstRequestId = firstRes.getHeader('x-request-id');
+    const secondRequestId = secondRes.getHeader('x-request-id');
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    expect(firstRequestId).toMatch(uuidPattern);
+    expect(secondRequestId).toMatch(uuidPattern);
+    expect(firstRequestId).not.toBe('req-cache-miss');
+    expect(secondRequestId).not.toBe('req-cache-hit');
+    expect(secondRequestId).not.toBe(firstRequestId);
     expect(harness.runtimeObservabilityService.recordGatewayCacheResult).toHaveBeenCalledWith(
       expect.objectContaining({
-        requestId: 'req-cache-miss',
+        requestId: firstRequestId,
         cacheStatus: 'miss',
       }),
     );
     expect(harness.runtimeObservabilityService.recordGatewayCacheResult).toHaveBeenCalledWith(
       expect.objectContaining({
-        requestId: 'req-cache-hit',
+        requestId: secondRequestId,
         cacheStatus: 'hit',
       }),
     );

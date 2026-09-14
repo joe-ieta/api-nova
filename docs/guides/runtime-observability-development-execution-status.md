@@ -1,5 +1,5 @@
 ---
-doc-version: 2.1.0
+doc-version: 2.7.0
 doc-status: active
 doc-updated: 2026-09-14
 ---
@@ -12,7 +12,7 @@ doc-updated: 2026-09-14
 
 最近一次实现整合为 `950e150`，以远端 `7a7fc44` 为主链，保留本地独有能力。TP11/TP12 的远端持久事件、Outbox、订阅/投递管理和签名发送闭环予以保留；没有第二套聚合、物化或发送消费者。
 
-API01~26 的限定契约已验证；API27/28 policies 与新的 Socket.IO 契约仍未实现。任务包范围、接口验证与部署交付是不同维度；目前没有部署可用性验收，不将 `VERIFIED` 写成 `AVAILABLE`。
+API01~28的限定契约已验证；API27/28覆盖新事件与新正文留存。TP13/15调用事实UI已接入有界Socket.IO页流；TP14投递30天留存、正文TTL及默认关闭的有界正文GC已验证，完整状态快照/治理仍未闭合。任务包范围、接口验证与部署交付是不同维度；目前没有部署可用性验收，不将 `VERIFIED` 写成 `AVAILABLE`。
 
 ## 2. 状态规则
 
@@ -27,7 +27,7 @@ API01~26 的限定契约已验证；API27/28 policies 与新的 Socket.IO 契约
 
 ## 3. 最近有效验收记录
 
-下表是 2026-09-14 前次整合运行的结果。本轮文档整理只核对已有证据，未重新运行构建或测试。
+下表是 2026-09-14 前次整合运行的结果；后续新增运行按第7节起各轮记录，不能与历史专项相加。
 
 | 验收范围 | 最近结果 | 证据解释 |
 | --- | --- | --- |
@@ -59,10 +59,10 @@ Parser/MCP 的结果沿用前次整合验收记录，本轮没有重新执行或
 | 领域 | 真实欠缺或限制 | 归属 |
 | --- | --- | --- |
 | MCP | 完整传输/正文/平台矩阵；Windows Node v24.15.0 下 16 MiB Streamable 原生 cork/uncork 3 秒未完成对照仍存在 | TP06/16 |
-| 实时流 | 新 Socket.IO 契约、授权切换、补拉、撤权、慢消费者验收 | TP13 |
-| 状态/治理 | 真实存活、整体覆盖/保留/配额、策略 API、安全 GC 与恢复 | TP10/14 |
-| 投递留存需求差异 | Outbox 的 `DELIVERY_RETENTION_DAYS = 14`，并取事件到期时间与该上限的较早值；尚未满足 FR-10 的 30 天投递留存目标，需区分记录保留与事件过期后的重投资格 | TP14；不重开 TP12 既定闭环 |
-| 集成 | 完整服务身份、拒绝审计、旧消费者迁移和全链路部署切换 | TP15 |
+| 实时流 | 有界授权页流已有专项；完整状态快照、旧 UI 迁移、长期/跨平台矩阵未闭合 | TP13 |
+| 状态/治理 | 真实存活、长期覆盖/保留/配额、完整策略、安全 GC 与恢复；新事件/正文策略、默认关闭正文GC和授权覆盖切片已验证 | TP10/14 |
+| 投递留存剩余 | 新记录30天与14天事件重投资格已分离；历史记录策略、管理审计30天及完整安全 GC 尚待完成 | TP14；不重开 TP12 既定闭环 |
+| 集成 | 完整服务身份、拒绝审计、旧消费者迁移和全链路部署切换；公共/api路径已在本轮收敛 | TP15 |
 | 环境 | 当前整合版本的 PostgreSQL/Linux、多进程、持续负载/容量与性能矩阵 | TP16 |
 | 对外发送/部署 | 真实受控 TLS 接收端与部署交付，自动发送默认关闭 | 外部环境与部署授权 |
 
@@ -81,3 +81,62 @@ Parser/MCP 的结果沿用前次整合验收记录，本轮没有重新执行或
 - [本次归档索引](../archive/summaries/runtime-observability-2026-09-14/README.md)，包含已被替代的合并前待办报告
 
 更新规则：新增验证应注明版本、环境、范围和结果；旧失败闭环后应从当前待办移出，原始证据留在归档，不删除历史事实。
+
+## 7. 2026-09-14 活跃任务并发整合验证
+
+本轮在现有工作区之上完成 TP13 和 TP14 的可独立验证切片；状态更新为 DONE10、IN_PROGRESS4、BACKLOG2，TP11/12原完成边界不重开。
+
+- TP13：新增 CallObservabilityRealtimeService，经 CallObservabilityModule/WebSocketModule 接入既有 MonitoringGateway。复用持久 EventsService、管理 JWT/实时角色、签名游标；每页读前后复验权限。固定页50、连续补拉扫描10000、ACK5秒、空闲轮询1秒、活跃订阅与在途读取合计最多100。新连接隔离旧快照/订阅/广播。
+- TP14：Outbox 与订阅测试的新建投递记录均为30天；事件仍按14天及原到期语义控制发送/人工重投。DNS之后发送前复验事件有效性，重试截止不得越过事件到期。历史投递不自动回填，不启用清理。
+- 能力接口新增 socketEventStream，按monitoring:read资产范围开放；完整 socketPush 仍为 not_implemented，policyManagement不变。HTTP仍26/28，AVAILABLE=0。
+- 独立审查发现并修复退订后在途读者占位提前释放、错误响应泄漏旧scope动态恢复元数据；两项均有回归。完整状态快照、旧消费者迁移、policy API、整体配额/GC仍未闭合。
+
+| 验证 | 命令/范围 | 本轮结果 | 日志 |
+| --- | --- | --- | --- |
+| API统一构建 | npm run build --workspace api-nova-api | PASS | tmp/active-tasks-api-build.log |
+| 可观测性联合 | node --test；realtime、capabilities、events、outbox、deliveries、webhook-worker 六脚本 | 75/75 PASS，0 fail/cancelled/skipped | tmp/active-tasks-observability-tests.log |
+| 实时子集 | 包含于上述75项 | 11/11；真实Socket.IO回环、SQL.js、JWT/撤权、恢复/ACK和隔离 | 同上，不单独累加 |
+| 投递子集 | 包含于上述75项 | 33/33；30天创建、过期历史查询/重投拒绝、发送前过期及重试截止 | 同上，不单独累加 |
+
+环境为 Windows 当前工作区、内存SQL.js、合成权限/凭据、回环或注入网络；没有操作业务数据库、生产配置或外部接收端。Gateway并行D2的161项另见安全台账。原始tmp日志仅为本地证据，正式发布需固化版本与环境。
+## 8. 按规划继续：策略、状态覆盖与公共路径
+
+本轮三个OBS切片：API27/28复用现有Policy实体，支持全局新事件eventDays、强If-Match、fresh权限交集与同事务审计；状态新增授权目录/业务事实/历史报告coverage；公开链接和应用路由共用API_GLOBAL_PREFIX，实际/api前缀通过真实模块HTTP及Swagger对照。TP15因路径收敛切片转为IN_PROGRESS；当前DONE10、IN_PROGRESS5、BACKLOG1，不新增整包DONE。
+
+策略仅影响之后创建的invocation/projection/subscription.test事件；不改历史TTL或30天投递期限、不启动GC。坏策略拒绝使用。默认14天，允许1–365；capabilities同步持久策略并仅向全局read/manage交集开放PATCH。HTTP为28/28限定契约VERIFIED，AVAILABLE=0。Coverage不把无业务证据当空闲，不把旧状态时间当心跳。
+
+| 验证 | 本轮结果 | 日志 |
+| --- | --- | --- |
+| API整合构建 | PASS | tmp/planned-next-api-build-final.log |
+| OBS首轮十二脚本联合 | 188/191，3个旧接口数量/前缀断言失败，原证据保留 | tmp/planned-next-observability-tests.log |
+| OBS修正后同一联合 | 191/191，0 fail/cancelled/skipped | tmp/planned-next-observability-final.log |
+| 策略子集 | 6/6，SQL.js/真实HTTP、并发ETag、审计回滚、新事件生效及历史不变；包含于191 | 同上 |
+| 状态覆盖子集 | 20/20，SQL.js/HTTP/Swagger、授权、窗口/TTL/MVCC、目录缺口；包含于191 | 同上 |
+
+联合命令为 node --test packages/api-nova-api/scripts/test-call-observability-{policies,overview,capabilities,events,invocations,integration,realtime,deliveries,outbox,webhook-worker,statistics,series-groups}.cjs（花括号表示脚本集合，PowerShell执行时逐个列出）。生产代码未为旧计数调整行为；权限、数据范围和Swagger断言均保留。
+
+当前仍欠完整策略/配额/安全GC、真实心跳、旧UI迁移、MCP矩阵和当前版本PostgreSQL/Linux/多进程/性能及部署证据。无新表/初始化变化，无业务库迁移或生产清理；本地SQL.js和回环不能替代外部验收。
+
+## 9. 正文保留与调用事实UI并发推进
+
+TP14新增payloadDays及实际正文TTL消费、保留旧到期的提交时复核；默认关闭有界正文GC已接入模块，pipeline/status显示最后持久报告及失败恢复证据。TP13/15调用事实UI已接入授权快照/隔离页流、ACK和身份清理，剩余全局状态快照与其余消费者仍未闭合。清理范围仅正文对象，不扩大为完整生命周期治理。
+
+后端构建PASS，15脚本244/244；UI协议及真实Pinia接线10/10、类型检查PASS。独立审查未发现阻断问题。日志、环境边界与完整依赖见[本轮审查](../audits/2026-09-14-retention-consumer-wave.md)。当前OBS仍DONE10、IN_PROGRESS5、BACKLOG1；无新增整包DONE，AVAILABLE=0。
+
+## 10. 管理心跳与Gateway消费者继续并发推进
+
+TP10管理进程周期心跳已接模块、servers/status、overview.serverStates和pipeline/status；仅全局授权读取单owner证据，不改变业务健康。TP15 Gateway日志UI已改统一invocations、签名下一页、最近一小时及支持的元数据过滤；旧后端暂保留。任务包仍DONE10、IN_PROGRESS5、BACKLOG1。
+
+API构建PASS；OBS十六脚本254/254（包含心跳9及pipeline15，不重复相加），UI联合16/16、类型检查与生产构建PASS。测试命令、日志、独立审查和剩余依赖见[本轮记录](../audits/2026-09-14-heartbeat-header-consumer-wave.md)。无真实环境启用或部署；AVAILABLE=0。
+
+## 11. Gateway路由观测与保留策略UI
+
+新增默认关闭GatewayRoutingObservationWorker，复用真实生效注册表、Store事务和资产授权；仅证明本实例路由注册情况，不提升业务健康。Dashboard保留策略管理已接GET/PATCH、全局capabilities、强If-Match及原因；冲突重读不重放、账号/卸载清理和异步代次保护已验证。
+
+四包构建PASS；OBS十六脚本+路由专项265/265，Gateway17套176/176，UI26/26。完整命令/日志及安全并发映射结果见[本轮记录](../audits/2026-09-14-routing-policy-mapping-wave.md)。OBS计数仍DONE10、IN_PROGRESS5、BACKLOG1；业务存活、完整治理与整体交付不因局部通过而完成。
+
+## 12. 容量样本与只读诊断UI
+
+正文容量复用现有GC lstat扫描；pipeline.retention.scanUsage区分扫描覆盖、样本长度与未知当前总量，独立时间判定新鲜度，未完成尝试不复用旧样本。Dashboard只读诊断已消费管理心跳、授权路由、留存报告和容量样本，分来源失败/超时与身份切换保持隔离。
+
+OBS联合273/273，UI33/33；Parser/API/Server/UI四包构建通过。验证详情、审查及剩余任务见[本轮记录](../audits/2026-09-14-single-hop-capacity-diagnostics-wave.md)。OBS仍DONE10、IN_PROGRESS5、BACKLOG1，配额强制/完整生命周期及业务存活未闭合，无实际清理启用或部署。

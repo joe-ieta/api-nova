@@ -66,6 +66,8 @@ test('subscription test atomically creates one explicit event and one controlled
   assert.equal(result.data.suspendedBySubscription, false);
   const event = await f.events.findOneByOrFail({ id: result.data.eventId });
   assert.equal(event.eventName, 'subscription.test');
+  assert.equal(Date.parse(result.data.expiresAt) - Date.parse(result.data.createdAt), 30 * 86400000);
+  assert.ok(Date.parse(result.data.expiresAt) > event.expiresAt.getTime());
   assert.equal(event.details.test, true);
   assert.equal(event.dispatchState, 'materialized');
   assert.equal(await f.deliveryRows.countBy({ eventId: event.id }), 1);
@@ -167,6 +169,13 @@ test('active delivery and expired event fail with stable conflict and gone error
   await f.events.save(event);
   await assert.rejects(() => f.deliveries.retry(
     row.id, { reason: 'expired' }, {}, 'expired', retryScope, randomUUID()), code('EVENT_EXPIRED'));
+  assert.equal((await f.deliveries.get(row.id, {}, scoped)).data.deliveryId, row.id);
+  assert.deepEqual((await f.deliveries.list({ eventId: event.id }, scoped)).data.items.map(item => item.deliveryId), [row.id]);
+  assert.equal((await f.deliveryRows.findOneByOrFail({ id: row.id })).expiresAt, row.expiresAt);
+  await f.events.delete(event.id);
+  assert.equal((await f.deliveries.get(row.id, {}, scoped)).data.deliveryId, row.id);
+  await assert.rejects(() => f.deliveries.retry(
+    row.id, { reason: 'missing event' }, {}, 'missing-event', retryScope, randomUUID()), code('EVENT_EXPIRED'));
 });
 
 test('cancelled delivery requires an explicit enabled current revision', async t => {

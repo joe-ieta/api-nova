@@ -1,3 +1,5 @@
+import { compileSingleHopUpstreamCredentials, UpstreamCredentialExecutionError } from '../credentials/single-hop-execution';
+import { compileTrustedOperationBindings, CompiledTrustedOperationBindings, TrustedOperationBinding } from '../credentials/trusted-operation-bindings';
 import { OpenAPISpec, OperationObject, ParameterObject, RequestBodyObject, SchemaObject, ReferenceObject, MediaTypeObject, ExampleObject } from '../types/index';
 import { MCPTool, MCPToolResponse, TransformerOptions, TextContent, ImageContent, AudioContent, ResourceLink, EmbeddedResource, ContentBlock, ResponseSchemaAnnotation, FieldAnnotation, OperationFilter } from './types';
 import { SchemaAnnotationExtractor } from '../extractors/schema-annotation-extractor';
@@ -77,7 +79,7 @@ function createResourceLink(uri: string, name?: string, description?: string, mi
  */
 export class OpenAPIToMCPTransformer {
   private spec: OpenAPISpec;
-  private options: Required<Omit<TransformerOptions, 'authConfig' | 'customHeaders' | 'debugHeaders' | 'protectedHeaders' | 'operationFilter' | 'sourceOrigin'>> & {
+  private options: Required<Omit<TransformerOptions, 'authConfig' | 'customHeaders' | 'debugHeaders' | 'protectedHeaders' | 'operationFilter' | 'sourceOrigin' | 'trustedOperationBindings' | 'upstreamCredentialPolicy'>> & {
     authConfig?: AuthConfig;
     customHeaders?: TransformerOptions['customHeaders'];
     debugHeaders?: boolean;
@@ -85,12 +87,32 @@ export class OpenAPIToMCPTransformer {
     operationFilter?: OperationFilter;
     sourceOrigin?: string;
   };
+  private trustedBindings?: CompiledTrustedOperationBindings;
+  private upstreamCredentials?: ReturnType<typeof compileSingleHopUpstreamCredentials>;
+  private upstreamHttpClient?: ReturnType<typeof axios.create>;
   private annotationExtractor: SchemaAnnotationExtractor;
   private authManager?: AuthManager;
   private customHeadersManager?: CustomHeadersManager;
 
   constructor(spec: OpenAPISpec, options: TransformerOptions = {}) {
     this.spec = spec;
+    if (options.trustedOperationBindings !== undefined) {
+      this.trustedBindings = compileTrustedOperationBindings(spec, options.trustedOperationBindings);
+    }
+    if (options.upstreamCredentialPolicy !== undefined) {
+      if (!this.trustedBindings || Reflect.ownKeys(options.customHandlers || {}).length) {
+        throw new Error('INVALID_UPSTREAM_CREDENTIAL_EXECUTION');
+      }
+      this.upstreamCredentials = compileSingleHopUpstreamCredentials(options.upstreamCredentialPolicy);
+      // A private instance has no global interceptors. Ambient Axios auth defaults
+      // must not reintroduce credentials after Resolver None/header filtering.
+      this.upstreamHttpClient = axios.create();
+      this.upstreamHttpClient.defaults.headers = {} as any;
+      delete this.upstreamHttpClient.defaults.auth;
+      delete this.upstreamHttpClient.defaults.proxy;
+      delete this.upstreamHttpClient.defaults.params;
+      delete this.upstreamHttpClient.defaults.baseURL;
+    }
     const resolvedBaseUrl = options.baseUrl || this.getDefaultBaseUrl(options.sourceOrigin);
     this.options = {
       baseUrl: resolvedBaseUrl,
@@ -103,7 +125,7 @@ export class OpenAPIToMCPTransformer {
       pathPrefix: options.pathPrefix ?? '',
       stripBasePath: options.stripBasePath ?? false,
       authConfig: options.authConfig ?? undefined,
-      customHeaders: options.customHeaders ?? undefined,
+      customHeaders: this.upstreamCredentials && options.customHeaders ? { ...options.customHeaders, env: undefined } : options.customHeaders ?? undefined,
       debugHeaders: options.debugHeaders ?? false,
       protectedHeaders: options.protectedHeaders ?? [],
       sourceOrigin: options.sourceOrigin,
@@ -125,7 +147,7 @@ export class OpenAPIToMCPTransformer {
     this.annotationExtractor = new SchemaAnnotationExtractor(spec);
     
     // 初始化认证管理器
-    this.initializeAuthManager();
+    if (!this.upstreamCredentials) this.initializeAuthManager();
     
     // 初始化自定义请求头管理器
     this.initializeCustomHeadersManager();
@@ -162,7 +184,7 @@ export class OpenAPIToMCPTransformer {
         this.options.customHeaders,
         {
           protectedHeaders: this.options.protectedHeaders,
-          debugMode: this.options.debugHeaders
+          debugMode: this.upstreamCredentials ? false : this.options.debugHeaders
         }
       );
     }
@@ -180,6 +202,8 @@ export class OpenAPIToMCPTransformer {
       for (const method of methods) {
         const operation = pathItem[method];
         if (operation && this.shouldIncludeOperation(operation, method, path)) {
+          // Validate outside the legacy per-tool catch: a configured identity gap rejects the whole transform.
+          this.trustedBindings?.get(method, path);
           const tool = this.createMCPToolFromOperation(method, path, operation);
           if (tool) {
             tools.push(tool);
@@ -586,17 +610,24 @@ export class OpenAPIToMCPTransformer {
    * Create handler function for the operation
    */
   private createHandler(method: string, path: string, operation: OperationObject) {
+    // Capture a frozen identity once; caller args and later spec/registry edits cannot replace it.
+    const trustedBinding = this.trustedBindings?.get(method, path);
     return async (args: any): Promise<MCPToolResponse> => {
       try {
         // Check for custom handler
-        const customHandler = this.options.customHandlers[operation.operationId || `${method}_${path}`];
+        const handlerKey = operation.operationId || `${method}_${path}`;
+        if (this.upstreamCredentials && Object.prototype.hasOwnProperty.call(this.options.customHandlers, handlerKey)) {
+          return { content: [createTextContent('UPSTREAM_CREDENTIAL_UNAVAILABLE', { errorType: 'upstream_execution_error', code: 'UPSTREAM_CREDENTIAL_UNAVAILABLE' })], isError: true };
+        }
+        const customHandler = this.upstreamCredentials ? undefined : this.options.customHandlers[handlerKey];
         if (customHandler) {
           return await customHandler(args);
         }
 
         // Default HTTP request handler
-        return await this.executeHttpRequest(method, path, args, operation);
+        return await this.executeHttpRequest(method, path, args, operation, trustedBinding);
       } catch (error) {
+        if (this.upstreamCredentials) return { content: [createTextContent('UPSTREAM_CREDENTIAL_UNAVAILABLE', { errorType: 'upstream_execution_error', code: 'UPSTREAM_CREDENTIAL_UNAVAILABLE' })], isError: true };
         parserWarnLog(`Error executing ${method.toUpperCase()} ${path}:`, error);
         return {
           content: [createTextContent(
@@ -621,13 +652,16 @@ export class OpenAPIToMCPTransformer {
     method: string,
     path: string,
     args: any,
-    operation: OperationObject
+    operation: OperationObject,
+    trustedBinding?: Readonly<TrustedOperationBinding>
   ): Promise<MCPToolResponse> {
     const context = getRuntimeCallContext();
     let auditAgents: ReturnType<typeof createRuntimeHttpAuditAgents> | undefined;
     try {
       // 1. 构建请求 URL
       const { url, queryParams } = this.buildUrlWithParams(path, args, operation);
+      // Authorize before custom header providers or any HTTP transport work.
+      const upstreamCredentials = await this.upstreamCredentials?.resolve(trustedBinding, url);
 
       // 2. 准备请求头（默认头）
       const headers = { ...this.options.defaultHeaders };
@@ -654,9 +688,13 @@ export class OpenAPIToMCPTransformer {
       }
 
       // 4. 添加认证头（最高优先级，可能覆盖自定义头）
-      const credentialHeaders = resolveRuntimeCredentialRefHeaders((operation as any)['x-api-nova-credential-ref']);
+      const credentialHeaders = upstreamCredentials?.headers ?? resolveRuntimeCredentialRefHeaders((operation as any)['x-api-nova-credential-ref']);
+      if (upstreamCredentials) {
+        const managed = new Set(upstreamCredentials.managedHeaderNames);
+        for (const name of Object.keys(headers)) if (managed.has(name.toLowerCase())) delete headers[name];
+      }
       Object.assign(headers, credentialHeaders);
-      const credentialNames = [...Object.keys(credentialHeaders), ...Object.keys(this.options.customHeaders?.env || {})];
+      const credentialNames = [...(upstreamCredentials?.managedHeaderNames || Object.keys(credentialHeaders)), ...Object.keys(this.options.customHeaders?.env || {})];
 
       if (this.authManager) {
         const authHeaders = await this.authManager.getAuthHeaders({
@@ -675,8 +713,8 @@ export class OpenAPIToMCPTransformer {
         auditAgents = createRuntimeHttpAuditAgents({ ...context,
           runtimeAssetId: (operation as any)['x-runtime-asset-id'] || context.runtimeAssetId,
           runtimeAssetEndpointBindingId: (operation as any)['x-runtime-asset-endpoint-binding-id'] || context.runtimeAssetEndpointBindingId,
-          endpointDefinitionId: (operation as any)['x-endpoint-definition-id'] || context.endpointDefinitionId,
-          sourceServiceAssetId: (operation as any)['x-source-service-asset-id'] || context.sourceServiceAssetId,
+          endpointDefinitionId: trustedBinding?.endpointDefinitionId || (operation as any)['x-endpoint-definition-id'] || context.endpointDefinitionId,
+          sourceServiceAssetId: trustedBinding?.sourceServiceAssetId || (operation as any)['x-source-service-asset-id'] || context.sourceServiceAssetId,
           sourceServiceInstanceId: (operation as any)['x-source-service-instance-id'] || context.sourceServiceInstanceId,
           operationId: operation.operationId,
         }, credentialNames);
@@ -691,11 +729,11 @@ export class OpenAPIToMCPTransformer {
       }
       
       // 7. 执行 HTTP 请求
-      const response = await axios({
+      const response = await (this.upstreamHttpClient || axios)({
         method: method.toLowerCase() as any, url, params: queryParams, data: requestBody, headers,
         timeout: this.options.requestTimeout,
         validateStatus: () => true,
-        maxRedirects: 5, responseType: 'json',
+        maxRedirects: this.upstreamCredentials ? 0 : 5, responseType: 'json',
         ...(auditAgents ? { httpAgent: auditAgents.httpAgent, httpsAgent: auditAgents.httpsAgent } : {}),
       });
 
@@ -704,6 +742,10 @@ export class OpenAPIToMCPTransformer {
 
     } catch (error) {
       // 7. 错误处理
+      if (this.upstreamCredentials) {
+        const code = error instanceof UpstreamCredentialExecutionError ? 'UPSTREAM_CREDENTIAL_UNAVAILABLE' : 'UPSTREAM_REQUEST_FAILED';
+        return { content: [createTextContent(code, { errorType: 'upstream_execution_error', code })], isError: true };
+      }
       return this.handleRequestError(error, method, path);
     } finally {
       auditAgents?.destroy();

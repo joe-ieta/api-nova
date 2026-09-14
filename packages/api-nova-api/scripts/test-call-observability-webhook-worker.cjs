@@ -199,3 +199,45 @@ test('reclaims an expired in-flight lease but leaves an active lease untouched',
   assert.equal((await second.worker.runOnce(1)).claimed, 0);
   assert.equal(second.calls.length, 0);
 });
+
+
+test('expired events leave retained delivery history without network sends', async t => {
+  const f = await fixture(t);
+  await f.database.getRepository(RuntimeObservabilityEventEntity).update(f.delivery.data.eventId,
+    { expiresAt: new Date(Date.now() - 1000) });
+  await f.worker.runOnce();
+  assert.equal(f.calls.length, 0);
+  const row = await f.rows.findOneByOrFail({ id: f.delivery.data.deliveryId });
+  assert.equal(row.status, 'dead');
+  assert.equal(row.lastError.category, 'event_expired');
+  assert.equal(Date.parse(row.expiresAt) - Date.parse(row.createdAt), 30 * 86400000);
+  assert.equal(await f.attempts.count(), 0);
+});
+
+test('events expiring during DNS resolution are not posted', async t => {
+  const f = await fixture(t);
+  const resolve = f.worker.addresses.bind(f.worker);
+  let now;
+  const originalNow = Date.now;
+  f.worker.addresses = async (...args) => {
+    const result = await resolve(...args);
+    const event = await f.database.getRepository(RuntimeObservabilityEventEntity).findOneByOrFail({ id: f.delivery.data.eventId });
+    now = event.expiresAt.getTime();
+    Date.now = () => now;
+    return result;
+  };
+  try { await f.worker.runOnce(); } finally { Date.now = originalNow; }
+  assert.equal(f.calls.length, 0);
+  const row = await f.rows.findOneByOrFail({ id: f.delivery.data.deliveryId });
+  assert.equal(row.status, 'dead');
+  assert.equal(row.lastError.category, 'event_expired');
+});
+
+test('retry deadlines respect event expiration despite longer delivery retention', async t => {
+  const f = await fixture(t, { responder: () => ({ status: 503 }) });
+  await f.database.getRepository(RuntimeObservabilityEventEntity).update(f.delivery.data.eventId,
+    { expiresAt: new Date(Date.now() + 3000) });
+  await f.worker.runOnce();
+  assert.equal(f.calls.length, 1);
+  assert.equal((await f.rows.findOneByOrFail({ id: f.delivery.data.deliveryId })).status, 'dead');
+});

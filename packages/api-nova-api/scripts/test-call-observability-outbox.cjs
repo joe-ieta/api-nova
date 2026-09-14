@@ -199,3 +199,15 @@ test('opt-in background lifecycle materializes and shutdown waits for active wor
   await worker.onModuleDestroy();
   assert.equal(await f.deliveries.count(), 1);
 });
+
+
+test('delivery history retains 30 days independently of the shorter event lifetime', async t => {
+  const f = await fixture(t);
+  await f.subscription();
+  const event = await f.event({ expiresAt: new Date(Date.now() + 60000) });
+  await f.worker.runOnce();
+  const delivery = await f.deliveries.findOneByOrFail({ eventId: event.id });
+  assert.equal(Date.parse(delivery.expiresAt) - Date.parse(delivery.createdAt), 30 * 86400000);
+  assert.ok(Date.parse(delivery.expiresAt) > event.expiresAt.getTime());
+  assert.ok(await f.events.findOneBy({ id: event.id }));
+});

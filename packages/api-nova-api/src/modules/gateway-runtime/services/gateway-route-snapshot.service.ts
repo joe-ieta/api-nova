@@ -44,6 +44,7 @@ import { SourceServiceInstanceEntity } from '../../../database/entities/source-s
 export class GatewayRouteSnapshotService implements OnModuleInit {
   private readonly logger = new Logger(GatewayRouteSnapshotService.name);
   private snapshot: GatewaySnapshotRouteEntry[] = [];
+  private snapshotInitialized = false;
   private readonly candidateSnapshots = new Map<
     string,
     {
@@ -125,6 +126,7 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
     });
     if (persisted.length === 0) {
       this.snapshot = [];
+      this.snapshotInitialized = true;
       this.logger.log('Loaded gateway route snapshot with 0 persisted verified routes');
       return;
     }
@@ -152,6 +154,7 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
       restoredAssets.add(item.runtimeAssetId);
     }
     this.snapshot = this.sortSnapshot(restored);
+    this.snapshotInitialized = true;
     this.logger.log(`Loaded gateway route snapshot with ${this.snapshot.length} persisted verified routes`);
   }
 
@@ -221,6 +224,7 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
       ...this.snapshot.filter(entry => entry.runtimeAsset.id !== candidate.runtimeAssetId),
       ...candidate.entries,
     ]);
+    this.snapshotInitialized = true;
     this.candidateSnapshots.delete(candidateRevision);
     return {
       runtimeAssetId: candidate.runtimeAssetId,
@@ -240,6 +244,7 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
       ...this.snapshot.filter(entry => entry.runtimeAsset.id !== runtimeAssetId),
       ...previousEntries,
     ]);
+    this.snapshotInitialized = true;
     this.rollbackSnapshots.delete(runtimeAssetId);
     return {
       runtimeAssetId,
@@ -254,6 +259,24 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
 
   private removeRuntimeAsset(runtimeAssetId: string) {
     this.snapshot = this.snapshot.filter(entry => entry.runtimeAsset.id !== runtimeAssetId);
+  }
+
+  /** A bounded copy of this process's actual active registry; never a network/health probe. */
+  observeRoutingAssets(): ReadonlyArray<Readonly<{ runtimeAssetId: string; activeRouteCount: number }>> {
+    if (!this.snapshotInitialized) throw new Error('GATEWAY_ROUTE_REGISTRY_NOT_READY');
+    // Capture one array reference synchronously; candidate and rollback maps are excluded.
+    const snapshot = this.snapshot;
+    if (snapshot.length > 10000) throw new Error('GATEWAY_ROUTE_OBSERVATION_TOO_LARGE');
+    const counts = new Map<string, number>();
+    for (const entry of snapshot) {
+      const id = entry.runtimeAsset?.id;
+      if (typeof id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ||
+        entry.runtimeAsset.type !== RuntimeAssetType.GATEWAY_SERVICE) throw new Error('INVALID_GATEWAY_ROUTE_OBSERVATION');
+      counts.set(id, (counts.get(id) || 0) + 1);
+      if (counts.size > 200) throw new Error('GATEWAY_ROUTE_OBSERVATION_TOO_LARGE');
+    }
+    return Object.freeze([...counts].sort(([a], [b]) => a.localeCompare(b))
+      .map(([runtimeAssetId, activeRouteCount]) => Object.freeze({ runtimeAssetId, activeRouteCount })));
   }
 
   private serializeEntries(entries: GatewaySnapshotRouteEntry[]) {

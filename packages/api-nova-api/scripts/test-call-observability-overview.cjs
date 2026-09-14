@@ -248,6 +248,16 @@ test('isolated HTTP routes enforce JWT/asset roles, safe errors and generated Sw
     assert.equal(response.status, 200); assert.equal(response.headers['cache-control'], 'no-store');
     assert.equal(JSON.stringify(response.body).includes('hidden'), false);
     assert.equal(JSON.stringify(response.body).includes('private-marker'), false);
+    if (path === 'servers/status' || path === 'overview') {
+      const status = path === 'overview' ? response.body.data.serverStates : response.body.data;
+      assert.equal(status.coverage.registeredServers, 1);
+      assert.equal(status.coverage.serversWithBusinessObservations, 1);
+      assert.equal(status.coverage.unrepresentedBusinessServers, 0);
+      assert.equal(status.items[0].businessObservationStatus, 'observed');
+    }
+    assert.equal(swagger.components.schemas.ObservabilityServerStatusesDto.properties.coverage.$ref,
+      '#/components/schemas/ObservabilityServerCoverageDto');
+    assert.equal(swagger.components.schemas.ObservabilityServerCoverageDto.properties.historyCompleteSince.nullable, true);
     const operation = swagger.paths[uri].get;
     assert.equal(operation.operationId, operationId);
     assert.deepEqual(operation.parameters.map(x => x.name).sort(), ['from', 'to', 'origin', 'serverType', 'runtimeAssetId'].sort());
@@ -337,4 +347,84 @@ test('real event service accepts only previously issued overview sequences with 
   }
   await assert.rejects(events.list(query, { ...scope, fingerprint: 'changed' }),
     error => error.code === 'CURSOR_SCOPE_MISMATCH');
+});
+test('server coverage reports deleted and mismatched observed assets, deduplicated without inventing status', async t => {
+  const f = await fixture(t);
+  await f.asset(); await f.asset('changed-type', 'mcp_server'); await f.asset('idle');
+  await f.add(); await f.add({ runtimeAssetId: 'deleted' }); await f.add({ runtimeAssetId: 'deleted' });
+  await f.add({ runtimeAssetId: 'changed-type' });
+  await f.add({ runtimeAssetId: 'upstream-only', spanKind: 'upstream_api' });
+  const data = (await f.overview.get(window, authorization(null))).data.serverStates;
+  assert.equal(data.coverage.registeredServers, 3);
+  assert.equal(data.coverage.serversWithBusinessObservations, 1);
+  assert.equal(data.coverage.unrepresentedBusinessServers, 2);
+  assert.equal(data.coverage.serversWithReportedState, 0);
+  assert.ok(data.coverage.gaps.includes('observed_server_not_in_directory'));
+  assert.ok(data.coverage.gaps.includes('business_not_observed'));
+  assert.ok(data.coverage.gaps.includes('persisted_state_missing'));
+  assert.equal(data.items.find(x => x.runtimeAssetId === 'changed-type').businessObservationStatus, 'not_observed');
+  assert.equal(data.items.find(x => x.runtimeAssetId === 'asset-a').businessObservationStatus, 'observed');
+  assert.equal(data.items.some(x => x.runtimeAssetId === 'deleted'), false);
+  assert.equal(data.livenessEvaluated, false); assert.equal(data.coverage.historyCompleteSince, null);
+  for (const item of data.items) {
+    assert.equal(item.lastHeartbeatAt, null); assert.equal(item.freshnessStatus, 'unknown');
+    assert.equal(item.healthStatus, 'unknown'); assert.equal(item.activeInvocations, null);
+  }
+  const deleted = (await f.servers.list({ ...window, runtimeAssetId: 'deleted' }, authorization(['deleted']))).data;
+  assert.deepEqual(deleted.items, []);
+  assert.equal(deleted.coverage.unrepresentedBusinessServers, 1, 'no directory rows must still report observed evidence gaps');
+});
+
+test('server coverage applies grants, serverType, origin, window, retention and revision predicates', async t => {
+  const f = await fixture(t); await f.asset(); await f.asset('hidden'); await f.asset('mcp', 'mcp_server');
+  await f.add(); await f.add({ runtimeAssetId: 'hidden' });
+  await f.add({ runtimeAssetId: 'missing-mcp', serverType: 'mcp', spanKind: 'mcp_tool' });
+  await f.add({ runtimeAssetId: 'probe-only', origin: 'probe' });
+  await f.add({ runtimeAssetId: 'outside-window', startedAt: window.to });
+  await f.add({ runtimeAssetId: 'expired' }, { expiresAt: '2000-01-01T00:00:00.000Z' });
+  await f.add({ runtimeAssetId: 'superseded' }, { validUntilSequence: sequenceKey(10) });
+  await f.add({ runtimeAssetId: 'future' }, { validFromSequence: sequenceKey(21) });
+  const local = (await f.servers.list(window, authorization(['asset-a']))).data.coverage;
+  assert.equal(local.registeredServers, 1); assert.equal(local.serversWithBusinessObservations, 1);
+  assert.equal(local.unrepresentedBusinessServers, 0);
+  const globalGateway = (await f.servers.list({ ...window, serverType: 'gateway' }, authorization(null))).data.coverage;
+  assert.equal(globalGateway.registeredServers, 2); assert.equal(globalGateway.unrepresentedBusinessServers, 0);
+  const global = (await f.servers.list(window, authorization(null))).data.coverage;
+  assert.equal(global.registeredServers, 3); assert.equal(global.unrepresentedBusinessServers, 1);
+  for (const [query, grant] of [[window, []], [{ ...window, runtimeAssetId: 'hidden' }, ['asset-a']]]) {
+    const empty = (await f.servers.list(query, authorization(grant))).data.coverage;
+    for (const key of ['registeredServers', 'serversWithBusinessObservations', 'serversWithReportedState',
+      'unrepresentedBusinessServers', 'unattributedBusinessInvocations']) assert.equal(empty[key], 0);
+    assert.equal(empty.gaps.includes('observed_server_not_in_directory'), false);
+  }
+});
+
+test('unattributed business facts remain unknown and invisible to asset-local coverage', async t => {
+  const f = await fixture(t); await f.asset();
+  await f.add({ runtimeAssetId: undefined }); await f.add({ runtimeAssetId: undefined, spanKind: 'upstream_api' });
+  const global = (await f.servers.list(window, authorization(null))).data.coverage;
+  assert.equal(global.unattributedBusinessInvocations, 1);
+  assert.equal(global.unrepresentedBusinessServers, 0);
+  assert.ok(global.gaps.includes('business_asset_identity_missing'));
+  const local = (await f.servers.list(window, authorization(['asset-a']))).data.coverage;
+  assert.equal(local.unattributedBusinessInvocations, 0);
+  assert.equal(local.gaps.includes('business_asset_identity_missing'), false);
+});
+
+test('historical persisted report coverage is distinct from heartbeat and pipeline freshness', async t => {
+  const f = await fixture(t); await f.asset();
+  await f.db.getRepository(State).save({ id: 'old-report', scopeType: 'runtime_asset', runtimeAssetId: 'asset-a',
+    runtimeAssetEndpointBindingId: null, currentStatus: 'active', healthStatus: 'healthy',
+    updatedAt: new Date('2000-01-01T00:00:00Z') });
+  await f.db.getRepository(Pipeline).save({ id: 'call-observability:collector-worker', updatedAt: new Date().toISOString(),
+    value: { state: 'running', scanComplete: true } });
+  const data = (await f.servers.list(window, authorization(['asset-a']))).data;
+  assert.equal(data.coverage.serversWithReportedState, 1); assert.equal(data.coverage.serversWithBusinessObservations, 0);
+  assert.equal(data.coverage.gaps.includes('persisted_state_missing'), false);
+  assert.ok(data.coverage.gaps.includes('heartbeat_unavailable'));
+  assert.equal(data.items[0].businessObservationStatus, 'not_observed');
+  assert.equal(data.items[0].reportedState.healthStatus, 'healthy');
+  assert.equal(data.items[0].healthStatus, 'unknown'); assert.equal(data.items[0].lastHeartbeatAt, null);
+  assert.equal(data.items[0].freshnessStatus, 'unknown'); assert.equal(data.livenessEvaluated, false);
+  assert.equal(data.coverage.historyCompleteSince, null); assert.equal(data.coverage.isPartial, true);
 });

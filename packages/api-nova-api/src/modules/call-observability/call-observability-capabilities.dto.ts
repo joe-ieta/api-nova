@@ -14,7 +14,7 @@ export class ObservabilityEndpointCapabilityDto {
   @ApiProperty({ type: [String] }) queryParameters: string[];
   @ApiProperty({ type: [String] }) requiredPermissions: string[];
   @ApiProperty({ enum: ['all', 'scoped', 'none'] }) scopeMode: string;
-  @ApiProperty({ enum: ['capability_only', 'per_asset', 'all_registered_caller_assets'] }) authorizationRule: string;
+  @ApiProperty({ enum: ['capability_only', 'per_asset', 'all_registered_caller_assets', 'explicit_global_scope'] }) authorizationRule: string;
 }
 export class ObservabilityRetentionCapabilitiesDto {
   @ApiProperty({ enum: ['storage_defaults_not_coverage_guarantees'] }) basis: string;
@@ -58,7 +58,7 @@ export class ObservabilityCapabilitiesDto {
   @ApiProperty() maxQueryCursorLifetimeMs: number;
   @ApiProperty({ type: ObservabilityRetentionCapabilitiesDto }) retentionWindows: ObservabilityRetentionCapabilitiesDto;
   @ApiProperty({ type: ObservabilityPayloadLimitsDto, nullable: true }) payloadLimits: ObservabilityPayloadLimitsDto | null;
-  @ApiProperty({ type: Number, nullable: true, description: 'Public event-history retention; null while that endpoint is not implemented.' })
+  @ApiProperty({ type: Number, nullable: true, description: 'Effective retention for newly created unified events, not a guarantee of historical coverage; null without visible assets.' })
   eventRetention: number | null;
   @ApiProperty({ enum: ['unknown'] }) observationHealth: string;
 }

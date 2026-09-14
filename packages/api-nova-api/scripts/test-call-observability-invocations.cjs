@@ -1,4 +1,5 @@
 'use strict';
+const { API_GLOBAL_PREFIX } = require('../dist/src/common/http-api-paths.js');
 process.env.DB_TYPE = 'sqlite';
 for (const key of ['JWT_SECRET', 'API_NOVA_OBSERVABILITY_CURSOR_SECRET',
   'API_NOVA_OBSERVABILITY_CURSOR_KEY_ID']) delete process.env[key];
@@ -88,9 +89,9 @@ async function fixture(t) {
     ],
   })(FixtureModule);
   app = await NestFactory.create(FixtureModule, { logger: false, abortOnError: false });
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix(API_GLOBAL_PREFIX);
   await app.listen(0, '127.0.0.1');
-  const base = 'http://127.0.0.1:' + app.getHttpServer().address().port + '/api/v1/monitoring/observability';
+  const base = 'http://127.0.0.1:' + app.getHttpServer().address().port + '/api/monitoring/observability';
   const now = Date.now() - 5000, sourceInstanceId = randomUUID();
   const range = { from: new Date(now - 60000).toISOString(), to: new Date(now + 60000).toISOString() };
   function account(roles = [role()]) {
@@ -181,7 +182,7 @@ test('list returns scoped metadata only and opt-in total excludes hidden assets 
   }
   const item = result.body.data.items[0];
   assert.equal(item.request.state, 'captured');
-  assert.equal(item.request.readLink, '/api/v1/monitoring/observability/invocations/visible/payloads/request');
+  assert.equal(item.request.readLink, '/api/monitoring/observability/invocations/visible/payloads/request');
   assert.equal(item.sourceRestricted, true);
   assert.equal(item.publicationSnapshot, null);
   assert.ok(item.missingFields.includes('publicationSnapshot'));
@@ -479,10 +480,10 @@ test('failed database reads return a safe envelope, never private driver details
 test('generated Swagger matches real paths, operation IDs, query allowlist and safe response DTOs', async t => {
   const f = await fixture(t);
   const document = SwaggerModule.createDocument(f.app, new DocumentBuilder().setTitle('Fixture').setVersion('1.0').addBearerAuth().build());
-  const listPath = '/api/v1/monitoring/observability/invocations';
+  const listPath = '/api/monitoring/observability/invocations';
   const detailPath = listPath + '/{id}';
   assert.deepEqual(Object.keys(document.paths).sort(), [listPath, detailPath,
-    '/api/v1/monitoring/observability/traces/{traceId}'].sort());
+    '/api/monitoring/observability/traces/{traceId}'].sort());
   const list = document.paths[listPath].get, detail = document.paths[detailPath].get;
   assert.equal(list.operationId, 'obsListInvocations');
   assert.equal(detail.operationId, 'obsGetInvocation');
@@ -776,7 +777,7 @@ test('trace node bound is applied only after authorization, not to hidden node c
 test('generated trace Swagger matches its strict query, graph models and error statuses', async t => {
   const f = await fixture(t);
   const document = SwaggerModule.createDocument(f.app, new DocumentBuilder().setTitle('Fixture').setVersion('1.0').addBearerAuth().build());
-  const route = '/api/v1/monitoring/observability/traces/{traceId}', operation = document.paths[route].get;
+  const route = '/api/monitoring/observability/traces/{traceId}', operation = document.paths[route].get;
   assert.equal(operation.operationId, 'obsGetTrace');
   assert.deepEqual(operation.security, [{ bearer: [] }]);
   assert.deepEqual(operation.parameters.filter(item => item.in === 'query').map(item => item.name), ['origin']);

@@ -1,5 +1,5 @@
 ---
-doc-version: 2.1.0
+doc-version: 2.7.0
 doc-status: active
 doc-updated: 2026-09-14
 approval-status: approved
@@ -22,7 +22,7 @@ implementation-status: in-progress
 
 全局编码门禁 OBS-GATE-01 已通过。当前状态唯一汇总见[完成情况复核](./runtime-observability-completion-review.md)，[执行状态](./runtime-observability-development-execution-status.md)维护证据索引与真实剩余清单；本文维护批准任务目标、依赖和退出条件，不追加逐轮执行流水。
 
-2026-09-14 对齐口径：OBS-TP-01~05、07~09、11、12 为 DONE，共 10 包；06、10 为 IN_PROGRESS；13~16 为 BACKLOG。OBS-API-01~26 在限定契约内 VERIFIED，27/28 policies 未实现，AVAILABLE=0。Webhook 包已闭环但 Worker 默认关闭、未部署；新 Socket.IO 协议未实现。任务包完成不等于跨包 AC 或整体平台、性能、部署验收完成。
+2026-09-14 对齐口径：OBS-TP-01~05、07~09、11、12 为 DONE，共 10 包；06、10、13、14、15 为 IN_PROGRESS；16 为 BACKLOG。OBS-API-01~28 在限定契约内 VERIFIED，27/28覆盖新事件与新正文留存，AVAILABLE=0。Webhook 包已闭环但 Worker 默认关闭、未部署；Socket.IO 有界事件页已验证，完整状态/快照协议未闭合。任务包完成不等于跨包 AC 或整体平台、性能、部署验收完成。
 
 ## 2. 任务包总表
 
@@ -175,7 +175,7 @@ flowchart TD
 
 交付 OBS-API-01/02/11~15。实现 timeBasis/scope、去重人数、字节覆盖、直方图、调用者历史桶、迟到修正、依赖影响与 heartbeat/freshness。
 
-已实现边界：OBS-API-01/02/11~15 的限定查询契约已验证；Store 持久聚合重算、缓存三态统计、overview、依赖归因、授权服务器状态及安全事件快照桥接已合并。不是待建 B02 持久内核，也不另建本地聚合器。TP-10 仍 IN_PROGRESS：真实心跳/实时在途、完整历史维度与整包 AC-11/19 不能由有界查询代替。
+已实现边界：OBS-API-01/02/11~15 的限定查询契约已验证；Store 持久聚合重算、缓存三态统计、overview、依赖归因、授权服务器状态及安全事件快照桥接已合并。不是待建 B02 持久内核，也不另建本地聚合器。管理进程周期心跳已有独立租约及持久事件；Gateway新增实际本实例路由注册表周期观测及DB资产映射，两者均不证明业务服务存活。TP-10 仍 IN_PROGRESS：业务真实心跳/实时在途、完整历史维度与整包 AC-11/19 不能由有界查询代替。
 
 使用 TP-02 的事件仓储发布 bucket/state 变更，不依赖 TP-11 Webhook 分发完成即可验证；这是避免聚合和事件互相等待的接口边界。
 
@@ -201,7 +201,7 @@ flowchart TD
 
 ### OBS-TP-13 Socket.IO 与快照恢复
 
-本包仍为设计目标。现有 overview→events 仅桥接调用事实，不能据此认定实时订阅已完成。
+本包为 IN_PROGRESS。有界授权事件页流已接现有 monitoring namespace；复用 overview→events 调用事实桥接，具备每页权限复验和 ACK 流控。调用事实UI已接入；全局状态快照、其余消费者迁移及真实传输矩阵仍未完成。
 
 交付 OBS-PUSH-01。沿用既有 namespace/连接方式，新订阅使用同一持久事件源，支持安全快照衔接、签名游标、有限补拉/缓冲、慢客户端断开和 Token 过期。
 
@@ -209,7 +209,7 @@ flowchart TD
 
 ### OBS-TP-14 保留、容量与运行健康
 
-本包仍为 BACKLOG；OBS-API-26 已完成真实持久状态的限定读取，不代表统一治理已完成。OBS-API-27/28 未实现。
+本包为 IN_PROGRESS；新建投递记录30天与事件重投资格分离已实现。OBS-API-26 限定读取已完成，OBS-API-27/28的新事件/正文留存、受权策略UI与默认关闭正文GC已验证；GC同扫描容量样本和只读诊断UI已接入；整体配额、管理审计及其余元数据清理未实现。
 
 交付 OBS-API-26~28。统一暴露前面任务已有的采集/聚合/投递指标，实现有效策略、TTL、磁盘配额、正文过期状态、receipt 墓碑、孤立对象和未导入暂存处理。
 
@@ -220,6 +220,8 @@ flowchart TD
 ### OBS-TP-15 全链路集成与旧能力收敛
 
 依次联通“真实外部请求 → 上游 → 文件 → 索引 → 查询/聚合 → 事件 → 接收端”，覆盖三类采集来源与两类服务器。将重复 gateway-access-logs/external-callers 查询及其现有调用方收敛到新 Endpoint，验证统一分页、字段和权限；不保留兼容别名。
+
+Gateway日志UI已迁移为统一invocations查询，最近一小时、签名下一页，保留元数据权限边界；原HTTP method/path/status筛选不伪造为新接口支持。其余调用者查询与完整链路仍待收敛。
 
 输出增量启用、有限数据集初始化、停止新消费者的回退步骤；不能靠删数据回退。关联 ID 与数据源权威要证明没有两路日志重复计数。
 
@@ -290,7 +292,6 @@ API 状态依其自己的契约测试推进，不由某个共享基础包 DONE �
 
 overview、dependencies、servers/status、pipeline/status 和快照授权桥接属于已合并的本地独有增量。持久状态不等于实时心跳；overview 的 invocationSnapshotSeq 仅覆盖调用事实，不是服务器状态完整水位。策略治理、完整保留清理、Socket.IO、MCP 剩余传输矩阵、全链路旧能力收敛及平台/性能验收继续按对应任务包推进。
 
-批准保留目标不随实现缩减：投递记录目标 30 天，而当前 Outbox 生成 delivery 的到期时间受事件到期及 14 天上限约束；治理包需明确记录并处理该差异，不能修改需求来消除缺口。
+批准保留目标不随实现缩减：新建 delivery 已保留创建后30天，与事件14天及重投资格分离；历史记录不自动回填。管理审计30天、整体保留与安全清理仍由 TP14 完成。
 
 逐轮记录、旧 B01/B02 接续设计与旧剩余清单不再作为当前执行依据。完整旧计划见[历史归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-development-task-plan.md)；当前剩余工作只查 execution-status。
-
