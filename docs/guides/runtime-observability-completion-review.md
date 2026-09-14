@@ -158,3 +158,8 @@ API build PASS；九个脚本联合 105/105 PASS，0 fail/cancelled/skipped：�
 这些证据覆盖 SQL.js/Store、隔离请求及限定模块装配。订阅专项审计为同事务 stub；未验证真实 PostgreSQL/Linux、真实审计全链路或外部 TLS 接收端。withWebhook 的真实部署依赖仍未配置，外部发送未启用。公开列表/管理 HTTP、人工重投及整体 TP12 仍未交付，HTTP VERIFIED 数量保持 17/28，AVAILABLE=0。
 
 本节覆盖此前关于累计增量构建失败和上述专项尚未验证的状态，不删除历史失败记录。
+## 2026-09-14：本地提交与远端差异同步
+
+本地成果已提交为 2b4c6c6，未完成清单提交为 cf06256。已 fetch origin/main 至 7a7fc44，远端新增 8 个提交；不改工作区的 merge-tree 预检发现 15 个冲突文件，并确认订阅格式、修订区间、聚合贡献和双发送消费者存在语义冲突。正式合并尚未执行，未推送，未声称合并后构建/测试通过。
+
+后续不再从零实现远端已提供的订阅/投递 API 和人工重投；先确认统一链路方案，再移植本地独有查询、缓存、内部 origin 和 MCP 修复。差异明细及重排后的工作清单见 runtime-observability-remaining-work-2026-09-14.md。本地历史 DONE/VERIFIED 计数仅为本地基线，不代表双方整合后的状态。
