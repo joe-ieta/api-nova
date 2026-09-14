@@ -1,3 +1,4 @@
+import { requireManagementJwtSecret } from './utils/management-jwt-secret';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
@@ -47,7 +48,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService): Promise<JwtModuleOptions> => ({
-        secret: configService.get<string>('JWT_SECRET') || 'default-secret-key',
+        secret: requireManagementJwtSecret(configService.get<string>('JWT_SECRET')),
         signOptions: {
           expiresIn: (configService.get<string>('JWT_EXPIRES_IN') || '15m') as JwtSignOptions['expiresIn'],
         },

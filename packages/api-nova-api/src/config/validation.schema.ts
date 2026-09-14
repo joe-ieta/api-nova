@@ -1,3 +1,4 @@
+import { MANAGEMENT_JWT_SECRET_ERROR, requireManagementJwtSecret } from '../modules/security/utils/management-jwt-secret';
 import * as Joi from 'joi';
 
 export const validationSchema = Joi.object({
@@ -24,7 +25,7 @@ export const validationSchema = Joi.object({
   DB_SSL_REJECT_UNAUTHORIZED: Joi.boolean().optional(),
 
   API_KEY: Joi.string().optional(),
-  JWT_SECRET: Joi.string().optional(),
+  JWT_SECRET: Joi.string().required().custom(requireManagementJwtSecret).error(new Error(MANAGEMENT_JWT_SECRET_ERROR)),
   JWT_REFRESH_SECRET: Joi.string().optional(),
   JWT_EXPIRES_IN: Joi.string().default('15m'),
 
