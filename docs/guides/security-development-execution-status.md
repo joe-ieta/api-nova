@@ -1,5 +1,5 @@
 ---
-doc-version: 1.13.0
+doc-version: 1.14.0
 doc-status: active
 doc-updated: 2026-09-14
 ---
@@ -8,7 +8,7 @@ doc-updated: 2026-09-14
 > Document status: Active execution ledger
 > Last updated: 2026-09-14
 > 范围：JWT/API Key/显式 Anonymous；MCP SDK 1.29 的 2025 Session 基线。OAuth2 与后续无状态协议升级延期。
-> 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置仅支持 manual，受权管理Reload/状态API已验证；Watch/MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；最新显式单跳共享Resolver与隔离回归见第23节。
+> 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置仅支持 manual，受权管理Reload/状态API已验证；Watch/MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；最新可信资产快照生成与提交整理见第24节。
 
 ## 1. 状态与证据规则
 
@@ -562,3 +562,10 @@ Parser全量19套349/349（新7项包含其中），Server入口3/3，Parser/Ser
 可信进程内upstreamCredentialPolicy single-hop必须配trustedOperationBindings；每调用捕获一次冻结Registry快照，按Endpoint ID、Source Asset和目标URL解析，失败零Axios发送。最终只注入当前凭据，None无旧env/authManager回退；私有Axios隔离全局认证默认值与interceptor。固定maxRedirects=0，返回3xx不追跳；legacy路径不自动切换。
 
 审查复现并关闭None旧env认证头泄漏及非枚举/后加handler getter执行两项，均有定向回归与独立复核。Parser20套363/363，Server入口4/4，Gateway17套176/176通过。具体日志和环境见[本轮记录](../audits/2026-09-14-single-hop-capacity-diagnostics-wave.md)。生产托管启动链、DB归属、自动逐跳/DNS/SSRF及CLI秘密治理未闭合；23包状态不变。
+## 24. 可信资产映射生成与提交整理
+
+新增 createMcpTrustedOperationBindings：由可信管理代码提供同一仓储快照中的运行资产、已选择成员、端点、源资产及生成的 OpenAPI，检查 UUID、归属关系、成员启用状态、已有生命周期状态和操作一一覆盖。重复/缺失/跨资产映射以固定 INVALID_MCP_OPERATION_OWNERSHIP 拒绝；输出为冻结副本，不使用 x-* 作为归属证据。生成器专项 19/19、API 整包构建通过。
+
+此切片未自动接入装配、部署和托管进程入口，不保证传入行来自数据库或一致事务；调用方必须提供可信一致快照。下一次生成会拒绝已禁用成员，已创建 handler 的运行中撤销尚未接线，发布权限也仍由既有门禁负责。C4/E1 继续 IN_PROGRESS。
+
+管理 JWT 启动拒绝校验单独复核 41/41 并提交；缺失策略提示完成中英文本地化，UI 构建通过。全部 39 包统计不变：DONE 11、IN_PROGRESS 23、BACKLOG 4、DEFERRED 1。本轮本地提交和远端推送阻塞见[提交与归属生成记录](../audits/2026-09-14-commit-ownership-wave.md)。
