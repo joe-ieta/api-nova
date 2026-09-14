@@ -1,19 +1,21 @@
 ---
-doc-version: 1.2.0
+doc-version: 1.3.0
 doc-status: active
-doc-updated: 2026-09-08
+doc-updated: 2026-09-14
 ---
 # Reference
 
 > Document status: Active index
-> Last reviewed: 2026-09-08
+> Last reviewed: 2026-09-14
 
 ## Product Governance
 
+Current observability status and remaining work: [completion review](../guides/runtime-observability-completion-review.md). Requirements/design are normative baselines, not proof that every target is implemented.
+
 - [Unified Call Logging And Observability Design](./runtime-observability-design.md) (approved design; implementation in progress)
-- [Observability Public API Endpoints](./runtime-observability-api-endpoints.md) (planned consumer contract)
+- [Observability Public API Endpoints](./runtime-observability-api-endpoints.md) (current verified contracts and explicitly planned endpoints)
 - [Observability Contract And Source Mapping](./runtime-observability-contract-mapping.md)
-- [Observability Storage Foundation](./runtime-observability-storage-foundation.md) (implementation in progress; storage validation pending)
+- [Observability Storage Foundation](./runtime-observability-storage-foundation.md) (current storage implementation and bounded validation evidence)
 
 - [Security Design And Implementation](./security-design-and-implementation.md)
 - [Open Items](./open-items.md)

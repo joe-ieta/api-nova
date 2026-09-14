@@ -1,7 +1,7 @@
 ---
-doc-version: 1.3.0
+doc-version: 2.1.0
 doc-status: active
-doc-updated: 2026-09-11
+doc-updated: 2026-09-14
 ---
 # 统一调用日志、审计与可观测性功能需求
 
@@ -9,7 +9,7 @@ doc-updated: 2026-09-11
 > Scope decision (2026-09-08, approved): 当前为全新开发版本，统一采用新的日志 schema、对外 API 和数据库初始化结构；不实现旧格式导入、旧接口别名或历史数据库迁移。结构调整不授权自动清空现有数据。开发计划已确认并开始执行。
 > 需求、设计与建议默认值已于 2026-09-08 由用户确认。本文件是已确认的需求基线；当前已进入实现与专项验收，不代表所有需求或部署交付完成。未完成部分见《任务完成情况复核与未完成清单》。
 > 配套设计：[统一调用日志、审计与可观测性设计](../reference/runtime-observability-design.md)。
-> 配套交付：[对外 API Endpoint](../reference/runtime-observability-api-endpoints.md)、[开发任务计划](./runtime-observability-development-task-plan.md)、[完成状态](./runtime-observability-development-execution-status.md)。
+> 配套交付：[对外 API Endpoint](../reference/runtime-observability-api-endpoints.md)、[开发任务计划](./runtime-observability-development-task-plan.md)、[当前状态汇总](./runtime-observability-completion-review.md)。
 
 ## 1. 需求归纳与目标
 
@@ -23,9 +23,9 @@ doc-updated: 2026-09-11
 
 ## 2. 当前基础与增强范围
 
-依据前轮源码核查，以及现有安全调用、监控与产品约束文档整理。这里的“已有”表示存在实现或已声明的实现契约，不等于已在本轮进行运行验证。
+下表保留批准需求时的起点与增强目标，不是当前实现盘点。FR/AC 和默认值仍为批准基线；当前实现与证据分别以 completion-review、execution-status 为准。
 
-| 能力 | 当前基础 | 本次增强 |
+| 能力 | 批准时基础 | 批准增强目标 |
 | --- | --- | --- |
 | Gateway 外部访问 | Gateway 访问元数据表与查询接口；共享调用审计路径 | 统一调用明细、时间/调用者过滤、链路与字节统计 |
 | MCP 与上游调用 | 共享审计记录支持 tool、api、admission，追加写入本地 JSONL | 按新格式持续汇集入库，区分工具、协议请求、上游实际尝试并关联 |
@@ -232,10 +232,15 @@ WebSocket 提供事件游标、补拉和过期提示，不为每个浏览器建�
 - [管理可观测性基线](../reference/management-observability-baseline.md)
 - [管理权限矩阵](../reference/management-permission-matrix.md)
 
-## 当前实现状态说明（2026-09-11）
+## 当前实现状态说明
 
-以[任务完成情况复核与未完成清单](./runtime-observability-completion-review.md)和[最新执行状态](./runtime-observability-development-execution-status.md)为准：任务包 7 DONE、2 IN_PROGRESS、2 READY、5 BACKLOG；HTTP 12 VERIFIED、16 PLANNED，两类推送 PLANNED，AVAILABLE=0。
+[完成情况复核](./runtime-observability-completion-review.md)是当前状态唯一汇总；[执行状态](./runtime-observability-development-execution-status.md)维护证据索引和真实剩余清单。本文保留批准需求，不复制逐轮流水，也不因实现尚缺而降低 FR、AC、默认保留或性能目标。
 
-核心调用采集、查询、正文审计和部分统计已验证；持久聚合、统一状态、事件历史/主动报送、完整治理及平台/性能/部署验收尚未全部完成。大屏 UI 仍按已批准范围延后。
+2026-09-14 对齐基线：16 包中 10 DONE、2 IN_PROGRESS、4 BACKLOG；OBS-API-01~26 在限定契约内 VERIFIED，27/28 policies 未实现，AVAILABLE=0。TP-11/12 已完成包内远端事件/Outbox/Webhook 闭环，Worker 默认关闭、未部署；整体平台验收仍归 TP-15/16，不据此降低 TP-11/12 状态。
 
-本次只纠正“尚未开始实现”的过时状态并补充验收映射，不改变已批准需求、默认保留策略、性能目标或现有数据，不以降低要求代替完成待办。
+overview、依赖、资产授权状态、pipeline 及安全快照桥接已合并。它们只呈现可证实的调用事实、资产与持久运行记录：未知心跳、健康、覆盖及实时在途不补零；invocationSnapshotSeq 不是服务器状态完整快照。Socket.IO 新订阅与无流量持续心跳仍未实现，FR-07/08 和 AC-14/19 不因 REST 桥接而视为整体验收完成。
+
+真实剩余工作包括 MCP 剩余传输/平台覆盖、完整历史统计与运行健康、可信代理/显式主体映射等批准目标的接入闭环、统一策略/TTL/容量治理、旧能力收敛及跨平台/数据库/负载验证。具体已验证与未覆盖场景由证据索引逐项说明，不把未验证一概表述为未开发。
+
+FR-10 投递与管理审计 30 天等默认值保留为批准目标；当前 Outbox 的 delivery 到期受事件到期和 14 天上限约束，尚不满足独立 30 天投递留存目标。该差异由治理任务跟踪，不改需求或宣称清理已全面闭环。第 5 节性能与心跳参数均为待验收目标，不是实测保证。
+

@@ -1,12 +1,12 @@
 ---
-doc-version: 1.2.0
+doc-version: 1.3.0
 doc-status: active
-doc-updated: 2026-09-08
+doc-updated: 2026-09-14
 ---
 # ApiNova Documentation Index
 
 > Document status: Active canonical index
-> Last reviewed: 2026-09-08
+> Last reviewed: 2026-09-14
 
 ## Documentation Classes
 
@@ -58,8 +58,12 @@ doc-updated: 2026-09-08
 
 ## Runtime Observability Enhancement
 
-Requirements, design and development plan are approved. Implementation is in progress on the current schema/API only, without historical compatibility adapters. Planned endpoints are not yet available.
+The remote-first integration is complete for the verified HTTP/event/Webhook scope. Remaining product and environment work is tracked separately; verified code does not imply deployed availability. Start with the current completion review, not archived stage counts.
 
+- [Current Observability Completion And Remaining Work](./guides/runtime-observability-completion-review.md)
+- [Observability Integration Guide](./guides/runtime-observability-integration.md)
+- [Subscription Integration](./guides/runtime-observability-subscription-integration.md)
+- [External Validation Handoff](./guides/runtime-observability-external-validation-handoff.md)
 - [Unified Call Logging And Observability Requirements](./guides/runtime-observability-requirements.md)
 - [Unified Call Logging And Observability Design](./reference/runtime-observability-design.md)
 - [Observability Public API Endpoints](./reference/runtime-observability-api-endpoints.md)

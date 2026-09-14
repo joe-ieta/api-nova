@@ -1,7 +1,7 @@
 # Archive
 
 > Document status: Active archive index
-> Last reviewed: 2026-07-22
+> Last reviewed: 2026-09-14
 
 This directory contains historical documentation that is not the current source of truth.
 
@@ -27,3 +27,7 @@ This directory contains historical documentation that is not the current source 
 ## 2026-07-22 Closure Cleanup
 
 The cleanup archived completed Gateway Phase 1/2 task documents, Stage 4/6 implementation models, the superseded next-development baseline, the dated configuration audit, and historical API/Parser/Server package implementation plans. No content was deleted.
+
+## 2026-09-14 Observability Status Cleanup
+
+[Observability archive index](./summaries/runtime-observability-2026-09-14/README.md): the superseded pre-merge remaining-work report was moved out of active guides; seven pre-cleanup document snapshots preserve the original stage history. Current requirements, design contracts and unfinished work remain active. No historical evidence was deleted.

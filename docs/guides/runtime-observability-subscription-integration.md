@@ -1,8 +1,21 @@
+---
+doc-version: 2.1.0
+doc-status: active
+doc-updated: 2026-09-14
+---
 # Runtime observability subscription integration
+
+## Document status
+
+Active, version 2.1.0, updated 2026-09-14. The current integration baseline is the lead agent's supplied remote `950e150` context, not a Git verification performed here. The [completion review](runtime-observability-completion-review.md) is the current summary; [execution status](runtime-observability-development-execution-status.md) is the evidence index.
+
+Current reported status: 26/28 verified; API-27/API-28 (policies and Socket.IO) not implemented; TP11/TP12 done; AVAILABLE=0. Signed delivery, destination safety checks and manual replay already exist and are not reopened development tasks. OUTBOX and WEBHOOK automatic loops default off.
+
+This round is static documentation/configuration checking only. The previous round's three passing builds and Parser 103, MCP 53, API 548 results are historical evidence, not new executions. No code, tests, configuration values or deployment were changed. Real-environment deployment and acceptance remain unperformed. The [archived remaining-work record](../archive/summaries/runtime-observability-2026-09-14/remaining-work-2026-09-14.md) is historical, not the active backlog.
 
 ## Scope and availability
 
-This guide describes the retained remote implementation identified by the project owner as `origin/main` at `7a7fc44`. Public subscription and delivery controllers, their services, the outbox, and `CallObservabilityDeliveryWorker` are already registered in `CallObservabilityModule`. Integrators should use those APIs rather than add a module factory, duplicate sender, or custom secret-backend composition.
+This guide describes the retained remote implementation in the lead agent's supplied `950e150` integration context. Public subscription and delivery controllers, their services, the outbox, and `CallObservabilityDeliveryWorker` are already registered in `CallObservabilityModule`. Integrators should use those APIs rather than add a module factory, duplicate sender, or custom secret-backend composition.
 
 This is a source-aligned integration guide, not deployment evidence. Real-environment deployment and validation remain unperformed. No network requests, tests, or builds were run for this documentation update.
 

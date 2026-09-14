@@ -1,18 +1,20 @@
 ---
-doc-version: 1.2.0
+doc-version: 1.3.0
 doc-status: active
-doc-updated: 2026-09-08
+doc-updated: 2026-09-14
 ---
 # Guides
 
 > Document status: Active index
-> Last reviewed: 2026-09-08
+> Last reviewed: 2026-09-14
 
 Only currently supported product paths, durable architecture contracts, and active execution plans belong here.
 
 ## Active Execution And Release
 
-- [Observability Development Task Plan](./runtime-observability-development-task-plan.md) (approved plan; implementation in progress)
+- [Current Observability Completion And Remaining Work](./runtime-observability-completion-review.md)
+
+- [Observability Development Task Plan](./runtime-observability-development-task-plan.md) (current task definitions and remaining exit criteria)
 - [Observability Development Execution Status](./runtime-observability-development-execution-status.md)
 
 - [Security Development Task Plan](./security-development-task-plan.md)
@@ -33,6 +35,10 @@ Only currently supported product paths, durable architecture contracts, and acti
 - [安全调用与日志审计](./runtime-security-and-call-audit.md)
 
 ## Setup And Engineering Workflows
+
+- [Observability Integration Guide](./runtime-observability-integration.md)
+- [Observability Subscription Integration](./runtime-observability-subscription-integration.md)
+- [Observability External Validation Handoff](./runtime-observability-external-validation-handoff.md)
 
 - [Package Management Policy](./package-management-policy.md)
 - [Database Mode Quickstart](./database-mode-quickstart.md)

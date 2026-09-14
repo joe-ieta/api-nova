@@ -1,12 +1,20 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
-doc-updated: 2026-09-07
+doc-updated: 2026-09-14
 ---
 # Management Observability Baseline
 
+## Document status
+
+Active, version 1.1.0, updated 2026-09-14. The current integration baseline is the lead agent's supplied remote `950e150` context, not a Git verification performed here. The [completion review](../guides/runtime-observability-completion-review.md) is the current summary; [execution status](../guides/runtime-observability-development-execution-status.md) is the evidence index.
+
+Current reported status: 26/28 verified; API-27/API-28 (policies and Socket.IO) not implemented; TP11/TP12 done; AVAILABLE=0. Signed delivery, destination safety checks and manual replay already exist and are not reopened development tasks. OUTBOX and WEBHOOK automatic loops default off.
+
+This round is static documentation/configuration checking only. The previous round's three passing builds and Parser 103, MCP 53, API 548 results are historical evidence, not new executions. No code, tests, configuration values or deployment were changed. Real-environment deployment and acceptance remain unperformed. The [archived remaining-work record](../archive/summaries/runtime-observability-2026-09-14/remaining-work-2026-09-14.md) is historical, not the active backlog.
+
 > Document status: Active
-> Last reviewed: 2026-07-22
+> Last reviewed: 2026-09-14 (static scope review only)
 
 ## Purpose
 
@@ -25,6 +33,11 @@ This baseline covers:
 - minimum event coverage required during management refactor
 
 This baseline does not yet define a full alerting platform or external log shipping architecture.
+This baseline remains active because its management audit/lifecycle separation and truthful telemetry principles still apply. It is normative management guidance, not a claim that every coverage item is implemented, a runtime event wire schema, or an inventory of registered HTTP routes. Age alone is not a reason to archive it.
+
+The event fields, categories and status vocabulary below describe management normalization guidance; they do not replace the implemented runtime event schema or webhook envelope. The required coverage and exit conditions are acceptance criteria, not a newly verified checklist. Do not label implemented runtime capabilities as placeholders or present implementation evidence as deployment evidence.
+
+See [runtime integration](../guides/runtime-observability-integration.md), [subscription integration](../guides/runtime-observability-subscription-integration.md), and [external validation handoff](../guides/runtime-observability-external-validation-handoff.md) for current configuration and HTTP/wire contracts. Secret references and their actual key mappings are provisioned only through approved local environment/deployment mechanisms; no secret values belong in chat or this document.
 
 ## Design Principles
 
@@ -176,13 +189,8 @@ Recommended metric field structure:
 
 Examples:
 
-- true measured process CPU from process monitoring:
-  - `available: true`
-  - `source: "process-resource-monitor"`
-- placeholder summary CPU not yet wired:
-  - `available: false`
-  - `source: "not-wired"`
-  - `note: "Use process resource monitoring for real CPU telemetry"`
+- True measured process CPU from process monitoring: `available: true`, `source: "process-resource-monitor"`.
+- Placeholder summary CPU not yet wired: `available: false`, `source: "not-wired"`, `note: "Use process resource monitoring for real CPU telemetry"`.
 
 Returning fake `0` values for unavailable telemetry should be treated as a product defect.
 
@@ -209,6 +217,8 @@ The following operations must emit structured management events during Stage 2:
 
 ## Proposed API Surface
 
+The routes below are original Stage 2 design examples, not verified mounted endpoints or a current client contract. Use the linked integration guides for actual routes and deployment prefix boundaries. Retaining these examples does not create new implementation tasks.
+
 Stage 2 should move toward a stable server-scoped observability contract such as:
 
 - `GET /v1/servers/:id/observability/summary`
@@ -226,7 +236,7 @@ Stage 2 does not need to finalize every route name immediately, but it should es
 
 ## Relationship To Existing Services
 
-The current implementation already contains partial building blocks:
+The original Stage 2 baseline identified these building blocks; this scope review does not reverify their individual implementation status:
 
 - `SystemLogService`
 - `ServerMetricsService`

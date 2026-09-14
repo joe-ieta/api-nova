@@ -1,5 +1,5 @@
 ---
-doc-version: 2.0.0
+doc-version: 2.1.0
 doc-status: active
 doc-updated: 2026-09-14
 approval-status: approved
@@ -7,111 +7,63 @@ implementation-status: in-progress
 ---
 # 可观测性对外 API Endpoint 文档
 
-> Document status: Maintained consumer contract; approved endpoint contract; implementation in progress
-> Scope decision (2026-09-08, approved): 全新开发版本直接统一旧接口和数据库结构；不提供旧格式导入或旧查询路径兼容。接口的实际状态逐项维护，文档确认不等于上线。
-> 可用性声明：远端优先整合后，API01~26 共 26 个限定契约 VERIFIED；API27/28 与 Socket.IO 待实现。Webhook 保留远端闭环，默认关闭；AVAILABLE=0。
-> 已确认基线：[需求](../guides/runtime-observability-requirements.md)、[设计](./runtime-observability-design.md)。
-> 开发关联：[任务计划](../guides/runtime-observability-development-task-plan.md)、[执行状态](../guides/runtime-observability-development-execution-status.md)。
+> 当前消费者契约，版本 **2.1.0**，更新于 **2026-09-14**。以远端优先整合基线 950e150 及其后保留的查询/cache/origin/MCP 实现为准。
+> **OBS-API-01~26：限定契约 VERIFIED；OBS-API-27/28：PLANNED；Socket.IO 新协议未实现；Webhook 闭环保留但默认关闭；AVAILABLE=0。**
+> 本次是静态文档核对，不是新一轮测试、部署或发布验收。VERIFIED 依据既有执行证据，不扩大为完整需求、平台矩阵或真实存活验证。
+> 当前汇总：[完成情况复核](../guides/runtime-observability-completion-review.md)、[执行状态](../guides/runtime-observability-development-execution-status.md)、[任务计划](../guides/runtime-observability-development-task-plan.md)。
+> 旧版正文及逐次追加记录已原样归档：[2026-09-14 历史版本](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)。历史进度不覆盖本文当前契约。
 
 ## 1. 文档维护与版本演进
 
-本文是外部集成方使用的接口契约。新增或修改接口时，同一任务包必须同步更新本文、DTO/Swagger、权限映射、契约测试及执行台账。编码后由程序生成 OpenAPI 文档，不另维护一份手写且可能漂移的 OpenAPI YAML。
+Endpoint 编号和 operationId 不因重构改变。新增或修改接口应同步控制器、DTO/Swagger、权限、契约测试和执行台账；程序生成的 OpenAPI 是字段对照依据，本文解释其范围与限制。
 
-Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
+状态规则：PLANNED 为规划；IMPLEMENTED 为代码存在；VERIFIED 为所列限定契约已有验证证据；AVAILABLE 必须另有发布版本、部署范围及部署验证；DEPRECATED 表示弃用。模块已接入不等于已部署，默认关闭不等于未实现。不得将旧记录中的 12/28、未接入根模块或 Webhook 未实现当作当前状态。
 
-本次文档版本为 2.0.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本文版本 2.1.0 与 HTTP/event 的 schemaVersion=1.0 是不同版本。需求和完整设计见[需求](../guides/runtime-observability-requirements.md)、[设计](./runtime-observability-design.md)；设计中尚未落地的字段不是消费者可依赖的承诺。
 
 ## 2. 基础约定
 
-| 项目 | 契约 |
+| 项目 | 当前契约 |
 | --- | --- |
-| Base URL | https://{deployment-host}/api/v1/monitoring/observability |
-| 认证 | Authorization: Bearer <management-or-service-jwt>；现有管理认证体系中的受控服务身份 |
-| 权限 | 所有查询先校验 monitoring:read 与资源范围；额外权限见各 Endpoint |
-| 凭证边界 | Gateway/MCP 业务调用 API Key 或 JWT 不自动具有管理 API 权限；本功能不提供 Token 签发 Endpoint |
-| 格式 | application/json；正文读取同样返回 JSON，二进制正文使用 Base64 |
-| 时间 | UTC ISO 8601 字符串，区间统一为 [from,to) |
-| ID | 不透明字符串；客户端不解析 ID 内部结构 |
-| 序号 | sequence、snapshotSeq、dataWatermark 始终为十进制字符串 |
-| 大数 | 计数和累计字节为 number 或超出安全整数范围后的十进制字符串，客户端统一归一化处理 |
-| 耗时 | 毫秒数；无法测量时 null，不能解释为 0 |
-| 空值 | 未知、未采集、已过期和实际空内容使用不同状态 |
-| 示例 | 示例主机、ID、时间和统计值都是契约示意，不是运行数据 |
+| Base URL | `https://{deployment-host}/api/v1/monitoring/observability` |
+| 认证 | `Authorization: Bearer <management-access-token>`；既有管理登录/刷新流程签发 |
+| 权限 | `monitoring:read` AND 各接口额外权限；对应资产范围也取交集 |
+| 凭证边界 | 业务 API Key、业务 JWT、刷新 Token 不自动具备管理 API 权限；无新增 Token 签发 Endpoint |
+| 编码 | JSON；正文接口在 JSON 中表达 json/text/base64/multipart 内容 |
+| 时间 | UTC ISO 8601；接受时间窗的接口使用 `[from,to)` |
+| ID/序号 | ID 不透明；sequence、snapshotSeq、dataWatermark 为十进制字符串，不使用 JS Number 存储 |
+| 大数 | 部分计数/累计字节超出安全整数时返回十进制字符串 |
+| 未知值 | null、unknown、isPartial 必须按字段解释，不能自动转换为零或健康 |
+| 缓存与错误 | 可观测性路由使用 `Cache-Control: no-store`；安全错误不回显驱动异常、秘密或隐藏资源 |
 
-完整 URL 使用 /api/v1 前缀。实现时须对照程序全局 prefix 与 Swagger 验证，禁止生成 /api/api/v1 或漏掉 /api。Socket.IO 的 /monitoring 是 namespace，不是这里的 HTTP Base URL，也不是 MCP 的 SSE 入口。
+路径已含 `/api/v1`，不可重复拼接。Socket.IO 的 `/monitoring` 是既有 namespace，不代表本文新推送协议已实现。
 
 ### 2.1 公共响应
 
-成功查询或变更返回：
-```json
-{
-  "status": "success",
-  "data": { "items": [], "nextCursor": null },
-  "meta": {
-    "schemaVersion": "1.0",
-    "snapshotSeq": "1842",
-    "dataWatermark": "1839",
-    "lagMs": 1500,
-    "isPartial": false,
-    "historyCompleteSince": "2026-09-08T00:00:00Z",
-    "gapRanges": []
-  }
-}
-```
+通常返回 `{ "status": "success", "data": ..., "meta": { "schemaVersion": "1.0", ... } }`。meta 的水位、lagMs、historyCompleteSince、isPartial 等仅按接口实际返回，不承诺每个接口都有实时覆盖证据。列表常用 items/nextCursor/hasMore；统计、服务器列表和依赖列表不因此自动支持 cursor。成功 DELETE 为 **204、无响应体**。
 
-单对象接口的 data 是对象；集合接口是 items/nextCursor/hasMore，total 仅在明确支持且请求 includeTotal=true 时返回。示例为简化结构，不要求所有接口都有时间水位；适用字段不得以假零填充。
-
-isPartial 表示已知覆盖缺口或字段不完整；正常异步延迟单独由 lagMs 表示。snapshotSeq 是本次读取可见的入库上限，dataWatermark 是对应投影实际处理位置。正文可能依保留策略过期，游标不延长正文保留期。
-
-错误返回：
-```json
-{
-  "status": "error",
-  "error": {
-    "code": "INVALID_QUERY",
-    "message": "from must be earlier than to",
-    "requestId": "req-example",
-    "details": { "field": "from" }
-  }
-}
-```
-
-错误不返回密钥、内部文件路径或隐藏资源信息。成功的 DELETE 返回 204 且无响应体，是公共 envelope 的明确例外。
+错误信封为 `{ "status": "error", "error": { "code": "INVALID_QUERY", "message": "Invalid query or request header", "requestId": "...", "details": { "field": "..." } } }`；details 可省略。客户端按 code 和受控字段处理，不依赖任意自由文本错误消息。
 
 ### 2.2 公共过滤与分页
 
-| 参数 | 类型/默认 | 规则 |
-| --- | --- | --- |
-| from、to | UTC 时间；未提供时最近 1 小时 | 成对提供，from < to；在统计中必须落在可支持保留区间 |
-| timeBasis | startedAt，或 completedAt | 调用列表和统计默认 startedAt，响应回显 |
-| origin | external | 可选 external/test/probe/internal；telemetry 不进入业务调用事实 |
-| serverType | gateway 或 mcp | 无值时查授权范围内两类 |
-| runtimeAssetId | 字符串 | 统一服务器身份；不使用 MCP serverId 替代 Gateway 身份 |
-| callerId、sourceId | 字符串 | 可信主体与观察来源分别过滤 |
-| endpointDefinitionId、toolName | 字符串 | Tool 名不是稳定 API 主键 |
-| sourceServiceInstanceId | 字符串 | 上游实例 |
-| spanKind | gateway_request/mcp_protocol/mcp_tool/upstream_api | 限定调用边界 |
-| outcome | success/error/rejected/timeout/cancelled/incomplete/unknown | started/running 的 outcome 可为空 |
-| errorCategory | 自由文本字符串 | capabilities 返回常见建议分类，不限制生产者自定义分类；仍受查询长度/控制字符校验 |
-| traceId、requestId | 字符串 | 查询内部关联；客户端自报 ID 用独立字段，不冒充内部 ID |
-| cursor | 不透明字符串 | 绑定过滤、授权范围、快照及排序位置，不跨查询复用 |
-| limit | 整数，默认 50，最大 200 | 超限返回 400，不静默截断 |
-| includeTotal | false | 只有明确支持的集合可使用 |
-| scope | business/http_ingress/tool/protocol/upstream | statistics 的三个接口必填 |
-| interval | 1m/5m/1h/1d | time-series 必填，最多 1440 个桶；UTC 对齐 |
-| groupBy | 逗号分隔的维度名 | groups 必填，最多两个维度 |
-| top | 默认 20，最大 100 | groups 使用 |
-| fill | none 或 zero，默认 none | zero 仅对有观察覆盖的空桶填零，缺口保留 unknown |
+只有对应接口白名单中的参数可用。未知、重复数组、嵌套 query、无效枚举/排序通常返回 400 INVALID_QUERY；超出查询规模返回 413 QUERY_TOO_LARGE，不截断后假称完整。
 
-各接口只接受自己适用的参数。不支持的参数、维度组合和排序返回 400/422。时间跨度限制及长期保留的维度组合以 capabilities 为准，不通过扫描全部文件绕过限制。
+| 参数 | 适用接口的规则 |
+| --- | --- |
+| from/to | 调用/访客/统计/overview 类默认最近 1 小时，成对提供；通用最大跨度 30 天。deliveries 列表的 from/to 是其独立创建时间过滤，不套用最近一小时默认 |
+| origin | 调用/访客/统计/overview/dependencies/servers 默认 external，允许 external/test/probe/internal；**events 省略 origin 时不限制来源** |
+| timeBasis | 接受该字段时默认 startedAt，另可 completedAt；overview/dependencies/servers 固定 startedAt，不接受 timeBasis 参数 |
+| cursor | 端点专用签名游标，绑定主体/权限/过滤/快照/排序；events 使用 after/until，不混用 |
+| limit/includeTotal | 支持 limit 的列表默认 50、最大 200；includeTotal 仅调用/访客列表支持，不是全局参数 |
+| scope | statistics 三接口必填：business/http_ingress/tool/protocol/upstream |
+| interval/fill | time-series 必填 interval=1m/5m/1h/1d；fill=none 默认或 zero；最多 1440 个触达桶 |
+| groupBy/orderBy/top | groups 专用；1~2 维，top 默认 20、最大 100；排序枚举见 4.5 |
 
-invocations 按 (timeBasis DESC, invocationId DESC) 排序；其他列表明确各自默认排序。游标过期返回 410，需要重建查询，不能伪装为最后一页。调用记录会随真实终态和更正提升 recordVersion，列表使用快照可见性和稳定键分页，详情显示返回记录版本。
-
-筛选数组只在订阅等 JSON 请求中使用；HTTP 标量 query 不接收任意嵌套 JSON 条件。所有过滤均与服务端授权范围取交集。
+游标只签名、不加密，不是授权凭据。过期需重新建立查询；游标不会延长事件、正文或调用明细保留期。数据快照与当前权限同时生效，续页不得恢复已撤销权限。
 
 ## 3. Endpoint 注册表
 
-下表权限在 monitoring:read 与资源授权基础上叠加；“基础”表示没有额外权限。涉及写入仍须校验相应对象管理权。VERIFIED 只代表所列隔离契约测试通过，不代表部署。
+“基础”表示除 monitoring:read 与资源范围外没有额外权限。此表为当前状态唯一入口；API01~26 的 VERIFIED 仅限本文描述的行为，全部 AVAILABLE=0。
 
 | 编号 | 方法与相对路径 | operationId | 额外权限 | 任务包 | 状态 |
 | --- | --- | --- | --- | --- | --- |
@@ -124,7 +76,7 @@ invocations 按 (timeBasis DESC, invocationId DESC) 排序；其他列表明确�
 | OBS-API-07 | GET /callers | obsListCallers | 基础 | OBS-TP-09 | VERIFIED |
 | OBS-API-08 | GET /callers/:id | obsGetCaller | 基础 | OBS-TP-09 | VERIFIED |
 | OBS-API-09 | PATCH /callers/:id | obsUpdateCallerLabels | monitoring:manage | OBS-TP-09 | VERIFIED |
-| OBS-API-10 | GET /sources | obsListSources | 基础；IP 字段需 monitoring:source:read | OBS-TP-09 | VERIFIED |
+| OBS-API-10 | GET /sources | obsListSources | 基础；IP 另需 monitoring:source:read | OBS-TP-09 | VERIFIED |
 | OBS-API-11 | GET /statistics/summary | obsGetStatisticsSummary | 基础 | OBS-TP-10 | VERIFIED |
 | OBS-API-12 | GET /statistics/time-series | obsGetStatisticsTimeSeries | 基础 | OBS-TP-10 | VERIFIED |
 | OBS-API-13 | GET /statistics/groups | obsGetStatisticsGroups | 基础 | OBS-TP-10 | VERIFIED |
@@ -140,682 +92,350 @@ invocations 按 (timeBasis DESC, invocationId DESC) 排序；其他列表明确�
 | OBS-API-23 | GET /deliveries | obsListDeliveries | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
 | OBS-API-24 | GET /deliveries/:id | obsGetDelivery | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
 | OBS-API-25 | POST /deliveries/:id/retry | obsRetryDelivery | monitoring:subscription:manage AND monitoring:delivery:retry | OBS-TP-12 | VERIFIED |
-| OBS-API-26 | GET /pipeline/status | obsGetPipelineStatus | 基础；系统汇总另需全局资源范围 | OBS-TP-14 | VERIFIED |
-| OBS-API-27 | GET /policies | obsGetPolicies | 基础 | OBS-TP-14 | PLANNED |
-| OBS-API-28 | PATCH /policies/:id | obsUpdatePolicy | monitoring:manage | OBS-TP-14 | PLANNED |
-
-Endpoint 状态在当前注册表声明中统一维护；出现不同状态后增加逐行“实现状态/版本”列。首次可用必须以执行台账证据为依据，而非仅改文案。
+| OBS-API-26 | GET /pipeline/status | obsGetPipelineStatus | 基础 AND 显式全局资源范围 | OBS-TP-14 | VERIFIED |
+| OBS-API-27 | GET /policies | obsGetPolicies | 规划：基础 | OBS-TP-14 | PLANNED |
+| OBS-API-28 | PATCH /policies/:id | obsUpdatePolicy | 规划：monitoring:manage | OBS-TP-14 | PLANNED |
 
 ## 4. 查询接口对象与行为
 
 ### 4.1 OBS-API-01/02：能力与总览
 
-capabilities 已实现当前权限下的接口/query 白名单、功能状态、查询边界与已知/未知限制，详见第 22 节。它只表达实现与授权范围资格，不代表运行健康或所有资源都可访问；未实现的聚合维度和推送保持未启用。
+**capabilities** 不接受 query。返回 endpoints（按 endpointId 排序）、features、enabledFeatures、resourceScope、schemaVersions、参数白名单及规模边界。availabilitySemantics=`implementation_and_scope_eligibility_not_runtime_health`，observationHealth=`unknown`。它不是 worker 开关、密钥就绪、实际资源访问或健康证明。
 
-overview 仍 PLANNED；计划接收 from/to/origin/serverType/runtimeAssetId，返回 businessSummary、upstreamSummary、serverStates、pipeline、recentEvents 及 snapshotSeq。各区块携带自己的 dataWatermark；不能把尚未汇集的上游流量归零。授权不足的区块省略并提供通用 restricted 标记，不泄露隐藏资源数量。
+| 范围与权限 | 可发现 Endpoint 数 |
+| --- | --- |
+| 全局且全部细分权限 | 26 |
+| 全局仅 monitoring:read | 15（包含 API26） |
+| 非空 scoped、仅 monitoring:read | 14（不含 API26） |
+| 空资源范围 | 1（capabilities 自身） |
+
+webhook/subscriptionManagement 已实现，但没有 subscription:manage 的用户看到 restricted；socketPush/policyManagement 为 not_implemented。pipelineStatus 只对全局 read 启用，authorizationRule=`explicit_global_scope`，不另要求 monitoring:manage。
+
+非空 read 范围下 maxBuckets=1440、maxGroupLimit=100、eventRetention=1209600000ms；空范围的 maxBuckets/eventRetention 为 null。maxStatisticsQueryInvocations=5000、traceMaxNodes=200、maxVisitorQueryInvocations=5000；maxQueryCursorLifetimeMs=900000。payloadLimits 仅对正文权限交集有效：readObjectMaxBytes=134217728，仅是单存储对象读取上限；effectiveCaptureBytes=null、capturePolicyState=not_reported_by_producers。aggregateRetentionMs/effectiveHistoryCompleteSince 仍 null。
+
+**overview** 接受 `from,to,origin,serverType,runtimeAssetId`。data 包含 window、snapshotSeq、businessSummary、upstreamSummary、serverStates、unavailableSections、restricted，以及 invocationSnapshotSeq/Scope/Authorized/ExpiresAt。`pipeline` 和 `recentEvents` 仍列为 unavailableSections，不返回伪造区块；pipeline 的独立 API26 不改变这个限制。
+
+invocationSnapshotScope=`invocation_facts_only`。模块中的共享授权器保存进程内快照授权，最长 5 分钟、最多 1000 条，重启或淘汰后须重新 overview。只有 invocationSnapshotAuthorized=true 且未过期、主体/资产权限和 origin/serverType/runtimeAssetId 匹配时，才可用 invocationSnapshotSeq 启动 events 的 afterSequence。该许可不是全局事件快照，也不能初始化旧服务器状态；不可直接用普通 snapshotSeq 冒充签名游标。
 
 ### 4.2 OBS-API-03/04/06：调用、详情与链路
 
-列表只返回元数据及正文状态。详情至少包含以下字段组：
+invocations 查询白名单：`from,to,timeBasis,origin,serverType,runtimeAssetId,callerId,sourceId,endpointDefinitionId,toolName,sourceServiceInstanceId,spanKind,outcome,traceId,requestId,errorCategory,limit,includeTotal,cursor`。列表按所选时间 DESC、invocationId DESC；详情仅接受 timeBasis。
 
-| 字段组 | 字段 |
-| --- | --- |
-| 关联 | invocationId、traceId、parentInvocationId、rootInvocationId、requestId、recordVersion |
-| 类型 | spanKind、origin、transport、serverType |
-| 资产 | runtimeAssetId、serverId（可空）、endpointDefinitionId、operationId、toolName、sourceServiceInstanceId、publicationSnapshot |
-| 身份 | callerId、sourceId、authState、identitySource；IP 按权限裁剪 |
-| 时序 | startedAt、completedAt、durationMs、lifecycle、completionSource |
-| 结果 | outcome、httpStatus、protocolErrorCode、toolIsError、errorCategory、failureStage、脱敏 errorSummary |
-| 上游尝试 | upstreamOperationId、attemptIndex、redirectHopIndex |
-| 流量 | requestBytes、responseBytes、byteMeasurement、measurementStage、partial |
-| 正文 | request/response 的 state、reason、expiresAt 和读取链接 |
-| 质量 | schemaVersion、sourceRecordId、ingestedAt、missingFields、isPartial |
+返回调用元数据及正文状态，不返回正文对象。关键字段包括关联 ID、recordVersion、spanKind/origin、资产和上游标识、可信身份、开始/完成时间、lifecycle/completionSource/outcome、结果及测量质量。publicationSnapshot、未采集来源字段等可能为 null，并由 missingFields/isPartial 表明限制。IP 需独立 source:read；隐藏链路不能通过父/根 ID 或计数泄露。
 
-traces 返回 origin、nodes、edges、missingParentReferences、structuralIssues、relationshipsComplete、isPartial、maxNodes。仅在所选 origin/trace 内返回保留且可见节点，不给隐藏 ID/数量。关系字段和 200 节点拒绝式上限的精确定义见本文 trace 实现章节；relationshipsComplete 不等于历史采集完整。
+traces 仅接受 origin（默认 external），返回 nodes、edges、missingParentReferences、structuralIssues、relationshipsComplete、isPartial、maxNodes。最多 200 个保留且可见节点，超限 413；关系仅在同 trace/origin 可见图内成立，不返回隐藏父/根 ID。relationshipsComplete 不等于历史采集完整。
 
-内部 outcome 仍在运行时允许为空；unknown 表示缺少终态证据，不能算作成功。httpStatus=200 且 toolIsError=true 的工具仍应 outcome=error。
-
-查询示意：
-```http
-GET /api/v1/monitoring/observability/invocations?from=2026-09-08T00%3A00%3A00Z&to=2026-09-09T00%3A00%3A00Z&serverType=mcp&spanKind=upstream_api&outcome=timeout&limit=50
-Authorization: Bearer <management-or-service-jwt>
-```
+运行中 outcome 可空；unknown 表示没有可靠终态，不能当成功。HTTP 200 且 toolIsError=true 的工具错误仍属于 error。
 
 ### 4.3 OBS-API-05：正文读取
 
-side 为 request 或 response。该操作同时要求 monitoring:read、monitoring:payload:read 与对应资源范围，不能使用 ANY-OF 权限组合。
+side 仅 request/response，无 query。权限为 read AND payload:read，必须在同一资产范围内成立。data 包含 invocationId、recordVersion、side、state、reason、contentType、encoding、observedBytes、capturedBytes、storedBytes、redacted、readRedacted、redactionPolicyVersion、capturedDigest、digestScope、content、expiresAt。
 
-```json
-{
-  "status": "success",
-  "data": {
-    "invocationId": "inv-example",
-    "side": "response",
-    "state": "captured",
-    "reason": null,
-    "contentType": "application/json",
-    "encoding": "json",
-    "observedBytes": 128,
-    "capturedBytes": 128,
-    "storedBytes": 124,
-    "redacted": true,
-    "redactionPolicyVersion": "redact-1",
-    "capturedDigest": "sha256-placeholder",
-    "digestScope": "observed_raw",
-    "content": { "result": "ok", "token": "[REDACTED]" },
-    "expiresAt": "2026-09-15T10:00:00Z"
-  }
-}
-```
-
-encoding 可为 json、text、base64、multipart。multipart 内容包含经脱敏的字段与文件 part，不提供任意文件下载路径。incomplete 必须说明摘要/字节仅覆盖部分流。
-
-未采集但存在记录时返回 200 和 omitted/unavailable 状态，content=null；已过期返回 410 PAYLOAD_EXPIRED，携带安全的 state/expiredAt 元数据。未知或不可见 invocation 返回 404，权限不足返回通用 403。读取行为写管理审计。
+state 为 captured/omitted/incomplete/unavailable；encoding 为 json/text/base64/multipart。未采集、不可用或空正文按状态表达，不伪造内容；已过期返回 410 PAYLOAD_EXPIRED，details 可含 state=expired 和 expiredAt。未知或隐藏调用为 404；无读取权限为 403。读取有安全管理审计，multipart 不提供任意文件下载路径。摘要可能描述观察原文或部分内容，不应直接当作返回脱敏 JSON 的哈希。
 
 ### 4.4 OBS-API-07/08/09/10：调用者与来源
 
-callers 按 lastSeenAt DESC、callerId DESC 分页。每项包含 callerId、displayName、identitySource、firstSeenAt、lastSeenAt、serverTypes、授权且选定窗口内的 observedServerCount、unassignedInvocationCount、labels 和 summary。first/lastSeen 与 summary 由固定调用修订快照推导，不读取全局累计观察时间；可编辑档案以 profileSnapshot=current 标识。历史覆盖未知时 historyCompleteSince=null、isPartial=true，不推算旧历史。
+共同查询键为 `from,to,timeBasis,origin,serverType,runtimeAssetId,sourceId`。callers 列表另接收 callerId/limit/includeTotal/cursor；caller 详情仅共同键；sources 列表另接收 callerId/limit/includeTotal/cursor/authState。不得根据旧设计添加未经实现的字段或原始 IP 过滤。
 
-caller 详情只返回当前授权时间窗中实际观察到的 credentialIds，以及当前 note 与查询 window；不读取全局凭证关联、不返回 issuer/sub、Key、JWT、secretHash 或其他可用于认证的值。PATCH 已 VERIFIED，仅修改 displayName、note、labels；不得修改可信主体、callerId 或历史证据。使用 data.profileEtag 或 X-Profile-ETag 作为 If-Match，不使用完整详情的普通 HTTP ETag，见第 21 节。
+列表按 lastSeenAt DESC、callerId/sourceId DESC。最多 5000 条授权、保留且匹配的调用修订作为查询输入，超限 413。firstSeenAt/lastSeenAt、summary 来自固定调用窗口/快照；可编辑档案是当前值，profileSnapshot=current，不是历史档案快照。callers 只归并可信 authenticated 身份；sources 包括 authenticated/anonymous/authentication_failed/unknown。匿名来源不是人数，日级 HMAC 不保证跨日稳定。
 
-PATCH 请求需 If-Match，示意：
-```json
-{ "displayName": "订单服务", "note": "生产集成调用者", "labels": ["production", "orders"] }
-```
+sourceRestricted 为 true 时省略 IP 字段；read AND source:read 的资产交集满足才返回 clientIp、peerIp、ipSource、proxyTrusted。caller 详情仅给窗口内观察到的 credentialIds，不给业务 Key、JWT 或秘密。
 
-sources 按 lastSeenAt DESC、sourceId DESC 排序；支持 authState、serverType/runtimeAssetId、callerId/sourceId 和时间过滤。返回 authenticated/anonymous/authentication_failed/unknown 来源及选定窗口内 first/lastSeen、summary，默认不限制 authState。read AND source:read 在同一资产授权后才返回 clientIp、peerIp、ipSource、proxyTrusted，否则省略并标记 sourceRestricted；任何权限级别都不提供原始 IP 过滤。
+PATCH callers 仅支持 displayName（≤200 或 null）、note（≤2000 或 null）、labels（≤32 项，每项≤64）；至少一个字段，输入≤16KiB，无 query，未知字段拒绝。未提交字段保持原值，规范化后无变化不推进版本但仍审计。编辑须 read AND manage 覆盖该调用者全部登记关联及保留可信调用，不能以 GET 时间窗缩小权限范围。
 
-同一 IP 多个可信主体保持分离；同一可信主体的多个 IP 保持关联。匿名来源不是人数，日级 HMAC 标识不保证跨日稳定。
+使用 data.profileEtag 或 `X-Profile-ETag` 原样提交 If-Match。成功返回 callerId/displayName/note/labels/profileEtag/changed/changedFields/auditId；普通 HTTP ETag 不是编辑令牌。审计与变更原子提交，审计失败回滚。
 
 ### 4.5 OBS-API-11/12/13/14：统计与依赖
 
-summary 返回 totalStarted、knownCompleted、successes、failures、rejections、timeouts、cancelled、incomplete、unknown、inFlight、uniqueCallers、anonymousSources、requestBytes/responseBytes、successRate、errorRate 与延迟直方图/分位。
+summary 接受 `from,to,timeBasis,origin,scope,serverType,runtimeAssetId,callerId,sourceId,endpointDefinitionId,toolName,sourceServiceInstanceId,spanKind,outcome,traceId,requestId,errorCategory`，scope 必填，无 limit/cursor/includeTotal。time-series 和 groups 继承这些筛选，再接受各自专用参数。
 
-failures 包含 error、timeout、incomplete，不能再把它与 timeouts/incomplete 相加当总失败。successRate=success/knownCompleted；errorRate=failures/(success+failures)。无分母返回 null。
+data 包含 window、metrics、coverage、queryMode、maxQueryInvocations、livenessEvaluated=false。输入上限 5000 在授权、TTL、窗口/scope/过滤之后应用。覆盖通常仍 historyCompleteSince=null、isPartial=true、observationHealth=unknown。未结束观察归 unknownInFlight；inFlight=0 不证明不存在正在执行的请求。
 
-字节响应包含 measuredRecords、unmeasuredRecords、partialRecords 以及 byteMeasurement/measurementStage。不同测量边界分组返回，不把工具 UTF-8 大小与 HTTP body 字节相加。
+metrics.selectedInvocations 为所选时间基准的调用数；totalStarted 在 completedAt 基准为 null。failures 已含 error/timeout/incomplete，不可再加 timeouts/incomplete。successRate=successes/knownCompleted，errorRate=failures/(successes+failures)，无分母为 null。唯一调用者按整个选定集合去重，不累加桶/分组去重数。
 
-time-series 返回每桶 bucketStart、bucketEnd、bucketVersion、metrics、dataWatermark、coverage。groups 返回 dimensionValues、metrics、rank、hasMoreGroups；唯一调用者要在所查范围重新去重，不能相加各桶去重数。
+byteGroups 按 spanKind/byteMeasurement/measurementStage 区分；分侧带测量、缺失和部分计数。混合计量口径不声称统一网络总字节。latency 使用 fixed_histogram_upper_bound_v1、approximate=true；溢出区间保留下界而 upperBoundMs/estimateMs=null，不平均已有分位。缓存字段 cacheEligibleRecords/cacheObservedRecords/cacheUnknownRecords/cacheHits/cacheMisses/cacheHitRate/cacheCoveragePartial 区分已观察与未知；缺少 cacheHit 不是 miss，不能因上游请求少就推断命中。
 
-groupBy 首期维度为 runtimeAssetId、serverType、callerId、endpointDefinitionId、toolName、sourceServiceInstanceId、outcome；具体组合以 capabilities 为准。排序只允许公开指标枚举，不接受 SQL 表达式。p95/p99 返回估计值或区间、algorithm 和 approximate=true，不输出伪精确值。
+**time-series**：interval 必填，fill 默认 none；按 UTC 对齐，边缘桶也计入 1440 上限。返回 items 的 bucketStart/bucketEnd/effectiveFrom/effectiveTo/bucketVersion/dataWatermark/synthetic/metrics/coverage。兼容且有效的持久桶返回 bucketVersionSemantics=persisted；有 pending 重算、缺桶、筛选不兼容或缺少必要缓存计量时回退按需计算，标记 not_persisted、bucketVersion=null。不得将“总是按需”或“总是持久版本”写成契约。fill=zero 会补桶，但零计数仍不证明观察覆盖或健康。
 
-dependencies 返回 sourceServiceInstanceId/API 到 runtimeAssetId 的关联、upstreamRequests、failures、retryAttempts、affectedBusinessRequests、最近失败和数据覆盖范围。受影响外部访问数按根业务调用去重；同一请求的多个失败尝试不能重复放大。
+**groups**：groupBy 必填，允许 runtimeAssetId/serverType/callerId/endpointDefinitionId/toolName/sourceServiceInstanceId/outcome 的单维及两维，共 28 种，接受反向两维顺序。orderBy 为 selectedInvocations（默认）、failures、successes、uniqueCallers、upstreamRequests，降序并以维度元组打破平局。返回 groupBy/orderBy/top/totalGroups/hasMoreGroups/items，项含 rank/dimensionValues/metrics。缺失维度为 null；top 截断不改变整体统计。
+
+**dependencies**：只接收 overview 五个查询键。返回 window、items、dataWatermark、maxQueryInvocations、queryMode、historyCompleteSince、isPartial、restricted、dependencyBasis；项包含 runtimeAssetId/serverType/endpointDefinitionId/sourceServiceInstanceId、upstreamRequests/failures/retryAttempts/unlinkedRetryRecords、affectedBusinessRequests/unlinkedFailureRecords/relationshipsComplete/lastFailureAt。
+
+仅返回已观察上游关联，不枚举配置但未使用的依赖。受影响业务数按失败上游的最近可见外部业务祖先去重，要求同资产、trace 和时间窗证据；同一协议根下不同 MCP Tool 分别计业务调用，不按根 ID 合并成一次。affected 不等于业务最终失败，缺失链路显式标记。
 
 ### 4.6 OBS-API-15/26/27/28：状态与策略
 
-servers/status 返回 runtimeAssetId、serverType、lifecycleStatus、healthStatus、dependencyHealth、freshnessStatus、lastHeartbeatAt、processInstanceId、activeInvocations、unknownInFlight、lastSuccessAt/lastFailureAt 和 stateVersion。
+**servers/status** 使用 overview 五个查询键，返回有界 items 与 maxServers/maxQueryInvocations/maxStateRows、stateBasis=current_database_snapshot、readAt、invocationDataWatermark、livenessEvaluated=false 等。资产 lifecycleStatus 来自 runtime_assets；reportedState 是持久旧报告，不能解释为最新存活证据。
 
-pipeline/status 返回 ingest/aggregation/dispatch 的状态、水位、lagMs、pendingCount、oldestPendingAt、failedRecords、quarantinedRecords、droppedRecords/unknownLoss、diskUsage、effectiveQuota 和 gapRanges。基础流水线计量由其他任务包先实现，本 Endpoint 在 OBS-TP-14 完成治理与权限裁剪后验收。
+healthStatus/dependencyHealth/freshnessStatus 当前 unknown；lastHeartbeatAt/processInstanceId/activeInvocations/stateVersion 为 null。unknownInFlight、observedBusinessRequests、lastSuccessAt/lastFailureAt 仅根据选定开始时间窗内调用计算。服务器状态的 dataWatermark=null，因为旧资产/报告更新不推进调用序号；invocationDataWatermark 仅覆盖调用派生统计。
 
-policies 返回 scope、revision、payloadCapture、redaction 字段规则、retention、quotas、heartbeat 和 deliveryLimits 的有效配置；不返回 secretRef 的实际秘密或敏感文件路径。
+**pipeline/status** 不接收 query，要求显式全局 read；scoped 请求拒绝，不返回部分全局统计。data.resourceScope=global，semantics=persisted_observations_not_live_health。ingest 表达持久扫描报告及 recent/stale/unknown；aggregation 读取 Store 的 metric/caller pending 重算标记；dispatch 读取远端 Outbox 状态及尚未物化的有效事件，并包含 webhook 最近执行报告。
 
-PATCH /policies/:id 使用 If-Match，接受该策略支持字段的部分更新；未知字段拒绝。减小 TTL 或容量会影响后续清理，变更记录 actor/reason/revision，并返回 effectiveAt 及 retentionImpact；不在一次 HTTP PATCH 内同步删除大量记录。
+dispatch.dataWatermarkScope=outbox_materialization_not_webhook_acknowledgement；水位不是接收端 ACK。aggregation 待处理计数包含 Store 会选择的持久标记，不是完整长期趋势保证。Webhook 的 workerConfigured、lastAttemptAt、claimed/succeeded/retrying/dead/cancelled 是最近持久报告，不是当前开关或实时健康。diskUsage/effectiveQuota/gapRanges 等未实现计量保持 null。
 
-初始保留与限制沿用已确认设计：元数据 30 天、正文 7 天、分钟聚合 30 天、小时/日聚合 180 天、事件 14 天、投递及本功能管理审计 30 天；正文上限默认 16 MiB、最大 64 MiB。
+**policies 两接口未实现**。GET 有效策略、PATCH 保留/配额/脱敏设置、effectiveAt/retentionImpact 均属规划，不提供当前可调用示例。默认存储时长也不是用户可通过 API27/28 修改的能力。
 
 ## 5. 事件历史、订阅与投递 Endpoint
 
 ### 5.1 OBS-API-16：事件历史与补拉
 
-2026-09-13 已实现并验收。事件历史专项 16/16；10 个相关脚本分两组执行共 160/160 PASS，API build PASS。当前 HTTP 13 VERIFIED、15 PLANNED，AVAILABLE=0；Outbox 分发和两类主动推送未完成。
+白名单为 `after,afterSequence,until,origin,eventTypes,severities,spanKinds,outcomes,runtimeAssetId,serverType,callerId,endpointDefinitionId,toolName,limit`。eventTypes/severities/spanKinds/outcomes 接受逗号分隔枚举；serverType/origin 单值。省略 origin 不限制来源；原始 IP、任意 JSON 条件和调用列表 cursor 不接受。
 
-实现边界：每次使用当前管理 JWT、monitoring:read 和资产范围，资产未绑定事件仅全局授权可见。仅查询 schemaVersion=1.0 且带持久 sequence 的规范事件，历史 suppressed 事件可查并标 historical=true，不把旧监控日志转换为新事件。
+事件类型白名单：invocation.completed、invocation.reconciled、caller.discovered、server.state_changed、server.snapshot、metrics.bucket_updated、pipeline.state_changed。可过滤某类型不等于所有生产者都提供了该类型的完整实时覆盖。
 
-limit 默认 50、最大 200；每页最多载入 1001 条授权事件，其中最多检查 1000 条，第 1001 条用于判断后续页。枚举列表以逗号分隔，列表内部 OR、字段之间 AND；重复/嵌套/未知参数拒绝。HTTP 历史接口不接受裸 afterSequence 或调用查询 cursor；快照到订阅的 afterSequence 衔接仍归后续推送节点。
+按 sequence ASC 读取 `(after,until]`，after/until 是该端点签名游标。首请求无 after 从保留事件读取，不因较高序号已过期而丢掉较低序号仍存活事件。afterSequence 与 after 互斥；只有 overview 的未过期调用快照授权可启动，须显式匹配 origin 等范围。许可缺失、过滤或权限不符返回 400 CURSOR_SCOPE_MISMATCH。
 
-highWatermark 是十进制 sequence，highWatermarkCursor 是同范围签名上界，可作为 until。nextCursor 始终返回，含已扫描位置；hasMore=true 时保持原高水位，完成后使用 nextCursor 发起下一轮可获取新增事件。游标绑定主体、当前授权、端点和规范化过滤，续页允许省略原过滤；不能扩展原未完成窗口。
+data 为 items、nextCursor、hasMore、highWatermark、highWatermarkCursor、scannedEvents。最多扫描 1000 个授权范围事件，最多返回 limit 个匹配项；过滤后 items 可空且 nextCursor 仍推进。补拉未完成时固定高水位，完成后可继续追赶新事件。until 可使用服务返回的 highWatermarkCursor，不自行拼接数值。水位表示提交/扫描位置，不是可见事件数量、覆盖完整性或 Webhook 确认。
 
-游标最长 15 分钟，同时受剩余授权事件最早 expiresAt 限制，翻页不续期。过期返回 410 EVENT_CURSOR_EXPIRED 和 details.resnapshotRequired=true、availableFrom（当前授权/显式资产范围内可用的最早 sequence，无可用事件为 null；不是签名游标）。不自动跳过过期区间。未来提前物理清理或缩短保留策略必须补充游标失效机制后才可启用。
+游标最长 15 分钟且受窗口内最早事件到期和前置游标截止约束。遇到过期缺口返回 410 EVENT_CURSOR_EXPIRED，details 为 `availableFrom: string|null`、`resnapshotRequired: true`。availableFrom 是可用起点的序号提示，**不是签名恢复游标**；当前没有 earliestAvailableCursor/requiresSnapshot 字段。
 
-响应仅含白名单元数据，不返回原始 details、正文、Header、IP、存储引用或未裁剪 traceId。桶事件返回 subject.version、bucketVersion 及 refreshRequired=true，消费者按版本刷新统计；本节点不输出完整桶指标替换载荷。扫描数量仅统计授权事件，覆盖/运行健康继续未知。
-
-after、until 是事件游标，区间为 (after,until]；不与调用列表 cursor 混用。未提供 after 时从授权且仍在保留期内的可用起点读取，生产集成建议先从 overview 获取 snapshotSeq。支持 eventTypes、severities、spanKinds、outcomes、runtimeAssetId、serverType、callerId、endpointDefinitionId、toolName 与 limit。
-
-结果为 items、nextCursor、hasMore 和 highWatermark。nextCursor 表示已扫描进度，过滤后 items=[] 时仍可能推进。服务端签名游标封装 sequence、过滤和授权；示例 sequence 字符串不等于可自行伪造的签名 cursor。
-
-snapshotSeq 用于创建首次事件订阅的 afterSequence 参数；后续使用服务返回的 after 游标。after 与 afterSequence 互斥，afterSequence 只允许在快照授权/过滤范围内启动，服务将其转为绑定范围的游标。这样无需把不同格式的 snapshotSeq 冒充签名游标。
-
-事件保留过期或过滤/授权发生不兼容变化时返回 410 EVENT_CURSOR_EXPIRED 或 400 CURSOR_SCOPE_MISMATCH。响应提供可用起点和需要重取快照的提示，不自动跳过未知区间。
+HTTP items 是安全投影：schemaVersion/eventId/sequence/eventType/occurredAt/recordedAt/severity/server/subject/historical/data/links。不会任意透传 details、correlationId、正文、头或 IP；不承诺 traceId、callerId 等设计字段一定出现在 data。bucket 更新带 refreshRequired=true，应重新查询聚合，不能直接累加消息。historical=true 表示 suppressed 历史证据，不参与普通 Outbox 分发。
 
 ### 5.2 OBS-API-17~22：Webhook 订阅
 
-POST /subscriptions 返回 201；请求示意：
+所有接口叠加 subscription:manage。当前远端按完整订阅资产范围判断管理资格，不是仅 owner 可读的已移除本地内核；发送时另检查订阅所有者当前权限。
+
+创建 POST 返回 201，必填 name、destination、secretRef；可选 filter、enabled（默认 true）、reason。请求没有独立 scope/signingKeyId 字段。示例仅展示语法，目的地和 secret 引用仍须通过部署配置允许名单：
+
 ```json
 {
-  "name": "订单平台运行监测",
-  "destination": { "type": "webhook", "url": "https://monitor.example/api-nova/events" },
+  "name": "订单监测",
+  "destination": { "type": "webhook", "url": "https://monitor.example/events" },
   "secretRef": "webhook-orders-v1",
-  "filter": {
-    "runtimeAssetIds": ["runtime-example"],
-    "eventTypes": ["invocation.completed", "server.state_changed", "server.snapshot"],
-    "serverTypes": ["gateway", "mcp"]
-  },
-  "enabled": true,
-  "reason": "接入运行态势监测"
+  "filter": { "runtimeAssetIds": ["runtime-example"], "eventTypes": ["invocation.completed"] },
+  "enabled": true
 }
 ```
 
-filter 支持 runtimeAssetIds、serverTypes、eventTypes、severities、spanKinds、outcomes、callerIds、endpointDefinitionIds、toolNames。同一数组内 OR，不同字段间 AND；不适用的字段不会命中。若订阅设置 outcomes，仅包含状态结果的调用事件能匹配，心跳不强行填 outcome；需要不同筛选时建两个订阅。
+filter 键为 runtimeAssetIds/serverTypes/eventTypes/severities/spanKinds/outcomes/callerIds/endpointDefinitionIds/toolNames，数组内 OR、字段间 AND；不适用字段不命中。不显式指定 runtimeAssetIds 时由授权范围确定订阅范围，不允许请求扩大范围。
 
-订阅资源范围不得超过创建者权限。目的地按部署允许列表和地址校验约束；secretRef 只引用已授权的签名秘密，不接受在 URL 或请求中直接内嵌业务 API Key。读取返回 signingKeyId 和 secretConfigured，不回显秘密。
+destination 为 `{type,url}`，默认 HTTPS；拒绝 URL userinfo/query/fragment。部署须配置 WEBHOOK_ALLOWED_HOSTS 与 WEBHOOK_SECRET_REFS；HTTP 需显式允许。创建/修改的允许名单通过不等于已连通目的地或已解析秘密。
 
-当前创建节点使用 `API_NOVA_OBSERVABILITY_WEBHOOK_ALLOWED_HOSTS`（逗号分隔、精确 host，含非默认端口）和 `API_NOVA_OBSERVABILITY_WEBHOOK_SECRET_REFS`（逗号分隔引用）作为部署授权边界；两者缺失时返回 503。默认只接受 HTTPS，隔离测试如需 HTTP 必须显式设置 `API_NOVA_OBSERVABILITY_WEBHOOK_ALLOW_HTTP=true`。URL 禁止凭证、query 和 fragment，云元数据地址即使列入允许项也拒绝；DNS 解析后复核仍由实际发送节点执行。
+列表只接收 state=enabled/paused、cursor、limit；按 createdAt DESC、id DESC，签名游标绑定查询和权限/快照，返回 items/nextCursor/hasMore/scannedSubscriptions。详情无 query。返回 id/version/state/name/destination/filter/effectiveFromSeq/signingKeyId/secretConfigured/editEtag/createdAt/updatedAt/health，命令可增加 replayed/auditId/changed/pausedGapRange。
 
-订阅返回 id、version、state、filter、effectiveFromSeq、destination 的安全视图和健康摘要。首次创建只匹配之后的新事件，不自动发送全部历史。GET 列表按 createdAt DESC、id DESC 排序，限定管理者完整覆盖 scope 的订阅；签名游标固定授权、筛选和 snapshot sequence，后续页按该 sequence 读取当时生效的配置修订，更新不会污染已建立的分页快照。每页最多返回 200、最多扫描 1000 条，授权过滤空页仍可推进游标。
+**读取实际返回配置 destination.url（可含路径），不是仅 origin 的视图。**不返回独立 secretRef 字段或密钥明文；当前 signingKeyId 取自订阅行的 secretRef，因此是引用标识，列表历史修订视图不能据它推断历史密钥版本。secretConfigured 当前为 true，仅表示引用配置存在，不证明 WEBHOOK_SECRETS 中有可用密钥。health 当前固定 not_started，时间为 null，不承诺订阅健康汇总已经实现。
 
-PATCH 使用 If-Match；修改地址/过滤/启停创建新配置 revision。暂停期间不创建新投递，并暂停现有任务重试，恢复后继续已有任务，响应给出 pausedGapRange。旧任务绑定旧配置修订；撤销旧修订后任务 cancelled，需要显式选择当前授权修订进行人工 retry。
+PATCH 是**部分更新**，只接受 name/destination/secretRef/filter/enabled/reason，必须至少一个非 reason 字段；不是本地旧内核七字段完整替换。If-Match 必填，使用 data.editEtag 或 `X-Subscription-ETag`。变更产生新修订及生效序号；无实际变化不增加版本。远端修订窗口是 `[effectiveFromSequence,effectiveUntilSequence)`，不能套用历史本地内核相反的端点开闭规则。
 
-DELETE 软删除订阅并停止新投递、取消未完成投递，保留事件和尝试审计。POST /subscriptions/:id/test 返回 202，生成明确 test=true 的事件和一次受控投递，可通过返回的 deliveryId 查询；不计业务调用，也不自动恢复暂停订阅。
+暂停期间不创建普通新投递，已有队列受暂停约束；恢复返回 pausedGapRange，不暗中补发全部暂停期事件。DELETE 需 If-Match，软删除并取消未完成投递，成功 204；不是当前本地仅内核、无 HTTP 的旧阶段。测试推送 POST /subscriptions/:id/test 接受可选 reason，返回 202 的 delivery 数据，事务内创建显式测试事件及任务，不同步发送，也不自动恢复暂停订阅。
 
 ### 5.3 OBS-API-23~25：投递查询与人工重投
 
-deliveries 支持 subscriptionId、eventId、status、from/to、cursor、limit，按 createdAt DESC、id DESC 排序。投递状态为 pending、in_flight、retry_wait、succeeded、dead、cancelled；订阅暂停通过 suspendedBySubscription=true 表达，不丢弃逻辑投递状态。
+列表白名单：subscriptionId/eventId/status/from/to/cursor/limit，按 createdAt DESC、id DESC；状态为 pending/in_flight/retry_wait/succeeded/dead/cancelled。返回 items/nextCursor/hasMore/scannedDeliveries。详情 query 为 attemptsCursor/attemptsLimit（默认50、最大200），attempt 按 attemptNo **DESC**，固定首次页的 maxAttemptNo；返回字段是 **nextAttemptsCursor**、hasMoreAttempts，不是 attemptsNextCursor 或本地旧版数字页键。
 
-详情返回 deliveryId、eventId、subscriptionId、subscriptionRevision、version、status、attemptCount、nextAttemptAt、replayGeneration、lastError 及尝试分页。attempt 字段包括 attemptNo、startedAt/completedAt、durationMs、httpStatus、result、脱敏 responseSummary、errorCategory。尝试列表不得无限展开；详情支持 attemptsCursor/attemptsLimit，返回 attemptsNextCursor。
+投递 data 包含 deliveryId/eventId/subscriptionId/subscriptionRevision/version/status/attemptCount/replayGeneration/suspendedBySubscription/nextAttemptAt/lastError/createdAt/updatedAt/expiresAt。详情再含 attempts，其项为 attemptNo/startedAt/completedAt/durationMs/httpStatus/result/errorCategory/responseSummary；摘要受限且脱敏，不返回原始响应正文、lease 或实际秘密。
 
-POST retry 需要 Idempotency-Key，且需该资源管理范围和 monitoring:delivery:retry。请求为 reason 以及可选 subscriptionRevision；死信可重试，已在发送/等待重试或已成功返回 409。由配置撤销产生的 cancelled，只有显式选定当前有效修订、权限重新满足时才能重试。
-
-返回 202，保留 eventId、deliveryId 和旧 attempts，增加 replayGeneration；新发送追加 attemptNo。事件过期返回 410，不从外部或过期正文重建伪事件。
+retry 必填 Idempotency-Key 与 JSON reason，可选正整数 subscriptionRevision。仅 dead/cancelled 可进入重投；不符合返回 409 DELIVERY_NOT_RETRYABLE。cancelled 必须显式选定当前 enabled 订阅的有效修订。事件不可用/过期返回 410 EVENT_EXPIRED；不重建历史事件。成功 202，保留 eventId/deliveryId/旧 attempts，增加 replayGeneration 并记录审计。
 
 ### 5.4 变更并发与幂等
 
-PATCH/DELETE 对象要求 If-Match 为 GET 提供的对象编辑令牌；caller 使用 data.profileEtag 或 X-Profile-ETag，不能使用含动态统计的完整响应 ETag。缺失返回 428 PRECONDITION_REQUIRED，版本过期返回 412 PRECONDITION_FAILED。JSON 中展示的 version 不覆盖服务器版本。
+If-Match 缺失为 428 PRECONDITION_REQUIRED、格式错误为 400、版本不符为 412 PRECONDITION_FAILED。caller 用 profileEtag，subscription 用 editEtag；普通响应 ETag 不替代编辑令牌。
 
-创建订阅、测试推送、retry 接受 Idempotency-Key；retry 为必填。幂等键按调用主体、方法、路径及请求摘要隔离，建议保留 24 小时。同键同内容返回原操作结果，同键不同内容返回 409 IDEMPOTENCY_CONFLICT；记录不能保存秘密明文。
-
-这些是已随任务计划确认的 Endpoint 级并发与幂等契约。
+创建订阅和测试推送的 Idempotency-Key **可选**，人工 retry 必填。主体、方法、路径、请求摘要共同隔离幂等记录；同键不同内容返回 409 IDEMPOTENCY_CONFLICT，保留窗口 24 小时。重放仍检查访问资格。审计记录安全操作与版本元数据，不声称可以还原任意原始自由文本或秘密。
 
 ## 6. 主动消息协议
 
 ### OBS-PUSH-01：Socket.IO 实时订阅与恢复
 
-归属 OBS-TP-13，状态 PLANNED。沿用 namespace=/monitoring；Socket.IO 不是原生 WebSocket 帧 API，不另约定 WebSocket URL。连接使用受管管理身份，握手传 auth.token，namespace=/monitoring、Engine.IO path=/socket.io；凭证仅通过受控连接传递，不放 URL。当前服务器未自定义 Engine.IO path，新权限检查在实现包中接入。
-
-客户端发送 subscribe-observability：
-```json
-{
-  "filter": { "runtimeAssetIds": ["runtime-example"], "eventTypes": ["invocation.completed"] },
-  "afterSequence": "1842",
-  "subscriptionVersion": 1
-}
-```
-
-afterSequence 用于首次快照衔接；重连改传服务返回的 after 游标，二者互斥。服务器确认后发送 observability-event，其载荷与 Webhook 完全一致；事件消息附本次订阅的 resumeCursor，消费者在业务处理后保存，不从未验证 payload 自行拼游标。
-
-启动顺序为 overview 快照、从 snapshotSeq 订阅、补拉至固定高水位、切到实时。迟到聚合使用 metrics.bucket_updated 替换桶；去重使用 eventId，状态/桶更新使用 subject.version。修改过滤后重新获取绑定范围的游标。
-
-慢客户端超过缓冲上限断开并提示恢复；客户端使用最后已处理游标补拉。授权过期/撤销停止推送，不沿用已经过期的连接权限。若游标过期则重新取快照，不把新数据直接叠加到旧总数。
+**PLANNED，尚无本文新协议实现。**设计中的 subscribe-observability、subscription-confirmed、observability-event、历史/实时切换、慢消费者和撤权处理均不能作为当前可调用接口。既有 monitoring/runtime-event 不代表新调用事件协议已授权闭环。需求说明留在[设计](./runtime-observability-design.md)，后续 TP13 应复用远端持久事件与水位，另行验收。
 
 ### OBS-PUSH-02：Webhook 接收协议
 
-归属 OBS-TP-12，状态 PLANNED。服务器 POST application/json 到订阅地址。默认推送只含脱敏元数据，不含正文、原始 IP、Key/JWT 或完整认证主体字段。
+远端闭环包含订阅/投递 API、Outbox 物化、租约发送、密钥解析、每次发送地址检查、签名、有限重试/死信及人工重投；默认关闭，未声明 AVAILABLE。COLLECTOR_ENABLED、OUTBOX_ENABLED、WEBHOOK_ENABLED 三个开关默认均为字符串 false，互不替代。
 
-```json
-{
-  "schemaVersion": "1.0",
-  "eventId": "evt-example",
-  "sequence": "1843",
-  "eventType": "invocation.completed",
-  "occurredAt": "2026-09-08T10:00:01.000Z",
-  "recordedAt": "2026-09-08T10:00:01.150Z",
-  "server": { "type": "mcp", "runtimeAssetId": "runtime-example" },
-  "subject": { "kind": "invocation", "id": "inv-example", "version": 2 },
-  "traceId": "trace-example",
-  "severity": "error",
-  "data": { "spanKind": "mcp_tool", "outcome": "error", "toolName": "get_order", "durationMs": 320 },
-  "links": { "invocation": "/api/v1/monitoring/observability/invocations/inv-example" }
-}
-```
+请求为 POST JSON，头包括 X-ApiNova-Event-Id、X-ApiNova-Delivery-Id、X-ApiNova-Timestamp（Unix 秒）、X-ApiNova-Signature。签名值为 `sha256=<hex>`，计算 `HMAC-SHA256(secret, timestamp + "." + 原始请求正文)`。接收方按原始字节验签并限制时间窗，以 eventId/deliveryId 做幂等；2xx（含202）只表示本次接收成功，不表示后续业务处理完成。
 
-Header 包含 X-ApiNova-Event-Id、X-ApiNova-Delivery-Id、X-ApiNova-Timestamp、X-ApiNova-Signature 和 X-ApiNova-Key-Id。timestamp 为 Unix 秒十进制文本；签名为 sha256= 加十六进制小写 HMAC-SHA256(secret, timestamp + "." + 原始 HTTP body 字节)。接收端必须对收到的原始字节验证，不能对重新格式化的 JSON 签名。
+当前实际 Webhook JSON 字段为 schemaVersion/eventId/eventType/sequence/occurredAt/severity/status/subject/data/dimensions/delivery。subject 是 id/version；delivery 是 id/attemptNo/replayGeneration/subscriptionRevision。data/dimensions 来自持久事件。**它不是 HTTP `/events` item 的逐字段同构副本**，没有承诺 recordedAt/server/links/historical 等相同字段；生产者必须在入库前控制敏感内容，不能把 HTTP 白名单裁剪当成 Webhook 脱敏层。
 
-建议接收端接受正负 300 秒时钟偏差并校验事件 ID。每次尝试 timestamp/签名可变，eventId 不变；按 eventId 持久去重后返回 2xx。2xx/202 只表示接收，不意味着下游业务完成。
+发送事务提交之后执行网络操作，保持至少一次语义。默认请求超时 10 秒；3xx 不跟随；网络错误、408、429、5xx 可重试，其他非2xx 通常永久失败。退避基数 5秒/30秒/2分/10分/30分并带抖动，结合 Retry-After；每 replay generation 最多6次、活动窗口24小时，另受事件/投递保留约束。attemptNo 与历史记录不因人工重投清零。发送正文限256KiB，响应诊断最多2KiB且脱敏；不能解释为业务正文存储上限。
 
-默认总超时 10 秒；最多 6 次尝试，重试间隔为 5 秒、30 秒、2 分钟、10 分钟、30 分钟并加入抖动，活动重试最长 24 小时。网络错误、408、429、5xx 可重试；在上限内尊重 Retry-After；其他 4xx 永久失败，3xx 不跟随。
-
-事件类型为 invocation.completed、invocation.reconciled、caller.discovered、server.state_changed、server.snapshot、metrics.bucket_updated、pipeline.state_changed。失败用 outcome/severity 筛选，不再额外发一个用于重复计数的 invocation.failed。
-
-默认 15 秒状态快照，45 秒无心跳表示 stale/unknown，明确进程退出才判 offline。消费者收到重复/乱序事件必须按 eventId/subject.version 处理；sequence 是管理面提交顺序，不代替跨进程因果时间。
+目的地默认 HTTPS，部署主机允许名单、每次 DNS 地址检查与固定解析地址连接共同约束出站；私网地址需显式配置。密钥由允许的引用从部署 WEBHOOK_SECRETS 解析，缺失不使用业务 API Key 或默认秘密替代。端到端运行、平台和负载证据仍需由具体部署提供。
 
 ## 7. 错误码
 
-| HTTP | code | 客户端处理 |
+| HTTP | code | 含义 |
 | --- | --- | --- |
-| 400 | INVALID_QUERY / CURSOR_SCOPE_MISMATCH | 修正参数、过滤或重建查询 |
-| 401 | UNAUTHENTICATED | 使用有效管理凭证 |
-| 403 | FORBIDDEN | 缺少权限或资源范围，不重试扩大范围 |
-| 404 | NOT_FOUND | 资源不存在或不可见 |
-| 409 | IDEMPOTENCY_CONFLICT / DELIVERY_NOT_RETRYABLE | 更换冲突幂等请求或读取投递状态 |
-| 410 | PAYLOAD_EXPIRED / EVENT_CURSOR_EXPIRED / QUERY_CURSOR_EXPIRED | 识别过期或重建快照 |
-| 412 | PRECONDITION_FAILED | 重新读取版本后决定变更 |
-| 413 | QUERY_TOO_LARGE | 缩小范围/正文请求；不代表业务 API 正文限制 |
-| 422 | UNSUPPORTED_HISTORICAL_DIMENSION / INVALID_SUBSCRIPTION_DESTINATION | 选择支持维度或合法目的地 |
-| 428 | PRECONDITION_REQUIRED | 补充 If-Match |
-| 429 | RATE_LIMITED | 在限定窗口内退避 |
-| 503 | OBSERVABILITY_UNAVAILABLE | 保留消费游标并稍后恢复 |
+| 400 | INVALID_QUERY | 未知、重复、嵌套或无效参数/请求头 |
+| 400 | CURSOR_SCOPE_MISMATCH | 端点、主体、过滤、授权或快照启动范围不符 |
+| 401 | UNAUTHENTICATED | 无有效管理访问凭证 |
+| 403 | FORBIDDEN | 缺少权限或不允许该范围/配置 |
+| 404 | NOT_FOUND | 对象不存在或不可见 |
+| 409 | IDEMPOTENCY_CONFLICT / DELIVERY_NOT_RETRYABLE | 幂等冲突或当前投递不可重投 |
+| 410 | PAYLOAD_EXPIRED / EVENT_EXPIRED | 正文或重投所需事件过期 |
+| 410 | QUERY_CURSOR_EXPIRED / EVENT_CURSOR_EXPIRED | 游标/保留区间失效，重新取查询或快照 |
+| 412 / 428 | PRECONDITION_FAILED / PRECONDITION_REQUIRED | 编辑令牌不符 / 缺失 |
+| 413 | QUERY_TOO_LARGE | 有界查询或请求预算超限 |
+| 429 | RATE_LIMITED | 请求受限 |
+| 503 | OBSERVABILITY_UNAVAILABLE | 依赖、配置、存储或内部条件不可用 |
+
+错误码按当前安全错误类列出，不承诺另有通用 422 分支。错误 body 中可选 details 的形状按错误类型消费。
 
 ## 8. 最小集成流程
 
-1. 使用受控管理/服务身份调用 capabilities，确认版本、支持维度和资源权限。
-2. 获取 overview 与 snapshotSeq，加载明细/统计，并保留 dataWatermark 与完整性状态。
-3. 实时展示使用 Socket.IO；后端主动接收使用 Webhook。两种方式按同一 eventId 去重。
-4. 遇到失败事件，按 links 获取 invocation，再取 trace 和被授权的 payload。
-5. 用 events 补拉断线区间，用 deliveries 查询发送过程；游标过期重建快照。
-6. 对 metrics.bucket_updated 按桶版本替换，不能每收到一次事件就给总数加一。
+1. 通过既有管理认证取得访问 Token，确认部署、角色资源范围和所需细分权限。
+2. 读取 capabilities，仅按当前 endpoints/queryParameters 发起请求；不要把 enabled 当 worker 已启动或部署已验收。
+3. 使用统计/调用/正文查询，各自遵守参数与权限；overview 仅提供限定调用快照及持久状态视图。
+4. 如需事件补拉，先取获授权的 invocationSnapshotSeq，并在有效期内以匹配的 origin/serverType/runtimeAssetId 调用 afterSequence，后续使用服务返回的签名 after。
+5. 如需 Webhook，先配置目的地与 secret 允许名单、密钥及独立 worker 开关，再创建订阅、测试推送并通过 deliveries 查询；接收端实现验签/去重。
+6. Socket.IO、policies 和实时存活/完整治理不是当前集成前提能力，等待后续明确实现与验收。
 
 ## 9. 接口收敛与版本记录
 
-OBS-TP-15 将重复调用日志接口和现有调用方直接收敛到本文的新 Endpoint。不为 /api/v1/monitoring/management/gateway-access-logs、/management/external-callers 建立兼容别名。必要的生命周期/健康管理功能仍保留其业务职责，权限不能因收敛而放宽。
+| 版本 | 日期 | 范围 |
+| --- | --- | --- |
+| 2.1.0 | 2026-09-14 | 静态对齐远端优先整合后的26项限定契约，明确快照、事件/投递响应、权限及运行限制；压缩历史追加记录 |
+| 2.0.0 及历史追加 | 截至2026-09-14 | [原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)，不作为当前状态来源 |
 
-| 文档版本 | 日期 | 内容 | 实现/发布状态 |
-| --- | --- | --- | --- |
-| 1.0.0 | 2026-09-08 | 首次登记 28 个 HTTP Endpoint、Socket.IO/Webhook、对象与错误契约 | 全部 PLANNED；未发布 |
-| 1.1.3 | 2026-09-08 | 同步 TP-02 验收、正文过期保留审计及内部 GC 边界；无新增对外路由 | 全部 PLANNED；未发布 |
+旧接口/旧消费者收敛、身份审计联动、Linux/PostgreSQL 实际查询与负载、部署 AVAILABLE 仍须在[当前复核](../guides/runtime-observability-completion-review.md)和[执行状态](../guides/runtime-observability-development-execution-status.md)分别登记。本文不重放历史测试数量，也不把主代理之外的文档整理记作新运行证据。
 
 ## 当前开发进度与接入边界
 
-2026-09-08：共享 v2 采集契约及阶段写入已有代码；TP-02 存储包退出条件已满足，包括正文归属、写入/回收互斥和孤立回收。API build、48 项存储/GC 用例与 PostgreSQL 四进程测试通过，此前两方言初始化烟测通过。本文 28 个 HTTP Endpoint、Webhook 和 Socket.IO 新订阅仍为 PLANNED，没有新增可供调用的已上线接口。
-
-源 schemaVersion=2 与对外 envelope schemaVersion=1.0 属于不同层级，不是保留两个历史格式。旧日志查询路径及其调用方将在 OBS-TP-15 直接切换，不提供自动降级或兼容别名。数据库结构只维护当前空库基线；已有开发库不会自动升级或删除，需要另行明确处理。
-
-对外 sequence 仍为十进制字符串且允许有间隙；内部补零排序键不对客户端暴露。正文摘要中的 capturedDigest 与对象存储完整性摘要用途不同，客户端不得据此假设脱敏前后内容相同。更多实现边界见[存储基础说明](./runtime-observability-storage-foundation.md)。
-
-验证进度更新（2026-09-08）：48 项存储/GC 用例全部通过；PostgreSQL 四进程验证了提交/回滚顺序、未提交不可见、跨进程写入租约和孤立回收，schemaDrift=0、清理退出码 0。Linux 与全链路矩阵尚未执行，pg 非致命弃用警告仍待定位。截至 2026-09-09，TP-03 权限与 API 基础已通过 API 构建及 56 项专项验收；存储模块尚未接入运行时，GC 也没有自动调度。
-
-正文过期后的调用审计元数据仍保留；正文读取接口实现时须维持 PAYLOAD_EXPIRED 语义。目录归属、内部租约、generation、文件路径和 GC 控制入口属于服务端内部机制，不增加对外清理 Endpoint，也不暴露磁盘路径。后续 OBS-API-26/27/28 由 TP-14 提供授权后的治理/健康视图，不能直接透传内部状态行。
+API01~26 的限定契约 VERIFIED；API27/28 与新 Socket.IO 协议 PLANNED；AVAILABLE=0。当前模块注册13个 controller、26个 HTTP operation，独立 worker 默认关闭。overview 的 pipeline/recentEvents 区块、心跳和实时 stateVersion、有效策略/配额/磁盘计量、全局覆盖证明仍未完成。HTTP 与 Webhook 信封差异、订阅静态 health/密钥引用视图限制保留为真实边界。
 
 ## 10. TP-03 公共 API 基础的实现约束
 
-本节对应已通过包级测试但未部署的公共原语，不改变全部新 Endpoint 的 PLANNED 状态。TP-03 实现在提交 efb4536 之后完成，不包含新增 Token 签发 Endpoint。
-
 ### 10.1 管理身份和细分权限
 
-复用现有管理登录/刷新流程签发访问 Token。新的可观测性 Guard 只接受 Authorization Bearer、HS256、aud=api-nova-management、iss=api-nova、tokenUse=management_access，并校验 exp/iat 与数据库中的当前账号状态。缺少用途声明的旧 Token、刷新 Token 和 Gateway/MCP 业务凭证不得用于新接口；新版本启用后通过既有登录/刷新流程取得管理访问 Token，不增加兼容降级。
-
-JWT_SECRET 至少为 32 字节，缺失或不足时新 Guard 返回 OBSERVABILITY_UNAVAILABLE，不使用默认弱密钥。角色、权限和资源范围每次由服务端读取，不相信 Token 自报的权限数组或用户 preferences/metadata。
-
-所有操作必须满足 monitoring:read 和本接口额外权限，按 AND 组合；正文叠加 monitoring:payload:read，原始 IP 叠加 monitoring:source:read，订阅与投递管理叠加 monitoring:subscription:manage，重投再叠加 monitoring:delivery:retry。monitoring:manage 不自动替代正文或 IP 的读取权限。四项新权限进入现有系统种子定义，但本轮没有执行种子或修改现有用户授权。
+管理 Guard 接受 Bearer HS256，校验 aud=api-nova-management、iss=api-nova、tokenUse=management_access、exp/iat 及当前账号状态。JWT_SECRET 至少32字节，缺失不使用弱默认值。禁用用户/角色/权限和不支持的条件不能降级为允许。细分权限按 AND 与资产交集判断，manage 不替代 payload/source/subscription 权限。
 
 ### 10.2 资源范围配置
 
-受控角色管理 API 的 metadata.observabilityScope 支持两种形式：
-
-```json
-{"observabilityScope":{"mode":"assets","runtimeAssetIds":["runtime-example"]}}
-```
-
-```json
-{"observabilityScope":{"mode":"all"}}
-```
-
-每个角色最多 1000 个资产 ID；assets 空数组表示没有可见资产，缺少范围配置默认不授予新可观测性资源访问。启用的系统 super_admin 角色具有全局范围；其他账号，包括受管服务账号，均需要显式角色范围。角色创建/更新继续走现有安全管理权限及审计，不能通过请求筛选或用户资料扩大范围。
-
-同一权限的多个角色范围取并集，不同必需权限的范围再取交集；不能把 A 服务器上的正文权限与 B 服务器上的普通读取权限拼成 B 的正文访问权。禁用角色/权限不参与授权，未实现的 permission.conditions 非空条件不得被忽略并放行为无条件权限。
-
-集合查询必须把授权范围与请求范围取交集，空集必须落实为无结果条件；详情检查不可见资源返回通用 NOT_FOUND。跨资源 trace、IP 字段、订阅对象管理范围和系统级汇总仍须由对应服务调用这些基础校验，不能仅挂 Guard 就声称所有对象已授权。
+受控角色 metadata.observabilityScope 为 `{ "mode": "all" }` 或 `{ "mode": "assets", "runtimeAssetIds": [...] }`；缺少范围不默认全局，空数组表示无资产。系统 super_admin 是显式系统例外。同一权限跨角色取并集，不同所需权限再取交集；客户端筛选不能扩大范围。订阅/投递管理需完整覆盖对象范围；API26 必须全局范围。
 
 ### 10.3 受控查询和签名游标
 
-每个 Endpoint 明确传入适用参数白名单，未知/重复数组/嵌套 query 拒绝。基础解析覆盖标量、枚举、UTC 时间、50/200 分页、时间区间、最多两个分组维度和 1440 个桶限制；支持维度组合、统计必填 scope/interval 等业务校验仍由 TP-09/10 实现。
-
-API_NOVA_OBSERVABILITY_CURSOR_SECRET 为独立的至少 32 字节服务端随机秘密；API_NOVA_OBSERVABILITY_CURSOR_KEY_ID 默认为 v1。HMAC-SHA256 游标绑定用途、Endpoint、排序、当前主体与授权范围摘要、归一化过滤、快照和位置。先验签与授权，再使用游标内容；跨主体/过滤/范围不能复用。默认有效 15 分钟，查询最大 1 小时，事件最大 14 天且不能超过实际事件保留窗口。
-
-续页必须从已验签游标恢复原归一化过滤，再解析本次显式参数并检查过滤一致性，不能重算默认“最近一小时”。页大小和 includeTotal 不改变过滤身份。游标仅签名、不加密，不得装入密钥、正文或原始 IP；客户端将其视为不透明恢复凭据。更换游标签名秘密会使旧游标失效，重新取快照，不承诺旧密钥兼容链。
+API_NOVA_OBSERVABILITY_CURSOR_SECRET 是独立至少32字节秘密，KEY_ID 默认 v1。游标 HMAC 绑定端点、排序、主体/权限、过滤和快照，先验签再使用内容；不含秘密，客户端不解析或自行构造。实际有效期可短于公开上限。overview 的5分钟进程内启动授权与事件15分钟签名游标不是同一种令牌。
 
 ### 10.4 版本与幂等原语
 
-ETag 绑定资源 ID 摘要和正整数版本；If-Match 只接受一个精确强 ETag，不接受通配符、弱 ETag 或列表。缺失为 428，格式错误为 400，不匹配为 412。对应资源的读取、版本检查、修改和审计必须处于同一加锁事务，单独调用 Header 检查不构成并发保护。
+编辑令牌必须在授权后的同一变更事务中检查。幂等请求摘要使用独立服务端秘密，安全结果引用与操作共同提交，不保存秘密明文。原语存在不等于 API27/28 已实现，亦不替代对象授权或部署验证。
 
-Idempotency-Key 为 1~128 个非空白可见 ASCII 字符。API_NOVA_OBSERVABILITY_IDEMPOTENCY_SECRET 是独立的至少 32 字节服务端随机秘密，用于请求摘要，不复用业务 API Key。幂等身份按主体/方法/规范路径/键生成不可逆摘要；请求内容只存 HMAC 摘要，24 小时记录仅保存安全的结果引用（statusCode/resourceId/version/operationId），不保存秘密或完整响应。
-
-同键重入必须再次校验当前对象授权；同内容复用原操作结果，异内容 409，权限范围变化拒绝复用。数据库修改、审计/Outbox 与幂等记录共用 TP-02 事务，回滚不留下成功记录。回调内禁止网络发送，实际推送由后续分发任务完成。更换请求摘要秘密不改变幂等身份，保留窗口内旧请求摘要无法匹配时返回冲突，不自动重复执行。
-
-2026-09-09：补齐测试模块依赖后，56 项专项与原有 48 项回归共 104/104 PASS，API 构建通过。验证范围为公共原语及隔离 HTTP 夹具，不代表任何新业务 Endpoint 已达到 VERIFIED。公共错误只返回安全固定文案与服务端 requestId，不回显驱动错误或磁盘路径。成功 envelope/分页 DTO 是公共基础，204 无正文、全局响应拦截器协作、Swagger 路由和读取审计仍须在具体 Endpoint 集成时验证。
+<!-- Historical heading anchors retained for incoming links; current contracts are sections 1-10. -->
 
 ## 11. 共享采集器验证进度
 
-TP-04 已提供单次物理上游请求适配器，明确记录 attemptIndex/redirectHopIndex、原始字节观察边界以及流是否完整结束。一次实际请求对应一个 upstream_api 调用；适配器不会自行重试或重复消费流。内部健康包含 attemptsStarted/attemptsCompleted/instrumentationFailures/finalizeFailures，文件失败另由共享写入健康记录；这些计数尚未成为已上线健康 Endpoint。
-
-四组 parser 测试共 60 项及 parser/API 构建已通过，覆盖新增的 16 项上游尝试与故障用例。TP-03 专项与 Gateway 包级接入验收已完成，MCP/测试探测和正式应用集成仍未完成。28 个 HTTP Endpoint 与两类推送继续保持 PLANNED，不能将新导出函数等同为对外服务已可调用。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 12. 当前对外可用性边界（2026-09-09）
 
-TP-03 的管理身份隔离、AND 权限、显式资源范围、查询归一化、签名游标、资源版本与幂等基础已验收；现有管理登录/刷新流程用于签发符合用途约束的访问 Token。未新增 Token 签发接口，普通角色不会自动获得正文或来源 IP 权限。
-
-生产查询控制器、读取审计、Swagger 路由及全局响应拦截器协作尚未接入。28 个 HTTP Endpoint、Socket.IO 与 Webhook 推送保持 PLANNED；公共基础通过不等于 Endpoint 已开放。Gateway 包级接入已由 TP-05 完成，本阶段不新增 Endpoint 或更改路径。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 13. Gateway 采集语义与验证边界（2026-09-09）
 
-Gateway 包级实现已通过 21 项真实回环 HTTP 专项及 104 项基础回归，API 构建通过。记录维度为独立 gateway_request 与 upstream_api，通过内部 requestId、traceId、parentInvocationId/rootInvocationId 关联。客户端 x-request-id 仅存入受限 clientRequestId；返回及转发的 x-request-id 为服务器新生成的 ID。
-
-入口字节来自现有请求读事件与 ServerResponse 写入，measurementStage=gateway_http；上游字节由单次适配器观察，measurementStage=upstream_http。两侧均为 observed_body，不等于 TCP/TLS 线速流量，不跨阶段相加。未读入的请求正文保持不可用，不能拿 Content-Length 或空字符串伪装观察值。入口成功以客户端响应 finish 为界，上游成功以上游响应完整结束为界；断开和中断不记为成功。
-
-缓存命中只新增入口，cacheHit=true；实际重试使用同一 upstreamOperationId 与递增 attemptIndex。代理不自动跟随重定向，redirectHopIndex=0。没有重放缓冲的带正文请求不自动重试。可信 API Key 身份在路由权限判断前建立，因此“认证成功但拒绝访问”仍保留可信调用者，错误凭证不会生成伪造调用者。
-
-当前 clientIp/peerIp 为直接连接端，ipSource=peer、proxyTrusted=false；不承诺反向代理后的最终客户端地址，逐跳可信解析需集成验证。上述是采集能力，不是 API 开放证明；所有新 Endpoint 和推送保持 PLANNED，生产控制器/监听器完整集成仍由 TP-15 验收。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 14. MCP 首批采集语义（2026-09-09，历史快照）
 
-HTTP 协议入口作为 Tool 的父节点，STDIO/程序化请求在没有 HTTP 父节点时建立独立 mcp_protocol；Tool 使用 mcp_tool，后续上游作为其子节点。协议与 Tool 的 Payload 按 serialized_payload/logical_payload 计量，不冒充 HTTP 原始流量。
-
-独立协议节点保存 JSON-RPC 请求/响应；Tool 保存 params 与 result/error 的逻辑内容。发送 Promise 成功才允许成功终态，发送异常记录 MCP_SEND_FAILED 和 incomplete 正文状态，不保留未完成片段。toolIsError 和 protocolErrorCode 可区分工具失败与 JSON-RPC 失败；通知无 ACK，不能记作业务成功。
-
-上述能力已通过 15 项传输模拟与 140 项联合回归、Server/API 构建；真实 SDK 传输、HTTP 全正文/认证前失败、上游适配仍未完成。所有 28 个 HTTP Endpoint 和两类推送继续 PLANNED。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 15. MCP 真实传输首轮验证（历史快照）
 
-2026-09-09：真实 Streamable/SSE 安全审计烟测通过，三次实际上游调用的 HTTP 入口、Tool、上游父子链路以及身份/内部 requestId/trace/root 一致性已验证；同时覆盖认证、会话归属和 Tool 权限拒绝。该集成场景与 140 项专项/回归分别计数。
-
-HTTP 全正文/取消、真实 STDIO 与 parser 上游适配仍在 TP-06 中推进。上述证据不改变 Endpoint/推送 PLANNED 状态，也不代表已有 API 可查询这些新日志。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 16. MCP HTTP 当前采集语义（2026-09-09）
 
-HTTP 入口按 observed_body/mcp_http 观察已有请求读事件和响应写入；认证前未读正文不被主动排空，也不伪造为空正文。取消或流中断保留完整性状态，不保存未完成的正文片段。SSE 原始帧仅记录观察字节并以 sse_framing_not_captured 省略内容，Tool 逻辑 Payload 独立采集；调用方应显示省略原因而不是将其视为零流量。
-
-HTTP 200 携带 JSON-RPC error 时仍记录协议失败。公共脱敏已修复标量字符串被重写的问题，保留严格 jsonrpc="2.0" 判断，不接受被误改的版本作为兼容形式；JSON 编码对象/数组中的秘密仍递归脱敏。
-
-HTTP 15 项专项在本轮 155 项联合回归中全部通过，真实 Streamable/SSE SDK 烟测通过。该证据是采集端包级验证，不代表新的日志查询 API 已开放。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 17. 物理上游计量与剩余边界（2026-09-09）
 
-有运行调用上下文的 parser 出站按每次原生 HTTP 请求建立 upstream_api。多个跳转共用 upstreamOperationId，redirectHopIndex 逐跳递增；当前 Axios 不自动重试，attemptIndex=1。跳转不计为重试，不能用整个逻辑调用的最终响应代替各跳证据。upstream_http、mcp_http 与 Tool 的 logical_payload 必须分层展示，不跨阶段相加为网络总量。
-
-响应观察早于跳转丢弃与 Axios 解压处理。正文未观察完整时记录 incomplete，不以 Content-Length 推算实际读入字节。编码正文保留实际观察字节及原始编码头，但不保存未经安全脱敏的压缩原文，省略原因为 encoded_body；业务客户端仍正常解压。此次 gzip 路径已经专项验证，不能据此宣称所有编码算法均完成集成矩阵。
-
-Axios 默认的超时 ECONNABORTED 仅在确认来源为 Axios 错误时按 timeout 记录，ETIMEDOUT 同样记录超时；显式取消与普通原生中止不被一律当作超时。原业务异常码保持不变，日志不保存原始异常消息来推断分类。
-
-当前 parser 86/86、Node 联合回归 155/155、真实 Streamable/SSE 和三包构建全部通过，前版四项失败已解决。真实 STDIO、完整传输矩阵和性能验证仍未完成；操作级 Agent 当前不复用跨操作连接。TP-04 已重新验收，TP-06 仍在进行。
-
-新调用查询、聚合、调用者、事件与推送服务尚未接入运行。全部 28 个 HTTP Endpoint 及两类推送仍为 PLANNED；本次文档版本同步经过验证的采集语义，没有新增公开路径或宣告接口可用。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 18. 真实 STDIO 验证补充与平台限制（2026-09-09）
 
-实际子进程已验证 stdout 纯协议（含 debug 启动）、STDIO 协议/Tool/物理上游的父子关系、逻辑正文脱敏、错误与并发，以及主动关闭时待完成调用取消并在进程退出前完成日志 flush。STDIO 未经网络认证时只记录实际匿名上下文，不凭本地进程连接虚构可信用户或来源 IP；工具逻辑字节不冒充 HTTP 流量。
-
-新增 8 项全部通过，联合回归 163/163 和真实 Streamable/SSE 烟测通过。慢读测试已修正 Windows 同步管道下的控制通道等待：父进程暂停消费、确认实际响应写入开始后检查两层调用无终态，恢复读取后验证完整响应与唯一成功终态。该验证不等于远端业务已处理响应。
-
-当前 Windows Node 仍对 stdout 管道同步写入，慢消费者可能阻塞事件循环，进程不一定能及时生成心跳或处理控制消息；观察端新鲜度判断需要独立于生产进程。夹具为了建立观察基线而提前 flush started 记录，不代表生产发送路径新增了同步落盘保障。
-
-主动 server.close 与恢复读取的证据不等于 stdin EOF、stdout 断管或任意退出路径均已验证。上述边界和 Linux/性能仍待完成；全部 28 个 HTTP Endpoint 与两类推送继续 PLANNED，本批不增加公开接口。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 17. TP-08 采集节点实现进度（2026-09-09）
 
-新增内部单文件 collector，不新增 HTTP 路由，本文全部 Endpoint/推送状态仍为 PLANNED。数据集的 historyCompleteSince/eventLiveSince 已持久化；早于 eventLiveSince 的初始 v2 终态事件标记 suppressed，保留审计历史但不进入实时分发；不能把它们当成当前流量。
-
-后续 health/overview 应明确区分最近成功时间、水位、最近文件积压、部分行、隔离数与已知源序号缺口。当前内部 backlogScope=last_visited_file，不代表全目录积压；采集内存错误独立保存，数据库不可用时持久心跳不会伪装成新鲜。源文件路径与错误正文不对外公开。
-
-本节点 API build 和 118 项联合回归通过（新增采集 14 项）。目录自动汇集、调用者算法、恢复调度及公开查询仍在后续节点完成。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ### 17.1 调用者/来源与 worker 的已实现内部语义
 
-已提供可信 caller/credential/source/observation 同事务投影和显式启用的目录 worker，API build 与 133 项联合验证通过，全部公开 Endpoint/推送仍为 PLANNED。来源采用带 keyId 的 HMAC；匿名/认证失败来源不等于人数，不包含可认证的原始 Key。来源超限时 sourceOverflow=true、来源桶 ipSource=overflow 且 IP 为 null，后续 sources/health 需表达降级数量，不把它们当作精确去重人数。
-
-内部 worker 状态区分 running、waiting_for_source、degraded，扫描范围为 partial_directory_scan/completed_directory_scan，附部分行、已知文件积压、隔离和错误数量。完整扫描没有已知缺口时才做独立失联推断；unknown 不虚构 completedAt/durationMs，迟到终态增加投影版本而非新增一次调用。公开接口的字段裁剪/授权和运行态报告尚需后续任务接入。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ### 17.2 持久重启验证边界
 
-不同采集进程重开持久 SQL.js 后，数据集起点、调用版本、检查点、正文引用和幂等事件已通过 3 项专项；联合 136/136 PASS。unknown 的真实完成更正不增加调用总数，重复源事件不推进事实水位。强杀测试发生在 SQL.js 文件明确保存完成之后，不覆盖机器断电或生产者未刷出内存。
-
-目录 EOF 仍只代表当前没有更多字节，不是源进程结束证明；关闭源残片的缺口状态必须经后续可信退出证据确认。以上是内部链路验证，公开 28 个 Endpoint 及两类推送仍为 PLANNED。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ### 17.3 源退出、残片与查询前置任务完成
 
-TP-08 包级退出条件已通过，新增源生命周期 13 项/跨模块 208 项、parser 86 项、三包构建及真实 MCP 烟测通过。公开 Endpoint 与推送仍为 PLANNED，下一步实现调用列表与详情。
-
-后续 pipeline/source 状态应区分 PID 可见、确认退出、证据不足，PID 可见不等于已证明原写入实例存活。闭合证明绑定 UUID 而非可复用 PID；不得暴露私有标识文件路径或将未确认 EOF 标为已处理。关闭残片产生 SOURCE_CLOSED_PARTIAL_LINE 及 closedSourcePartialRecords/closedSourcePartialBytes，不生成虚构调用或泄露残片文本。unknown 的 sourceExitedAt 与推断时间均不是实际 completedAt。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 12. OBS-API-03/04 实现与联调边界（2026-09-09）
 
-状态 VERIFIED：API build 与 22 项实际 Nest HTTP/Swagger 测试通过，联合 230 项全部通过。完整路径为 /api/v1/monitoring/observability/invocations 及 /api/v1/monitoring/observability/invocations/{id}，operationId 分别为 obsListInvocations、obsGetInvocation。未在业务根模块启用，外部部署主机仍需 TP-15/16 验证。
-
-列表允许且只允许 from、to、timeBasis、origin、serverType、runtimeAssetId、callerId、sourceId、endpointDefinitionId、toolName、sourceServiceInstanceId、spanKind、outcome、traceId、requestId、errorCategory、limit、includeTotal、cursor。默认最近 1 小时、external、startedAt、limit=50、includeTotal=false；最大区间 30 天、最大 limit=200。详情只允许 timeBasis，默认 startedAt，仅回显，不影响按 ID 查最新版本。重复、嵌套、未知参数和原始 IP 过滤返回 400。
-
-列表 data 为 items、nextCursor、hasMore、timeBasis，includeTotal=true 才附 total；明细 data 为字段对象和 timeBasis。游标固定过滤/资产范围/主体与历史修订水位，续页可只传 cursor，也可调整 limit/includeTotal。timeBasis 确定实际排序时间列；运行中及 reconciled 未知终态的 completedAt=null，不进入 completedAt 时间窗。保留截止是初始 15 分钟与结果集最早 expiresAt 的较早者，续页不延长；到期返回 410 QUERY_CURSOR_EXPIRED，需重新取快照。
-
-当前完整字段以程序生成 DTO/Swagger 为准：lifecycle=running/finished；publicationSnapshot 尚未采集，固定 null 并列入 missingFields；sourceRecordId 映射源 eventId。errorSummary 仅输出由规范 outcome 生成的安全摘要，不直接返回异常或错误堆栈。列表/详情绝不内联正文、Header、credentialId、session 哈希、URL 或 fileKey/storageOwnerId。正文摘要只包含 state/reason/expiresAt/readLink，OBS-API-05 未完成前 readLink 固定 null。
-
-IP 四字段 clientIp/peerIp/ipSource/proxyTrusted 仅在当前主体同时具有 read/source:read 且同一资产可见时出现，其他项 sourceRestricted=true 并省略字段。不可见父/根引用裁剪为 null；相应 traceId 及与该隐藏引用相同的 requestId 同样裁剪，linksRestricted=true，不返回隐藏节点数量。未采集、匿名和权限裁剪不合并为同一种身份状态。
-
-正文 TTL 按当前时间判断，不被列表快照冻结；元数据过期/不存在/不可见统一 404。meta.snapshotSeq 是查询快照，dataWatermark 是该读取事务可见的当前提交水位。TP-10 尚未提供资产级完整覆盖，暂统一 lagMs=null、historyCompleteSince=null、isPartial=true，不输出虚构 gapRanges 或健康零值。成功及错误均 Cache-Control: no-store。
-
-本节点真实验证范围为 Windows/隔离 SQL.js、管理 JWT/HTTP 与生成 Swagger；PostgreSQL 查询分支、Linux、查询性能 SLA 和部署级能力声明尚未验证。后续提前清理元数据或缩短保留策略必须在 TP-14 对已有游标显式失效，不得悄悄跳过缺失页。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 13. OBS-API-05 正文读取实现（2026-09-09）
 
-状态 VERIFIED，19 项真实 HTTP/存储/管理审计与 Swagger 专项、联合 249 项及 API 构建通过。相对路径 GET /invocations/{id}/payloads/{side}，operationId=obsGetInvocationPayload。无 query 参数；side 仅 request/response。需要当前管理 JWT、monitoring:read AND monitoring:payload:read 和同一资产范围，文件读取后会再次校验当前账号/角色。该管理能力不由 Gateway/MCP 业务 Key 授权。
-
-返回 data 包含 invocationId、recordVersion、side、state、reason、contentType、encoding、observedBytes、capturedBytes、storedBytes、redacted、readRedacted、redactionPolicyVersion、capturedDigest、digestScope、content、expiresAt。encoding 为 json/text/base64/multipart；JSON 标量保留类型，实际空内容是 captured/""，omitted/unavailable 为 content=null。incomplete 保持 partial 摘要和 isPartial=true，不能解释为完整正文。读时额外脱敏单列 readRedacted，捕获策略版本与摘要仍描述采集证据，不能把观察原文摘要用于校验脱敏后 content。
-
-正文读取前/后和审计落库后检查独立 TTL；返回 410 时使用 error.code=PAYLOAD_EXPIRED、error.details={state:"expired",expiredAt:"UTC ISO"}，不返回 content。元数据过期/不存在/不可见统一 404；没有匹配的分侧正文元数据则 200 unavailable，绝不回退读取其他侧或对象路径。内容损坏/存储/管理审计失败返回固定 503；并发服务读取达到 4 路时返回 429。这个准入限制不代表完整部署的 HTTP 响应内存配额或性能 SLA 已通过。
-
-OBS-API-03/04 对存在正文元数据的项返回受控 readLink，每次跟随链接重新验证权限/保留期；缺失正文元数据仍 null。链接不代表当前调用者拥有正文权限，过期对象链接仍可能返回 410。所有成功和错误均 no-store，无原始路径、Header、凭证或文件下载口。
-
-读取留痕复用管理 audit_logs，resource=observability.payload、action=api_called、details.operation=obsGetInvocationPayload。操作者/时间/内部 requestId/侧/可见调用引用/版本/安全结果可用于复盘；正文不进入审计行。prepared 表示准备返回的内容已通过授权且审计提交，不是客户端收到的证明；HTTP 或 TTL 后续失败不应统计成已送达。进入正文服务后的授权撤销、不可见/不存在、过期、限流和存储失败同样记录；审计提交失败严格不放行内容。
-
-本节点未把未认证/初始守卫拒绝/参数拒绝声称为已产生敏感读取审计，入口统一留痕由 TP-15 整合。旧管理审计通用列表的 createdAt 日期/排序及枚举/JSON 搜索已在后续四项服务回归中对齐，实际读取留痕可以按 ID、日期和关键词检索；完整旧管理 HTTP 控制器仍待集成验证。三条新路由仍未在业务根应用部署启用，PostgreSQL/Linux 查询和整体配额矩阵未验收。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 14. 管理审计检索实现补充（2026-09-09）
 
-既有 AuditService.findLogs 已使用实际 createdAt 列过滤/排序，以 id DESC 处理并列时间；通用管理审计 startDate/endDate 继续含边界，新观测 from/to 仍为 [from,to)，两类参数不能混用。action/details 先转换为文本再做参数化 LIKE，支持检索 obsGetInvocationPayload、observability.payload 或 api_called，搜索不会扫描已禁止写入审计的正文。
-
-新增四项检索服务回归通过，正文/管理审计脚本 23 项、联合 253 项及 API 构建全部通过。该补充不新增 Endpoint，不声称 PostgreSQL 实际查询或旧管理控制器完整联调已通过；三条观测查询路由保持 VERIFIED，未部署为 AVAILABLE。历史清理/其他统计方法未在本节点修改或执行。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 19. OBS-API-06 trace 实现与集成契约（2026-09-09）
 
-GET /api/v1/monitoring/observability/traces/{traceId}，operationId=obsGetTrace，状态 VERIFIED。沿用管理 JWT、当前账号/角色、monitoring:read 与资产范围；知道 traceId 不赋予访问权。traceId 为非空、最长 240 的无控制字符标量，通过 SQL 参数绑定。
-
-仅允许 origin=external|test|probe|internal，默认 external。拒绝 from/to/timeBasis/limit/cursor 等其他参数与重复 origin；不应用列表的默认一小时时间窗。查询所选 origin/trace 内未过期且可访问的当前修订，按 startedAt ASC、invocationId ASC；不混合来源、不打开正文文件。
-
-| data 字段 | 语义 |
-| --- | --- |
-| origin | 实际选择的来源 |
-| nodes | 已有 invocation 安全 DTO 数组；IP 仍需同资产 read AND source:read；正文只有状态与受控读取链接 |
-| edges | 仅含可见且无环的 parentInvocationId、childInvocationId |
-| missingParentReferences | invocationId 为可见子节点，reason 固定 unavailable_or_restricted；不提供缺失父节点 ID |
-| structuralIssues | invocationId 为可见节点，reason 为 root_unavailable_or_restricted 或 parent_cycle |
-| relationshipsComplete | 返回节点所声明父/根引用均可用且父关系无环；不证明历史或未观察后代完整 |
-| isPartial | 节点缺失字段或关系裁剪导致的部分性；不替代 meta 中的采集覆盖语义 |
-| maxNodes | 固定 200 |
-
-缺失/不可见/另一 origin 或 trace 的父、根引用置 null；必要时裁剪关联 traceId/requestId 并设置 linksRestricted。循环/自环仅在返回图中切断，保留非循环后代和原始数据库证据。无隐藏占位节点、隐含节点数或顶层 traceId 回显。
-
-没有可见节点统一 404 NOT_FOUND，不区分不存在和无资产权限。授权过滤后可见节点超过 200 返回 413 QUERY_TOO_LARGE（field=traceId），不返回截断图；恰好 200 正常返回。其他错误沿用 400/401/403/503 和统一 requestId 包装。此接口无分页，固定快照只覆盖一次响应，不扩大保留期。meta 使用已实现的只读水位；lagMs/historyCompleteSince=null、isPartial=true 仍表示未知覆盖，不宣称健康完整。
-
-API 构建、16 项真实 HTTP/Swagger 专项与 269 项联合回归通过，未在业务根应用启用。上层图形展示应把 missingParentReferences/structuralIssues 作为可见节点告警，而非补造父节点或据此估算完整调用链。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 20. OBS-API-07/08/10 调用者与来源查询契约（2026-09-09）
 
-访客查询基线 f9b4a44 已通过验证；后续新增的档案 ETag 条件请求问题经批准修正，并通过 27 项标签/条件请求专项及 320 项联合回归，08 恢复 VERIFIED，07/10 保持 VERIFIED。完整路径使用 /api/v1/monitoring/observability 前缀；仍需管理 JWT、monitoring:read 及当前资产范围，根应用尚未启用。
-
-| 接口 | 支持的查询参数 |
-| --- | --- |
-| GET /callers，obsListCallers | from、to、timeBasis、origin、serverType、runtimeAssetId、sourceId、callerId、limit、includeTotal、cursor |
-| GET /callers/{id}，obsGetCaller | from、to、timeBasis、origin、serverType、runtimeAssetId、sourceId |
-| GET /sources，obsListSources | 调用者列表参数加 authState |
-
-origin 仅允许 external，默认 external；test/probe/internal 和 upstream_api 不构成外部访客。authState 枚举为 authenticated/anonymous/authentication_failed/unknown。timeBasis 默认 startedAt；from/to 必须同时给出，UTC 半开区间 [from,to)，默认过去一小时、最长 30 天。completedAt 时间过滤不含仍无完成时间的 running/推断 unknown。调用者详情没有选定窗口内可见观察时统一 404，即便全局注册表中仍存在该主体。未知/重复/嵌套参数、原始 IP 过滤、标签搜索或详情分页参数返回 400。
-
-列表 data 包含 items、nextCursor、hasMore、可选 total、window 与 maxQueryInvocations=5000。limit 默认 50，范围 1~200；total 是资产与查询过滤后访客组数，不是全局主体数。window 包含实际 from/to/timeBasis/origin。每次查询授权且匹配的修订总数超过 5000 返回 413 QUERY_TOO_LARGE（field=from），应缩小时间/服务器/访客范围；该上限不是单页数量，不能靠调小 limit 绕过，也不会返回部分统计假装全量。
-
-调用者项包含 callerId、identitySource=authenticated、displayName、labels、profileSnapshot=current、firstSeenAt、lastSeenAt、serverTypes、observedServerCount、unassignedInvocationCount、summary。详情另含 note、credentialIds、window。firstSeenAt 为选定调用集合最早开始，lastSeenAt 为该集合最晚真实完成或开始；以 startedAt 选窗时，完成时间可以晚于 to。observedServerCount 按不同已分配 runtimeAssetId 计数；未分配调用单独计数，不能虚构一个服务器。凭证 ID 仅取所选可见调用，不返回可认证凭证、全局累计时间或会随隐藏观察变化的版本号。
-
-来源项包含 sourceId、runtimeAssetId、authState、day、firstSeenAt、lastSeenAt、serverTypes、sourceOverflow、sourceRestricted、summary。IP 四字段仅在同资产 read AND source:read 下出现，overflow 时明确为空且 ipSource=overflow；桶不是用户或人数。sourceId 为日级受控 HMAC 引用，不保证跨日或密钥轮换稳定。按 callerId 筛来源时也验证可信认证，匿名/失败记录中的自报 callerId 不构成关联。
-
-summary.invocationCount 统计调用边界，不是去重业务请求、连接数或人数。summary.groups 按 spanKind、byteMeasurement、measurementStage 分组，各项包括 invocationCount、runningCount、outcomeCounts（七类终态），以及 request/response 的 ObservedBytes、MissingMeasurements、IncompleteMeasurements。HTTP 200 的 Tool 错误仍计 error；不同阶段字节不可相加后宣称总网络流量。所有观测缺失时 ObservedBytes=null，真实空正文为 0，不完整字节保留已观察值并增加 IncompleteMeasurements。部分缺失时总量只是已知值之和；超过 JS 安全整数返回十进制字符串。正文内容、头部、密钥及存储引用不出现在响应中。
-
-分页按 lastSeenAt DESC、callerId/sourceId DESC。签名游标固定原始过滤、调用 snapshotSeq 和最早元数据保留截止，最长 15 分钟；新增调用/迟到终态不改变旧快照的组次序和统计，续页可变更 limit/includeTotal，但不能换端点、主体、资产范围或过滤。档案显示字段按当前读取，不是历史档案快照且不参与排序/过滤；IP 权限每页重算。过期返回 410 QUERY_CURSOR_EXPIRED，不延长留存。meta 的水位可用，但 lagMs/historyCompleteSince 仍 null、isPartial=true，不作全历史覆盖/健康声明。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ### 20.1 查询节点验收补充
 
-匿名夹具依照现行契约修正为 identitySource=anonymous 后，24 项真实 HTTP/Swagger 专项及 293 项联合回归通过，不改生产身份/授权规则。07/08/10 已 VERIFIED，不再是待验收实现；5000 修订上限、时间窗、当前档案/调用快照语义和未知覆盖保持不变。实际 PostgreSQL、Linux、全应用、性能和对外部署仍待验证，标签 PATCH 尚未实现。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 21. OBS-API-09 档案编辑实现与已知阻断项（2026-09-09）
 
-PATCH /api/v1/monitoring/observability/callers/{id}，operationId=obsUpdateCallerLabels，VERIFIED。API 构建、27 项标签/条件请求专项及 320 项联合回归通过；相关 GET 详情的条件请求问题已修正，08/09 已验收但未部署。
-
-管理者必须具备 monitoring:read AND monitoring:manage，且资产交集覆盖调用者的全部已登记观察关联与当前保留调用。关联中的未分配资产只接受显式全局范围；过期但尚未清理的其他资产关联仍参与所有权判断。缺少所需权限为 403；有权限但范围不完整、无登记关联、无保留可信外部调用或未知主体统一 404，不回显隐藏 ID/数量。GET 当前可见时间窗只是查询范围，不能缩小共享档案的修改授权范围。
-
-请求不接受查询参数。JSON 至少一个、最多三个字段，未知字段拒绝；编码后输入预算 16 KiB。displayName 为不超过 200 个 UTF-16 单元的字符串或 null，note 不超过 2000 单元或 null；labels 为最多 32 个非空字符串，每项最多 64 单元，不能为 null。字符串修剪空白，空名称/备注归一化为 null，备注允许换行/制表且 CRLF 归一为 LF；其余控制字符拒绝。标签修剪、脱敏并排序，规范化后重复拒绝，空数组清空。未提交字段保持不变，不允许修改 callerId、可信身份、凭证、观察时间或版本。
-
-只接受一个精确强 If-Match：缺失 428、格式错误 400、过期或另一个主体令牌 412。仅完整资产管理者能在详情的可选 profileEtag 字段获得编辑令牌，普通只读或局部管理者不获得档案版本。并发提交同一令牌只允许一次真实变更成功；字段值未变化时仍成功留痕，但不推进版本。普通采集观察不再增加档案编辑版本，流量不能无故制造编辑冲突。
-
-成功 data 包含 callerId、displayName、note、labels、profileEtag、changed、changedFields、auditId。管理审计与档案修改原子提交；成功/可判定拒绝均记录安全操作、字段和版本元数据，不复制备注/标签值、原始 HTTP 头、IP 或正文。因此审计支持字段/操作者/版本追踪，不保证恢复旧自由文本。审计存储失败返回 503 并回滚修改；标签更新不改变调用证据或调用提交水位，也不冒充已分发的实时事件。
-
-已修正的历史问题：档案专用令牌不再写入通用 HTTP ETag。GET/PATCH 使用 data.profileEtag 和 X-Profile-ETag；普通 ETag 由完整响应产生，供 If-None-Match 使用，不是档案 If-Match 令牌。即便配置 no-store 也保持正确的条件请求语义，新增真实 HTTP 回归覆盖合法 304、变化后 200 与撤权。Swagger 已按实际专用头对齐。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ### 21.1 档案编辑令牌使用示例
 
-先读取有权限的 caller 详情，从 data.profileEtag 或 X-Profile-ETag 取得令牌，原样放入 PATCH 的 If-Match。PATCH 返回新的 profileEtag/X-Profile-ETag；无字段变更时令牌不变但仍有审计。普通 ETag 对应整个响应（包含窗口、统计、水位或审计结果），只用于普通 HTTP 条件请求，不可代替编辑令牌。
-
-只读或未覆盖全部关联资产的管理者仍不获得 profileEtag/X-Profile-ETag。令牌本身不授予权限，每次修改重新检查当前账号和完整资产范围。客户端无需读取自定义头也可使用 JSON 字段；跨域响应头暴露配置和根应用启用在集成包验收。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 22. OBS-API-01 能力查询实现契约（2026-09-09）
 
-GET /api/v1/monitoring/observability/capabilities，operationId=obsGetCapabilities。仅接受当前管理 JWT 与 monitoring:read，不接受任何 query 参数；未知、重复、嵌套参数返回 400 INVALID_QUERY。返回标准 success/data/meta 信封与 Cache-Control: no-store；错误为 401/403/503 安全信封。只有实际启用新模块的部署才可调用，当前代码验证不构成 AVAILABLE 声明。
-
-| 字段 | 当前含义 |
-| --- | --- |
-| availabilitySemantics | implementation_and_scope_eligibility_not_runtime_health；实现与范围资格，不是健康或配置就绪证明 |
-| resourceScope | all/scoped/none，不返回资产 ID 或数量 |
-| schemaVersions | sourceRecords=2、http=1.0 |
-| endpoints | 当前有范围资格的已实现路由；含 endpointId/operationId/method/path/queryParameters/requiredPermissions/scopeMode/authorizationRule |
-| features | name、state=enabled/restricted/not_implemented、scopeMode=all/scoped/none/null；未实现时 scopeMode=null |
-| enabledFeatures | 仅包含 enabled 项，不是全部规划能力 |
-| maxLimit/defaultLimit | 200/50，适用于支持分页的接口 |
-| maxQueryRange/defaultQueryWindowMs | 2592000000/3600000 毫秒；具体路由不接受时间参数时不能套用 |
-| traceMaxNodes/maxVisitorQueryInvocations | 200/5000，分别约束 trace 可见节点与访客查询匹配修订，超限不截断 |
-| maxQueryCursorLifetimeMs | 900000；实际截止还受结果元数据最早到期约束 |
-| supportedScopes | 非空 read 范围支持 business/http_ingress/tool/protocol/upstream；空范围为空数组，用于 summary、time-series 和 groups；三者均已完成联合验收 |
-| supportedGroupByCombinations | 非空 read 范围返回 7 个白名单维度的单维及两维组合，共 28 种；空范围返回空数组 |
-| maxStatisticsQueryInvocations | 5000，权限/scope/TTL/筛选之后计算，超限 413 |
-| maxBuckets/eventRetention | 当前 null，不把解析器原语或内部事件记录当成公开聚合/历史能力 |
-| errorCategories/errorCategoryMode | timeout/dns/tls/connection/cancelled/response_parse/authorization/other；suggested_values_free_text_filter |
-| byteMeasurements | observed_body、serialized_payload、unavailable；不能混合累计不同计量口径 |
-| retentionWindows | basis=storage_defaults_not_coverage_guarantees；invocationMetadataDefaultMs=2592000000；有正文范围权限才给 payloadDefaultMs=604800000，否则 null |
-| retentionWindows.aggregateRetentionMs/effectiveHistoryCompleteSince | null；默认时长不证明有多少可用历史 |
-| payloadLimits | 仅 read AND payload:read 资产交集非空/显式全局时返回，否则 null |
-| payloadLimits.readObjectMaxBytes/readLimitScope | 134217728；single_stored_object_not_total_http_memory，不是整个 HTTP 响应内存配额 |
-| payloadLimits.effectiveCaptureBytes/capturePolicyState | null/not_reported_by_producers；不使用管理进程环境推断远端或子进程有效采集配置 |
-| observationHealth | unknown，不将空库/无流量误报为健康 |
-
-实现功能为 capabilities、invocationQueries、traceQuery、callerQueries、sourceQuery、payloadRead、sourceIpRead、callerProfileUpdate、statistics。statistics 当前只含 summary，具体路径以 endpoints 为准。额外权限分别求 read AND payload:read/source:read/manage 的资产交集，互不相交的授权不能组合出权限；当前用户/角色在每次请求重新读取，旧 JWT 不固化已撤销权限。
-
-当前代码中，全范围且具备全部额外权限时可见 01、03~13 十二条路由；仅有非空 read 范围时十条；空范围只返回自身能力路由。12/13 已通过专项及 404 项联合回归，状态为 VERIFIED。sourceQuery 可用不代表 IP 可见，sourceIpRead 单独受控。callerProfileUpdate 的 authorizationRule=all_registered_caller_assets，仍必须在实际 PATCH 时覆盖目标全部登记资产；capability_only/per_asset 为其他规则标志，不替代路由守卫或对象授权。
-
-overview/dependencies/serverStatus/eventHistory/webhook/socketPush/pipelineStatus/policyManagement 均为 not_implemented，不进入 enabledFeatures。meta.snapshotSeq/dataWatermark 来自同一只读提交快照，空库为字符串 0，lagMs/historyCompleteSince=null、isPartial=true。读取能力不创建计数器、扫描来源、打开正文或生成新事件。
-
-14 项实际 HTTP/SQL.js/Swagger 专项、334 项联合回归与 API 构建通过，OBS-API-01=VERIFIED。初次异步回调类型遗漏已获批修正；实际 PostgreSQL 查询、Linux、负载与业务根模块启用仍待后续验收。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 23. 统计计算实现进度与接入约束（2026-09-09）
 
-内部统计计算模块已通过 24 项专项及 358 项联合回归，API 构建通过；尚未注册 OBS-API-11/12/13，因此 statistics 仍 not_implemented，supportedScopes/分组组合仍为空，不可据此调用规划中的路径。
-
-后续汇总接口必须显式选择 scope，并回显 from/to/origin/timeBasis。selectedInvocations 表示选定时间基准下的调用数；totalStarted 只在 startedAt 基准下成立，completedAt 基准返回 null，不能把选中的完成调用数声称为该窗口的全部开始数。未结束观察没有当前进程存活证据时计入 unknownInFlight，不推断健康。
-
-调用者跨资产/时间取可信 ID 并集；匿名来源按已授权注册关联去重，缺失/overflow 另报，来源不是人数。字节按调用边界、计量类型及阶段分组，分侧 measured/unmeasured/partial 与下界标志同时返回；混合组没有一个可相加的顶层字节总数。固定直方图的分位为区间/上界估计，溢出桶上界和估计值为 null，保留明确下界。
-
-上述为下一统计 Endpoint 的接入约束，不是新的可用性声明。查询调用方仍负责数据库快照、资源授权、TTL 与规模限制；本次未增加保留历史、健康证据、推送或部署。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 24. OBS-API-11 统计汇总接口（2026-09-09）
 
-GET /api/v1/monitoring/observability/statistics/summary，operationId=obsGetStatisticsSummary。当前管理 JWT、monitoring:read 与资源范围必需；业务凭证不具备此权限。返回标准 success/data/meta 信封和 Cache-Control: no-store。
-
-scope 必填 business/http_ingress/tool/protocol/upstream。from/to 同时提供 UTC 时间，默认最近一小时、最大跨度 30 天、[from,to)；timeBasis 默认 startedAt，origin 默认 external。可选等值筛选为 serverType、runtimeAssetId、callerId、sourceId、endpointDefinitionId、toolName、sourceServiceInstanceId、spanKind、outcome、traceId、requestId、errorCategory。每个 query 仅接受单一字符串；不接受 limit/cursor/includeTotal、interval/groupBy 或原始 IP。errorCategory 允许受长度约束的自定义分类。
-
-| data 字段 | 语义 |
-| --- | --- |
-| window | 实际归一化的 from/to/scope/origin/timeBasis |
-| queryMode/maxQueryInvocations | retained_invocation_snapshot / 5000，越限 413，不返回截断统计 |
-| livenessEvaluated | false；尚未消费心跳证据 |
-| metrics.selectedInvocations/totalStarted | 所选基准调用数；totalStarted 仅 startedAt 有值，completedAt 下 null |
-| metrics.knownCompleted/outcomes | 七类终态分开，knownCompleted 不含 unknown 或未结束 |
-| metrics.successes/failures/rejections/timeouts/cancelled/incomplete/unknown | failures 已含 error/timeout/incomplete，不能重复相加 |
-| metrics.successRate/errorRate | success/knownCompleted；failures/(success+failures)，无分母 null |
-| metrics.inFlight/unknownInFlight | 无 live 判断时未结束调用归 unknownInFlight；inFlight=0 不代表没有在途 |
-| metrics.uniqueCallers/unidentifiedCallerRecords | 可信调用者并集及未识别可信主体的记录数 |
-| metrics.anonymousSources | 非 authenticated、已登记且非 overflow 来源 ID 并集，不是人数；身份包含 serverType |
-| metrics.anonymousSourceOverflowRecords/unidentifiedSourceRecords/anonymousSourceCoveragePartial | overflow 记录、缺失关联和来源覆盖标志 |
-| metrics.upstreamRequests/retryAttempts/unlinkedRetryRecords | 物理上游数、operation/attempt 去重重试轮次、缺少 operation 的重试记录 |
-| metrics.byteGroups | spanKind/byteMeasurement/measurementStage 分组；每侧 observedBytes、measuredRecords、unmeasuredRecords、partialRecords、isLowerBound |
-| metrics.requestBytes/responseBytes | 单计量组已知总量；混合组或无测量为 null，大整数为十进制字符串 |
-| metrics.measuredRecords/unmeasuredRecords/partialRecords | 双侧测量/至少一侧缺失/任一侧部分观察，partial 不与前两者相加 |
-| metrics.latency | 固定直方图、样本/缺失/排除数、sumMs/meanMs/maxMs 和 p50/p95/p99 区间 |
-| coverage | historyCompleteSince=null、isPartial=true、observationHealth=unknown |
-
-latency.algorithm=fixed_histogram_upper_bound_v1、approximate=true。边界为 1/5/10/25/50/100/250/500/1000/2500/5000/10000/30000/60000ms 及溢出桶，明确上下界开闭；overflow 保留下界，upperBoundMs/estimateMs=null。未知、推断或未结束调用不作真实耗时样本；sumOverflow 时 sumMs=null，不平均既有分位。
-
-权限、TTL、最新可见修订和 scope 在预算前生效；http_ingress 排除 STDIO，callerId 仅匹配可信认证，来源关联不跨资产。不返回调用/来源/凭证标识列表、IP、Header、正文或对象路径，额外敏感权限也不扩展字段。
-
-错误为 400 INVALID_QUERY、401 UNAUTHENTICATED、403 FORBIDDEN、413 QUERY_TOO_LARGE、503 OBSERVABILITY_UNAVAILABLE。无可见记录返回零计数及未知覆盖，不暗示健康。meta.snapshotSeq/dataWatermark 为同一只读提交水位，不分配序号或生成事件。
-
-20 项汇总、14 项能力与 378 项联合通过，API 构建通过；OBS-API-11=VERIFIED。第 23 节为此前内核节点历史状态。实际 PostgreSQL 查询、Linux、负载、长期桶和业务根应用启用仍待验收。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 25. 时间序列与分组接口实现契约及初轮记录（2026-09-09）
 
-本节描述本轮已编写的 OBS-API-12/13 代码。API build PASS；新增专项 26/26 PASS，汇总回归 20/20 PASS；能力回归 10/14 PASS，4 项因本轮测试断言批量替换错误失败。联合回归尚未执行，两个 Endpoint 暂保留 PLANNED，不能据此宣称 VERIFIED、AVAILABLE 或已经部署。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ### 25.1 共享查询与统计语义
 
-三类统计接口共用授权资产交集、origin、scope、TTL、半开时间窗及精确字段筛选，在同一只读修订快照中选取调用。仅在这些条件生效后应用 5000 条上限；超限返回 413，不截取样本伪装完整统计。不读取 Payload 对象，不写入事件或聚合桶。默认 origin=external、timeBasis=startedAt；scope 必填，默认查询最近一小时，最大窗口沿用 30 天。
-
-返回包含 window、metrics、coverage、queryMode=retained_invocation_snapshot、maxQueryInvocations=5000、livenessEvaluated=false。整体 metrics 对全部选中调用独立计算，不将各桶或分组的去重人数相加，也不受 top 截断影响。coverage 保持 historyCompleteSince=null、isPartial=true、observationHealth=unknown。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ### 25.2 OBS-API-12：GET /statistics/time-series
 
-operationId 为 obsGetStatisticsTimeSeries，路径以前文管理 API 前缀为准。继承 summary 全部筛选参数，新增必填 interval（1m、5m、1h、1d）和 fill（none 默认；zero 补空桶）。不接受 groupBy、orderBy 或 top。
-
-桶按 UTC Unix 时间对齐，按照所选 timeBasis 分配，bucketStart 包含、bucketEnd 不包含。实际计算窗口 effectiveFrom/effectiveTo 与请求相交；边缘部分桶也计入最多 1440 个触达桶的限制，超限 413。fill=none 只返回有选中调用的桶，fill=zero 返回所有触达桶。
-
-data 增加 interval、fill、maxBuckets、bucketVersionSemantics=not_persisted、items。每项包含 bucketStart、bucketEnd、effectiveFrom、effectiveTo、bucketVersion=null、dataWatermark、synthetic、metrics、coverage。dataWatermark 为同一请求快照的序号字符串，不是桶版本。空桶 synthetic=true，计数为零，但无观测分母的比率、字节等仍为 null，不能解释为运行健康或确认无流量。
-
-这是基于保留明细的按需分桶，不提供已过期明细的长期趋势，不替代后续持久聚合及版本化桶事件。此前设计中的持久 bucketVersion 适用于后续持久化阶段，不适用于本实现。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ### 25.3 OBS-API-13：GET /statistics/groups
 
-operationId 为 obsGetStatisticsGroups。继承 summary 全部筛选参数，新增必填 groupBy、可选 orderBy 和 top；不接受 interval 或 fill。
-
-groupBy 使用逗号分隔 1 至 2 个不重复维度，白名单为 runtimeAssetId、serverType、callerId、endpointDefinitionId、toolName、sourceServiceInstanceId、outcome。支持 7 个单维及 21 个两维组合，也接受两维顺序反转并保留请求顺序。禁止任意 SQL/JSON 表达式、IP 和 sourceId 分组。缺失值返回 null，不与字面量 unknown 合并；callerId 只有 identitySource/authState 均为 authenticated 时才用于分组。
-
-orderBy 为 selectedInvocations（默认）、failures、successes、uniqueCallers 或 upstreamRequests，固定数值降序；并列时按维度值 JSON 元组的代码点升序稳定排序。top 默认 20，范围 1 至 100。
-
-data 增加 groupBy、orderBy、top、totalGroups、hasMoreGroups、items。每项包含从 1 开始的 rank、dimensionValues、完整 metrics。totalGroups 和整体 metrics 基于截断前全部授权数据。无数据时 items=[]，不构造虚假的健康分组。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ### 25.4 能力发现与前端消费
 
-当前代码在非空 read 范围声明 statisticsTimeSeries/statisticsGroups 已实现，返回两个接口的真实参数白名单、28 种 supportedGroupByCombinations、maxBuckets=1440、maxGroupLimit=100。空 read 范围仍只发现自身路由，分组组合为空、maxBuckets=null。maxStatisticsQueryInvocations=5000 不变。
-
-后续大屏应使用 window/effectiveFrom/effectiveTo 显示边缘桶，用 synthetic、coverage 和 livenessEvaluated 区分无观测、未知与零值，用整体 metrics 展示去重人数，用 totalGroups/hasMoreGroups 提示排行截断。不得从这些只读查询推断主动推送、运行健康、历史连续覆盖或部署可用性。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 26. 时间序列与分组验收补充（2026-09-11）
 
-第 25 节保留 2026-09-09 初轮失败记录；当前状态以本节为准。经授权，仅修正能力测试 4 处断言及 2 个过时标题，未修改生产代码。
-
-时间序列/分组 26/26、汇总 20/20、能力 14/14，专项合计 60/60 PASS；加入新脚本后的 19 脚本联合回归 404/404 PASS，0 fail/cancelled/skipped。API build 已在本节点生产代码完成时通过。
-
-OBS-API-12/13 提升为 VERIFIED。当前 28 个 HTTP Endpoint 中 01、03~13 共 12 个 VERIFIED、16 个 PLANNED；两类推送仍 PLANNED，根模块未启用，无 AVAILABLE 或部署声明。接口字段、权限与按需快照边界沿用第 25 节，不新增持久桶、健康或历史完整性承诺。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 27. 持久聚合规划内核的对外边界（2026-09-11）
 
-TP10-B01 已完成桶键/修订规划纯内核及 26 项专项，API build PASS，20 脚本联合 430/430 PASS。该内核仅计算需要重算的桶集合，没有新增 HTTP Endpoint、持久桶、事件或主动推送。
-
-已验证的 summary/time-series/groups 仍使用 retained_invocation_snapshot；bucketVersion=null、bucketVersionSemantics=not_persisted、未知覆盖及 5000 条明细边界不变。能力发现不新增 persistentAggregation 等已实现声明，12 个 HTTP VERIFIED、16 个 PLANNED 和 AVAILABLE=0 不变。
-
-持久桶读取、长期保留、真实 bucketVersion、桶修订事件及相应能力声明必须等待 B02/B03/B04 分别接入并验收后再更新本契约。桶规划键是内部身份，不作为当前 API 可访问资源 ID。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 28. 计划接口完成情况复核（2026-09-11）
 
-OBS-API-01、03~13 为 VERIFIED，共 12 个；OBS-API-02、14~28 仍为 PLANNED，共 16 个。两类新推送契约 PLANNED，所有新接口 AVAILABLE=0。主矩阵状态不因数据库实体定义、旧接口存在或 B01 纯规划通过而升级。
-
-完整待办路径/operationId 清单已同步到[任务完成情况复核与未完成清单](../guides/runtime-observability-completion-review.md)。当前按需统计仍受保留明细、5000 条上限及未知覆盖约束；缓存命中聚合、真实存活统计、长期桶/状态/事件/投递/治理尚未整体完成。
-
-本次只复核文档与实现入口，不改变接口行为，不重跑测试，不启用根应用或部署。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
 
 ## 2026-09-14：远端优先整合后的附加查询
 
-保留远端 API16~25、Webhook、订阅对象格式及修订 [from,until) 语义。增加本地已验收的 API02 overview、14 dependencies、15 servers/status、26 pipeline/status，capabilities 按当前权限公开共26个限定契约。
-
-前三个附加查询仅接受 from/to/origin/serverType/runtimeAssetId；默认一小时 external，以 startedAt 选窗，最多30天。总览调用快照仅覆盖 invocation facts，授权绑定主体、scope 和过滤，进程内5分钟/1000项。远端 events 增加可选 origin 和 afterSequence（与 after 互斥），保留原有固定水位、扫描及过期语义。
-
-pipeline/status 仅显式全局 monitoring:read 可访问。aggregation 读取 metric/caller bucket.metrics.recompute，dispatch 读取远端 outbox-materializer 的 watermark；dispatch.webhook 为远端 webhook-worker 最近一轮白名单报告，不是累计指标、当前健康或接收确认水位。未知状态保持 unknown/null。
-
-缓存七字段进入统计和 DTO；旧持久桶缺少完整缓存证据时回退远端原有明细路径。隔离联合548/548通过不代表真实部署、全平台容量或所有历史覆盖已验收。
+历史锚点，仅供旧链接定位。原阶段记录见[原文归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md)；当前契约以本文第 3~6 节和[当前复核](../guides/runtime-observability-completion-review.md)为准，不沿用历史状态或测试计数。
