@@ -5,6 +5,16 @@ import { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
 import { GatewayRequestAuthContext } from '../types/gateway-security.types';
 
 const identities = new WeakMap<Request, { internal: string; client?: string }>();
+const internalVerifications = new WeakMap<Request, string>();
+
+/** Only a trusted in-process replay caller can mark a request; headers are never consulted. */
+export function markGatewayInternalVerification(req: Request): void {
+  if (!internalVerifications.has(req)) internalVerifications.set(req, randomUUID());
+}
+
+export function isGatewayInternalVerification(req: Request): boolean {
+  return internalVerifications.has(req);
+}
 
 export function ensureGatewayRequestId(req: Request, res?: Response): string {
   let identity = identities.get(req);
@@ -21,12 +31,20 @@ export function ensureGatewayRequestId(req: Request, res?: Response): string {
 }
 
 export function gatewayAuditContext(req: Request, requestId: string, route?: GatewayResolvedRoute): RuntimeCallContext {
+  const internalTrace = internalVerifications.get(req);
+  if (internalTrace) {
+    return { transport: 'gateway', requestId, traceId: internalTrace, origin: 'internal',
+      identitySource: 'anonymous', authState: 'unknown',
+      runtimeAssetId: route?.runtimeAsset.id, runtimeAssetEndpointBindingId: route?.membership?.id,
+      endpointDefinitionId: route?.endpointDefinition.id, sourceServiceAssetId: route?.sourceServiceAsset?.id,
+      sourceServiceInstanceId: route?.sourceServiceInstance?.id };
+  }
   const auth = (req as Request & { gatewayAuth?: GatewayRequestAuthContext }).gatewayAuth;
   const principal = auth?.principal;
   const issuer = principal?.issuer || (auth?.actorId ? 'api-nova-local' : auth?.consumerId ? 'api-nova-key' : undefined);
   const subject = principal?.subject || auth?.actorId || auth?.consumerId;
   const peerIp = req.socket?.remoteAddress;
-  return { transport: 'gateway', protocolTransport: 'http', requestId,
+  return { transport: 'gateway', protocolTransport: 'http', requestId, origin: 'external',
     clientRequestId: identities.get(req)?.client,
     correlationId: typeof req.headers['x-correlation-id'] === 'string' ? req.headers['x-correlation-id'].slice(0, 120) : undefined,
     identitySource: subject ? 'authenticated' : 'anonymous',

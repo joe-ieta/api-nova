@@ -1,3 +1,5 @@
+import { OBSERVABILITY_OVERVIEW_QUERY_KEYS } from './call-observability-overview-query';
+import { EVENT_QUERY_KEYS } from './call-observability-events.service';
 import { Injectable } from '@nestjs/common';
 import { STATISTICS_SCOPES, STATISTICS_SUMMARY_QUERY_KEYS, STATISTICS_TIME_SERIES_QUERY_KEYS,
   STATISTICS_GROUPS_QUERY_KEYS, STATISTICS_GROUP_COMBINATIONS, MAX_STATISTICS_BUCKETS,
@@ -46,8 +48,13 @@ export class CallObservabilityCapabilitiesService {
       { name: 'statistics', implemented: true, grant: read },
       { name: 'statisticsTimeSeries', implemented: true, grant: read },
       { name: 'statisticsGroups', implemented: true, grant: read },
-      ...['overview', 'dependencies', 'serverStatus', 'eventHistory', 'webhook',
-        'socketPush', 'pipelineStatus', 'policyManagement'].map(name => ({ name, implemented: false })),
+      { name: 'eventHistory', implemented: true, grant: read },
+      { name: 'pipelineStatus', implemented: true, grant: read.runtimeAssetIds === null ? read : undefined },
+      { name: 'overview', implemented: true, grant: read },
+      { name: 'dependencies', implemented: true, grant: read },
+      { name: 'serverStatus', implemented: true, grant: read },
+      ...['webhook',
+        'socketPush', 'policyManagement'].map(name => ({ name, implemented: false })),
     ];
     const features = featureInputs.map(feature => ({
       name: feature.name, state: !feature.implemented ? 'not_implemented'
@@ -75,6 +82,12 @@ export class CallObservabilityCapabilitiesService {
     endpoint('OBS-API-11', 'obsGetStatisticsSummary', 'GET', '/statistics/summary', STATISTICS_SUMMARY_QUERY_KEYS, read);
     endpoint('OBS-API-12', 'obsGetStatisticsTimeSeries', 'GET', '/statistics/time-series', STATISTICS_TIME_SERIES_QUERY_KEYS, read);
     endpoint('OBS-API-13', 'obsGetStatisticsGroups', 'GET', '/statistics/groups', STATISTICS_GROUPS_QUERY_KEYS, read);
+    endpoint('OBS-API-16', 'obsListEvents', 'GET', '/events', EVENT_QUERY_KEYS, read);
+    endpoint('OBS-API-26', 'obsGetPipelineStatus', 'GET', '/pipeline/status', [], read.runtimeAssetIds === null ? read : undefined, 'global_scope');
+    endpoint('OBS-API-02', 'obsGetOverview', 'GET', '/overview', OBSERVABILITY_OVERVIEW_QUERY_KEYS, read);
+    endpoint('OBS-API-14', 'obsGetDependencies', 'GET', '/dependencies', OBSERVABILITY_OVERVIEW_QUERY_KEYS, read);
+    endpoint('OBS-API-15', 'obsGetServerStatuses', 'GET', '/servers/status', OBSERVABILITY_OVERVIEW_QUERY_KEYS, read);
+    endpoints.sort((left, right) => left.endpointId.localeCompare(right.endpointId));
     const day = 86400000;
     const data: ObservabilityCapabilitiesDto = {
       availabilitySemantics: 'implementation_and_scope_eligibility_not_runtime_health',

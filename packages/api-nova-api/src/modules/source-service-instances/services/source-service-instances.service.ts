@@ -8,6 +8,7 @@ import { HttpService } from '@nestjs/axios';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AxiosError } from 'axios';
 import { firstValueFrom } from 'rxjs';
+import { endpointDependencyContext, observeEndpointDependency } from '../../endpoint-testing/services/endpoint-dependency-audit';
 import { resolveRuntimeCredentialRefHeaders } from 'api-nova-parser';
 import { IsNull, Not, Repository } from 'typeorm';
 import {
@@ -242,13 +243,16 @@ export class SourceServiceInstancesService {
     const startedAt = Date.now();
     const probedAt = new Date();
     try {
-      const response = await firstValueFrom(
+      const response = await observeEndpointDependency(endpointDependencyContext('probe', {
+        transport: 'gateway', sourceServiceAssetId, sourceServiceInstanceId: instance.id,
+      }), agents => firstValueFrom(
         this.httpService.head(url, {
+          ...agents,
           timeout: input.timeoutMs ?? 8000,
           maxRedirects: 0,
           validateStatus: () => true,
         }),
-      );
+      ));
       const healthy = response.status >= 200 && response.status < 500;
       instance.status = healthy
         ? SourceServiceInstanceStatus.HEALTHY

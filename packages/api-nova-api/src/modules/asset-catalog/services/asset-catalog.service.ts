@@ -4,6 +4,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Like, In, Repository } from 'typeorm';
 import { firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
+import { RuntimeCallContext } from 'api-nova-parser';
+import { endpointDependencyContext, observeEndpointDependency } from '../../endpoint-testing/services/endpoint-dependency-audit';
 import {
   EndpointDefinitionEntity,
   EndpointDefinitionStatus,
@@ -256,7 +258,10 @@ export class AssetCatalogService {
       throw new BadRequestException(`Probe URL cannot be resolved for endpoint '${id}'`);
     }
 
-    const rawResult = await this.runProbe(probeUrl);
+    const rawResult = await this.runProbe(probeUrl, endpointDependencyContext('probe', {
+      transport: 'gateway', endpointDefinitionId: endpoint.id,
+      sourceServiceAssetId: sourceServiceAsset.id, sourceServiceInstanceId: sourceServiceInstance.id,
+    }));
     const result =
       sourceType === 'imported'
         ? this.normalizeSourceServiceProbeResult(rawResult)
@@ -332,15 +337,19 @@ export class AssetCatalogService {
     const startedAt = Date.now();
 
     try {
-      const response = await firstValueFrom(
+      const response = await observeEndpointDependency(endpointDependencyContext('test', {
+        transport: 'gateway', endpointDefinitionId: endpoint.id,
+        sourceServiceAssetId: sourceServiceAsset.id, sourceServiceInstanceId: sourceServiceInstance.id,
+      }), agents => firstValueFrom(
         this.httpService.request({
           url: testUrl,
           method: method as any,
           timeout: 12000,
           validateStatus: () => true,
           ...request,
+          ...agents,
         }),
-      );
+      ));
 
       const passed = response.status >= 200 && response.status < 400;
       endpoint.metadata = this.mergeTestingMetadata(endpoint, {
@@ -761,19 +770,20 @@ export class AssetCatalogService {
     };
   }
 
-  private async runProbe(probeUrl: string) {
+  private async runProbe(probeUrl: string, context: RuntimeCallContext) {
     const startedAt = Date.now();
     try {
-      const head = await firstValueFrom(
+      const head = await observeEndpointDependency(context, agents => firstValueFrom(
         this.httpService.head(probeUrl, {
+          ...agents,
           timeout: 8000,
           validateStatus: () => true,
         }),
-      );
+      ));
       const responseTimeMs = Date.now() - startedAt;
       const healthy = this.isReachableProbeStatus(head.status);
       if (!healthy && this.shouldFallbackToGet(head.status)) {
-        return this.runGetProbe(probeUrl, startedAt);
+        return this.runGetProbe(probeUrl, startedAt, undefined, context);
       }
       return {
         status: healthy ? 'healthy' : 'unhealthy',
@@ -783,7 +793,7 @@ export class AssetCatalogService {
         probeUrl,
       };
     } catch (headError) {
-      return this.runGetProbe(probeUrl, startedAt, headError);
+      return this.runGetProbe(probeUrl, startedAt, headError, context);
     }
   }
 
@@ -798,14 +808,15 @@ export class AssetCatalogService {
     };
   }
 
-  private async runGetProbe(probeUrl: string, startedAt: number, headError?: unknown) {
+  private async runGetProbe(probeUrl: string, startedAt: number, headError: unknown, context: RuntimeCallContext) {
     try {
-      const getResp = await firstValueFrom(
+      const getResp = await observeEndpointDependency(context, agents => firstValueFrom(
         this.httpService.get(probeUrl, {
+          ...agents,
           timeout: 8000,
           validateStatus: () => true,
         }),
-      );
+      ));
       const responseTimeMs = Date.now() - startedAt;
       const healthy = this.isReachableProbeStatus(getResp.status);
       return {

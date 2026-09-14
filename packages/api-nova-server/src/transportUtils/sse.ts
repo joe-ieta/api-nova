@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { getRuntimeCallContext } from 'api-nova-parser';
 import { instrumentMcpTransport } from './audit';
+import { confirmSseWrites } from './http-delivery';
 import { assertMcpToolScopes } from '../tools/runtime-security';
 import { getBody } from '../tools/getBody';
 import {
@@ -86,6 +87,7 @@ export async function startSseMcpServer(
     if (req.method === "GET" && reqUrl.pathname === endpoint) {
       const sessionServer = await createSessionServer();
       const transport = new SSEServerTransport(messagesEndpoint, res);
+      confirmSseWrites(transport, res);
       const sessionId = transport.sessionId;
 
       activeSessions[sessionId] = {
@@ -105,7 +107,7 @@ export async function startSseMcpServer(
 
       try {
         await sessionServer.connect(transport);
-        instrumentMcpTransport(transport);
+        instrumentMcpTransport(transport, { httpSendBoundary: true });
         await transport.send({
           jsonrpc: "2.0",
           method: "sse/connection",

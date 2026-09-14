@@ -205,6 +205,14 @@ export function normalizeRuntimeAuditRecord(input: unknown,
   const missingFields: string[] = [];
   if (!traceId) missingFields.push('traceId');
   if (!row.runtimeAssetId) missingFields.push('runtimeAssetId');
+  // Keep the required boolean representation, but never turn absent cache evidence
+  // into an observed miss. Legacy cache_hit outcomes are positive evidence.
+  // Append to the existing coverage markers rather than replacing them.
+  if (spanKind === 'gateway_request' &&
+    ((Array.isArray(row.missingFields) && row.missingFields.includes('cacheHit')) ||
+      (typeof row.cacheHit !== 'boolean' && row.outcome !== 'cache_hit'))) {
+    missingFields.push('cacheHit');
+  }
   const byteMeasurement = row.byteMeasurement ?? 'unavailable';
   if (!['observed_body', 'serialized_payload', 'unavailable'].includes(byteMeasurement as string)) {
     throw new InvalidRuntimeAuditRecord('byteMeasurement');

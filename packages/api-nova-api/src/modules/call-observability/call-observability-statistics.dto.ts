@@ -84,6 +84,13 @@ export class ObservabilityStatisticsMetricsDto {
   @ApiProperty() upstreamRequests: number;
   @ApiProperty() retryAttempts: number;
   @ApiProperty() unlinkedRetryRecords: number;
+  @ApiProperty({ description: 'Selected gateway_request invocations after revision deduplication and window/scope/origin filtering, regardless of phase or outcome. Non-Gateway spans are excluded.' }) cacheEligibleRecords: number;
+  @ApiProperty({ description: 'cacheHits + cacheMisses; denominator of cacheHitRate. Only explicit boolean cacheHit evidence without a cacheHit missingFields marker is observed.' }) cacheObservedRecords: number;
+  @ApiProperty({ description: 'Eligible Gateway records with absent, null, non-boolean or explicitly marked missing cacheHit evidence. Never counted as misses. Normalizers must preserve unknown evidence; historical false values synthesized from missing fields cannot be distinguished here.' }) cacheUnknownRecords: number;
+  @ApiProperty({ description: 'Eligible Gateway records with observed cacheHit strictly true.' }) cacheHits: number;
+  @ApiProperty({ description: 'Eligible Gateway records with observed cacheHit strictly false. Does not imply caching was enabled or an upstream request occurred.' }) cacheMisses: number;
+  @ApiProperty({ type: Number, nullable: true, minimum: 0, maximum: 1, description: 'cacheHits / cacheObservedRecords, a fraction from 0 to 1; null when the denominator is zero, including empty buckets and non-Gateway scopes. Unknown records are excluded.' }) cacheHitRate: number | null;
+  @ApiProperty({ description: 'True when cacheUnknownRecords > 0. Coverage applies only to selected retained Gateway records; false does not establish complete collection/history or cache applicability.' }) cacheCoveragePartial: boolean;
   @ApiProperty({ type: Number, nullable: true }) successRate: number | null;
   @ApiProperty({ type: Number, nullable: true }) errorRate: number | null;
   @ApiProperty() measuredRecords: number;

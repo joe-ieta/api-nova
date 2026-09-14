@@ -38,6 +38,11 @@ const { MAX_METRIC_OBSERVATIONS } = require('../dist/src/modules/call-observabil
 const { CallObservabilityModule } = require('../dist/src/modules/call-observability/call-observability.module.js');
 const { CallObservabilityInvocationsService, INVOCATION_QUERY_KEYS, MAX_TRACE_NODES } = require('../dist/src/modules/call-observability/call-observability-invocations.service.js');
 const { CallObservabilityPayloadsService } = require('../dist/src/modules/call-observability/call-observability-payloads.service.js');
+const { CallObservabilityEventsService, EVENT_QUERY_KEYS } = require('../dist/src/modules/call-observability/call-observability-events.service.js');
+const { CallObservabilityPipelineService } = require('../dist/src/modules/call-observability/call-observability-pipeline.service.js');
+const { CallObservabilityOverviewService } = require('../dist/src/modules/call-observability/call-observability-overview.service.js');
+const { CallObservabilityDependenciesService } = require('../dist/src/modules/call-observability/call-observability-dependencies.service.js');
+const { CallObservabilityServerStatusService } = require('../dist/src/modules/call-observability/call-observability-server-status.service.js');
 const { CallObservabilityCallerLabelsService } = require('../dist/src/modules/call-observability/call-observability-caller-labels.service.js');
 const { parseObservabilityQuery } = require('../dist/src/modules/call-observability/call-observability-query.js');
 const root = path.resolve(__dirname, '../../../tmp/observability-statistics-tests');
@@ -93,6 +98,11 @@ async function fixture(t, sourceCap = 10000) {
   Module({
     controllers: Reflect.getMetadata('controllers', CallObservabilityModule),
     providers: [
+      { provide: CallObservabilityOverviewService, useValue: {} },
+      { provide: CallObservabilityDependenciesService, useValue: {} },
+      { provide: CallObservabilityServerStatusService, useValue: {} },
+      { provide: CallObservabilityPipelineService, useValue: {} },
+      { provide: CallObservabilityEventsService, useValue: new CallObservabilityEventsService(store, cursors) },
       { provide: CallObservabilityCapabilitiesService, useValue: new CallObservabilityCapabilitiesService(store) },
       { provide: CallObservabilityStatisticsService, useValue: new CallObservabilityStatisticsService(store) },
       { provide: CallObservabilityInvocationsService, useValue: new CallObservabilityInvocationsService(store, cursors) },

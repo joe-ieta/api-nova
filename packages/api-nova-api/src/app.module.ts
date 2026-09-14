@@ -31,6 +31,7 @@ import { EndpointTestingModule } from './modules/endpoint-testing/endpoint-testi
 import { RuntimeUpstreamBindingsModule } from './modules/runtime-upstream-bindings/runtime-upstream-bindings.module';
 import { RuntimeVerificationModule } from './modules/runtime-verification/runtime-verification.module';
 import { RuntimeGovernanceModule } from './modules/runtime-governance/runtime-governance.module';
+import { CallObservabilityModule } from './modules/call-observability/call-observability.module';
 
 // 通用组件
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -103,6 +104,7 @@ import { AppController } from './app.controller';
     RuntimeUpstreamBindingsModule,
     RuntimeVerificationModule,
     RuntimeGovernanceModule,
+    CallObservabilityModule,
   ],
   controllers: [AppController],
   providers: [

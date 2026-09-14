@@ -1,6 +1,15 @@
 import { HttpException, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import { GatewayRuntimeService } from './gateway-runtime.service';
 
+// This suite tests orchestration with a mocked proxy and non-stream requests.
+// Real ingress/stream audit coverage lives in the HTTP observability integration suites.
+jest.mock('./gateway-request-audit', () => ({
+  beginGatewayRequestAudit: () => ({
+    run: (operation: () => unknown) => operation(),
+    authenticated() {}, failed() {}, cacheHit() {},
+  }),
+}));
+
 describe('GatewayRuntimeService', () => {
   const createDeps = () => {
     const gatewayRouteSnapshotService = {
@@ -118,9 +127,11 @@ describe('GatewayRuntimeService', () => {
         'x-correlation-id': 'corr-123',
       },
     } as any;
-    const res = {} as any;
+    const res = { setHeader: jest.fn() } as any;
 
     await deps.service.forwardRequest('/pets/123', req, res);
+    expect(req.headers['x-request-id']).not.toBe('req-123');
+    expect(res.setHeader).toHaveBeenCalledWith('x-request-id', req.headers['x-request-id']);
 
     expect(deps.gatewayRouteSnapshotService.resolve).toHaveBeenCalledWith(
       'localhost:9001',
@@ -136,6 +147,8 @@ describe('GatewayRuntimeService', () => {
       res,
       {
         captureResponseBodyMaxBytes: undefined,
+        attemptIndex: 1,
+        upstreamOperationId: expect.any(String),
       },
     );
     expect(deps.gatewaySecurityService.authorize).toHaveBeenCalled();
@@ -148,7 +161,7 @@ describe('GatewayRuntimeService', () => {
         runtimeMembershipId: 'membership-1',
         routePath: '/pets/{id}',
         routeMethod: 'GET',
-        requestId: 'req-123',
+        requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
         correlationId: 'corr-123',
         statusCode: 200,
         success: true,
@@ -156,7 +169,7 @@ describe('GatewayRuntimeService', () => {
     );
     expect(deps.gatewayAccessLogService.recordRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        requestId: 'req-123',
+        requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
         upstreamUrl: 'https://api.example.com/pets/123?include=owner',
         correlationId: 'corr-123',
       }),
@@ -178,7 +191,7 @@ describe('GatewayRuntimeService', () => {
             'x-request-id': 'req-miss',
           },
         } as any,
-        {} as any,
+        { setHeader: jest.fn() } as any,
       ),
     ).rejects.toThrow('No active gateway route for GET /pets/123');
 
@@ -186,12 +199,12 @@ describe('GatewayRuntimeService', () => {
       expect.objectContaining({
         method: 'GET',
         routePath: '/pets/123',
-        requestId: 'req-miss',
+        requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
       }),
     );
     expect(deps.gatewayAccessLogService.recordUnmatchedRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        requestId: 'req-miss',
+        requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
         routePath: '/pets/123',
         statusCode: 404,
       }),
@@ -223,13 +236,13 @@ describe('GatewayRuntimeService', () => {
       },
     } as any;
 
-    await expect(deps.service.forwardRequest('/pets/123', req, {} as any)).rejects.toThrow(
+    await expect(deps.service.forwardRequest('/pets/123', req, { setHeader: jest.fn() } as any)).rejects.toThrow(
       'upstream timeout',
     );
 
     expect(deps.gatewayRuntimeMetricsService.recordForwardResult).toHaveBeenCalledWith(
       expect.objectContaining({
-        requestId: 'req-error',
+        requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
         correlationId: 'corr-error',
         success: false,
         errorMessage: 'upstream timeout',
@@ -237,7 +250,7 @@ describe('GatewayRuntimeService', () => {
     );
     expect(deps.gatewayAccessLogService.recordRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        requestId: 'req-error',
+        requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
         correlationId: 'corr-error',
         errorMessage: 'upstream timeout',
       }),
@@ -286,7 +299,7 @@ describe('GatewayRuntimeService', () => {
 
     expect(deps.gatewayAccessLogService.recordRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        requestId: 'req-auth',
+        requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
         errorMessage: 'Gateway JWT token is required',
       }),
     );
@@ -298,7 +311,7 @@ describe('GatewayRuntimeService', () => {
     expect(deps.gatewayRuntimeMetricsService.recordPolicyObservabilityEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         policyName: 'gateway.auth_rejected',
-        requestId: 'req-auth',
+        requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
       }),
     );
   });
@@ -322,7 +335,7 @@ describe('GatewayRuntimeService', () => {
             'x-request-id': 'req-throttle',
           },
         } as any,
-        {} as any,
+        { setHeader: jest.fn() } as any,
       ),
     ).rejects.toEqual(
       expect.objectContaining({
@@ -332,7 +345,7 @@ describe('GatewayRuntimeService', () => {
 
     expect(deps.gatewayRuntimeMetricsService.recordForwardResult).toHaveBeenCalledWith(
       expect.objectContaining({
-        requestId: 'req-throttle',
+        requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
         statusCode: 429,
         errorMessage: 'Gateway rate limit exceeded',
       }),
@@ -371,7 +384,7 @@ describe('GatewayRuntimeService', () => {
         originalUrl: '/v1/gateway/orders',
         headers: { host: 'localhost:9001' },
       } as any,
-      {} as any,
+      { setHeader: jest.fn() } as any,
     );
 
     expect(deps.gatewayProxyEngineService.forward).toHaveBeenCalledTimes(2);
@@ -421,7 +434,7 @@ describe('GatewayRuntimeService', () => {
           originalUrl: '/v1/gateway/orders',
           headers: { host: 'localhost:9001' },
         } as any,
-        {} as any,
+        { setHeader: jest.fn() } as any,
       ),
     ).rejects.toThrow('temporary upstream error');
 
@@ -469,7 +482,7 @@ describe('GatewayRuntimeService', () => {
         originalUrl: '/v1/gateway/orders',
         headers: { host: 'localhost:9001' },
       } as any,
-      {} as any,
+      { setHeader: jest.fn() } as any,
     );
 
     expect(deps.gatewayProxyEngineService.forward).toHaveBeenCalledTimes(2);
@@ -523,7 +536,7 @@ describe('GatewayRuntimeService', () => {
     expect(deps.gatewayProxyEngineService.forward).not.toHaveBeenCalled();
     expect(deps.gatewayRuntimeMetricsService.recordCacheResult).toHaveBeenCalledWith(
       expect.objectContaining({
-        requestId: 'req-cache-hit',
+        requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
         cacheStatus: 'hit',
       }),
     );

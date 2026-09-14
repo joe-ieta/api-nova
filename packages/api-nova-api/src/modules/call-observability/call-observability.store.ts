@@ -10,7 +10,7 @@ import {
   RuntimePipelineStateEntity,
 } from '../../database/entities/runtime-call-observability.entity';
 import {
-  RuntimeObservabilityActorType, RuntimeObservabilityEventEntity,
+  RuntimeObservabilityActorType,
   RuntimeObservabilityEventFamily, RuntimeObservabilityRetentionClass,
   RuntimeObservabilitySeverity, RuntimeObservabilityStatus,
 } from '../../database/entities/runtime-observability-event.entity';
@@ -20,6 +20,7 @@ import {
   publicSequence, sequenceKey, SerialStorageLane, ZERO_SEQUENCE,
 } from './call-observability-storage';
 
+import { writeDurableObservabilityEvent } from './call-observability-event-writer';
 import { CallObservabilityPayloadCoordinator, PAYLOAD_OWNER_ID } from './call-observability-payload.coordinator';
 
 const COUNTER_ID = 'call-observability:commit-sequence';
@@ -366,8 +367,8 @@ export class CallObservabilityStore {
     suppressEvent = false): Promise<void> {
     const row = current.record as CanonicalInvocation;
     const failed = ['error', 'timeout', 'incomplete', 'rejected'].includes(row.outcome || '');
-    const event = Object.assign(new RuntimeObservabilityEventEntity(), {
-      id: randomUUID(), sequence, schemaVersion: '1.0', eventName: eventType,
+    await writeDurableObservabilityEvent(tx, {
+      eventName: eventType,
       subjectId: current.invocationId, subjectVersion: current.recordVersion,
       runtimeAssetId: row.runtimeAssetId || undefined,
       runtimeAssetEndpointBindingId: row.runtimeAssetEndpointBindingId || undefined,
@@ -377,14 +378,13 @@ export class CallObservabilityStore {
       severity: failed ? RuntimeObservabilitySeverity.WARNING : RuntimeObservabilitySeverity.INFO,
       status: failed ? RuntimeObservabilityStatus.FAILED : row.outcome === 'success' ?
         RuntimeObservabilityStatus.SUCCESS : RuntimeObservabilityStatus.PARTIAL,
-      occurredAt: new Date(row.completedAt || tx.now), createdAt: new Date(tx.now),
+      occurredAt: new Date(row.completedAt || tx.now),
       correlationId: row.traceId && row.traceId.length <= 120 ? row.traceId : undefined,
       actorType: RuntimeObservabilityActorType.RUNTIME,
       retentionClass: RuntimeObservabilityRetentionClass.STANDARD,
-      dispatchState: suppressEvent ? 'suppressed' : 'pending', expiresAt: new Date(expiresAfter(tx.now, 14)),
       dimensions: { runtimeAssetId: row.runtimeAssetId, serverType: row.serverType, origin: row.origin,
         spanKind: row.spanKind, callerId: row.callerId, endpointDefinitionId: row.endpointDefinitionId,
-        sourceServiceInstanceId: row.sourceServiceInstanceId },
+        sourceServiceInstanceId: row.sourceServiceInstanceId, toolName: row.toolName },
       // Push is metadata-only. Raw bodies, headers, source IPs and paths are excluded.
       details: { invocationId: row.invocationId, recordVersion: current.recordVersion,
         traceId: row.traceId, spanKind: row.spanKind, serverType: row.serverType, origin: row.origin,
@@ -394,9 +394,7 @@ export class CallObservabilityStore {
         byteMeasurement: row.byteMeasurement, measurementStage: row.measurementStage,
         request: { state: row.request.state, observedBytes: row.request.observedBytes },
         response: { state: row.response.state, observedBytes: row.response.observedBytes } },
-    });
-    await tx.manager.getRepository(RuntimeObservabilityEventEntity).insert(event);
-    if (!suppressEvent) tx.events.push({ eventId: event.id, sequence: publicSequence(sequence), eventType });
+    }, { sequence, suppressEvent });
   }
 
   private async checkpoint(tx: ObservabilityWriteTransaction,

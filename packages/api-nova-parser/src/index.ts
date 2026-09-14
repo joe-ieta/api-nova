@@ -152,3 +152,5 @@ export const DEFAULT_TRANSFORMER_OPTIONS: TransformerOptions = {
   debugHeaders: false,
   protectedHeaders: ['content-type', 'content-length', 'host', 'connection', 'transfer-encoding', 'upgrade']
 };
+
+export * from './audit/runtime-http-agent';

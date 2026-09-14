@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { isGatewayInternalVerification } from './gateway-audit-context';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Request } from 'express';
 import { Repository } from 'typeorm';
@@ -27,6 +28,7 @@ export class GatewayAccessLogService {
     statusCode?: number;
     errorMessage?: string;
   }) {
+    if (isGatewayInternalVerification(input.req)) return;
     // Canonical gateway_request evidence is emitted by the ingress observer.
     try {
       const requestHeaders = this.normalizeHeaders(input.req.headers);

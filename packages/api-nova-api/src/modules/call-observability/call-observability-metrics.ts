@@ -137,8 +137,19 @@ export function calculateObservabilityMetrics(observations: readonly MetricObser
   const callers = new Set<string>(), sources = new Set<string>(), retries = new Set<string>();
   let inFlight = 0, unknownInFlight = 0, unidentifiedCallerRecords = 0;
   let anonymousSourceOverflowRecords = 0, unidentifiedSourceRecords = 0, unlinkedRetryRecords = 0;
+  let cacheEligibleRecords = 0, cacheHits = 0, cacheMisses = 0;
   for (const item of selected) {
     const row = item.invocation;
+    // Cache evidence is independent of outcome/phase and applies only to Gateway ingress.
+    // Normalizers must preserve unknown values or mark missingFields: historical false
+    // values synthesized from missing evidence cannot be recovered in this kernel.
+    if (row.spanKind === 'gateway_request') {
+      cacheEligibleRecords++;
+      if (!row.missingFields?.includes('cacheHit')) {
+        if (row.cacheHit === true) cacheHits++;
+        else if (row.cacheHit === false) cacheMisses++;
+      }
+    }
     if (row.phase === 'finished') outcomes[OUTCOMES.includes(row.outcome!) ? row.outcome! : 'unknown']++;
     else if (item.producerState === 'live') inFlight++;
     else unknownInFlight++;
@@ -157,6 +168,8 @@ export function calculateObservabilityMetrics(observations: readonly MetricObser
   const knownCompleted = outcomes.success + outcomes.error + outcomes.rejected + outcomes.timeout +
     outcomes.cancelled + outcomes.incomplete;
   const failures = outcomes.error + outcomes.timeout + outcomes.incomplete;
+  const cacheObservedRecords = cacheHits + cacheMisses;
+  const cacheUnknownRecords = cacheEligibleRecords - cacheObservedRecords;
   const groups = byteGroups(rows);
   const measuredRecords = rows.filter(row => measured(row, 'request') && measured(row, 'response')).length;
   return {
@@ -173,6 +186,9 @@ export function calculateObservabilityMetrics(observations: readonly MetricObser
       anonymousSourceCoveragePartial: anonymousSourceOverflowRecords > 0 || unidentifiedSourceRecords > 0,
       upstreamRequests: rows.filter(row => row.spanKind === 'upstream_api').length,
       retryAttempts: retries.size, unlinkedRetryRecords,
+      cacheEligibleRecords, cacheObservedRecords, cacheUnknownRecords, cacheHits, cacheMisses,
+      cacheHitRate: cacheObservedRecords ? cacheHits / cacheObservedRecords : null,
+      cacheCoveragePartial: cacheUnknownRecords > 0,
       successRate: knownCompleted ? outcomes.success / knownCompleted : null,
       errorRate: outcomes.success + failures ? failures / (outcomes.success + failures) : null,
       measuredRecords, unmeasuredRecords: rows.length - measuredRecords,

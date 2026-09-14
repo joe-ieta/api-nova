@@ -120,3 +120,43 @@ describe('runtime observability source contract', () => {
     expect(() => normalizeRuntimeAuditRecord(source(fields))).toThrow(InvalidRuntimeAuditRecord);
   });
 });
+
+describe('Gateway cache observation coverage', () => {
+  it.each([undefined, null, 0, 1, '', 'false', 'true', {}, []])(
+    'marks unknown cache evidence without changing the boolean contract: %p', cacheHit => {
+      const row = normalizeRuntimeAuditRecord(source({ spanKind: 'gateway_request',
+        transport: 'gateway', cacheHit, parentInvocationId: 'unresolved' }));
+      expect(row.cacheHit).toBe(false);
+      expect(row.missingFields).toEqual(expect.arrayContaining([
+        'cacheHit', 'traceId', 'runtimeAssetId', 'requestBytes', 'responseBytes',
+      ]));
+      expect(row.missingFields.filter(field => field === 'cacheHit')).toHaveLength(1);
+    });
+  it.each([true, false])('preserves explicit boolean evidence: %p', cacheHit => {
+    const row = normalizeRuntimeAuditRecord(source({ spanKind: 'gateway_request', transport: 'gateway', cacheHit }));
+    expect(row.cacheHit).toBe(cacheHit);
+    expect(row.missingFields).not.toContain('cacheHit');
+  });
+  it('marks a truly absent property as unknown', () => {
+    const row = normalizeRuntimeAuditRecord(source({ spanKind: 'gateway_request', transport: 'gateway' }));
+    expect(row.cacheHit).toBe(false);
+    expect(row.missingFields).toContain('cacheHit');
+  });
+  it('preserves an explicit cache missing marker alongside generated coverage markers', () => {
+    const row = normalizeRuntimeAuditRecord(source({ spanKind: 'gateway_request', transport: 'gateway',
+      cacheHit: false, missingFields: ['cacheHit'] }));
+    expect(row.missingFields).toEqual(expect.arrayContaining([
+      'cacheHit', 'runtimeAssetId', 'requestBytes', 'responseBytes',
+    ]));
+  });
+  it('uses legacy cache_hit as positive evidence', () => {
+    const row = normalizeRuntimeAuditRecord(source({ spanKind: 'gateway_request',
+      transport: 'gateway', outcome: 'cache_hit' }));
+    expect(row.cacheHit).toBe(true);
+    expect(row.missingFields).not.toContain('cacheHit');
+  });
+  it.each(['mcp_tool', 'mcp_protocol', 'upstream_api'])(
+    'does not claim cache coverage is missing for an inapplicable span: %s', spanKind => {
+      expect(normalizeRuntimeAuditRecord(source({ spanKind })).missingFields).not.toContain('cacheHit');
+    });
+});

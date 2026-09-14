@@ -60,6 +60,18 @@ export const validationSchema = Joi.object({
   OPENAPI_CACHE_TTL: Joi.number().positive().default(600),
 
   METRICS_ENABLED: Joi.boolean().default(true),
+  API_NOVA_OBSERVABILITY_AGGREGATION_ENABLED: Joi.string().valid('true', 'false').default('false'),
+  API_NOVA_OBSERVABILITY_WEBHOOK_ENABLED: Joi.string().valid('true', 'false').default('false'),
+  API_NOVA_OBSERVABILITY_DISPATCH_ENABLED: Joi.string().valid('true', 'false').default('false'),
+  API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED: Joi.string().valid('true', 'false').default('false'),
+  API_NOVA_OBSERVABILITY_IDEMPOTENCY_SECRET: Joi.string().min(32).optional(),
+  API_NOVA_OBSERVABILITY_CURSOR_SECRET: Joi.string().min(32).optional(),
+  API_NOVA_OBSERVABILITY_CURSOR_KEY_ID: Joi.string().pattern(/^[A-Za-z0-9_-]{1,32}$/).default('v1'),
+  API_NOVA_OBSERVABILITY_SOURCE_ID_SECRET: Joi.string().min(32).when('API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED', {
+    is: 'true', then: Joi.required(), otherwise: Joi.optional(),
+  }),
+  API_NOVA_OBSERVABILITY_SOURCE_ID_KEY_ID: Joi.string().pattern(/^[A-Za-z0-9_-]{1,32}$/).default('v1'),
+  API_NOVA_OBSERVABILITY_SOURCES_PER_DAY: Joi.number().integer().min(1).max(100000).default(10000),
   METRICS_HISTORY_MAX_AGE: Joi.number()
     .positive()
     .default(7 * 24 * 60 * 60 * 1000),

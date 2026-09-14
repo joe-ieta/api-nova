@@ -16,6 +16,7 @@ import {
 } from "../tools/httpServer";
 import { getBody } from "../tools/getBody";
 import { instrumentMcpTransport } from './audit';
+import { withMcpHttpResponse } from './http-delivery';
 import { auditDigest, getRuntimeCallContext, RuntimeAuthError } from 'api-nova-parser';
 import { assertMcpToolScopes } from '../tools/runtime-security';
 
@@ -278,7 +279,7 @@ export async function startStreamableMcpServer(
             return;
           }
 
-          await activeSession.transport.handleRequest(req, res, body);
+          await withMcpHttpResponse(res, () => activeSession.transport.handleRequest(req, res, body));
           return;
         }
 
@@ -323,8 +324,8 @@ export async function startStreamableMcpServer(
         };
 
         await sessionServer.connect(transport);
-        instrumentMcpTransport(transport);
-        await transport.handleRequest(req, res, body);
+        instrumentMcpTransport(transport, { httpSendBoundary: true });
+        await withMcpHttpResponse(res, () => transport.handleRequest(req, res, body));
       } catch (error) {
         if (error instanceof RuntimeAuthError) throw error;
         console.error("Error handling request:", error);

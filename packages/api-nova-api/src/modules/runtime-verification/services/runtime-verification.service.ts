@@ -535,7 +535,9 @@ export class RuntimeVerificationService {
       }
       const startedAt = Date.now();
       try {
-        const replay = await this.mcpCandidateReplayService.replay({ tool, sample });
+        const replay = await this.mcpCandidateReplayService.replay({
+          tool, sample, runtimeAssetId, runtimeMembershipId: result.runtimeMembershipId,
+        });
         result.actualStatusCode = replay.statusCode;
         result.durationMs = replay.durationMs;
         const responseAssertion = this.responseAssertionService.assert(sample, replay.body);

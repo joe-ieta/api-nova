@@ -4,9 +4,11 @@ import {
   RuntimeCallContext, RuntimeCallRecord,
 } from 'api-nova-parser';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+import { getMcpHttpResponseCompletion } from './http-delivery';
 
 type Call = ReturnType<typeof beginRuntimeCall>;
-type Pending = { protocol?: Call; tool?: Call; done: boolean };
+type Pending = { protocol?: Call; tool?: Call; done: boolean; sending?: boolean;
+  completion?: Promise<void>; protocolResponse?: RuntimeCallRecord['response']; toolResponse?: RuntimeCallRecord['response'] };
 const instrumented = new WeakSet<Transport>();
 const health = { instrumentationFailures: 0, finalizeFailures: 0 };
 export function getMcpTransportAuditHealth() { return { ...health }; }
@@ -25,7 +27,7 @@ function finish(entry: Pending, fields: Partial<RuntimeCallRecord>,
 }
 
 /** HTTP supplies the protocol parent; STDIO/programmatic requests create their own. */
-export function instrumentMcpTransport(transport: Transport): void {
+export function instrumentMcpTransport(transport: Transport, options: { httpSendBoundary?: boolean } = {}): void {
   if (instrumented.has(transport)) return;
   instrumented.add(transport);
   const receive = transport.onmessage;
@@ -34,6 +36,16 @@ export function instrumentMcpTransport(transport: Transport): void {
   const pending = new Map<string | number, Pending>();
   const inFlight = new Set<Pending>();
   const localSessionId = randomUUID();
+  const incomplete = (body: RuntimeCallRecord['response']) => body
+    ? { ...body, state: 'incomplete' as const, reason: 'protocol_send_failed', data: undefined, capturedBytes: 0 } : undefined;
+  const interrupted = (entry: Pending) => {
+    if (options.httpSendBoundary && entry.sending) {
+      finish(entry, { outcome: 'error', errorCategory: 'connection', errorCode: 'MCP_SEND_FAILED',
+        failureStage: 'protocol_send' }, incomplete(entry.protocolResponse), incomplete(entry.toolResponse));
+    } else {
+      finish(entry, { outcome: 'cancelled', errorCategory: 'cancelled', errorCode: 'MCP_SESSION_CLOSED', failureStage: 'protocol_send' });
+    }
+  };
   transport.onmessage = (message, extra) => {
     if (!('method' in message)) { receive?.(message, extra); return; }
     const inherited = getRuntimeCallContext();
@@ -44,7 +56,7 @@ export function instrumentMcpTransport(transport: Transport): void {
       sessionIdHash: inherited?.sessionIdHash || auditDigest(transport.sessionId || localSessionId),
       byteMeasurement: 'serialized_payload', measurementStage: 'logical_payload',
     };
-    const entry: Pending = { done: false };
+    const entry: Pending = { done: false, completion: options.httpSendBoundary ? getMcpHttpResponseCompletion() : undefined };
     const hasHttpParent = inherited?.spanKind === 'mcp_protocol' && !!inherited.parentInvocationId;
     if (!hasHttpParent) {
       const start = { ...context, method: message.method, request: safely(() => captureAuditBody(message)) };
@@ -66,7 +78,8 @@ export function instrumentMcpTransport(transport: Transport): void {
       inFlight.add(entry);
       const rejection = { jsonrpc: '2.0' as const, id: message.id,
         error: { code: -32000, message: 'Concurrent call limit exceeded' } };
-      void Promise.resolve().then(() => send(rejection)).then(
+      entry.sending = true;
+      void Promise.resolve().then(() => send(rejection)).then(() => entry.completion).then(
         () => finish(entry, { outcome: 'error', errorCategory: 'protocol', errorCode: 'MCP_CONCURRENT_CALL_LIMIT',
           protocolErrorCode: -32000 }, safely(() => captureAuditBody(rejection)), safely(() => captureAuditBody(rejection.error))),
         () => finish(entry, { outcome: 'error', errorCategory: 'connection', errorCode: 'MCP_SEND_FAILED', failureStage: 'protocol_send' }),
@@ -75,6 +88,11 @@ export function instrumentMcpTransport(transport: Transport): void {
     }
     if ('id' in message) pending.set(message.id, entry);
     inFlight.add(entry);
+    void entry.completion?.catch(() => {
+      interrupted(entry);
+      if ('id' in message && pending.get(message.id) === entry) pending.delete(message.id);
+      inFlight.delete(entry);
+    });
     const childContext: RuntimeCallContext = {
       ...parentContext, parentInvocationId: entry.tool?.record.invocationId || parentContext.parentInvocationId,
       toolName: entry.tool?.record.toolName,
@@ -96,8 +114,12 @@ export function instrumentMcpTransport(transport: Transport): void {
     if (!entry) return send(message, options);
     const protocolResponse = safely(() => captureAuditBody(message));
     const toolResponse = safely(() => captureAuditBody('result' in message ? message.result : 'error' in message ? message.error : undefined));
+    entry.sending = true;
+    entry.protocolResponse = protocolResponse;
+    entry.toolResponse = toolResponse;
     try {
       const result = await send(message, options);
+      await entry.completion;
       const toolIsError = 'result' in message && message.result?.isError === true;
       finish(entry, { outcome: 'error' in message || toolIsError ? 'error' : 'success',
         toolIsError: entry.tool ? toolIsError : undefined,
@@ -106,8 +128,6 @@ export function instrumentMcpTransport(transport: Transport): void {
       }, protocolResponse, toolResponse);
       return result;
     } catch (error) {
-      const incomplete = (body: RuntimeCallRecord['response']) => body
-        ? { ...body, state: 'incomplete' as const, reason: 'protocol_send_failed', data: undefined, capturedBytes: 0 } : undefined;
       finish(entry, { outcome: 'error', errorCategory: 'connection', errorCode: 'MCP_SEND_FAILED',
         failureStage: 'protocol_send' }, incomplete(protocolResponse), incomplete(toolResponse));
       throw error;
@@ -117,9 +137,7 @@ export function instrumentMcpTransport(transport: Transport): void {
     }
   };
   transport.onclose = () => {
-    for (const entry of inFlight) finish(entry, {
-      outcome: 'cancelled', errorCategory: 'cancelled', errorCode: 'MCP_SESSION_CLOSED', failureStage: 'protocol_send',
-    });
+    for (const entry of inFlight) interrupted(entry);
     inFlight.clear();
     pending.clear();
     close?.();

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.32.0
+doc-version: 1.33.0
 doc-status: active
 doc-updated: 2026-09-11
 approval-status: approved
@@ -8,7 +8,7 @@ implementation-status: in-progress
 # 可观测性开发执行与任务包完成状态
 
 > Document status: Active execution ledger
-> 当前阶段：基线 1c70067 已提交推送；7 个任务包 DONE，2 个 IN_PROGRESS，2 个 READY，5 个 BACKLOG。最新既有联合回归 430/430 PASS，本次为文档/源码入口复核，未重跑测试；9 个任务包尚未完成，详见第 40 节及《任务完成情况复核与未完成清单》。
+> 当前阶段：工作区并发开发已完成本轮集成；8 个任务包 DONE、3 个 IN_PROGRESS、0 个 READY、5 个 BACKLOG。API 29 脚本联合 507/507 PASS，Parser 审计 103/103 PASS；TP-07 后补健康排除专项最终 22/22 PASS。17 个 HTTP VERIFIED，AVAILABLE=0；详见第 41 节和最新完成度复核。
 > 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
 
 ## 1. 当前快照
@@ -19,14 +19,14 @@ implementation-status: in-progress
 | OBS-GATE-01 | PASSED；用户要求按计划持续推进 |
 | 全新版本决策 | 统一当前格式、接口和数据库初始结构，不增加历史兼容层 |
 | 实现任务总数 | 16 |
-| DONE | 7 |
-| IN_PROGRESS / REVIEW / BLOCKED | 2 / 0 / 0 |
-| READY / BACKLOG | 2 / 5 |
-| 代码验收完成率 | 7/16；TP-09 查询与审计包已收口，不代表业务根应用启用、推送或全平台验收 |
-| 新 HTTP Endpoint | 28 个；01、03~13 共 12 个 VERIFIED，其余 16 个 PLANNED；均未部署为 AVAILABLE |
+| DONE | 8 |
+| IN_PROGRESS / REVIEW / BLOCKED | 3 / 0 / 0 |
+| READY / BACKLOG | 0 / 5 |
+| 任务包验收 | 8/16；任务规模不同，不换算整体功能百分比；TP-07 收口，部署和整体报送仍未完成 |
+| 新 HTTP Endpoint | 28 个；01~16、26 共 17 个 VERIFIED，11 个 PLANNED；未部署为 AVAILABLE |
 | 新推送契约 | 2 类，全部 PLANNED |
 | 本轮数据库实际操作 | 隔离 SQL.js 内存库、独有临时目录及本机随机端口；未连接或清理业务数据库 |
-| 本轮新增验证 | B01 API build PASS；桶规划 26/26、指标 24/24，专项 50/50、20 脚本联合 430/430 PASS；0 fail/cancelled/skipped |
+| 本轮新增验证 | 三包构建 PASS；Parser 103/103；API 29 脚本 507/507；TP-07 最终 22/22，含联合后补四项健康排除；MCP 发送专项单列 |
 
 文档已确认与基础包完成都不代表功能已上线。TP-02 的存储、GC 与 PostgreSQL 多进程针对性验证已完成；Linux 矩阵、全系统 SQL.js 并发集成和新接口端到端验收仍未完成。
 
@@ -39,7 +39,7 @@ implementation-status: in-progress
 | IN_PROGRESS | 代码或本包退出条件仍在推进 |
 | BLOCKED | 存在明确外部障碍，记录原因、影响与解除条件 |
 | REVIEW | 实现及适用验证完成，等待验收收口 |
-| DONE | 全部退出条件通过，具备可定位证据 |
+| DONE | 8 |
 | DEFERRED | 有明确范围决策支持延期 |
 
 硬依赖未完成时可以做接入准备，不将下游标为 READY 或 DONE。代码存在、测试未运行或测试失败都不满足 DONE。
@@ -64,16 +64,16 @@ implementation-status: in-progress
 | OBS-TP-03 | 权限与 API 基础 | 01、02 | DONE | 补齐夹具依赖后 56 项专项及 48 项存储/GC 回归全部通过，API build PASS；覆盖真实 JWT、AND/资源范围、游标、ETag、并发幂等与回滚；具体 Endpoint 接入另行验收 |
 | OBS-TP-04 | 共享上下文/正文/上游采集 | 01 | DONE | 公共标量保真与编码正文修复已重新验收；parser 86 项及跨模块 155 项回归通过，三包构建通过；原失败记录保留在第 18 节 |
 | OBS-TP-05 | Gateway 接入 | 04 | DONE | 入口前置、独立流结束、内部请求 ID、上游适配器/尝试编号、可信身份及取消接入完成；21 项真实回环 HTTP 专项与 104 项回归、API 构建通过；正式应用/监听器矩阵归 15/16 |
-| OBS-TP-06 | MCP 接入 | 04 | IN_PROGRESS | HTTP/物理上游基线已验收；真实 STDIO 8 项含慢读背压均通过；stdin EOF、stdout 错误/断管及剩余传输矩阵尚未验收 |
-| OBS-TP-07 | 测试/探测/内部调用接入 | 04 | READY | 04 重新验收，恢复就绪；test/probe/internal 实际接入尚未实施 |
+| OBS-TP-06 | MCP 接入 | 04 | IN_PROGRESS | EOF/断管、背压与真实发送确认已推进；完整 AC-02/传输/正文矩阵尚未闭环 |
+| OBS-TP-07 | 测试/探测/内部调用接入 | 04 | DONE | 五类真实入口、origin/数据库隔离、健康 telemetry 排除通过；专项最终 22/22 |
 | OBS-TP-08 | 增量汇集/身份/恢复 | 02、04 | DONE | 采集/身份/重启/源退出共 45 项专项通过；真实写入进程 UUID/PID、已关闭残片隔离和立即 unknown 恢复已接入。包级退出条件完成，应用启用与全平台集成另归 15/16 |
 | OBS-TP-09 | 明细/正文/调用者查询 API | 03、08 | DONE | 03~10 八接口 VERIFIED；调用/trace 38、正文/审计 23、访客 24、标签/条件请求 27 项通过；联合 320 项和 API 构建通过 |
-| OBS-TP-10 | 聚合/状态/能力 API | 03、08 | IN_PROGRESS | OBS-API-01/11/12/13 VERIFIED；B01 桶键/修订规划已完成；B02 持久事务投影 READY，持久重算、总览、依赖和状态待实施 |
-| OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | READY | 03、08 已完成；持久事件基础已有，仍需历史查询和 Outbox 消费 |
+| OBS-TP-10 | 聚合/状态/能力 API | 03、08 | IN_PROGRESS | B02 DONE，B03 内部重算/后台完成；总览/依赖/状态 VERIFIED；长期治理、覆盖、HTTP 持久读取和真实存活仍缺 |
+| OBS-TP-11 | 持久事件/Outbox/历史 API | 03、08 | IN_PROGRESS | 事件历史、范围游标、总览桥接、事务 Outbox/当前权限及可选调度完成；统一事件类别与完整报送待验收 |
 | OBS-TP-12 | Webhook/订阅/投递 API | 11 | BACKLOG | 11 尚未完成 |
 | OBS-TP-13 | Socket.IO/快照与恢复 | 10、11 | BACKLOG | 10、11 尚未完成 |
-| OBS-TP-14 | 配额/保留/策略/健康 | 09、10、11、12 | BACKLOG | 前置查询/投递能力尚未完成 |
-| OBS-TP-15 | 全链路集成与旧能力收敛 | 05、06、07、09、10、12、13、14 | BACKLOG | 同步切换旧接口；覆盖全系统 SQL.js 事务交互并定位 pg 弃用警告，不再做兼容适配 |
+| OBS-TP-14 | 配额/保留/策略/健康 | 09、10、11、12 | BACKLOG | pipeline/status 准备节点 VERIFIED；前置未全部完成，跨对象治理和策略接口仍缺 |
+| OBS-TP-15 | 全链路集成与旧能力收敛 | 05、06、07、09、10、12、13、14 | BACKLOG | 根模块、默认关闭后台配置及隔离贯通完成准备；全部报送、旧能力收敛、全局前置审计及部署仍缺 |
 | OBS-TP-16 | 总体验收/性能/文档收口 | 15 | BACKLOG | 15 尚未完成；Linux、跨平台/方言完整矩阵及负载验证仍未执行 |
 
 ## 5. 接口交付跟踪
@@ -84,14 +84,15 @@ implementation-status: in-progress
 | OBS-API-01：能力 | 1 | 10 | VERIFIED；未部署 |
 | OBS-API-11：统计汇总 | 1 | 10 | VERIFIED；未部署 |
 | OBS-API-12/13：时间桶/排行 | 2 | 10 | VERIFIED |
-| OBS-API-02/14/15：总览/依赖/状态 | 3 | 10 | PLANNED |
-| OBS-API-16：事件补拉 | 1 | 11 | PLANNED |
+| OBS-API-02/14/15：总览/依赖/状态 | 3 | 10 | VERIFIED；当前受限契约，真实健康未知 |
+| OBS-API-16：事件补拉 | 1 | 11 | VERIFIED；调用快照授权与持久游标，不代表主动推送 |
 | OBS-API-17~25：订阅/投递/重试 | 9 | 12 | PLANNED |
-| OBS-API-26~28：健康/策略 | 3 | 14 | PLANNED |
+| OBS-API-26：采集健康 | 1 | 14 | VERIFIED；全局 read 与持久证据 |
+| OBS-API-27/28：策略 | 2 | 14 | PLANNED |
 | OBS-PUSH-01：Socket.IO | 1 | 13 | PLANNED |
 | OBS-PUSH-02：Webhook | 1 | 12 | PLANNED |
 
-新观测模块已包含通过隔离 HTTP/Swagger 验证的能力、调用列表、明细、正文、trace、访客与标签控制器，但业务根应用未启用；collector/worker 支持显式启用的目录后台调度。不能将隔离验证、内部采集与事件持久化视为已部署接口或已运行的推送。
+新观测模块已进入业务根应用；采集、聚合和 Outbox 后台仍需各自显式开启，默认关闭。隔离模块验收已贯通真实目录采集、桶/来源投影、HTTP 查询、重算、分发与总览事件桥接；未运行生产部署，不将入队当作网络投递。
 
 ## 6. 验收证据矩阵
 
@@ -691,3 +692,40 @@ B01 为 DONE，B02 READY，B03/B04 待依赖。HTTP 12 VERIFIED、16 PLANNED，�
 [复核及未完成清单](./runtime-observability-completion-review.md)为本次主要交付，含逐包标注、FR-01~10 对照、16 个未完成 Endpoint、推送边界、REM-01~13 依赖清单和待验收性能/平台目标。
 
 特别纠偏：聚合/订阅/投递实体已经定义，不能写成没有任何基础；但 Worker 当前调用的是调用者投影，B01 尚未接入持久事务，事件 pending 也不是投递成功。需求页“implementation not started”已更新为实现进行中。
+
+## 41. 并发开发、应用接入与持久链路节点（2026-09-11）
+
+本轮在既有复核基线上直接开发，未提交 Git、未部署或操作业务数据库。当前包计数为 DONE=8、IN_PROGRESS=3、READY=0、BACKLOG=5，TP-07 收口；TP-06/10/11 继续推进，下游准备不越过硬依赖。
+
+交付包括 B02 持久贡献/队列及两方言初始化结构；B03 内部有界重算与完整计算快照；五个新查询；调用快照授权到事件游标；事务 Outbox 与当前权限；真实内部调用 origin 隔离；缓存三态；根模块与三个默认关闭的后台开关。应用接入及精确限制见 runtime-observability-integration.md。
+
+实际证据：Parser/Server/API build PASS；Parser 审计五套件 103/103；API 29 脚本联合 507/507，0 fail/cancelled/skipped，日志 tmp/observability-concurrent-final-regression.log。TP-07 联合后补四项健康排除，专项最终 22/22；相关 Jest 五套件 28/28。专项数字与联合重叠，不累加重复计数。
+
+首次装配测试夹具漏 emailVerified、B02 脚本从根目录加载错误 tsconfig、能力列表数量/顺序和快照测试导出名均已修正并重新验证；最终结果没有遗留这些失败。真实模块测试覆盖生产 Provider 装配、管理认证、JSONL 到桶/事件/统计、重算快照、Outbox 扫描及 origin 不可扩大的 afterSequence 桥接。
+
+仍不关闭 B03/TP-10：90 天桶过期不代表物理保留/配额、覆盖账本或长期 HTTP 读取完成。TP-11 的网络投递由 TP-12 负责，尚未交付；Socket.IO、策略/全局审计、身份映射和真实 PostgreSQL/Linux/负载仍待继续。17 个 HTTP VERIFIED 只证明当前声明契约，AVAILABLE=0。
+### 本轮 MCP 最终发送边界验收
+
+最新 Server build 后，HTTP delivery、HTTP observability、transport、STDIO 四脚本联合 53/53 PASS，0 fail/cancelled/skipped；日志 tmp/observability-mcp-final-regression.log。真实 Streamable/SSE 安全审计烟测及 Streamable 多会话烟测均 PASS。STDIO 等待 stdout 写回调，SSE 等待对应 SDK 帧写回调，Streamable 等待对应 HTTP response finish；失败、中断和取消不记录伪成功。
+
+保留限制：Windows / Node v24.15.0、16 MiB Streamable 响应，原生 cork→uncork 后恢复读取的有界 A/B 复现中，原生 SDK 与当前审计版本均在 3 秒内未完成，finished=false、needDrain=true。审计版本等待期间无伪成功，断开后记录 error/incomplete。对照断言通过只证明两者均可复现，不代表背压恢复成功；该用例没有被隐藏或冒充正向通过。TP-06 仍 IN_PROGRESS，完整 AC-02 重试、传输/正文及平台矩阵继续保留。
+
+## 最新复核：发送内核与管理准备（2026-09-11）
+
+本节覆盖前文关于 Webhook 完全未实现的历史表述。发送链路已有 API build 和 67/67 隔离专项证据；随后增加的 Worker、密钥适配、动态装配与订阅事务内核尚未构建或测试，不能复用此前通过结论。任务包计数仍为 DONE=8、IN_PROGRESS=3、READY=0、BACKLOG=5；HTTP 17 VERIFIED、11 PLANNED，AVAILABLE=0。
+
+本次并行推进订阅安全查询和投递/尝试安全查询，尚不发布管理 HTTP 接口。TP12 仍按硬依赖保留 BACKLOG，但已具备准备代码；B03/B04、TP11 全事件、TP13 实时通道、TP14 治理、TP06 全矩阵及 TP16 平台性能仍未收口。完整证据与未完成边界见 runtime-observability-completion-review.md 第 10 节。
+本次查询增量实际落点：CallObservabilitySubscriptionsQueryService.detail 已实现 owner/范围授权和目的地 origin 安全视图；CallObservabilityDeliveriesQueryService.detail 已实现当前权限、投递 TTL、事件资产核对及白名单尝试查询，内部 afterAttemptNo/take 有界读取。两服务已注册模块，尚未构建或测试。列表查询、稳定公有游标、HTTP controller 均未实现，故本次仍不新增 VERIFIED 接口。尝试原始 responseSummary、lease token 和秘密字段不向查询调用者返回。
+## 累计增量构建复验：仍待类型修复（2026-09-11）
+
+经用户授权开始构建累计增量。订阅事务服务出现四处 TypeORM JSON 写入类型错误，涉及两处 scope、一处 lastError 和一处 config。尝试显式 QueryDeepPartialEntity 字段类型后，编译仍报 TS2352；尚未解决，不记录 build PASS。因命令使用构建成功才执行测试的门控，后续既有七脚本联合未运行，不能沿用历史 67/67 作为本次结果。并行新增源码专项使用 transpileOnly 时只构成运行逻辑证据，不替代 TypeScript 构建。
+补充专项结果：新增 test-call-observability-subscriptions.cjs 10/10 PASS，使用真实 SQL.js/Store 与同事务 audit stub；新增 test-call-observability-webhook-runtime.cjs 28/28 PASS，覆盖 Worker、secret resolver 和 bridge。合计 38 项源码运行测试通过，均使用 ts-node transpileOnly；不代表构建通过，也未覆盖真实 PostgreSQL、真实审计服务和外部 HTTPS 接收端。四处 TS2352 尚待类型适配继续修正。
+## 2026-09-14：类型修复与累计专项复验通过
+
+经用户授权，订阅事务服务四处 JSON 写入使用 unknown 到对应 QueryDeepPartialEntity 字段的显式类型桥接，未改变运行时值或数据库结构。此前四处 TS2352 已在本次构建中消除。
+
+API build PASS；九个脚本联合 105/105 PASS，0 fail/cancelled/skipped：租约 18、分发 4、Outbox 9、应用装配 2、订阅事务及详情 10、重试 8、Worker/密钥适配 28、发送编排 6、HTTPS 传输 20。该总数包含此前 67 与新增 38 的复验，不再重复累加为额外通过数量。部分专项使用源码 transpileOnly，本轮独立 API 构建同时通过。
+
+这些证据覆盖 SQL.js/Store、隔离请求及限定模块装配。订阅专项审计为同事务 stub；未验证真实 PostgreSQL/Linux、真实审计全链路或外部 TLS 接收端。withWebhook 的真实部署依赖仍未配置，外部发送未启用。公开列表/管理 HTTP、人工重投及整体 TP12 仍未交付，HTTP VERIFIED 数量保持 17/28，AVAILABLE=0。
+
+本节覆盖此前关于累计增量构建失败和上述专项尚未验证的状态，不删除历史失败记录。

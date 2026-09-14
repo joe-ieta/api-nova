@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Readable, Writable } from 'node:stream';
+import { markGatewayInternalVerification } from '../../gateway-runtime/services/gateway-audit-context';
 import { EndpointTestSampleEntity } from '../../../database/entities/endpoint-test-sample.entity';
 import { GatewayRouteSnapshotService } from '../../gateway-runtime/services/gateway-route-snapshot.service';
 import { GatewayRuntimeService } from '../../gateway-runtime/services/gateway-runtime.service';
@@ -58,6 +59,7 @@ export class GatewayCandidateReplayService {
     if (!target) {
       throw new Error(`Gateway candidate route did not resolve for ${method} ${routePath}`);
     }
+    markGatewayInternalVerification(req);
     const startedAt = Date.now();
     await this.gatewayRuntimeService.forwardResolvedRoute(
       target,

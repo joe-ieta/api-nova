@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { getRuntimeCallContext } from 'api-nova-parser';
 import {
   RuntimeObservabilityEventFamily,
   RuntimeObservabilitySeverity,
@@ -59,6 +60,7 @@ export class GatewayRuntimeMetricsService {
     success: boolean;
     errorMessage?: string;
     }) {
+    if (getRuntimeCallContext()?.origin === 'internal') return;
     const state = this.ensureState(input.runtimeAssetId);
     state.requestCount += 1;
     state.successCount += input.success ? 1 : 0;
@@ -191,6 +193,7 @@ export class GatewayRuntimeMetricsService {
     requestId?: string;
     correlationId?: string;
   }) {
+    if (getRuntimeCallContext()?.origin === 'internal') return;
     const state = this.ensureState(input.runtimeAssetId);
     if (input.cacheStatus === 'hit') {
       state.cacheHitCount += 1;
@@ -230,6 +233,7 @@ export class GatewayRuntimeMetricsService {
     routeMethod: string;
     policyName: string;
   }) {
+    if (getRuntimeCallContext()?.origin === 'internal') return;
     const state = this.ensureState(input.runtimeAssetId);
     state.policyCounts[input.policyName] = Number(state.policyCounts[input.policyName] || 0) + 1;
 
@@ -282,6 +286,7 @@ export class GatewayRuntimeMetricsService {
     severity?: RuntimeObservabilitySeverity;
     errorMessage?: string;
   }) {
+    if (getRuntimeCallContext()?.origin === 'internal') return;
     try {
       await this.runtimeObservabilityService.recordRuntimeControlEvent({
         runtimeAssetId: input.runtimeAssetId,

@@ -1,3 +1,4 @@
+import { CallObservabilityBucketsProjector } from './call-observability-buckets.projector';
 import { Injectable, OnApplicationBootstrap, OnModuleDestroy, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { promises as fs } from 'fs';
@@ -8,7 +9,7 @@ import {
 } from '../../database/entities/runtime-call-observability.entity';
 import { CallObservabilityCollector, CollectorLimits, isCallSourceFile } from './call-observability.collector';
 import { CallObservabilityCallersProjector } from './call-observability-callers.projector';
-import { CallObservabilityStore } from './call-observability.store';
+import { CallObservabilityStore, ProjectionHook } from './call-observability.store';
 import { ObservabilityStorageError } from './call-observability-storage';
 
 import { CallObservabilitySourceLifecycle, SOURCE_EXIT_PREFIX } from './call-observability-source-lifecycle.service';
@@ -50,8 +51,13 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
     private readonly store: CallObservabilityStore,
     private readonly config: ConfigService,
     @Optional() private readonly sourceLifecycle?: CallObservabilitySourceLifecycle,
+    @Optional() private readonly buckets?: CallObservabilityBucketsProjector,
   ) {}
 
+  private readonly project: ProjectionHook = async (tx, before, after) => {
+    await this.callers.project(tx, before, after);
+    await this.buckets?.project(tx, before, after);
+  };
   onApplicationBootstrap(): void {
     // Root-module activation is an integration/deployment decision, not a side effect of import.
     if (this.config.get('API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED') !== 'true') return;
@@ -141,7 +147,7 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
             maxReadBytes: maxReadBytes - report.bytesRead,
             maxRecords: Math.min(16, maxRecords - report.processedRecords),
             maxLineBytes: options.maxLineBytes,
-          }, this.callers.project);
+          }, this.project);
           report.bytesRead += result.bytesRead;
           report.processedRecords += result.processedRecords;
           report.quarantinedRecords += result.quarantinedRecords;
@@ -203,7 +209,7 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
         reason: sourceExitProofId ? 'process_exit' : 'progress_timeout', sourceExitProofId,
         observedBefore: sourceExitProofId ? snapshot.observedBefore : observedBefore,
         suppressEvent: Date.parse(row.startedAt) < Date.parse(dataset.eventLiveSince),
-      }, this.callers.project);
+      }, this.project);
       recovered += Number(result.status === 'updated');
     }
     return recovered;

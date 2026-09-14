@@ -298,6 +298,7 @@ export class RuntimeIngestReceiptEntity {
 @Entity('runtime_metric_buckets')
 @Index('IDX_obs_metric_buckets_1', ["scope","bucketStart"])
 @Index('IDX_obs_metric_buckets_2', ["expiresAt"])
+@Index('IDX_obs_metric_buckets_queue', ['recomputeState', 'retryAt', 'leaseUntil'])
 export class RuntimeMetricBucketEntity {
   @PrimaryColumn({ type: 'varchar', length: 240, primaryKeyConstraintName: 'PK_obs_metric_buckets' })
   id: string;
@@ -319,6 +320,28 @@ export class RuntimeMetricBucketEntity {
 
   @Column({ type: 'integer', default: 0 })
   version: number;
+
+  // Invalidation generation is separate from the last computed version.
+  @Column({ type: 'integer', default: 0 })
+  dirtyVersion: number;
+
+  @Column({ type: 'varchar', length: 16, default: 'clean' })
+  recomputeState: string;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  leaseToken: string | null;
+
+  @Column({ type: 'varchar', length: 24, nullable: true })
+  leaseUntil: string | null;
+
+  @Column({ type: 'varchar', length: 24, nullable: true })
+  retryAt: string | null;
+
+  @Column({ type: 'integer', default: 0 })
+  recomputeAttempts: number;
+
+  @Column({ type: 'varchar', length: 20, default: '00000000000000000000' })
+  pendingWatermark: string;
 
   @Column({ type: 'varchar', length: 20 })
   dataWatermark: string;

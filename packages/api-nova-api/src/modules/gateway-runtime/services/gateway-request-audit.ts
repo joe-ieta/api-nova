@@ -4,7 +4,7 @@ import {
   getRuntimeCallContext, redactAuditHeaders, withRuntimeCallContext,
 } from 'api-nova-parser';
 import { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
-import { gatewayAuditContext, gatewayAuditUrl } from './gateway-audit-context';
+import { gatewayAuditContext, gatewayAuditUrl, isGatewayInternalVerification } from './gateway-audit-context';
 
 type Tracker = ReturnType<typeof createAuditBodyTracker>;
 export interface GatewayRequestAudit {
@@ -26,6 +26,17 @@ export function beginGatewayRequestAudit(
 ): GatewayRequestAudit {
   const existing = audits.get(req);
   if (existing) return existing;
+  if (isGatewayInternalVerification(req)) {
+    // A local candidate execution is not a network ingress. Its real HTTP attempts
+    // create their own roots; do not invent gateway_request nodes or client identity.
+    const context = gatewayAuditContext(req, requestId, route);
+    const handle: GatewayRequestAudit = {
+      run: operation => withRuntimeCallContext(context, operation),
+      authenticated() {}, failed() {}, cacheHit() {},
+    };
+    audits.set(req, handle);
+    return handle;
+  }
   const inherited = getRuntimeCallContext();
   const context: RuntimeCallContext = {
     ...inherited, ...gatewayAuditContext(req, requestId, route),

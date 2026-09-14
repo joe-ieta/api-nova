@@ -50,6 +50,9 @@ async function fixtureMain() {
       if (message.op === 'snapshot') {
         await flushRuntimeAudit();
         await notify({ kind: 'snapshot', id: message.id, health: getRuntimeAuditHealth() });
+      } else if (message.op === 'crash') {
+        await flushRuntimeAudit();
+        process.exit(23);
       } else if (message.op === 'close' && !closing) {
         closing = true;
         await server.close();
@@ -211,7 +214,7 @@ if (process.argv.includes('--fixture')) {
     const initialized = await response(initializationId);
     assert.equal(initialized.error, undefined);
     child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
-    return { child, request, post, response, snapshot, records, readJournal, stop, waitFor, frames, upstreamRequests,
+    return { child, exit, request, post, response, snapshot, records, readJournal, stop, waitFor, frames, upstreamRequests,
       initializationId, auditDir, get stderr() { return stderr; },
       assertProtocolOutput() { assert.deepEqual(invalid, []); assert.equal(stdoutBuffer, ''); },
     };
@@ -392,5 +395,93 @@ if (process.argv.includes('--fixture')) {
     assert.ok(f.stderr.includes('RUNTIME_AUDIT_WRITE_FAILED'));
     assert.ok(!f.stderr.includes('must-not-reach-stderr'));
     f.assertProtocolOutput();
+  });
+
+  async function waitForTerminals(f, id) {
+    const deadline = Date.now() + 5000;
+    do {
+      const rows = await f.records();
+      if (finished(rows, 'mcp_protocol').some(row => row.request?.data && JSON.parse(row.request.data).id === id)) return rows;
+      await new Promise(resolve => setTimeout(resolve, 20));
+    } while (Date.now() < deadline);
+    assert.fail('transport must finalize calls after EOF or failed output');
+  }
+
+  test('real STDIO stdin EOF cancels pending calls without a successful response', { timeout: 20000 }, async t => {
+    const f = await createFixture(t);
+    const id = f.post('tools/call', { name: 'fixture_pending', arguments: {} });
+    await f.waitFor(value => value.kind === 'pending-entered', 'pending handler');
+    f.child.stdin.end();
+    // IPC remains open only to observe the real transport after stdin EOF.
+    const rows = await waitForTerminals(f, id);
+    const protocol = protocolFor(rows, id), tool = assertChain(rows, protocol);
+    for (const call of [protocol, tool]) {
+      assert.equal(call.outcome, 'cancelled');
+      assert.equal(call.errorCode, 'MCP_SESSION_CLOSED');
+      assert.equal(call.response, undefined);
+    }
+    assert.equal((await f.snapshot()).health.activeCalls, 0);
+    assert.equal(f.frames.some(frame => frame.id === id), false);
+    assert.equal((await f.stop()).code, 0);
+  });
+
+  async function blockedResponse(t) {
+    const f = await createFixture(t);
+    f.child.stdout.pause();
+    const id = f.post('tools/call', { name: 'fixture_bulk', arguments: {} });
+    await f.waitFor(value => value.kind === 'bulk-created', 'bulk response created');
+    const deadline = Date.now() + 8000;
+    while (f.child.stdout.readableLength === 0 && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    assert.ok(f.child.stdout.readableLength > 0, 'real response write has begun');
+    return { f, id };
+  }
+
+  function startedChain(rows, id) {
+    const protocol = rows.filter(row => row.phase === 'started' && row.spanKind === 'mcp_protocol'
+      && row.request?.data && JSON.parse(row.request.data).id === id);
+    assert.equal(protocol.length, 1);
+    const tool = rows.filter(row => row.phase === 'started' && row.spanKind === 'mcp_tool'
+      && row.parentInvocationId === protocol[0].invocationId);
+    assert.equal(tool.length, 1);
+    return new Set([protocol[0].invocationId, tool[0].invocationId]);
+  }
+
+  test('real STDIO reader disconnect rejects blocked output with incomplete evidence', { timeout: 25000 }, async t => {
+    const { f, id } = await blockedResponse(t);
+    f.child.stdout.destroy();
+    const rows = await waitForTerminals(f, id);
+    const protocol = protocolFor(rows, id), tool = assertChain(rows, protocol);
+    for (const call of [protocol, tool]) {
+      assert.equal(call.outcome, 'error');
+      assert.equal(call.errorCode, 'MCP_SEND_FAILED');
+      assert.equal(call.response.state, 'incomplete');
+      assert.equal(call.response.data, undefined);
+    }
+    assert.equal((await f.snapshot()).health.activeCalls, 0);
+    assert.equal(f.frames.some(frame => frame.id === id), false);
+    assert.equal((await f.stop()).code, 0);
+  });
+
+  test('real STDIO process crash preserves started evidence without fabricated terminals', { timeout: 20000 }, async t => {
+    const f = await createFixture(t);
+    const id = f.post('tools/call', { name: 'fixture_pending', arguments: {} });
+    await f.waitFor(value => value.kind === 'pending-entered', 'pending handler');
+    f.child.send({ op: 'crash' });
+    assert.equal((await f.exit).code, 23);
+    const rows = await f.readJournal(), ids = startedChain(rows, id);
+    assert.equal(finished(rows).filter(row => ids.has(row.invocationId)).length, 0);
+    assert.equal(f.frames.some(frame => frame.id === id), false);
+  });
+
+  test('real STDIO process kill during blocked output never records send success', { timeout: 25000 }, async t => {
+    const { f, id } = await blockedResponse(t);
+    assert.equal(f.child.kill('SIGKILL'), true);
+    const result = await f.exit;
+    assert.ok(result.code !== 0 || result.signal !== null);
+    const rows = await f.readJournal(), ids = startedChain(rows, id);
+    assert.equal(finished(rows).filter(row => ids.has(row.invocationId)).length, 0);
+    assert.equal(f.frames.some(frame => frame.id === id), false);
   });
 }
