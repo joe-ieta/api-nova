@@ -25,6 +25,27 @@ const root = path.resolve(__dirname, '../../../tmp/observability-worker-tests');
 const encode = row => JSON.stringify(row) + '\n';
 const code = expected => error => error?.code === expected;
 
+test('pipeline state events are durable, change-only and do not claim server health', async t => {
+  const f = await fixture(t);
+  await sweep(f.worker);
+  await sweep(f.worker);
+  let events = await f.repository(Event).findBy({ eventName: 'pipeline.state_changed' });
+  assert.equal(events.length, 1);
+  assert.equal(events[0].subjectVersion, 1);
+  assert.equal(events[0].details.serverHealth, 'unknown');
+  const original = f.store.recomputePendingBuckets.bind(f.store);
+  f.store.recomputePendingBuckets = async () => ({ recomputed: 0, failed: 1 });
+  const degraded = await sweep(f.worker);
+  assert.equal(degraded.at(-1).state, 'degraded');
+  f.store.recomputePendingBuckets = original;
+  await sweep(f.makeWorker());
+  events = await f.repository(Event).find({ where: { eventName: 'pipeline.state_changed' }, order: { sequence: 'ASC' } });
+  assert.deepEqual(events.map(event => event.details.state), ['running', 'degraded', 'running']);
+  assert.deepEqual(events.map(event => event.subjectVersion), [1, 2, 3]);
+  const state = await f.repository(entities.RuntimePipelineStateEntity).findOneByOrFail({ id: COLLECTOR_WORKER_ID });
+  assert.equal(BigInt(state.value.snapshotSeq), BigInt(events[2].sequence));
+});
+
 function evidence(overrides = {}) {
   const invocationId = randomUUID();
   return { schemaVersion: 2, invocationId, eventId: randomUUID(), sourceInstanceId: randomUUID(),
@@ -250,7 +271,7 @@ test('independent stale-progress recovery infers unknown and a late real termina
   assert.equal(call.record.durationMs, null);
   assert.equal(call.record.completionSource, 'reconciled');
   assert.equal(call.sourceRecordVersion, 1);
-  assert.equal((await f.repository(Event).find())[0].dispatchState, 'suppressed');
+  assert.equal((await f.repository(Event).findBy({ eventName: 'invocation.reconciled' }))[0].dispatchState, 'suppressed');
   const end = terminal(start);
   await fs.appendFile(f.file, encode(end) + encode(end));
   await sweep(f.makeWorker());
@@ -261,7 +282,7 @@ test('independent stale-progress recovery infers unknown and a late real termina
   assert.equal(call.record.completionSource, 'observed');
   assert.equal(await f.repository(entities.RuntimeInvocationEntity).count(), 1);
   assert.equal(await f.repository(entities.RuntimeCallerEntity).count(), 1);
-  assert.equal(await f.repository(Event).count(), 2);
+  assert.equal(await f.repository(Event).countBy({ eventName: 'invocation.reconciled' }), 2);
 });
 
 test('partial terminal evidence prevents inference until its remainder arrives', async t => {

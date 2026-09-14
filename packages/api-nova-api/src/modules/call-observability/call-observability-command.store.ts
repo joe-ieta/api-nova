@@ -44,7 +44,7 @@ export interface ObservabilityCommandResult {
 export interface ObservabilityIdempotentCommand {
   method: 'POST' | 'PATCH' | 'DELETE';
   path: string;
-  key: string;
+  key?: unknown;
   request: unknown;
 }
 
@@ -72,11 +72,17 @@ export class ObservabilityCommandStore {
     /** DB-only mutation, audit/outbox writes and idempotency receipt share one commit. */
     operation: (tx: ObservabilityWriteTransaction) => Promise<ObservabilityCommandResult>,
   ): Promise<{ result: ObservabilityCommandResult; replayed: boolean }> {
-    const key = observabilityIdempotencyKey(command.key, true);
+    const key = observabilityIdempotencyKey(command.key, false);
     if (!['POST','PATCH','DELETE'].includes(command.method) ||
       !/^\/api\/v1\/monitoring\/observability\/[A-Za-z0-9_./:-]{1,500}$/.test(command.path) ||
       command.path.split('/').some(part => part === '.' || part === '..')) {
       throw new ObservabilityApiError('INVALID_QUERY');
+    }
+    if (!key) {
+      return this.store.transaction(async tx => {
+        await authorize(tx, null);
+        return { result: safeResult(await operation(tx)), replayed: false };
+      });
     }
     const secret = this.config.get<string>('API_NOVA_OBSERVABILITY_IDEMPOTENCY_SECRET');
     if (!secret || Buffer.byteLength(secret) < 32) throw new ObservabilityApiError('OBSERVABILITY_UNAVAILABLE');

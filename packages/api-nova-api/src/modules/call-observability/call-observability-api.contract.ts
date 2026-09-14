@@ -9,7 +9,9 @@ const ERRORS = {
   FORBIDDEN: [403, 'Access is not permitted'],
   NOT_FOUND: [404, 'Resource not found'],
   IDEMPOTENCY_CONFLICT: [409, 'Idempotency key has different request content'],
+  DELIVERY_NOT_RETRYABLE: [409, 'Delivery is not eligible for manual retry'],
   PAYLOAD_EXPIRED: [410, 'Payload retention has elapsed'],
+  EVENT_EXPIRED: [410, 'Event retention has elapsed'],
   QUERY_CURSOR_EXPIRED: [410, 'Query cursor expired; obtain a new snapshot'],
   EVENT_CURSOR_EXPIRED: [410, 'Event cursor expired; obtain a new snapshot'],
   PRECONDITION_FAILED: [412, 'Resource version has changed'],
@@ -22,7 +24,8 @@ const ERRORS = {
 export type ObservabilityApiErrorCode = keyof typeof ERRORS;
 export class ObservabilityApiError extends HttpException {
   constructor(readonly code: ObservabilityApiErrorCode, readonly field?: string,
-    readonly resourceMetadata?: { state: 'expired'; expiredAt: string }) {
+    readonly resourceMetadata?: { state?: 'expired'; expiredAt?: string;
+      availableFrom?: string | null; resnapshotRequired?: boolean }) {
     super(ERRORS[code][1], ERRORS[code][0]);
   }
 }
@@ -62,8 +65,10 @@ export class ObservabilityErrorDto {
   @ApiPropertyOptional({ type: 'object', additionalProperties: false, properties: {
     field: { type: 'string' }, state: { type: 'string', enum: ['expired'] },
     expiredAt: { type: 'string', format: 'date-time' },
+    availableFrom: { type: 'string', nullable: true }, resnapshotRequired: { type: 'boolean' },
   } })
-  details?: { field?: string; state?: 'expired'; expiredAt?: string };
+  details?: { field?: string; state?: 'expired'; expiredAt?: string;
+    availableFrom?: string | null; resnapshotRequired?: boolean };
 }
 
 export class ObservabilityErrorEnvelopeDto {
@@ -104,9 +109,15 @@ export class ObservabilityApiExceptionFilter implements ExceptionFilter {
       ? { field: safe.field } : undefined;
     const metadata = safe.resourceMetadata;
     if (safe.code === 'PAYLOAD_EXPIRED' && metadata?.state === 'expired' &&
+      typeof metadata.expiredAt === 'string' &&
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(metadata.expiredAt) &&
       Number.isFinite(Date.parse(metadata.expiredAt))) {
       details = { state: 'expired', expiredAt: metadata.expiredAt };
+    }
+    if (safe.code === 'EVENT_CURSOR_EXPIRED' && metadata?.resnapshotRequired === true &&
+      (metadata.availableFrom === null || (typeof metadata.availableFrom === 'string' &&
+        /^(0|[1-9]\d{0,19})$/.test(metadata.availableFrom)))) {
+      details = { availableFrom: metadata.availableFrom, resnapshotRequired: true };
     }
     response.setHeader('Cache-Control', 'no-store');
     response.status(safe.getStatus()).json({

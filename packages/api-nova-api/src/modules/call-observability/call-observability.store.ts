@@ -1,16 +1,20 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, In } from 'typeorm';
 import { randomUUID } from 'crypto';
 import {
-  CanonicalInvocation, normalizeRuntimeAuditRecord, redactAuditHeaders, redactAuditUrl,
+  CanonicalInvocation, invocationMatchesScope, normalizeRuntimeAuditRecord, redactAuditHeaders, redactAuditUrl,
 } from 'api-nova-parser';
 import {
   RuntimeIngestCheckpointEntity, RuntimeIngestQuarantineEntity, RuntimeIngestReceiptEntity,
-  RuntimeInvocationEntity, RuntimeInvocationRevisionEntity, RuntimePayloadEntity,
+  RuntimeInvocationEntity, RuntimeInvocationRevisionEntity, RuntimeMetricBucketEntity,
+  RuntimeMetricContributionEntity, RuntimeAccessSourceEntity, RuntimeCallerBucketEntity, RuntimePayloadEntity,
   RuntimePipelineStateEntity,
 } from '../../database/entities/runtime-call-observability.entity';
 import {
-  RuntimeObservabilityActorType,
+  BUCKET_KEY_SCHEMA_VERSION, BucketRevisionPlan, PERSISTENT_BUCKET_INTERVALS, planBucketRevision,
+} from './call-observability-bucket-plan';
+import {
+  RuntimeObservabilityActorType, RuntimeObservabilityEventEntity,
   RuntimeObservabilityEventFamily, RuntimeObservabilityRetentionClass,
   RuntimeObservabilitySeverity, RuntimeObservabilityStatus,
 } from '../../database/entities/runtime-observability-event.entity';
@@ -19,12 +23,60 @@ import {
   canonicalJson, contentHash, expiresAfter, ObservabilityStorageError,
   publicSequence, sequenceKey, SerialStorageLane, ZERO_SEQUENCE,
 } from './call-observability-storage';
+import { calculateObservabilityMetrics } from './call-observability-metrics';
 
-import { writeDurableObservabilityEvent } from './call-observability-event-writer';
 import { CallObservabilityPayloadCoordinator, PAYLOAD_OWNER_ID } from './call-observability-payload.coordinator';
 
 const COUNTER_ID = 'call-observability:commit-sequence';
 const lanes = new WeakMap<DataSource, SerialStorageLane>();
+type ProjectionWriteStatus = 'apply' | 'duplicate' | 'stale';
+
+interface ProjectionWriteResult {
+  status: ProjectionWriteStatus;
+  invocation: RuntimeInvocationEntity | null;
+}
+
+interface RecomputeRowProjection {
+  bucketStart: string;
+  bucketEnd: string;
+  scope: 'business' | 'http_ingress' | 'tool' | 'protocol' | 'upstream';
+  origin: string;
+  timeBasis: 'startedAt' | 'completedAt';
+  runtimeAssetId: string | null;
+}
+interface PendingBucketMarker {
+  state: 'pending';
+  action: 'recompute';
+  suppressEvent?: boolean;
+}
+interface MetricBucketPendingMarker extends PendingBucketMarker {
+  invocationId: string;
+  membershipChange?: 'added' | 'removed' | 'updated';
+  runtimeAssetId?: string | null;
+}
+interface CallerBucketPendingMarker extends PendingBucketMarker {
+  invocationId: string;
+  callerId: string;
+  bucketScope: string;
+  bucketTimeBasis: 'startedAt' | 'completedAt';
+  bucketInterval: string;
+  runtimeAssetId: string | null;
+  origin: string;
+}
+interface PersistedBucketDimensions {
+  keySchemaVersion: number;
+  runtimeAssetId: string | null;
+  origin: string;
+  scope: 'business' | 'http_ingress' | 'tool' | 'protocol' | 'upstream';
+  timeBasis: 'startedAt' | 'completedAt';
+  interval: string;
+  bucketStart: string;
+  bucketEnd: string;
+}
+interface RecomputeBucketSummary {
+  recomputed: number;
+  failed: number;
+}
 
 export interface IngestCheckpoint {
   id: string;
@@ -61,6 +113,7 @@ export interface ObservabilityWriteTransaction {
   nextSequence(): string;
   currentSequence(): string;
   events: CommittedObservabilityEvent[];
+  suppressBucketEvents?: boolean;
 }
 
 export type ProjectionHook = (
@@ -266,7 +319,13 @@ export class CallObservabilityStore {
             ingestedAt: tx.now,
           });
           if (project) await project(tx, previous, current);
-          await this.saveProjection(tx, previous, current);
+          tx.suppressBucketEvents = context.suppressEvent === true;
+          const projection = await this.saveProjection(tx, previous, current);
+          if (projection.status !== 'apply') {
+            await this.checkpoint(tx, context.checkpoint, source.sourceSequence, source.sourceInstanceId);
+            return this.result(tx, projection.status === 'duplicate' ? 'duplicate' : 'stale',
+              projection.invocation || previous);
+          }
           if (record.phase === 'finished') {
             await this.invocationEvent(tx, current, revisionSequence,
               previous?.record.completionSource === 'reconciled' ? 'invocation.reconciled' : 'invocation.completed',
@@ -318,7 +377,9 @@ export class CallObservabilityStore {
           missingFields: [...new Set([...(previous.record.missingFields || []), 'terminalRecord', 'completedAt'])] },
       });
       if (project) await project(tx, previous, current);
-      await this.saveProjection(tx, previous, current);
+      tx.suppressBucketEvents = evidence.suppressEvent === true;
+      const projection = await this.saveProjection(tx, previous, current);
+      if (projection.status !== 'apply') return this.result(tx, 'stale', projection.invocation || previous);
       await this.invocationEvent(tx, current, sequence, 'invocation.reconciled', evidence.suppressEvent);
       return this.result(tx, 'updated', current);
     });
@@ -347,19 +408,388 @@ export class CallObservabilityStore {
   }
 
   private async saveProjection(tx: ObservabilityWriteTransaction,
-    previous: RuntimeInvocationEntity | null, current: RuntimeInvocationEntity): Promise<void> {
-    if (previous) {
-      await tx.manager.getRepository(RuntimeInvocationRevisionEntity).update({
-        invocationId: previous.invocationId, recordVersion: previous.recordVersion,
-      }, { validUntilSequence: current.updatedSequence });
+    previous: RuntimeInvocationEntity | null, current: RuntimeInvocationEntity): Promise<ProjectionWriteResult> {
+    const invocations = tx.manager.getRepository(RuntimeInvocationEntity);
+    const revisions = tx.manager.getRepository(RuntimeInvocationRevisionEntity);
+    const selector = invocations.createQueryBuilder('invocation')
+      .where('invocation.invocationId = :invocationId', { invocationId: current.invocationId });
+    if (this.dataSource.options.type === 'postgres') selector.setLock('pessimistic_write');
+    const latest = await selector.getOne();
+    if (latest && latest.invocationId !== current.invocationId) return { status: 'stale', invocation: null };
+    if (!latest) {
+      if (previous) return { status: 'stale', invocation: null };
+    } else if (previous) {
+      if (latest.recordVersion !== previous.recordVersion) {
+        return {
+          status: latest.recordHash === current.recordHash && latest.recordVersion === current.recordVersion ? 'duplicate' : 'stale',
+          invocation: latest,
+        };
+      }
+      if (current.recordVersion !== latest.recordVersion + 1) {
+        return {
+          status: current.recordVersion === latest.recordVersion && current.recordHash === latest.recordHash ? 'duplicate' : 'stale',
+          invocation: latest,
+        };
+      }
+    } else if (current.recordVersion === latest.recordVersion) {
+      return { status: current.recordHash === latest.recordHash ? 'duplicate' : 'stale', invocation: latest };
+    } else if (current.recordVersion !== latest.recordVersion + 1) {
+      return { status: 'stale', invocation: latest };
     }
-    await tx.manager.getRepository(RuntimeInvocationEntity).save(current);
-    await tx.manager.getRepository(RuntimeInvocationRevisionEntity).insert(Object.assign(
+    const plan = planBucketRevision(
+      latest ? this.toBucketRevision(latest) : null,
+      this.toBucketRevision(current),
+    );
+    if (plan.status !== 'apply') return { status: plan.status === 'duplicate' ? 'duplicate' : 'stale', invocation: latest };
+    if (latest) {
+      await revisions.update({ invocationId: latest.invocationId, recordVersion: latest.recordVersion }, {
+        validUntilSequence: current.updatedSequence,
+      });
+    }
+    await invocations.save(current);
+    await revisions.insert(Object.assign(
       new RuntimeInvocationRevisionEntity(), current, {
         id: contentHash(canonicalJson([current.invocationId, current.recordVersion])),
         validFromSequence: current.updatedSequence, validUntilSequence: null,
       },
     ));
+    await this.persistProjectionContribution(tx, current, plan);
+    await this.markBucketsForRecompute(tx, current, plan);
+    return { status: 'apply', invocation: current };
+  }
+
+  private toBucketRevision(invocation: RuntimeInvocationEntity): {
+    recordVersion: number;
+    record: {
+      invocationId: string;
+      runtimeAssetId: string | null;
+      origin: string;
+      spanKind: string;
+      transport: string | null;
+      startedAt: string;
+      completedAt: string | null;
+    };
+  } {
+    const record = invocation.record as CanonicalInvocation;
+    return {
+      recordVersion: invocation.recordVersion,
+      record: {
+        invocationId: invocation.invocationId, runtimeAssetId: record.runtimeAssetId || null,
+        origin: record.origin, spanKind: record.spanKind, transport: record.transport || null,
+        startedAt: record.startedAt, completedAt: record.completedAt || null,
+      },
+    };
+  }
+
+  private async persistProjectionContribution(tx: ObservabilityWriteTransaction,
+    current: RuntimeInvocationEntity, plan: BucketRevisionPlan): Promise<void> {
+    const repository = tx.manager.getRepository(RuntimeMetricContributionEntity);
+    await repository.save(Object.assign(new RuntimeMetricContributionEntity(), {
+      invocationId: current.invocationId,
+      recordVersion: current.recordVersion,
+      contribution: plan,
+      updatedAt: tx.now,
+    }));
+  }
+
+  private async markBucketsForRecompute(tx: ObservabilityWriteTransaction,
+    current: RuntimeInvocationEntity, plan: BucketRevisionPlan): Promise<void> {
+    const marker = current.record as CanonicalInvocation;
+    const expiresAt = current.expiresAt;
+    const metricBuckets = tx.manager.getRepository(RuntimeMetricBucketEntity);
+    const previousMetrics = new Map((await metricBuckets.findBy({
+      id: In(plan.invalidations.map(({ bucket }) => bucket.bucketId)),
+    })).map(row => [row.id, row]));
+    await metricBuckets.save(plan.invalidations.map(({ bucket, membershipChange, action }) => metricBuckets.create({
+      id: bucket.bucketId, scope: bucket.scope, bucketStart: bucket.bucketStart, bucketEnd: bucket.bucketEnd,
+      dimensions: {
+        keySchemaVersion: bucket.keySchemaVersion, runtimeAssetId: bucket.runtimeAssetId,
+        origin: bucket.origin, scope: bucket.scope, timeBasis: bucket.timeBasis, interval: bucket.interval,
+      },
+      metrics: {
+        recompute: {
+          state: 'pending', action, membershipChange, incomingRecordVersion: plan.incomingRecordVersion,
+          suppressEvent: tx.suppressBucketEvents === true &&
+            (previousMetrics.get(bucket.bucketId)?.metrics?.recompute?.suppressEvent ?? true),
+          expectedRecordVersion: plan.expectedRecordVersion, queuedAt: tx.now, invocationId: current.invocationId,
+          callerId: marker.callerId || null, runtimeAssetId: marker.runtimeAssetId || null,
+        },
+      },
+      version: previousMetrics.get(bucket.bucketId)?.version ?? 0,
+      dataWatermark: current.updatedSequence,
+      expiresAt,
+    })));
+    if (!current.record?.callerId) return;
+    const callerBuckets = tx.manager.getRepository(RuntimeCallerBucketEntity);
+    const callerKey = (bucket: BucketRevisionPlan['invalidations'][number]['bucket']) =>
+      contentHash(canonicalJson([current.record.callerId, bucket.bucketId, bucket.scope, bucket.timeBasis, bucket.interval]));
+    const previousCallers = new Map((await callerBuckets.findBy({
+      id: In(plan.invalidations.map(({ bucket }) => callerKey(bucket))),
+    })).map(row => [row.id, row]));
+    await callerBuckets.save(plan.invalidations.map(({ bucket, membershipChange, action }) => callerBuckets.create({
+      id: contentHash(canonicalJson([
+        current.record.callerId, bucket.bucketId, bucket.scope, bucket.timeBasis, bucket.interval,
+      ])),
+      callerId: current.record.callerId, runtimeAssetId: marker.runtimeAssetId || null, bucketStart: bucket.bucketStart,
+      metrics: {
+        recompute: {
+          state: 'pending', action, membershipChange, incomingRecordVersion: plan.incomingRecordVersion,
+          expectedRecordVersion: plan.expectedRecordVersion, queuedAt: tx.now, invocationId: current.invocationId,
+          suppressEvent: tx.suppressBucketEvents === true &&
+            (previousCallers.get(callerKey(bucket))?.metrics?.recompute?.suppressEvent ?? true),
+          bucketScope: bucket.scope, bucketInterval: bucket.interval, bucketTimeBasis: bucket.timeBasis,
+          runtimeAssetId: marker.runtimeAssetId || null, origin: current.record.origin,
+        },
+      },
+      version: previousCallers.get(callerKey(bucket))?.version ?? 0,
+      expiresAt,
+    })));
+  }
+
+  /** Repair queued recompute markers after scan completion to produce durable bucket payloads. */
+  async recomputePendingBuckets(): Promise<RecomputeBucketSummary> {
+    return this.transaction(async tx => this.recomputePendingBucketsInTransaction(tx));
+  }
+
+  private async recomputePendingBucketsInTransaction(tx: ObservabilityWriteTransaction): Promise<RecomputeBucketSummary> {
+    const metricBuckets = tx.manager.getRepository(RuntimeMetricBucketEntity);
+    const callerBuckets = tx.manager.getRepository(RuntimeCallerBucketEntity);
+    const snapshot = tx.currentSequence();
+    const pendingMetric = await metricBuckets.createQueryBuilder('bucket').where(
+      this.jsonText(tx.manager, 'bucket', 'metrics', 'recompute.state') + ' = :state',
+      { state: 'pending' },
+    ).getMany();
+    const pendingCaller = await callerBuckets.createQueryBuilder('bucket').where(
+      this.jsonText(tx.manager, 'bucket', 'metrics', 'recompute.state') + ' = :state',
+      { state: 'pending' },
+    ).getMany();
+    const summary: RecomputeBucketSummary = { recomputed: 0, failed: 0 };
+    let watermark: string | null = null;
+    const ensureWatermark = () => {
+      if (watermark === null) watermark = tx.nextSequence();
+      return watermark;
+    };
+    for (const row of pendingMetric) {
+      const suppressEvent = row.metrics?.recompute?.suppressEvent === true;
+      try {
+        const projection = this.parseMetricBucketRecompute(row);
+        if (!projection) throw new Error('INVALID_BUCKET_PROJECTION');
+        const rows = await this.loadBucketInvocations(tx, projection, tx.now, snapshot);
+        const sourceRows = await this.loadSources(tx, rows);
+        const observations = rows.map(revision => {
+          const source = revision.sourceId ? sourceRows.get(revision.sourceId) : undefined;
+          return { revision: revision.recordVersion, invocation: revision.record as CanonicalInvocation,
+            sourceId: revision.sourceId || null, sourceOverflow: source?.ipSource === 'overflow' };
+        });
+        const result = calculateObservabilityMetrics(observations, {
+          from: projection.bucketStart, to: projection.bucketEnd,
+          scope: projection.scope, origin: projection.origin, timeBasis: projection.timeBasis,
+        });
+        row.metrics = { metrics: result.metrics, coverage: result.coverage };
+        row.version = this.nextSubjectVersion(row.version);
+        row.dataWatermark = ensureWatermark();
+      } catch {
+        summary.failed += 1;
+        await this.diagnostic(tx, 'recomputeBucketFailures', 1);
+        continue;
+      }
+      await metricBuckets.save(row);
+      await this.projectionEvent(tx, 'metrics.bucket_updated', row.id, row.version,
+        { bucketKind: 'metric', bucketId: row.id, bucketVersion: row.version,
+          bucketStart: row.bucketStart, bucketEnd: row.bucketEnd,
+          dataWatermark: publicSequence(row.dataWatermark), ...row.metrics }, row.dimensions, suppressEvent);
+      summary.recomputed += 1;
+    }
+    for (const row of pendingCaller) {
+      const marker = row.metrics?.recompute;
+      const suppressEvent = marker?.suppressEvent === true;
+      try {
+        const projection = this.parseCallerBucketRecompute(row);
+        if (!projection) throw new Error('INVALID_BUCKET_PROJECTION');
+        const rows = await this.loadBucketInvocations(tx, projection, tx.now, snapshot, row.callerId);
+        const sourceRows = await this.loadSources(tx, rows);
+        const observations = rows.map(revision => {
+          const source = revision.sourceId ? sourceRows.get(revision.sourceId) : undefined;
+          return { revision: revision.recordVersion, invocation: revision.record as CanonicalInvocation,
+            sourceId: revision.sourceId || null, sourceOverflow: source?.ipSource === 'overflow' };
+        });
+        const result = calculateObservabilityMetrics(observations, {
+          from: projection.bucketStart, to: projection.bucketEnd,
+          scope: projection.scope, origin: projection.origin, timeBasis: projection.timeBasis,
+        });
+        row.metrics = { metrics: result.metrics, coverage: result.coverage };
+        row.version = this.nextSubjectVersion(row.version);
+      } catch {
+        summary.failed += 1;
+        await this.diagnostic(tx, 'recomputeBucketFailures', 1);
+        continue;
+      }
+      await callerBuckets.save(row);
+      await this.projectionEvent(tx, 'metrics.bucket_updated', row.id, row.version,
+        { bucketKind: 'caller', bucketId: row.id, bucketVersion: row.version,
+          bucketStart: row.bucketStart, dataWatermark: publicSequence(ensureWatermark()), ...row.metrics },
+        { runtimeAssetId: row.runtimeAssetId, callerId: row.callerId, origin: marker.origin,
+          scope: marker.bucketScope, timeBasis: marker.bucketTimeBasis, interval: marker.bucketInterval }, suppressEvent);
+      summary.recomputed += 1;
+    }
+    return summary;
+  }
+
+  private async loadBucketInvocations(tx: ObservabilityWriteTransaction, projection: RecomputeRowProjection,
+    now: string, snapshot: string, callerId?: string): Promise<RuntimeInvocationRevisionEntity[]> {
+    const bucketRows = tx.manager.getRepository(RuntimeInvocationRevisionEntity);
+    const basis = projection.timeBasis === 'completedAt' ? 'completedAt' : 'startedAt';
+    const query = bucketRows.createQueryBuilder('revision')
+      .where('revision.validFromSequence <= :snapshot', { snapshot })
+      .andWhere('(revision.validUntilSequence IS NULL OR revision.validUntilSequence > :snapshot)', { snapshot })
+      .andWhere('revision.expiresAt > :now', { now })
+      .andWhere('revision.origin = :origin', { origin: projection.origin })
+      .andWhere('revision.' + basis + ' >= :from AND revision.' + basis + ' < :to',
+        { from: projection.bucketStart, to: projection.bucketEnd });
+    if (projection.scope === 'business') {
+      query.andWhere('revision.spanKind IN (:...scopes)', { scopes: ['gateway_request', 'mcp_tool'] });
+    } else if (projection.scope === 'http_ingress') {
+      query.andWhere('(revision.spanKind = :gateway OR (revision.spanKind = :protocol AND ' +
+        this.jsonText(tx.manager, 'revision', 'record', 'transport') + ' IN (:...httpTransports)))',
+        { gateway: 'gateway_request', protocol: 'mcp_protocol',
+          httpTransports: ['http', 'sse', 'streamable', 'streamable-http'] });
+    } else if (projection.scope === 'tool') {
+      query.andWhere('revision.spanKind = :scope', { scope: 'mcp_tool' });
+    } else if (projection.scope === 'protocol') {
+      query.andWhere('revision.spanKind = :scope', { scope: 'mcp_protocol' });
+    } else if (projection.scope === 'upstream') {
+      query.andWhere('revision.spanKind = :scope', { scope: 'upstream_api' });
+    } else {
+      throw new Error('INVALID_BUCKET_SCOPE');
+    }
+    if (projection.runtimeAssetId === null) query.andWhere('revision.runtimeAssetId IS NULL');
+    else query.andWhere('revision.runtimeAssetId = :runtimeAssetId', { runtimeAssetId: projection.runtimeAssetId });
+    if (callerId) query.andWhere('revision.callerId = :callerId', { callerId });
+    return query.getMany();
+  }
+
+  private async loadSources(tx: ObservabilityWriteTransaction, rows: RuntimeInvocationRevisionEntity[])
+    : Promise<Map<string, RuntimeAccessSourceEntity>> {
+    const sourceIds = [...new Set(rows.map(row => row.sourceId).filter((value): value is string => !!value))];
+    const sourceRows = new Map<string, RuntimeAccessSourceEntity>();
+    if (!sourceIds.length) return sourceRows;
+    const sources = await tx.manager.getRepository(RuntimeAccessSourceEntity).findBy({ sourceId: In(sourceIds) });
+    for (const source of sources) sourceRows.set(source.sourceId, source);
+    return sourceRows;
+  }
+
+  private parseCallerBucketRecompute(row: RuntimeCallerBucketEntity): RecomputeRowProjection | null {
+    if (!row.callerId) return null;
+    const raw = row.metrics?.recompute as CallerBucketPendingMarker | undefined;
+    const runtimeAssetId = raw?.runtimeAssetId === undefined ? null : raw.runtimeAssetId;
+    if (!raw || raw.state !== 'pending' || raw.action !== 'recompute' || typeof raw.bucketScope !== 'string' ||
+      typeof raw.bucketTimeBasis !== 'string' || !this.validateTimeBasis(raw.bucketTimeBasis) ||
+      typeof raw.bucketInterval !== 'string' || !this.validateScope(raw.bucketScope) || typeof raw.origin !== 'string' ||
+      typeof raw.invocationId !== 'string' || !this.validateOrigin(raw.origin) || !this.validateRuntimeAsset(runtimeAssetId)) return null;
+    const bucketStart = row.bucketStart;
+    if (!this.validateIsoDate(bucketStart)) return null;
+    const width = PERSISTENT_BUCKET_INTERVALS[raw.bucketInterval as keyof typeof PERSISTENT_BUCKET_INTERVALS];
+    if (!width) return null;
+    return {
+      bucketStart,
+      bucketEnd: new Date(Date.parse(bucketStart) + width).toISOString(),
+      scope: raw.bucketScope, origin: raw.origin, timeBasis: raw.bucketTimeBasis,
+      runtimeAssetId,
+    };
+  }
+
+  private parseMetricBucketRecompute(row: RuntimeMetricBucketEntity): RecomputeRowProjection | null {
+    const raw = row.metrics?.recompute as MetricBucketPendingMarker | undefined;
+    if (!raw || raw.state !== 'pending' || raw.action !== 'recompute' || !this.validateRuntimeAsset(raw.runtimeAssetId || null)) {
+      return null;
+    }
+    const dimensions = this.parseMetricBucketDimensions(row);
+    if (!dimensions) return null;
+    return { ...dimensions, runtimeAssetId: raw.runtimeAssetId || dimensions.runtimeAssetId };
+  }
+
+  private parseMetricBucketDimensions(row: RuntimeMetricBucketEntity): PersistedBucketDimensions | null {
+    const raw = row.dimensions;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const dimensions = {
+      keySchemaVersion: raw.keySchemaVersion,
+      runtimeAssetId: raw.runtimeAssetId === null ? null : (typeof raw.runtimeAssetId === 'string' ? raw.runtimeAssetId : null),
+      origin: raw.origin, scope: raw.scope, timeBasis: raw.timeBasis, interval: raw.interval,
+      bucketStart: row.bucketStart, bucketEnd: row.bucketEnd,
+    };
+    if (!this.validateIsoDate(dimensions.bucketStart) || !this.validateIsoDate(dimensions.bucketEnd)) return null;
+    if (Number(dimensions.keySchemaVersion) !== BUCKET_KEY_SCHEMA_VERSION) return null;
+    if (!this.validateScope(dimensions.scope) || !this.validateTimeBasis(dimensions.timeBasis) || !this.validateOrigin(dimensions.origin) ||
+      typeof dimensions.interval !== 'string') return null;
+    if (!PERSISTENT_BUCKET_INTERVALS[dimensions.interval as keyof typeof PERSISTENT_BUCKET_INTERVALS]) return null;
+    if (!this.validateRuntimeAsset(dimensions.runtimeAssetId)) return null;
+    return dimensions;
+  }
+
+  private validateRuntimeAsset(runtimeAssetId: string | null): runtimeAssetId is string | null {
+    return runtimeAssetId === null || (typeof runtimeAssetId === 'string' && runtimeAssetId.length <= 36 &&
+      !/[\u0000-\u001f\u007f]/.test(runtimeAssetId));
+  }
+
+  private validateTimeBasis(value: unknown): value is 'startedAt' | 'completedAt' {
+    return value === 'startedAt' || value === 'completedAt';
+  }
+
+  private validateScope(value: string): value is RecomputeRowProjection['scope'] {
+    return value === 'business' || value === 'http_ingress' || value === 'tool' || value === 'protocol' || value === 'upstream';
+  }
+
+  private validateOrigin(value: unknown): value is 'external' | 'test' | 'probe' | 'internal' {
+    return value === 'external' || value === 'test' || value === 'probe' || value === 'internal';
+  }
+
+  private jsonText(manager: EntityManager, alias: string, key: string, path: string): string {
+    const database = manager.connection.options.type;
+    const segments = path.split('.');
+    if (database === 'postgres') {
+      if (segments.length === 1) return `(${alias}.${key} ->> '${segments[0]}')`;
+      return `(${alias}.${key} #>> '{${segments.join(',')}}')`;
+    }
+    if (database === 'sqljs' || database === 'sqlite' || database === 'better-sqlite3') {
+      const jsonPath = '$.' + segments.map(part => `"${part.replace(/"/g, '\\"')}"`).join('.');
+      return `json_extract(${alias}.${key}, '${jsonPath}')`;
+    }
+    throw new ObservabilityStorageError('OBSERVABILITY_UNAVAILABLE');
+  }
+
+  private validateIsoDate(value: unknown): value is string {
+    return typeof value === 'string' &&
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) &&
+      Number.isFinite(Date.parse(value));
+  }
+
+  private nextSubjectVersion(previous: number): number {
+    if (!Number.isInteger(previous) || previous < 0 || previous >= 2147483647) {
+      throw new ObservabilityStorageError('SUBJECT_VERSION_EXHAUSTED');
+    }
+    return previous + 1;
+  }
+
+  /** Durable outbox only; callers must not publish until this transaction commits. */
+  async projectionEvent(tx: ObservabilityWriteTransaction,
+    eventType: 'metrics.bucket_updated' | 'pipeline.state_changed', subjectId: string,
+    subjectVersion: number, details: Record<string, unknown>, dimensions: Record<string, unknown>,
+    suppressEvent = false): Promise<void> {
+    const sequence = tx.nextSequence();
+    const event = Object.assign(new RuntimeObservabilityEventEntity(), {
+      id: randomUUID(), sequence, schemaVersion: '1.0', eventName: eventType,
+      subjectId, subjectVersion, details, dimensions,
+      runtimeAssetId: dimensions.runtimeAssetId || undefined,
+      eventFamily: RuntimeObservabilityEventFamily.RUNTIME_CONTROL,
+      severity: details.state === 'degraded' ? RuntimeObservabilitySeverity.WARNING : RuntimeObservabilitySeverity.INFO,
+      status: details.state === 'degraded' ? RuntimeObservabilityStatus.DEGRADED : RuntimeObservabilityStatus.SUCCESS,
+      actorType: RuntimeObservabilityActorType.SYSTEM,
+      occurredAt: new Date(tx.now), createdAt: new Date(tx.now),
+      retentionClass: RuntimeObservabilityRetentionClass.STANDARD,
+      dispatchState: suppressEvent ? 'suppressed' : 'pending', expiresAt: new Date(expiresAfter(tx.now, 14)),
+    });
+    await tx.manager.getRepository(RuntimeObservabilityEventEntity).insert(event);
+    if (!suppressEvent) tx.events.push({ eventId: event.id, sequence: publicSequence(sequence), eventType });
   }
 
   private async invocationEvent(tx: ObservabilityWriteTransaction, current: RuntimeInvocationEntity,
@@ -367,8 +797,8 @@ export class CallObservabilityStore {
     suppressEvent = false): Promise<void> {
     const row = current.record as CanonicalInvocation;
     const failed = ['error', 'timeout', 'incomplete', 'rejected'].includes(row.outcome || '');
-    await writeDurableObservabilityEvent(tx, {
-      eventName: eventType,
+    const event = Object.assign(new RuntimeObservabilityEventEntity(), {
+      id: randomUUID(), sequence, schemaVersion: '1.0', eventName: eventType,
       subjectId: current.invocationId, subjectVersion: current.recordVersion,
       runtimeAssetId: row.runtimeAssetId || undefined,
       runtimeAssetEndpointBindingId: row.runtimeAssetEndpointBindingId || undefined,
@@ -378,23 +808,26 @@ export class CallObservabilityStore {
       severity: failed ? RuntimeObservabilitySeverity.WARNING : RuntimeObservabilitySeverity.INFO,
       status: failed ? RuntimeObservabilityStatus.FAILED : row.outcome === 'success' ?
         RuntimeObservabilityStatus.SUCCESS : RuntimeObservabilityStatus.PARTIAL,
-      occurredAt: new Date(row.completedAt || tx.now),
+      occurredAt: new Date(row.completedAt || tx.now), createdAt: new Date(tx.now),
       correlationId: row.traceId && row.traceId.length <= 120 ? row.traceId : undefined,
       actorType: RuntimeObservabilityActorType.RUNTIME,
       retentionClass: RuntimeObservabilityRetentionClass.STANDARD,
+      dispatchState: suppressEvent ? 'suppressed' : 'pending', expiresAt: new Date(expiresAfter(tx.now, 14)),
       dimensions: { runtimeAssetId: row.runtimeAssetId, serverType: row.serverType, origin: row.origin,
         spanKind: row.spanKind, callerId: row.callerId, endpointDefinitionId: row.endpointDefinitionId,
-        sourceServiceInstanceId: row.sourceServiceInstanceId, toolName: row.toolName },
+        sourceServiceInstanceId: row.sourceServiceInstanceId },
       // Push is metadata-only. Raw bodies, headers, source IPs and paths are excluded.
       details: { invocationId: row.invocationId, recordVersion: current.recordVersion,
-        traceId: row.traceId, spanKind: row.spanKind, serverType: row.serverType, origin: row.origin,
+        traceId: row.traceId, spanKind: row.spanKind, serverType: row.serverType, origin: row.origin, toolName: row.toolName,
         callerId: row.callerId, runtimeAssetId: row.runtimeAssetId, outcome: row.outcome,
         httpStatus: row.httpStatus, toolIsError: row.toolIsError, errorCategory: row.errorCategory,
         durationMs: row.durationMs, completionSource: row.completionSource,
         byteMeasurement: row.byteMeasurement, measurementStage: row.measurementStage,
         request: { state: row.request.state, observedBytes: row.request.observedBytes },
         response: { state: row.response.state, observedBytes: row.response.observedBytes } },
-    }, { sequence, suppressEvent });
+    });
+    await tx.manager.getRepository(RuntimeObservabilityEventEntity).insert(event);
+    if (!suppressEvent) tx.events.push({ eventId: event.id, sequence: publicSequence(sequence), eventType });
   }
 
   private async checkpoint(tx: ObservabilityWriteTransaction,

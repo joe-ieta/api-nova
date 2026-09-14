@@ -137,7 +137,8 @@ export class ObservabilityStatisticsBucketDto {
   @ApiProperty({ format: 'date-time' }) bucketEnd: string;
   @ApiProperty({ format: 'date-time' }) effectiveFrom: string;
   @ApiProperty({ format: 'date-time' }) effectiveTo: string;
-  @ApiProperty({ type: Number, nullable: true, description: 'Always null: these on-demand buckets are not persisted.' }) bucketVersion: number | null;
+  @ApiProperty({ type: Number, nullable: true, description: 'Null for synthetic buckets; persisted buckets expose versioned content.' })
+  bucketVersion: number | null;
   @ApiProperty() dataWatermark: string;
   @ApiProperty() synthetic: boolean;
   @ApiProperty({ type: ObservabilityStatisticsMetricsDto }) metrics: ObservabilityStatisticsMetricsDto;
@@ -147,7 +148,7 @@ export class ObservabilityStatisticsTimeSeriesDto extends ObservabilityStatistic
   @ApiProperty({ enum: ['1m', '5m', '1h', '1d'] }) interval: string;
   @ApiProperty({ enum: ['none', 'zero'] }) fill: string;
   @ApiProperty() maxBuckets: number;
-  @ApiProperty({ enum: ['not_persisted'] }) bucketVersionSemantics: string;
+  @ApiProperty({ enum: ['not_persisted', 'persisted'] }) bucketVersionSemantics: string;
   @ApiProperty({ type: [ObservabilityStatisticsBucketDto] }) items: ObservabilityStatisticsBucketDto[];
 }
 export class ObservabilityStatisticsGroupDto {

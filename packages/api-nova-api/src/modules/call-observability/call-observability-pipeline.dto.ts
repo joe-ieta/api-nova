@@ -31,23 +31,42 @@ export class ObservabilityPipelineIngestDto extends ObservabilityPipelineStageDt
   @ApiProperty({ type: Number, nullable: true }) scanErrorCount: number | null;
 }
 export class ObservabilityPipelineAggregationDto extends ObservabilityPipelineStageDto {
-  @ApiProperty({ enum: ['unexpired_bucket_queue_snapshot'] }) evidenceSource: string;
-  @ApiProperty({ enum: ['buckets_pending_or_leased_including_retry_backoff'] }) pendingCountScope: string;
-  @ApiProperty() pendingBuckets: number;
-  @ApiProperty() leasedBuckets: number;
-  @ApiProperty({ description: 'Leased buckets whose persisted lease has expired; not proof of worker failure.' }) expiredLeaseBuckets: number;
-  @ApiProperty({ description: 'Pending buckets with a persisted retry timestamp; not failed record count.' }) retryBuckets: number;
+  @ApiProperty({ enum: ['store_metrics_recompute_markers'] }) evidenceSource: string;
+  @ApiProperty({ enum: ['all_persisted_metric_and_caller_pending_markers_including_expired'] }) pendingCountScope: string;
+  @ApiProperty({ description: 'Metric bucket JSON recompute.state=pending count, matching Store selection.' }) pendingBuckets: number;
+  @ApiProperty({ description: 'Caller bucket JSON recompute.state=pending count, matching Store selection.' }) pendingCallerBuckets: number;
+  @ApiProperty({ type: Number, nullable: true, description: 'Most recent collector run report, not a cumulative count or heartbeat.' }) lastRunRecomputedBuckets: number | null;
+  @ApiProperty({ type: Number, nullable: true, description: 'Most recent collector run recompute failures; not failed invocation records.' }) lastRunRecomputeFailures: number | null;
   @ApiProperty({ description: 'Snapshot read time, not a worker heartbeat.' }) countsObservedAt: string;
 }
-export class ObservabilityPipelineDispatchDto extends ObservabilityPipelineStageDto {
-  @ApiProperty({ enum: ['events_dispatch_checkpoint'] }) evidenceSource: string;
-  @ApiProperty({ enum: ['retained_events_after_checkpoint_through_snapshot_including_suppressed_and_expired'] }) pendingCountScope: string;
-  @ApiProperty({ enum: ['event_scan_checkpoint_not_delivery_acknowledgement'] }) dataWatermarkScope: string;
+export class ObservabilityPipelineWebhookDto {
+  @ApiProperty({ enum: ['webhook_worker_last_run'] }) evidenceSource: string;
+  @ApiProperty({ enum: ['unknown', 'running', 'degraded'], description: 'Persisted report from the most recent worker run, not current health.' }) state: string;
   @ApiProperty({ type: String, nullable: true }) observedAt: string | null;
-  @ApiProperty({ type: Number, nullable: true, description: 'Age of checkpoint.updatedAt, not event lag or worker heartbeat.' }) observationAgeMs: number | null;
+  @ApiProperty({ type: Number, nullable: true }) observationAgeMs: number | null;
   @ApiProperty({ enum: ['recent', 'stale', 'unknown'] }) freshnessStatus: string;
   @ApiProperty() staleAfterMs: number;
-  @ApiProperty({ description: 'Snapshot read time for the pending event count.' }) countsObservedAt: string;
+  @ApiProperty({ type: String, nullable: true, description: 'Last worker run snapshot, not a delivery acknowledgement watermark.' }) snapshotSeq: string | null;
+  @ApiProperty({ type: Boolean, nullable: true, description: 'Last persisted configuration report, not current enablement.' }) workerConfigured: boolean | null;
+  @ApiProperty({ type: String, nullable: true, description: 'Worker-reported lastAttemptAt; may be set even when claimed=0.' }) lastAttemptAt: string | null;
+  @ApiProperty({ type: Number, nullable: true, description: 'Last run only.' }) claimed: number | null;
+  @ApiProperty({ type: Number, nullable: true }) succeeded: number | null;
+  @ApiProperty({ type: Number, nullable: true }) retrying: number | null;
+  @ApiProperty({ type: Number, nullable: true }) dead: number | null;
+  @ApiProperty({ type: Number, nullable: true }) cancelled: number | null;
+}
+export class ObservabilityPipelineDispatchDto extends ObservabilityPipelineStageDto {
+  @ApiProperty({ enum: ['outbox_materializer_state_and_pending_events'] }) evidenceSource: string;
+  @ApiProperty({ enum: ['unexpired_schema_1_events_pending_or_leased_through_snapshot'] }) pendingCountScope: string;
+  @ApiProperty({ enum: ['outbox_materialization_not_webhook_acknowledgement'] }) dataWatermarkScope: string;
+  @ApiProperty({ type: String, nullable: true }) observedAt: string | null;
+  @ApiProperty({ type: Number, nullable: true, description: 'Age of the persisted outbox observation, not delivery lag.' }) observationAgeMs: number | null;
+  @ApiProperty({ enum: ['recent', 'stale', 'unknown'] }) freshnessStatus: string;
+  @ApiProperty() staleAfterMs: number;
+  @ApiProperty() countsObservedAt: string;
+  @ApiProperty({ type: String, nullable: true }) lastReconciledAt: string | null;
+  @ApiProperty({ type: String, nullable: true }) lastMaterializedAt: string | null;
+  @ApiProperty({ type: ObservabilityPipelineWebhookDto }) webhook: ObservabilityPipelineWebhookDto;
 }
 export class ObservabilityPipelineStatusDto {
   @ApiProperty({ enum: ['global'] }) resourceScope: string;

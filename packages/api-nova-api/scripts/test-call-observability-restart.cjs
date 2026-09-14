@@ -93,7 +93,7 @@ async function childMain() {
       completedAt: row.completedAt, completionSource: row.record.completionSource })),
     callers: await database.getRepository(entities.RuntimeCallerEntity).count(),
     receipts: await database.getRepository(entities.RuntimeIngestReceiptEntity).count(),
-    events: events.map(row => ({ id: row.id, subjectId: row.subjectId, state: row.dispatchState })),
+    events: events.map(row => ({ id: row.id, eventName: row.eventName, subjectId: row.subjectId, state: row.dispatchState })),
     checkpoints: checkpoints.map(row => ({ id: row.id, byteOffset: BigInt(row.byteOffset).toString() })),
     responseBodies };
   // Await SQL.js file publication before the parent is allowed to kill this process.
@@ -110,6 +110,20 @@ async function childMain() {
   process.disconnect();
 }
 
+function invocationEvents(summary, subjectIds) {
+  return summary.events.filter(event =>
+    ['invocation.completed', 'invocation.reconciled'].includes(event.eventName) && subjectIds.includes(event.subjectId));
+}
+function assertProjectionEvents(summary, expectBuckets = true) {
+  const pipeline = summary.events.filter(event => event.eventName === 'pipeline.state_changed');
+  assert.ok(pipeline.length > 0, 'Collector state transitions must remain durable');
+  assert.ok(pipeline.every(event => typeof event.subjectId === 'string' && event.subjectId.length > 0));
+  if (expectBuckets) {
+    const buckets = summary.events.filter(event => event.eventName === 'metrics.bucket_updated');
+    assert.ok(buckets.length > 0, 'Successful recomputation must retain bucket events');
+    assert.ok(buckets.every(event => typeof event.subjectId === 'string' && event.subjectId.length > 0));
+  }
+}
 async function fixture(t) {
   await fs.mkdir(temporaryRoot, { recursive: true });
   const directory = await fs.mkdtemp(path.join(temporaryRoot, 'run-'));
@@ -171,7 +185,8 @@ if (process.argv[2] === '--collector-child') {
     assert.equal(first.calls.length, 1);
     assert.equal(first.calls[0].phase, 'started');
     assert.equal(first.checkpoints[0].byteOffset, String(Buffer.byteLength(initial)));
-    assert.equal(first.events.length, 0);
+    assert.equal(invocationEvents(first, [start.invocationId]).length, 0);
+    assertProjectionEvents(first, false);
     await fs.appendFile(f.file, end.slice(91));
     const second = await f.run('collect');
     assert.notEqual(second.pid, first.pid);
@@ -181,6 +196,8 @@ if (process.argv[2] === '--collector-child') {
     assert.deepEqual(second.responseBodies, ['persisted-response']);
     assert.equal(second.callers, 1);
     assert.equal(second.receipts, 2);
+    assert.equal(invocationEvents(second, [start.invocationId]).length, 1);
+    assertProjectionEvents(second);
     await fs.appendFile(f.file, end);
     const replay = await f.run('collect');
     assert.equal(replay.watermark, second.watermark);
@@ -213,7 +230,10 @@ if (process.argv[2] === '--collector-child') {
     assert.equal(corrected.calls[0].recordVersion, 3);
     assert.equal(corrected.callers, 1);
     assert.equal(corrected.receipts, 2);
-    assert.equal(corrected.events.length, 2);
+    const callEvents = invocationEvents(corrected, [start.invocationId]);
+    assert.equal(callEvents.length, 2);
+    assert.equal(new Set(callEvents.map(event => event.id)).size, 2);
+    assertProjectionEvents(corrected);
   });
 
   test('renamed source and replacement source recover independently after a process restart', async t => {
@@ -227,7 +247,12 @@ if (process.argv[2] === '--collector-child') {
     const restarted = await f.run('collect');
     assert.equal(restarted.calls.length, 2);
     assert.equal(restarted.receipts, 2);
-    assert.equal(restarted.events.length, 2);
+    const callEvents = invocationEvents(restarted, [original.invocationId, next.invocationId]);
+    assert.equal(callEvents.length, 2);
+    for (const call of [original, next]) {
+      assert.equal(callEvents.filter(event => event.subjectId === call.invocationId && event.eventName === 'invocation.completed').length, 1);
+    }
+    assertProjectionEvents(restarted);
     assert.equal(restarted.checkpoints.length, 2);
     assert.ok(restarted.checkpoints.some(row => row.id === first.checkpoints[0].id));
     assert.deepEqual(restarted.dataset, first.dataset);

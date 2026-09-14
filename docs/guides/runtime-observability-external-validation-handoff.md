@@ -1,62 +1,87 @@
-# Runtime observability: external validation handoff
+# Runtime observability external validation handoff
 
-## Current boundary
+## Baseline and evidence status
 
-This handoff follows the existing TP12, TP15 and TP16 plan. It is not a deployment or acceptance record. Webhook signature, retry and destination/lease helpers do not constitute a configured sender. Subscription APIs and the actual sender must be integrated before performing live receiver acceptance. Do not enable dispatch expecting HTTP delivery: dispatch currently creates database delivery tasks only.
+This handoff follows the retained remote implementation identified by the project owner as `origin/main` at `7a7fc44`. It documents the current source, not a deployed environment. This documentation update did not build, run tests, enable workers, or send network requests.
 
-Local implementation can continue without external assistance. No production database, credentials or external receiver are needed for the current coding increment.
+Subscription CRUD, explicit test delivery, delivery queries, manual retry, durable outbox materialization, and the native webhook worker already exist and are registered by `CallObservabilityModule`. They are not APIs awaiting implementation from scratch. No additional module factory, injected sender, or external secret-backend adapter is required by this implementation.
 
-## 1. Receiver environment to prepare
+**Real-environment deployment and external validation remain NOT PERFORMED.** Previous isolated or source test results do not establish receiver reachability, installed secrets, certificate validity, or deployment readiness.
 
-Provide these non-secret details when live sender integration is ready:
+## Deployment configuration, disabled by default
 
-- A dedicated staging HTTPS receiver URL with a publicly trusted TLS certificate and a stable DNS name.
-- The exact allowed origin, including a non-default port if used. Do not use wildcard domains. Use a path without query parameters, URL credentials or fragments for the initial integration.
-- Whether the receiver has public addresses or requires a private network. Private destinations must not be enabled by weakening address checks; report this requirement for a separately reviewed deployment policy.
-- The signing key's public key ID and the authorized secret reference name, never the key bytes. Install the dedicated random signing secret in the agreed secret backend on each side. Do not reuse a business API key or put secrets in URLs, source files, tickets or chat.
-- The person/environment authorized to receive synthetic test events, plus the approved test window and maximum request count.
+The following are the actual configuration names read by the retained implementation. This document does not change their values.
 
-Receiver behavior required by the existing contract:
+| Variable | Actual behavior |
+| --- | --- |
+| `API_NOVA_OBSERVABILITY_OUTBOX_ENABLED` | Schema default `false`. Only the exact string `true` starts automatic event-to-delivery materialization. |
+| `API_NOVA_OBSERVABILITY_WEBHOOK_ENABLED` | Schema default `false`. Only the exact string `true` starts automatic network delivery. Independent of the outbox switch. |
+| `API_NOVA_OBSERVABILITY_WEBHOOK_ALLOWED_HOSTS` | Comma-separated exact, case-normalized URL `host` values, including non-default ports. Not origins, suffixes, wildcards, or full URLs. Empty configuration prevents subscription destination acceptance. |
+| `API_NOVA_OBSERVABILITY_WEBHOOK_SECRET_REFS` | Comma-separated, case-sensitive allowlist of reference identifiers accepted by subscription create/update. Empty configuration prevents reference acceptance. |
+| `API_NOVA_OBSERVABILITY_WEBHOOK_SECRETS` | JSON object mapping reference identifiers to actual secret strings. Worker resolves the selected reference from this configuration for delivery; no Vault/backend injection contract is provided here. |
+| `API_NOVA_OBSERVABILITY_WEBHOOK_ALLOW_HTTP` | HTTP is rejected unless this is exactly `true`. Leave unset or `false`; use HTTPS for deployment. |
+| `API_NOVA_OBSERVABILITY_WEBHOOK_ALLOWED_PRIVATE_IPS` | Comma-separated exact address exceptions to the worker's private-address rejection. Leave empty for public receivers. This is not an origin allowlist. |
+| `API_NOVA_OBSERVABILITY_WEBHOOK_TIMEOUT_MS` | Default/fallback 10000 ms; accepted safe integers are 100 through 30000. This is not a fixed maximum of 10 seconds. |
 
-- Verify HMAC-SHA256(secret, timestamp + "." + exact raw request bytes), with lowercase hexadecimal prefixed by sha256=. Read the timestamp and signature from X-ApiNova-Timestamp and X-ApiNova-Signature.
-- Validate the event ID against X-ApiNova-Event-Id and persist deduplication by eventId before returning 2xx/202. A repeated event is expected after a lost response; do not repeat downstream work.
-- Enforce an agreed timestamp window (the current reference suggests +/-300 seconds). Synchronize clocks. Never reserialize JSON before verifying its signature.
-- Record only safe acceptance evidence: eventId, deliveryId, received time, response status and deduplication outcome. Do not record signing secrets or unrestricted payloads.
-- Prepare controlled modes for 202, 429 plus Retry-After, 503, delayed response beyond 10 seconds, and connection termination. Do not apply these modes to a production endpoint.
+Keep both automatic-worker switches disabled until a separate deployment approval. Also create preparation-stage subscriptions with `enabled: false`: the HTTP create default is **enabled**, independently of the two process switches.
 
-When sender integration is complete, the agent will supply the exact supported subscription request and test invocation. Do not guess or call currently PLANNED routes.
+Configure reference allowlists and secret values only on the deployment host or through the approved deployment secret-injection mechanism. API requests contain a reference identifier, never the key itself. Do not put real secrets in chat, committed examples, screenshots, command transcripts, or validation evidence. Environment injection is configuration delivery, not a newly implemented external secret backend.
 
-## 2. PostgreSQL and Linux environment to prepare
+References must match `^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$`. The worker accepts secret strings of 32 through 4096 UTF-8 bytes; its serialized secret map is bounded to 65536 bytes and 1000 keys. Values are used as strings, not automatically base64-decoded. Provision matching keys at the receiver through a separate secure channel. Subscription `secretConfigured: true` is not proof that a usable key was installed: subscription admission checks the reference allowlist, while the worker resolves the secret later.
 
-Provide the PostgreSQL version, Linux distribution/version, Node version and a disposable database name. Provision a dedicated least-privilege database account through the deployment's secret mechanism, not this conversation. Explicitly confirm that schema initialization and cleanup are permitted for that disposable database only.
+## Receiver wire contract
 
-The eventual validation needs two application processes sharing the same database to exercise claims, stale leases and transaction serialization. Specify how both processes reach the producer audit directory and private payload directory; process-local directories must not be mistaken for shared evidence. Keep payload storage outside static web roots.
+The worker sends a POST with a canonical JSON body, bounded to 256 KiB. The envelope contains:
 
-Do not point isolation fixtures at production, set DB_SYNCHRONIZE=true on an existing database, or delete audit/payload directories to reset a run. Exact launch and initialization commands must be derived from the configured environment and approved fixture before execution.
+```text
+schemaVersion = "1.0"
+eventId, eventType, sequence, occurredAt, severity, status
+subject = { id, version }
+data, dimensions
+delivery = { id, attemptNo, replayGeneration, subscriptionRevision }
+```
 
-## 3. Acceptance evidence to collect after integration
+`sequence` is a public decimal sequence string. The signature is computed over the exact UTF-8 body sent, not over a receiver's parsed and reserialized JSON:
 
-- Lost receiver response can cause a repeat of the same eventId, but cannot create a second logical delivery or repeat receiver business work.
-- Six total automatic attempts per generation, five backoffs (5s, 30s, 2min, 10min, 30min) with jitter, and no retry beyond the earlier of the activity window (24h) and retained delivery expiry.
-- Permission revocation, subscription pause/deletion and revision revocation prevent unauthorized sends. A stale worker cannot finalize a successor's lease.
-- Redirects are not followed; private/link-local destinations and DNS rebinding are rejected; TLS verifies the original hostname when connecting to a checked address.
-- Database rollback leaves no successful task claim or attempt; process termination recovers leases without resetting the attempt budget.
-- Save command versions, sanitized output, timestamps and failure/recovery evidence. Only mark VERIFIED after the relevant tests pass; deployment AVAILABLE requires separate environment evidence.
-## Sender integration increment (2026-09-11)
+```text
+timestamp = Unix seconds, encoded as a decimal string
+signature = lowercase_hex(HMAC_SHA256(secret, timestamp + "." + rawBody))
+X-ApiNova-Signature: sha256=<signature>
+```
 
-`CallObservabilityWebhookSender.runOnce(limit)` now provides explicitly invoked orchestration: claim one durable lease at a time, check the immutable revision destination, validate all resolved addresses, resolve the authorized signing secret, recheck the current lease/authorization, sign a metadata-only event and send outside the database transaction. Completion returns through lease/version fencing. No startup worker or new environment switch enables this sender.
+Other emitted headers are `X-ApiNova-Timestamp`, `X-ApiNova-Event-Id`, `X-ApiNova-Delivery-Id`, `Content-Type: application/json`, byte-accurate `Content-Length`, and `User-Agent: ApiNova-Observability-Webhook/1.0`. The actual worker does not emit a signing-key-ID header; do not require one based on older proposals. Key selection and rotation must be coordinated with the receiver using the configured subscription/revision, not an assumed header.
 
-The trusted composition root must supply the exact allowed origins, a complete bounded DNS resolver and an authorized secret resolver. The internal immutable revision config currently requires string fields `destination`, `secretRef` and `signingKeyId`; the sender never falls back to the subscription's newer destination. These are internal integration requirements, not a declaration that subscription management HTTP endpoints have shipped.
+The receiver should verify the raw body before processing, compare signatures in constant time, enforce its own timestamp acceptance window, and durably deduplicate authenticated delivery/event identities. Timestamp skew policy and business handling of deliberate replay are receiver policies, not additional sender configuration switches. A 2xx response acknowledges delivery; return it only after the receiver's required durable acceptance.
 
-`readForSend` is an internal service method, not a management response. Do not expose its raw event or secret reference. Preparation has a 10-second total deadline bounded by the lease; the sender passes only the remaining time to transport. The secret resolver returns an owned byte buffer, which is cleared after use, including late completion after timeout. No arbitrary database event details are serialized for sending.
+## Network and retry boundaries
 
-Remaining work still includes subscription management and secret-backend composition, automatic worker lifecycle, manual replay generations, integrated live-receiver evidence and PostgreSQL/Linux acceptance. Nonzero replay generations are deliberately rejected by the current lease core. Deployment remains disabled until those integration requirements are met; unit tests with injected network capabilities are not proof of a deployed receiver.
-## Opt-in worker composition increment (2026-09-11)
+- Destination validation rejects credentials, query strings, and fragments. HTTPS is the default policy; the explicit HTTP exception exists and should remain off.
+- The worker checks all DNS results, rejects its configured private/reserved IPv4 and IPv6 ranges unless an exact private-IP exception applies, and unconditionally blocks the explicit metadata addresses `169.254.169.254` and `fd00:ec2::254`. Do not describe private-IP exceptions as harmless or claim a universally complete metadata denylist.
+- Native HTTP/HTTPS connects to a selected resolved address, uses the original URL host in `Host`, and sets the original hostname as TLS SNI for hostname destinations. Native requests do not follow redirects. The retained code does not explicitly set `agent: false` or install a custom `checkServerIdentity`; do not carry over guarantees from removed transport drafts.
+- DNS waiting is bounded and preparation time is subtracted before the socket timeout. The request uses `request.setTimeout`, which is a socket inactivity timeout, not an independent wall-clock timer covering all response activity. Do not certify a strict total deadline from the configuration name.
+- The worker retains at most 2048 response bytes for a length/hash summary, not the raw response body. It continues receiving/discarding additional bytes; this memory bound is not a total response-download bound.
+- 2xx succeeds. HTTP 408, 429, and 5xx are retryable; other HTTP statuses are terminal, including redirects. Retryable failures use base delays of 5 s, 30 s, 2 min, 10 min, and 30 min with deterministic 0.8 through 1.2 jitter. Retry-After supports seconds or an HTTP date and remains subject to the active retry window and expiry.
+- Automatic attempts are bounded to six per replay generation and a 24-hour active retry window, also bounded by delivery/event validity. Attempts are not exactly-once delivery; a receiver must tolerate retries after uncertain outcomes.
+- Nonzero `replayGeneration` is supported. Manual retry can start a new generation while retaining the cumulative attempt history. Revision revocation, subscription state, current owner authorization, and expiry still constrain sending.
+- Outbox and delivery workers poll with a one-second delay after a cycle. Outbox event leases are 15 seconds; delivery leases are 30 seconds. PostgreSQL uses row locks with skip-locked claiming. These source mechanisms are not proof of deployment-level crash recovery or multi-worker acceptance.
 
-This section supersedes the earlier statement that no worker or environment switch exists. `CallObservabilityWebhookWorker` now provides explicit startup/shutdown lifecycle, one delivery per iteration and a one-second delay after completion. Its `getStatus()` reports disabled/blocked/running/stopped and the latest invocation failure without exposing secret material. Shutdown cancels future scheduling and waits for the active sender call; it does not forcibly terminate an arbitrary injected backend.
+## Controlled external validation checklist
 
-`API_NOVA_OBSERVABILITY_WEBHOOK_ENABLED` accepts the strings true/false and defaults to false. It is independent from `API_NOVA_OBSERVABILITY_DISPATCH_ENABLED`: dispatch creates delivery tasks; webhook sending consumes them. Enabling dispatch alone does not cause network sends. Enabling the webhook flag without an injected sender leaves the worker blocked.
+All items below remain pending in a real deployment. Record sanitized identifiers, timestamps, statuses, and summaries only.
 
-The trusted application composition root can replace its plain `CallObservabilityModule` import with `CallObservabilityModule.withWebhook(dependencies)`. Do not import both forms. Dependencies must supply a deployment origin allowlist, a complete bounded DNS resolver and an authorized secret resolver. The module snapshots the allowlist. Its optional transport injection is for trusted tests, never user input. No root application import or environment file has been changed to enable this composition.
+1. Record the deployed build, database mode, schema readiness, process topology, and receiver owner. Confirm both switches remain disabled during preparation.
+2. Confirm the actual API base path and management authentication in the deployment. The current application's direct mount is `/api/monitoring/observability`; see the integration guide for the distinction from internal command path strings.
+3. Provision an approved HTTPS host allowlist and local secret mapping without exposing keys. Verify certificates, DNS answers, egress policy, and receiver raw-body signature handling in the approved environment.
+4. Create a paused subscription, verify the returned edit token, and exercise authorized/unauthorized reads and partial updates. Missing and stale edit tokens must not silently overwrite revisions.
+5. With explicit deployment approval, enable the necessary workers and subscription. Queue one test through the existing HTTP API. A 202 response proves queueing, not remote receipt; correlate receiver evidence with delivery detail and attempts.
+6. Exercise controlled 2xx, retryable errors, Retry-After, terminal HTTP errors, missing local secrets, and TLS/DNS failure cases against an owned test receiver. Observe bounds rather than inferring a strict total timeout.
+7. Exercise a retained eligible manual retry and a nonzero replay generation; check idempotency, revision choice, cumulative attempts, and receiver deduplication.
+8. Exercise pause/resume, deletion, authorization revocation, expiry, and controlled worker restart. Confirm pause is reported separately from delivery status and that a deleted subscription cannot be used for new sends.
+9. Validate ordinary event materialization separately from explicit test delivery. The test endpoint creates its delivery directly and is not evidence that the outbox materializer is enabled or healthy.
+10. Disable the workers after the approved exercise unless continued operation was authorized. Publish a sanitized acceptance report distinguishing passed, failed, and unexecuted cases.
 
-Before enabling the worker, install and authorize the dedicated secret backend, confirm the staging receiver and allowlist, and validate the composed module. Never enable the flag merely to clear a blocked status. Subscription HTTP management and replay generations are still separate remaining work. This increment has not yet been built or tested; the preceding 67-test result applies only to the preceding implementation.
+## Source boundary
+
+Source basis: `packages/api-nova-api/src/main.ts`, `src/config/validation.schema.ts`, and the call-observability module's subscriptions/deliveries controllers, DTOs and services, access guard, outbox service, and delivery worker. The module paths are relative to `packages/api-nova-api` where abbreviated.
+
+Only this handoff and the subscription integration guide were revised. No production behavior or deployment configuration was changed. Public implementation availability does not close real-environment validation.

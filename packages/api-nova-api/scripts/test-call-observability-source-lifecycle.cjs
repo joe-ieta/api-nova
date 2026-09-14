@@ -214,7 +214,7 @@ if (process.argv[2] === '--producer') {
     assert.equal(diagnostics.value.closedSourcePartialBytes, Buffer.byteLength(fragment));
     await sweep(f.make().worker);
     assert.equal(await f.repository(entities.RuntimeIngestQuarantineEntity).count(), 1);
-    assert.equal(await f.repository(Event).count(), 1);
+    assert.equal(await f.repository(Event).countBy({ eventName: 'invocation.reconciled' }), 1);
   });
 
   test('a closed first-line fragment advances evidence without inventing an invocation or caller', async t => {

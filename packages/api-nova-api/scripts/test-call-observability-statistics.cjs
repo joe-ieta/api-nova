@@ -38,11 +38,6 @@ const { MAX_METRIC_OBSERVATIONS } = require('../dist/src/modules/call-observabil
 const { CallObservabilityModule } = require('../dist/src/modules/call-observability/call-observability.module.js');
 const { CallObservabilityInvocationsService, INVOCATION_QUERY_KEYS, MAX_TRACE_NODES } = require('../dist/src/modules/call-observability/call-observability-invocations.service.js');
 const { CallObservabilityPayloadsService } = require('../dist/src/modules/call-observability/call-observability-payloads.service.js');
-const { CallObservabilityEventsService, EVENT_QUERY_KEYS } = require('../dist/src/modules/call-observability/call-observability-events.service.js');
-const { CallObservabilityPipelineService } = require('../dist/src/modules/call-observability/call-observability-pipeline.service.js');
-const { CallObservabilityOverviewService } = require('../dist/src/modules/call-observability/call-observability-overview.service.js');
-const { CallObservabilityDependenciesService } = require('../dist/src/modules/call-observability/call-observability-dependencies.service.js');
-const { CallObservabilityServerStatusService } = require('../dist/src/modules/call-observability/call-observability-server-status.service.js');
 const { CallObservabilityCallerLabelsService } = require('../dist/src/modules/call-observability/call-observability-caller-labels.service.js');
 const { parseObservabilityQuery } = require('../dist/src/modules/call-observability/call-observability-query.js');
 const root = path.resolve(__dirname, '../../../tmp/observability-statistics-tests');
@@ -98,11 +93,13 @@ async function fixture(t, sourceCap = 10000) {
   Module({
     controllers: Reflect.getMetadata('controllers', CallObservabilityModule),
     providers: [
-      { provide: CallObservabilityOverviewService, useValue: {} },
-      { provide: CallObservabilityDependenciesService, useValue: {} },
-      { provide: CallObservabilityServerStatusService, useValue: {} },
-      { provide: CallObservabilityPipelineService, useValue: {} },
-      { provide: CallObservabilityEventsService, useValue: new CallObservabilityEventsService(store, cursors) },
+      { provide: require('../dist/src/modules/call-observability/call-observability-overview.service.js').CallObservabilityOverviewService, useValue: {} },
+      { provide: require('../dist/src/modules/call-observability/call-observability-dependencies.service.js').CallObservabilityDependenciesService, useValue: {} },
+      { provide: require('../dist/src/modules/call-observability/call-observability-server-status.service.js').CallObservabilityServerStatusService, useValue: {} },
+      { provide: require('../dist/src/modules/call-observability/call-observability-pipeline.service.js').CallObservabilityPipelineService, useValue: {} },
+      { provide: require('../dist/src/modules/call-observability/call-observability-subscriptions.service.js').CallObservabilitySubscriptionsService, useValue: {} },
+      { provide: require('../dist/src/modules/call-observability/call-observability-deliveries.service.js').CallObservabilityDeliveriesService, useValue: {} },
+      { provide: require('../dist/src/modules/call-observability/call-observability-events.service.js').CallObservabilityEventsService, useValue: {} },
       { provide: CallObservabilityCapabilitiesService, useValue: new CallObservabilityCapabilitiesService(store) },
       { provide: CallObservabilityStatisticsService, useValue: new CallObservabilityStatisticsService(store) },
       { provide: CallObservabilityInvocationsService, useValue: new CallObservabilityInvocationsService(store, cursors) },
@@ -410,14 +407,16 @@ test('database failures return a safe unavailable envelope without leaking drive
 
 test('summary watermark is a genuine read snapshot and queries do not advance facts or events', async t => {
   const f = await fixture(t); await f.ingest();
+  const buckets = await f.database.getRepository(entities.RuntimeMetricBucketEntity).count();
+  const contributions = await f.database.getRepository(entities.RuntimeMetricContributionEntity).count();
   const before = await f.store.readSnapshot(tx => tx.snapshotSeq);
   const events = await f.database.getRepository(RuntimeObservabilityEventEntity).count();
   const result = await summary(f);
   assert.equal(result.body.meta.snapshotSeq, before); assert.equal(result.body.meta.dataWatermark, before);
   assert.equal(await f.store.readSnapshot(tx => tx.snapshotSeq), before);
   assert.equal(await f.database.getRepository(RuntimeObservabilityEventEntity).count(), events);
-  assert.equal(await f.database.getRepository(entities.RuntimeMetricBucketEntity).count(), 0);
-  assert.equal(await f.database.getRepository(entities.RuntimeMetricContributionEntity).count(), 0);
+  assert.equal(await f.database.getRepository(entities.RuntimeMetricBucketEntity).count(), buckets);
+  assert.equal(await f.database.getRepository(entities.RuntimeMetricContributionEntity).count(), contributions);
 });
 
 test('generated Swagger matches exact summary queries, required scope, nested DTOs and safe errors', async t => {

@@ -1,7 +1,7 @@
 ---
-doc-version: 1.24.0
+doc-version: 2.0.0
 doc-status: active
-doc-updated: 2026-09-11
+doc-updated: 2026-09-14
 approval-status: approved
 implementation-status: in-progress
 ---
@@ -9,7 +9,7 @@ implementation-status: in-progress
 
 > Document status: Maintained consumer contract; approved endpoint contract; implementation in progress
 > Scope decision (2026-09-08, approved): 全新开发版本直接统一旧接口和数据库结构；不提供旧格式导入或旧查询路径兼容。接口的实际状态逐项维护，文档确认不等于上线。
-> 可用性声明：OBS-API-01~16、26 共 17 个 VERIFIED，11 个 HTTP 与两类推送仍 PLANNED。根应用已注册模块，三个后台开关默认关闭；没有部署或 AVAILABLE 声明。新接口当前受限契约以第 29 节为准。
+> 可用性声明：远端优先整合后，API01~26 共 26 个限定契约 VERIFIED；API27/28 与 Socket.IO 待实现。Webhook 保留远端闭环，默认关闭；AVAILABLE=0。
 > 已确认基线：[需求](../guides/runtime-observability-requirements.md)、[设计](./runtime-observability-design.md)。
 > 开发关联：[任务计划](../guides/runtime-observability-development-task-plan.md)、[执行状态](../guides/runtime-observability-development-execution-status.md)。
 
@@ -19,7 +19,7 @@ implementation-status: in-progress
 
 Endpoint 编号与 operationId 固定，不随文件重构改变。状态为 PLANNED、IMPLEMENTED、VERIFIED、AVAILABLE、DEPRECATED；代码存在只能推进到 IMPLEMENTED，契约测试通过才能推进到 VERIFIED，具体发布/部署验证后才能标为 AVAILABLE。运行版本与部署范围应随 AVAILABLE 一起登记。
 
-本次文档版本为 1.24.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
+本次文档版本为 2.0.0，拟对外数据 schemaVersion 为 1.0。计划已确认，OBS-TP-01 已冻结基础契约。破坏性变化必须单独记录影响与升级方式，不能在同一路径下静默改变计数或权限。
 
 ## 2. 基础约定
 
@@ -131,15 +131,15 @@ invocations 按 (timeBasis DESC, invocationId DESC) 排序；其他列表明确�
 | OBS-API-14 | GET /dependencies | obsGetDependencies | 基础 | OBS-TP-10 | VERIFIED |
 | OBS-API-15 | GET /servers/status | obsGetServerStatuses | 基础 | OBS-TP-10 | VERIFIED |
 | OBS-API-16 | GET /events | obsListEvents | 基础 | OBS-TP-11 | VERIFIED |
-| OBS-API-17 | POST /subscriptions | obsCreateSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
-| OBS-API-18 | GET /subscriptions | obsListSubscriptions | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
-| OBS-API-19 | GET /subscriptions/:id | obsGetSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
-| OBS-API-20 | PATCH /subscriptions/:id | obsUpdateSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
-| OBS-API-21 | DELETE /subscriptions/:id | obsDeleteSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
-| OBS-API-22 | POST /subscriptions/:id/test | obsTestSubscription | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
-| OBS-API-23 | GET /deliveries | obsListDeliveries | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
-| OBS-API-24 | GET /deliveries/:id | obsGetDelivery | monitoring:subscription:manage | OBS-TP-12 | PLANNED |
-| OBS-API-25 | POST /deliveries/:id/retry | obsRetryDelivery | monitoring:subscription:manage AND monitoring:delivery:retry | OBS-TP-12 | PLANNED |
+| OBS-API-17 | POST /subscriptions | obsCreateSubscription | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
+| OBS-API-18 | GET /subscriptions | obsListSubscriptions | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
+| OBS-API-19 | GET /subscriptions/:id | obsGetSubscription | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
+| OBS-API-20 | PATCH /subscriptions/:id | obsUpdateSubscription | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
+| OBS-API-21 | DELETE /subscriptions/:id | obsDeleteSubscription | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
+| OBS-API-22 | POST /subscriptions/:id/test | obsTestSubscription | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
+| OBS-API-23 | GET /deliveries | obsListDeliveries | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
+| OBS-API-24 | GET /deliveries/:id | obsGetDelivery | monitoring:subscription:manage | OBS-TP-12 | VERIFIED |
+| OBS-API-25 | POST /deliveries/:id/retry | obsRetryDelivery | monitoring:subscription:manage AND monitoring:delivery:retry | OBS-TP-12 | VERIFIED |
 | OBS-API-26 | GET /pipeline/status | obsGetPipelineStatus | 基础；系统汇总另需全局资源范围 | OBS-TP-14 | VERIFIED |
 | OBS-API-27 | GET /policies | obsGetPolicies | 基础 | OBS-TP-14 | PLANNED |
 | OBS-API-28 | PATCH /policies/:id | obsUpdatePolicy | monitoring:manage | OBS-TP-14 | PLANNED |
@@ -257,6 +257,18 @@ PATCH /policies/:id 使用 If-Match，接受该策略支持字段的部分更新
 
 ### 5.1 OBS-API-16：事件历史与补拉
 
+2026-09-13 已实现并验收。事件历史专项 16/16；10 个相关脚本分两组执行共 160/160 PASS，API build PASS。当前 HTTP 13 VERIFIED、15 PLANNED，AVAILABLE=0；Outbox 分发和两类主动推送未完成。
+
+实现边界：每次使用当前管理 JWT、monitoring:read 和资产范围，资产未绑定事件仅全局授权可见。仅查询 schemaVersion=1.0 且带持久 sequence 的规范事件，历史 suppressed 事件可查并标 historical=true，不把旧监控日志转换为新事件。
+
+limit 默认 50、最大 200；每页最多载入 1001 条授权事件，其中最多检查 1000 条，第 1001 条用于判断后续页。枚举列表以逗号分隔，列表内部 OR、字段之间 AND；重复/嵌套/未知参数拒绝。HTTP 历史接口不接受裸 afterSequence 或调用查询 cursor；快照到订阅的 afterSequence 衔接仍归后续推送节点。
+
+highWatermark 是十进制 sequence，highWatermarkCursor 是同范围签名上界，可作为 until。nextCursor 始终返回，含已扫描位置；hasMore=true 时保持原高水位，完成后使用 nextCursor 发起下一轮可获取新增事件。游标绑定主体、当前授权、端点和规范化过滤，续页允许省略原过滤；不能扩展原未完成窗口。
+
+游标最长 15 分钟，同时受剩余授权事件最早 expiresAt 限制，翻页不续期。过期返回 410 EVENT_CURSOR_EXPIRED 和 details.resnapshotRequired=true、availableFrom（当前授权/显式资产范围内可用的最早 sequence，无可用事件为 null；不是签名游标）。不自动跳过过期区间。未来提前物理清理或缩短保留策略必须补充游标失效机制后才可启用。
+
+响应仅含白名单元数据，不返回原始 details、正文、Header、IP、存储引用或未裁剪 traceId。桶事件返回 subject.version、bucketVersion 及 refreshRequired=true，消费者按版本刷新统计；本节点不输出完整桶指标替换载荷。扫描数量仅统计授权事件，覆盖/运行健康继续未知。
+
 after、until 是事件游标，区间为 (after,until]；不与调用列表 cursor 混用。未提供 after 时从授权且仍在保留期内的可用起点读取，生产集成建议先从 overview 获取 snapshotSeq。支持 eventTypes、severities、spanKinds、outcomes、runtimeAssetId、serverType、callerId、endpointDefinitionId、toolName 与 limit。
 
 结果为 items、nextCursor、hasMore 和 highWatermark。nextCursor 表示已扫描进度，过滤后 items=[] 时仍可能推进。服务端签名游标封装 sequence、过滤和授权；示例 sequence 字符串不等于可自行伪造的签名 cursor。
@@ -287,7 +299,9 @@ filter 支持 runtimeAssetIds、serverTypes、eventTypes、severities、spanKind
 
 订阅资源范围不得超过创建者权限。目的地按部署允许列表和地址校验约束；secretRef 只引用已授权的签名秘密，不接受在 URL 或请求中直接内嵌业务 API Key。读取返回 signingKeyId 和 secretConfigured，不回显秘密。
 
-订阅返回 id、version、state、filter、effectiveFromSeq、destination 的安全视图和健康摘要。首次创建只匹配之后的新事件，不自动发送全部历史。GET 列表按 createdAt DESC、id DESC 排序，限定管理者有权访问的订阅。
+当前创建节点使用 `API_NOVA_OBSERVABILITY_WEBHOOK_ALLOWED_HOSTS`（逗号分隔、精确 host，含非默认端口）和 `API_NOVA_OBSERVABILITY_WEBHOOK_SECRET_REFS`（逗号分隔引用）作为部署授权边界；两者缺失时返回 503。默认只接受 HTTPS，隔离测试如需 HTTP 必须显式设置 `API_NOVA_OBSERVABILITY_WEBHOOK_ALLOW_HTTP=true`。URL 禁止凭证、query 和 fragment，云元数据地址即使列入允许项也拒绝；DNS 解析后复核仍由实际发送节点执行。
+
+订阅返回 id、version、state、filter、effectiveFromSeq、destination 的安全视图和健康摘要。首次创建只匹配之后的新事件，不自动发送全部历史。GET 列表按 createdAt DESC、id DESC 排序，限定管理者完整覆盖 scope 的订阅；签名游标固定授权、筛选和 snapshot sequence，后续页按该 sequence 读取当时生效的配置修订，更新不会污染已建立的分页快照。每页最多返回 200、最多扫描 1000 条，授权过滤空页仍可推进游标。
 
 PATCH 使用 If-Match；修改地址/过滤/启停创建新配置 revision。暂停期间不创建新投递，并暂停现有任务重试，恢复后继续已有任务，响应给出 pausedGapRange。旧任务绑定旧配置修订；撤销旧修订后任务 cancelled，需要显式选择当前授权修订进行人工 retry。
 
@@ -796,39 +810,12 @@ OBS-API-01、03~13 为 VERIFIED，共 12 个；OBS-API-02、14~28 仍为 PLANNED
 
 本次只复核文档与实现入口，不改变接口行为，不重跑测试，不启用根应用或部署。
 
-## 29. 并发节点的已验证接口与运行边界（2026-09-11）
+## 2026-09-14：远端优先整合后的附加查询
 
-当前矩阵为 17 个 VERIFIED、11 个 PLANNED，AVAILABLE=0。根应用已注册模块，部署未执行；capabilities 按 Endpoint 编号稳定排序，仅声明当前实现与权限资格。Webhook、Socket.IO、policyManagement 仍 not_implemented。
+保留远端 API16~25、Webhook、订阅对象格式及修订 [from,until) 语义。增加本地已验收的 API02 overview、14 dependencies、15 servers/status、26 pipeline/status，capabilities 按当前权限公开共26个限定契约。
 
-### 总览、依赖和服务器状态
+前三个附加查询仅接受 from/to/origin/serverType/runtimeAssetId；默认一小时 external，以 startedAt 选窗，最多30天。总览调用快照仅覆盖 invocation facts，授权绑定主体、scope 和过滤，进程内5分钟/1000项。远端 events 增加可选 origin 和 afterSequence（与 after 互斥），保留原有固定水位、扫描及过期语义。
 
-OBS-API-02/14/15 只接受 from/to/origin/serverType/runtimeAssetId；startedAt 半开窗口，默认最近一小时、external，最大 30 天。其他参数返回 400。权限/MVCC/保留筛选先于 5000 明细上限，超限 413；服务器最多 200 资产、5000 旧状态行，不能静默截断。
+pipeline/status 仅显式全局 monitoring:read 可访问。aggregation 读取 metric/caller bucket.metrics.recompute，dispatch 读取远端 outbox-materializer 的 watermark；dispatch.webhook 为远端 webhook-worker 最近一轮白名单报告，不是累计指标、当前健康或接收确认水位。未知状态保持 unknown/null。
 
-overview 包含同快照 businessSummary/upstreamSummary/serverStates，pipeline/recentEvents 列入 unavailableSections。invocationSnapshotSeq 与 invocationSnapshotScope=invocation_facts_only 只描述调用事实；旧状态没有统一事件版本，serverStates.dataWatermark=null，不能把 mixed snapshot 当作全部状态的增量基线。
-
-dependencies 仅展示实际观察的上游组合；失败归因沿可见同资产/trace/origin 的 parent 链找最近 Gateway 或 MCP Tool，不能把协议父节点当业务调用。隐藏、过期或缺失引用不输出 ID，并以 unlinkedFailureRecords 标记。未观察配置依赖不冒充运行事实。
-
-servers/status 给出数据库资产生命周期及单列 reportedState 旧证据。healthStatus/dependencyHealth/freshnessStatus=unknown，lastHeartbeatAt/processInstanceId/activeInvocations/stateVersion=null；unknownInFlight 仅表示窗口内未终结记录。旧状态值不证明当前存活。
-
-### 持久事件历史与调用快照补拉
-
-OBS-API-16 查询允许 after/afterSequence/until/limit/eventTypes/severities/spanKinds/outcomes/runtimeAssetId/serverType/callerId/endpointDefinitionId/toolName/origin。limit 默认 50、最大 200，多值枚举采用逗号分隔；origin 可选 external/test/probe/internal，省略为全部可见来源。
-
-after 与 afterSequence 互斥；until 为同权限/过滤绑定的固定水位游标。按序号扫描，响应 items/nextCursor/hasMore/highWatermark；nextCursor 是已扫描位置，因此过滤后空页仍可能 hasMore=true。权限过滤在扫描前生效，隐藏资产不贡献可见页或可见事件水位。初次读取不会因为更高序号事件已过期而跳过较低序号仍存活事件。
-
-首次 afterSequence 必须来自该主体成功取得的 overview：服务器用同一 Singleton 保存 5 分钟、最多 1000 个签发记录，绑定序号、主体、当前权限/资产和 origin/serverType/runtimeAssetId。origin 必须显式匹配，其他已知事件谓词只能收窄。知道序号、改 scope 或省略 origin 都不能扩大范围；重启/过期/淘汰后重取 overview。响应 invocationSnapshotAuthorized/invocationSnapshotExpiresAt 描述当前签发，不覆盖旧服务器状态。
-
-事件游标失效返回 410 EVENT_CURSOR_EXPIRED，包含 earliestAvailableCursor 和 requiresSnapshot=true。未来物理事件 GC 必须保留对应范围的过期边界。数据白名单输出不包含正文、凭证、IP或内部路径；traceId 当前保守为 null。新调用事件持久化 toolName，旧缺失值不伪造；Outbox 过滤不从过期明细重建证据。
-
-### Pipeline 与缓存指标
-
-OBS-API-26 不接受 query，需 monitoring:read 与显式全局范围，无需 manage；资产局部范围返回 403 且不读全局数据。ingest 来自扫描证据，aggregation 来自未过期桶队列，dispatch 来自持久检查点与待扫描事件；无证据 unknown，积压 backlog，不把检查点年龄当 lag、最大桶水位当完整覆盖或入队当网络成功。
-
-统计新增 cacheEligibleRecords/cacheObservedRecords/cacheUnknownRecords/cacheHits/cacheMisses/cacheHitRate/cacheCoveragePartial。仅 Gateway 入口参与，true/false/缺失分开，rate=hits/(hits+misses)，无分母 null；缺失标记进入持久贡献。现有 HTTP 统计仍为保留明细快照，5000 上限和 bucketVersion=null 不变。
-
-B02/B03 内部持久重算不是长期 HTTP 查询已切换；Outbox/后台调度不是 Webhook 已发送。API 29 脚本联合 507/507 PASS，详细运行配置与剩余边界见 ../guides/runtime-observability-integration.md。
-## 30. MCP 真实发送确认与已知恢复限制（2026-09-11）
-
-STDIO 的成功基于本地 stdout 写回调；SSE 基于对应 SDK 帧写回调；Streamable 基于对应 Node HTTP 响应 finish。它们都不是对端业务处理 ACK。发送错误与中断保留 incomplete，发送前断开按取消处理，迟到结果不改写为成功。
-
-四脚本联合 53/53 与真实安全/多会话烟测通过；其中保留原生 SDK A/B 复现。Windows Node v24.15.0、16 MiB、cork→uncork 的恢复组合在原生 SDK 和审计版本均可发生 3 秒未完成，不能声称完整背压矩阵通过。TP-06 保持 IN_PROGRESS。
+缓存七字段进入统计和 DTO；旧持久桶缺少完整缓存证据时回退远端原有明细路径。隔离联合548/548通过不代表真实部署、全平台容量或所有历史覆盖已验收。

@@ -47,7 +47,7 @@ test('absent evidence is unknown; reads create no pipeline rows', async t => {
   assert.equal(result.data.ingest.freshnessStatus, 'unknown');
   for (const stage of ['ingest', 'aggregation', 'dispatch']) {
     for (const field of ['lagMs', 'pendingCount', 'failedRecords', 'droppedRecords', 'unknownLoss', 'diskUsage', 'effectiveQuota', 'gapRanges']) {
-      assert.equal(result.data[stage][field], stage === 'aggregation' && field === 'pendingCount' ? 0 : null);
+      assert.equal(result.data[stage][field], ['aggregation', 'dispatch'].includes(stage) && field === 'pendingCount' ? 0 : null);
     }
   }
   assert.equal(result.data.aggregation.state, 'unknown');
@@ -187,9 +187,9 @@ test('HTTP pipeline authorization, cache policy and Swagger use the real Nest ro
     assert.equal(success.body.data.aggregation.state, 'unknown');
     assert.equal(success.body.data.dispatch.state, 'unknown');
     assert.equal(success.body.data.aggregation.pendingCount, 0);
-    assert.equal(success.body.data.aggregation.evidenceSource, 'unexpired_bucket_queue_snapshot');
-    assert.equal(success.body.data.dispatch.pendingCount, null);
-    assert.equal(success.body.data.dispatch.evidenceSource, 'events_dispatch_checkpoint');
+    assert.equal(success.body.data.aggregation.evidenceSource, 'store_metrics_recompute_markers');
+    assert.equal(success.body.data.dispatch.pendingCount, 0);
+    assert.equal(success.body.data.dispatch.evidenceSource, 'outbox_materializer_state_and_pending_events');
     assert.equal(reads, 1);
     for (const [bearer, expectedStatus, expectedCode] of [
       [token('scoped', { permissions: ['monitoring:read', 'monitoring:manage'], runtimeAssetIds: null }), 403, 'FORBIDDEN'],
@@ -238,106 +238,108 @@ test('HTTP pipeline authorization, cache policy and Swagger use the real Nest ro
 });
 
 
-test('aggregation counts durable queue transitions, excludes expired buckets and never claims coverage', async t => {
-  const f = await fixture(t);
-  const { CallObservabilityBucketRecomputeQueue } = require(base + 'call-observability-bucket-recompute.queue.ts');
-  const queue = new CallObservabilityBucketRecomputeQueue();
-  const future = new Date(Date.now() + 600000).toISOString();
-  const key = { bucketId: 'pipeline-test-bucket', scope: 'external',
-    bucketStart: '2026-01-01T00:00:00.000Z', bucketEnd: '2026-01-01T00:01:00.000Z' };
-  await f.store.transaction(tx => queue.invalidate(tx, key, '00000000000000000001', future));
-  let view = (await f.service.get({}, globalScope)).data.aggregation;
-  assert.equal(view.state, 'backlog');
-  assert.equal(view.pendingCount, 1);
-  assert.equal(view.pendingBuckets, 1);
-  assert.equal(view.leasedBuckets, 0);
-  assert.equal(view.oldestPendingAt, null, 'bucketStart is not enqueue time');
-  const [claim] = await f.store.transaction(tx => queue.claim(tx));
-  view = (await f.service.get({}, globalScope)).data.aggregation;
-  assert.equal(view.state, 'backlog', 'a lease is not proof of a running worker');
-  assert.equal(view.pendingBuckets, 0);
-  assert.equal(view.leasedBuckets, 1);
-  assert.equal(view.pendingCount, 1);
-  await f.store.transaction(tx => queue.fail(tx, claim, 0));
-  view = (await f.service.get({}, globalScope)).data.aggregation;
-  assert.equal(view.retryBuckets, 1);
-  assert.equal(view.failedRecords, null);
-  const [retry] = await f.store.transaction(tx => queue.claim(tx));
-  await f.store.transaction(tx => queue.complete(tx, retry, { computationComplete: true }));
-  view = (await f.service.get({}, globalScope)).data.aggregation;
-  assert.equal(view.pendingCount, 0);
-  assert.equal(view.state, 'unknown');
-  assert.equal(view.dataWatermark, null, 'completed bucket watermark is not global coverage');
-  const repository = f.database.getRepository(RuntimeMetricBucketEntity);
-  const completed = await repository.findOneByOrFail({ id: key.bucketId });
-  await repository.save([
-    { ...completed, id: 'expired-work', recomputeState: 'pending', expiresAt: '2000-01-01T00:00:00.000Z' },
-    { ...completed, id: 'expired-lease', recomputeState: 'leased', leaseUntil: '2000-01-01T00:00:00.000Z', leaseToken: 'secret-token' },
-  ]);
-  view = (await f.service.get({}, globalScope)).data.aggregation;
-  assert.equal(view.pendingCount, 1);
-  assert.equal(view.expiredLeaseBuckets, 1);
-  assert.equal(view.pendingBuckets, 0);
-  assert.equal(view.evidenceSource, 'unexpired_bucket_queue_snapshot');
-  assert.equal(JSON.stringify(view).includes('secret-token'), false);
-});
 
-test('dispatch checkpoint counts actual retained scan rows; real dispatcher progress is not delivery health', async t => {
+test('remote metric and caller JSON pending markers match Store selection including expired rows', async t => {
   const f = await fixture(t);
-  const { EVENTS_DISPATCH_CHECKPOINT, CallObservabilityEventsDispatcher } = require(base + 'call-observability-events.dispatcher.ts');
+  const { RuntimeCallerBucketEntity } = require('../src/database/entities/runtime-call-observability.entity.ts');
+  const future = new Date(Date.now() + 600000).toISOString();
+  const metric = f.database.getRepository(RuntimeMetricBucketEntity);
+  const callers = f.database.getRepository(RuntimeCallerBucketEntity);
+  await metric.save([
+    { id: 'pending-metric', scope: 'business', bucketStart: '2026-09-14T00:00:00.000Z',
+      bucketEnd: '2026-09-14T00:01:00.000Z', dimensions: {}, metrics: { recompute: { state: 'pending' } },
+      version: 0, dataWatermark: '0', expiresAt: future },
+    { id: 'expired-pending-metric', scope: 'business', bucketStart: '2026-09-14T00:00:00.000Z',
+      bucketEnd: '2026-09-14T00:01:00.000Z', dimensions: {}, metrics: { recompute: { state: 'pending' } },
+      version: 0, dataWatermark: '0', expiresAt: '2000-01-01T00:00:00.000Z' },
+    { id: 'finished-metric', scope: 'business', bucketStart: '2026-09-14T00:00:00.000Z',
+      bucketEnd: '2026-09-14T00:01:00.000Z', dimensions: {}, metrics: { metrics: {} },
+      version: 1, dataWatermark: '0', expiresAt: future },
+  ]);
+  await callers.save({ id: 'pending-caller', callerId: 'private-caller', runtimeAssetId: 'private-asset',
+    bucketStart: '2026-09-14T00:00:00.000Z', metrics: { recompute: { state: 'pending' } }, version: 0, expiresAt: future });
+  let view = (await f.service.get({}, globalScope)).data.aggregation;
+  assert.equal(view.pendingCount, 3); assert.equal(view.pendingBuckets, 2); assert.equal(view.pendingCallerBuckets, 1);
+  assert.equal(view.evidenceSource, 'store_metrics_recompute_markers');
+  assert.equal(view.pendingCountScope, 'all_persisted_metric_and_caller_pending_markers_including_expired');
+  assert.equal(view.state, 'backlog'); assert.equal(view.dataWatermark, null);
+  assert.equal('leasedBuckets' in view, false); assert.equal('retryBuckets' in view, false);
+  const recomputed = await f.store.recomputePendingBuckets();
+  assert.equal(recomputed.failed, 3, 'real Store selects these markers; malformed projection data remains pending');
+  view = (await f.service.get({}, globalScope)).data.aggregation;
+  assert.equal(view.pendingCount, 3); assert.equal(view.failedRecords, null);
+  assert.equal(JSON.stringify(view).includes('private'), false);
+  await f.save(report({ recomputedBuckets: 4, recomputeFailures: 3 }));
+  view = (await f.service.get({}, globalScope)).data.aggregation;
+  assert.equal(view.lastRunRecomputedBuckets, 4); assert.equal(view.lastRunRecomputeFailures, 3);
+});
+test('real outbox materializer state and dispatch-eligible rows replace scan checkpoint assumptions', async t => {
+  const f = await fixture(t);
+  const { CallObservabilityOutboxService, OUTBOX_WORKER_STATE_ID } = require(base + 'call-observability-outbox.service.ts');
   await f.store.transaction(async tx => {
-    for (const dispatchState of ['pending', 'suppressed', 'pending']) {
+    const specs = [
+      { dispatchState: 'pending' }, { dispatchState: 'leased', dispatchLeaseUntil: new Date(Date.now() - 10000) },
+      { dispatchState: 'suppressed' }, { dispatchState: 'materialized' },
+      { dispatchState: 'pending', expiresAt: new Date('2000-01-01T00:00:00Z') },
+      { dispatchState: 'pending', expiresAt: null }, { dispatchState: 'pending', schemaVersion: 'legacy' },
+    ];
+    for (const spec of specs) {
       await tx.manager.getRepository(RuntimeObservabilityEventEntity).save({
-        eventFamily: 'runtime.request', eventName: 'invocation.completed', occurredAt: new Date(tx.now),
-        sequence: tx.nextSequence(), dispatchState, expiresAt: dispatchState === 'suppressed'
-          ? new Date('2000-01-01T00:00:00.000Z') : null,
+        id: require('node:crypto').randomUUID(), schemaVersion: '1.0', sequence: tx.nextSequence(),
+        eventName: 'invocation.completed', eventFamily: 'runtime.request', severity: 'info', status: 'success',
+        actorType: 'runtime', retentionClass: 'standard', runtimeAssetId: 'a', occurredAt: new Date(tx.now),
+        expiresAt: new Date(Date.now() + 600000), ...spec,
       });
     }
   });
   let view = (await f.service.get({}, globalScope)).data.dispatch;
-  assert.equal(view.pendingCount, null, 'absent checkpoint is not an observed zero checkpoint');
-  assert.equal(view.state, 'unknown');
-  await f.repository.save({ id: EVENTS_DISPATCH_CHECKPOINT, value: { sequence: '00000000000000000000', secretRef: 'private-secret' },
-    updatedAt: new Date(Date.now() - 60000).toISOString() });
-  view = (await f.service.get({}, globalScope)).data.dispatch;
-  assert.equal(view.dataWatermark, '0');
-  assert.equal(view.pendingCount, 3, 'suppressed and expired records still need scanning');
-  assert.equal(view.state, 'backlog');
-  assert.equal(view.freshnessStatus, 'stale');
-  assert.ok(view.observationAgeMs >= 60000);
-  assert.equal(view.lagMs, null);
-  assert.equal(JSON.stringify(view).includes('private-secret'), false);
-  const dispatcher = new CallObservabilityEventsDispatcher(f.store);
-  await dispatcher.dispatchBatch(1);
-  view = (await f.service.get({}, globalScope)).data.dispatch;
-  assert.equal(view.dataWatermark, '1');
   assert.equal(view.pendingCount, 2);
-  assert.equal(view.freshnessStatus, 'recent');
-  await dispatcher.dispatchBatch();
+  assert.equal(view.dataWatermark, null, 'absent outbox run is not a fabricated zero watermark');
+  assert.equal(view.state, 'backlog');
+  const worker = new CallObservabilityOutboxService(f.store, new ConfigService());
+  t.after(() => worker.onModuleDestroy());
+  await worker.runOnce();
+  const state = await f.repository.findOneByOrFail({ id: OUTBOX_WORKER_STATE_ID });
   view = (await f.service.get({}, globalScope)).data.dispatch;
-  assert.equal(view.dataWatermark, '3');
-  assert.equal(view.pendingCount, 0);
-  assert.equal(view.state, 'unknown', 'caught-up scan does not prove live scheduler or delivery success');
-  assert.equal(view.dataWatermarkScope, 'event_scan_checkpoint_not_delivery_acknowledgement');
-  assert.equal(view.failedRecords, null);
+  assert.equal(view.pendingCount, 0); assert.equal(view.state, 'unknown');
+  assert.equal(view.dataWatermark, state.value.watermark);
+  assert.equal(view.dataWatermarkScope, 'outbox_materialization_not_webhook_acknowledgement');
+  assert.equal(view.freshnessStatus, 'recent');
+  assert.equal(view.webhook.state, 'unknown');
+  assert.equal(view.webhook.succeeded, null);
 });
-
-test('invalid or ahead dispatch checkpoints cannot fabricate progress or freshness', async t => {
+test('real empty webhook worker run reports last-run evidence, not delivery acknowledgements or current health', async t => {
   const f = await fixture(t);
-  const { EVENTS_DISPATCH_CHECKPOINT } = require(base + 'call-observability-events.dispatcher.ts');
-  for (const sequence of ['1', '-1', 'malformed', 0, '18446744073709551616']) {
-    await f.repository.save({ id: EVENTS_DISPATCH_CHECKPOINT, value: { sequence }, updatedAt: new Date().toISOString() });
+  const { CallObservabilityDeliveryWorker, WEBHOOK_WORKER_ID } = require(base + 'call-observability-delivery.worker.ts');
+  const worker = new CallObservabilityDeliveryWorker(f.store, new ConfigService(), {});
+  t.after(() => worker.onModuleDestroy());
+  const actual = await worker.runOnce();
+  const persisted = await f.repository.findOneByOrFail({ id: WEBHOOK_WORKER_ID });
+  const before = await f.repository.find();
+  let view = (await f.service.get({}, globalScope)).data.dispatch.webhook;
+  assert.equal(view.state, actual.state); assert.equal(view.claimed, 0);
+  assert.equal(view.succeeded, 0); assert.equal(view.snapshotSeq, actual.snapshotSeq);
+  assert.equal(view.lastAttemptAt, persisted.value.lastAttemptAt);
+  assert.equal(view.workerConfigured, true); assert.equal(view.freshnessStatus, 'recent');
+  assert.deepEqual(await f.repository.find(), before);
+  await f.repository.save({ ...persisted, updatedAt: new Date(Date.now() - 60000).toISOString(),
+    value: { ...persisted.value, claimed: -1, succeeded: '0', lastAttemptAt: 'bad', snapshotSeq: '999999', secretRef: 'private-secret' } });
+  view = (await f.service.get({}, globalScope)).data.dispatch.webhook;
+  assert.equal(view.freshnessStatus, 'stale'); assert.equal(view.claimed, null); assert.equal(view.succeeded, null);
+  assert.equal(view.lastAttemptAt, null); assert.equal(view.snapshotSeq, null);
+  assert.equal(JSON.stringify(view).includes('private-secret'), false);
+});
+test('malformed or ahead outbox watermarks do not hide actual pending counts or fabricate progress', async t => {
+  const f = await fixture(t);
+  const { OUTBOX_WORKER_STATE_ID } = require(base + 'call-observability-outbox.service.ts');
+  for (const watermark of ['1', '-1', 'malformed', 0, '18446744073709551616']) {
+    await f.repository.save({ id: OUTBOX_WORKER_STATE_ID, value: { watermark }, updatedAt: new Date().toISOString() });
     const view = (await f.service.get({}, globalScope)).data.dispatch;
-    assert.equal(view.dataWatermark, null);
-    assert.equal(view.pendingCount, null);
-    assert.equal(view.observationAgeMs, null);
-    assert.equal(view.state, 'unknown');
+    assert.equal(view.dataWatermark, null); assert.equal(view.pendingCount, 0);
+    assert.equal(view.state, 'unknown'); assert.equal(view.lagMs, null);
   }
-  await f.repository.save({ id: EVENTS_DISPATCH_CHECKPOINT, value: { sequence: '0' },
+  await f.repository.save({ id: OUTBOX_WORKER_STATE_ID, value: { watermark: '0' },
     updatedAt: new Date(Date.now() + 60000).toISOString() });
   const view = (await f.service.get({}, globalScope)).data.dispatch;
-  assert.equal(view.pendingCount, 0);
-  assert.equal(view.observationAgeMs, null);
-  assert.equal(view.freshnessStatus, 'unknown');
+  assert.equal(view.pendingCount, 0); assert.equal(view.observationAgeMs, null); assert.equal(view.freshnessStatus, 'unknown');
 });
-

@@ -124,3 +124,88 @@ test('legacy cache_hit outcomes remain observed hits through normalization and a
     expectCache(metrics([row]), 1, 0, 0);
   }
 });
+const cacheFields = ['cacheEligibleRecords', 'cacheObservedRecords', 'cacheUnknownRecords',
+  'cacheHits', 'cacheMisses', 'cacheHitRate', 'cacheCoveragePartial'];
+const persistentFilter = { ...window, to: '2026-09-09T00:01:00.000Z', interval: '1m', fill: 'zero', runtimeAssetId: 'cache-asset' };
+const cacheAuthorization = { runtimeAssetIds: ['cache-asset'] };
+function persistentBucket(value = metrics([observation(true), observation(undefined)]), flat = false) {
+  const coverage = { historyCompleteSince: null, isPartial: true, observationHealth: 'unknown' };
+  return { id: 'cache-bucket', scope: 'business', bucketStart: persistentFilter.from, bucketEnd: persistentFilter.to,
+    version: 7, dataWatermark: '42', expiresAt: '2027-01-01T00:00:00.000Z',
+    dimensions: { keySchemaVersion: 1, runtimeAssetId: 'cache-asset', origin: 'external', scope: 'business',
+      interval: '1m', timeBasis: 'startedAt' }, metrics: flat ? { ...value, coverage } : { metrics: value, coverage } };
+}
+function bucketTransaction(buckets) {
+  const query = { where() { return this; }, andWhere() { return this; }, getMany: async () => buckets };
+  return { now: '2026-09-14T00:00:00.000Z', snapshotSeq: '50', manager: { getRepository: () => ({ createQueryBuilder: () => query }) } };
+}
+
+test('new persisted nested and flat payloads preserve cache tri-state and bucket metadata', async () => {
+  const service = new CallObservabilityStatisticsService({});
+  for (const flat of [false, true]) {
+    const bucket = persistentBucket(undefined, flat), before = JSON.stringify(bucket);
+    const result = await service.makeTimeSeriesFromPersistentBuckets(bucketTransaction([bucket]), persistentFilter,
+      service.aggregate([], persistentFilter), cacheAuthorization);
+    assert.equal(result.bucketVersionSemantics, 'persisted');
+    assert.equal(result.items[0].bucketVersion, 7); assert.equal(result.items[0].dataWatermark, '42');
+    expectCache(result.items[0].metrics, 1, 0, 1);
+    assert.equal(JSON.stringify(bucket), before);
+  }
+});
+
+test('every missing cache field on legacy persistent buckets triggers detail fallback, never zero injection', () => {
+  const service = new CallObservabilityStatisticsService({});
+  for (const flat of [false, true]) for (const field of cacheFields) {
+    const value = metrics([observation(true)]); delete value[field];
+    const bucket = persistentBucket(value, flat), before = JSON.stringify(bucket);
+    assert.equal(service.readPersistedBucketPayload(bucket), null, field);
+    assert.equal(JSON.stringify(bucket), before);
+  }
+});
+
+test('invalid persisted cache counters, rate and coverage are rejected while genuine empty metrics work', () => {
+  const service = new CallObservabilityStatisticsService({});
+  for (const fields of [{ cacheHits: null }, { cacheMisses: -1 }, { cacheObservedRecords: '1' },
+    { cacheUnknownRecords: NaN }, { cacheEligibleRecords: 99 }, { cacheHitRate: 0 }, { cacheCoveragePartial: false }]) {
+    assert.equal(service.readPersistedBucketPayload(persistentBucket({ ...metrics([observation(true), observation(undefined)]), ...fields })), null);
+  }
+  expectCache(service.readPersistedBucketPayload(persistentBucket(metrics([]))).metrics, 0, 0, 0);
+  expectCache(service.readPersistedBucketPayload(persistentBucket(metrics([observation(undefined)]))).metrics, 0, 0, 1);
+});
+
+test('remote recompute marker and existing persistent exit conditions remain authoritative', async () => {
+  const service = new CallObservabilityStatisticsService({}), common = service.aggregate([], persistentFilter);
+  const pending = persistentBucket(); pending.metrics.recompute = { state: 'pending', action: 'recompute' };
+  assert.equal(service.readPersistedBucketPayload(pending), null);
+  for (const [buckets, filter, auth] of [
+    [[pending], persistentFilter, cacheAuthorization], [[], persistentFilter, cacheAuthorization],
+    [[persistentBucket(), persistentBucket()], persistentFilter, cacheAuthorization],
+    [[{ ...persistentBucket(), version: 0 }], persistentFilter, cacheAuthorization],
+    [[persistentBucket()], { ...persistentFilter, from: '2026-09-09T00:00:01.000Z' }, cacheAuthorization],
+    [[persistentBucket()], { ...persistentFilter, callerId: 'caller' }, cacheAuthorization],
+    [[persistentBucket()], { ...persistentFilter, runtimeAssetId: undefined }, { runtimeAssetIds: null }],
+    [[persistentBucket()], persistentFilter, { runtimeAssetIds: [] }],
+  ]) assert.equal(await service.makeTimeSeriesFromPersistentBuckets(bucketTransaction(buckets), filter, common, auth), null);
+});
+
+test('public timeSeries falls back to retained evidence for old buckets and uses new buckets directly', async () => {
+  const evidence = observation(undefined, { runtimeAssetId: 'cache-asset' });
+  const detail = { record: evidence.invocation, recordVersion: 1, invocationId: evidence.invocation.invocationId,
+    startedAt: evidence.invocation.startedAt, completedAt: evidence.invocation.completedAt };
+  const { RuntimeMetricBucketEntity } = require('../src/database/entities/runtime-call-observability.entity.ts');
+  for (const legacy of [true, false]) {
+    const bucket = persistentBucket();
+    if (legacy) for (const field of cacheFields) delete bucket.metrics.metrics[field];
+    const queryFor = values => new Proxy({}, { get: (_, name) => name === 'getMany' ? async () => values : () => queryFor(values) });
+    const tx = { now: '2026-09-14T00:00:00.000Z', snapshotSeq: '50', manager: {
+      connection: { options: { type: 'sqljs' } },
+      getRepository: entity => ({ createQueryBuilder: () => queryFor(entity === RuntimeMetricBucketEntity ? [bucket] : [detail]) }),
+    } };
+    const service = new CallObservabilityStatisticsService({ readSnapshot: operation => operation(tx) });
+    const result = await service.timeSeries(persistentFilter, cacheAuthorization);
+    assert.equal(result.data.bucketVersionSemantics, legacy ? 'not_persisted' : 'persisted');
+    expectCache(result.data.items[0].metrics, legacy ? 0 : 1, 0, 1);
+    assert.equal(result.data.items[0].bucketVersion, legacy ? null : 7);
+    assert.equal(result.data.items[0].coverage.isPartial, true);
+  }
+});

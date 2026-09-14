@@ -62,7 +62,7 @@ export const validationSchema = Joi.object({
   METRICS_ENABLED: Joi.boolean().default(true),
   API_NOVA_OBSERVABILITY_AGGREGATION_ENABLED: Joi.string().valid('true', 'false').default('false'),
   API_NOVA_OBSERVABILITY_WEBHOOK_ENABLED: Joi.string().valid('true', 'false').default('false'),
-  API_NOVA_OBSERVABILITY_DISPATCH_ENABLED: Joi.string().valid('true', 'false').default('false'),
+  API_NOVA_OBSERVABILITY_OUTBOX_ENABLED: Joi.string().valid('true', 'false').default('false'),
   API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED: Joi.string().valid('true', 'false').default('false'),
   API_NOVA_OBSERVABILITY_IDEMPOTENCY_SECRET: Joi.string().min(32).optional(),
   API_NOVA_OBSERVABILITY_CURSOR_SECRET: Joi.string().min(32).optional(),

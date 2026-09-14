@@ -38,15 +38,12 @@ const { MAX_METRIC_OBSERVATIONS } = require('../dist/src/modules/call-observabil
 const { CallObservabilityModule } = require('../dist/src/modules/call-observability/call-observability.module.js');
 const { CallObservabilityInvocationsService, INVOCATION_QUERY_KEYS, MAX_TRACE_NODES } = require('../dist/src/modules/call-observability/call-observability-invocations.service.js');
 const { CallObservabilityPayloadsService } = require('../dist/src/modules/call-observability/call-observability-payloads.service.js');
-const { CallObservabilityEventsService, EVENT_QUERY_KEYS } = require('../dist/src/modules/call-observability/call-observability-events.service.js');
-const { CallObservabilityPipelineService } = require('../dist/src/modules/call-observability/call-observability-pipeline.service.js');
-const { CallObservabilityOverviewService } = require('../dist/src/modules/call-observability/call-observability-overview.service.js');
-const { CallObservabilityDependenciesService } = require('../dist/src/modules/call-observability/call-observability-dependencies.service.js');
-const { CallObservabilityServerStatusService } = require('../dist/src/modules/call-observability/call-observability-server-status.service.js');
 const { CallObservabilityCallerLabelsService } = require('../dist/src/modules/call-observability/call-observability-caller-labels.service.js');
+const { CallObservabilitySubscriptionsService } = require('../dist/src/modules/call-observability/call-observability-subscriptions.service.js');
 const { parseObservabilityQuery } = require('../dist/src/modules/call-observability/call-observability-query.js');
 const root = path.resolve(__dirname, '../../../tmp/observability-capabilities-tests');
-const READ = 'monitoring:read', SOURCE = 'monitoring:source:read', PAYLOAD = 'monitoring:payload:read', MANAGE = 'monitoring:manage';
+const READ = 'monitoring:read', SOURCE = 'monitoring:source:read', PAYLOAD = 'monitoring:payload:read',
+  MANAGE = 'monitoring:manage', SUBSCRIBE = 'monitoring:subscription:manage';
 
 function role(names = [READ], assets = ['asset-a']) {
   return Object.assign(new Role(), {
@@ -98,17 +95,19 @@ async function fixture(t, sourceCap = 10000) {
   Module({
     controllers: Reflect.getMetadata('controllers', CallObservabilityModule),
     providers: [
-      { provide: CallObservabilityOverviewService, useValue: {} },
-      { provide: CallObservabilityDependenciesService, useValue: {} },
-      { provide: CallObservabilityServerStatusService, useValue: {} },
-      { provide: CallObservabilityPipelineService, useValue: {} },
-      { provide: CallObservabilityEventsService, useValue: new CallObservabilityEventsService(store, cursors) },
+      { provide: require('../dist/src/modules/call-observability/call-observability-overview.service.js').CallObservabilityOverviewService, useValue: {} },
+      { provide: require('../dist/src/modules/call-observability/call-observability-dependencies.service.js').CallObservabilityDependenciesService, useValue: {} },
+      { provide: require('../dist/src/modules/call-observability/call-observability-server-status.service.js').CallObservabilityServerStatusService, useValue: {} },
+      { provide: require('../dist/src/modules/call-observability/call-observability-pipeline.service.js').CallObservabilityPipelineService, useValue: {} },
+      { provide: require('../dist/src/modules/call-observability/call-observability-events.service.js').CallObservabilityEventsService, useValue: {} },
       { provide: CallObservabilityCapabilitiesService, useValue: new CallObservabilityCapabilitiesService(store) },
       { provide: CallObservabilityStatisticsService, useValue: new CallObservabilityStatisticsService(store) },
       { provide: CallObservabilityInvocationsService, useValue: new CallObservabilityInvocationsService(store, cursors) },
       // These controllers are registered for their actual Swagger contracts, never invoked here.
       { provide: CallObservabilityPayloadsService, useValue: {} },
       { provide: CallObservabilityCallerLabelsService, useValue: {} },
+      { provide: CallObservabilitySubscriptionsService, useValue: {} },
+      { provide: require('../dist/src/modules/call-observability/call-observability-deliveries.service.js').CallObservabilityDeliveriesService, useValue: {} },
       { provide: CallObservabilityVisitorsService, useValue: service },
       { provide: ConfigService, useValue: config }, { provide: JwtService, useValue: jwt },
       { provide: UserService, useValue: resolver }, ObservabilityAccessGuard, ObservabilityApiExceptionFilter,
@@ -173,7 +172,7 @@ const data = result => { assert.equal(result.status, 200, JSON.stringify(result.
 
 const feature = (value, name) => value.features.find(item => item.name === name);
 const endpointIds = value => value.endpoints.map(item => item.endpointId);
-const allPermissions = [READ, PAYLOAD, SOURCE, MANAGE];
+const allPermissions = [READ, PAYLOAD, SOURCE, MANAGE, SUBSCRIBE, 'monitoring:delivery:retry'];
 
 test('empty capabilities are a read-only snapshot, not a healthy zero or an initialized pipeline', async t => {
   const f = await fixture(t), result = await f.request(), value = data(result);
@@ -207,7 +206,7 @@ test('read-only grants advertise fourteen eligible routes and no private payload
   assert.equal(value.resourceScope, 'scoped');
   assert.deepEqual(endpointIds(value), ['OBS-API-01', 'OBS-API-02', 'OBS-API-03', 'OBS-API-04', 'OBS-API-06',
     'OBS-API-07', 'OBS-API-08', 'OBS-API-10', 'OBS-API-11', 'OBS-API-12', 'OBS-API-13', 'OBS-API-14', 'OBS-API-15', 'OBS-API-16']);
-  for (const name of ['payloadRead', 'sourceIpRead', 'callerProfileUpdate']) {
+  for (const name of ['payloadRead', 'sourceIpRead', 'callerProfileUpdate', 'subscriptionManagement']) {
     assert.equal(feature(value, name).state, 'restricted');
     assert.equal(feature(value, name).scopeMode, 'none');
     assert.equal(value.enabledFeatures.includes(name), false);
@@ -217,14 +216,14 @@ test('read-only grants advertise fourteen eligible routes and no private payload
   assert.ok(value.endpoints.every(item => item.requiredPermissions.length === 1 && item.requiredPermissions[0] === READ));
 });
 
-test('explicit all-resource grants expose seventeen implemented endpoints and qualified payload object limits', async t => {
+test('explicit all-resource grants expose twenty-six implemented endpoints and qualified payload object limits', async t => {
   const f = await fixture(t), viewer = f.account([role(allPermissions, null)]);
   const value = data(await f.request('/capabilities', {}, viewer));
-  assert.equal(value.resourceScope, 'all'); assert.equal(value.endpoints.length, 17);
+  assert.equal(value.resourceScope, 'all'); assert.equal(value.endpoints.length, 26);
   assert.equal(value.maxStatisticsQueryInvocations, MAX_METRIC_OBSERVATIONS);
   assert.equal(feature(value, 'statistics').state, 'enabled');
   assert.deepEqual(value.endpoints.find(item => item.endpointId === 'OBS-API-11').queryParameters, [...STATISTICS_SUMMARY_QUERY_KEYS]);
-  for (const name of ['payloadRead', 'sourceIpRead', 'callerProfileUpdate']) {
+  for (const name of ['payloadRead', 'sourceIpRead', 'callerProfileUpdate', 'subscriptionManagement']) {
     assert.equal(feature(value, name).state, 'enabled');
     assert.equal(feature(value, name).scopeMode, 'all');
   }
@@ -279,25 +278,23 @@ test('empty explicit asset scope retains only self discovery, not global data ac
   assert.equal(value.endpoints[0].authorizationRule, 'capability_only');
 });
 
-test('push and policy management remain unavailable even for global grants', async t => {
+test('socket push and policies remain unavailable while local reads and remote webhook are enabled', async t => {
   const f = await fixture(t), viewer = f.account([role(allPermissions, null)]);
   const value = data(await f.request('/capabilities', {}, viewer));
-  for (const name of [
-    'webhook', 'socketPush', 'policyManagement']) {
+  for (const name of ['socketPush', 'policyManagement']) {
     assert.equal(feature(value, name).state, 'not_implemented');
     assert.equal(feature(value, name).scopeMode, null);
     assert.equal(value.enabledFeatures.includes(name), false);
   }
   assert.deepEqual(value.supportedScopes, [...STATISTICS_SCOPES]); assert.deepEqual(value.supportedGroupByCombinations.length, 28);
-  for (const name of ['overview', 'dependencies', 'serverStatus']) {
+  assert.equal(value.maxBuckets, 1440); assert.equal(value.eventRetention, 14 * 86400000);
+  for (const name of ['overview', 'dependencies', 'serverStatus', 'pipelineStatus']) {
     assert.equal(feature(value, name).state, 'enabled');
     assert.equal(feature(value, name).scopeMode, 'all');
   }
   assert.equal(feature(value, 'eventHistory').state, 'enabled');
-  assert.equal(feature(value, 'pipelineStatus').state, 'enabled');
-  assert.equal(feature(value, 'pipelineStatus').scopeMode, 'all');
-  assert.deepEqual(value.endpoints.find(item => item.endpointId === 'OBS-API-16').queryParameters, [...EVENT_QUERY_KEYS]);
-  assert.equal(value.maxBuckets, 1440); assert.equal(value.eventRetention, null);
+  assert.equal(feature(value, 'subscriptionManagement').state, 'enabled');
+  assert.equal(feature(value, 'webhook').state, 'enabled');
   assert.equal(value.retentionWindows.aggregateRetentionMs, null);
 });
 
@@ -347,9 +344,9 @@ test('capability inventory and explicit DTOs match all actual module Swagger ope
   const value = data(await f.request('/capabilities', {}, viewer));
   const swagger = SwaggerModule.createDocument(f.app, new DocumentBuilder().setTitle('Capabilities').setVersion('1').build());
   const operations = Object.entries(swagger.paths).flatMap(([route, item]) =>
-    Object.entries(item).filter(([method]) => ['get', 'patch'].includes(method)).map(([method, operation]) =>
+    Object.entries(item).filter(([method]) => ['get', 'post', 'patch', 'delete'].includes(method)).map(([method, operation]) =>
       ({ route, method, operation })));
-  assert.equal(operations.length, 17); assert.equal(value.endpoints.length, operations.length);
+  assert.equal(operations.length, 26); assert.equal(value.endpoints.length, operations.length);
   for (const endpoint of value.endpoints) {
     const actual = operations.find(item => item.route === endpoint.path && item.method === endpoint.method.toLowerCase());
     assert.ok(actual, endpoint.endpointId);
@@ -404,19 +401,22 @@ test('current optional grants are refreshed with the same JWT while coverage and
   assert.equal((await f.request('/capabilities', {}, token)).status, 403);
 });
 
-test('pipeline discovery requires explicit global read scope without manage permission', async t => {
-  const f = await fixture(t);
-  const globalReader = f.account([role([READ], null)]);
-  const globalValue = data(await f.request('/capabilities', {}, globalReader));
-  assert.equal(feature(globalValue, 'pipelineStatus').state, 'enabled');
-  assert.equal(feature(globalValue, 'pipelineStatus').scopeMode, 'all');
-  assert.ok(globalValue.enabledFeatures.includes('pipelineStatus'));
-  const pipeline = globalValue.endpoints.find(item => item.path.endsWith('/pipeline/status'));
-  assert.ok(pipeline);
+test('global read adds only pipeline beyond scoped read and preserves remote subscription/retry permissions', async t => {
+  const f = await fixture(t), global = data(await f.request('/capabilities', {}, f.account([role([READ], null)])));
+  assert.equal(global.endpoints.length, 15);
+  const pipeline = global.endpoints.find(item => item.endpointId === 'OBS-API-26');
+  assert.ok(pipeline); assert.equal(pipeline.authorizationRule, 'explicit_global_scope');
   assert.deepEqual(pipeline.requiredPermissions, [READ]);
-  const scopedValue = data(await f.request('/capabilities', {}, f.account([role([READ], ['asset-a'])])));
-  assert.equal(scopedValue.endpoints.length, 14);
-  assert.equal(feature(scopedValue, 'pipelineStatus').state, 'restricted');
-  assert.equal(scopedValue.enabledFeatures.includes('pipelineStatus'), false);
-  assert.equal(scopedValue.endpoints.some(item => item.path.endsWith('/pipeline/status')), false);
+  assert.equal(feature(global, 'pipelineStatus').state, 'enabled');
+  const scoped = data(await f.request());
+  assert.equal(scoped.endpoints.length, 14); assert.equal(feature(scoped, 'pipelineStatus').state, 'restricted');
+  assert.equal(scoped.endpoints.some(item => item.endpointId === 'OBS-API-26'), false);
+  assert.deepEqual(endpointIds(global), [...endpointIds(global)].sort());
+  const subscribed = data(await f.request('/capabilities', {}, f.account([role([READ, SUBSCRIBE], null)])));
+  assert.equal(subscribed.endpoints.length, 23);
+  assert.equal(subscribed.endpoints.some(item => item.endpointId === 'OBS-API-25'), false);
+  const full = data(await f.request('/capabilities', {}, f.account([role(allPermissions, null)])));
+  assert.deepEqual(endpointIds(full), Array.from({ length: 26 }, (_, i) => 'OBS-API-' + String(i + 1).padStart(2, '0')));
+  assert.deepEqual(full.endpoints.find(item => item.endpointId === 'OBS-API-25').requiredPermissions.slice().sort(),
+    [READ, SUBSCRIBE, 'monitoring:delivery:retry'].sort());
 });

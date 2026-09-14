@@ -1,6 +1,6 @@
 import { OBSERVABILITY_OVERVIEW_QUERY_KEYS } from './call-observability-overview-query';
-import { EVENT_QUERY_KEYS } from './call-observability-events.service';
 import { Injectable } from '@nestjs/common';
+import { EVENT_QUERY_KEYS } from './call-observability-events.service';
 import { STATISTICS_SCOPES, STATISTICS_SUMMARY_QUERY_KEYS, STATISTICS_TIME_SERIES_QUERY_KEYS,
   STATISTICS_GROUPS_QUERY_KEYS, STATISTICS_GROUP_COMBINATIONS, MAX_STATISTICS_BUCKETS,
   MAX_STATISTICS_GROUP_LIMIT } from './call-observability-statistics.service';
@@ -36,6 +36,12 @@ export class CallObservabilityCapabilitiesService {
     };
     const payload = optional('monitoring:payload:read'), source = optional('monitoring:source:read');
     const manage = optional('monitoring:manage');
+    const subscription = optional('monitoring:subscription:manage');
+    let retry: ObservabilityAuthorization | undefined;
+    try { retry = authorizeObservability(user, ['monitoring:subscription:manage', 'monitoring:delivery:retry']); }
+    catch (error) {
+      if (!(error instanceof ObservabilityApiError) || error.code !== 'FORBIDDEN') throw error;
+    }
     const featureInputs: Array<{ name: string; implemented: boolean; grant?: ObservabilityAuthorization }> = [
       { name: 'capabilities', implemented: true, grant: read },
       { name: 'invocationQueries', implemented: true, grant: read },
@@ -49,12 +55,13 @@ export class CallObservabilityCapabilitiesService {
       { name: 'statisticsTimeSeries', implemented: true, grant: read },
       { name: 'statisticsGroups', implemented: true, grant: read },
       { name: 'eventHistory', implemented: true, grant: read },
-      { name: 'pipelineStatus', implemented: true, grant: read.runtimeAssetIds === null ? read : undefined },
+      { name: 'subscriptionManagement', implemented: true, grant: subscription },
+      { name: 'webhook', implemented: true, grant: subscription },
       { name: 'overview', implemented: true, grant: read },
       { name: 'dependencies', implemented: true, grant: read },
       { name: 'serverStatus', implemented: true, grant: read },
-      ...['webhook',
-        'socketPush', 'policyManagement'].map(name => ({ name, implemented: false })),
+      { name: 'pipelineStatus', implemented: true, grant: read.runtimeAssetIds === null ? read : undefined },
+      ...['socketPush', 'policyManagement'].map(name => ({ name, implemented: false })),
     ];
     const features = featureInputs.map(feature => ({
       name: feature.name, state: !feature.implemented ? 'not_implemented'
@@ -83,10 +90,21 @@ export class CallObservabilityCapabilitiesService {
     endpoint('OBS-API-12', 'obsGetStatisticsTimeSeries', 'GET', '/statistics/time-series', STATISTICS_TIME_SERIES_QUERY_KEYS, read);
     endpoint('OBS-API-13', 'obsGetStatisticsGroups', 'GET', '/statistics/groups', STATISTICS_GROUPS_QUERY_KEYS, read);
     endpoint('OBS-API-16', 'obsListEvents', 'GET', '/events', EVENT_QUERY_KEYS, read);
-    endpoint('OBS-API-26', 'obsGetPipelineStatus', 'GET', '/pipeline/status', [], read.runtimeAssetIds === null ? read : undefined, 'global_scope');
+    endpoint('OBS-API-17', 'obsCreateSubscription', 'POST', '/subscriptions', [], subscription);
+    endpoint('OBS-API-18', 'obsListSubscriptions', 'GET', '/subscriptions', ['state', 'cursor', 'limit'], subscription);
+    endpoint('OBS-API-19', 'obsGetSubscription', 'GET', '/subscriptions/{id}', [], subscription);
+    endpoint('OBS-API-20', 'obsUpdateSubscription', 'PATCH', '/subscriptions/{id}', [], subscription);
+    endpoint('OBS-API-21', 'obsDeleteSubscription', 'DELETE', '/subscriptions/{id}', [], subscription);
+    endpoint('OBS-API-22', 'obsTestSubscription', 'POST', '/subscriptions/{id}/test', [], subscription);
+    endpoint('OBS-API-23', 'obsListDeliveries', 'GET', '/deliveries',
+      ['subscriptionId', 'eventId', 'status', 'from', 'to', 'cursor', 'limit'], subscription);
+    endpoint('OBS-API-24', 'obsGetDelivery', 'GET', '/deliveries/{id}', ['attemptsCursor', 'attemptsLimit'], subscription);
+    endpoint('OBS-API-25', 'obsRetryDelivery', 'POST', '/deliveries/{id}/retry', [], retry);
     endpoint('OBS-API-02', 'obsGetOverview', 'GET', '/overview', OBSERVABILITY_OVERVIEW_QUERY_KEYS, read);
     endpoint('OBS-API-14', 'obsGetDependencies', 'GET', '/dependencies', OBSERVABILITY_OVERVIEW_QUERY_KEYS, read);
     endpoint('OBS-API-15', 'obsGetServerStatuses', 'GET', '/servers/status', OBSERVABILITY_OVERVIEW_QUERY_KEYS, read);
+    endpoint('OBS-API-26', 'obsGetPipelineStatus', 'GET', '/pipeline/status', [],
+      read.runtimeAssetIds === null ? read : undefined, 'explicit_global_scope');
     endpoints.sort((left, right) => left.endpointId.localeCompare(right.endpointId));
     const day = 86400000;
     const data: ObservabilityCapabilitiesDto = {
@@ -107,7 +125,7 @@ export class CallObservabilityCapabilitiesService {
         aggregateRetentionMs: null, effectiveHistoryCompleteSince: null },
       payloadLimits: hasScope(payload) ? { readObjectMaxBytes: 128 * 1024 * 1024, effectiveCaptureBytes: null,
         capturePolicyState: 'not_reported_by_producers', readLimitScope: 'single_stored_object_not_total_http_memory' } : null,
-      eventRetention: null, observationHealth: 'unknown',
+      eventRetention: hasScope(read) ? 14 * day : null, observationHealth: 'unknown',
     };
     // A genuine read snapshot, not a health check, source scan, or policy mutation.
     return this.store.readSnapshot(async tx => observabilitySuccess(data, { snapshotSeq: tx.snapshotSeq,

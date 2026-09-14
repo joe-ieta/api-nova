@@ -1,4 +1,3 @@
-import { CallObservabilityBucketsProjector } from './call-observability-buckets.projector';
 import { Injectable, OnApplicationBootstrap, OnModuleDestroy, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { promises as fs } from 'fs';
@@ -9,8 +8,8 @@ import {
 } from '../../database/entities/runtime-call-observability.entity';
 import { CallObservabilityCollector, CollectorLimits, isCallSourceFile } from './call-observability.collector';
 import { CallObservabilityCallersProjector } from './call-observability-callers.projector';
-import { CallObservabilityStore, ProjectionHook } from './call-observability.store';
-import { ObservabilityStorageError } from './call-observability-storage';
+import { CallObservabilityStore } from './call-observability.store';
+import { ObservabilityStorageError, publicSequence } from './call-observability-storage';
 
 import { CallObservabilitySourceLifecycle, SOURCE_EXIT_PREFIX } from './call-observability-source-lifecycle.service';
 
@@ -30,6 +29,8 @@ export interface WorkerReport {
   quarantinedRecords: number;
   bytesRead: number;
   reconciledInvocations: number;
+  recomputedBuckets: number;
+  recomputeFailures: number;
   snapshotSeq: string;
   scan: ScanCycle;
 }
@@ -51,13 +52,8 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
     private readonly store: CallObservabilityStore,
     private readonly config: ConfigService,
     @Optional() private readonly sourceLifecycle?: CallObservabilitySourceLifecycle,
-    @Optional() private readonly buckets?: CallObservabilityBucketsProjector,
   ) {}
 
-  private readonly project: ProjectionHook = async (tx, before, after) => {
-    await this.callers.project(tx, before, after);
-    await this.buckets?.project(tx, before, after);
-  };
   onApplicationBootstrap(): void {
     // Root-module activation is an integration/deployment decision, not a side effect of import.
     if (this.config.get('API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED') !== 'true') return;
@@ -110,6 +106,7 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
     };
     const report: WorkerReport = { state: 'running', scanComplete: false,
       processedRecords: 0, quarantinedRecords: 0, bytesRead: 0, reconciledInvocations: 0,
+      recomputedBuckets: 0, recomputeFailures: 0,
       snapshotSeq: await this.store.watermark(), scan: this.cycle };
     try {
       if (!this.directory) {
@@ -147,7 +144,7 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
             maxReadBytes: maxReadBytes - report.bytesRead,
             maxRecords: Math.min(16, maxRecords - report.processedRecords),
             maxLineBytes: options.maxLineBytes,
-          }, this.project);
+          }, this.callers.project);
           report.bytesRead += result.bytesRead;
           report.processedRecords += result.processedRecords;
           report.quarantinedRecords += result.quarantinedRecords;
@@ -173,10 +170,13 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
         if (!report.scan.partialBytes && !report.scan.backlogFiles && !report.scan.quarantinedRecords &&
           Object.keys(report.scan.errors).length === 0) {
           report.reconciledInvocations = await this.recover(report.scan.startedAt);
+          const recompute = await this.store.recomputePendingBuckets();
+          report.recomputedBuckets = recompute.recomputed;
+          report.recomputeFailures = recompute.failed;
         }
         this.cycle = undefined;
       }
-      if (report.scan.quarantinedRecords || Object.keys(report.scan.errors).length > 0) report.state = 'degraded';
+      if (report.recomputeFailures || report.scan.quarantinedRecords || Object.keys(report.scan.errors).length > 0) report.state = 'degraded';
       return await this.persist(report);
     } catch (error) {
       report.state = 'degraded';
@@ -209,19 +209,28 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
         reason: sourceExitProofId ? 'process_exit' : 'progress_timeout', sourceExitProofId,
         observedBefore: sourceExitProofId ? snapshot.observedBefore : observedBefore,
         suppressEvent: Date.parse(row.startedAt) < Date.parse(dataset.eventLiveSince),
-      }, this.project);
+      }, this.callers.project);
       recovered += Number(result.status === 'updated');
     }
     return recovered;
   }
 
   private async persist(report: WorkerReport): Promise<WorkerReport> {
-    report.snapshotSeq = await this.store.watermark();
     await this.store.transaction(async tx => {
       const repository = tx.manager.getRepository(RuntimePipelineStateEntity);
       const previous = await repository.findOneBy({ id: COLLECTOR_WORKER_ID });
+      const changed = previous?.value?.state !== report.state;
+      const stateVersion = Number(previous?.value?.stateVersion || 0) + Number(changed);
+      if (!Number.isSafeInteger(stateVersion) || stateVersion > 2147483647) {
+        throw new ObservabilityStorageError('SUBJECT_VERSION_EXHAUSTED');
+      }
+      if (changed) await this.store.projectionEvent(tx, 'pipeline.state_changed', COLLECTOR_WORKER_ID,
+        stateVersion, { state: report.state, previousState: previous?.value?.state || null,
+          evidenceScope: 'collector', serverHealth: 'unknown', coverage: 'unknown',
+          recomputeFailures: report.recomputeFailures }, {});
+      report.snapshotSeq = publicSequence(tx.currentSequence());
       await repository.save(repository.create({ id: COLLECTOR_WORKER_ID, updatedAt: tx.now,
-        value: { ...report, lastAttemptAt: tx.now,
+        value: { ...report, stateVersion, lastAttemptAt: tx.now,
           lastSuccessfulScanAt: report.scanComplete && report.state === 'running' ? tx.now :
             previous?.value?.lastSuccessfulScanAt || null,
           backlogScope: report.scanComplete ? 'completed_directory_scan' : 'partial_directory_scan' },

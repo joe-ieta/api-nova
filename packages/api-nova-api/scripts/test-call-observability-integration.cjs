@@ -20,9 +20,8 @@ const { CallObservabilityModule } = require(base + 'modules/call-observability/c
 const { CallObservabilityWorker } = require(base + 'modules/call-observability/call-observability.worker.js');
 const { CallObservabilityCollector } = require(base + 'modules/call-observability/call-observability.collector.js');
 const { RuntimeMetricBucketEntity, RuntimeMetricContributionEntity } = require(base + 'database/entities/runtime-call-observability.entity.js');
-const { CallObservabilityBucketRecomputeService } = require(base + 'modules/call-observability/call-observability-bucket-recompute.service.js');
-const { CallObservabilityBucketRecomputeWorker } = require(base + 'modules/call-observability/call-observability-bucket-recompute.worker.js');
-const { CallObservabilityEventsDispatcher } = require(base + 'modules/call-observability/call-observability-events.dispatcher.js');
+const { CallObservabilityStore } = require(base + 'modules/call-observability/call-observability.store.js');
+const { CallObservabilityOutboxService } = require(base + 'modules/call-observability/call-observability-outbox.service.js');
 const { SecurityModule } = require(base + 'modules/security/security.module.js');
 const { UserService } = require(base + 'modules/security/services/user.service.js');
 const { AuditService } = require(base + 'modules/security/services/audit.service.js');
@@ -39,6 +38,8 @@ test('root imports real observability module and collection remains opt-in', () 
   const result = validationSchema.validate({});
   assert.equal(result.error, undefined);
   assert.equal(result.value.API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED, 'false');
+  assert.equal(result.value.API_NOVA_OBSERVABILITY_OUTBOX_ENABLED, 'false');
+  assert.equal(result.value.API_NOVA_OBSERVABILITY_WEBHOOK_ENABLED, 'false');
   assert.ok(validationSchema.validate({ API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED: 'true' }).error);
   assert.ok(validationSchema.validate({ API_NOVA_OBSERVABILITY_CURSOR_SECRET: 'short' }).error);
   assert.ok(validationSchema.validate({ API_NOVA_OBSERVABILITY_SOURCES_PER_DAY: 100001 }).error);
@@ -64,7 +65,8 @@ test('real module resolves and serves authenticated HTTP with disabled collector
   });
   const secret = randomUUID() + randomUUID();
   const config = new ConfigService({ JWT_SECRET: secret, API_NOVA_OBSERVABILITY_CURSOR_SECRET: secret,
-    API_NOVA_OBSERVABILITY_SOURCE_ID_SECRET: secret, API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED: 'false' });
+    API_NOVA_OBSERVABILITY_SOURCE_ID_SECRET: secret, API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED: 'false',
+    API_NOVA_OBSERVABILITY_OUTBOX_ENABLED: 'false', API_NOVA_OBSERVABILITY_WEBHOOK_ENABLED: 'false' });
   const user = Object.assign(new User(), { id: randomUUID(), status: UserStatus.ACTIVE, emailVerified: true, lockedUntil: null,
     roles: [Object.assign(new Role(), { name: 'super_admin', type: RoleType.SYSTEM, enabled: true })] });
   const jwt = new JwtService();
@@ -96,6 +98,8 @@ test('real module resolves and serves authenticated HTTP with disabled collector
   const body = await response.json();
   assert.equal(body.status, 'success');
   assert.equal(body.data.observationHealth, 'unknown');
+  assert.equal(body.data.endpoints.length, 26);
+  assert.equal(Reflect.getMetadata('controllers', CallObservabilityModule).length, 13);
   const swagger = SwaggerModule.createDocument(app, new DocumentBuilder().addBearerAuth().build());
   for (const endpoint of body.data.endpoints) {
     assert.equal(swagger.paths[endpoint.path][endpoint.method.toLowerCase()].operationId, endpoint.operationId);
@@ -131,19 +135,23 @@ test('real module resolves and serves authenticated HTTP with disabled collector
   const stats = await statistics.json();
   assert.equal(stats.data.metrics.cacheHits, 1);
   assert.equal(stats.data.metrics.cacheMisses, 0);
-  assert.equal(app.get(CallObservabilityBucketRecomputeWorker).status.enabled, false);
-  const recompute = app.get(CallObservabilityBucketRecomputeService);
-  let completed = 0;
-  for (let tick = 0; tick < 4; tick++) completed += (await recompute.runOnce()).completed;
-  assert.ok(completed > 0);
+  const store = app.get(CallObservabilityStore);
+  const recompute = await store.recomputePendingBuckets();
+  assert.equal(recompute.failed, 0);
+  assert.ok(collected.recomputedBuckets + recompute.recomputed > 0);
   const storedBucket = await database.getRepository(RuntimeMetricBucketEntity).findOneBy({ scope: 'business' });
-  const completedBucket = await recompute.readCompleted(storedBucket.id);
-  assert.equal(completedBucket.state, 'available');
-  assert.equal(completedBucket.snapshot.metrics.cacheHits, 1);
-  assert.equal(completedBucket.snapshot.coverage.isPartial, true);
-  const dispatched = await app.get(CallObservabilityEventsDispatcher).dispatchBatch();
-  assert.equal(dispatched.scanned, 1);
-  assert.equal(dispatched.created, 0);
+  assert.ok(storedBucket);
+  assert.equal(storedBucket.metrics.recompute, undefined);
+  assert.equal(storedBucket.metrics.metrics.cacheHits, 1);
+  assert.equal(storedBucket.metrics.coverage.isPartial, true);
+  assert.deepEqual(await store.recomputePendingBuckets(), { recomputed: 0, failed: 0 });
+  const pendingEvents = await database.getRepository(RuntimeObservabilityEventEntity).countBy({ dispatchState: 'pending' });
+  assert.ok(pendingEvents > 0);
+  const dispatched = await app.get(CallObservabilityOutboxService).runOnce(256);
+  assert.equal(dispatched.claimed, pendingEvents);
+  assert.equal(dispatched.materializedEvents, pendingEvents);
+  assert.equal(dispatched.deliveriesCreated, 0);
+  assert.equal((await app.get(CallObservabilityOutboxService).runOnce(256)).claimed, 0);
   const overview = await fetch(address + '/overview', { headers: { authorization: 'Bearer ' + token } });
   assert.equal(overview.status, 200);
   const view = (await overview.json()).data;
