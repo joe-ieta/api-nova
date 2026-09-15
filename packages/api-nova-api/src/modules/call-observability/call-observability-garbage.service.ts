@@ -7,6 +7,7 @@ import { CallObservabilityPayloadStore, PayloadScanUsage } from './call-observab
 import { DAY_MS, ObservabilityStorageError } from './call-observability-storage';
 
 export const PAYLOAD_GC_STATUS_ID = 'call-observability:payload-gc-status';
+export const PAYLOAD_METADATA_RECONCILIATION_ID = 'call-observability:payload-metadata-reconciliation';
 
 export interface PayloadGarbageReport {
   status: 'completed' | 'busy';
@@ -21,6 +22,7 @@ export interface PayloadGarbageReport {
   hasMore: boolean;
   generation: string | null;
   scanUsage?: PayloadScanUsage;
+  metadataReconciliation?: { checked: number; reconciled: number; retained: number; hasMore: boolean };
 }
 
 /** No timer is started here. The retention scheduler owns periodic execution. */
@@ -53,6 +55,54 @@ export class CallObservabilityGarbageService {
     const lease = acquired.lease;
     const olderThan = Date.now() - graceMs;
     try {
+      const reconciliation = { checked: 0, reconciled: 0, retained: 0, hasMore: false };
+      const batchMetadata = await this.store.transaction(async tx => {
+        await this.store.payloadCoordination.assertGc(tx, lease);
+        const state = await tx.manager.getRepository(RuntimePipelineStateEntity)
+          .findOneBy({ id: PAYLOAD_METADATA_RECONCILIATION_ID });
+        const after = state?.value?.afterId;
+        if (after !== undefined && after !== null && (typeof after !== 'string' || !after.length || after.length > 240)) {
+          throw new ObservabilityStorageError('INVALID_PAYLOAD_METADATA');
+        }
+        const query = tx.manager.getRepository(RuntimePayloadEntity).createQueryBuilder('payload')
+          .select('payload.id', 'id').where('payload.expiresAt <= :now', { now: tx.now })
+          .andWhere('payload.fileKey IS NOT NULL').orderBy('payload.id', 'ASC').take(scanLimit);
+        if (after) query.andWhere('payload.id > :after', { after });
+        return query.getRawMany<{ id: string }>();
+      });
+      for (const candidate of batchMetadata) {
+        const repaired = await this.store.transaction(async tx => {
+          await this.store.payloadCoordination.assertGc(tx, lease);
+          const repository = tx.manager.getRepository(RuntimePayloadEntity);
+          const object = await repository.findOneBy({ id: candidate.id });
+          let changed = false;
+          if (object && typeof object.fileKey === 'string' && /^[a-f0-9]{64}$/.test(object.id) &&
+            object.fileKey === object.id.slice(0, 2) + '/' + object.id + '.body' &&
+            Number.isFinite(Date.parse(object.expiresAt)) && Date.parse(object.expiresAt) <= Date.parse(tx.now) &&
+            await this.payloads.isStoredObjectMissing(object.id, object.fileKey)) {
+            await this.store.payloadCoordination.assertGc(tx, lease);
+            await repository.save(Object.assign(object, {
+              state: 'expired', reason: 'retention_elapsed', fileKey: null,
+              metadata: { ...object.metadata, state: 'expired', reason: 'retention_elapsed', storedBytes: 0 },
+            }));
+            changed = true;
+          }
+          await this.store.payloadCoordination.assertGc(tx, lease);
+          const state = tx.manager.getRepository(RuntimePipelineStateEntity);
+          await state.save(state.create({ id: PAYLOAD_METADATA_RECONCILIATION_ID,
+            value: { afterId: candidate.id }, updatedAt: tx.now }));
+          return changed;
+        });
+        reconciliation.checked++;
+        if (repaired) reconciliation.reconciled++; else reconciliation.retained++;
+      }
+      reconciliation.hasMore = batchMetadata.length === scanLimit;
+      if (!reconciliation.hasMore) await this.store.transaction(async tx => {
+        await this.store.payloadCoordination.assertGc(tx, lease);
+        const state = tx.manager.getRepository(RuntimePipelineStateEntity);
+        await state.save(state.create({ id: PAYLOAD_METADATA_RECONCILIATION_ID, value: { afterId: null }, updatedAt: tx.now }));
+      });
+      report.metadataReconciliation = reconciliation;
       const previous = await this.store.transaction(async tx => {
         await this.store.payloadCoordination.assertGc(tx, lease);
         return tx.manager.getRepository(RuntimePipelineStateEntity).findOne({ where: { id: PAYLOAD_GC_STATUS_ID } });

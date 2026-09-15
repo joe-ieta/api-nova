@@ -1,11 +1,11 @@
 ---
-doc-version: 0.1.0
-doc-status: draft
+doc-version: 0.2.0
+doc-status: reviewed-slice
 doc-updated: 2026-09-15
 ---
 # 托管 MCP 凭据交付设计与验收契约
 
-SEC-E1-01 的产出是可审查的交付设计，不是运行时能力完成，也不表示下述选择已经冻结批准。关联 TP-E1/C4、F3；OAuth2、协议升级和完整 SSRF 不在本切片内。
+SEC-E1-01 为草案交付；SEC-E1-01R 已完成代码链技术审查，首个实施切片按第9节冻结。第2–8节保留总体设计和后续决策背景，第9节优先约束02A；不表示整个方案获产品批准，也不表示运行时能力完成。关联 TP-E1/C4、F3；OAuth2、协议升级和完整 SSRF 不在本切片内。
 
 ## 1. 已核对的实际调用链
 
@@ -145,3 +145,88 @@ Registry 文件只包含引用，不证明整个 OpenAPI 无秘密。新模式�
 决策未冻结前，不标设计为Approved，不把建议默认值当成用户已批准的产品策略。
 
 调度编号细化：原SEC-E1-02现在拆为SEC-E1-02A安全启动通道、02B child可信映射/Resolver、02C重启及legacy边界；SEC-E1-01R负责本草案技术审查后再进入实现。编号与状态以[统一划分](./active-work-package-breakdown.md)为准。
+
+## 9. SEC-E1-01R 技术审查结论与02A冻结（2026-09-15）
+
+状态：**01R技术交付完成，提交父任务复核；02A范围READY、尚未实现。** 本节是现有开发授权内的技术取舍，不要求用户因第8节曾写draft而再次批准普通实现。它不授权生产启用、存量秘密迁移或修改其它任务状态。
+
+### 9.1 可直接执行的技术默认
+
+| 审查点 | 02A冻结选择 | 代码依据与边界 |
+| --- | --- | --- |
+| IPC | 独立`managed/entry.ts`，Node直接spawn，第四stdio为ipc；shell=false | 现有ProcessManager三pipe+Windows shell:true不能满足；不改变普通进程路径 |
+| 来源 | 仅父端自己创建ChildProcess的IPC；一次launchId+version校验 | 不开放HTTP交付口；nonce/hash不是身份认证，不对同OS主体作隔离保证 |
+| 权限 | 新通道是内部服务方法，不新增Controller/DTO，不允许请求指定scriptPath/Registry路径/env | 02A不绕过现有发布/启动权限；产品入口尚不开放，02B父端准备层负责复核资产/固定源授权 |
+| 环境 | 新方法使用完整构造的env，不再展开process.env；缺输入不补父环境 | 旧startProcess保持原逻辑。02A不承载业务认证运行，因此不得把缺失认证解释为anonymous |
+| 系统env | 仅复制存在的PATH/SystemRoot/WINDIR/COMSPEC/TEMP/TMP/TMPDIR/HOME/USERPROFILE/LANG/LC_ALL/TZ；键名按平台处理，值不记日志 | 直接Node执行不依赖shell；禁止默认继承NODE_OPTIONS/NODE_PATH、代理变量、JWT_SECRET、DB_*、API_NOVA_*业务项 |
+| 业务env | 内部调用方可提供按精确名称授权的值映射；键须存在于独立approvedNames集合，拒绝NODE_OPTIONS/NODE_PATH/NODE_CHANNEL_FD等运行时注入项 | approvedNames由受信配置准备层给出，不来自IPC/HTTP/OpenAPI；02A夹具只用SYNTHETIC_*，02B再接入实际Provider与入站认证集合 |
+| 大小/时间 | 父端JSON UTF-8编码后≤8MiB、绑定≤10,000；通道握手30秒；停止等待5秒后强制结束 | 技术有界默认，单调计时；child反序列化后复查大小。IPC接收器不是对恶意同OS进程的内存DoS防线 |
+| 状态 | `handoffAccepted`仅表示通道/包结构接受；**不是READY/RUNNING** | 02B完成绑定/Registry及服务监听后才允许runtimeReady；PID和通道ACK都不能触发现有启动成功事件/健康检查 |
+| 失败 | 静态错误码、超时/断开清理listeners/timers/child；无自动legacy回退 | 错误不包含包体、env、文件路径或原始异常；02A不启动业务监听 |
+| legacy | 原CLI/原startProcess不变，新通道不接受bearer-token/custom-header/mcpConfig.authConfig | 02A不得宣称旧托管argv问题已消除；禁用自动迁移与隐式启用 |
+| 自动重启 | 02A通道失败不复用旧包且不自动重启 | 02C才接入现有restartProcess/process-error-handler；禁止用缓存包临时兼容 |
+
+`API_NOVA_RUNTIME_AUTH_MODE/API_NOVA_RUNTIME_API_KEYS/API_NOVA_RUNTIME_ISSUER/API_NOVA_RUNTIME_JWKS_URI/API_NOVA_RUNTIME_JWKS_JSON/API_NOVA_RUNTIME_REQUIRED_SCOPES/API_NOVA_MCP_RESOURCE/API_NOVA_RUNTIME_RESOURCE/API_NOVA_MCP_TOOL_SCOPES`是已读实际入站配置键，不是02A默认继承白名单。02B必须从受信输入逐项准备并验证，不能仅过滤环境后直接运行现有runtime-auth默认分支。
+
+### 9.2 02A实际文件与内部接口
+
+02A交付一个能启动**真实专用child并完成受信交付/关闭**的内部通道，不将未完成的02B服务器伪装为可用。不是只定义DTO或mock spawn。
+
+新增文件建议：
+
+- API `src/modules/servers/services/managed-mcp-channel.ts`：直接Node spawn、准确env、消息状态机、超时/关闭、一次性内存值；由现有servers代码层内部调用，不新增HTTP入口。
+- API `src/modules/servers/services/managed-mcp-channel.spec.ts`及`scripts/test-managed-mcp-channel.cjs`：纯状态边界与真实child回归。
+- Server `src/managed/entry.ts`、`src/managed/handoff.ts`：独立进程入口、结构/版本校验、握手、父断开停止，尚不注册MCP工具或监听业务端口。
+- Server 导出一个严格wire contract入口供API和Server共用；不能把两个独立消息schema复制维护。构建入口路径固定在产品包内；路径解析覆盖源码夹具和构建产物。
+
+必要局部修改：Server package出口/编译产物定位；API ProcessConfig/ProcessInfo仅在确需使用现有投影时增加**非敏感**通道状态。02A优先独立内存handle，避免把payload塞入现有`config`再到处打补丁。`server-lifecycle.service.ts`生产启动分支在02B前不切换；02A实际集成出口就是内部managed通道调用与真实child，02B必须消费此通道，不再另写spawn。
+
+建议冻结内部函数形状（实现时可调整命名，不改变约束）：
+
+```ts
+startManagedMcpChannel(input: {
+  launchId: string;
+  serverId: string;
+  // child entry为模块内部定位；不允许调用者提供任意scriptPath/args
+  payload: ManagedMcpHandoffV1;
+  approvedEnvironmentNames: readonly string[];
+  environmentValues: Readonly<Record<string, string>>;
+}): Promise<{
+  launchId: string;
+  pid: number;
+  state: 'handoffAccepted';
+  close(): Promise<void>;
+}>;
+```
+
+该handle不挂到HTTP响应、不序列化env/payload、不触发ProcessStatus.RUNNING。通道ACK后由02B运行时启动阶段发送`runtimeReady`。冻结的02A行为是：实际entry接收并验证handoff后发送ACK，然后因02B尚未实现而发送固定`RUNTIME_ACTIVATION_NOT_IMPLEMENTED`并退出；父端记录通道接受与运行时失败两个不同事件，不报启动成功。02B在同一entry中替换该拒绝分支为实际bootstrap。真实child测试必须验证这一完整行为，不能用模拟READY冒充可用服务。连接层单元测试可用包内测试entry验证超时/乱序，但不允许由IPC字段指定模块、script或函数。
+wire消息按方向分离：父→child只有`handoff(version,launchId,payload)`和`stop(launchId)`；child→父只有`handoffAccepted(launchId)`、`runtimeReady(launchId,nonSecretRevisions)`、`failed(launchId,staticCode)`。02A父端不接受未知/重复/错方向READY作为成功；有界关闭不得依赖stdout解析。消息权限由私有通道和状态机共同限制。
+
+### 9.3 02A必选验收与交付证据
+
+以下来自第7节的通道相关子集，均为02A退出条件；运行凭据矩阵保留02B/03，避免循环要求：
+
+1. 真实Node child、shell:false、pipe/IPC组合；child读取自己的argv，验证无合成Secret、JSON包和旧秘密参数。
+2. Parent→child精确环境：允许的合成项可见，父端额外SYNTHETIC_PRIVATE/NODE_OPTIONS/管理秘密项不出现；ProcessManager不再次补回父环境。入站认证缺失时没有业务监听，不产生anonymous服务。
+3. 缺IPC、未知version、错launchId、重复消息、未知字段/超限包固定拒绝；无默认swagger/URL获取。
+4. PID/ACK不等于RUNNING；02B不存在时无runtimeReady成功事件、无健康检查、无业务监听。
+5. 超时、父断开、主动stop、child提前退出都清理进程和句柄；重复close幂等，不用forceExit掩盖泄漏。
+6. wire payload只存在内存；捕获日志/异常/可序列化状态，确认env值/交付包/合成秘密没有进入ProcessInfo或响应。
+7. 原CLI/旧startProcess回归不改变参数语义；显式新通道无legacy回退。
+8. 当前Windows必须真实执行；Linux可用同脚本补证，缺平台如实记为待证据，不宣称跨平台全验收。
+
+可输出02A代码完成及本机通道验收结果；只有02B+02C+03完成才能称托管单跳发送链可用。02A不关闭E1父包，也不关闭CLI秘密全渠道治理。
+
+### 9.4 后续决策与不阻塞02A的边界
+
+现在**没有必须向用户提问才能实施02A的事项**。允许在已有授权下开发隔离通道与拒绝型测试；默认不启用生产和存量迁移，避免因一般技术选择新增审批。
+
+以下在02B/02C接产品入口前处理，不以“全部待决策”阻断02A：
+
+- 固定Registry source注册：技术基线为每runtime单独、运维受保护配置；配置格式可在02B自行设计并验证。若希望允许跨runtime共享/委托源资产，才需要产品权限语义决定。
+- 新/存量托管记录启用：02B仅新增显式模式且默认不自动迁移。是否强制停用既有legacy记录、批量迁移秘密，需要具体产品/运维授权；不能推断用户已要求停机。
+- 生效版本：首版静态交付+受权重启；即时撤销、失联租约和在途请求处置由E1-04，不假设已支持。
+- 入站认证环境：02B按上列实际键形成运行时契约；任何必要值缺失必须fail closed。涉及新的匿名默认或共享凭证策略才升级为产品决策。
+- 无停机切换：未证明旧实例保留能力，不承诺。02C完成失败/重启语义；改变既有停机策略时单独说明实际影响。
+
+01R退出依据：已对照统一拆分§SEC-E1-01R/02A、实际spawn/CLI/ServerOptions/initTools/runtime-auth代码审查，确定安全技术默认、真实child首片与必选验收；未运行代码或测试，未改变统一台账。父任务可据此登记01R完成并排入02A。

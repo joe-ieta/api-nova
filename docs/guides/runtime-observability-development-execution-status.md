@@ -1,5 +1,5 @@
 ---
-doc-version: 2.11.0
+doc-version: 2.12.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -162,3 +162,9 @@ unlink成功但数据库回滚后的过期元数据残留尚未实现独立整�
 ## 16. 按验收子项重排
 
 父包仍DONE10、IN_PROGRESS5、BACKLOG1。已实现页流、TTL/GC和恢复切片转维护；新的主交付为OBS-14-02过期元数据残留整理、OBS-10/13业务状态与快照、OBS-15旧消费者收敛。OBS-16-01本轮完成交接校准（文档2.2.0，AC/脚本入口静态核对）；这不是TP16代码或平台验收完成，不提升其父包BACKLOG。详见[子任务台账](./active-work-package-execution-status.md)。
+
+## 17. 重排首批：OBS-14-02完成（2026-09-15）
+
+删除成功而元数据事务回滚的残留已由collect内持久keyset分页恢复；单轮最多scanLimit，同GC fence，cursor与行修复同事务。仅TTL到期且受控文件确认缺失才更新expired/fileKey；有效对象、当前/历史调用引用不改。状态接口仅公开独立checked/reconciled/retained/hasMore，内部游标不公开，也不混入磁盘扫描容量证据。
+
+API构建通过，五脚本联合67/67通过，包含7项恢复专项及SQL.js数据库连接重建恢复。子项OBS-14-02 DONE，OBS-TP-14父包保持IN_PROGRESS；事件/receipt清理、引用墓碑合同及配额仍按[新划分](./active-work-package-breakdown.md)独立推进。

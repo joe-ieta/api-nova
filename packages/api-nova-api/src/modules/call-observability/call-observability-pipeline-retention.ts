@@ -2,7 +2,16 @@ import { ObservabilityPayloadCapacityDto, payloadCapacityView } from './call-obs
 import { ApiProperty } from '@nestjs/swagger';
 import { RuntimePipelineStateEntity } from '../../database/entities/runtime-call-observability.entity';
 
+export class ObservabilityMetadataReconciliationDto {
+  @ApiProperty({ maximum: 1000 }) checked: number;
+  @ApiProperty({ maximum: 1000 }) reconciled: number;
+  @ApiProperty({ maximum: 1000 }) retained: number;
+  @ApiProperty({ description: 'The metadata page filled its limit; more eligible rows may remain.' }) hasMore: boolean;
+}
 export class ObservabilityRetentionRunDto {
+  @ApiProperty({ type: ObservabilityMetadataReconciliationDto, nullable: true,
+    description: 'Metadata-only repair in this retained report; independent of filesystem scan counters.' })
+  metadataReconciliation: ObservabilityMetadataReconciliationDto | null;
   @ApiProperty({ nullable: true, enum: ['completed', 'busy'] }) status: string | null;
   @ApiProperty({ nullable: true }) scanned: number | null;
   @ApiProperty({ nullable: true }) deleted: number | null;
@@ -40,6 +49,12 @@ const time = (v: unknown, ceiling: number): string | null => {
   const n = Date.parse(v);
   return Number.isFinite(n) && n <= ceiling && new Date(n).toISOString() === v ? v : null;
 };
+const reconciliationView = (value: unknown): ObservabilityMetadataReconciliationDto | null => {
+  const v = record(value);
+  if (!v || count(v.checked) === null || count(v.reconciled) === null || count(v.retained) === null ||
+    Number(v.checked) > 1000 || Number(v.reconciled) + Number(v.retained) !== v.checked || typeof v.hasMore !== 'boolean') return null;
+  return { checked: Number(v.checked), reconciled: Number(v.reconciled), retained: Number(v.retained), hasMore: v.hasMore };
+};
 export function retentionPipelineView(row: RuntimePipelineStateEntity | null, now: number,
   allowedErrors: readonly string[]): ObservabilityPipelineRetentionDto {
   const value = record(row?.value), report = record(value?.lastReport);
@@ -62,6 +77,7 @@ export function retentionPipelineView(row: RuntimePipelineStateEntity | null, no
     lastReportAt: time(value?.lastReportAt, reportTime),
     currentAttemptComplete: typeof value?.currentAttemptComplete === 'boolean' ? value.currentAttemptComplete : null,
     lastReport: report ? {
+      metadataReconciliation: reconciliationView(report.metadataReconciliation),
       status: ['completed', 'busy'].includes(String(report.status)) ? String(report.status) : null,
       scanned: count(report.scanned), deleted: count(report.deleted), missing: count(report.missing),
       changed: count(report.changed), protected: count(report.protected), danglingReferences: count(report.danglingReferences),

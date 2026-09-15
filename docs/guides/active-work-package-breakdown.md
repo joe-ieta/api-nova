@@ -1,5 +1,5 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -158,3 +158,9 @@ SEC父包：A0 DONE；A1/A2/A4/B1/B2/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a各I
 7. 环境任务先做可用性核查；本地准备不等外部环境，Linux/生产签收也不被本地通过伪装完成。任何“受阻”必须写具体缺项。
 8. 每轮结束更新状态表的状态、证据、剩余出口；有代码不等于验收DONE，有子任务DONE不自动提升父包。
 
+
+## 7. 重排后首批实施合同（2026-09-15）
+
+SEC-E1-01R已冻结[受管启动交付设计第9节](./managed-mcp-credential-handoff-plan.md)：02A交付真实Node IPC与严格环境通道，ACK不代表READY；02B接入同一通道，不能另起实现。PROD-01已冻结[MCP发布端点合同](./mcp-publication-endpoint-contract.md)：PROD-02同时覆盖后端配置语义、实际监听和UI预览，包含更新省略字段保留已有值。
+
+OBS-14-02限定为同GC fence下的过期metadata缺文件整理，持久分页和恢复；不扩大为事件/receipt清理或配额。三个首批子任务完成后，后续按02A、PROD-02及OBS-14-01依赖队列推进，具体状态只在执行台账登记。

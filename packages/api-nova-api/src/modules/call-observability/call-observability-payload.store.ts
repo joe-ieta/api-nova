@@ -295,6 +295,25 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
     finally { this.scanActive = undefined; }
   }
 
+  /** Metadata repair uses a single controlled stat, never a directory scan. */
+  async isStoredObjectMissing(id: string, key: string): Promise<boolean> {
+    if (key !== this.key(id)) throw new ObservabilityStorageError('INVALID_PAYLOAD_PATH');
+    // A lost/replaced owner root is not evidence that an individual object expired.
+    await this.assertOwnedRoot();
+    try {
+      const file = await this.objectPath(key, false);
+      const stat = await fs.lstat(file);
+      if (!stat.isFile() || stat.isSymbolicLink()) throw new ObservabilityStorageError('INVALID_PAYLOAD_PATH');
+      return false;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        await this.assertOwnedRoot();
+        return true;
+      }
+      throw error;
+    }
+  }
+
   /** Call only while the database GC fence is held and references have been checked. */
   async deleteGarbage(candidate: PayloadGarbageCandidate, olderThan: number): Promise<'deleted' | 'missing' | 'changed'> {
     try {

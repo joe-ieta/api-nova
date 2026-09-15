@@ -1,5 +1,5 @@
 ---
-doc-version: 1.20.0
+doc-version: 1.21.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -605,3 +605,7 @@ deploy事务不再保存装配阶段捕获的旧资产，而是重读当前资�
 ## 30. 任务包完成度审核与重拆
 
 原39专项统计没有新增父包DONE，但该数字不代表全项目完成率。已确认包过大与最近调度偏移并存：连续推进管理装配/GC相邻修复，未先冻结子项出口；父表和交接摘要也滞后。现把已验收切片转回归维护，并以独立子任务状态调度，详见[审核报告](../audits/2026-09-15-work-package-replan.md)。SEC-E1-01仅完成技术草案交付，尚未完成受管启动代码；下一队列E1-01R、OBS-14-02、PROD-01。
+
+## 重排首批技术审查（2026-09-15）
+
+SEC-E1-01R DONE：受管启动方案0.2.0第9节冻结02A真实Node IPC、精确环境、ACK不等于READY、失败关闭和legacy边界，列出本机真实child必选验收。仅完成DOC技术审查；SEC-E1-02A已READY但未实现，E1父包仍IN_PROGRESS。普通技术实施无新增待用户批准事项。详见[统一子任务状态](./active-work-package-execution-status.md)。

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -7,20 +7,21 @@ doc-updated: 2026-09-15
 
 ## 1. 本次重排快照
 
-依据[任务划分合同](./active-work-package-breakdown.md)，基线为本地3eed902，远端此前核对为7ea27a0；本轮未运行新的功能全量回归或推送。
+依据[任务划分合同](./active-work-package-breakdown.md)，本批从本地ace5d02推进，远端此前核对为7ea27a0；API构建通过，OBS五脚本联合67/67通过，未推送。
 父包专项统计仍是OBS 10/5/1、SEC 1/18/3/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计11/23/4/1。它不表示全项目完成率。
 
 本次登记87个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止计算“3/87完成率”。已完成的历史实现切片在划分文档单列，本表不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 3 | 该记录的限定退出完成；本轮三项均文档/治理 |
-| READY | 32 | 可进入队列，当前并非全部开工 |
-| WAIT_DEP | 33 | 等待列明子任务/条件 |
+| DONE | 6 | 本批新增1项CODE、2项DOC完成，父包退出仍独立核对 |
+| READY | 31 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 0 | 本批三项已验收，下一批尚未开工 |
+| WAIT_DEP | 31 | 等待列明子任务/条件 |
 | NEED_ENV | 16 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
-当前没有遗留运行中的代理任务。下一工作批按E1-01R、OBS-14-02、PROD-01入队，分别导向受管启动、完整生命周期和用户入口；不是三路继续找相邻微缺陷。
+本批SEC-E1-01R、OBS-14-02、PROD-01已完成限定退出。下一批优先SEC-E1-02A、PROD-02；OBS进入OBS-14-01引用/墓碑合同，再解锁事件与receipt清理。READY不表示已开工。
 
 ## 2. 子任务状态与证据
 
@@ -52,8 +53,8 @@ doc-updated: 2026-09-15
 | SEC-D2-02 | WAIT_DEP | 不把限流器单测当整包验收 |
 | SEC-E0-01 | READY | 不升级无状态协议 |
 | SEC-E1-01 | DONE | managed-mcp-credential-handoff-plan.md 0.1.0 draft；无代码交付；[草案](./managed-mcp-credential-handoff-plan.md) |
-| SEC-E1-01R | READY | 技术审查可自行推进，不预设必须等用户再批准 |
-| SEC-E1-02A | WAIT_DEP | 待实现；仅进程内transform不满足退出 |
+| SEC-E1-01R | DONE | [交付设计第9节](./managed-mcp-credential-handoff-plan.md)，02A通道与真实child验收冻结；仅DOC |
+| SEC-E1-02A | READY | 待实现；仅进程内transform不满足退出 |
 | SEC-E1-02B | WAIT_DEP | 待实现；仅进程内transform不满足退出 |
 | SEC-E1-02C | WAIT_DEP | 待实现；仅进程内transform不满足退出 |
 | SEC-E1-03 | WAIT_DEP | 不能用进程内transform替代 |
@@ -77,7 +78,7 @@ doc-updated: 2026-09-15
 | OBS-13-01 | WAIT_DEP | 调用事实页流已完成 |
 | OBS-13-02 | WAIT_DEP | 长期/跨平台证据未完成 |
 | OBS-14-01 | READY | 已批准保留天数不下调 |
-| OBS-14-02 | READY | 已确认残留缺口；下一功能主线 |
+| OBS-14-02 | DONE | 持久keyset分页、同GC fence、修复与cursor同事务；真实SQL.js连接重建恢复；新增7项专项，联合67/67 |
 | OBS-14-03E | WAIT_DEP | 未完成；不以仅有TTL字段代替清理 |
 | OBS-14-03D | WAIT_DEP | 未完成；不以仅有TTL字段代替清理 |
 | OBS-14-04 | READY | 扫描样本不能作当前总量 |
@@ -90,8 +91,8 @@ doc-updated: 2026-09-15
 | OBS-16-02 | READY | 不等同全量平台验收 |
 | OBS-16-03 | NEED_ENV | 环境待核实 |
 | OBS-16-04 | WAIT_DEP | 部署需具体环境及授权 |
-| PROD-01 | READY | 不包含新OAuth协议 |
-| PROD-02 | WAIT_DEP | 下一用户入口交付 |
+| PROD-01 | DONE | [发布端点合同](./mcp-publication-endpoint-contract.md)，后端/监听/UI边界冻结；仅DOC |
+| PROD-02 | READY | 下一用户入口交付 |
 | PROD-03 | READY | 执行环境归EXT01~07 |
 | PROD-04 | READY | 已有大小护栏/清理不重写 |
 | PROD-05 | READY | 既有变更审计不重做 |
@@ -122,3 +123,13 @@ doc-updated: 2026-09-15
 
 治理动作：已保留严格父包状态，显式冻结已验收切片；新建跨计划去重和子任务出口；将外部环境状态单列；修正陈旧Reload、继承和HTTP/Socket.IO摘要。本轮没有把新的文档DONE计为代码完成。
 
+
+
+
+## 4. 重排后首批实际交付
+
+- SEC-E1-01R：完成真实IPC、权限、精确环境、ACK/READY与legacy边界技术审查；02A实现与必选验收冻结，解锁02A。
+- OBS-14-02：collect实际路径增加每轮最多scanLimit条过期metadata检查。修复和cursor同事务；同租约隔离writer；缺文件且TTL到期才标expired，有效文件和调用/历史引用保留。进度可跨DB连接与服务重建恢复。此项是代码交付，未完成事件/receipt生命周期或配额。
+- PROD-01：冻结port/transport/endpointPath默认、严格校验、更新保留、监听和预览合同，解锁PROD-02；UI及后端实现尚未交付。
+
+验证：`npm run build --workspace api-nova-api`通过；payload-reconciliation、payloads、payload-capacity、retention-worker、pipeline五脚本联合67/67通过（Windows、隔离SQL.js/本地夹具）。日志位于`tmp/replan-batch1-api-build.log`与`tmp/replan-batch1-obs-tests.log`；无生产数据库、真实业务重放或部署。本轮新增7项恢复专项，不把回归总数当开发完成率。
