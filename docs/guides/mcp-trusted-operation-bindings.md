@@ -1,5 +1,5 @@
 ---
-doc-version: 1.5.0
+doc-version: 1.6.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -47,3 +47,6 @@ OpenAPI 扩展不能覆盖关系身份。成员停用后重新读取并生成会
 
 
 当前单语句进一步包含membership唯一发布绑定和最新version的profile；装配已删除对应分次读取。SQL.js确认历史版本不乘行且只有一次SELECT。保留原最高version和发布OR语义，上游resolve及后续验证/激活仍独立。最新63项验证见[发布读取与停机记录](../audits/2026-09-15-publication-shutdown-wave.md)。
+
+
+装配侧新增跨读关联核验：resolve返回绑定membership/source，必须与捕获membership/endpoint/source及实例source一致，缺失或不符在URL构造和工具转换前返回MCP_UPSTREAM_OWNERSHIP_MISMATCH。用于拒绝A身份配B上游，不能防止同源版本漂移或实现即时撤销。五套76项及API构建通过，见[上游归属记录](../audits/2026-09-15-upstream-ownership-wave.md)。

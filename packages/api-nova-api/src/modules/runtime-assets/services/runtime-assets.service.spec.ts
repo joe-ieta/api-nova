@@ -795,10 +795,10 @@ describe('RuntimeAssetsService', () => {
       }],
     } as any);
     runtimeUpstreamBindingsService.resolve.mockResolvedValue({
-      resolved: true,
+      resolved: true, runtimeAssetEndpointBindingId: '00000000-0000-0000-0000-000000000002', sourceServiceAssetId: '00000000-0000-0000-0000-000000000004',
       reason: 'resolved',
       instance: {
-        id: 'instance-credential',
+        id: 'instance-credential', sourceServiceAssetId: '00000000-0000-0000-0000-000000000004',
         scheme: 'https',
         host: 'orders.example',
         port: 443,

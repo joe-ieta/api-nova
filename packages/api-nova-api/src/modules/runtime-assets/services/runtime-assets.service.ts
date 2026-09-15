@@ -273,6 +273,15 @@ export class RuntimeAssetsService {
           `Runtime membership '${item.membership.id}' has no resolvable upstream: ${upstreamResolution.reason}`,
         );
       }
+      // A later upstream read must still belong to the captured ownership chain.
+      // This detects cross-asset drift, not same-asset revision changes/revocation.
+      if (item.membership.endpointDefinitionId !== item.endpointDefinition.id ||
+        item.endpointDefinition.sourceServiceAssetId !== item.sourceServiceAsset.id ||
+        upstreamResolution.runtimeAssetEndpointBindingId !== item.membership.id ||
+        upstreamResolution.sourceServiceAssetId !== item.sourceServiceAsset.id ||
+        upstreamResolution.instance.sourceServiceAssetId !== item.sourceServiceAsset.id) {
+        throw new ConflictException('MCP_UPSTREAM_OWNERSHIP_MISMATCH');
+      }
       const sourceUrl = this.runtimeUpstreamBindingsService.buildBaseUrl(
         upstreamResolution.instance,
       );

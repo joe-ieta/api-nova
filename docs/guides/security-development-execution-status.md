@@ -1,5 +1,5 @@
 ---
-doc-version: 1.17.0
+doc-version: 1.18.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -8,7 +8,7 @@ doc-updated: 2026-09-15
 > Document status: Active execution ledger
 > Last updated: 2026-09-15
 > 范围：JWT/API Key/显式 Anonymous；MCP SDK 1.29 的 2025 Session 基线。OAuth2 与后续无状态协议升级延期。
-> 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置仅支持 manual，受权管理Reload/状态API已验证；Watch/MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；可信资产快照生成与提交整理见第24节；装配接线见第25节；单语句归属读取见第26节；最新发布信息并入同语句见第27节。
+> 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置仅支持 manual，受权管理Reload/状态API已验证；Watch/MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；可信资产快照生成与提交整理见第24节；装配接线见第25节；单语句归属读取见第26节；发布信息并入同语句见第27节；最新上游跨源核验见第28节。
 
 ## 1. 状态与证据规则
 
@@ -588,3 +588,8 @@ profile、publication和upstream仍独立读取；单语句只限定归属链，
 readMcpOwnership新增唯一发布绑定LEFT JOIN和按membership取MAX(version)的最新profile相关子查询，装配删除这两类独立N+1读取。数据库已有membership/version唯一约束，历史profile不乘行；保留null关联和现有publishedToMcp OR active选择，仍按最高版本而非publicationProfileId选择描述。
 
 四套63/63通过，含SQL.js一次SELECT、多版本不重复与下一read更新、真实装配发布条件；PostgreSQL driver仅离线验证引用/占位符，不代替真实数据库验收。API构建通过。上游resolve及验证/激活仍在该语句之外，受管启动和运行中撤销未完成；任务包统计不变。证据见[本轮记录](../audits/2026-09-15-publication-shutdown-wave.md)。
+## 28. 上游解析与捕获归属交叉核验
+
+已确认旧装配捕获source A后，另一次resolve可能选择更新后的binding source B及B实例，造成A身份配B URL/credentialRef。resolver现在返回绑定membership/source身份，MCP装配在buildBaseUrl/transform之前同时检查捕获endpoint链、返回membership、绑定source与实例source；缺失或不符固定拒绝MCP_UPSTREAM_OWNERSHIP_MISMATCH。
+
+五套76/76与API构建通过，包含真实resolver到装配的同源通过/跨源拒绝、缺字段、返回字段兼容回归。该防护只检测跨源关联漂移，不解决同源版本变化、候选验证/激活事务或运行中撤销。观测停机和Gateway分页并行复核未发现新增可复现问题，不作无依据修改。安全与OBS整包统计不变；见[本轮记录](../audits/2026-09-15-upstream-ownership-wave.md)。
