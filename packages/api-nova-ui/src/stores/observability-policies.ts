@@ -60,6 +60,8 @@ export const useObservabilityPoliciesStore = defineStore("observability-policies
         message.value = ["UNAUTHENTICATED", "FORBIDDEN"].includes(error?.code) ? "forbidden" : "unavailable";
       }
     } finally {
+      // Promise.all can reject while its sibling GET is still pending.
+      request.abort();
       clearTimeout(deadline);
       if (current === generation) { loading.value = false; controller = null; }
     }

@@ -239,18 +239,9 @@ export class RuntimeAssetsService {
       );
     }
 
-    // Ownership is one statement; eligibility/profile reads and upstream selection
-    // remain independent and do not claim a shared transactional snapshot.
-    const data = await Promise.all(ownership.rows.map(async row => ({
-      ...row,
-      profile: await this.profileRepository.findOne({
-        where: { runtimeAssetEndpointBindingId: row.membership.id }, order: { version: 'DESC' },
-      }),
-      publishBinding: await this.publishBindingRepository.findOne({
-        where: { runtimeAssetEndpointBindingId: row.membership.id },
-      }),
-    })));
-    const memberships = structuredClone({ total: data.length, data });
+    // Ownership, profile and publication come from one statement. Upstream
+    // selection remains separate; this is not an end-to-end execution snapshot.
+    const memberships = structuredClone({ total: ownership.rows.length, data: ownership.rows });
     const includedMemberships = memberships.data.filter(item => {
       if (!item.membership.enabled) {
         return false;

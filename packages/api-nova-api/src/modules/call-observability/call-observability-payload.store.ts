@@ -64,6 +64,9 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
   private scanDirectory?: Dir;
   private scanShard = 0;
   private readonly scanner = new SerialStorageLane(1);
+  private scanActive?: Promise<unknown>;
+  private scannerStopping = false;
+  private scannerShutdown?: Promise<void>;
 
   async prepare(identity: PayloadIdentity, body: InvocationBody,
     createdAt: string, expiresAt: string, generation: string): Promise<PreparedPayload> {
@@ -212,7 +215,9 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
 
   async scanGarbage(scanLimit: number, candidateLimit: number, olderThan: number,
     shardHint?: number): Promise<{ candidates: PayloadGarbageCandidate[]; scanned: number; nextShard: number; hasMore: boolean; scanUsage: PayloadScanUsage }> {
-    return this.scanner.run(async () => {
+    if (this.scannerStopping) throw new ObservabilityStorageError('PAYLOAD_SCANNER_STOPPED');
+    if (this.scanActive) throw new ObservabilityStorageError('STORAGE_BUSY');
+    const active = this.scanner.run(async () => {
       await this.assertOwnedRoot();
       if (!Number.isInteger(scanLimit) || scanLimit < 1 || scanLimit > 1000 ||
         !Number.isInteger(candidateLimit) || candidateLimit < 1 || candidateLimit > scanLimit ||
@@ -285,6 +290,9 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
         throw error;
       }
     });
+    this.scanActive = active;
+    try { return await active; }
+    finally { this.scanActive = undefined; }
   }
 
   /** Call only while the database GC fence is held and references have been checked. */
@@ -310,7 +318,16 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
     if (directory) await directory.close();
   }
 
-  async onModuleDestroy(): Promise<void> { await this.closeScanner(); }
+  async onModuleDestroy(): Promise<void> {
+    this.scannerStopping = true;
+    // Nest may destroy dependent providers concurrently. Drain the current scan
+    // before closing, including a directory open that has not resolved yet.
+    if (!this.scannerShutdown) this.scannerShutdown = (async () => {
+      await this.scanActive?.catch(() => undefined);
+      await this.closeScanner();
+    })();
+    await this.scannerShutdown;
+  }
 
   private async readOwner(): Promise<string | null> {
     try {

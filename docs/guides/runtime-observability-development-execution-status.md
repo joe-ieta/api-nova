@@ -1,5 +1,5 @@
 ---
-doc-version: 2.8.0
+doc-version: 2.9.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -145,3 +145,8 @@ OBS联合273/273，UI33/33；Parser/API/Server/UI四包构建通过。验证详�
 scanGarbage失败后清除目录句柄，下次重开失败分片，避免永久复用失效Dir或跳过已读取但测量失败的对象；关闭句柄再次失败不覆盖原错误，失败批次不返回成功容量证据。先复现新增2例失败，修复后容量9/9与retention10/10通过；最终最新构建下payloads/capacity/retention/pipeline联合58/58。
 
 诊断UI对畸形capabilities显示来源错误且可重读恢复，允许合法not_implemented/null；pipeline读取只依赖capabilities，与servers/status并行，慢服务器来源不再耗尽管线启动时间。登出迟到响应保持隔离，UI联合36/36、类型检查通过。API整包构建通过，证据见[本轮记录](../audits/2026-09-15-ownership-recovery-wave.md)。OBS统计仍DONE10、IN_PROGRESS5、BACKLOG1；没有启用真实GC或完成配额治理。
+## 14. 扫描停机与策略读取取消
+
+新增停机门闩，onModuleDestroy等待当前扫描（含尚未返回的opendir）再关闭Dir，销毁中/后拒绝新扫描，重复销毁共用等待。新增用例先复现销毁提前完成问题，修复后容量10/10与retention10/10；最终正文/容量/保留/pipeline联合59/59通过。
+
+策略UI的Promise.all一路GET失败时，现在finally取消同轮剩余GET，避免清除超时后遗留挂起请求；412自动重读同样覆盖，不自动重放PATCH。策略专项11/11，UI联合37/37与类型检查通过，API构建通过。见[本轮记录](../audits/2026-09-15-publication-shutdown-wave.md)。OBS整包统计不变，未开启真实GC或完成配额治理。

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.16.0
+doc-version: 1.17.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -8,7 +8,7 @@ doc-updated: 2026-09-15
 > Document status: Active execution ledger
 > Last updated: 2026-09-15
 > 范围：JWT/API Key/显式 Anonymous；MCP SDK 1.29 的 2025 Session 基线。OAuth2 与后续无状态协议升级延期。
-> 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置仅支持 manual，受权管理Reload/状态API已验证；Watch/MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；可信资产快照生成与提交整理见第24节；装配接线见第25节；最新单语句归属读取见第26节。
+> 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置仅支持 manual，受权管理Reload/状态API已验证；Watch/MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；可信资产快照生成与提交整理见第24节；装配接线见第25节；单语句归属读取见第26节；最新发布信息并入同语句见第27节。
 
 ## 1. 状态与证据规则
 
@@ -583,3 +583,8 @@ assembleMcpRuntimeAssetPayload 现在捕获 asset 和 membership 查询结果的
 7ea27a0已获用户明确授权并推送origin/main，远端核对一致，前节推送阻塞已解除。MCP装配现在通过readMcpOwnership单条LEFT JOIN读取runtime/membership/endpoint/source，SQL.js实测仅一次SELECT；保留悬空关联以便固定拒绝，空资产与不存在资产区分，10001行哨兵拒绝超过10000行而非返回截断结果。装配不再调用原归属N+1读取。
 
 profile、publication和upstream仍独立读取；单语句只限定归属链，不是整个装配/发布流程的一致事务，也不提供运行中撤销。最终四套56/56和API整包构建通过。并发扫描恢复与UI诊断修复见[本轮记录](../audits/2026-09-15-ownership-recovery-wave.md)。安全23包与合计39包统计不变，C4/E1仍IN_PROGRESS。
+## 27. 发布信息与归属同语句读取
+
+readMcpOwnership新增唯一发布绑定LEFT JOIN和按membership取MAX(version)的最新profile相关子查询，装配删除这两类独立N+1读取。数据库已有membership/version唯一约束，历史profile不乘行；保留null关联和现有publishedToMcp OR active选择，仍按最高版本而非publicationProfileId选择描述。
+
+四套63/63通过，含SQL.js一次SELECT、多版本不重复与下一read更新、真实装配发布条件；PostgreSQL driver仅离线验证引用/占位符，不代替真实数据库验收。API构建通过。上游resolve及验证/激活仍在该语句之外，受管启动和运行中撤销未完成；任务包统计不变。证据见[本轮记录](../audits/2026-09-15-publication-shutdown-wave.md)。

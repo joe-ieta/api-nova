@@ -171,3 +171,31 @@ test("late conflict recovery cannot overwrite a newer save success message", asy
   oldRecovery.resolve({ items: [policy(2)] }); await conflicted;
   assert.equal(f.store.message, "saved"); assert.equal(f.store.policy.revision, 4);
 });
+
+
+test("failed 412 recovery cancels its pending sibling GET and a later reread recovers", async t => {
+  let recovering = false, siblingAborted = false;
+  const f = fixture(t, async (resource, _token, signal, mutation) => {
+    if (mutation) { recovering = true; throw { code: "PRECONDITION_FAILED" }; }
+    if (recovering) {
+      if (resource === "capabilities") throw new Error("capabilities unavailable");
+      return new Promise((_resolve, reject) => signal.addEventListener("abort", () => {
+        siblingAborted = true;
+        reject(new Error("aborted"));
+      }, { once: true }));
+    }
+    return resource === "capabilities" ? caps() : { items: [policy(2)] };
+  });
+  await f.store.load(); draft(f.store); await f.store.save();
+  assert.equal(siblingAborted, true, "failed recovery must not abandon its pending GET without a deadline");
+  assert.equal(f.store.message, "unavailable");
+  assert.equal(f.store.policy, null);
+  assert.equal(f.store.loading, false);
+  assert.equal(f.store.saving, false);
+  assert.equal(f.calls.filter(args => args[3]).length, 1);
+  recovering = false;
+  await f.store.load();
+  assert.equal(f.store.policy.revision, 2);
+  assert.equal(f.store.message, null);
+  draft(f.store); assert.equal(f.store.canSave, true);
+});

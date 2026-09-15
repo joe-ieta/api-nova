@@ -176,3 +176,32 @@ test('stat failure preserves the original error and retries its consumed entry f
   assert.equal(recovered.lastReport.deleted, 0);
   await fs.access(file);
 });
+
+
+test('payload shutdown drains an in-flight directory open, closes it and rejects future scans', async t => {
+  const f = await fixture(t); await f.file('shutdown');
+  const opendir = fs.opendir;
+  let opened, release;
+  const opening = new Promise(resolve => { opened = resolve; });
+  const resume = new Promise(resolve => { release = resolve; });
+  let directory;
+  fs.opendir = async (...args) => {
+    directory = await opendir(...args); opened(); await resume; return directory;
+  };
+  const scan = f.objects.scanGarbage(1, 1, Date.now() - 60000);
+  await opening;
+  await assert.rejects(f.objects.scanGarbage(1, 1, Date.now()), error => error.code === 'STORAGE_BUSY');
+  let stopped = false;
+  const destroy = f.objects.onModuleDestroy().then(() => { stopped = true; });
+  const repeatedDestroy = f.objects.onModuleDestroy();
+  await assert.rejects(f.objects.scanGarbage(1, 1, Date.now()), error => error.code === 'PAYLOAD_SCANNER_STOPPED');
+  await new Promise(resolve => setImmediate(resolve));
+  const stoppedBeforeScan = stopped;
+  release();
+  try { await scan; await destroy; await repeatedDestroy; }
+  finally { fs.opendir = opendir; }
+  assert.equal(stoppedBeforeScan, false);
+  await assert.rejects(directory.read(), { code: 'ERR_DIR_CLOSED' });
+  await assert.rejects(f.objects.scanGarbage(1, 1, Date.now()), error => error.code === 'PAYLOAD_SCANNER_STOPPED');
+  await f.objects.onModuleDestroy();
+});

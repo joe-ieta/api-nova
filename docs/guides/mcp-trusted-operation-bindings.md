@@ -1,5 +1,5 @@
 ---
-doc-version: 1.4.0
+doc-version: 1.5.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -44,3 +44,6 @@ OpenAPI 扩展不能覆盖关系身份。成员停用后重新读取并生成会
 
 
 最新装配使用 readMcpOwnership 单条LEFT JOIN捕获runtime/membership/endpoint/source关系（SQL.js确认一条SELECT），不再分次读取这些归属实体。缺关联保留，超过10000行拒绝；profile/publication/upstream仍独立读取，整个装配并非一致事务。四套56/56通过，见[单查询与恢复记录](../audits/2026-09-15-ownership-recovery-wave.md)。
+
+
+当前单语句进一步包含membership唯一发布绑定和最新version的profile；装配已删除对应分次读取。SQL.js确认历史版本不乘行且只有一次SELECT。保留原最高version和发布OR语义，上游resolve及后续验证/激活仍独立。最新63项验证见[发布读取与停机记录](../audits/2026-09-15-publication-shutdown-wave.md)。

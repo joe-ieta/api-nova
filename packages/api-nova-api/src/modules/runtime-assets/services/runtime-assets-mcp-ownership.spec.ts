@@ -54,4 +54,20 @@ describe('MCP assembly trusted ownership integration', () => {
     expect(result.tools).toEqual([]); expect(result.includedMembershipCount).toBe(0);
     expect(service.runtimeUpstreamBindingsService.resolve).not.toHaveBeenCalled();
   });
-});
+  it.each([
+    [{ publishedToMcp: true, publishStatus: 'draft' }, 1],
+    [{ publishedToMcp: false, publishStatus: 'active' }, 1],
+    [{ publishedToMcp: false, publishStatus: 'draft' }, 0],
+    [null, 0],
+  ])('uses captured publication eligibility without separate repository reads: %j', async (publication, expected) => {
+    const { service, rows } = fixture(); rows.data[0].publishBinding = publication;
+    rows.data[0].profile = { intentName: 'captured intent', descriptionForLlm: 'captured description' };
+    const result = await service.assembleMcpRuntimeAssetPayload(id(1));
+    expect(result.includedMembershipCount).toBe(expected);
+    expect(service.profileRepository.findOne).not.toHaveBeenCalled();
+    expect(service.publishBindingRepository.findOne).not.toHaveBeenCalled();
+    if (expected) {
+      expect(result.openApiData.paths['/items'].get.summary).toBe('captured intent');
+      expect(result.openApiData.paths['/items'].get.description).toBe('captured description');
+    }
+  });});

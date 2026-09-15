@@ -3,7 +3,7 @@
 > 2026-09-08: 数据库与持久化清理、43 表 PG/SQLite 空库及完整回归结果见 [本轮清理审查记录](./2026-09-08-persistence-cleanup.md)。旧报告中的 38/40 表与环境阻塞结论保留为历史证据。
 
 ---
-doc-version: 1.10.0
+doc-version: 1.11.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -94,3 +94,5 @@ doc-updated: 2026-09-15
 - [2026-09-15 MCP装配可信映射](./2026-09-15-mcp-assembly-ownership-wave.md)：装配读取结果内部归属核验已接线，50项回归和API构建通过；7ea27a0已获授权并推送。一致事务与受管启动仍待完成。
 
 - [2026-09-15 单查询归属与故障恢复](./2026-09-15-ownership-recovery-wave.md)：单SELECT接线、扫描故障重试和UI诊断隔离已验证；完整退出条件仍部分完成。
+
+- [2026-09-15 发布读取与停机收敛](./2026-09-15-publication-shutdown-wave.md)：发布信息并入单SELECT、扫描停机与策略请求取消已验证；上游一致性和完整退出条件仍待完成。

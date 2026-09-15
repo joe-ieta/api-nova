@@ -1,5 +1,7 @@
+import { PublicationProfileEntity } from '../../../database/entities/publication-profile.entity';
+import { EndpointPublishBindingEntity } from '../../../database/entities/endpoint-publish-binding.entity';
 import 'reflect-metadata';
-import { DataSource } from 'typeorm';
+import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { readMcpOwnership } from './mcp-ownership-reader';
 import { RuntimeAssetEntity } from '../../../database/entities/runtime-asset.entity';
 import { RuntimeAssetEndpointBindingEntity } from '../../../database/entities/runtime-asset-endpoint-binding.entity';
@@ -9,7 +11,7 @@ const id = (n: number) => `00000000-0000-0000-0000-${String(n).padStart(12, '0')
 describe('MCP ownership single SELECT with real SQL.js entities', () => {
   let db: DataSource;
   beforeEach(async () => {
-    db = new DataSource({ type: 'sqljs', synchronize: true, entities: [RuntimeAssetEntity, RuntimeAssetEndpointBindingEntity, EndpointDefinitionEntity, SourceServiceAssetEntity] });
+    db = new DataSource({ type: 'sqljs', synchronize: true, entities: [PublicationProfileEntity, EndpointPublishBindingEntity, RuntimeAssetEntity, RuntimeAssetEndpointBindingEntity, EndpointDefinitionEntity, SourceServiceAssetEntity] });
     await db.initialize();
     await db.getRepository(RuntimeAssetEntity).save({ id: id(1), name: 'mcp-test', type: 'mcp_server' as any });
     await db.getRepository(SourceServiceAssetEntity).save({ id: id(4), sourceKey: 'source-test' });
@@ -49,7 +51,8 @@ describe('MCP ownership single SELECT with real SQL.js entities', () => {
   });
   it('rejects the overflow sentinel rather than returning a truncated ownership view', async () => {
     const builder: any = {};
-    for (const method of ['leftJoinAndMapMany', 'leftJoinAndMapOne', 'where', 'orderBy', 'addOrderBy', 'limit']) builder[method] = jest.fn(() => builder);
+    for (const method of ['select', 'leftJoinAndMapMany', 'leftJoinAndMapOne', 'where', 'orderBy', 'addOrderBy', 'limit']) builder[method] = jest.fn(() => builder);
+    builder.getQuery = jest.fn(() => 'SELECT MAX(version) FROM fixture');
     builder.getOne = jest.fn(async () => ({ id: id(1), ownershipMemberships: new Array(10001) }));
     const create = jest.spyOn(db.manager, 'createQueryBuilder').mockReturnValue(builder);
     try {
@@ -57,4 +60,53 @@ describe('MCP ownership single SELECT with real SQL.js entities', () => {
       expect(builder.limit).toHaveBeenCalledWith(10001);
       expect(builder.getOne).toHaveBeenCalledTimes(1);
     } finally { create.mockRestore(); }
-  });});
+  });
+  it('selects one latest profile per membership and publication with one SELECT', async () => {
+    for (const version of [3, 1, 2]) await db.getRepository(PublicationProfileEntity).save({
+      id: id(10 + version), endpointDefinitionId: id(3), runtimeAssetEndpointBindingId: id(2), version, intentName: `version-${version}`,
+    });
+    await db.getRepository(EndpointPublishBindingEntity).save({ id: id(20), endpointDefinitionId: id(3), runtimeAssetEndpointBindingId: id(2), publishedToMcp: true });
+    const log = jest.spyOn(db.logger, 'logQuery');
+    const result = await readMcpOwnership(db.manager, id(1));
+    expect(result!.rows).toHaveLength(1);
+    expect(result!.rows[0].profile!.intentName).toBe('version-3');
+    expect(result!.rows[0].publishBinding!.publishedToMcp).toBe(true);
+    expect(log.mock.calls.filter(([sql]) => /^SELECT /i.test(sql))).toHaveLength(1);
+    log.mockRestore();
+    await db.getRepository(PublicationProfileEntity).save({ id: id(14), endpointDefinitionId: id(3), runtimeAssetEndpointBindingId: id(2), version: 4, intentName: 'new-version' });
+    await db.getRepository(EndpointPublishBindingEntity).update(id(20), { publishedToMcp: false });
+    const next = await readMcpOwnership(db.manager, id(1));
+    expect(next!.rows[0].profile!.version).toBe(4);
+    expect(next!.rows[0].publishBinding!.publishedToMcp).toBe(false);
+    expect(result!.rows[0].profile!.version).toBe(3);
+    expect(result!.rows[0].publishBinding!.publishedToMcp).toBe(true);
+  });
+  it('retains memberships without profiles/publication and ignores unrelated higher versions', async () => {
+    await db.getRepository(PublicationProfileEntity).save({ id: id(30), endpointDefinitionId: id(3), runtimeAssetEndpointBindingId: id(99), version: 999 });
+    const result = await readMcpOwnership(db.manager, id(1));
+    expect(result!.rows).toHaveLength(1);
+    expect(result!.rows[0].profile).toBeNull();
+    expect(result!.rows[0].publishBinding).toBeNull();
+  });
+  it('generates quoted PostgreSQL correlation SQL without connecting', async () => {
+    const postgres = new DataSource({ type: 'postgres', entities: [PublicationProfileEntity, EndpointPublishBindingEntity,
+      RuntimeAssetEntity, RuntimeAssetEndpointBindingEntity, EndpointDefinitionEntity, SourceServiceAssetEntity] });
+    // Reuse entity/column names loaded for SQLite; this tests PostgreSQL SQL
+    // quoting only, not PostgreSQL schema/type validation or a server connection.
+    (postgres as any).entityMetadatas = db.entityMetadatas;
+    (postgres as any).entityMetadatasMap = new Map(db.entityMetadatas.map(meta => [meta.target, meta]));
+    let sql = '';
+    const read = jest.spyOn(SelectQueryBuilder.prototype, 'getOne').mockImplementation(async function (this: SelectQueryBuilder<any>) {
+      sql = this.getSql(); return null;
+    });
+    try {
+      expect(await readMcpOwnership(postgres.manager, id(1))).toBeNull();
+      expect(postgres.isInitialized).toBe(false);
+      expect(sql).toContain('MAX("profile_version"."version")');
+      expect(sql).toContain('"profile_version"."runtimeAssetEndpointBindingId" = "membership"."id"');
+      expect(sql).toContain('"profile"."version" = (SELECT');
+      expect(sql).toContain('LIMIT 10001');
+      expect(sql).toContain('$1');
+    } finally { read.mockRestore(); }
+  });
+});
