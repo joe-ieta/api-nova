@@ -16,11 +16,12 @@
 | --- | --- | --- | --- |
 | [docs/audits/2026-09-04-manual-registration-publication.md](./audits/2026-09-04-manual-registration-publication.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/audits/2026-09-07-reviewed-merge.md](./audits/2026-09-07-reviewed-merge.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/audits/README.md](./audits/README.md) | 1.8.0 | active | 2026-09-14 |
+| [docs/audits/README.md](./audits/README.md) | 1.9.0 | active | 2026-09-15 |
+| [MCP装配可信映射](./audits/2026-09-15-mcp-assembly-ownership-wave.md) | 1.0.0 | active | 2026-09-15 |
 | [提交整理与可信资产快照](./audits/2026-09-14-commit-ownership-wave.md) | 1.0.0 | active | 2026-09-14 |
 | [单跳凭据、容量样本与诊断UI](./audits/2026-09-14-single-hop-capacity-diagnostics-wave.md) | 1.0.0 | active | 2026-09-14 |
 | [路由观测、可信映射与策略UI](./audits/2026-09-14-routing-policy-mapping-wave.md) | 1.0.0 | active | 2026-09-14 |
-| [MCP可信操作映射](./guides/mcp-trusted-operation-bindings.md) | 1.2.0 | active | 2026-09-14 |
+| [MCP可信操作映射](./guides/mcp-trusted-operation-bindings.md) | 1.3.0 | active | 2026-09-15 |
 | [正文保留与消费端推进](./audits/2026-09-14-retention-consumer-wave.md) | 1.0.0 | active | 2026-09-14 |
 | [管理心跳、请求头与Gateway消费者](./audits/2026-09-14-heartbeat-header-consumer-wave.md) | 1.0.0 | active | 2026-09-14 |
 | [docs/baseline/PRODUCT_CONSTRAINTS.md](./baseline/PRODUCT_CONSTRAINTS.md) | 1.0.0 | active | 2026-09-07 |
@@ -45,7 +46,7 @@
 | [docs/reference/management-permission-matrix.md](./reference/management-permission-matrix.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/mcp-jsonrpc-relationship.md](./reference/mcp-jsonrpc-relationship.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/nodejs-module-systems-guide.md](./reference/nodejs-module-systems-guide.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/reference/open-items.md](./reference/open-items.md) | 1.8.0 | active | 2026-09-14 |
+| [docs/reference/open-items.md](./reference/open-items.md) | 1.9.0 | active | 2026-09-15 |
 | [docs/reference/README.md](./reference/README.md) | 1.3.0 | active | 2026-09-14 |
 | [docs/reference/versioning-policy.md](./reference/versioning-policy.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/release/api-nova-release-requirements.md](./release/api-nova-release-requirements.md) | 1.1.0 | active | 2026-09-08 |
@@ -64,7 +65,7 @@
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
 | [安全任务计划](./guides/security-development-task-plan.md) | 1.8.0 | active | 2026-09-14 |
-| [安全执行状态](./guides/security-development-execution-status.md) | 1.14.0 | active | 2026-09-14 |
+| [安全执行状态](./guides/security-development-execution-status.md) | 1.15.0 | active | 2026-09-15 |
 | [安全功能需求](./guides/security-functional-requirements.md) | 1.0.0 | active | 2026-09-14 |
 | [安全设计](./reference/security-design-and-implementation.md) | 1.2.0 | active | 2026-09-14 |
 | [Gateway 文件激活](./guides/gateway-upstream-credential-file-activation.md) | 1.1.0 | active | 2026-09-14 |

@@ -769,7 +769,7 @@ describe('RuntimeAssetsService', () => {
 
   it('embeds only the per-operation credential reference in assembled MCP behavior', async () => {
     const mcpAsset = {
-      id: 'runtime-mcp-credential',
+      id: '00000000-0000-0000-0000-000000000001',
       type: RuntimeAssetType.MCP_SERVER,
       status: 'draft',
       name: 'orders-mcp',
@@ -780,15 +780,15 @@ describe('RuntimeAssetsService', () => {
     const membershipSpy = jest.spyOn(service, 'listRuntimeAssetMemberships').mockResolvedValue({
       total: 1,
       data: [{
-        membership: { id: 'membership-credential', enabled: true },
+        membership: { id: '00000000-0000-0000-0000-000000000002', enabled: true, status: 'active', runtimeAssetId: mcpAsset.id, endpointDefinitionId: '00000000-0000-0000-0000-000000000003' },
         endpointDefinition: {
-          id: 'endpoint-credential',
+          id: '00000000-0000-0000-0000-000000000003', status: 'published', sourceServiceAssetId: '00000000-0000-0000-0000-000000000004',
           path: '/orders',
           method: 'POST',
           operationId: 'createOrder',
           rawOperation: { responses: { 200: { description: 'ok' } } },
         },
-        sourceServiceAsset: { id: 'source-orders', displayName: 'Orders API' },
+        sourceServiceAsset: { id: '00000000-0000-0000-0000-000000000004', displayName: 'Orders API' },
         profile: null,
         publishBinding: { publishedToMcp: true, publishStatus: 'active' },
       }],

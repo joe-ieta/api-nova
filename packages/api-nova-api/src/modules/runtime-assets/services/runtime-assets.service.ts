@@ -1,3 +1,4 @@
+import { createMcpTrustedOperationBindings } from './mcp-trusted-operation-bindings';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ModuleRef } from '@nestjs/core';
@@ -228,14 +229,16 @@ export class RuntimeAssetsService {
   }
 
   async assembleMcpRuntimeAssetPayload(runtimeAssetId: string) {
-    const asset = await this.requireRuntimeAsset(runtimeAssetId);
+    const asset = structuredClone(await this.requireRuntimeAsset(runtimeAssetId));
     if (asset.type !== RuntimeAssetType.MCP_SERVER) {
       throw new NotFoundException(
         `Runtime asset '${runtimeAssetId}' is not an MCP runtime asset`,
       );
     }
 
-    const memberships = await this.listRuntimeAssetMemberships(runtimeAssetId);
+    // Capture values once for both spec assembly and identity mapping. The existing
+    // repository reads are independent, not a transactionally consistent snapshot.
+    const memberships = structuredClone(await this.listRuntimeAssetMemberships(runtimeAssetId));
     const includedMemberships = memberships.data.filter(item => {
       if (!item.membership.enabled) {
         return false;
@@ -254,7 +257,7 @@ export class RuntimeAssetsService {
 
     for (const item of includedMemberships) {
       if (!item.endpointDefinition || !item.sourceServiceAsset) {
-        continue;
+        throw new ConflictException('INVALID_MCP_OPERATION_OWNERSHIP');
       }
 
       const pathKey = item.endpointDefinition.path;
@@ -326,7 +329,18 @@ export class RuntimeAssetsService {
       paths,
     };
 
-    const tools = await transformOpenApiToMcpTools(undefined, undefined, openApiData);
+    let trustedOperationBindings;
+    try {
+      trustedOperationBindings = createMcpTrustedOperationBindings(asset, includedMemberships.map(item => ({
+        membership: item.membership,
+        endpoint: item.endpointDefinition!,
+        sourceAsset: item.sourceServiceAsset!,
+      })), openApiData as Parameters<typeof createMcpTrustedOperationBindings>[2]);
+    } catch {
+      throw new ConflictException('INVALID_MCP_OPERATION_OWNERSHIP');
+    }
+    const tools = await transformOpenApiToMcpTools(undefined, undefined, openApiData,
+      undefined, undefined, false, undefined, undefined, trustedOperationBindings);
     const verificationTools = includedMemberships
       .map(item => ({
         runtimeMembershipId: item.membership.id,

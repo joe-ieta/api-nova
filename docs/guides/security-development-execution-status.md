@@ -1,14 +1,14 @@
 ---
-doc-version: 1.14.0
+doc-version: 1.15.0
 doc-status: active
-doc-updated: 2026-09-14
+doc-updated: 2026-09-15
 ---
 # ApiNova 安全开发执行与状态记录
 
 > Document status: Active execution ledger
-> Last updated: 2026-09-14
+> Last updated: 2026-09-15
 > 范围：JWT/API Key/显式 Anonymous；MCP SDK 1.29 的 2025 Session 基线。OAuth2 与后续无状态协议升级延期。
-> 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置仅支持 manual，受权管理Reload/状态API已验证；Watch/MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；最新可信资产快照生成与提交整理见第24节。
+> 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置仅支持 manual，受权管理Reload/状态API已验证；Watch/MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；可信资产快照生成与提交整理见第24节；最新装配接线见第25节。
 
 ## 1. 状态与证据规则
 
@@ -569,3 +569,12 @@ Parser全量19套349/349（新7项包含其中），Server入口3/3，Parser/Ser
 此切片未自动接入装配、部署和托管进程入口，不保证传入行来自数据库或一致事务；调用方必须提供可信一致快照。下一次生成会拒绝已禁用成员，已创建 handler 的运行中撤销尚未接线，发布权限也仍由既有门禁负责。C4/E1 继续 IN_PROGRESS。
 
 管理 JWT 启动拒绝校验单独复核 41/41 并提交；缺失策略提示完成中英文本地化，UI 构建通过。全部 39 包统计不变：DONE 11、IN_PROGRESS 23、BACKLOG 4、DEFERRED 1。本轮本地提交和远端推送阻塞见[提交与归属生成记录](../audits/2026-09-14-commit-ownership-wave.md)。
+## 25. 2026-09-15 MCP装配可信映射接线
+
+assembleMcpRuntimeAssetPayload 现在捕获 asset 和 membership 查询结果的值副本，用同一份数据组装 OpenAPI 并生成可信映射，再通过 Server 第9参数传给标准工具转换。选中行缺端点/源服务不再静默跳过；跨runtime/endpoint/source或失效端点以固定 INVALID_MCP_OPERATION_OWNERSHIP 拒绝。禁用成员仍按原选择规则排除，未启用single-hop。
+
+现有 asset、membership、endpoint、source、profile、publish 与 upstream 查询彼此独立；structuredClone 仅隔离返回对象后续变更，不是数据库一致事务。前轮helper的一致仓储快照前置条件尚未实现，本轮明确限定为捕获行内部关系核验。受管进程启动、持久化可信传递、运行中撤销和上游事务一致性仍未闭合。
+
+3套50/50（装配8、生成器19、原服务23）及API整包构建通过。前轮4笔提交已获用户确认并成功推送origin/main至eaa143a。本轮证据见[装配接线记录](../audits/2026-09-15-mcp-assembly-ownership-wave.md)。安全23包及合计39包统计不变，没有新增整包DONE。
+
+本轮新增装配接线的远端推送被自动审批另行拒绝：此前确认只覆盖原4笔提交，新增源码/测试/文档待明确确认；本地提交继续完成。

@@ -12,9 +12,10 @@ export interface McpOperationOwnershipRow {
 
 /**
  * Pure adapter for rows read by trusted management code. Callers must read these
- * rows and assemble the spec from the same consistent repository snapshot.
+ * rows and assemble the spec from the same captured row values. Database snapshot
+ * consistency is the caller's responsibility; this helper cannot provide it.
  * This checks relational identity, not caller permissions/publication eligibility.
- * No runtime entry enables this automatically; persisted OpenAPI extensions are
+ * This does not enable single-hop credential execution; persisted OpenAPI extensions are
  * deliberately not used as ownership evidence. Revocation requires a fresh read.
  */
 export function createMcpTrustedOperationBindings(

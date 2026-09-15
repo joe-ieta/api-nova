@@ -3,9 +3,9 @@
 > 2026-09-08: 数据库与持久化清理、43 表 PG/SQLite 空库及完整回归结果见 [本轮清理审查记录](./2026-09-08-persistence-cleanup.md)。旧报告中的 38/40 表与环境阻塞结论保留为历史证据。
 
 ---
-doc-version: 1.8.0
+doc-version: 1.9.0
 doc-status: active
-doc-updated: 2026-09-14
+doc-updated: 2026-09-15
 ---
 # ApiNova 审查报告索引
 
@@ -89,4 +89,6 @@ doc-updated: 2026-09-14
 
 - [2026-09-14 单跳凭据、容量样本与诊断UI](./2026-09-14-single-hop-capacity-diagnostics-wave.md)：三路切片与四包构建通过；已修复两项实际审查发现，整包仍有退出条件。
 
-- [2026-09-14 提交整理与可信资产快照](./2026-09-14-commit-ownership-wave.md)：本地提交已完成；归属生成器、JWT与界面提示通过验证，远端推送待具体目的地授权。
+- [2026-09-14 提交整理与可信资产快照](./2026-09-14-commit-ownership-wave.md)：本地提交已完成；归属生成器、JWT与界面提示通过验证，原推送阻塞已于2026-09-15获确认并解除，4笔提交已推送至origin/main（eaa143a）。
+
+- [2026-09-15 MCP装配可信映射](./2026-09-15-mcp-assembly-ownership-wave.md)：装配读取结果内部归属核验已接线，50项回归和API构建通过；一致事务与受管启动仍待完成。
