@@ -16,7 +16,8 @@
 | --- | --- | --- | --- |
 | [docs/audits/2026-09-04-manual-registration-publication.md](./audits/2026-09-04-manual-registration-publication.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/audits/2026-09-07-reviewed-merge.md](./audits/2026-09-07-reviewed-merge.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/audits/README.md](./audits/README.md) | 1.12.0 | active | 2026-09-15 |
+| [docs/audits/README.md](./audits/README.md) | 1.13.0 | active | 2026-09-15 |
+| [候选激活与GC重试](./audits/2026-09-15-activation-gc-wave.md) | 1.0.0 | active | 2026-09-15 |
 | [上游归属交叉核验](./audits/2026-09-15-upstream-ownership-wave.md) | 1.0.0 | active | 2026-09-15 |
 | [发布读取与停机收敛](./audits/2026-09-15-publication-shutdown-wave.md) | 1.0.0 | active | 2026-09-15 |
 | [单查询归属与故障恢复](./audits/2026-09-15-ownership-recovery-wave.md) | 1.0.0 | active | 2026-09-15 |
@@ -49,7 +50,7 @@
 | [docs/reference/management-permission-matrix.md](./reference/management-permission-matrix.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/mcp-jsonrpc-relationship.md](./reference/mcp-jsonrpc-relationship.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/nodejs-module-systems-guide.md](./reference/nodejs-module-systems-guide.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/reference/open-items.md](./reference/open-items.md) | 1.12.0 | active | 2026-09-15 |
+| [docs/reference/open-items.md](./reference/open-items.md) | 1.13.0 | active | 2026-09-15 |
 | [docs/reference/README.md](./reference/README.md) | 1.3.0 | active | 2026-09-14 |
 | [docs/reference/versioning-policy.md](./reference/versioning-policy.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/release/api-nova-release-requirements.md](./release/api-nova-release-requirements.md) | 1.1.0 | active | 2026-09-08 |
@@ -68,7 +69,7 @@
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
 | [安全任务计划](./guides/security-development-task-plan.md) | 1.8.0 | active | 2026-09-14 |
-| [安全执行状态](./guides/security-development-execution-status.md) | 1.18.0 | active | 2026-09-15 |
+| [安全执行状态](./guides/security-development-execution-status.md) | 1.19.0 | active | 2026-09-15 |
 | [安全功能需求](./guides/security-functional-requirements.md) | 1.0.0 | active | 2026-09-14 |
 | [安全设计](./reference/security-design-and-implementation.md) | 1.2.0 | active | 2026-09-14 |
 | [Gateway 文件激活](./guides/gateway-upstream-credential-file-activation.md) | 1.1.0 | active | 2026-09-14 |
@@ -87,9 +88,9 @@
 | [可观测性功能需求](./guides/runtime-observability-requirements.md) | 2.2.0 | active | 2026-09-14 |
 | [可观测性设计](./reference/runtime-observability-design.md) | 2.2.0 | active | 2026-09-14 |
 | [可观测性 API Endpoint](./reference/runtime-observability-api-endpoints.md) | 2.7.0 | active | 2026-09-14 |
-| [可观测性开发任务计划](./guides/runtime-observability-development-task-plan.md) | 2.7.0 | active | 2026-09-14 |
-| [可观测性执行与完成状态](./guides/runtime-observability-development-execution-status.md) | 2.9.0 | active | 2026-09-15 |
-| [任务完成情况复核](./guides/runtime-observability-completion-review.md) | 2.7.0 | active | 2026-09-14 |
+| [可观测性开发任务计划](./guides/runtime-observability-development-task-plan.md) | 2.8.0 | active | 2026-09-15 |
+| [可观测性执行与完成状态](./guides/runtime-observability-development-execution-status.md) | 2.10.0 | active | 2026-09-15 |
+| [任务完成情况复核](./guides/runtime-observability-completion-review.md) | 2.8.0 | active | 2026-09-15 |
 | [可观测性契约与接入映射](./reference/runtime-observability-contract-mapping.md) | 2.1.0 | active | 2026-09-14 |
 | [可观测性存储基础](./reference/runtime-observability-storage-foundation.md) | 2.1.0 | active | 2026-09-14 |
 | [运行集成指南](./guides/runtime-observability-integration.md) | 2.7.0 | active | 2026-09-14 |

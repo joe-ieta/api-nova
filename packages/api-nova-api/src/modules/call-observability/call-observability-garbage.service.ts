@@ -104,6 +104,12 @@ export class CallObservabilityGarbageService {
         }));
       });
       return report;
+    } catch (error) {
+      // Candidate processing can fail after the scanner has consumed its entry.
+      // Discard that cursor while holding the GC fence so the next batch retries
+      // surviving files instead of skipping them. Cleanup must not mask failure.
+      await this.payloads.closeScanner().catch(() => undefined);
+      throw error;
     } finally {
       await this.store.payloadCoordination.releaseGc(lease).catch(() => undefined);
     }

@@ -904,6 +904,10 @@ describe('RuntimeAssetsService', () => {
       runtimeAsset: mcpAsset,
     });
 
+    runtimeAssetRepository.findOne.mockResolvedValue({ ...mcpAsset, metadata: {
+      activeRevision: 'latest-active', verificationRequired: true,
+      verificationRequiredAt: '2026-09-15T00:00:01Z', operatorNote: 'latest-note',
+    } });
     const deployed = await service.deployMcpRuntimeAsset(mcpAsset.id, { port: 9033 });
 
     expect(runtimeVerificationService.executeMcpCandidate).toHaveBeenCalledWith(
@@ -912,6 +916,10 @@ describe('RuntimeAssetsService', () => {
       expect.arrayContaining([expect.objectContaining({ runtimeMembershipId: 'membership-1' })]),
     );
     expect(mcpServerRepository.save).toHaveBeenCalled();
+    expect(runtimeAssetRepository.save).toHaveBeenCalledWith(expect.objectContaining({ metadata: expect.objectContaining({
+      activeRevision: 'latest-active', verificationRequired: true,
+      verificationRequiredAt: '2026-09-15T00:00:01Z', operatorNote: 'latest-note',
+    }) }));
     expect(runtimeVerificationService.activateMcpCandidate).toHaveBeenCalledWith(
       mcpAsset.id,
       'verification-mcp-passed',

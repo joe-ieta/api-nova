@@ -205,3 +205,18 @@ test('payload shutdown drains an in-flight directory open, closes it and rejects
   await assert.rejects(f.objects.scanGarbage(1, 1, Date.now()), error => error.code === 'PAYLOAD_SCANNER_STOPPED');
   await f.objects.onModuleDestroy();
 });
+
+
+test('failed unlink retries its consumed candidate on the next bounded GC attempt', async t => {
+  const f = await fixture(t), file = await f.file('unlink-retry');
+  const aged = new Date(Date.now() - 120000); await fs.utimes(file, aged, aged);
+  const unlink = fs.unlink;
+  fs.unlink = async (...args) => { if (args[0] === file) throw Object.assign(new Error('synthetic denial'), { code: 'EACCES' }); return unlink(...args); };
+  try { await assert.rejects(f.gc.collect({ scanLimit: 1, deleteLimit: 1, graceMs: 60000 }), error => error.code === 'PAYLOAD_DELETE_FAILED'); }
+  finally { fs.unlink = unlink; }
+  await fs.access(file);
+  const recovered = await f.gc.collect({ scanLimit: 1, deleteLimit: 1, graceMs: 60000 });
+  assert.equal(recovered.status, 'completed');
+  assert.equal(recovered.deleted, 1);
+  await assert.rejects(fs.access(file), { code: 'ENOENT' });
+});

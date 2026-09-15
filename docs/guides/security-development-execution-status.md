@@ -1,5 +1,5 @@
 ---
-doc-version: 1.18.0
+doc-version: 1.19.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -8,7 +8,7 @@ doc-updated: 2026-09-15
 > Document status: Active execution ledger
 > Last updated: 2026-09-15
 > 范围：JWT/API Key/显式 Anonymous；MCP SDK 1.29 的 2025 Session 基线。OAuth2 与后续无状态协议升级延期。
-> 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置仅支持 manual，受权管理Reload/状态API已验证；Watch/MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；可信资产快照生成与提交整理见第24节；装配接线见第25节；单语句归属读取见第26节；发布信息并入同语句见第27节；最新上游跨源核验见第28节。
+> 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置仅支持 manual，受权管理Reload/状态API已验证；Watch/MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；可信资产快照生成与提交整理见第24节；装配接线见第25节；单语句归属读取见第26节；发布信息并入同语句见第27节；上游跨源核验见第28节；最新激活版本防护见第29节。
 
 ## 1. 状态与证据规则
 
@@ -593,3 +593,8 @@ readMcpOwnership新增唯一发布绑定LEFT JOIN和按membership取MAX(version)
 已确认旧装配捕获source A后，另一次resolve可能选择更新后的binding source B及B实例，造成A身份配B URL/credentialRef。resolver现在返回绑定membership/source身份，MCP装配在buildBaseUrl/transform之前同时检查捕获endpoint链、返回membership、绑定source与实例source；缺失或不符固定拒绝MCP_UPSTREAM_OWNERSHIP_MISMATCH。
 
 五套76/76与API构建通过，包含真实resolver到装配的同源通过/跨源拒绝、缺字段、返回字段兼容回归。该防护只检测跨源关联漂移，不解决同源版本变化、候选验证/激活事务或运行中撤销。观测停机和Gateway分页并行复核未发现新增可复现问题，不作无依据修改。安全与OBS整包统计不变；见[本轮记录](../audits/2026-09-15-upstream-ownership-wave.md)。
+## 29. 旧候选激活与部署元数据保护
+
+activateMcpCandidate新增当前activeRevision与run.previousActiveRevision比较，以及记录的上游binding身份/revision/active状态检查。记录数组缺失、非法revision或重复记录固定拒绝；verificationRequired为true时缺失/非法时间或不早于run.createdAt也拒绝。错误为MCP_CANDIDATE_STALE，历史缺少版本记录的候选需重新规划验证。
+
+deploy事务不再保存装配阶段捕获的旧资产，而是重读当前资产后仅合并部署信息，保留较新的失效标记与其它元数据。SQL.js证明旧候选拒绝时前置server写入、asset和run状态一起回滚。最终MCP七套101/101、API构建通过，见[本轮记录](../audits/2026-09-15-activation-gc-wave.md)。这是读取时点guard，不是跨进程CAS；未标记修改、计划前混读与完整执行快照仍未覆盖。任务包统计不变。

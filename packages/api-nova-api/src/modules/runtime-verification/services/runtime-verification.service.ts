@@ -16,7 +16,7 @@ import {
   RuntimeVerificationResultEntity,
   RuntimeVerificationResultStatus,
 } from '../../../database/entities/runtime-verification-result.entity';
-import { RuntimeUpstreamBindingStatus } from '../../../database/entities/runtime-upstream-binding.entity';
+import { RuntimeUpstreamBindingEntity, RuntimeUpstreamBindingStatus } from '../../../database/entities/runtime-upstream-binding.entity';
 import { RuntimeUpstreamBindingsService } from '../../runtime-upstream-bindings/services/runtime-upstream-bindings.service';
 import { GatewayRouteSnapshotService } from '../../gateway-runtime/services/gateway-route-snapshot.service';
 import { GatewayCandidateReplayService } from './gateway-candidate-replay.service';
@@ -597,6 +597,28 @@ export class RuntimeVerificationService {
     const runtimeAsset = await runtimeAssetRepository.findOne({ where: { id: runtimeAssetId } });
     if (!runtimeAsset || runtimeAsset.type !== RuntimeAssetType.MCP_SERVER) {
       throw new NotFoundException(`MCP runtime asset '${runtimeAssetId}' not found`);
+    }
+    const stale = () => new ConflictException('MCP_CANDIDATE_STALE');
+    if ((runtimeAsset.metadata?.activeRevision || null) !== (run.previousActiveRevision || null)) throw stale();
+    const invalidatedAt = runtimeAsset.metadata?.verificationRequiredAt;
+    if (runtimeAsset.metadata?.verificationRequired === true) {
+      const invalidated = Date.parse(String(invalidatedAt));
+      const planned = new Date(run.createdAt).getTime();
+      if (!Number.isFinite(invalidated) || !Number.isFinite(planned) || invalidated >= planned) throw stale();
+    }
+    if (!Array.isArray(run.upstreamBindingRevisions)) throw stale();
+    const seenBindings = new Set<string>();
+    const seenMemberships = new Set<string>();
+    const bindingRepository = (manager || this.runRepository.manager).getRepository(RuntimeUpstreamBindingEntity);
+    for (const expected of run.upstreamBindingRevisions) {
+      if (!expected || typeof expected.bindingId !== 'string' || !expected.bindingId ||
+        typeof expected.runtimeMembershipId !== 'string' || !expected.runtimeMembershipId ||
+        !Number.isSafeInteger(expected.revision) || expected.revision < 1 ||
+        seenBindings.has(expected.bindingId) || seenMemberships.has(expected.runtimeMembershipId)) throw stale();
+      seenBindings.add(expected.bindingId); seenMemberships.add(expected.runtimeMembershipId);
+      const current = await bindingRepository.findOne({ where: { id: expected.bindingId } });
+      if (!current || current.runtimeAssetEndpointBindingId !== expected.runtimeMembershipId ||
+        current.revision !== expected.revision || current.status !== RuntimeUpstreamBindingStatus.ACTIVE) throw stale();
     }
     runtimeAsset.metadata = {
       ...(runtimeAsset.metadata || {}),

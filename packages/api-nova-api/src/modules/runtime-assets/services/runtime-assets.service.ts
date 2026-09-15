@@ -857,12 +857,14 @@ export class RuntimeAssetsService {
         const saved = await manager.getRepository(MCPServerEntity).save(
           server as MCPServerEntity,
         );
-        runtimeAsset.metadata = {
-          ...(runtimeAsset.metadata || {}),
+        const currentAsset = await manager.getRepository(RuntimeAssetEntity).findOne({ where: { id: runtimeAssetId } });
+        if (!currentAsset || currentAsset.type !== RuntimeAssetType.MCP_SERVER) throw new ConflictException('MCP_CANDIDATE_STALE');
+        currentAsset.metadata = {
+          ...(currentAsset.metadata || {}),
           managedServerId: saved.id,
           deployedAt: new Date().toISOString(),
         };
-        await manager.getRepository(RuntimeAssetEntity).save(runtimeAsset);
+        await manager.getRepository(RuntimeAssetEntity).save(currentAsset);
         const activation = await this.runtimeVerificationService.activateMcpCandidate(
           runtimeAssetId,
           verification.run.id,
