@@ -1,3 +1,4 @@
+import { readMcpOwnership } from './mcp-ownership-reader';
 import { createMcpTrustedOperationBindings } from './mcp-trusted-operation-bindings';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -229,16 +230,27 @@ export class RuntimeAssetsService {
   }
 
   async assembleMcpRuntimeAssetPayload(runtimeAssetId: string) {
-    const asset = structuredClone(await this.requireRuntimeAsset(runtimeAssetId));
+    const ownership = await readMcpOwnership(this.runtimeAssetRepository.manager, runtimeAssetId);
+    if (!ownership) throw new NotFoundException('Runtime asset not found');
+    const asset = ownership.asset;
     if (asset.type !== RuntimeAssetType.MCP_SERVER) {
       throw new NotFoundException(
         `Runtime asset '${runtimeAssetId}' is not an MCP runtime asset`,
       );
     }
 
-    // Capture values once for both spec assembly and identity mapping. The existing
-    // repository reads are independent, not a transactionally consistent snapshot.
-    const memberships = structuredClone(await this.listRuntimeAssetMemberships(runtimeAssetId));
+    // Ownership is one statement; eligibility/profile reads and upstream selection
+    // remain independent and do not claim a shared transactional snapshot.
+    const data = await Promise.all(ownership.rows.map(async row => ({
+      ...row,
+      profile: await this.profileRepository.findOne({
+        where: { runtimeAssetEndpointBindingId: row.membership.id }, order: { version: 'DESC' },
+      }),
+      publishBinding: await this.publishBindingRepository.findOne({
+        where: { runtimeAssetEndpointBindingId: row.membership.id },
+      }),
+    })));
+    const memberships = structuredClone({ total: data.length, data });
     const includedMemberships = memberships.data.filter(item => {
       if (!item.membership.enabled) {
         return false;

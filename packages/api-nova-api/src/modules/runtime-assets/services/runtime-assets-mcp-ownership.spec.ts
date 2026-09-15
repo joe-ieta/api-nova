@@ -1,3 +1,4 @@
+import * as reader from './mcp-ownership-reader';
 import { RuntimeAssetsService } from './runtime-assets.service';
 import * as server from 'api-nova-server';
 const id = (n: number) => `00000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
@@ -8,7 +9,12 @@ function fixture() {
     } }, sourceServiceAsset: { id: id(4) }, publishBinding: { publishedToMcp: true }, profile: null }] };
   const service: any = Object.create(RuntimeAssetsService.prototype);
   service.requireRuntimeAsset = jest.fn(async () => ({ id: id(1), type: 'mcp_server', name: 'fixture' }));
-  service.listRuntimeAssetMemberships = jest.fn(async () => rows);
+  service.runtimeAssetRepository = { manager: {} };
+  service.profileRepository = { findOne: jest.fn(async () => null) };
+  service.publishBindingRepository = { findOne: jest.fn(async () => ({ publishedToMcp: true })) };
+  jest.spyOn(reader, 'readMcpOwnership').mockImplementation(async () => structuredClone({
+    asset: await service.requireRuntimeAsset(), rows: rows.data,
+  }));
   service.findManagedServerSummary = jest.fn(async () => null);
   service.runtimeUpstreamBindingsService = { resolve: jest.fn(async () => ({ resolved: true, instance: { id: id(5) } })), buildBaseUrl: () => 'https://fixture.invalid' };
   return { service, rows };

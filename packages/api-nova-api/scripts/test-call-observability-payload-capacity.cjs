@@ -131,3 +131,48 @@ test('capacity view rejects future measurements, impossible counters and injecte
   const view = payloadCapacityView(row, Date.now());
   assert.equal(JSON.stringify(view).includes('PRIVATE'), false);
 });
+
+
+test('closed directory failure discards its cursor and the next worker attempt safely reopens the failed shard', async t => {
+  const f = await fixture(t), file = await f.file('recoverable');
+  const opendir = fs.opendir;
+  let invalidated = false;
+  fs.opendir = async (...args) => {
+    const directory = await opendir(...args);
+    if (!invalidated) { invalidated = true; await directory.close(); }
+    return directory;
+  };
+  try { await assert.rejects(f.worker.runOnce(), { code: 'ERR_DIR_CLOSED' }); }
+  finally { fs.opendir = opendir; }
+  const failed = await f.row();
+  assert.equal(failed.value.currentAttemptComplete, false);
+  assert.equal(payloadCapacityView(failed, Date.now()).scanCoverage, 'unknown');
+  const recovered = await f.worker.runOnce();
+  assert.equal(recovered.lastReport.scanUsage.startedAtShardBoundary, true);
+  assert.equal(recovered.lastReport.scanUsage.observedBytes, 11);
+  assert.equal(recovered.lastReport.scanUsage.observedFiles, 1);
+  assert.equal(recovered.lastReport.deleted, 0);
+  assert.equal(payloadCapacityView(await f.row(), Date.now()).observedBytes, 11);
+  await fs.access(file);
+});
+
+test('stat failure preserves the original error and retries its consumed entry from the shard boundary', async t => {
+  const f = await fixture(t), file = await f.file('retry-stat');
+  const lstat = fs.lstat, opendir = fs.opendir;
+  const failure = Object.assign(new Error('synthetic stat failure'), { code: 'EIO' });
+  fs.opendir = async (...args) => {
+    const directory = await opendir(...args), close = directory.close.bind(directory);
+    directory.close = async () => { await close(); throw new Error('synthetic close failure'); };
+    return directory;
+  };
+  fs.lstat = async (...args) => { if (args[0] === file) throw failure; return lstat(...args); };
+  try { await assert.rejects(f.worker.runOnce(), error => error === failure); }
+  finally { fs.lstat = lstat; fs.opendir = opendir; }
+  assert.equal(payloadCapacityView(await f.row(), Date.now()).observedBytes, null);
+  const recovered = await f.worker.runOnce();
+  assert.equal(recovered.lastReport.scanUsage.startedAtShardBoundary, true);
+  assert.equal(recovered.lastReport.scanUsage.observedBytes, 10);
+  assert.equal(recovered.lastReport.scanUsage.observedFiles, 1);
+  assert.equal(recovered.lastReport.deleted, 0);
+  await fs.access(file);
+});

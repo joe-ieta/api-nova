@@ -31,25 +31,34 @@ export const useObservabilityDiagnosticsStore = defineStore("observability-diagn
     const valid = () => current === generation && session() === owner;
     loading.value = true;
     try {
-      const [capabilities, servers] = await Promise.allSettled([
-        diagnosticsRequest("capabilities", token, request.signal),
-        diagnosticsRequest("servers/status", token, request.signal),
-      ]);
-      if (!valid()) return;
-      if (servers.status === "fulfilled" && Array.isArray(servers.value?.items) && servers.value.items.length <= 200) {
-        readAt.value = diagnosticTime(servers.value.readAt);
-        heartbeat.value = heartbeatEvidence(servers.value.managementHeartbeat);
-        routes.value = servers.value.items.filter((row: any) => row?.serverType === "gateway" &&
-          typeof row.runtimeAssetId === "string").map((row: any) => ({
-          runtimeAssetId: row.runtimeAssetId, evidence: routingEvidence(row.gatewayRoutingObservation),
-        }));
-      } else { error.value = true; errors.value.servers = true; }
-      const canReadPipeline = capabilities.status === "fulfilled" &&
-        Array.isArray(capabilities.value?.features) && capabilities.value.features.some((feature: any) =>
-          feature.name === "pipelineStatus" && feature.state === "enabled" && feature.scopeMode === "all");
-      pipelineRestricted.value = !canReadPipeline;
-      if (capabilities.status === "rejected") { error.value = true; errors.value.capabilities = true; }
-      if (canReadPipeline) {
+      const readServers = async () => {
+        try {
+          const servers = await diagnosticsRequest("servers/status", token, request.signal);
+          if (!valid()) return;
+          if (!Array.isArray(servers?.items) || servers.items.length > 200) throw new Error("INVALID_SERVERS");
+          readAt.value = diagnosticTime(servers.readAt);
+          heartbeat.value = heartbeatEvidence(servers.managementHeartbeat);
+          routes.value = servers.items.filter((row: any) => row?.serverType === "gateway" &&
+            typeof row.runtimeAssetId === "string").map((row: any) => ({
+            runtimeAssetId: row.runtimeAssetId, evidence: routingEvidence(row.gatewayRoutingObservation),
+          }));
+        } catch { if (valid()) { error.value = true; errors.value.servers = true; } }
+      };
+      const readPipeline = async () => {
+        let canReadPipeline = false;
+        try {
+          const capabilities = await diagnosticsRequest("capabilities", token, request.signal);
+          if (!valid()) return;
+          if (!Array.isArray(capabilities?.features) || !capabilities.features.every((feature: any) =>
+            feature && typeof feature === "object" && typeof feature.name === "string" &&
+            typeof feature.state === "string" && (feature.scopeMode === null || typeof feature.scopeMode === "string"))) {
+            throw new Error("INVALID_CAPABILITIES");
+          }
+          canReadPipeline = capabilities.features.some((feature: any) =>
+            feature.name === "pipelineStatus" && feature.state === "enabled" && feature.scopeMode === "all");
+          pipelineRestricted.value = !canReadPipeline;
+        } catch { if (valid()) { error.value = true; errors.value.capabilities = true; } }
+        if (!canReadPipeline || !valid()) return;
         try {
           const pipeline = await diagnosticsRequest("pipeline/status", token, request.signal);
           if (valid()) {
@@ -57,7 +66,8 @@ export const useObservabilityDiagnosticsStore = defineStore("observability-diagn
             retention.value = retentionEvidence(pipeline?.retention);
           }
         } catch { if (valid()) { retention.value = null; error.value = true; errors.value.pipeline = true; } }
-      }
+      };
+      await Promise.all([readServers(), readPipeline()]);
     } finally {
       clearTimeout(deadline);
       if (valid()) { loading.value = false; controller = null; }

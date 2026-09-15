@@ -1,5 +1,5 @@
 ---
-doc-version: 1.15.0
+doc-version: 1.16.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -8,7 +8,7 @@ doc-updated: 2026-09-15
 > Document status: Active execution ledger
 > Last updated: 2026-09-15
 > 范围：JWT/API Key/显式 Anonymous；MCP SDK 1.29 的 2025 Session 基线。OAuth2 与后续无状态协议升级延期。
-> 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置仅支持 manual，受权管理Reload/状态API已验证；Watch/MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；可信资产快照生成与提交整理见第24节；最新装配接线见第25节。
+> 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置仅支持 manual，受权管理Reload/状态API已验证；Watch/MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；可信资产快照生成与提交整理见第24节；装配接线见第25节；最新单语句归属读取见第26节。
 
 ## 1. 状态与证据规则
 
@@ -578,3 +578,8 @@ assembleMcpRuntimeAssetPayload 现在捕获 asset 和 membership 查询结果的
 3套50/50（装配8、生成器19、原服务23）及API整包构建通过。前轮4笔提交已获用户确认并成功推送origin/main至eaa143a。本轮证据见[装配接线记录](../audits/2026-09-15-mcp-assembly-ownership-wave.md)。安全23包及合计39包统计不变，没有新增整包DONE。
 
 本轮新增装配接线的远端推送被自动审批另行拒绝：此前确认只覆盖原4笔提交，新增源码/测试/文档待明确确认；本地提交继续完成。
+## 26. 单语句归属读取与并发恢复推进
+
+7ea27a0已获用户明确授权并推送origin/main，远端核对一致，前节推送阻塞已解除。MCP装配现在通过readMcpOwnership单条LEFT JOIN读取runtime/membership/endpoint/source，SQL.js实测仅一次SELECT；保留悬空关联以便固定拒绝，空资产与不存在资产区分，10001行哨兵拒绝超过10000行而非返回截断结果。装配不再调用原归属N+1读取。
+
+profile、publication和upstream仍独立读取；单语句只限定归属链，不是整个装配/发布流程的一致事务，也不提供运行中撤销。最终四套56/56和API整包构建通过。并发扫描恢复与UI诊断修复见[本轮记录](../audits/2026-09-15-ownership-recovery-wave.md)。安全23包与合计39包统计不变，C4/E1仍IN_PROGRESS。

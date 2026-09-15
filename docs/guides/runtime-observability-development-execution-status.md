@@ -1,7 +1,7 @@
 ---
-doc-version: 2.7.0
+doc-version: 2.8.0
 doc-status: active
-doc-updated: 2026-09-14
+doc-updated: 2026-09-15
 ---
 # 可观测性开发执行与验收状态
 
@@ -140,3 +140,8 @@ API构建PASS；OBS十六脚本254/254（包含心跳9及pipeline15，不重复�
 正文容量复用现有GC lstat扫描；pipeline.retention.scanUsage区分扫描覆盖、样本长度与未知当前总量，独立时间判定新鲜度，未完成尝试不复用旧样本。Dashboard只读诊断已消费管理心跳、授权路由、留存报告和容量样本，分来源失败/超时与身份切换保持隔离。
 
 OBS联合273/273，UI33/33；Parser/API/Server/UI四包构建通过。验证详情、审查及剩余任务见[本轮记录](../audits/2026-09-14-single-hop-capacity-diagnostics-wave.md)。OBS仍DONE10、IN_PROGRESS5、BACKLOG1，配额强制/完整生命周期及业务存活未闭合，无实际清理启用或部署。
+## 13. 正文扫描与诊断读取故障恢复
+
+scanGarbage失败后清除目录句柄，下次重开失败分片，避免永久复用失效Dir或跳过已读取但测量失败的对象；关闭句柄再次失败不覆盖原错误，失败批次不返回成功容量证据。先复现新增2例失败，修复后容量9/9与retention10/10通过；最终最新构建下payloads/capacity/retention/pipeline联合58/58。
+
+诊断UI对畸形capabilities显示来源错误且可重读恢复，允许合法not_implemented/null；pipeline读取只依赖capabilities，与servers/status并行，慢服务器来源不再耗尽管线启动时间。登出迟到响应保持隔离，UI联合36/36、类型检查通过。API整包构建通过，证据见[本轮记录](../audits/2026-09-15-ownership-recovery-wave.md)。OBS统计仍DONE10、IN_PROGRESS5、BACKLOG1；没有启用真实GC或完成配额治理。

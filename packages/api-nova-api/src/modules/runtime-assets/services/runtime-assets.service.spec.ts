@@ -1,3 +1,4 @@
+import * as ownershipReader from './mcp-ownership-reader';
 import { ConflictException } from '@nestjs/common';
 import { RuntimeAssetType } from '../../../database/entities/runtime-asset.entity';
 import { ServerStatus } from '../../../database/entities/mcp-server.entity';
@@ -807,7 +808,14 @@ describe('RuntimeAssetsService', () => {
     });
     runtimeUpstreamBindingsService.buildBaseUrl.mockReturnValue('https://orders.example');
 
+    const readerSpy = jest.spyOn(ownershipReader, 'readMcpOwnership').mockImplementation(async () => {
+      const selected = await service.listRuntimeAssetMemberships(mcpAsset.id);
+      return { asset: mcpAsset, rows: selected.data } as any;
+    });
+    profileRepository.findOne.mockResolvedValue(null);
+    publishBindingRepository.findOne.mockResolvedValue({ publishedToMcp: true, publishStatus: 'active' });
     const assembled = await service.assembleMcpRuntimeAssetPayload(mcpAsset.id);
+    readerSpy.mockRestore();
 
     expect((assembled.openApiData.paths['/orders'].post as any)['x-api-nova-credential-ref'])
       .toBe('env-headers:Authorization=UPSTREAM_ORDER_TOKEN');

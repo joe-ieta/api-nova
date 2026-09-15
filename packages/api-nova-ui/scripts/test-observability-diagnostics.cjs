@@ -133,3 +133,61 @@ test("whole refresh timeout aborts pending requests and reports unknown, not old
   assert.equal(f.store.errors.capabilities, true); assert.deepEqual(f.store.routes, []);
   assert.equal(f.store.heartbeat, null); assert.equal(f.store.retention, null);
 });
+
+
+test("malformed capabilities fail closed without hiding routes and recover on reread", async t => {
+  let features = [null, ...caps("all").features];
+  const f = fixture(t, async resource => resource === "capabilities" ? { features } :
+    resource === "servers/status" ? servers() : { retention: retention() });
+  for (const malformed of [features, [42], undefined]) {
+    features = malformed;
+    await f.store.load();
+    assert.equal(f.store.errors.capabilities, true);
+    assert.equal(f.store.pipelineRestricted, true);
+    assert.equal(f.store.loading, false);
+    assert.equal(f.store.routes.length, 1);
+    assert.equal(f.store.retention, null);
+  }
+  assert.equal(f.calls.some(args => args[0] === "pipeline/status"), false);
+  features = [...caps("all").features, { name: "future", state: "not_implemented", scopeMode: null }];
+  await f.store.load();
+  assert.equal(f.store.error, false);
+  assert.equal(f.store.pipelineRestricted, false);
+  assert.equal(f.store.retention.state, "degraded");
+});
+
+test("a stalled servers source cannot consume the pipeline read deadline", async t => {
+  const original = global.setTimeout;
+  global.setTimeout = (callback, ms, ...args) => original(callback, ms === 10000 ? 10 : ms, ...args);
+  t.after(() => { global.setTimeout = original; });
+  const f = fixture(t, async (resource, _token, signal) => {
+    if (resource === "capabilities") return caps("all");
+    if (resource === "pipeline/status") {
+      assert.equal(signal.aborted, false, "pipeline must start before the unrelated servers timeout");
+      return { evaluatedAt: time, retention: retention() };
+    }
+    return new Promise((_resolve, reject) => signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true }));
+  });
+  await f.store.load();
+  assert.equal(f.store.errors.servers, true);
+  assert.equal(f.store.errors.pipeline, false);
+  assert.equal(f.store.retention.state, "degraded");
+  assert.equal(f.store.pipelineReadAt, time);
+  assert.deepEqual(f.store.routes, []);
+});
+
+test("logout discards a late pipeline response and does not start further reads", async t => {
+  const pending = deferred();
+  const f = fixture(t, async resource => resource === "capabilities" ? caps("all") :
+    resource === "servers/status" ? servers() : pending.promise);
+  const reading = f.store.load(); await tick();
+  assert.equal(f.calls.some(args => args[0] === "pipeline/status"), true);
+  f.auth.accessToken = null;
+  const count = f.calls.length;
+  pending.resolve({ evaluatedAt: time, retention: retention() }); await reading;
+  assert.equal(f.calls.length, count);
+  assert.equal(f.store.retention, null);
+  assert.equal(f.store.pipelineReadAt, null);
+  assert.deepEqual(f.store.routes, []);
+  assert.equal(f.store.loading, false);
+});

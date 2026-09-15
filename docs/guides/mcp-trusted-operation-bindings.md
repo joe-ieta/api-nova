@@ -1,5 +1,5 @@
 ---
-doc-version: 1.3.0
+doc-version: 1.4.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -41,3 +41,6 @@ OpenAPI 扩展不能覆盖关系身份。成员停用后重新读取并生成会
 
 
 2026-09-15：assembleMcpRuntimeAssetPayload 已调用生成器并向 Server 转换入口传递映射；用 structuredClone 捕获查询返回值，选中行缺实体即拒绝。当前只是捕获行内部归属核验，不是一致事务。3套50/50和API构建通过；受管进程启动仍未接入，详见[装配接线记录](../audits/2026-09-15-mcp-assembly-ownership-wave.md)。
+
+
+最新装配使用 readMcpOwnership 单条LEFT JOIN捕获runtime/membership/endpoint/source关系（SQL.js确认一条SELECT），不再分次读取这些归属实体。缺关联保留，超过10000行拒绝；profile/publication/upstream仍独立读取，整个装配并非一致事务。四套56/56通过，见[单查询与恢复记录](../audits/2026-09-15-ownership-recovery-wave.md)。
