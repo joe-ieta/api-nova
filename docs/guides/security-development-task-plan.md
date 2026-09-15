@@ -1,7 +1,7 @@
 ---
-doc-version: 1.8.0
+doc-version: 1.9.0
 doc-status: active
-doc-updated: 2026-09-14
+doc-updated: 2026-09-15
 ---
 # ApiNova 安全开发任务规划
 
@@ -9,6 +9,8 @@ doc-updated: 2026-09-14
 > Last reviewed: 2026-09-14
 > Scope: 完善现有安全方案；OAuth2 保留为后续产品能力，当前里程碑不开发、不启用
 > Implementation status: 已按当前实现复核；区分基础实现、未闭环条件和待验证开发。执行状态与证据见 [安全开发执行与状态记录](./security-development-execution-status.md)
+
+> 2026-09-15 调度重排：父包原退出条件不变；当前细分、跨计划归属和下一队列见[工作包划分](./active-work-package-breakdown.md)，逐项状态见[子任务执行台账](./active-work-package-execution-status.md)。父包 IN_PROGRESS 不表示正在同时执行；文档子项完成不计为代码完成。
 
 ## 1. 范围决策
 
@@ -264,7 +266,7 @@ Gateway 和 MCP 均允许显式 Anonymous，用于开发调试和临时安全测
 
 可观测性状态见[当前完成情况](./runtime-observability-completion-review.md)。26/28 HTTP 已验证、548 项联合通过不能换算为安全任务完成。
 
-## 10. 本轮开发范围与门禁
+## 10. 2026-09-14 首批开发范围与门禁（历史）
 
 先同步文档，再并行推进以下切片，全部 IN_PROGRESS，未验证不标 DONE：
 
@@ -274,13 +276,13 @@ Gateway 和 MCP 均允许显式 Anonymous，用于开发调试和临时安全测
 
 本轮已获得补充拒绝型专项、构建、修正和回归的授权；共享类型错误与旧测试夹具已修正，授权范围内构建和专项均已复验通过。任务包状态不因局部专项通过而提升为 DONE。本轮不隐式授权数据库重建、秘密迁移、重大依赖升级和对外部署。整理前计划与状态见[历史归档](../archive/summaries/security-2026-09-14/README.md)。
 
-## 11. 当前开发与验证节点
+## 11. 已验证基础与剩余边界（更新至2026-09-15）
 
 C3 Stable Read 与 Gateway 显式配置激活已实现：Registry 新增 reloadFile，共用对象/文本重载锁；1 MiB 有界双次采样验证文件身份与内容，失败保留旧快照。GatewayRuntimeModule 已注册异步 ConfigService Registry/Resolver Provider，配置有效后启动前激活，无效时拒绝启动；三个配置项均缺省时保留原有 env-headers。当前仅支持 manual，watch 文件拒绝激活。
 
 Parser 全量 18 套 342/342、Gateway 完整专项 15 套 123/123（detectOpenHandles）、Parser/Server/API 构建均通过。Gateway 配置激活与 Resolver 独立专项 19/19。扩大回归初次发现的 4 个旧夹具失败已修复，原失败证据保留，最终结果见[执行台账第 18 节](./security-development-execution-status.md)。Parser 全量仍有 4 条既有审计写入告警，Linux Provider 30 个真实文件场景仍未补证。
 
-23 个任务包仍为 DONE 1、IN_PROGRESS 18、BACKLOG 3、DEFERRED 1。稳定文件读取/配置激活已是已验证切片，不能继续列为缺失；Watch、受权 Reload/状态 API、资产归属核验、审计持久化、跨进程、MCP、业务 Header Allowlist 和 redirect/DNS/SSRF 仍须按各包退出条件完成。
+23 个任务包仍为 DONE 1、IN_PROGRESS 18、BACKLOG 3、DEFERRED 1。稳定文件读取/配置激活已是已验证切片，不能继续列为缺失；固定源受权Reload/状态API及意图/结果审计已在台账第20节验证，不再列为待开发。真实受管MCP启动、Registry配置DB归属、Watch/多进程、完整凭据/网络政策仍须按子任务出口完成。
 
 ## 12. 当前关键路径与并行面
 
@@ -289,10 +291,10 @@ Parser 全量 18 套 342/342、Gateway 完整专项 15 套 123/123（detectOpenH
 | 节点 | 依赖与当前事实 | 推进方式 |
 | --- | --- | --- |
 | C1 -> C2 -> C3 -> Gateway C4 | 安全文本、Provider、稳定文件源、原子 Registry 与 Gateway 显式配置激活已贯通 | 已验证切片；不新增整包 DONE |
-| C4/E1 MCP | E1 依赖 B3/C4/E0；配置源已有，工具资产/Endpoint 身份与真实发送目标仍需连接 | 下一关键节点，复用 Registry/Resolver，绑定与身份信息必须来自可信宿主 |
-| F3 跳转/网络 | F3 依赖 C4/D1/E1；Gateway 不跟随跳转，Parser 当前最多跟随 5 次 | 与 MCP 集成设计并行；逐跳目标/凭据重建、DNS 与连接授权不得被初始 Site 匹配替代 |
+| C4/E1 MCP | E1 依赖 B3/C4/E0；管理侧可信映射、单查询装配、跨源/候选guard已验证；实际受管child启动仍未消费可信绑定/Resolver | 下一关键节点，复用 Registry/Resolver，绑定与身份信息必须来自可信宿主 |
+| F3 跳转/网络 | F3 依赖 C4/D1/E1；Gateway及显式single-hop不跟随跳转，Parser legacy保留最多5次；两者保证不能混用 | 与 MCP 集成设计并行；逐跳目标/凭据重建、DNS 与连接授权不得被初始 Site 匹配替代 |
 | D1 Header Allowlist | 依赖 C4；当前已做消费者/逐跳/托管 Header 清理及 Resolver 注入，业务 allowlist 尚缺 | 按 draft 契约落实版本化清单、迁移和缓存/传输兼容 |
-| C3 管理/Watch/审计 | 启动装载已完成；管理接口还需控制面鉴权、资产归属与审计 | 独立切片推进；明确失败保旧快照、关闭清理与多进程语义 |
+| C3 管理/Watch/审计 | 启动装载、受权Reload/状态和意图/结果审计已完成；余项为Watch、Registry配置DB归属及多进程 | 独立切片推进；明确失败保旧快照、关闭清理与多进程语义 |
 | C2/F4 Linux 证据 | 不阻塞本机纯逻辑开发 | 按隔离测试说明补真实权限结果，不能用 Windows 文件源测试替代 |
 
 D1/F3 的 30 项矩阵见[请求头与网络边界契约](./security-header-network-boundary-contract.md)，状态为 draft，不计为已实现防护。Gateway 的实际配置方式与边界见[文件激活手册](./gateway-upstream-credential-file-activation.md)。

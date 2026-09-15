@@ -1,13 +1,15 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
-doc-updated: 2026-09-14
+doc-updated: 2026-09-15
 ---
 # ApiNova 安全功能需求
 
 > Document status: Approved, active normative baseline
 > Last reviewed: 2026-09-14
 > Implementation status: 已批准；当前实现和剩余退出条件已静态复核；以 [执行状态记录](./security-development-execution-status.md) 为准
+
+> 2026-09-15 调度重排：父包原退出条件不变；当前细分、跨计划归属和下一队列见[工作包划分](./active-work-package-breakdown.md)，逐项状态见[子任务执行台账](./active-work-package-execution-status.md)。父包 IN_PROGRESS 不表示正在同时执行；文档子项完成不计为代码完成。
 
 ## 安全模型
 
@@ -70,11 +72,11 @@ doc-updated: 2026-09-14
 | 管理 JWT/RBAC | 已实现 | Secret 权限和完整审计 |
 | Gateway Anonymous/JWT/API Key | 已实现，Batch 1 加固待审核 | 临时 Anonymous 元数据和统一凭证模型 |
 | Gateway Key 摘要、Scope、撤销 | 已实现 | 有效期、轮换、Protocol/Tool Scope |
-| Gateway Env Header 注入 | 已实现 | 动态结构、继承、Header 隔离 |
+| Gateway上游凭据 | Env及显式Registry/Resolver已实现 | 业务allowlist、完整类型/生命周期及网络政策 |
 | OpenAPI Security 提取 | 分析已实现 | Configured/Verified 闭环 |
-| MCP 上游 Bearer/Custom Header | 已实现 | 共享 Resolver、移除命令行 Secret |
+| MCP上游凭据 | legacy已有；显式进程内single-hop/共享Resolver已验证 | 受管child可信传递和argv秘密移除未完成 |
 | MCP 入站 API Key/JWT | Private JWT/API Key 基线已实现 | 统一凭证管理和完整协议版本回归 |
-| Site/Endpoint 继承 | 未实现 | 必须补齐 |
+| Site/Endpoint 继承 | Registry/Resolver及显式single-hop限定路径已验证 | 实际受管MCP启动/运行中撤销与完整安全对账仍缺 |
 | OAuth2 | 后续产品能力 | 当前仅保留类型模型和禁用 UI 占位，不可创建、发布或执行 |
 | 完整 SSRF | 未举证 | 生产阻断项 |
 

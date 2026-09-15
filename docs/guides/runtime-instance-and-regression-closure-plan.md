@@ -3,6 +3,9 @@
 > Document status: Active
 > Last reviewed: 2026-09-08 (governance and sample-retention amendment; earlier work-package evidence remains dated)
 
+
+> 2026-09-15 current scheduling: this WP00-WP90 product plan overlaps OBS/SEC; do not add its ten packages to the 39 specialist packages. Use [work breakdown](./active-work-package-breakdown.md) and [execution status](./active-work-package-execution-status.md) for deduplicated remaining work. The July WP60 DEV02 gap was later implemented internally; real publication acceptance remains. WP70's original implementation completion is historical evidence, while additional full CAS must first be checked against approved scope (PROD-06), not silently added as a new exit condition.
+
 ## Status
 
 Active implementation baseline, amended on 2026-09-07.

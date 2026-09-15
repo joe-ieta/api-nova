@@ -1,12 +1,14 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
-doc-updated: 2026-09-07
+doc-updated: 2026-09-15
 ---
 # Staged Development Plan
 
 > Document status: Active
 > Last reviewed: 2026-07-22
+
+> 2026-09-15 调度重排：父包原退出条件不变；当前细分、跨计划归属和下一队列见[工作包划分](./active-work-package-breakdown.md)，逐项状态见[子任务执行台账](./active-work-package-execution-status.md)。父包 IN_PROGRESS 不表示正在同时执行；文档子项完成不计为代码完成。
 
 ## Purpose
 

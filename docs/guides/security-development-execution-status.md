@@ -1,5 +1,5 @@
 ---
-doc-version: 1.19.0
+doc-version: 1.20.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -9,6 +9,8 @@ doc-updated: 2026-09-15
 > Last updated: 2026-09-15
 > 范围：JWT/API Key/显式 Anonymous；MCP SDK 1.29 的 2025 Session 基线。OAuth2 与后续无状态协议升级延期。
 > 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置仅支持 manual，受权管理Reload/状态API已验证；Watch/MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；可信资产快照生成与提交整理见第24节；装配接线见第25节；单语句归属读取见第26节；发布信息并入同语句见第27节；上游跨源核验见第28节；最新激活版本防护见第29节。
+
+> 2026-09-15 调度重排：父包原退出条件不变；当前细分、跨计划归属和下一队列见[工作包划分](./active-work-package-breakdown.md)，逐项状态见[子任务执行台账](./active-work-package-execution-status.md)。父包 IN_PROGRESS 不表示正在同时执行；文档子项完成不计为代码完成。
 
 ## 1. 状态与证据规则
 
@@ -30,12 +32,12 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-B3 | SEC-B03；B1/B2/E0 | IN_PROGRESS | tools/list 请求级 scope 过滤 34/34，tools/call 二次检查及会话绑定已有；SDK 内部桥接、持久撤销与权限通知未闭环 |
 | TP-C1 | SEC-C01；A0 | IN_PROGRESS | 纯对象与 JSON/YAML loader 已实现，并经 C3 稳定文件读取激活到 Gateway；完整凭据类型、安全对账与全链路验收仍待完成 |
 | TP-C2 | SEC-C02；C1 | IN_PROGRESS | Env/File Provider 已用于 Registry，Gateway 显式配置激活链已贯通；本机契约历史 53 项通过，真实 Linux 权限 30 场景待补证，Windows Secret File ACL 未适配 |
-| TP-C3 | SEC-C03；C2 | IN_PROGRESS | 对象/文本/稳定文件读取、统一重载锁、Dry Resolution、原子快照及 Gateway 启动激活已实现；Parser 342/342、Gateway 123/123；受权Reload/状态API及意图/结果审计已验证；Watch/Debounce、资产归属及多进程未闭环 |
-| TP-C4 | SEC-C04；C3 | IN_PROGRESS | 纯 Resolver、Gateway 默认注册且显式配置启用已实现，配置/解析专项 19/19，Gateway 全量专项 123/123；MCP、资产归属与完整网络边界验收仍待完成 |
+| TP-C3 | SEC-C03；C2 | IN_PROGRESS | Stable Read、manual Reload/状态及意图/结果审计已验证；SEC-C3-01~03分别负责Watch、Registry配置DB归属、多进程；不重新开发已完成管理接口 |
+| TP-C4 | SEC-C04；C3 | IN_PROGRESS | Gateway与显式MCP single-hop Resolver已验证；SEC-C4-01验收真实受管child执行及Unresolved门禁，依赖E1/F1；网络政策主归F3，不在C4复制实现 |
 | TP-D1 | SEC-D01；C4 | IN_PROGRESS | 消费者/逐跳/托管Header清理及共享Resolver已用于Gateway；Connection大小写联合提名、代理生成字段去别名和XFF不重引入已补；业务Header Allowlist、缓存/传输兼容和保留字段统一策略仍未完成，30 项 D1/F3 矩阵为 draft |
 | TP-D2 | SEC-D02；B1/B2/D1 | IN_PROGRESS | 认证先于缓存、身份隔离和限流已有；本轮补缓存读写缺身份旁路与模式/主体/凭证/权限隔离，Gateway161项通过；IP层、Anonymous独立Bucket和完整层级验收不足 |
 | TP-E0 | MCP Adapter；A0 | IN_PROGRESS | HTTP/Session/SSE/stdio 和 Discovery 禁用已有；完整版本/错误边界待验收 |
-| TP-E1 | SEC-E01；B3/C4/E0 | IN_PROGRESS | Env引用和Endpoint ID已有；新增可信进程内操作映射、冻结闭包与两个Server入口；新增显式single-hop共享Resolver标准HTTP发送授权；数据库归属、自动逐跳及CLI秘密移除仍未闭环 |
+| TP-E1 | SEC-E01；B3/C4/E0 | IN_PROGRESS | 可信映射、管理侧装配/发布读取、跨源校验及旧候选guard已验；SEC-E1-01~04负责技术方案、真实child接线、argv秘密移除、端到端与运行中撤销；管理侧继续微修不替代出口 |
 | TP-E2 | SEC-E02；E1 | IN_PROGRESS | 安全 smoke/跨进程/传输专项有历史证据；当前完整安全矩阵、撤销/取消/重连和平台组合未完成 |
 | TP-F1 | SEC-F01；C4 | BACKLOG | OpenAPI security 提取已有；四态安全对账、Binding 兼容和 OR/AND 不弱化未闭环 |
 | TP-F2 | SEC-F02；A3/B1/C3/F1 | IN_PROGRESS | 凭证管理与模式展示已有；本轮纠正缺策略显示匿名，完整分区、匿名风险和 Reload 状态待完成 |
@@ -598,3 +600,8 @@ readMcpOwnership新增唯一发布绑定LEFT JOIN和按membership取MAX(version)
 activateMcpCandidate新增当前activeRevision与run.previousActiveRevision比较，以及记录的上游binding身份/revision/active状态检查。记录数组缺失、非法revision或重复记录固定拒绝；verificationRequired为true时缺失/非法时间或不早于run.createdAt也拒绝。错误为MCP_CANDIDATE_STALE，历史缺少版本记录的候选需重新规划验证。
 
 deploy事务不再保存装配阶段捕获的旧资产，而是重读当前资产后仅合并部署信息，保留较新的失效标记与其它元数据。SQL.js证明旧候选拒绝时前置server写入、asset和run状态一起回滚。最终MCP七套101/101、API构建通过，见[本轮记录](../audits/2026-09-15-activation-gc-wave.md)。这是读取时点guard，不是跨进程CAS；未标记修改、计划前混读与完整执行快照仍未覆盖。任务包统计不变。
+
+
+## 30. 任务包完成度审核与重拆
+
+原39专项统计没有新增父包DONE，但该数字不代表全项目完成率。已确认包过大与最近调度偏移并存：连续推进管理装配/GC相邻修复，未先冻结子项出口；父表和交接摘要也滞后。现把已验收切片转回归维护，并以独立子任务状态调度，详见[审核报告](../audits/2026-09-15-work-package-replan.md)。SEC-E1-01仅完成技术草案交付，尚未完成受管启动代码；下一队列E1-01R、OBS-14-02、PROD-01。

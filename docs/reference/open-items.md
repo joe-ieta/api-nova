@@ -1,5 +1,5 @@
 ---
-doc-version: 1.13.0
+doc-version: 1.14.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -8,6 +8,8 @@ doc-updated: 2026-09-15
 > 文档状态：Active
 > 最近复核：2026-09-15
 > 负责人：产品闭环与发布治理
+
+> 当前执行入口：[工作包划分](../guides/active-work-package-breakdown.md)与[子任务台账](../guides/active-work-package-execution-status.md)。39仅为OBS/SEC专项父包，不是全部项目活跃工作。
 
 ## 目的
 
@@ -25,9 +27,9 @@ doc-updated: 2026-09-15
 - `docs/guides/runtime-security-and-call-audit.md`
 - `docs/testing/runtime-security-audit-cases.md`
 
-## 当前调度与专项入口：2026-09-14
+## 当前调度与专项入口：2026-09-15
 
-旧任务包 A/B/C 已被后续治理实现和 OBS/SEC 专项分解覆盖，不再作为三个待从零开发的任务包。逐包状态以[可观测性完成复核](../guides/runtime-observability-completion-review.md)及[安全执行台账](../guides/security-development-execution-status.md)为准；前一波依赖见[活跃任务推进记录](../audits/2026-09-14-active-task-dependencies.md)，当前增量见[单跳凭据、容量样本与诊断UI](../audits/2026-09-14-single-hop-capacity-diagnostics-wave.md)。
+旧任务包 A/B/C 已被后续治理实现和 OBS/SEC 专项分解覆盖，不再作为三个待从零开发的任务包。逐包状态以[可观测性完成复核](../guides/runtime-observability-completion-review.md)及[安全执行台账](../guides/security-development-execution-status.md)为准；前一波依赖见[活跃任务推进记录](../audits/2026-09-14-active-task-dependencies.md)，最近各轮结果见执行台账；当前以[任务重拆审核](../audits/2026-09-15-work-package-replan.md)和新子任务台账调度，不以旧单轮记录代表全项目。
 
 | 工作 | 当前边界 | 依赖与下一步 |
 | --- | --- | --- |

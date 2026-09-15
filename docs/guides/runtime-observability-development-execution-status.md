@@ -1,5 +1,5 @@
 ---
-doc-version: 2.10.0
+doc-version: 2.11.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -7,6 +7,8 @@ doc-updated: 2026-09-15
 
 > Document status: Active evidence register
 > 当前任务包计数、实现边界与未完成清单统一见[完成情况复核](./runtime-observability-completion-review.md)。本页登记最新有效证据，不再混排不同开发阶段的“当前状态”。
+
+> 2026-09-15 调度重排：父包原退出条件不变；当前细分、跨计划归属和下一队列见[工作包划分](./active-work-package-breakdown.md)，逐项状态见[子任务执行台账](./active-work-package-execution-status.md)。父包 IN_PROGRESS 不表示正在同时执行；文档子项完成不计为代码完成。
 
 ## 1. 当前快照
 
@@ -155,3 +157,8 @@ scanGarbage失败后清除目录句柄，下次重开失败分片，避免永久
 GC collect在扫描成功后可能因unlink/候选事务失败而留下已消费Dir游标。现异常时在释放GC租约前清除游标，保留原异常；下一次有界扫描重新处理磁盘上仍存在的失败候选。新增删除失败测试先复现，修复后容量11/11+retention10/10；最新构建下正文/容量/留存/pipeline联合60/60。API构建通过。
 
 unlink成功但数据库回滚后的过期元数据残留尚未实现独立整理；读取仍由expiresAt返回expired，不能将该残留称为正文复活。完成审查与任务计划已清理Socket.IO、策略/GC仍被笼统列待实现的陈旧描述，保留整包退出条件和所有统计。见[本轮记录](../audits/2026-09-15-activation-gc-wave.md)。
+
+
+## 16. 按验收子项重排
+
+父包仍DONE10、IN_PROGRESS5、BACKLOG1。已实现页流、TTL/GC和恢复切片转维护；新的主交付为OBS-14-02过期元数据残留整理、OBS-10/13业务状态与快照、OBS-15旧消费者收敛。OBS-16-01本轮完成交接校准（文档2.2.0，AC/脚本入口静态核对）；这不是TP16代码或平台验收完成，不提升其父包BACKLOG。详见[子任务台账](./active-work-package-execution-status.md)。

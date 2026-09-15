@@ -1,5 +1,5 @@
 ---
-doc-version: 2.8.0
+doc-version: 2.9.0
 doc-status: active
 doc-updated: 2026-09-15
 approval-status: approved
@@ -11,6 +11,8 @@ implementation-status: in-progress
 > Scope decision (2026-09-08, approved): 统一采用新格式、新 Endpoint 和新数据库初始化结构；移除旧格式导入、兼容查询和历史迁移链。任务编号不变，OBS-TP-15 改为全链路集成与旧能力收敛。
 > 需求、设计与建议默认值已于 2026-09-08 获得用户同意。任务计划已获用户确认，按依赖持续编码和验证。
 > 关联：[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[执行状态](./runtime-observability-development-execution-status.md)。
+
+> 2026-09-15 调度重排：父包原退出条件不变；当前细分、跨计划归属和下一队列见[工作包划分](./active-work-package-breakdown.md)，逐项状态见[子任务执行台账](./active-work-package-execution-status.md)。父包 IN_PROGRESS 不表示正在同时执行；文档子项完成不计为代码完成。
 
 ## 1. 交付边界与工作规则
 

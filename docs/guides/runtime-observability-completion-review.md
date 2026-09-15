@@ -1,5 +1,5 @@
 ---
-doc-version: 2.8.0
+doc-version: 2.9.0
 doc-status: active
 doc-updated: 2026-09-15
 ---
@@ -7,6 +7,8 @@ doc-updated: 2026-09-15
 
 > Document status: Active implementation review
 > 核对日期：2026-09-15。这里是任务完成情况的当前汇总，不是历史开发流水。
+
+> 2026-09-15 调度重排：父包原退出条件不变；当前细分、跨计划归属和下一队列见[工作包划分](./active-work-package-breakdown.md)，逐项状态见[子任务执行台账](./active-work-package-execution-status.md)。父包 IN_PROGRESS 不表示正在同时执行；文档子项完成不计为代码完成。
 
 ## 1. 项目能力与本轮核对范围
 
