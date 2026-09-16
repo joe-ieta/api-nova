@@ -27,6 +27,23 @@ export interface PayloadGarbageCandidate {
   inode: number;
 }
 
+export interface PayloadRecoveryPath {
+  kind: 'final' | 'temporary' | 'unknown';
+  id: string | null;
+  key: string | null;
+  shard: string | null;
+  sizeBytes: number | null;
+  reason: string | null;
+}
+
+export interface PayloadRecoveryPathScan {
+  traversal: 'complete' | 'partial';
+  unknownOccupancy: boolean;
+  scannedEntries: number;
+  measuredBytes: number;
+  paths: PayloadRecoveryPath[];
+}
+
 export interface PayloadScanUsage {
   measurement: 'logical_file_length_before_cleanup';
   scanCoverage: 'complete' | 'partial';
@@ -244,6 +261,19 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
     }
   }
 
+  /** Bind an existing owner marker for read-only evidence; never create a root. */
+  async bindExistingOwner(ownerId: string): Promise<void> {
+    if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(ownerId) ||
+      this.ownerId && this.ownerId !== ownerId) {
+      throw new ObservabilityStorageError('PAYLOAD_ROOT_OWNER_MISMATCH');
+    }
+    const stat = await fs.lstat(this.root);
+    if (!stat.isDirectory() || stat.isSymbolicLink() || await this.readOwner() !== ownerId) {
+      throw new ObservabilityStorageError('PAYLOAD_ROOT_OWNER_MISMATCH');
+    }
+    this.ownerId = ownerId;
+  }
+
   async assertOwnedRoot(): Promise<void> {
     if (!this.ownerId || await this.readOwner() !== this.ownerId) {
       throw new ObservabilityStorageError('PAYLOAD_ROOT_OWNER_MISMATCH');
@@ -254,6 +284,122 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
     await this.assertOwnedRoot();
     return PayloadInventorySession.open(this.root, key => this.objectPath(key, false),
       () => this.assertOwnedRoot(), startShard, resume);
+  }
+
+  /** Read-only, bounded evidence over the managed payload root. The caller must
+   * hold and check a persistent inventory fence; this never advances the GC cursor. */
+  async scanRecoveryPaths(maxEntriesPerBatch: number, maxBatches: number,
+    checkFence: () => Promise<void>): Promise<PayloadRecoveryPathScan> {
+    if (!Number.isInteger(maxEntriesPerBatch) || maxEntriesPerBatch < 1 || maxEntriesPerBatch > 1000 ||
+      !Number.isInteger(maxBatches) || maxBatches < 1 || maxBatches > 32) {
+      throw new ObservabilityStorageError('INVALID_PAYLOAD_RECOVERY_SCAN_LIMIT');
+    }
+    await checkFence();
+    await this.assertOwnedRoot();
+    const rootStat = await fs.lstat(this.root, { bigint: true });
+    if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
+      throw new ObservabilityStorageError('PAYLOAD_RECOVERY_UNKNOWN_ROOT');
+    }
+    const rootIdentity = [rootStat.dev, rootStat.ino, rootStat.ctimeNs, rootStat.mtimeNs].map(String).join(':');
+    const paths: PayloadRecoveryPath[] = [];
+    let scannedEntries = 0, measuredBytes = 0, unknownOccupancy = false;
+    const unknown = (shard: string | null, reason: string): void => {
+      paths.push({ kind: 'unknown', id: null, key: null, shard, sizeBytes: null, reason });
+      unknownOccupancy = true;
+    };
+    // The root has one owner marker and at most 256 shard directories. Extra
+    // entries are unknown occupation, never an empty directory.
+    const root = await fs.opendir(this.root);
+    try {
+      let inspected = 0;
+      for (;;) {
+        const entry = await root.read();
+        if (!entry) break;
+        if (++inspected > 257) { unknown(null, 'root_entry_limit'); break; }
+        if (entry.name !== '.owner.json' && !/^[a-f0-9]{2}$/.test(entry.name)) {
+          unknown(null, 'unexpected_root_entry');
+        } else if (entry.name !== '.owner.json' && (!entry.isDirectory() || entry.isSymbolicLink())) {
+          unknown(entry.name, 'invalid_shard');
+        } else if (entry.name === '.owner.json' && (!entry.isFile() || entry.isSymbolicLink())) {
+          unknown(null, 'invalid_owner_marker');
+        }
+      }
+    } finally {
+      await root.close().catch(() => unknown(null, 'root_close_failed'));
+    }
+    let batches = 0, entriesInBatch = 0, complete = true;
+    outer: for (let shardNumber = 0; shardNumber < 256; shardNumber++) {
+      const shard = shardNumber.toString(16).padStart(2, '0');
+      const folder = join(this.root, shard);
+      let directory: Dir;
+      try {
+        const stat = await fs.lstat(folder);
+        if (!stat.isDirectory() || stat.isSymbolicLink()) {
+          unknown(shard, 'invalid_shard');
+          continue;
+        }
+        directory = await fs.opendir(folder);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+        unknown(shard, 'shard_unreadable');
+        continue;
+      }
+      try {
+        for (;;) {
+          const entry = await directory.read().catch(() => {
+            unknown(shard, 'directory_read_failed');
+            return null;
+          });
+          if (!entry) break;
+          if (entriesInBatch === 0) {
+            if (batches >= maxBatches) { complete = false; break outer; }
+            batches++;
+            await checkFence();
+            await this.assertOwnedRoot();
+          }
+          scannedEntries++;
+          entriesInBatch++;
+          const match = /^([a-f0-9]{64})\.body(?:\.([a-f0-9-]{36})\.tmp)?$/.exec(entry.name);
+          if (!match || match[1].slice(0, 2) !== shard || !entry.isFile() || entry.isSymbolicLink()) {
+            unknown(shard, 'unrecognized_entry');
+          } else {
+            const key = shard + '/' + entry.name;
+            try {
+              const statPath = await this.candidatePath(key);
+              const stat = await fs.lstat(statPath);
+              if (!stat.isFile() || stat.isSymbolicLink() ||
+                !Number.isSafeInteger(stat.size) || stat.size < 0 ||
+                !Number.isSafeInteger(measuredBytes + stat.size)) {
+                unknown(shard, 'invalid_entry_stat');
+              } else {
+                measuredBytes += stat.size;
+                paths.push({ kind: match[2] ? 'temporary' : 'final', id: match[1], key,
+                  shard, sizeBytes: stat.size, reason: null });
+              }
+            } catch {
+              unknown(shard, 'entry_unreadable');
+            }
+          }
+          if (entriesInBatch >= maxEntriesPerBatch) {
+            entriesInBatch = 0;
+            await checkFence();
+            await this.assertOwnedRoot();
+          }
+        }
+      } finally {
+        await directory.close().catch(() => unknown(shard, 'directory_close_failed'));
+      }
+    }
+    await checkFence();
+    await this.assertOwnedRoot();
+    const endStat = await fs.lstat(this.root, { bigint: true });
+    const endIdentity = [endStat.dev, endStat.ino, endStat.ctimeNs, endStat.mtimeNs].map(String).join(':');
+    if (!endStat.isDirectory() || endStat.isSymbolicLink() || endIdentity !== rootIdentity) {
+      throw new ObservabilityStorageError('PAYLOAD_RECOVERY_EVIDENCE_CHANGED');
+    }
+    return { traversal: complete ? 'complete' : 'partial',
+      unknownOccupancy: unknownOccupancy || !complete,
+      scannedEntries, measuredBytes, paths };
   }
 
   async scanGarbage(scanLimit: number, candidateLimit: number, olderThan: number,

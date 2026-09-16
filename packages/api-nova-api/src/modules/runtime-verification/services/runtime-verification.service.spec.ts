@@ -3,6 +3,10 @@ import { RuntimeVerificationRunStatus } from '../../../database/entities/runtime
 import { RuntimeVerificationResultStatus } from '../../../database/entities/runtime-verification-result.entity';
 import { RuntimeUpstreamBindingStatus } from '../../../database/entities/runtime-upstream-binding.entity';
 import { RuntimeVerificationService } from './runtime-verification.service';
+import {
+  BINARY_RESPONSE_ASSERTION_UNSUPPORTED,
+  RuntimeResponseAssertionService,
+} from './runtime-response-assertion.service';
 
 describe('RuntimeVerificationService', () => {
   const runtimeAssetRepository = { findOne: jest.fn(), save: jest.fn(async value => value), manager: { transaction: async (work: any) => work({ getRepository: () => runtimeAssetRepository }) } };
@@ -32,7 +36,8 @@ describe('RuntimeVerificationService', () => {
   };
   const gatewayCandidateReplayService = { replay: jest.fn() };
   const mcpCandidateReplayService = { replay: jest.fn() };
-  const responseAssertionService = { assert: jest.fn() };
+  const realAssertion = new RuntimeResponseAssertionService();
+  const responseAssertionService = { assert: jest.fn(), preflight: jest.fn() };
   const service = new RuntimeVerificationService(
     runtimeAssetRepository as any,
     membershipRepository as any,
@@ -95,6 +100,7 @@ describe('RuntimeVerificationService', () => {
       mode: 'schema',
       mismatches: [],
     });
+    responseAssertionService.preflight.mockImplementation(sample => realAssertion.preflight(sample));
   });
 
   it('blocks a candidate when a membership has no smoke sample', async () => {
@@ -655,6 +661,152 @@ describe('RuntimeVerificationService', () => {
       activationStatus: 'activated',
     }));
     expect(result.run.activationStatus).toBe('activated');
+  });
+
+  const binaryDescriptor = {
+    kind: 'binary', schemaVersion: 1, mediaType: 'application/pdf',
+    measurement: 'decoded_response_body', observedBytes: 4,
+    isComplete: true, sha256: 'a'.repeat(64), captureState: 'stored',
+    opaqueObjectId: '11111111-1111-4111-8111-111111111111',
+  };
+
+  it.each([undefined, 'schema', 'exact', 'binary-exact', 'unknown', 'status-v2'])(
+    'blocks Gateway binary sample in %s mode before replay',
+    async mode => {
+      const run = {
+        id: 'run-gateway-binary', runtimeAssetId: 'runtime-1',
+        candidateRevision: 'revision-binary', previousActiveRevision: 'revision-stable',
+        status: RuntimeVerificationRunStatus.PLANNED, blockers: [],
+      };
+      const verificationResult = {
+        id: 'result-gateway-binary', verificationRunId: run.id,
+        runtimeMembershipId: 'membership-1', endpointDefinitionId: 'endpoint-1',
+        endpointTestSampleId: 'sample-binary', expectedStatusCode: 200,
+        status: RuntimeVerificationResultStatus.PENDING, evidence: {},
+      };
+      runRepository.findOne.mockResolvedValue(run);
+      resultRepository.find.mockResolvedValue([verificationResult]);
+      sampleRepository.find.mockResolvedValue([{
+        id: 'sample-binary',
+        responsePayload: mode === 'status-v2'
+          ? { ...binaryDescriptor, schemaVersion: 2 } : binaryDescriptor,
+        metadata: mode ? { responseAssertion: { mode: mode === 'status-v2' ? 'status' : mode } } : {},
+      }]);
+      const result = await service.executeGatewayCandidate('runtime-1', run.id);
+      expect(gatewayCandidateReplayService.replay).not.toHaveBeenCalled();
+      expect(verificationResult.status).toBe(RuntimeVerificationResultStatus.BLOCKED);
+      expect((verificationResult as any).blockerCode).toBe(BINARY_RESPONSE_ASSERTION_UNSUPPORTED);
+      expect(result.run.status).toBe(RuntimeVerificationRunStatus.BLOCKED);
+      expect(result.run.activationStatus).toBe('retained_previous');
+      expect(result.run.blockers).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: BINARY_RESPONSE_ASSERTION_UNSUPPORTED }),
+      ]));
+      expect(gatewayRouteSnapshotService.discardCandidate).toHaveBeenCalledWith('revision-binary');
+      expect(gatewayRouteSnapshotService.activateCandidate).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([undefined, 'schema', 'exact', 'binary-exact', 'unknown', 'status-v2'])(
+    'blocks MCP binary sample in %s mode before replay',
+    async mode => {
+      const asset = { id: 'runtime-mcp-binary', type: 'mcp_server',
+        metadata: { activeRevision: 'revision-stable' } };
+      const run = {
+        id: 'run-mcp-binary', runtimeAssetId: asset.id,
+        candidateRevision: 'revision-binary', previousActiveRevision: 'revision-stable',
+        status: RuntimeVerificationRunStatus.PLANNED, blockers: [],
+      };
+      const verificationResult = {
+        id: 'result-mcp-binary', verificationRunId: run.id,
+        runtimeMembershipId: 'membership-1', endpointDefinitionId: 'endpoint-1',
+        endpointTestSampleId: 'sample-binary', expectedStatusCode: 200,
+        status: RuntimeVerificationResultStatus.PENDING, evidence: {},
+      };
+      runtimeAssetRepository.findOne.mockResolvedValue(asset);
+      runRepository.findOne.mockResolvedValue(run);
+      resultRepository.find.mockResolvedValue([verificationResult]);
+      sampleRepository.find.mockResolvedValue([{
+        id: 'sample-binary',
+        responsePayload: mode === 'status-v2'
+          ? { ...binaryDescriptor, schemaVersion: 2 } : binaryDescriptor,
+        metadata: mode ? { responseAssertion: { mode: mode === 'status-v2' ? 'status' : mode } } : {},
+      }]);
+      const result = await service.executeMcpCandidate(asset.id, run.id, [
+        { runtimeMembershipId: 'membership-1', tool: { name: 'getBinary' } },
+      ]);
+      expect(mcpCandidateReplayService.replay).not.toHaveBeenCalled();
+      expect(verificationResult.status).toBe(RuntimeVerificationResultStatus.BLOCKED);
+      expect((verificationResult as any).blockerCode).toBe(BINARY_RESPONSE_ASSERTION_UNSUPPORTED);
+      expect(result.run.status).toBe(RuntimeVerificationRunStatus.BLOCKED);
+      expect(result.run.activationStatus).toBe('retained_previous');
+    },
+  );
+
+  it('allows explicit binary status-only Gateway replay but still rejects an HTTP mismatch', async () => {
+    const run = {
+      id: 'run-gateway-status', runtimeAssetId: 'runtime-1',
+      candidateRevision: 'revision-status', previousActiveRevision: 'revision-stable',
+      status: RuntimeVerificationRunStatus.PLANNED, blockers: [],
+    };
+    const verificationResult = {
+      id: 'result-gateway-status', verificationRunId: run.id,
+      runtimeMembershipId: 'membership-1', endpointDefinitionId: 'endpoint-1',
+      endpointTestSampleId: 'sample-binary', expectedStatusCode: 200,
+      status: RuntimeVerificationResultStatus.PENDING, evidence: {},
+    };
+    runRepository.findOne.mockResolvedValue(run);
+    resultRepository.find.mockResolvedValue([verificationResult]);
+    sampleRepository.find.mockResolvedValue([{
+      id: 'sample-binary', responsePayload: binaryDescriptor,
+      metadata: { responseAssertion: { mode: 'status' } },
+    }]);
+    responseAssertionService.assert.mockImplementation((sample, actual) => realAssertion.assert(sample, actual));
+    gatewayCandidateReplayService.replay.mockResolvedValue({
+      statusCode: 503, durationMs: 3, routePath: '/binary', method: 'GET',
+      headers: {}, body: { completely: 'different' }, bodyBytes: 12, truncated: false,
+    });
+    const result = await service.executeGatewayCandidate('runtime-1', run.id);
+    expect(gatewayCandidateReplayService.replay).toHaveBeenCalledTimes(1);
+    expect(verificationResult.status).toBe(RuntimeVerificationResultStatus.FAILED);
+    expect((verificationResult as any).actualStatusCode).toBe(503);
+    expect(result.run.status).toBe(RuntimeVerificationRunStatus.FAILED);
+    expect(result.run.activationStatus).toBe('retained_previous');
+  });
+
+  it.each([200, 503])('checks HTTP %i under explicit binary status-only MCP policy', async statusCode => {
+    const asset = { id: 'runtime-mcp-status', type: 'mcp_server',
+      metadata: { activeRevision: 'revision-stable' } };
+    const run = {
+      id: 'run-mcp-status', runtimeAssetId: asset.id,
+      candidateRevision: 'revision-status', previousActiveRevision: 'revision-stable',
+      status: RuntimeVerificationRunStatus.PLANNED, blockers: [],
+    };
+    const verificationResult = {
+      id: 'result-mcp-status', verificationRunId: run.id,
+      runtimeMembershipId: 'membership-1', endpointDefinitionId: 'endpoint-1',
+      endpointTestSampleId: 'sample-binary', expectedStatusCode: 200,
+      status: RuntimeVerificationResultStatus.PENDING, evidence: {},
+    };
+    runtimeAssetRepository.findOne.mockResolvedValue(asset);
+    runRepository.findOne.mockResolvedValue(run);
+    resultRepository.find.mockResolvedValue([verificationResult]);
+    sampleRepository.find.mockResolvedValue([{
+      id: 'sample-binary', responsePayload: binaryDescriptor,
+      metadata: { responseAssertion: { mode: 'status' } },
+    }]);
+    responseAssertionService.assert.mockImplementation((sample, actual) => realAssertion.assert(sample, actual));
+    mcpCandidateReplayService.replay.mockResolvedValue({
+      statusCode, durationMs: 2, isError: statusCode !== 200,
+      body: { unrelated: true }, toolName: 'getBinary',
+    });
+    const result = await service.executeMcpCandidate(asset.id, run.id, [
+      { runtimeMembershipId: 'membership-1', tool: { name: 'getBinary' } },
+    ]);
+    expect(mcpCandidateReplayService.replay).toHaveBeenCalledTimes(1);
+    expect(verificationResult.status).toBe(statusCode === 200
+      ? RuntimeVerificationResultStatus.PASSED : RuntimeVerificationResultStatus.FAILED);
+    expect(result.run.status).toBe(statusCode === 200
+      ? RuntimeVerificationRunStatus.PASSED : RuntimeVerificationRunStatus.FAILED);
   });
 
 });

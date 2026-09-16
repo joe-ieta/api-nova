@@ -1,5 +1,5 @@
 ---
-doc-version: 1.5.0
+doc-version: 1.6.0
 doc-status: active
 doc-updated: 2026-09-16
 implementation-status: partial
@@ -129,3 +129,8 @@ OBS-14-05A新增受管正文预算ledger/reservation、严格Q/H/L配置、epoch
 05C2B1完成跨批inventory围栏：同一generation下持有、续租、事务断言和原子结束，跨Store阻挡writer/GC；租约过期使旧前缀代次持久失效，专项7/7。05C2B2在该围栏内从shard 0有界重扫，核对C2A未验证前缀；旧代次或原地变化时仅在ledger仍initializing、无reservation且owner/epoch已确认的条件下CAS废弃并重建。完整256 shard与owner/root/generation/账本/预留在最终事务复核，确认baseline后quotaEnforced仍为false。单批最多1000条，默认32批、显式上限10000批；超预算仅返回incomplete，不标ready。专项15/15。05C2B3隔离SQL.js故障矩阵7/7，覆盖双Store竞争、模拟崩溃导出重启、扫描/事务失败、租约超时及确认后硬上限。
 
 这三项仅证明受管正文域的限定基线能力，未接入管理入口或启动流程，也未结算未知预留/孤儿或启用全域强制配额。外部直接修改文件不能与数据库形成原子快照；Linux、PostgreSQL、真实多进程/杀进程和磁盘压力仍属05C3/05D独立验收。OBS-14-05C2C已解锁，完整状态见[统一台账](../guides/active-work-package-execution-status.md)。
+## 12. 05C2C1/C2C2A限定恢复证据（2026-09-16）
+
+C2C1在已存在的owner与私有根上绑定只读证据，并持有B1持久inventory围栏，有界列出受管final/tmp路径、当前/历史引用和预留。无元数据的文件与有元数据但无引用的文件仅是孤儿候选；损坏、截断、读取失败或写者占用均保持unknown。observedBytes只表示已见路径，totalOccupancyBytes始终为null；专项13/13、相关回归90/90。盘点不会创建缺失的owner/root，不改账本、不删文件，也不据此确认配额可强制执行。
+
+C2C2A是保守持有原语：同一围栏内精确核对owner、epoch、generation、预留ID/hash/金额及ledger后，只将合法reserved预留变为uncertain并令ledger degraded；reservedBytes与committedBytes均不减少。重复、故障与SQL.js导出重启专项14/14、相关回归46/46。旧reservation只保存由sourceInstanceId、sourceEventId、payloadId及generation生成的单向operationId，文件发布后而receipt/metadata提交前崩溃时没有可反查文件的持久关联。因此C2C2B须在预留事务内、首次文件写入前持久发布意图；C2C2C再对有完整证明的记录结算。旧无意图记录不能根据候选文件、长度或当前路径不存在推断释放。两段尚未实施，quotaEnforced继续为false；本机SQL.js证据不能代替PostgreSQL/Linux或真实多进程验收。

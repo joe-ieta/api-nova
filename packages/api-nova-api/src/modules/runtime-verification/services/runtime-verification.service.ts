@@ -390,6 +390,26 @@ export class RuntimeVerificationService {
         await this.resultRepository.save(result);
         continue;
       }
+      const unsupported = this.responseAssertionService.preflight(sample);
+      if (unsupported) {
+        result.status = RuntimeVerificationResultStatus.BLOCKED;
+        result.blockerCode = unsupported.code;
+        result.errorMessage = unsupported.message;
+        result.evidence = {
+          ...(result.evidence || {}),
+          responseAssertion: {
+            passed: false, mode: 'unsupported', mismatches: [],
+            blockerCode: unsupported.code, reason: unsupported.message,
+          },
+        };
+        run.blockers = [
+          ...(run.blockers || []),
+          { code: unsupported.code, runtimeMembershipId: result.runtimeMembershipId,
+            message: unsupported.message },
+        ];
+        await this.resultRepository.save(result);
+        continue;
+      }
       try {
         const replay = await this.gatewayCandidateReplayService.replay({
           candidateRevision: run.candidateRevision,
@@ -500,7 +520,8 @@ export class RuntimeVerificationService {
       }
     } else {
       this.gatewayRouteSnapshotService.discardCandidate(run.candidateRevision);
-      run.status = RuntimeVerificationRunStatus.FAILED;
+      run.status = run.blockedCount > 0 && run.failedCount === 0
+        ? RuntimeVerificationRunStatus.BLOCKED : RuntimeVerificationRunStatus.FAILED;
       run.activationStatus = run.previousActiveRevision
         ? RuntimeVerificationActivationStatus.RETAINED_PREVIOUS
         : RuntimeVerificationActivationStatus.BLOCKED;
@@ -559,6 +580,26 @@ export class RuntimeVerificationService {
         await this.resultRepository.save(result);
         continue;
       }
+      const unsupported = this.responseAssertionService.preflight(sample);
+      if (unsupported) {
+        result.status = RuntimeVerificationResultStatus.BLOCKED;
+        result.blockerCode = unsupported.code;
+        result.errorMessage = unsupported.message;
+        result.evidence = {
+          ...(result.evidence || {}),
+          responseAssertion: {
+            passed: false, mode: 'unsupported', mismatches: [],
+            blockerCode: unsupported.code, reason: unsupported.message,
+          },
+        };
+        run.blockers = [
+          ...(run.blockers || []),
+          { code: unsupported.code, runtimeMembershipId: result.runtimeMembershipId,
+            message: unsupported.message },
+        ];
+        await this.resultRepository.save(result);
+        continue;
+      }
       const startedAt = Date.now();
       try {
         const replay = await this.mcpCandidateReplayService.replay({
@@ -598,7 +639,9 @@ export class RuntimeVerificationService {
     run.completedAt = new Date();
     run.status = run.failedCount === 0 && run.blockedCount === 0 && run.passedCount > 0
       ? RuntimeVerificationRunStatus.PASSED
-      : RuntimeVerificationRunStatus.FAILED;
+      : run.blockedCount > 0 && run.failedCount === 0
+        ? RuntimeVerificationRunStatus.BLOCKED
+        : RuntimeVerificationRunStatus.FAILED;
     run.activationStatus = run.status === RuntimeVerificationRunStatus.PASSED
       ? RuntimeVerificationActivationStatus.NOT_ATTEMPTED
       : run.previousActiveRevision

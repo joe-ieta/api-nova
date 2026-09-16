@@ -157,4 +157,53 @@ export class EndpointTestSampleObjectService {
       return bytes;
     });
   }
+
+  /** Only a persisted, revoked object may reach this physical cleanup primitive. */
+  async unlinkPending(row: ObjectEntity): Promise<void> {
+    return this.bounded(async () => {
+      if (row.state !== 'delete_pending' || !/^[a-f0-9]{64}$/.test(row.objectKey)) {
+        fail('OBJECT_UNAVAILABLE');
+      }
+      const current = await this.objects.findOneBy({
+        id: row.id, sampleId: row.sampleId, side: 'response', state: 'delete_pending',
+      });
+      if (!current || current.objectKey !== row.objectKey) fail('OBJECT_UNAVAILABLE');
+      const root = await this.guardRoot();
+      for (const suffix of ['.stage', '.raw']) {
+        const path = join(root, row.objectKey + suffix);
+        let before;
+        try { before = await fs.lstat(path); }
+        catch (error) {
+          if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+          fail('OBJECT_UNLINK_FAILED');
+        }
+        if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1) {
+          fail('OBJECT_INTEGRITY_FAILED');
+        }
+        let handle;
+        try { handle = await fs.open(path, constants.O_RDONLY | (constants.O_NOFOLLOW || 0)); }
+        catch { fail('OBJECT_UNLINK_FAILED'); }
+        try {
+          const opened = await handle.stat();
+          if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino) {
+            fail('OBJECT_INTEGRITY_FAILED');
+          }
+        } finally { await handle.close(); }
+        await this.guardRoot();
+        let latest;
+        try { latest = await fs.lstat(path); }
+        catch (error) {
+          if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+          fail('OBJECT_UNLINK_FAILED');
+        }
+        if (!latest.isFile() || latest.isSymbolicLink() || latest.nlink !== 1 ||
+          latest.dev !== before.dev || latest.ino !== before.ino) fail('OBJECT_INTEGRITY_FAILED');
+        try { await fs.unlink(path); }
+        catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') fail('OBJECT_UNLINK_FAILED');
+        }
+      }
+      await this.guardRoot();
+    });
+  }
 }

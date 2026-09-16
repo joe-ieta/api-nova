@@ -129,14 +129,21 @@ export class EndpointTestingController {
 
   @Post('test-samples/cleanup')
   @RequirePermissions('server:manage')
-  @ApiOperation({ summary: 'Delete archived endpoint samples past the retention window' })
+  @ApiOperation({ summary: 'Delete ordinary expired samples and mark binary objects pending removal' })
   cleanupExpiredSamples() {
     return this.endpointTestingService.cleanupExpiredSamples();
   }
 
+  @Post('test-samples/binary-objects/cleanup')
+  @RequirePermissions('server:manage')
+  @ApiOperation({ summary: 'Explicitly reclaim revoked binary sample objects in a bounded pass' })
+  cleanupPendingBinaryObjects() {
+    return this.endpointTestingService.cleanupPendingBinaryObjects();
+  }
+
   @Delete('test-samples/:sampleId')
   @RequirePermissions('server:manage')
-  @ApiOperation({ summary: 'Delete an endpoint test sample' })
+  @ApiOperation({ summary: 'Delete an ordinary sample or revoke a binary sample pending object removal' })
   deleteTestSample(@Param('sampleId') sampleId: string) {
     return this.endpointTestingService.deleteTestSample(sampleId);
   }

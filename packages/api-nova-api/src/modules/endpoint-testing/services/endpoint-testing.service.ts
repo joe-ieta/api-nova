@@ -80,6 +80,12 @@ export class EndpointTestingService {
     process.env.ENDPOINT_TEST_SAMPLE_MAX_BYTES,
     256 * 1024,
   );
+  private readonly objectDeleteGraceMs = 5 * 60 * 1000;
+  private readonly objectCleanupBudgetMs = 2 * 1000;
+  private pendingObjectCleanup?: Promise<{
+    scannedCount: number; deletedCount: number; failedCount: number;
+    deferredCount: number; batchLimit: number; timeBudgetExceeded: boolean;
+  }>;
   private readonly sampleRetentionDays = this.readPositiveInt(
     process.env.ENDPOINT_TEST_SAMPLE_RETENTION_DAYS,
     90,
@@ -195,6 +201,7 @@ export class EndpointTestingService {
     try {
       if (!binaryCaptureEnabled()) throw unavailable();
       const sample = await this.requireTestSample(sampleId);
+      if (this.isSampleDeletionPending(sample)) throw revoked();
       if (sample.status !== EndpointTestSampleStatus.ACTIVE &&
         sample.status !== EndpointTestSampleStatus.ARCHIVED) throw unavailable();
       await this.requireEndpoint(sample.endpointDefinitionId);
@@ -243,6 +250,7 @@ export class EndpointTestingService {
         throw revoked();
       }
       const currentDescriptor = currentSample?.responsePayload as BinaryResponseDescriptor | undefined;
+      if (currentSample && this.isSampleDeletionPending(currentSample)) throw revoked();
       if (!currentSample || currentSample.endpointDefinitionId !== sample.endpointDefinitionId ||
         (currentSample.status !== EndpointTestSampleStatus.ACTIVE &&
           currentSample.status !== EndpointTestSampleStatus.ARCHIVED) ||
@@ -268,18 +276,37 @@ export class EndpointTestingService {
     sampleId: string,
     dto: UpdateEndpointTestSampleDto,
   ) {
-    const sample = await this.requireTestSample(sampleId);
-    Object.assign(sample, dto);
-    if (dto.metadata !== undefined) {
-      sample.metadata = this.sanitizeRecord(dto.metadata);
-    }
-    if (dto.status === EndpointTestSampleStatus.ARCHIVED) {
-      sample.archivedAt = new Date();
-      sample.enabled = false;
-    } else if (dto.status === EndpointTestSampleStatus.ACTIVE) {
-      sample.archivedAt = null as unknown as Date;
-    }
-    return this.testSampleRepository.save(sample);
+    return this.testSampleRepository.manager.transaction(async manager => {
+      const samples = manager.getRepository(EndpointTestSampleEntity);
+      const objects = manager.getRepository(EndpointTestSampleObjectEntity);
+      const sample = await samples.findOne({ where: { id: sampleId } });
+      if (!sample) throw new NotFoundException('Test sample not found');
+      if (this.isSampleDeletionPending(sample) || await objects.findOne({
+        where: { sampleId, side: 'response', state: 'delete_pending' },
+      })) throw new GoneException('Test sample deletion pending');
+
+      // Update only approved fields: a stale PATCH must not overwrite the
+      // server-owned responsePayload deletion marker.
+      const patch: Partial<EndpointTestSampleEntity> = {};
+      if (dto.title !== undefined) patch.title = dto.title;
+      if (dto.note !== undefined) patch.note = dto.note;
+      if (dto.enabled !== undefined) patch.enabled = dto.enabled;
+      if (dto.status !== undefined) patch.status = dto.status;
+      if (dto.tags !== undefined) patch.tags = dto.tags;
+      if (dto.metadata !== undefined) patch.metadata = this.sanitizeRecord(dto.metadata);
+      if (dto.status === EndpointTestSampleStatus.ARCHIVED) {
+        patch.archivedAt = new Date();
+        patch.enabled = false;
+      } else if (dto.status === EndpointTestSampleStatus.ACTIVE) {
+        patch.archivedAt = null as unknown as Date;
+      }
+      if (Object.keys(patch).length) await samples.update({ id: sampleId }, patch);
+      const current = await samples.findOne({ where: { id: sampleId } });
+      if (!current || this.isSampleDeletionPending(current) || await objects.findOne({
+        where: { sampleId, side: 'response', state: 'delete_pending' },
+      })) throw new GoneException('Test sample deletion pending');
+      return current;
+    });
   }
 
   async archiveTestSample(sampleId: string) {
@@ -290,10 +317,10 @@ export class EndpointTestingService {
   }
 
   async deleteTestSample(sampleId: string) {
-    await this.requireTestSample(sampleId);
-    await this.assertNoSampleObject(sampleId);
-    await this.testSampleRepository.delete({ id: sampleId });
-    return { sampleId, deleted: true };
+    const result = await this.revokeOrDeleteSample(sampleId);
+    return result === 'pending'
+      ? { sampleId, deleted: false, pending: true }
+      : { sampleId, deleted: true, pending: false };
   }
 
   async cleanupExpiredSamples(retentionDays = this.sampleRetentionDays) {
@@ -308,16 +335,128 @@ export class EndpointTestingService {
       select: { id: true },
     });
     let deletedCount = 0;
-    let skippedObjectCount = 0;
+    let pendingObjectCount = 0;
     for (const sample of expired) {
-      if (await this.hasSampleObject(sample.id)) {
-        skippedObjectCount++;
+      const result = await this.revokeOrDeleteSample(sample.id, cutoff);
+      if (result === 'pending') pendingObjectCount++;
+      else if (result === 'deleted') deletedCount++;
+    }
+    return { deletedCount, pendingObjectCount, skippedObjectCount: 0, retentionDays: days, cutoff };
+  }
+
+
+  /** An explicit, bounded pass over already revoked binary references. */
+  async cleanupPendingBinaryObjects() {
+    if (this.pendingObjectCleanup) return this.pendingObjectCleanup;
+    const run = this.runPendingObjectCleanup();
+    this.pendingObjectCleanup = run;
+    try { return await run; }
+    finally { if (this.pendingObjectCleanup === run) this.pendingObjectCleanup = undefined; }
+  }
+
+  private async runPendingObjectCleanup() {
+    const batchLimit = 100;
+    const deadline = Date.now() + this.objectCleanupBudgetMs;
+    const candidates = await this.sampleObjectRepository.find({
+      where: { state: 'delete_pending', side: 'response' },
+      // Failed candidates are moved to the back by a persisted updatedAt write.
+      order: { updatedAt: 'ASC', id: 'ASC' },
+      take: batchLimit,
+    });
+    const result = {
+      scannedCount: 0, deletedCount: 0, failedCount: 0, deferredCount: 0,
+      batchLimit, timeBudgetExceeded: false,
+    };
+    for (const object of candidates) {
+      if (Date.now() >= deadline) { result.timeBudgetExceeded = true; break; }
+      result.scannedCount++;
+      const sample = await this.testSampleRepository.findOneBy({ id: object.sampleId });
+      const descriptor = sample?.responsePayload as Record<string, unknown> | undefined;
+      const requestedAt = descriptor?.deletionRequestedAt;
+      if (!sample || !this.isSampleDeletionPending(sample) ||
+        descriptor?.opaqueObjectId !== undefined || sample.enabled ||
+        sample.status !== EndpointTestSampleStatus.ARCHIVED ||
+        typeof requestedAt !== 'string' || !Number.isFinite(Date.parse(requestedAt))) {
+        await this.recordObjectCleanupFailure(object, 'SAMPLE_NOT_REVOKED');
+        result.failedCount++;
         continue;
       }
-      await this.testSampleRepository.delete({ id: sample.id });
-      deletedCount++;
+      const requestedMs = Date.parse(requestedAt);
+      if (requestedMs > Date.now() - this.objectDeleteGraceMs) {
+        result.deferredCount++;
+        continue;
+      }
+      try {
+        await this.sampleObjectService.unlinkPending(object);
+      } catch (error) {
+        const code = error instanceof SampleObjectError ? error.code : 'OBJECT_UNLINK_FAILED';
+        await this.recordObjectCleanupFailure(object, code);
+        result.failedCount++;
+        continue;
+      }
+      try {
+        const finalized = await this.testSampleRepository.manager.transaction(async manager => {
+          const objects = manager.getRepository(EndpointTestSampleObjectEntity);
+          const samples = manager.getRepository(EndpointTestSampleEntity);
+          const currentObject = await objects.findOneBy({ id: object.id, sampleId: object.sampleId, side: 'response' });
+          if (currentObject?.state === 'deleted') return false;
+          if (currentObject?.state !== 'delete_pending' || currentObject.objectKey !== object.objectKey) {
+            throw new ConflictException('Binary object changed; retry cleanup');
+          }
+          const currentSample = await samples.findOneBy({ id: object.sampleId });
+          const currentDescriptor = currentSample?.responsePayload as Record<string, unknown> | undefined;
+          if (!currentSample || !this.isSampleDeletionPending(currentSample) ||
+            currentDescriptor?.opaqueObjectId !== undefined ||
+            currentDescriptor.deletionRequestedAt !== requestedAt ||
+            currentSample.enabled || currentSample.status !== EndpointTestSampleStatus.ARCHIVED) {
+            throw new ConflictException('Binary sample changed; retry cleanup');
+          }
+          const changed = await objects.update(
+            { id: object.id, sampleId: object.sampleId, side: 'response', state: 'delete_pending' },
+            { state: 'deleted', failureCode: null as unknown as string,
+              deleteAttempts: Math.min(currentObject.deleteAttempts + 1, 2147483647) },
+          );
+          if (changed.affected !== 1) throw new ConflictException('Binary object changed; retry cleanup');
+          const removed = await samples.delete({ id: object.sampleId });
+          if (removed.affected !== 1) throw new ConflictException('Binary sample changed; retry cleanup');
+          return true;
+        });
+        if (finalized) result.deletedCount++;
+      } catch {
+        await this.recordObjectCleanupFailure(object, 'FINALIZE_FAILED');
+        result.failedCount++;
+      }
     }
-    return { deletedCount, skippedObjectCount, retentionDays: days, cutoff };
+    return result;
+  }
+
+  private async recordObjectCleanupFailure(
+    object: EndpointTestSampleObjectEntity, code: string,
+  ): Promise<void> {
+    // Error categories are fixed and never contain object keys, paths or OS messages.
+    const allowed = new Set([
+      'SAMPLE_NOT_REVOKED', 'OBJECT_UNAVAILABLE', 'OBJECT_ROOT_INVALID',
+      'OBJECT_ROOT_CHANGED', 'OBJECT_INTEGRITY_FAILED', 'OBJECT_UNLINK_FAILED',
+      'OBJECT_STORAGE_FAILED', 'OBJECT_BUSY', 'FINALIZE_FAILED',
+    ]);
+    try {
+      const current = await this.sampleObjectRepository.findOneBy({
+        id: object.id, sampleId: object.sampleId, state: 'delete_pending',
+      });
+      if (!current) return;
+      const previous = new Date(current.updatedAt).getTime();
+      const retryOrder = new Date(Math.max(
+        Date.now() + 1000, Number.isFinite(previous) ? previous + 1000 : 0,
+      ));
+      await this.sampleObjectRepository.update(
+        { id: object.id, sampleId: object.sampleId, state: 'delete_pending' },
+        { failureCode: allowed.has(code) ? code : 'OBJECT_UNLINK_FAILED',
+          deleteAttempts: Math.min(current.deleteAttempts + 1, 2147483647),
+          updatedAt: retryOrder },
+      );
+    } catch {
+      // A failed diagnostic write must never clear the pending tombstone.
+    }
   }
 
   async recordSuccessfulRun(input: RecordEndpointTestSuccessInput) {
@@ -452,17 +591,83 @@ export class EndpointTestingService {
     }
   }
 
-  private async hasSampleObject(sampleId: string): Promise<boolean> {
-    return !!await this.sampleObjectRepository.findOne({
-      where: { sampleId, side: 'response' },
-      select: { id: true },
-    });
+  private isSampleDeletionPending(sample: EndpointTestSampleEntity): boolean {
+    const payload = sample.responsePayload;
+    return !!payload && typeof payload === 'object' && !Array.isArray(payload) &&
+      (payload as Record<string, unknown>).deletionState === 'pending';
   }
 
-  private async assertNoSampleObject(sampleId: string): Promise<void> {
-    if (await this.hasSampleObject(sampleId)) {
-      throw new ConflictException('Binary sample object requires explicit reference revocation');
-    }
+  /** Revoke the sample reference and persist an object tombstone; physical GC is separate. */
+  private async revokeOrDeleteSample(
+    sampleId: string,
+    cutoff?: Date,
+  ): Promise<'deleted' | 'pending' | 'skipped'> {
+    return this.testSampleRepository.manager.transaction(async manager => {
+      const samples = manager.getRepository(EndpointTestSampleEntity);
+      const objects = manager.getRepository(EndpointTestSampleObjectEntity);
+      const sample = await samples.findOne({ where: { id: sampleId } });
+      if (!sample) {
+        if (cutoff) return 'skipped';
+        throw new NotFoundException('Test sample not found');
+      }
+      if (cutoff && (sample.status !== EndpointTestSampleStatus.ARCHIVED ||
+        new Date(sample.capturedAt).getTime() >= cutoff.getTime())) return 'skipped';
+
+      const object = await objects.findOne({ where: { sampleId, side: 'response' } });
+      if (!object) {
+        if (this.isSampleDeletionPending(sample)) {
+          throw new ConflictException('Pending binary sample has no object tombstone');
+        }
+        const removed = await samples.delete(cutoff
+          ? { id: sampleId, status: EndpointTestSampleStatus.ARCHIVED, capturedAt: LessThan(cutoff) }
+          : { id: sampleId });
+        if (removed.affected !== 1) throw new ConflictException('Test sample changed; retry deletion');
+        return 'deleted';
+      }
+      if (!['ready', 'staged', 'delete_pending'].includes(object.state)) {
+        throw new ConflictException('Binary object state cannot be revoked');
+      }
+      if (object.state !== 'delete_pending') {
+        const changed = await objects.update(
+          { id: object.id, sampleId, side: 'response', state: object.state },
+          { state: 'delete_pending' },
+        );
+        if (changed.affected !== 1) throw new ConflictException('Binary object changed; retry deletion');
+      }
+
+      const source = sample.responsePayload && typeof sample.responsePayload === 'object' &&
+        !Array.isArray(sample.responsePayload)
+        ? sample.responsePayload as Record<string, unknown>
+        : {};
+      const rest = { ...source };
+      delete rest.opaqueObjectId;
+      const deletionRequestedAt = this.isSampleDeletionPending(sample) &&
+        typeof rest.deletionRequestedAt === 'string' &&
+        Number.isFinite(Date.parse(rest.deletionRequestedAt))
+        ? rest.deletionRequestedAt : new Date().toISOString();
+      const pendingPayload = {
+        ...rest, captureState: 'unavailable', deletionState: 'pending', deletionRequestedAt,
+      };
+      if (!this.isSampleDeletionPending(sample) || 'opaqueObjectId' in source ||
+        source.deletionRequestedAt !== deletionRequestedAt ||
+        sample.enabled || sample.status !== EndpointTestSampleStatus.ARCHIVED) {
+        const changed = await samples.update({ id: sampleId }, {
+          responsePayload: pendingPayload,
+          enabled: false,
+          status: EndpointTestSampleStatus.ARCHIVED,
+          archivedAt: sample.archivedAt ?? new Date(),
+        });
+        if (changed.affected !== 1) throw new ConflictException('Test sample changed; retry deletion');
+      }
+      const current = await samples.findOne({ where: { id: sampleId } });
+      const tombstone = await objects.findOne({ where: { id: object.id, sampleId, side: 'response' } });
+      if (!current || !this.isSampleDeletionPending(current) ||
+        (current.responsePayload as Record<string, unknown>).opaqueObjectId !== undefined ||
+        tombstone?.state !== 'delete_pending') {
+        throw new ConflictException('Binary sample revocation is incomplete');
+      }
+      return 'pending';
+    });
   }
 
   async recordFailedRun(input: RecordEndpointTestFailureInput) {

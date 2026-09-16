@@ -228,14 +228,22 @@ async function main() {
   } else {
     const migrations = await dataSource.runMigrations({ transaction: 'all' });
     assert.equal(migrations.length, 1, 'Exactly one dialect-specific initial migration is required');
+    const entityCount = dataSource.entityMetadatas.length;
     const tableCount = await verifyEmpty();
+    await dataSource.destroy();
+    await openDatabase();
+    const restartMigrations = await dataSource.runMigrations({ transaction: 'all' });
+    assert.equal(restartMigrations.length, 0, 'Restart must not replay migrations');
+    assert.equal(dataSource.entityMetadatas.length, entityCount, 'Runtime entity registry changed on restart');
+    assert.equal(await verifyEmpty(), tableCount, 'Persisted table count changed on restart');
     if (command === 'smoke') {
       await persistenceSmoke();
       await verifyEmpty();
       await apiSmoke();
       await verifyEmpty();
     }
-    result = { domainTables: tableCount, empty: true, schemaDrift: 0,
+    result = { entities: entityCount, domainTables: tableCount, empty: true, schemaDrift: 0,
+      restart: true, restartMigrations: restartMigrations.length, restartSchemaDrift: 0,
       persistence: command === 'smoke', apiStartup: command === 'smoke',
       database: dialect === 'postgres' ? databaseName : sqlitePath };
   }

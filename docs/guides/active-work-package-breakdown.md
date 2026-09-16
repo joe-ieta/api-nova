@@ -1,5 +1,5 @@
 ---
-doc-version: 1.12.0
+doc-version: 1.15.0
 doc-status: active
 doc-updated: 2026-09-16
 ---
@@ -126,8 +126,12 @@ SEC父包：A0 DONE；A1/A2/A4/B1/B2/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a各I
 | OBS-14-05C2B1 | OBS-14 | CODE | 跨批writer/GC围栏原语 | 同owner/generation隔离围栏跨扫描批次持有，失败/停机安全收敛；不确认baseline | OBS-14-05C2A |
 | OBS-14-05C2B2 | OBS-14 | CODE | 受围栏保护的原子baseline | 围栏下复核持久前缀，按一致性边界确认初始化预算 | OBS-14-05C2B1 |
 | OBS-14-05C2B3 | OBS-14 | VALIDATION | 围栏与baseline故障验收 | 双Store写者、崩溃重启和事务失败不超卖、不误ready | OBS-14-05C2B2 |
-| OBS-14-05C2C | OBS-14 | CODE | 未结算预留与孤儿占用恢复 | 保守对账未结算预留、发布后孤儿和残留文件，未知占用不少计 | OBS-14-05C2B3 |
-| OBS-14-05C3 | OBS-14 | VALIDATION | 崩溃重启与多写者配额验收 | 预留、写入、发布及元数据事务失败各点重启；不超卖、不少计、残留保护 | OBS-14-05C2C |
+| OBS-14-05C2C1 | OBS-14 | CODE | 预留与孤儿占用只读证据 | 有界识别未结算预留、最终/临时残留及未知占用，不改账本或文件 | OBS-14-05C2B3 |
+| OBS-14-05C2C2A | OBS-14 | CODE | 未结算预留保守降级 | 围栏下精确复核owner/epoch/generation与预留，将reserved原子标为uncertain且ledger degraded，不减少reservedBytes | OBS-14-05C2C1 |
+| OBS-14-05C2C2B | OBS-14 | CODE | 持久发布意图关联 | 新写入在文件发布前持久关联预留、payloadId、sourceEvent与代次；重启可验证，旧未知不可推断补齐 | OBS-14-05C2C2A |
+| OBS-14-05C2C2C | OBS-14 | CODE | 可证明的预留与孤儿账本对账 | 仅用完整意图、文件及元数据证据结算；不匹配/旧未知持续占用，不超卖 | OBS-14-05C2C2B |
+| OBS-14-05C2C3 | OBS-14 | VALIDATION | 恢复对账故障验收 | 重启、重复、外部元数据失败和残留占用不漏计 | OBS-14-05C2C2C |
+| OBS-14-05C3 | OBS-14 | VALIDATION | 崩溃重启与多写者配额验收 | 预留、写入、发布及元数据事务失败各点重启；不超卖、不少计、残留保护 | OBS-14-05C2C3 |
 | OBS-14-05D | OBS-14 | VALIDATION | 配额状态与故障联调 | 高低水位、物理余量、权限、长期压力与业务旁路完整验证 | OBS-14-05C3 |
 | OBS-14-06A | OBS-14 | CODE | 管理审计30天清理 | 独立审计保留边界与有界删除/权限审计有证据 | OBS-14-01 |
 | OBS-14-06T | OBS-14 | CODE | 未导入暂存恢复 | 暂存扫描、导入状态与重启恢复具有持久进度且不丢有效数据 | OBS-14-01 |
@@ -149,8 +153,12 @@ SEC父包：A0 DONE；A1/A2/A4/B1/B2/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a各I
 | PROD-04B2B1 | WP40/DEV04 | CODE | 成功样例原始对象接线 | 真实响应字节与run/sample对象引用按默认关闭门禁接入 | PROD-04B2A |
 | PROD-04B2B2 | WP40/DEV04 | VALIDATION | 对象事务补偿与重启验收 | 文件/DB失败、重复执行、不可读半对象与待清理墓碑 | PROD-04B2B1 |
 | PROD-04B2C | WP40/DEV04 | CODE | 受权二进制内容读取 | server:manage校验关联sample后读取，不泄路径与未授权内容 | PROD-04B2B2 |
-| PROD-04B3 | WP40/DEV04 | CODE | 二进制引用撤销与验证语义 | 引用撤销/墓碑、显式整理及unsupported/binary-exact回放边界 | PROD-04B2C |
-| PROD-04C | WP40/DEV04 | VALIDATION | 二进制样例留存验收 | 到期回收、引用一致、重启/重复执行及越权读取完整验证 | PROD-04B3 |
+| PROD-04B3A | WP40/DEV04 | CODE | 样例引用撤销与持久墓碑 | 显式删除/到期清理先撤销读取权并持久待删状态，不物理unlink | PROD-04B2C |
+| PROD-04B3B | WP40/DEV04 | CODE | 显式有界对象整理 | 仅已撤销引用的对象按受控key有界unlink、失败保墓碑/重试 | PROD-04B3A |
+| PROD-04B3C | WP40/DEV04 | CODE | 二进制验证语义阻断 | 不支持原始字节比较时明确unsupported；仅显式status-only可跳过内容 | PROD-04B2C |
+| PROD-04B3E | WP40/DEV04 | CODE | 无样例暂存墓碑整理 | 仅对失败事务留下、无sample引用的staged对象按安全宽限与受控key显式有界清理，错误保墓碑重试 | PROD-04B3B |
+| PROD-04B3D | WP40/DEV04 | VALIDATION | 删除与回放恢复验收 | 撤销竞争、重启重试、回放不伪成功和留存边界 | PROD-04B3B;PROD-04B3C;PROD-04B3E |
+| PROD-04C | WP40/DEV04 | VALIDATION | 二进制样例留存验收 | 到期回收、引用一致、重启/重复执行及越权读取完整验证 | PROD-04B3D |
 | PROD-05 | WP80/DEV05 | CODE | 操作者透传与运营审计检索 | 实例/绑定变更actor到审计可查询，权限拒绝可验证 | — |
 | PROD-06 | WP70 | DOC | 核定CAS是否属于原包剩余出口 | 逐条引用批准要求区分原WP70已实现出口与新增并发强化，未确认不排入开发 | — |
 | EXT-01 | WP90 | ENV | 真实OpenAPI导入 | 目标上游绝对URL导入及受管调用留证 | — |

@@ -2,6 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { EndpointTestSampleEntity } from '../../../database/entities/endpoint-test-sample.entity';
 
 export type RuntimeResponseAssertionMode = 'status' | 'schema' | 'exact';
+export const BINARY_RESPONSE_ASSERTION_UNSUPPORTED = 'binary_response_assertion_unsupported';
+const BINARY_RESPONSE_ASSERTION_MESSAGE =
+  'Binary response comparison is unsupported; select explicit status-only assertion to verify HTTP status only';
+const BINARY_DESCRIPTOR_VERSION_MESSAGE =
+  'Binary response descriptor version is unsupported';
 
 type AssertionMismatch = {
   path: string;
@@ -11,7 +16,39 @@ type AssertionMismatch = {
 
 @Injectable()
 export class RuntimeResponseAssertionService {
+  preflight(sample: EndpointTestSampleEntity) {
+    const payload = sample.responsePayload;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
+      (payload as Record<string, unknown>).kind !== 'binary') return undefined;
+    const raw = sample.metadata?.responseAssertion;
+    const value = raw && typeof raw === 'object' && !Array.isArray(raw)
+      ? raw as Record<string, unknown> : {};
+    // Unknown or malformed binary descriptors never fall through to JSON
+    // comparison, even when a status-only policy was requested.
+    if ((payload as Record<string, unknown>).schemaVersion !== 1) {
+      return {
+        code: BINARY_RESPONSE_ASSERTION_UNSUPPORTED,
+        message: BINARY_DESCRIPTOR_VERSION_MESSAGE,
+      };
+    }
+    if (String(value.mode || '').toLowerCase() === 'status') return undefined;
+    return {
+      code: BINARY_RESPONSE_ASSERTION_UNSUPPORTED,
+      message: BINARY_RESPONSE_ASSERTION_MESSAGE,
+    };
+  }
+
   assert(sample: EndpointTestSampleEntity, actual: unknown) {
+    const unsupported = this.preflight(sample);
+    if (unsupported) {
+      return {
+        passed: false,
+        mode: 'unsupported' as const,
+        mismatches: [] as AssertionMismatch[],
+        blockerCode: unsupported.code,
+        reason: unsupported.message,
+      };
+    }
     const config = this.config(sample);
     if (config.mode === 'status') {
       return { passed: true, mode: config.mode, mismatches: [] as AssertionMismatch[] };

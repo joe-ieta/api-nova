@@ -1,5 +1,5 @@
 ---
-doc-version: 0.5.0
+doc-version: 0.6.0
 doc-status: active
 implementation-status: partial
 doc-updated: 2026-09-16
@@ -108,7 +108,7 @@ requestPayload继续使用现有JSON参数，不支持把binary descriptor变成
 | 验证 | 二进制unsupported或缺失阻断；status-only必须显式；支持binary-exact时真实不同字节失败，旧发布版本保留 |
 | 分离 | OBS正文目录、事件、TTL和配额不被本整理入口触碰 |
 
-04A最初仅交付DOC；04B1已有第9节所述局部对象原语，04B2A/B/C已有各自限定证据；04B3及04C尚未完成。04B1阶段的内部读取本身不等于HTTP受权下载；B2B1/B2C现已有独立限定证据，binary-exact、引用撤销与对象整理仍不得标为已实现。
+04A最初仅交付DOC；04B1和04B2A/B/C已有各自限定证据；04B3按第11节继续拆分，04C尚未完成。04B1阶段的内部读取本身不等于HTTP受权下载；B2C以后已有受权下载。binary-exact仍未实现。
 
 ## 9. 04B1限定实现快照（2026-09-16）
 
@@ -119,3 +119,8 @@ PROD-04B1已建立专用对象实体及SQLite/PostgreSQL方言定义，新增默
 原聚合04B2现按任务划分为B2A、B2B1、B2B2和B2C。B2A从真实HTTP响应取得有界原始字节与descriptor，默认关闭；未知二进制类型返回unavailable，JSON/text/HTTP失败保持原有路径，专项27/27。B2B1只允许受信流字节进入样例对象事务：run不持对象引用，sample的服务端字段持opaqueObjectId；完整文件在对象行ready前仍staged且不可读，文件或对象状态故障把真实HTTP成功记录为storage_failed。直接删除和到期整理对已有对象行暂时拒绝或跳过，防止留下可读孤儿。B2B2在隔离SQL.js与临时目录下验证重启、重复样例、文件open/rename与事务故障，staged半对象重启后仍不可读。B2C新增server:manage受权内容读取，经真实JWT守卫、sample归属与对象ready状态核验，固定octet-stream/attachment/nosniff/no-store响应；归档不立即撤销，Range不支持。五套二进制专项合计68/68，API类型检查与构建通过。
 
 以上是限定本机证据。B3仍需引用撤销、显式对象整理和binary-exact/unsupported验证语义；04C需实际留存、跨平台权限及完整安全矩阵。当前不自动清除staged墓碑，也不启用生产对象存储；完整状态以[统一子任务台账](./active-work-package-execution-status.md)为准。
+## 11. 04B3A/B/C限定实施快照（2026-09-16）
+
+B3A在显式DELETE或过期归档清理时，先用同一数据库事务将对象转为delete_pending、撤销sample中的opaqueObjectId并保留pending样例行；后续读取前后复核返回410，PATCH白名单不能恢复引用，接口返回pending而不假报磁盘已回收。B3B新增受server:manage保护的显式有界整理，首次撤销至少5分钟后才处理仍有pending样例行的受管对象；每轮最多100个，2秒为开始下一对象前检查的软预算。普通单链接.stage/.raw文件经受控key核验后清理，ENOENT幂等；失败保留delete_pending及有限错误分类，下次显式执行可重试。四套定向测试53/53、API构建通过。
+
+B3C对于schemaVersion=1的binary descriptor，仅显式status-only可继续Gateway/MCP候选回放且仍比较HTTP状态；其余模式及未知版本在回放前BLOCKED并保留旧发布版本，三套44/44。没有binary-exact。B3B不处理run/sample事务失败后没有sample行的staged孤儿墓碑；这项已单列B3E并加入B3D/04C验收前置。当前没有生产定时器、Linux/NTFS权限或跨平台文件竞争验收；B3A/B/C的本机SQL.js证据不等于04C整体完成。

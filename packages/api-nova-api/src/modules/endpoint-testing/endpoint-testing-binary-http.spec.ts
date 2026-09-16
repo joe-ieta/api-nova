@@ -159,6 +159,50 @@ describe('binary sample HTTP download (real JWT guards, SQL.js, isolated files)'
     await authorized().expect(404);
   });
 
+  it('returns pending for an authorized DELETE and blocks later binary reads', async () => {
+    const sampleUrl = '/api/v1/endpoint-testing/test-samples/' + encodeURIComponent(sampleId);
+    await request(app.getHttpServer()).delete(sampleUrl).expect(401);
+    permissions.delete('server:manage');
+    await request(app.getHttpServer()).delete(sampleUrl)
+      .set('Authorization', 'Bearer ' + token).expect(403);
+    permissions.add('server:manage');
+
+    const result = await request(app.getHttpServer()).delete(sampleUrl)
+      .set('Authorization', 'Bearer ' + token).expect(200);
+    expect(result.body).toEqual({ sampleId, deleted: false, pending: true });
+    const sample = await db.getRepository(EndpointTestSampleEntity).findOneByOrFail({ id: sampleId });
+    const object = await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({ id: objectId });
+    expect((sample.responsePayload as any).deletionState).toBe('pending');
+    expect((sample.responsePayload as any).opaqueObjectId).toBeUndefined();
+    expect(object.state).toBe('delete_pending');
+    await authorized().expect(410);
+    expect((await request(app.getHttpServer()).delete(sampleUrl)
+      .set('Authorization', 'Bearer ' + token).expect(200)).body)
+      .toEqual({ sampleId, deleted: false, pending: true });
+    expect(await fs.readdir(root)).toEqual([object.objectKey + '.raw']);
+  });
+  it('does not return bytes when DELETE commits while a file read is in flight', async () => {
+    const originalRead = objects.read.bind(objects);
+    const read = jest.spyOn(objects, 'read').mockImplementation(async (owner, id) => {
+      const content = await originalRead(owner, id);
+      expect(await service.deleteTestSample(sampleId)).toEqual({
+        sampleId, deleted: false, pending: true,
+      });
+      return content;
+    });
+    try {
+      const response = await authorized().expect(410);
+      expect(JSON.stringify(response.body)).not.toContain(root);
+      expect(response.headers['content-disposition']).toBeUndefined();
+    } finally {
+      read.mockRestore();
+    }
+    const row = await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+      id: objectId,
+    });
+    expect(row.state).toBe('delete_pending');
+    expect(await fs.readdir(root)).toEqual([row.objectKey + '.raw']);
+  });
   it('returns 410 for revoked objects and 503 for corrupt files without private paths', async () => {
     await db.getRepository(EndpointTestSampleObjectEntity).update(objectId, { state: 'delete_pending' });
     const revoked = await authorized().expect(410);
@@ -206,4 +250,36 @@ describe('binary sample HTTP download (real JWT guards, SQL.js, isolated files)'
     });
     try { await authorized().expect(410); } finally { read.mockRestore(); }
   });
+
+  it('exposes explicit object cleanup only to server managers', async () => {
+    const cleanupUrl = '/api/v1/endpoint-testing/test-samples/binary-objects/cleanup';
+    await request(app.getHttpServer()).post(cleanupUrl).expect(401);
+    permissions.delete('server:manage');
+    await request(app.getHttpServer()).post(cleanupUrl)
+      .set('Authorization', 'Bearer ' + token).expect(403);
+    permissions.add('server:manage');
+    expect((await request(app.getHttpServer()).post(cleanupUrl)
+      .set('Authorization', 'Bearer ' + token).expect(201)).body.scannedCount).toBe(0);
+    await service.deleteTestSample(sampleId);
+    const repo = db.getRepository(EndpointTestSampleEntity);
+    const sample = await repo.findOneByOrFail({ id: sampleId });
+    await repo.update(sampleId, {
+      responsePayload: {
+        ...(sample.responsePayload as Record<string, unknown>),
+        deletionRequestedAt: '2020-01-01T00:00:00.000Z',
+      },
+    });
+    const removed = await request(app.getHttpServer()).post(cleanupUrl)
+      .set('Authorization', 'Bearer ' + token).expect(201);
+    expect(removed.body).toEqual(expect.objectContaining({
+      scannedCount: 1, deletedCount: 1, failedCount: 0, batchLimit: 100,
+    }));
+    expect(JSON.stringify(removed.body)).not.toContain(root);
+    expect((await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+      id: objectId,
+    })).state).toBe('deleted');
+    expect(await repo.findOneBy({ id: sampleId })).toBeNull();
+    expect(await fs.readdir(root)).toEqual([]);
+  });
+
 });

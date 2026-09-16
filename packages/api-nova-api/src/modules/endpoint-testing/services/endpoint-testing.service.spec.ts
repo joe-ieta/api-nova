@@ -37,6 +37,8 @@ describe('EndpointTestingService', () => {
     find: jest.fn(),
     findOne: jest.fn(),
     delete: jest.fn(),
+    update: jest.fn(),
+    manager: testRunRepository.manager,
   };
 
   const sampleObjectRepository = {
@@ -78,6 +80,7 @@ describe('EndpointTestingService', () => {
     }));
     sampleObjectRepository.findOne.mockResolvedValue(null);
     sampleObjectRepository.update.mockResolvedValue({ affected: 1 });
+    testSampleRepository.update.mockResolvedValue({ affected: 1 });
     sampleObjectService.prepare.mockResolvedValue({ captureState: 'metadata_only' });
     sampleObjectService.stagePublishedFile.mockResolvedValue(undefined);
     testSampleRepository.create.mockImplementation(value => value);
@@ -210,6 +213,10 @@ describe('EndpointTestingService', () => {
       { id: 'sample-old-2' },
     ]);
     testSampleRepository.delete.mockResolvedValue({ affected: 1 });
+    testSampleRepository.findOne.mockImplementation(async ({ where }) => ({
+      id: where.id, status: EndpointTestSampleStatus.ARCHIVED,
+      capturedAt: new Date('2020-01-01T00:00:00.000Z'),
+    }));
 
     await expect(service.cleanupExpiredSamples(30)).resolves.toEqual(
       expect.objectContaining({ deletedCount: 2, retentionDays: 30 }),
@@ -247,13 +254,18 @@ describe('EndpointTestingService', () => {
     };
     testSampleRepository.findOne.mockResolvedValue(sample);
     testSampleRepository.save.mockImplementation(async value => value);
+    testSampleRepository.update.mockImplementation(async (_where, patch) => {
+      Object.assign(sample, patch);
+      return { affected: 1 };
+    });
     testSampleRepository.delete.mockResolvedValue({ affected: 1 });
 
     const updated = await service.updateTestSample('sample-1', {
       title: 'Known good response',
       tags: ['smoke'],
       metadata: { apiKey: 'should-not-persist' },
-    });
+      responsePayload: { opaqueObjectId: 'attacker-controlled' },
+    } as any);
     expect(updated).toEqual(
       expect.objectContaining({
         title: 'Known good response',
@@ -261,6 +273,7 @@ describe('EndpointTestingService', () => {
         metadata: { apiKey: '[REDACTED]' },
       }),
     );
+    expect(testSampleRepository.update.mock.calls[0][1]).not.toHaveProperty('responsePayload');
 
     const archived = await service.archiveTestSample('sample-1');
     expect(archived).toEqual(
@@ -274,8 +287,39 @@ describe('EndpointTestingService', () => {
     await expect(service.deleteTestSample('sample-1')).resolves.toEqual({
       sampleId: 'sample-1',
       deleted: true,
+      pending: false,
     });
     expect(testSampleRepository.delete).toHaveBeenCalledWith({ id: 'sample-1' });
+  });
+  it('does not overwrite a pending marker when PATCH started from a stale sample', async () => {
+    const sample: any = {
+      id: 'sample-1', endpointDefinitionId: 'endpoint-1',
+      status: EndpointTestSampleStatus.ACTIVE, enabled: true,
+      responsePayload: { kind: 'binary', captureState: 'stored', opaqueObjectId: 'object-1' },
+    };
+    let revoked = false;
+    testSampleRepository.findOne.mockImplementation(async () => ({ ...sample }));
+    sampleObjectRepository.findOne.mockImplementation(async () =>
+      revoked ? { id: 'object-1', state: 'delete_pending' } : null);
+    testSampleRepository.update.mockImplementation(async (_where, patch) => {
+      // Model DELETE committing after PATCH's first read and before its write.
+      revoked = true;
+      sample.responsePayload = {
+        kind: 'binary', captureState: 'unavailable', deletionState: 'pending',
+      };
+      sample.status = EndpointTestSampleStatus.ARCHIVED;
+      sample.enabled = false;
+      Object.assign(sample, patch);
+      return { affected: 1 };
+    });
+    await expect(service.updateTestSample('sample-1', {
+      title: 'late edit',
+    })).rejects.toMatchObject({ status: 410 });
+    expect(testSampleRepository.update.mock.calls[0][1]).not.toHaveProperty('responsePayload');
+    expect(sample.responsePayload).toEqual({
+      kind: 'binary', captureState: 'unavailable', deletionState: 'pending',
+    });
+    expect(sample.enabled).toBe(false);
   });
   it('stores only a stream-authenticated binary response with a server-owned object reference', async () => {
     const previous = process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED;
@@ -411,17 +455,4 @@ describe('EndpointTestingService', () => {
     }
   });
 
-  it.each(['ready', 'staged'])('protects %s object samples from direct and retention deletion', async state => {
-    testSampleRepository.findOne.mockResolvedValue({
-      id: 'sample-1', endpointDefinitionId: 'endpoint-1',
-    });
-    testSampleRepository.find.mockResolvedValue([{ id: 'sample-1' }]);
-    sampleObjectRepository.findOne.mockResolvedValue({ id: 'object-1', state });
-    await expect(service.deleteTestSample('sample-1')).rejects.toBeInstanceOf(ConflictException);
-    expect(testSampleRepository.delete).not.toHaveBeenCalled();
-    await expect(service.cleanupExpiredSamples(30)).resolves.toEqual(
-      expect.objectContaining({ deletedCount: 0, skippedObjectCount: 1 }),
-    );
-    expect(testSampleRepository.delete).not.toHaveBeenCalled();
-  });
 });

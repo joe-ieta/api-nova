@@ -1,5 +1,5 @@
 ---
-doc-version: 1.19.0
+doc-version: 1.22.0
 doc-status: active
 doc-updated: 2026-09-16
 ---
@@ -7,21 +7,21 @@ doc-updated: 2026-09-16
 
 ## 1. 本次重排快照
 
-依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，本批围栏、基线、二进制样例与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)。
+依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当前空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)。
 父包专项统计仍是OBS 10/5/1、SEC 1/18/3/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计11/23/4/1。它不表示全项目完成率。
 
-本次登记111个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
+本次登记119个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 32 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 29 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 当前无在执行子项 |
-| WAIT_DEP | 31 | 等待列明子任务/条件 |
+| DONE | 38 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 28 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 0 | 当前无已启动叶子；下一轮优先C2C2B与B3E |
+| WAIT_DEP | 34 | 等待列明子任务/条件 |
 | NEED_ENV | 16 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
-第二批已完成SEC-E1-02A/B1/B2、OBS-14-03E1/E2A及05A/B/C1、PROD-02/03和04A/B1限定出口；05C1已完成；05C2A与04B2A完成限定验证；C2B1/B2/B3和B2B1/B2/C已限定完成；OBS-14-05C2C与PROD-04B3已解锁，后续完整验收仍按依赖推进；SEC-E1-02C1等待明确生产生命周期授权。事件物理删除E2B仍等待明确永久删除授权。READY不表示已开工。
+近期已完成C2B1/B2/B3、C2C1、B2B1/B2/C、B3A/C及当前版本SQLite空库验证A4-01的限定出口。C2C1证实旧预留无法在崩溃后唯一反查文件，原C2C2已进一步拆为保守降级A、持久发布意图B和可证明结算C；A已完成、B可进入队列。B3B已限定完成；其不覆盖无sample行的staged墓碑，该缺口已单列B3E并加入B3D前置。READY不表示已开工。SEC-E1-02C1仍等待明确生产生命周期授权；事件物理删除E2B仍等待明确永久删除授权。
 
 ## 2. 子任务状态与证据
 
@@ -32,7 +32,7 @@ doc-updated: 2026-09-16
 | SEC-A1-02 | WAIT_DEP | 未完成 |
 | SEC-A2-01 | READY | 运行时白名单已有，完整矩阵未验收 |
 | SEC-A3-01 | WAIT_DEP | 未实现闭环 |
-| SEC-A4-01 | READY | 旧43表证据不复用为当前完成 |
+| SEC-A4-01 | DONE | 当前版本隔离SQLite空库与同文件重开：68实体/68业务表、重启迁移0、schema漂移0；create与smoke均通过；不代表PostgreSQL或历史升级 |
 | SEC-A4-02 | NEED_ENV | 环境需重新核实 |
 | SEC-B1-01 | READY | 现有Gateway凭证不等于统一模型 |
 | SEC-B1-02 | WAIT_DEP | 未完成 |
@@ -94,8 +94,12 @@ doc-updated: 2026-09-16
 | OBS-14-05C2B1 | DONE | 独立跨批inventory围栏、双Store互斥、过期代次持久失效；专项7/7、旧回归61/61、API typecheck；不确认baseline |
 | OBS-14-05C2B2 | DONE | 同围栏从0重扫、陈旧前缀CAS重建和原子baseline；专项15/15、旧回归53/53、API typecheck；超预算incomplete，quotaEnforced=false |
 | OBS-14-05C2B3 | DONE | 独立SQL.js故障矩阵7/7：双Store竞争、模拟重启、事务/租约故障及确认后硬上限；不等于Linux/PG/真实多进程C3 |
-| OBS-14-05C2C | READY | B3限定验收已完成；未结算预留、孤儿与残留占用恢复尚未实施 |
-| OBS-14-05C3 | WAIT_DEP | 崩溃重启、多写者与各失败点验收等待C2C |
+| OBS-14-05C2C1 | DONE | 受持久围栏的只读有界残留/预留证据，未知占用不释放；专项13/13、旧回归90/90、API typecheck；总占用保持未知 |
+| OBS-14-05C2C2A | DONE | 围栏内精确核对预留后仅reserved→uncertain、账本degraded，额度不释放；专项14/14、相关回归46/46、API typecheck |
+| OBS-14-05C2C2B | READY | 需新增可在崩溃后反查预留与文件的持久发布意图；不得从旧未知记录推断映射 |
+| OBS-14-05C2C2C | WAIT_DEP | 只在意图/文件/元数据可证明时对账；等待C2C2B |
+| OBS-14-05C2C3 | WAIT_DEP | 恢复对账故障验收等待C2C2C |
+| OBS-14-05C3 | WAIT_DEP | 崩溃重启、多写者与各失败点验收等待C2C3 |
 | OBS-14-05D | WAIT_DEP | 状态/故障联调等待05C3 |
 | OBS-14-06A | READY | 生命周期合同已冻结；审计清理尚未实施 |
 | OBS-14-06T | READY | 生命周期合同已冻结；暂存恢复尚未实施 |
@@ -117,8 +121,12 @@ doc-updated: 2026-09-16
 | PROD-04B2B1 | DONE | 受信HTTP流字节接样例/对象同事务；SQL.js文件故障和删除围栏、四组54/54、API typecheck；默认关闭，无下载/回收 |
 | PROD-04B2B2 | DONE | SQL.js导出/重启、半对象不可读、重复ID隔离和文件/DB故障专项59/59、API typecheck；不含撤销/删除/GC |
 | PROD-04B2C | DONE | server:manage受权下载、sample归属/ready复核和固定响应头；真实JWT/SQL.js HTTP联合68/68、API构建；无撤销/GC |
-| PROD-04B3 | READY | B2C受权读取已完成；引用撤销/墓碑、显式整理和验证语义尚未实施 |
-| PROD-04C | WAIT_DEP | 留存整体验收等待04B3 |
+| PROD-04B3A | DONE | 显式删除及过期归档清理同事务撤销引用、持久delete_pending并保留样例/文件；读中撤销返回410，3套34/34、API构建；不unlink |
+| PROD-04B3B | DONE | server:manage显式清理仅处理撤销满5分钟的delete_pending对象，最多100/2秒软预算；失败保墓碑、重启可重试，4套53/53、API构建；不含无sample staged孤儿 |
+| PROD-04B3C | DONE | kind=binary未知版本/非显式status-only在回放前BLOCKED；显式status-only仍核验HTTP状态，3套44/44、API typecheck；不支持binary-exact |
+| PROD-04B3E | READY | 无sample行的staged墓碑显式整理；B3B不覆盖该类对象，需独立宽限与重启验收 |
+| PROD-04B3D | WAIT_DEP | 删除与回放恢复验收等待B3B、B3C及无样例staged墓碑整理B3E |
+| PROD-04C | WAIT_DEP | 留存整体验收等待04B3D |
 | PROD-05 | READY | 既有变更审计不重做 |
 | PROD-06 | SCOPE_REVIEW | 近期把完整CAS反复列作未完成，存在范围扩张风险 |
 | EXT-01 | NEED_ENV | 不当成代码未实现 |
