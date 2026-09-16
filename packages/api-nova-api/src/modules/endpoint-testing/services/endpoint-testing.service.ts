@@ -8,8 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomUUID } from 'node:crypto';
-import { Repository } from 'typeorm';
-import { LessThan } from 'typeorm';
+import { In, LessThan, Repository } from 'typeorm';
 import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
 import { EndpointTestCaseEntity } from '../../../database/entities/endpoint-test-case.entity';
 import { EndpointTestSampleObjectEntity } from '../../../database/entities/endpoint-test-sample-object.entity';
@@ -85,6 +84,7 @@ export class EndpointTestingService {
   private pendingObjectCleanup?: Promise<{
     scannedCount: number; deletedCount: number; failedCount: number;
     deferredCount: number; batchLimit: number; timeBudgetExceeded: boolean;
+    orphanDeletedCount: number;
   }>;
   private readonly sampleRetentionDays = this.readPositiveInt(
     process.env.ENDPOINT_TEST_SAMPLE_RETENTION_DAYS,
@@ -345,7 +345,7 @@ export class EndpointTestingService {
   }
 
 
-  /** An explicit, bounded pass over already revoked binary references. */
+  /** Explicit, bounded cleanup of revoked and abandoned staged binary objects. */
   async cleanupPendingBinaryObjects() {
     if (this.pendingObjectCleanup) return this.pendingObjectCleanup;
     const run = this.runPendingObjectCleanup();
@@ -358,76 +358,210 @@ export class EndpointTestingService {
     const batchLimit = 100;
     const deadline = Date.now() + this.objectCleanupBudgetMs;
     const candidates = await this.sampleObjectRepository.find({
-      where: { state: 'delete_pending', side: 'response' },
+      where: { state: In(['staged', 'delete_pending']), side: 'response' },
       // Failed candidates are moved to the back by a persisted updatedAt write.
       order: { updatedAt: 'ASC', id: 'ASC' },
       take: batchLimit,
     });
     const result = {
       scannedCount: 0, deletedCount: 0, failedCount: 0, deferredCount: 0,
-      batchLimit, timeBudgetExceeded: false,
+      batchLimit, timeBudgetExceeded: false, orphanDeletedCount: 0,
     };
     for (const object of candidates) {
       if (Date.now() >= deadline) { result.timeBudgetExceeded = true; break; }
       result.scannedCount++;
-      const sample = await this.testSampleRepository.findOneBy({ id: object.sampleId });
-      const descriptor = sample?.responsePayload as Record<string, unknown> | undefined;
-      const requestedAt = descriptor?.deletionRequestedAt;
-      if (!sample || !this.isSampleDeletionPending(sample) ||
-        descriptor?.opaqueObjectId !== undefined || sample.enabled ||
-        sample.status !== EndpointTestSampleStatus.ARCHIVED ||
-        typeof requestedAt !== 'string' || !Number.isFinite(Date.parse(requestedAt))) {
-        await this.recordObjectCleanupFailure(object, 'SAMPLE_NOT_REVOKED');
-        result.failedCount++;
-        continue;
-      }
-      const requestedMs = Date.parse(requestedAt);
-      if (requestedMs > Date.now() - this.objectDeleteGraceMs) {
-        result.deferredCount++;
-        continue;
-      }
+
       try {
-        await this.sampleObjectService.unlinkPending(object);
+        // Candidate selection is only a hint. The object, sample and grace time
+        // are re-read while holding the same fence as the publisher and revoker.
+        const outcome = await this.sampleObjectService.withSampleFence(
+          object.sampleId, () => this.cleanupPendingObjectLocked(object),
+        );
+        if (outcome === 'deleted') result.deletedCount++;
+        else if (outcome === 'orphan_deleted') {
+          result.deletedCount++;
+          result.orphanDeletedCount++;
+        }
+        else if (outcome === 'deferred') result.deferredCount++;
       } catch (error) {
-        const code = error instanceof SampleObjectError ? error.code : 'OBJECT_UNLINK_FAILED';
+        const code = error instanceof SampleObjectError ? error.code : 'OBJECT_STORAGE_FAILED';
         await this.recordObjectCleanupFailure(object, code);
-        result.failedCount++;
-        continue;
-      }
-      try {
-        const finalized = await this.testSampleRepository.manager.transaction(async manager => {
-          const objects = manager.getRepository(EndpointTestSampleObjectEntity);
-          const samples = manager.getRepository(EndpointTestSampleEntity);
-          const currentObject = await objects.findOneBy({ id: object.id, sampleId: object.sampleId, side: 'response' });
-          if (currentObject?.state === 'deleted') return false;
-          if (currentObject?.state !== 'delete_pending' || currentObject.objectKey !== object.objectKey) {
-            throw new ConflictException('Binary object changed; retry cleanup');
-          }
-          const currentSample = await samples.findOneBy({ id: object.sampleId });
-          const currentDescriptor = currentSample?.responsePayload as Record<string, unknown> | undefined;
-          if (!currentSample || !this.isSampleDeletionPending(currentSample) ||
-            currentDescriptor?.opaqueObjectId !== undefined ||
-            currentDescriptor.deletionRequestedAt !== requestedAt ||
-            currentSample.enabled || currentSample.status !== EndpointTestSampleStatus.ARCHIVED) {
-            throw new ConflictException('Binary sample changed; retry cleanup');
-          }
-          const changed = await objects.update(
-            { id: object.id, sampleId: object.sampleId, side: 'response', state: 'delete_pending' },
-            { state: 'deleted', failureCode: null as unknown as string,
-              deleteAttempts: Math.min(currentObject.deleteAttempts + 1, 2147483647) },
-          );
-          if (changed.affected !== 1) throw new ConflictException('Binary object changed; retry cleanup');
-          const removed = await samples.delete({ id: object.sampleId });
-          if (removed.affected !== 1) throw new ConflictException('Binary sample changed; retry cleanup');
-          return true;
-        });
-        if (finalized) result.deletedCount++;
-      } catch {
-        await this.recordObjectCleanupFailure(object, 'FINALIZE_FAILED');
         result.failedCount++;
       }
     }
     return result;
+  }
+
+  private async cleanupPendingObjectLocked(
+    object: EndpointTestSampleObjectEntity,
+  ): Promise<'deleted' | 'orphan_deleted' | 'deferred' | 'skipped'> {
+    const currentObject = await this.sampleObjectRepository.findOneBy({
+      id: object.id, sampleId: object.sampleId, side: 'response',
+    });
+    // A publisher may finish while this candidate waits for the fence.
+    if (currentObject?.state === 'ready' || currentObject?.state === 'deleted') return 'skipped';
+    if (currentObject?.state === 'staged' && currentObject.objectKey === object.objectKey) {
+      return this.cleanupStagedOrphanLocked(currentObject);
+    }
+    if (currentObject?.state === 'delete_pending' &&
+      currentObject.failureCode?.startsWith('ORPHAN_') &&
+      currentObject.objectKey === object.objectKey) {
+      return this.cleanupClaimedOrphanLocked(currentObject);
+    }
+    if (currentObject?.state !== 'delete_pending' || currentObject.objectKey !== object.objectKey) {
+      throw new SampleObjectError('OBJECT_UNAVAILABLE');
+    }
+    const sample = await this.testSampleRepository.findOneBy({ id: object.sampleId });
+    const descriptor = sample?.responsePayload as Record<string, unknown> | undefined;
+    const requestedAt = descriptor?.deletionRequestedAt;
+    if (!sample || !this.isSampleDeletionPending(sample) ||
+      descriptor?.opaqueObjectId !== undefined || sample.enabled ||
+      sample.status !== EndpointTestSampleStatus.ARCHIVED ||
+      typeof requestedAt !== 'string' || !Number.isFinite(Date.parse(requestedAt))) {
+      throw new SampleObjectError('SAMPLE_NOT_REVOKED');
+    }
+    if (Date.parse(requestedAt) > Date.now() - this.objectDeleteGraceMs) return 'deferred';
+    await this.sampleObjectService.unlinkPending(currentObject);
+    await this.sampleObjectService.assertSampleFence(object.sampleId);
+    try {
+      const finalized = await this.testSampleRepository.manager.transaction(async manager => {
+        const objects = manager.getRepository(EndpointTestSampleObjectEntity);
+        const samples = manager.getRepository(EndpointTestSampleEntity);
+        const row = await objects.findOneBy({ id: object.id, sampleId: object.sampleId, side: 'response' });
+        if (row?.state === 'deleted') return false;
+        if (row?.state !== 'delete_pending' || row.objectKey !== object.objectKey) {
+          throw new ConflictException('Binary object changed; retry cleanup');
+        }
+        const owner = await samples.findOneBy({ id: object.sampleId });
+        const ownerDescriptor = owner?.responsePayload as Record<string, unknown> | undefined;
+        if (!owner || !this.isSampleDeletionPending(owner) ||
+          ownerDescriptor?.opaqueObjectId !== undefined ||
+          ownerDescriptor.deletionRequestedAt !== requestedAt ||
+          owner.enabled || owner.status !== EndpointTestSampleStatus.ARCHIVED ||
+          Date.parse(requestedAt) > Date.now() - this.objectDeleteGraceMs) {
+          throw new ConflictException('Binary sample changed; retry cleanup');
+        }
+        const changed = await objects.update(
+          { id: object.id, sampleId: object.sampleId, side: 'response', state: 'delete_pending' },
+          { state: 'deleted', failureCode: null as unknown as string,
+            deleteAttempts: Math.min(row.deleteAttempts + 1, 2147483647) },
+        );
+        if (changed.affected !== 1) throw new ConflictException('Binary object changed; retry cleanup');
+        const removed = await samples.delete({ id: object.sampleId });
+        if (removed.affected !== 1) throw new ConflictException('Binary sample changed; retry cleanup');
+        return true;
+      });
+      return finalized ? 'deleted' : 'skipped';
+    } catch {
+      // The transaction rolled back; ENOENT on the next pass is idempotent.
+      throw new SampleObjectError('FINALIZE_FAILED');
+    }
+  }
+
+  private isUnreferencedOrphanSample(
+    sample: EndpointTestSampleEntity | null,
+    allowPending: boolean,
+  ): boolean {
+    if (!sample) return true;
+    const descriptor = sample.responsePayload;
+    if (!descriptor || typeof descriptor !== 'object' || Array.isArray(descriptor)) return false;
+    const binary = descriptor as Record<string, unknown>;
+    // Any opaque ID, including a different object's ID, is an uncertain association.
+    if (binary.kind !== 'binary' || binary.schemaVersion !== 1 ||
+      binary.opaqueObjectId !== undefined) return false;
+    if (binary.captureState === 'storage_failed' &&
+      binary.deletionState === undefined &&
+      !this.isSampleDeletionPending(sample)) return true;
+    return allowPending && binary.captureState === 'unavailable' &&
+      this.isSampleDeletionPending(sample) && !sample.enabled &&
+      sample.status === EndpointTestSampleStatus.ARCHIVED;
+  }
+
+  private orphanGraceElapsed(object: EndpointTestSampleObjectEntity): boolean {
+    const created = new Date(object.createdAt).getTime();
+    return Number.isFinite(created) && created <= Date.now() - this.objectDeleteGraceMs;
+  }
+
+  /** Fence first, recheck ownership, then persist a staged -> pending CAS. */
+  private async cleanupStagedOrphanLocked(
+    object: EndpointTestSampleObjectEntity,
+  ): Promise<'orphan_deleted' | 'deferred' | 'skipped'> {
+    if (!this.orphanGraceElapsed(object)) return 'deferred';
+    const sample = await this.testSampleRepository.findOneBy({ id: object.sampleId });
+    if (!this.isUnreferencedOrphanSample(sample, false)) {
+      throw new SampleObjectError('SAMPLE_REFERENCE_PRESENT');
+    }
+    await this.sampleObjectService.assertSampleFence(object.sampleId);
+    const claim = await this.sampleObjectRepository.update(
+      { id: object.id, sampleId: object.sampleId, side: 'response',
+        objectKey: object.objectKey, state: 'staged' },
+      { state: 'delete_pending', failureCode: 'ORPHAN_CLAIMED' },
+    );
+    if (claim.affected !== 1) throw new SampleObjectError('OBJECT_UNAVAILABLE');
+    const claimed = await this.sampleObjectRepository.findOneBy({
+      id: object.id, sampleId: object.sampleId, side: 'response',
+    });
+    if (claimed?.state !== 'delete_pending' ||
+      claimed.failureCode !== 'ORPHAN_CLAIMED' ||
+      claimed.objectKey !== object.objectKey) throw new SampleObjectError('OBJECT_UNAVAILABLE');
+    return this.cleanupClaimedOrphanLocked(claimed);
+  }
+
+  /** A persisted claim survives unlink, process failure and finalization failure. */
+  private async cleanupClaimedOrphanLocked(
+    object: EndpointTestSampleObjectEntity,
+  ): Promise<'orphan_deleted' | 'deferred' | 'skipped'> {
+    const current = await this.sampleObjectRepository.findOneBy({
+      id: object.id, sampleId: object.sampleId, side: 'response',
+    });
+    if (current?.state === 'deleted') return 'skipped';
+    if (current?.state !== 'delete_pending' ||
+      !current.failureCode?.startsWith('ORPHAN_') ||
+      current.objectKey !== object.objectKey) throw new SampleObjectError('OBJECT_UNAVAILABLE');
+    if (!this.orphanGraceElapsed(current)) return 'deferred';
+    const sample = await this.testSampleRepository.findOneBy({ id: object.sampleId });
+    if (!this.isUnreferencedOrphanSample(sample, true)) {
+      throw new SampleObjectError('SAMPLE_REFERENCE_PRESENT');
+    }
+    await this.sampleObjectService.unlinkPending(current);
+    await this.sampleObjectService.assertSampleFence(object.sampleId);
+    try {
+      const finalized = await this.testSampleRepository.manager.transaction(async manager => {
+        const objects = manager.getRepository(EndpointTestSampleObjectEntity);
+        const samples = manager.getRepository(EndpointTestSampleEntity);
+        const row = await objects.findOneBy({
+          id: object.id, sampleId: object.sampleId, side: 'response',
+        });
+        if (row?.state === 'deleted') return false;
+        if (row?.state !== 'delete_pending' ||
+          !row.failureCode?.startsWith('ORPHAN_') ||
+          row.objectKey !== object.objectKey || !this.orphanGraceElapsed(row)) {
+          throw new ConflictException('Binary object changed; retry cleanup');
+        }
+        const owner = await samples.findOneBy({ id: object.sampleId });
+        if (!this.isUnreferencedOrphanSample(owner, true)) {
+          throw new ConflictException('Binary sample changed; retry cleanup');
+        }
+        const changed = await objects.update(
+          { id: object.id, sampleId: object.sampleId, side: 'response',
+            objectKey: object.objectKey, state: 'delete_pending' },
+          { state: 'deleted', failureCode: null as unknown as string,
+            deleteAttempts: Math.min(row.deleteAttempts + 1, 2147483647) },
+        );
+        if (changed.affected !== 1) throw new ConflictException('Binary object changed; retry cleanup');
+        // A failed capture is retained as evidence. An explicitly revoked
+        // sample can be finalized together with its object tombstone.
+        if (owner && this.isSampleDeletionPending(owner)) {
+          const removed = await samples.delete({ id: object.sampleId });
+          if (removed.affected !== 1) throw new ConflictException('Binary sample changed; retry cleanup');
+        }
+        return true;
+      });
+      return finalized ? 'orphan_deleted' : 'skipped';
+    } catch {
+      // The pending marker remains authoritative even if the file is now absent.
+      throw new SampleObjectError('FINALIZE_FAILED');
+    }
   }
 
   private async recordObjectCleanupFailure(
@@ -438,19 +572,36 @@ export class EndpointTestingService {
       'SAMPLE_NOT_REVOKED', 'OBJECT_UNAVAILABLE', 'OBJECT_ROOT_INVALID',
       'OBJECT_ROOT_CHANGED', 'OBJECT_INTEGRITY_FAILED', 'OBJECT_UNLINK_FAILED',
       'OBJECT_STORAGE_FAILED', 'OBJECT_BUSY', 'FINALIZE_FAILED',
+      'OBJECT_FENCE_UNAVAILABLE', 'OBJECT_FENCE_LOST',
     ]);
+    const orphanCodes: Record<string, string> = {
+      SAMPLE_REFERENCE_PRESENT: 'ORPHAN_REFERENCED',
+      OBJECT_UNAVAILABLE: 'ORPHAN_UNAVAILABLE',
+      OBJECT_ROOT_INVALID: 'ORPHAN_ROOT_INVALID',
+      OBJECT_ROOT_CHANGED: 'ORPHAN_ROOT_CHANGED',
+      OBJECT_INTEGRITY_FAILED: 'ORPHAN_INTEGRITY_FAILED',
+      OBJECT_UNLINK_FAILED: 'ORPHAN_UNLINK_FAILED',
+      OBJECT_BUSY: 'ORPHAN_BUSY',
+      FINALIZE_FAILED: 'ORPHAN_FINALIZE_FAILED',
+      OBJECT_FENCE_UNAVAILABLE: 'ORPHAN_FENCE_UNAVAILABLE',
+      OBJECT_FENCE_LOST: 'ORPHAN_FENCE_LOST',
+    };
     try {
       const current = await this.sampleObjectRepository.findOneBy({
-        id: object.id, sampleId: object.sampleId, state: 'delete_pending',
+        id: object.id, sampleId: object.sampleId,
       });
-      if (!current) return;
+      if (!current || !['staged', 'delete_pending'].includes(current.state)) return;
+      const orphan = current.state === 'staged' ||
+        current.failureCode?.startsWith('ORPHAN_');
       const previous = new Date(current.updatedAt).getTime();
       const retryOrder = new Date(Math.max(
         Date.now() + 1000, Number.isFinite(previous) ? previous + 1000 : 0,
       ));
       await this.sampleObjectRepository.update(
-        { id: object.id, sampleId: object.sampleId, state: 'delete_pending' },
-        { failureCode: allowed.has(code) ? code : 'OBJECT_UNLINK_FAILED',
+        { id: object.id, sampleId: object.sampleId, state: current.state },
+        { failureCode: orphan
+            ? orphanCodes[code] ?? 'ORPHAN_STORAGE_FAILED'
+            : allowed.has(code) ? code : 'OBJECT_UNLINK_FAILED',
           deleteAttempts: Math.min(current.deleteAttempts + 1, 2147483647),
           updatedAt: retryOrder },
       );
@@ -464,82 +615,93 @@ export class EndpointTestingService {
     const executedAt = input.executedAt ?? new Date();
     const evidence = this.sanitizeEvidence(input);
     const sampleId = randomUUID();
-    const binary = await this.prepareBinaryEvidence(input, sampleId);
+    const work = async () => {
+      const binary = await this.prepareBinaryEvidence(input, sampleId);
 
-    const persist = (
-      runResponsePayload: unknown,
-      sampleResponsePayload: unknown,
-      objectId?: string,
-    ) => {
-      const fingerprint = this.createEvidenceFingerprint({
-        requestHeaders: evidence.requestHeaders,
-        requestPayload: evidence.requestPayload,
-        responseStatusCode: input.responseStatusCode,
-        responsePayload: runResponsePayload,
-      });
-      return this.testRunRepository.manager.transaction(async manager => {
-        const runRepository = manager.getRepository(EndpointTestRunEntity);
-        const sampleRepository = manager.getRepository(EndpointTestSampleEntity);
-        const run = await runRepository.save(
-          runRepository.create({
-            endpointDefinitionId: input.endpointDefinitionId,
-            testCaseId: input.testCaseId,
-            sourceServiceInstanceId: input.sourceServiceInstanceId,
-            status: EndpointTestRunStatus.SUCCESS,
-            ...evidence,
-            responsePayload: runResponsePayload,
-            responseStatusCode: input.responseStatusCode,
-            durationMs: input.durationMs,
-            executedAt,
-          }),
-        );
-        const sample = await sampleRepository.save(
-          sampleRepository.create({
-            id: sampleId,
-            endpointDefinitionId: input.endpointDefinitionId,
-            testCaseId: input.testCaseId,
-            testRunId: run.id,
-            sourceServiceInstanceId: input.sourceServiceInstanceId,
-            fingerprint,
-            enabled: true,
-            status: EndpointTestSampleStatus.ACTIVE,
-            ...evidence,
-            responsePayload: sampleResponsePayload,
-            responseStatusCode: input.responseStatusCode,
-            durationMs: input.durationMs,
-            capturedAt: executedAt,
-          }),
-        );
-        if (objectId) {
-          try {
-            const promoted = await manager.getRepository(EndpointTestSampleObjectEntity).update(
-              { id: objectId, sampleId, side: 'response', state: 'staged' },
-              { state: 'ready' },
-            );
-            if (promoted.affected !== 1) throw new Error('Object was not staged');
-          } catch {
-            throw new BinaryObjectPromotionError();
+      const persist = (
+        runResponsePayload: unknown,
+        sampleResponsePayload: unknown,
+        objectId?: string,
+      ) => {
+        const fingerprint = this.createEvidenceFingerprint({
+          requestHeaders: evidence.requestHeaders,
+          requestPayload: evidence.requestPayload,
+          responseStatusCode: input.responseStatusCode,
+          responsePayload: runResponsePayload,
+        });
+        return this.testRunRepository.manager.transaction(async manager => {
+          const runRepository = manager.getRepository(EndpointTestRunEntity);
+          const sampleRepository = manager.getRepository(EndpointTestSampleEntity);
+          const run = await runRepository.save(
+            runRepository.create({
+              endpointDefinitionId: input.endpointDefinitionId,
+              testCaseId: input.testCaseId,
+              sourceServiceInstanceId: input.sourceServiceInstanceId,
+              status: EndpointTestRunStatus.SUCCESS,
+              ...evidence,
+              responsePayload: runResponsePayload,
+              responseStatusCode: input.responseStatusCode,
+              durationMs: input.durationMs,
+              executedAt,
+            }),
+          );
+          const sample = await sampleRepository.save(
+            sampleRepository.create({
+              id: sampleId,
+              endpointDefinitionId: input.endpointDefinitionId,
+              testCaseId: input.testCaseId,
+              testRunId: run.id,
+              sourceServiceInstanceId: input.sourceServiceInstanceId,
+              fingerprint,
+              enabled: true,
+              status: EndpointTestSampleStatus.ACTIVE,
+              ...evidence,
+              responsePayload: sampleResponsePayload,
+              responseStatusCode: input.responseStatusCode,
+              durationMs: input.durationMs,
+              capturedAt: executedAt,
+            }),
+          );
+          if (objectId) {
+            try {
+              const promoted = await manager.getRepository(EndpointTestSampleObjectEntity).update(
+                { id: objectId, sampleId, side: 'response', state: 'staged' },
+                { state: 'ready' },
+              );
+              if (promoted.affected !== 1) throw new Error('Object was not staged');
+            } catch {
+              throw new BinaryObjectPromotionError();
+            }
           }
-        }
-        return { run, sample };
-      });
-    };
-
-    try {
-      return await persist(
-        binary?.runPayload ?? evidence.responsePayload,
-        binary?.samplePayload ?? evidence.responsePayload,
-        binary?.objectId,
-      );
-    } catch (error) {
-      if (!(error instanceof BinaryObjectPromotionError) || !binary?.objectId) throw error;
-      // The failed transaction rolled back run/sample and the object promotion.
-      // The published file remains staged, so retry only the metadata-only result.
-      const payload: BinaryResponseDescriptor = {
-        ...binary.runPayload, captureState: 'storage_failed',
+          return { run, sample };
+        });
       };
-      return persist(payload, payload);
+
+      try {
+        if (binary?.objectId) await this.sampleObjectService.assertSampleFence(sampleId);
+        const saved = await persist(
+          binary?.runPayload ?? evidence.responsePayload,
+          binary?.samplePayload ?? evidence.responsePayload,
+          binary?.objectId,
+        );
+        if (binary?.objectId) await this.sampleObjectService.assertSampleFence(sampleId);
+        return saved;
+      } catch (error) {
+        if (!(error instanceof BinaryObjectPromotionError) || !binary?.objectId) throw error;
+        // The failed transaction rolled back run/sample and the object promotion.
+        // The published file remains staged, so retry only the metadata-only result.
+        const payload: BinaryResponseDescriptor = {
+          ...binary.runPayload, captureState: 'storage_failed',
+        };
+        return persist(payload, payload);
+      }
+    };
+    const capture = input.trustedBinaryCapture;
+    if (binaryCaptureEnabled() && isTrustedBinaryCapture(capture) &&
+      capture.descriptor === input.responsePayload) {
+      return this.sampleObjectService.withSampleFence(sampleId, work);
     }
+    return work();
   }
 
   private async prepareBinaryEvidence(
@@ -602,72 +764,101 @@ export class EndpointTestingService {
     sampleId: string,
     cutoff?: Date,
   ): Promise<'deleted' | 'pending' | 'skipped'> {
-    return this.testSampleRepository.manager.transaction(async manager => {
-      const samples = manager.getRepository(EndpointTestSampleEntity);
-      const objects = manager.getRepository(EndpointTestSampleObjectEntity);
-      const sample = await samples.findOne({ where: { id: sampleId } });
-      if (!sample) {
-        if (cutoff) return 'skipped';
-        throw new NotFoundException('Test sample not found');
-      }
-      if (cutoff && (sample.status !== EndpointTestSampleStatus.ARCHIVED ||
-        new Date(sample.capturedAt).getTime() >= cutoff.getTime())) return 'skipped';
-
-      const object = await objects.findOne({ where: { sampleId, side: 'response' } });
-      if (!object) {
-        if (this.isSampleDeletionPending(sample)) {
-          throw new ConflictException('Pending binary sample has no object tombstone');
+    if (!/^[a-zA-Z0-9-]{1,36}$/.test(sampleId)) {
+      if (cutoff) return 'skipped';
+      throw new NotFoundException('Test sample not found');
+    }
+    const work = () => this.testSampleRepository.manager.transaction(async manager => {
+        const samples = manager.getRepository(EndpointTestSampleEntity);
+        const objects = manager.getRepository(EndpointTestSampleObjectEntity);
+        const sample = await samples.findOne({ where: { id: sampleId } });
+        if (!sample) {
+          if (cutoff) return 'skipped';
+          throw new NotFoundException('Test sample not found');
         }
-        const removed = await samples.delete(cutoff
-          ? { id: sampleId, status: EndpointTestSampleStatus.ARCHIVED, capturedAt: LessThan(cutoff) }
-          : { id: sampleId });
-        if (removed.affected !== 1) throw new ConflictException('Test sample changed; retry deletion');
-        return 'deleted';
-      }
-      if (!['ready', 'staged', 'delete_pending'].includes(object.state)) {
-        throw new ConflictException('Binary object state cannot be revoked');
-      }
-      if (object.state !== 'delete_pending') {
-        const changed = await objects.update(
-          { id: object.id, sampleId, side: 'response', state: object.state },
-          { state: 'delete_pending' },
-        );
-        if (changed.affected !== 1) throw new ConflictException('Binary object changed; retry deletion');
-      }
+        if (cutoff && (sample.status !== EndpointTestSampleStatus.ARCHIVED ||
+          new Date(sample.capturedAt).getTime() >= cutoff.getTime())) return 'skipped';
 
-      const source = sample.responsePayload && typeof sample.responsePayload === 'object' &&
-        !Array.isArray(sample.responsePayload)
-        ? sample.responsePayload as Record<string, unknown>
-        : {};
-      const rest = { ...source };
-      delete rest.opaqueObjectId;
-      const deletionRequestedAt = this.isSampleDeletionPending(sample) &&
-        typeof rest.deletionRequestedAt === 'string' &&
-        Number.isFinite(Date.parse(rest.deletionRequestedAt))
-        ? rest.deletionRequestedAt : new Date().toISOString();
-      const pendingPayload = {
-        ...rest, captureState: 'unavailable', deletionState: 'pending', deletionRequestedAt,
-      };
-      if (!this.isSampleDeletionPending(sample) || 'opaqueObjectId' in source ||
-        source.deletionRequestedAt !== deletionRequestedAt ||
-        sample.enabled || sample.status !== EndpointTestSampleStatus.ARCHIVED) {
-        const changed = await samples.update({ id: sampleId }, {
-          responsePayload: pendingPayload,
-          enabled: false,
-          status: EndpointTestSampleStatus.ARCHIVED,
-          archivedAt: sample.archivedAt ?? new Date(),
-        });
-        if (changed.affected !== 1) throw new ConflictException('Test sample changed; retry deletion');
-      }
-      const current = await samples.findOne({ where: { id: sampleId } });
-      const tombstone = await objects.findOne({ where: { id: object.id, sampleId, side: 'response' } });
-      if (!current || !this.isSampleDeletionPending(current) ||
-        (current.responsePayload as Record<string, unknown>).opaqueObjectId !== undefined ||
-        tombstone?.state !== 'delete_pending') {
-        throw new ConflictException('Binary sample revocation is incomplete');
-      }
-      return 'pending';
+        const object = await objects.findOne({ where: { sampleId, side: 'response' } });
+        if (!object) {
+          if (this.isSampleDeletionPending(sample)) {
+            throw new ConflictException('Pending binary sample has no object tombstone');
+          }
+          const removed = await samples.delete(cutoff
+            ? { id: sampleId, status: EndpointTestSampleStatus.ARCHIVED, capturedAt: LessThan(cutoff) }
+            : { id: sampleId });
+          if (removed.affected !== 1) throw new ConflictException('Test sample changed; retry deletion');
+          return 'deleted';
+        }
+        if (object.state === 'deleted') {
+          const descriptor = sample.responsePayload as Record<string, unknown> | undefined;
+          if (descriptor?.opaqueObjectId !== undefined) {
+            throw new ConflictException('Deleted binary object is still referenced');
+          }
+          const removed = await samples.delete(cutoff
+            ? { id: sampleId, status: EndpointTestSampleStatus.ARCHIVED, capturedAt: LessThan(cutoff) }
+            : { id: sampleId });
+          if (removed.affected !== 1) throw new ConflictException('Test sample changed; retry deletion');
+          return 'deleted';
+        }
+        if (!['ready', 'staged', 'delete_pending'].includes(object.state)) {
+          throw new ConflictException('Binary object state cannot be revoked');
+        }
+        if (object.state !== 'delete_pending') {
+          const changed = await objects.update(
+            { id: object.id, sampleId, side: 'response', state: object.state },
+            { state: 'delete_pending', failureCode: null as unknown as string },
+          );
+          if (changed.affected !== 1) throw new ConflictException('Binary object changed; retry deletion');
+        } else if (object.failureCode?.startsWith('ORPHAN_')) {
+          // An explicit revocation has its own first-request grace. Discard
+          // the orphan marker so cleanup uses deletionRequestedAt instead.
+          const changed = await objects.update(
+            { id: object.id, sampleId, side: 'response', state: 'delete_pending' },
+            { failureCode: null as unknown as string },
+          );
+          if (changed.affected !== 1) throw new ConflictException('Binary object changed; retry deletion');
+        }
+
+        const source = sample.responsePayload && typeof sample.responsePayload === 'object' &&
+          !Array.isArray(sample.responsePayload)
+          ? sample.responsePayload as Record<string, unknown>
+          : {};
+        const rest = { ...source };
+        delete rest.opaqueObjectId;
+        const deletionRequestedAt = this.isSampleDeletionPending(sample) &&
+          typeof rest.deletionRequestedAt === 'string' &&
+          Number.isFinite(Date.parse(rest.deletionRequestedAt))
+          ? rest.deletionRequestedAt : new Date().toISOString();
+        const pendingPayload = {
+          ...rest, captureState: 'unavailable', deletionState: 'pending', deletionRequestedAt,
+        };
+        if (!this.isSampleDeletionPending(sample) || 'opaqueObjectId' in source ||
+          source.deletionRequestedAt !== deletionRequestedAt ||
+          sample.enabled || sample.status !== EndpointTestSampleStatus.ARCHIVED) {
+          const changed = await samples.update({ id: sampleId }, {
+            responsePayload: pendingPayload,
+            enabled: false,
+            status: EndpointTestSampleStatus.ARCHIVED,
+            archivedAt: sample.archivedAt ?? new Date(),
+          });
+          if (changed.affected !== 1) throw new ConflictException('Test sample changed; retry deletion');
+        }
+        const current = await samples.findOne({ where: { id: sampleId } });
+        const tombstone = await objects.findOne({ where: { id: object.id, sampleId, side: 'response' } });
+        if (!current || !this.isSampleDeletionPending(current) ||
+          (current.responsePayload as Record<string, unknown>).opaqueObjectId !== undefined ||
+          tombstone?.state !== 'delete_pending') {
+          throw new ConflictException('Binary sample revocation is incomplete');
+        }
+        return 'pending';
     });
+    // A normal sample has no object file to fence. Binary rows are persisted
+    // before their file is written, so an in-flight publisher is discoverable.
+    const owned = await this.sampleObjectRepository.findOne({
+      where: { sampleId, side: 'response' }, select: { id: true },
+    });
+    return owned ? this.sampleObjectService.withSampleFence(sampleId, work) : work();
   }
 
   async recordFailedRun(input: RecordEndpointTestFailureInput) {

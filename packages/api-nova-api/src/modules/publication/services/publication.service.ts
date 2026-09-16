@@ -547,7 +547,8 @@ export class PublicationService {
         routeMethod,
         upstreamMethod,
         routeVisibility: dto.routeVisibility ?? binding.routeVisibility,
-        authPolicyRef: dto.authPolicyRef ?? binding.authPolicyRef,
+        authPolicyRef: dto.authPolicyRef === undefined
+          ? binding.authPolicyRef : String(dto.authPolicyRef ?? '').trim(),
         trafficPolicyRef: dto.trafficPolicyRef ?? binding.trafficPolicyRef,
         loggingPolicyRef: dto.loggingPolicyRef ?? binding.loggingPolicyRef,
         cachePolicyRef: dto.cachePolicyRef ?? binding.cachePolicyRef,

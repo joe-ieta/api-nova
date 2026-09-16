@@ -7,6 +7,12 @@ import {
   PublicationAuditStatus,
 } from '../../../database/entities/publication-audit-event.entity';
 import { RuntimeAssetStatus, RuntimeAssetType } from '../../../database/entities/runtime-asset.entity';
+import { ValidationPipe } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
+import { validateSync } from 'class-validator';
+import { GatewayPolicyService } from '../../gateway-runtime/services/gateway-policy.service';
+import { GatewayRouteSnapshotService } from '../../gateway-runtime/services/gateway-route-snapshot.service';
+import { ConfigureGatewayRouteBindingDto } from '../dto/publication.dto';
 import { PublicationService } from './publication.service';
 
 describe('PublicationService', () => {
@@ -318,6 +324,144 @@ describe('PublicationService', () => {
         runtimeMembershipId: 'membership-1',
       }),
     );
+  });
+
+
+  it('keeps legacy public routes protected through unrelated updates and blocks a cleared auth ref before activation', async () => {
+    const runtimeAsset = {
+      id: 'runtime-gateway-1',
+      type: RuntimeAssetType.GATEWAY_SERVICE,
+      name: 'orders-gateway',
+      status: RuntimeAssetStatus.ACTIVE,
+    };
+    const membership = {
+      id: 'membership-1',
+      runtimeAssetId: runtimeAsset.id,
+      endpointDefinitionId: readyEndpoint.id,
+      status: 'active',
+      publicationRevision: 1,
+      enabled: true,
+    };
+    const publishBinding = {
+      id: 'binding-1',
+      runtimeAssetEndpointBindingId: membership.id,
+      endpointDefinitionId: readyEndpoint.id,
+      publishedToHttp: true,
+      publishStatus: 'active',
+      publicationRevision: 1,
+    };
+    const route = {
+      id: 'route-1',
+      runtimeAssetEndpointBindingId: membership.id,
+      endpointDefinitionId: readyEndpoint.id,
+      routePath: '/orders',
+      upstreamPath: '/orders',
+      routeMethod: 'GET',
+      upstreamMethod: 'GET',
+      routeVisibility: 'public',
+      authPolicyRef: 'anonymous',
+      status: 'active',
+      updatedAt: new Date(),
+    };
+    runtimeAssetRepository.findOne.mockResolvedValue(runtimeAsset);
+    runtimeBindingRepository.findOne.mockResolvedValue(membership);
+    profileRepository.findOne.mockResolvedValue({
+      id: 'profile-1',
+      endpointDefinitionId: readyEndpoint.id,
+      runtimeAssetEndpointBindingId: membership.id,
+      version: 1,
+      intentName: 'List orders',
+      status: 'reviewed',
+    });
+    bindingRepository.findOne.mockResolvedValue(publishBinding);
+    routeBindingRepository.findOne.mockResolvedValue(route);
+    routeBindingRepository.find.mockResolvedValue([route]);
+
+    const snapshots = new GatewayRouteSnapshotService(
+      new GatewayPolicyService(),
+      { find: jest.fn(async () => [route]) } as any,
+      {
+        create: jest.fn(value => value),
+        save: jest.fn(async value => value),
+      } as any,
+      { findByIds: jest.fn(async () => [membership]) } as any,
+      { find: jest.fn(async () => [publishBinding]) } as any,
+      { findByIds: jest.fn(async () => [runtimeAsset]) } as any,
+      { findByIds: jest.fn(async () => [readyEndpoint]) } as any,
+      { findByIds: jest.fn(async () => [sourceServiceAsset]) } as any,
+      {
+        resolve: jest.fn(async () => ({
+          resolved: true,
+          instance: {
+            id: 'instance-1',
+            sourceServiceAssetId: sourceServiceAsset.id,
+            scheme: 'https',
+            host: 'api.example.com',
+            port: 443,
+            basePath: '/v1',
+          },
+        })),
+      } as any,
+    );
+
+    await snapshots.prepareCandidate(runtimeAsset.id, 'legacy');
+    expect(snapshots.getCandidateRoute('legacy', membership.id)?.policies.auth.mode).toBe('jwt');
+    await snapshots.activateCandidate('legacy');
+
+    const unrelatedUpdate = plainToInstance(ConfigureGatewayRouteBindingDto, {
+      trafficPolicyRef: 'limit-standard',
+    });
+    expect(validateSync(unrelatedUpdate)).toHaveLength(0);
+    expect(validateSync(plainToInstance(ConfigureGatewayRouteBindingDto, {
+      routeVisibility: 'unknown',
+    }))).not.toHaveLength(0);
+    await service.configureRuntimeMembershipGatewayRoute(membership.id, unrelatedUpdate, 'operator-1');
+    expect(route.routeVisibility).toBe('public');
+    expect(route.authPolicyRef).toBe('anonymous');
+    await snapshots.prepareCandidate(runtimeAsset.id, 'unchanged');
+    expect(snapshots.getCandidateRoute('unchanged', membership.id)?.policies.auth.mode).toBe('jwt');
+
+    const pipe = new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      errorHttpStatusCode: 422,
+    });
+    const legacyReadBack = await pipe.transform({
+      routeVisibility: 'public',
+      trafficPolicyRef: 'limit-standard',
+    }, { type: 'body', metatype: ConfigureGatewayRouteBindingDto });
+    expect(legacyReadBack.routeVisibility).toBe('internal');
+    await expect(pipe.transform({
+      routeVisibility: 'unknown',
+    }, { type: 'body', metatype: ConfigureGatewayRouteBindingDto })).rejects.toThrow();
+    expect(validateSync(legacyReadBack)).toHaveLength(0);
+    await service.configureRuntimeMembershipGatewayRoute(membership.id, legacyReadBack, 'operator-1');
+    expect(route.routeVisibility).toBe('internal');
+    expect(route.authPolicyRef).toBe('anonymous');
+    await snapshots.prepareCandidate(runtimeAsset.id, 'legacy-read-back');
+    expect(snapshots.getCandidateRoute('legacy-read-back', membership.id)?.policies.auth.mode)
+      .toBe('jwt');
+
+    await service.configureRuntimeMembershipGatewayRoute(membership.id, {
+      routeVisibility: 'internal',
+      authPolicyRef: '',
+    }, 'operator-1');
+    expect(route.routeVisibility).toBe('internal');
+    expect(route.authPolicyRef).toBe('');
+    await expect(snapshots.prepareCandidate(runtimeAsset.id, 'cleared')).rejects.toThrow(
+      'Gateway authentication policy is required',
+    );
+    expect(snapshots.resolve(undefined, 'GET', '/orders')?.policies.auth.mode).toBe('jwt');
+
+    await service.configureRuntimeMembershipGatewayRoute(membership.id, {
+      routeVisibility: 'external',
+      authPolicyRef: 'anonymous',
+    }, 'operator-1');
+    await snapshots.prepareCandidate(runtimeAsset.id, 'explicit-external');
+    expect(snapshots.getCandidateRoute('explicit-external', membership.id)?.policies.auth.mode)
+      .toBe('anonymous');
+    expect(snapshots.resolve(undefined, 'GET', '/orders')?.policies.auth.mode).toBe('jwt');
   });
 
   it('persists phase-two route policy fields when configuring a gateway route', async () => {

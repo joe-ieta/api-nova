@@ -150,9 +150,12 @@ test('SQLite initial migration creates budget primitives and both schema baselin
   for (const [dialect, name] of [['sqlite', '1788825600000-InitialSqliteSchema'], ['postgres', '1788825601000-InitialPostgresSchema']]) {
     const sql = fs.readFileSync(path.resolve(__dirname, '../database/' + dialect + '-schema.sql'), 'utf8');
     const ts = fs.readFileSync(path.resolve(__dirname, '../src/database/migrations/' + name + '.ts'), 'utf8');
-    const statements = sql.split(';').map(value => value.trim()).filter(value => value.startsWith('CREATE') && value.includes('runtime_payload_quota_'));
-    assert.equal(statements.length, 4);
-    for (const statement of statements) assert.ok(ts.includes(JSON.stringify(statement)), dialect);
+    // Current snapshots include forward migrations while Initial stays immutable.
+    for (const object of ['runtime_payload_quota_ledgers', 'runtime_payload_quota_reservations',
+      'IDX_obs_quota_reservation_owner_operation', 'IDX_obs_quota_reservation_owner_state']) {
+      assert.ok(sql.includes(object), dialect + ': current snapshot lacks ' + object);
+      assert.ok(ts.includes(object), dialect + ': historical Initial lacks ' + object);
+    }
   }
   await migration.down(runner);
 });

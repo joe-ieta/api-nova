@@ -35,7 +35,7 @@ export interface RuntimeCallContext {
   callerSubject?: string;
   clientId?: string;
   scopes?: string[];
-  identitySource: 'authenticated' | 'anonymous';
+  identitySource: 'authenticated' | 'anonymous' | 'local_process';
   credentialId?: string;
   sessionIdHash?: string;
   runtimeAssetId?: string;

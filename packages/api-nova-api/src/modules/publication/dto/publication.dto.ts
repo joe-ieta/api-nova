@@ -1,9 +1,11 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   ArrayNotEmpty,
   IsArray,
   IsBoolean,
   IsInt,
+  IsIn,
   IsOptional,
   IsString,
   Min,
@@ -250,10 +252,11 @@ export class ConfigureGatewayRouteBindingDto {
   @IsString()
   upstreamMethod?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ enum: ['internal', 'external'] })
+  @Transform(({ value }) => value === 'public' ? 'internal' : value, { toClassOnly: true })
   @IsOptional()
-  @IsString()
-  routeVisibility?: string;
+  @IsIn(['internal', 'external'])
+  routeVisibility?: 'internal' | 'external';
 
   @ApiPropertyOptional()
   @IsOptional()

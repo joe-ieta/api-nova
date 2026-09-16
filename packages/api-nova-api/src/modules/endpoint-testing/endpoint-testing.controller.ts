@@ -136,7 +136,7 @@ export class EndpointTestingController {
 
   @Post('test-samples/binary-objects/cleanup')
   @RequirePermissions('server:manage')
-  @ApiOperation({ summary: 'Explicitly reclaim revoked binary sample objects in a bounded pass' })
+  @ApiOperation({ summary: 'Explicitly reclaim revoked and abandoned staged binary objects in a bounded pass' })
   cleanupPendingBinaryObjects() {
     return this.endpointTestingService.cleanupPendingBinaryObjects();
   }

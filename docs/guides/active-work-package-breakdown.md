@@ -1,5 +1,5 @@
 ---
-doc-version: 1.15.0
+doc-version: 1.18.0
 doc-status: active
 doc-updated: 2026-09-16
 ---
@@ -61,7 +61,13 @@ SEC父包：A0 DONE；A1/A2/A4/B1/B2/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a各I
 | --- | --- | --- | --- | --- | --- |
 | GOV-01 | 治理 | DOC | 全范围归属与重拆台账 | 39专项父包、交叉计划和独立项有入口；不重复统计；计划与状态互链 | — |
 | SEC-A1-01 | SEC-A1 | VALIDATION | 鉴权模式跨层合同矩阵 | DTO/持久策略/UI/发布/运行时逐路径标实现与缺口；复用既有测试 | — |
-| SEC-A1-02 | SEC-A1 | CODE | 模式标签与持久化闭环 | Private Extension/local_process标签与保存后实际行为一致 | SEC-A1-01 |
+| SEC-A1-02A | SEC-A1 | CODE | Gateway可见性与策略引用一致 | UI public/external语义与保存、候选和执行同一模式；清空策略引用可明确生效，不静默放开内部路由 | SEC-A1-01 |
+| SEC-A1-02B1 | SEC-A1 | CODE | MCP HTTP入站模式合同与持久化 | 独立inboundAuthMode三值、DTO和双方言持久结构；旧记录模式未知时显式阻断新部署，不混用上游authConfig | SEC-A1-01 |
+| SEC-A1-02B2 | SEC-A1 | CODE | 现行CLI启动与重启模式 | 每服务持久模式映射受控运行环境；启动前校验凭证配置，重启保持模式，请求正反例 | SEC-A1-02B1 |
+| SEC-A1-02B3 | SEC-A1 | CODE | managed IPC模式一致性 | 实验性handoff、child预检和READY摘要核对有效模式；与存储不一致时失败关闭，不宣称生产生命周期已接线 | SEC-A1-02B1 |
+| SEC-A1-02B4 | SEC-A1 | CODE | MCP模式UI选择与回填 | 选择、保存、重载、预览和有效模式标签同服务端一致；阻断态可见 | SEC-A1-02B1;SEC-A1-02B2;SEC-A1-02B3 |
+| SEC-A1-02C | SEC-A1 | CODE | stdio本地进程身份标签 | local_process在直连stdio元数据和审计中明确，不误报HTTP anonymous | SEC-A1-01 |
+| SEC-A1-02D | SEC-A1 | VALIDATION | 鉴权模式保存到执行闭环 | Gateway/MCP/stdio按保存、发布、重启和真实请求核对有效模式与标签 | SEC-A1-02A;SEC-A1-02B4;SEC-A1-02C |
 | SEC-A2-01 | SEC-A2 | VALIDATION | 非法策略发布/恢复/启动拒绝 | 缺失、未知、非法快照覆盖三入口；合法开发默认可追溯 | — |
 | SEC-A3-01 | SEC-A3 | CODE | 临时匿名治理 | reason/actor/expiry、生产双许可、到期拒绝与审计同一用例通过 | SEC-B1-01;SEC-A2-01 |
 | SEC-A4-01 | SEC-A4 | VALIDATION | 当前版本SQLite空库和重启 | 当前实体数、初始化一次、重启零漂移记录到同一基线 | — |
@@ -128,8 +134,10 @@ SEC父包：A0 DONE；A1/A2/A4/B1/B2/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a各I
 | OBS-14-05C2B3 | OBS-14 | VALIDATION | 围栏与baseline故障验收 | 双Store写者、崩溃重启和事务失败不超卖、不误ready | OBS-14-05C2B2 |
 | OBS-14-05C2C1 | OBS-14 | CODE | 预留与孤儿占用只读证据 | 有界识别未结算预留、最终/临时残留及未知占用，不改账本或文件 | OBS-14-05C2B3 |
 | OBS-14-05C2C2A | OBS-14 | CODE | 未结算预留保守降级 | 围栏下精确复核owner/epoch/generation与预留，将reserved原子标为uncertain且ledger degraded，不减少reservedBytes | OBS-14-05C2C1 |
-| OBS-14-05C2C2B | OBS-14 | CODE | 持久发布意图关联 | 新写入在文件发布前持久关联预留、payloadId、sourceEvent与代次；重启可验证，旧未知不可推断补齐 | OBS-14-05C2C2A |
-| OBS-14-05C2C2C | OBS-14 | CODE | 可证明的预留与孤儿账本对账 | 仅用完整意图、文件及元数据证据结算；不匹配/旧未知持续占用，不超卖 | OBS-14-05C2C2B |
+| OBS-14-05C2C2B1 | OBS-14 | CODE | 双方言发布意图模型 | 独立表、SQLite/PostgreSQL前向迁移与注册/原语；旧预留不回填，不接写入或结算 | OBS-14-05C2C2A |
+| OBS-14-05C2C2B2 | OBS-14 | CODE | 预留与意图同事务写入 | 首次文件操作前同事务保存预留/精确final/temp意图，重复发布复用原路径；不结算旧未知 | OBS-14-05C2C2B1 |
+| OBS-14-05C2C2B3 | OBS-14 | VALIDATION | 意图崩溃窗口验收 | 写前、临时写、发布、结算及receipt前崩溃导出重启；旧无意图保持未知 | OBS-14-05C2C2B2 |
+| OBS-14-05C2C2C | OBS-14 | CODE | 可证明的预留与孤儿账本对账 | 仅用完整意图、文件及元数据证据结算；不匹配/旧未知持续占用，不超卖 | OBS-14-05C2C2B3 |
 | OBS-14-05C2C3 | OBS-14 | VALIDATION | 恢复对账故障验收 | 重启、重复、外部元数据失败和残留占用不漏计 | OBS-14-05C2C2C |
 | OBS-14-05C3 | OBS-14 | VALIDATION | 崩溃重启与多写者配额验收 | 预留、写入、发布及元数据事务失败各点重启；不超卖、不少计、残留保护 | OBS-14-05C2C3 |
 | OBS-14-05D | OBS-14 | VALIDATION | 配额状态与故障联调 | 高低水位、物理余量、权限、长期压力与业务旁路完整验证 | OBS-14-05C3 |
@@ -156,8 +164,10 @@ SEC父包：A0 DONE；A1/A2/A4/B1/B2/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a各I
 | PROD-04B3A | WP40/DEV04 | CODE | 样例引用撤销与持久墓碑 | 显式删除/到期清理先撤销读取权并持久待删状态，不物理unlink | PROD-04B2C |
 | PROD-04B3B | WP40/DEV04 | CODE | 显式有界对象整理 | 仅已撤销引用的对象按受控key有界unlink、失败保墓碑/重试 | PROD-04B3A |
 | PROD-04B3C | WP40/DEV04 | CODE | 二进制验证语义阻断 | 不支持原始字节比较时明确unsupported；仅显式status-only可跳过内容 | PROD-04B2C |
-| PROD-04B3E | WP40/DEV04 | CODE | 无样例暂存墓碑整理 | 仅对失败事务留下、无sample引用的staged对象按安全宽限与受控key显式有界清理，错误保墓碑重试 | PROD-04B3B |
-| PROD-04B3D | WP40/DEV04 | VALIDATION | 删除与回放恢复验收 | 撤销竞争、重启重试、回放不伪成功和留存边界 | PROD-04B3B;PROD-04B3C;PROD-04B3E |
+| PROD-04B3E1 | WP40/DEV04 | CODE | 对象发布与清理互斥原语 | SQL.js同进程及PostgreSQL跨进程持锁覆盖文件动作；失败不误清，尚不整理无sample孤儿 | PROD-04B3B |
+| PROD-04B3E2 | WP40/DEV04 | CODE | 无样例暂存墓碑受控整理 | 仅安全宽限后、无sample引用的staged对象持久认领并按受控key有界清理，失败保墓碑重试 | PROD-04B3E1 |
+| PROD-04B3E3 | WP40/DEV04 | VALIDATION | 暂存孤儿并发/重启验收 | 发布与清理竞争、无sample事务失败、ENOENT/文件/DB故障、跨进程与重复执行不误删 | PROD-04B3E2 |
+| PROD-04B3D | WP40/DEV04 | VALIDATION | 删除与回放恢复验收 | 撤销竞争、重启重试、回放不伪成功和留存边界 | PROD-04B3B;PROD-04B3C;PROD-04B3E3 |
 | PROD-04C | WP40/DEV04 | VALIDATION | 二进制样例留存验收 | 到期回收、引用一致、重启/重复执行及越权读取完整验证 | PROD-04B3D |
 | PROD-05 | WP80/DEV05 | CODE | 操作者透传与运营审计检索 | 实例/绑定变更actor到审计可查询，权限拒绝可验证 | — |
 | PROD-06 | WP70 | DOC | 核定CAS是否属于原包剩余出口 | 逐条引用批准要求区分原WP70已实现出口与新增并发强化，未确认不排入开发 | — |

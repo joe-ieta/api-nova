@@ -2,8 +2,6 @@ import { ConflictException } from '@nestjs/common';
 import { Readable } from 'node:stream';
 import { readBoundedTestResponse, TrustedBinaryCapture } from '../../asset-catalog/services/binary-test-response';
 import { EndpointTestSampleObjectEntity } from '../../../database/entities/endpoint-test-sample-object.entity';
-import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
-import { EndpointTestCaseEntity } from '../../../database/entities/endpoint-test-case.entity';
 import { EndpointTestRunEntity } from '../../../database/entities/endpoint-test-run.entity';
 import {
   EndpointTestSampleEntity,
@@ -48,6 +46,8 @@ describe('EndpointTestingService', () => {
   const sampleObjectService = {
     prepare: jest.fn(),
     stagePublishedFile: jest.fn(),
+    withSampleFence: jest.fn(async (_sampleId: string, work: () => Promise<unknown>) => work()),
+    assertSampleFence: jest.fn(async () => {}),
   };
   const service = new EndpointTestingService(
     endpointRepository as any,

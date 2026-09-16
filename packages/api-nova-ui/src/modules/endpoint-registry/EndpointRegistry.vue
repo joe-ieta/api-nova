@@ -1767,9 +1767,17 @@
           <el-form-item :label="t('endpointRegistry.form.routeVisibility')">
             <el-select v-model="publicationForm.routeVisibility" style="width: 100%">
               <el-option :label="t('endpointRegistry.options.visibility.internal')" value="internal" />
-              <el-option :label="t('endpointRegistry.options.visibility.public')" value="public" />
+              <el-option :label="t('endpointRegistry.options.visibility.public')" value="external" />
             </el-select>
           </el-form-item>
+          <el-alert
+            v-if="publicationLegacyPublicVisibility && publicationForm.routeVisibility === 'internal'"
+            :title="t('endpointRegistry.messages.legacyPublicVisibilityProtected')"
+            type="warning"
+            :closable="false"
+            show-icon
+            class="mb-12"
+          />
           <el-form-item :label="t('endpointRegistry.form.authPolicyRef')">
             <el-input v-model="publicationForm.authPolicyRef" clearable />
           </el-form-item>
@@ -1929,6 +1937,7 @@ import OperationTimeline from "@/shared/components/ui/OperationTimeline.vue";
 import SourceServiceInstancesDialog from "./SourceServiceInstancesDialog.vue";
 import EndpointTestSamplesDialog from "./EndpointTestSamplesDialog.vue";
 import RuntimeUpstreamBindingDialog from "./RuntimeUpstreamBindingDialog.vue";
+import { gatewayAuthFieldsForSave, gatewayVisibilityForForm } from "./gateway-route-auth";
 
 const { t } = useI18n();
 const route = useRoute();
@@ -2226,6 +2235,7 @@ const testDialogParametersText = ref("{}");
 const testDialogResult = ref("");
 const showPublicationDialog = ref(false);
 const publicationSaving = ref(false);
+const publicationLegacyPublicVisibility = ref(false);
 type FormMode = "create" | "edit-manual" | "edit-imported";
 const formMode = ref<FormMode>("create");
 const editingRowId = ref("");
@@ -3812,6 +3822,7 @@ const resetCreateForm = () => {
 const resetPublicationForm = () => {
   publicationMembershipId.value = "";
   publicationRuntimeType.value = "";
+  publicationLegacyPublicVisibility.value = false;
   publicationForm.value = {
     publicationRevision: 0,
     publicationState: "draft",
@@ -4485,6 +4496,7 @@ const openPublicationEditDialog = async (row: EndpointRow) => {
 
   publicationMembershipId.value = membershipId;
   publicationRuntimeType.value = row.runtimeAssetType || detail?.runtimeAsset?.type || "";
+  publicationLegacyPublicVisibility.value = routeBinding.routeVisibility === "public";
   publicationForm.value = {
     publicationRevision: Number(detail?.membership?.publicationRevision || 0),
     publicationState: String(detail?.publishBinding?.publishStatus || detail?.membership?.status || "draft"),
@@ -4497,7 +4509,7 @@ const openPublicationEditDialog = async (row: EndpointRow) => {
     routeMethod: routeBinding.routeMethod || "GET",
     upstreamPath: routeBinding.upstreamPath || row.endpointPath || "",
     upstreamMethod: routeBinding.upstreamMethod || "GET",
-    routeVisibility: routeBinding.routeVisibility || "internal",
+    routeVisibility: gatewayVisibilityForForm(routeBinding.routeVisibility),
     authPolicyRef: routeBinding.authPolicyRef || "",
     trafficPolicyRef: routeBinding.trafficPolicyRef || "",
     timeoutMs:
@@ -4529,8 +4541,7 @@ const submitPublicationForm = async () => {
           upstreamPath: publicationForm.value.upstreamPath.trim() || undefined,
           routeMethod: publicationForm.value.routeMethod || undefined,
           upstreamMethod: publicationForm.value.upstreamMethod || undefined,
-          routeVisibility: publicationForm.value.routeVisibility || undefined,
-          authPolicyRef: publicationForm.value.authPolicyRef.trim() || undefined,
+          ...gatewayAuthFieldsForSave(publicationForm.value),
           trafficPolicyRef: publicationForm.value.trafficPolicyRef.trim() || undefined,
           timeoutMs: publicationForm.value.timeoutMs,
         },

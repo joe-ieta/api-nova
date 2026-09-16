@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryRunner, Repository } from 'typeorm';
 import { constants, promises as fs } from 'fs';
 import { dirname, isAbsolute, join, parse, relative, resolve, sep } from 'path';
 import { createHash, randomBytes } from 'crypto';
+import { AsyncLocalStorage } from 'async_hooks';
 import { auditDirectory } from 'api-nova-parser';
 import { EndpointTestSampleObjectEntity as ObjectEntity } from '../../../database/entities/endpoint-test-sample-object.entity';
 
@@ -21,8 +22,127 @@ export class EndpointTestSampleObjectService {
   private readonly maxBytes = Number(process.env.ENDPOINT_TEST_SAMPLE_MAX_BYTES || 256 * 1024);
   private rootIdentity?: string;
   private busy = 0;
+  private static readonly localQueue = new Map<string, Promise<void>>();
+  private static readonly fenceContext = new AsyncLocalStorage<
+    Map<EndpointTestSampleObjectService, Map<string, () => Promise<void>>>
+  >();
 
   constructor(@InjectRepository(ObjectEntity) private readonly objects: Repository<ObjectEntity>) {}
+
+  /**
+   * One sample owns at most one response object. This fence is held from the
+   * first staging write through ready commit, and by revocation/removal.
+   * A future orphan cleaner must use this fence and CAS staged -> delete_pending
+   * before any unlink; age alone is never proof that a writer has exited.
+   */
+  async withSampleFence<T>(sampleId: string, work: () => Promise<T>): Promise<T> {
+    if (!/^[a-zA-Z0-9-]{1,36}$/.test(sampleId)) fail('OBJECT_OWNER_INVALID');
+    const inherited = EndpointTestSampleObjectService.fenceContext.getStore();
+    const check = inherited?.get(this)?.get(sampleId);
+    if (check) {
+      await check();
+      const result = await work();
+      await check();
+      return result;
+    }
+    const localKey = (this.root ? resolve(this.root) : '<disabled>') + '\0' + sampleId;
+    let wake!: () => void;
+    const tail = new Promise<void>(resolve => { wake = resolve; });
+    const previous = EndpointTestSampleObjectService.localQueue.get(localKey);
+    EndpointTestSampleObjectService.localQueue.set(localKey, tail);
+    if (previous) await previous;
+
+    let active = true;
+    let databaseFence: Awaited<ReturnType<EndpointTestSampleObjectService['acquireDatabaseFence']>> | undefined;
+    try {
+      databaseFence = await this.acquireDatabaseFence(sampleId);
+      const scope = new Map(inherited ?? []);
+      const own = new Map(scope.get(this) ?? []);
+      own.set(sampleId, async () => {
+        if (!active) fail('OBJECT_FENCE_LOST');
+        await databaseFence!.check();
+      });
+      scope.set(this, own);
+      const result = await EndpointTestSampleObjectService.fenceContext.run(scope, work);
+      await databaseFence.check();
+      return result;
+    } finally {
+      active = false;
+      try { if (databaseFence) await databaseFence.release(); }
+      finally {
+        if (EndpointTestSampleObjectService.localQueue.get(localKey) === tail) {
+          EndpointTestSampleObjectService.localQueue.delete(localKey);
+        }
+        wake();
+      }
+    }
+  }
+
+  /** Same-session liveness check for each critical file/DB boundary. */
+  async assertSampleFence(sampleId: string): Promise<void> {
+    const check = EndpointTestSampleObjectService.fenceContext.getStore()?.get(this)?.get(sampleId);
+    if (!check) fail('OBJECT_FENCE_UNAVAILABLE');
+    await check();
+  }
+
+  private async acquireDatabaseFence(sampleId: string) {
+    const connection = this.objects.manager.connection;
+    if (connection.options.type === 'sqljs') {
+      return { check: async () => {}, release: async () => {} };
+    }
+    if (connection.options.type !== 'postgres') fail('OBJECT_FENCE_UNAVAILABLE');
+    // The lock owns one session while the callback uses another DB connection.
+    const options = connection.options as typeof connection.options & {
+      poolSize?: number; extra?: { max?: number };
+    };
+    const poolSize = options.extra?.max ?? options.poolSize;
+    if (poolSize !== undefined && poolSize < 2) fail('OBJECT_FENCE_UNAVAILABLE');
+    const runner = connection.createQueryRunner('master');
+    const postgresRunner = runner as QueryRunner & {
+      releasePostgresConnection?: (error: Error) => Promise<void>;
+    };
+    // Releasing an uncertain session to the pool could leak its advisory lock.
+    if (typeof postgresRunner.releasePostgresConnection !== 'function') {
+      fail('OBJECT_FENCE_UNAVAILABLE');
+    }
+    const key = createHash('sha256').update('api-nova:sample-binary:' + sampleId).digest();
+    const args = [key.readInt32BE(0), key.readInt32BE(4)];
+    try {
+      await runner.connect();
+      const rows = await runner.query('SELECT pg_try_advisory_lock($1, $2) AS locked', args);
+      if (rows?.[0]?.locked !== true) {
+        await runner.release();
+        fail('OBJECT_BUSY');
+      }
+      return {
+        check: async () => {
+          if (runner.isReleased) fail('OBJECT_FENCE_LOST');
+          try { await runner.query('SELECT 1 AS alive'); }
+          catch { fail('OBJECT_FENCE_LOST'); }
+          if (runner.isReleased) fail('OBJECT_FENCE_LOST');
+        },
+        release: async () => {
+          try {
+            if (runner.isReleased) fail('OBJECT_FENCE_LOST');
+            const unlocked = await runner.query('SELECT pg_advisory_unlock($1, $2) AS unlocked', args);
+            if (unlocked?.[0]?.unlocked !== true) fail('OBJECT_FENCE_LOST');
+            await runner.release();
+          } catch {
+            try { await postgresRunner.releasePostgresConnection!(new Error('object fence release failed')); }
+            catch { /* The connection must not be reused after an uncertain unlock. */ }
+            fail('OBJECT_FENCE_LOST');
+          }
+        },
+      };
+    } catch (error) {
+      if (!runner.isReleased) {
+        try { await postgresRunner.releasePostgresConnection!(new Error('object fence acquisition failed')); }
+        catch { /* Keep the failed connection out of the reusable pool. */ }
+      }
+      if (error instanceof SampleObjectError) throw error;
+      fail('OBJECT_FENCE_UNAVAILABLE');
+    }
+  }
 
   private async guardRoot(): Promise<string> {
     if (!this.root || !isAbsolute(this.root) || resolve(this.root) === parse(this.root).root) fail('OBJECT_ROOT_INVALID');
@@ -61,15 +181,17 @@ export class EndpointTestSampleObjectService {
     const content = Buffer.from(bytes);
     const sha256 = digest(content);
     if (!this.root) return { captureState: 'metadata_only' as const, observedBytes: content.length, isComplete: true, sha256 };
-    return this.bounded(async () => {
+    return this.withSampleFence(sampleId, () => this.bounded(async () => {
       const root = await this.guardRoot();
       const record = await this.objects.save(this.objects.create({ sampleId, side: 'response', objectKey: randomBytes(32).toString('hex'), state: 'staged', mediaType: type, measurement, observedBytes: content.length, sha256 }));
       // Persist staging ownership before any file creation. Failures remain discoverable.
+      await this.assertSampleFence(sampleId);
       const handle = await fs.open(join(root, record.objectKey + '.stage'), constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | (constants.O_NOFOLLOW || 0), 0o600);
       try { await handle.writeFile(content); await handle.sync(); } finally { await handle.close(); }
+      await this.assertSampleFence(sampleId);
       await this.guardRoot();
       return { captureState: 'staged' as const, objectId: record.id, observedBytes: content.length, isComplete: true, sha256 };
-    });
+    }));
   }
 
   private async row(sampleId: string, objectId: string, state?: ObjectEntity['state']) {
@@ -117,35 +239,39 @@ export class EndpointTestSampleObjectService {
     if (stageExists) {
       await this.readFile(row, true);
       if (await exists(published)) fail('OBJECT_DESTINATION_EXISTS');
+      await this.assertSampleFence(row.sampleId);
       await fs.rename(stage, published);
+      await this.assertSampleFence(row.sampleId);
     } else if (!publishedExists) {
       fail('OBJECT_UNAVAILABLE');
     }
     // The complete file remains unreadable while the database row is staged.
     // A retry may verify a prior rename before the transaction promotes it.
     await this.readFile(row, false);
+    await this.assertSampleFence(row.sampleId);
   }
 
   async stagePublishedFile(sampleId: string, objectId: string): Promise<void> {
-    return this.bounded(async () => {
+    return this.withSampleFence(sampleId, () => this.bounded(async () => {
       const row = await this.row(sampleId, objectId, 'staged');
       await this.publishFile(row);
-    });
+    }));
   }
 
   async publish(sampleId: string, objectId: string): Promise<void> {
-    return this.bounded(async () => {
+    return this.withSampleFence(sampleId, () => this.bounded(async () => {
       const row = await this.row(sampleId, objectId);
       if (row.state === 'ready') { await this.readFile(row, false); return; }
       if (row.state !== 'staged') fail('OBJECT_UNAVAILABLE');
       await this.publishFile(row);
+      await this.assertSampleFence(sampleId);
       const result = await this.objects.update({ id: objectId, sampleId, state: 'staged' }, { state: 'ready' });
       if (result.affected !== 1) {
         const current = await this.row(sampleId, objectId, 'ready');
         if (current.objectKey !== row.objectKey || current.sha256 !== row.sha256 || current.observedBytes !== row.observedBytes) fail('OBJECT_UNAVAILABLE');
         await this.readFile(current, false);
       }
-    });
+    }));
   }
 
   async read(sampleId: string, objectId: string): Promise<Buffer> {
@@ -160,7 +286,7 @@ export class EndpointTestSampleObjectService {
 
   /** Only a persisted, revoked object may reach this physical cleanup primitive. */
   async unlinkPending(row: ObjectEntity): Promise<void> {
-    return this.bounded(async () => {
+    return this.withSampleFence(row.sampleId, () => this.bounded(async () => {
       if (row.state !== 'delete_pending' || !/^[a-f0-9]{64}$/.test(row.objectKey)) {
         fail('OBJECT_UNAVAILABLE');
       }
@@ -198,12 +324,14 @@ export class EndpointTestSampleObjectService {
         }
         if (!latest.isFile() || latest.isSymbolicLink() || latest.nlink !== 1 ||
           latest.dev !== before.dev || latest.ino !== before.ino) fail('OBJECT_INTEGRITY_FAILED');
+        await this.assertSampleFence(row.sampleId);
         try { await fs.unlink(path); }
         catch (error) {
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') fail('OBJECT_UNLINK_FAILED');
         }
+        await this.assertSampleFence(row.sampleId);
       }
       await this.guardRoot();
-    });
+    }));
   }
 }

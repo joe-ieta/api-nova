@@ -47,6 +47,18 @@ describe('runtime observability source contract', () => {
     expect(summarizeInvocations([row], 'protocol').uniqueCallers).toBe(0);
   });
 
+  it('preserves stdio local-process provenance without treating it as an authenticated caller', () => {
+    const row = normalizeRuntimeAuditRecord(source({
+      protocolTransport: 'stdio', identitySource: 'local_process',
+      authState: 'unknown', callerId: 'forged-caller',
+    }));
+    expect(row).toMatchObject({
+      transport: 'stdio', identitySource: 'local_process',
+      authState: 'unknown', callerId: null,
+    });
+    expect(summarizeInvocations([row], 'tool').uniqueCallers).toBe(0);
+  });
+
   it('distinguishes not-read evidence from an actually empty body', () => {
     expect(normalizeInvocationBody({ state: 'omitted', totalBytes: 0,
       reason: 'body_not_consumed_at_admission' }).observedBytes).toBeNull();

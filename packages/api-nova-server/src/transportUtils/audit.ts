@@ -27,7 +27,7 @@ function finish(entry: Pending, fields: Partial<RuntimeCallRecord>,
 }
 
 /** HTTP supplies the protocol parent; STDIO/programmatic requests create their own. */
-export function instrumentMcpTransport(transport: Transport, options: { httpSendBoundary?: boolean } = {}): void {
+export function instrumentMcpTransport(transport: Transport, options: { httpSendBoundary?: boolean; localProcess?: boolean } = {}): void {
   if (instrumented.has(transport)) return;
   instrumented.add(transport);
   const receive = transport.onmessage;
@@ -51,7 +51,8 @@ export function instrumentMcpTransport(transport: Transport, options: { httpSend
     const inherited = getRuntimeCallContext();
     const context: RuntimeCallContext = {
       ...inherited, transport: 'mcp', requestId: inherited?.requestId || randomUUID(),
-      identitySource: inherited?.identitySource || 'anonymous',
+      identitySource: options.localProcess ? 'local_process' : inherited?.identitySource || 'anonymous',
+      authState: options.localProcess ? 'unknown' : inherited?.authState,
       protocolTransport: inherited?.protocolTransport || 'stdio',
       sessionIdHash: inherited?.sessionIdHash || auditDigest(transport.sessionId || localSessionId),
       byteMeasurement: 'serialized_payload', measurementStage: 'logical_payload',

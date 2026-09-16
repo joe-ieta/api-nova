@@ -90,7 +90,7 @@ async function request(f, record) {
 }
 function watchTemporary(t, observe = async () => {}) {
   const open = fs.open; let writes = 0;
-  fs.open = async (...args) => { if (args[1] === 'wx') { writes++; await observe(); } return open(...args); };
+  fs.open = async (...args) => { if (args[1] === 'wx') { writes++; await observe(args[0]); } return open(...args); };
   t.after(() => { fs.open = open; });
   return () => writes;
 }
@@ -111,9 +111,21 @@ test('enabled but missing or initializing budget omits without a temporary write
 test('publication reserves 2B before opening, settles B and verifies same-intent replay without writes or double charging', async t => {
   const f = await fixture(t); enabled(t); const status = await budget(f);
   const record = evidence();
-  const writes = watchTemporary(t, async () => { assert.equal((await status()).reservedBytes, 20); });
+  const writes = watchTemporary(t, async opened => {
+    const intent = await f.db.getRepository(entities.RuntimePayloadPublicationIntentEntity).findOne({ where: {} });
+    assert.ok(intent, 'intent must commit before the first temporary open');
+    assert.equal(intent.sourceEventId, record.eventId);
+    assert.equal(intent.storedBytes, '10');
+    assert.equal(opened, path.join(f.directory, 'payloads', intent.temporaryKey));
+    assert.ok(await f.db.getRepository(entities.RuntimePayloadQuotaReservationEntity)
+      .findOneBy({ id: intent.reservationId }));
+    assert.equal((await status()).reservedBytes, 20);
+  });
   await f.store.ingest(record);
   const first = await request(f, record);
+  const intent = await f.db.getRepository(entities.RuntimePayloadPublicationIntentEntity).findOne({ where: {} });
+  assert.equal(intent.fileKey, first.fileKey);
+  assert.equal(intent.payloadId, first.id);
   assert.equal(first.state, 'captured'); assert.equal((await status()).committedBytes, 10); assert.equal((await status()).reservedBytes, 0);
   await f.store.ingest(record);
   assert.equal(writes(), 1); assert.equal(await f.db.getRepository(entities.RuntimePayloadQuotaReservationEntity).count(), 1);
@@ -142,6 +154,60 @@ test('unknown publication holds its reservation and retry does not write or char
   await f.store.ingest(record);
   assert.equal(links, 1); assert.equal((await status()).reservedBytes, 20);
   assert.equal(await f.db.getRepository(entities.RuntimePayloadQuotaReservationEntity).count(), 1);
+});
+
+test('reserved replay never overwrites a residual temporary file or releases held quota', async t => {
+  const f = await fixture(t); enabled(t); const status = await budget(f); const record = evidence();
+  const transaction = f.store.transaction.bind(f.store), link = fs.link, unlink = fs.unlink;
+  f.store.transaction = callback => transaction(async tx => {
+    const result = await callback(tx);
+    const row = await tx.manager.getRepository(entities.RuntimePayloadQuotaReservationEntity).findOne({ where: {} });
+    if (row?.state === 'uncertain') throw new Error('fixture unknown-settlement rollback');
+    return result;
+  });
+  fs.link = async () => { throw Object.assign(new Error('fixture link failure'), { code: 'EIO' }); };
+  fs.unlink = async file => {
+    if (String(file).endsWith('.tmp')) throw Object.assign(new Error('fixture locked temporary'), { code: 'EACCES' });
+    return unlink(file);
+  };
+  try { await f.store.ingest(record); }
+  finally { f.store.transaction = transaction; fs.link = link; fs.unlink = unlink; }
+  const intent = await f.db.getRepository(entities.RuntimePayloadPublicationIntentEntity).findOne({ where: {} });
+  assert.ok(intent);
+  const temporary = path.join(f.directory, 'payloads', intent.temporaryKey);
+  assert.equal(await fs.readFile(temporary, 'utf8'), record.request.data);
+  assert.equal((await f.db.getRepository(entities.RuntimePayloadQuotaReservationEntity)
+    .findOneByOrFail({ id: intent.reservationId })).state, 'reserved');
+  const writes = watchTemporary(t, async opened => assert.equal(opened, temporary));
+  await f.store.ingest(record);
+  assert.equal(writes(), 1);
+  assert.equal(await fs.readFile(temporary, 'utf8'), record.request.data);
+  assert.equal(await f.db.getRepository(entities.RuntimePayloadPublicationIntentEntity).count(), 1);
+  assert.equal((await status()).reservedBytes, 20);
+  assert.equal((await status()).committedBytes, 0);
+  assert.equal((await f.db.getRepository(entities.RuntimePayloadQuotaReservationEntity)
+    .findOneByOrFail({ id: intent.reservationId })).state, 'uncertain');
+});
+
+test('legacy reservation with no intent is never backfilled by optional publication', async t => {
+  const f = await fixture(t); enabled(t); const status = await budget(f); const record = evidence();
+  await f.store.ingest(record);
+  const intent = await f.db.getRepository(entities.RuntimePayloadPublicationIntentEntity).findOne({ where: {} });
+  assert.ok(intent);
+  await f.db.getRepository(entities.RuntimePayloadPublicationIntentEntity).delete({ reservationId: intent.reservationId });
+  const prepare = f.objects.prepare.bind(f.objects); let replayedPayload;
+  f.objects.prepare = async (...args) => {
+    const result = await prepare(...args);
+    if (args[0].side === 'request') replayedPayload = result;
+    return result;
+  };
+  const writes = watchTemporary(t);
+  try { await f.store.ingest(record); } finally { f.objects.prepare = prepare; }
+  assert.equal(replayedPayload.entity.reason, 'storage_error');
+  assert.equal(writes(), 0);
+  assert.equal(await f.db.getRepository(entities.RuntimePayloadPublicationIntentEntity).count(), 0);
+  assert.equal((await status()).committedBytes, 10);
+  assert.equal((await status()).reservedBytes, 0);
 });
 
 test('settlement transaction rollback cannot claim captured or release unknown occupancy', async t => {
@@ -241,4 +307,8 @@ test('failed confirmed and unknown settlements keep the full reservation until r
   assert.equal((await f.db.getRepository(entities.RuntimePayloadQuotaReservationEntity).findOne({ where: {} })).state, 'reserved');
   await f.store.ingest(record);
   assert.equal(writes(), 1); assert.equal((await status()).reservedBytes, 20);
+  assert.equal((await status()).committedBytes, 0);
+  assert.equal((await status()).state, 'degraded');
+  assert.equal((await f.db.getRepository(entities.RuntimePayloadQuotaReservationEntity)
+    .findOne({ where: {} })).state, 'uncertain');
 });

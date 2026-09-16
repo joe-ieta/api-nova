@@ -1,5 +1,5 @@
 ---
-doc-version: 1.6.0
+doc-version: 1.7.0
 doc-status: active
 doc-updated: 2026-09-16
 implementation-status: partial
@@ -133,4 +133,9 @@ OBS-14-05A新增受管正文预算ledger/reservation、严格Q/H/L配置、epoch
 
 C2C1在已存在的owner与私有根上绑定只读证据，并持有B1持久inventory围栏，有界列出受管final/tmp路径、当前/历史引用和预留。无元数据的文件与有元数据但无引用的文件仅是孤儿候选；损坏、截断、读取失败或写者占用均保持unknown。observedBytes只表示已见路径，totalOccupancyBytes始终为null；专项13/13、相关回归90/90。盘点不会创建缺失的owner/root，不改账本、不删文件，也不据此确认配额可强制执行。
 
-C2C2A是保守持有原语：同一围栏内精确核对owner、epoch、generation、预留ID/hash/金额及ledger后，只将合法reserved预留变为uncertain并令ledger degraded；reservedBytes与committedBytes均不减少。重复、故障与SQL.js导出重启专项14/14、相关回归46/46。旧reservation只保存由sourceInstanceId、sourceEventId、payloadId及generation生成的单向operationId，文件发布后而receipt/metadata提交前崩溃时没有可反查文件的持久关联。因此C2C2B须在预留事务内、首次文件写入前持久发布意图；C2C2C再对有完整证明的记录结算。旧无意图记录不能根据候选文件、长度或当前路径不存在推断释放。两段尚未实施，quotaEnforced继续为false；本机SQL.js证据不能代替PostgreSQL/Linux或真实多进程验收。
+C2C2A是保守持有原语：同一围栏内精确核对owner、epoch、generation、预留ID/hash/金额及ledger后，只将合法reserved预留变为uncertain并令ledger degraded；reservedBytes与committedBytes均不减少。重复、故障与SQL.js导出重启专项14/14、相关回归46/46。旧reservation只保存由sourceInstanceId、sourceEventId、payloadId及generation生成的单向operationId，文件发布后而receipt/metadata提交前崩溃时没有可反查文件的持久关联。因此C2C2B须在预留事务内、首次文件写入前持久发布意图；C2C2C再对有完整证明的记录结算。旧无意图记录不能根据候选文件、长度或当前路径不存在推断释放。本段记录C2C2B实施前的缺口；其后续限定进展见第13节。quotaEnforced继续为false；本机SQL.js证据不能代替PostgreSQL/Linux或真实多进程验收。
+## 13. 05C2C2B1/B2/B3限定发布意图证据（2026-09-16）
+
+B1新增独立发布意图实体及SQLite/PostgreSQL前向迁移，旧reservation不回填。隔离SQLite新库为69实体/69业务表、2次迁移，旧库只运行1次前向迁移，同库重启0迁移/0漂移；真实PostgreSQL运行未验。B2在writer校验的同一事务中先持久预留与owner/epoch/generation/sourceEvent/payload/final/temp/digest/bytes意图，事务提交后才开始文件I/O；重放使用原temp key，残留temp不覆盖，settled仅核验final，uncertain不写，reserved重放无论看到旧final与否都不释放未知额度。B3隔离SQL.js导出重启矩阵8/8覆盖首次open前崩溃、旧无意图记录、残留temp及owner/epoch/generation变化。B1/B2/B3专项分别9/9、13/13、8/8，详见[第五批证据](../audits/2026-09-16-replanned-batch-5-evidence.md)。
+
+这三项不实施C2C2C的可证明恢复结算，旧无意图预留仍为unknown；quotaEnforced保持false。PostgreSQL、Linux、真实多进程/杀进程和容量压力仍须单独验收。

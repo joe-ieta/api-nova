@@ -234,6 +234,11 @@ if (process.argv.includes('--fixture')) {
     assert.equal(tools[0].traceId, protocol.traceId);
     assert.equal(tools[0].rootInvocationId, protocol.invocationId);
     assert.equal(tools[0].requestId, protocol.requestId);
+    for (const record of [protocol, tools[0]]) {
+      assert.equal(record.identitySource, 'local_process');
+      assert.equal(record.authState, 'unknown');
+      assert.equal(record.callerId, undefined);
+    }
     return tools[0];
   }
 
@@ -247,7 +252,8 @@ if (process.argv.includes('--fixture')) {
     assert.equal(initialization.protocolTransport, 'stdio');
     assert.equal(initialization.byteMeasurement, 'serialized_payload');
     assert.equal(initialization.measurementStage, 'logical_payload');
-    assert.equal(initialization.identitySource, 'anonymous');
+    assert.equal(initialization.identitySource, 'local_process');
+    assert.equal(initialization.authState, 'unknown');
     assert.equal(initialization.clientIp, undefined);
     assert.equal(initialization.callerId, undefined);
     assert.equal(finished(rows, 'mcp_tool').length, 0);
@@ -292,6 +298,9 @@ if (process.argv.includes('--fixture')) {
     assert.equal(call.requestId, protocol.requestId);
     assert.equal(call.runtimeAssetId, 'stdio-runtime'); assert.equal(call.endpointDefinitionId, 'stdio-endpoint');
     assert.equal(call.protocolTransport, 'stdio');
+    assert.equal(call.identitySource, 'local_process');
+    assert.equal(call.authState, 'unknown');
+    assert.equal(call.callerId, undefined);
     assert.equal(call.measurementStage, 'upstream_http'); assert.equal(call.byteMeasurement, 'observed_body');
     assert.equal(call.request.totalBytes, f.upstreamRequests[0].body.length);
     assert.equal(call.attemptIndex, 1); assert.equal(call.redirectHopIndex, 0);

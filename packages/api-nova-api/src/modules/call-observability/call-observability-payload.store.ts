@@ -60,8 +60,10 @@ export interface PayloadScanUsage {
 }
 
 export interface PayloadPublicationQuota {
-  reserve(payloadId: string, bytes: number): Promise<{
+  reserve(payloadId: string, fileKey: string, digest: string, storedBytes: number): Promise<{
     mode: 'publish' | 'verify_existing';
+    temporaryKey: string;
+    replayed: boolean;
     settle(outcome: QuotaSettlement): Promise<void>;
   }>;
 }
@@ -132,7 +134,7 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
           const enabled = process.env.API_NOVA_OBSERVABILITY_PAYLOAD_QUOTA_ENABLED;
           if (quota || (enabled !== undefined && enabled !== 'false')) {
             if (!quota) throw new ObservabilityStorageError('QUOTA_UNAVAILABLE');
-            reservation = await quota.reserve(id, metadata.storedBytes * 2);
+            reservation = await quota.reserve(id, fileKey, digest!, metadata.storedBytes);
           }
           if (reservation?.mode === 'verify_existing') {
             const path = await this.objectPath(fileKey, false);
@@ -140,9 +142,27 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
             if (contentHash(existing) !== digest) throw new ObservabilityStorageError('PAYLOAD_INTEGRITY_ERROR');
           } else {
             publicationStarted = true;
-            const published = await this.publish(fileKey, data, digest!);
+            if (reservation?.replayed) {
+              // A prior attempt may have linked the final file before its settlement
+              // rolled back. Verify it without a new write, but retain the full
+              // reservation because its occupancy cannot be safely inferred as zero.
+              let existingFinal = false;
+              try {
+                const path = await this.objectPath(fileKey, false);
+                const existing = await this.readBounded(path, metadata.storedBytes);
+                if (contentHash(existing) !== digest) throw new ObservabilityStorageError('PAYLOAD_INTEGRITY_ERROR');
+                existingFinal = true;
+              } catch (error) {
+                if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+              }
+              if (existingFinal) {
+                await reservation.settle({ reason: 'unknown' });
+                throw new ObservabilityStorageError('QUOTA_PUBLICATION_UNCERTAIN');
+              }
+            }
+            const published = await this.publish(fileKey, data, digest!, reservation?.temporaryKey);
             if (reservation) {
-              if (!published.temporaryAbsent) {
+              if (!published.temporaryAbsent || reservation.replayed) {
                 await reservation.settle({ reason: 'unknown' });
                 throw new ObservabilityStorageError('QUOTA_PUBLICATION_UNCERTAIN');
               }
@@ -621,9 +641,15 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
     }
   }
 
-  private async publish(key: string, data: string, digest: string): Promise<{ created: boolean; temporaryAbsent: boolean }> {
+  private async publish(key: string, data: string, digest: string,
+    reservedTemporaryKey?: string): Promise<{ created: boolean; temporaryAbsent: boolean }> {
+    if (reservedTemporaryKey && (!reservedTemporaryKey.startsWith(key + '.') ||
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.tmp$/
+        .test(reservedTemporaryKey.slice(key.length + 1)))) {
+      throw new ObservabilityStorageError('INVALID_PAYLOAD_PUBLICATION_INTENT');
+    }
     const path = await this.objectPath(key, true);
-    const temporary = path + '.' + randomUUID() + '.tmp';
+    const temporary = reservedTemporaryKey ? join(this.root, reservedTemporaryKey) : path + '.' + randomUUID() + '.tmp';
     const handle = await fs.open(temporary, 'wx', 0o600);
     let created = false, temporaryAbsent = false;
     try {

@@ -7,10 +7,13 @@ import { getDatabaseType, verifySqliteDatabasePath } from './database-dialect';
 export function buildDatabaseOptions(): DataSourceOptions {
   const type = getDatabaseType(process.env.DB_TYPE);
   const extension = __filename.endsWith('.ts') ? 'ts' : 'js';
-  const migration = type === 'sqlite' ? '*-InitialSqliteSchema' : '*-InitialPostgresSchema';
+  const dialect = type === 'sqlite' ? 'Sqlite' : 'Postgres';
   const common = {
     entities: DATABASE_ENTITIES,
-    migrations: [join(__dirname, 'migrations', `${migration}.${extension}`)],
+    migrations: [
+      join(__dirname, 'migrations', `*-Initial${dialect}Schema.${extension}`),
+      join(__dirname, 'migrations', `*-PayloadPublicationIntent${dialect}.${extension}`),
+    ],
     synchronize: false,
     logging: process.env.DB_LOGGING === 'true',
   };

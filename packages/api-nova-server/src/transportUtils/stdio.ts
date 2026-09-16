@@ -19,7 +19,7 @@ class AuditedStdioTransport extends StdioServerTransport {
 
   override async start(): Promise<void> {
     // connect() installs callbacks before start(); instrument before reading stdin.
-    instrumentMcpTransport(this);
+    instrumentMcpTransport(this, { localProcess: true });
     process.stdin.once('end', this.endInput);
     process.stdin.once('close', this.endInput);
     process.stdin.on('error', this.streamError);

@@ -58,6 +58,21 @@ describe('binary success sample transaction (isolated SQL.js and filesystem)', (
     );
   }
 
+  function peerServices() {
+    const peerObjects = new EndpointTestSampleObjectService(
+      db.getRepository(EndpointTestSampleObjectEntity),
+    );
+    const peerService = new EndpointTestingService(
+      db.getRepository(EndpointDefinitionEntity),
+      db.getRepository(EndpointTestCaseEntity),
+      db.getRepository(EndpointTestRunEntity),
+      db.getRepository(EndpointTestSampleEntity),
+      db.getRepository(EndpointTestSampleObjectEntity),
+      peerObjects,
+    );
+    return { peerObjects, peerService };
+  }
+
   async function restartFromExport() {
     const database = (db.driver as any).export() as Uint8Array;
     await db.destroy();
@@ -421,7 +436,32 @@ describe('binary success sample transaction (isolated SQL.js and filesystem)', (
     expect(restartedRow.state).toBe('staged');
     await expect(objects.read(restartedRow.sampleId, restartedRow.id)).rejects.toThrow('OBJECT_UNAVAILABLE');
     expect((await fs.readdir(root))).toEqual([row.objectKey + '.raw']);
+    await ageObject(row.id);
+    expect(await service.cleanupPendingBinaryObjects()).toEqual(expect.objectContaining({
+      deletedCount: 1, orphanDeletedCount: 1,
+    }));
+    expect((await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+      id: row.id,
+    })).state).toBe('deleted');
+    expect(await fs.readdir(root)).toEqual([]);
   });
+
+  async function stagedOrphan() {
+    const sampleId = randomUUID();
+    const prepared = await objects.prepare(
+      sampleId, bytes, 'application/pdf', 'decoded_response_body',
+    );
+    if (prepared.captureState !== 'staged') throw new Error('Expected staged fixture');
+    return db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+      id: prepared.objectId,
+    });
+  }
+
+  async function ageObject(objectId: string) {
+    await db.getRepository(EndpointTestSampleObjectEntity).update(objectId, {
+      createdAt: new Date('2020-01-01T00:00:00.000Z'),
+    });
+  }
 
   async function agePending(sampleId: string) {
     const repo = db.getRepository(EndpointTestSampleEntity);
@@ -669,6 +709,589 @@ describe('binary success sample transaction (isolated SQL.js and filesystem)', (
       state: 'delete_pending',
     })).toBe(1);
     expect((await service.cleanupPendingBinaryObjects()).deletedCount).toBe(1);
+  });
+
+
+  it('serializes a publisher and explicit revocation through ready commit', async () => {
+    let entered!: (sampleId: string) => void;
+    let release!: () => void;
+    const staged = new Promise<string>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const originalStage = objects.stagePublishedFile.bind(objects);
+    const stage = jest.spyOn(objects, 'stagePublishedFile').mockImplementation(async (sampleId, objectId) => {
+      entered(sampleId);
+      await gate;
+      return originalStage(sampleId, objectId);
+    });
+    try {
+      const recording = service.recordSuccessfulRun({
+        endpointDefinitionId: endpointId, responseStatusCode: 200, ...(await capture()),
+      });
+      const sampleId = await staged;
+      let deletionFinished = false;
+      const deleting = service.deleteTestSample(sampleId).then(result => {
+        deletionFinished = true;
+        return result;
+      });
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(deletionFinished).toBe(false);
+      release();
+      const recorded = await recording;
+      expect(recorded.sample.id).toBe(sampleId);
+      expect(await deleting).toEqual({ sampleId, deleted: false, pending: true });
+      const object = await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+        sampleId,
+      });
+      expect(object.state).toBe('delete_pending');
+      await expect(service.readBinaryContent(sampleId)).rejects.toMatchObject({ status: 410 });
+      expect(await fs.readdir(root)).toEqual([object.objectKey + '.raw']);
+    } finally {
+      release();
+      stage.mockRestore();
+    }
+  });
+
+  it('rechecks the first revocation time after waiting for the object fence', async () => {
+    const recorded = await service.recordSuccessfulRun({
+      endpointDefinitionId: endpointId, responseStatusCode: 200, ...(await capture()),
+    });
+    const sampleId = recorded.sample.id;
+    const object = await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+      sampleId,
+    });
+    await service.deleteTestSample(sampleId);
+    await agePending(sampleId);
+    let entered!: () => void;
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const blocker = objects.withSampleFence(sampleId, async () => {
+      entered();
+      await gate;
+    });
+    await held;
+    let queued!: () => void;
+    const queuedCall = new Promise<void>(resolve => { queued = resolve; });
+    const originalFence = objects.withSampleFence.bind(objects);
+    const fence = jest.spyOn(objects, 'withSampleFence').mockImplementation(async (owner, work) => {
+      if (owner === sampleId) queued();
+      return originalFence(owner, work);
+    });
+    try {
+      const cleaning = service.cleanupPendingBinaryObjects();
+      await queuedCall;
+      const samples = db.getRepository(EndpointTestSampleEntity);
+      const sample = await samples.findOneByOrFail({ id: sampleId });
+      await samples.update(sampleId, {
+        responsePayload: {
+          ...(sample.responsePayload as Record<string, unknown>),
+          deletionRequestedAt: new Date().toISOString(),
+        },
+      });
+      release();
+      expect(await cleaning).toEqual(expect.objectContaining({
+        deletedCount: 0, deferredCount: 1,
+      }));
+      expect((await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+        id: object.id,
+      })).state).toBe('delete_pending');
+      expect(await fs.readdir(root)).toEqual([object.objectKey + '.raw']);
+    } finally {
+      release();
+      await blocker;
+      fence.mockRestore();
+    }
+  });
+
+
+  it('holds the fence while the ready transaction is waiting to commit', async () => {
+    let entered!: () => void;
+    let release!: () => void;
+    const waiting = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const manager = db.manager as any;
+    const originalTransaction = manager.transaction.bind(manager);
+    let firstTransaction = true;
+    const transaction = jest.spyOn(manager, 'transaction').mockImplementation(
+      async (...args: any[]) => {
+        if (firstTransaction) {
+          firstTransaction = false;
+          entered();
+          await gate;
+        }
+        return originalTransaction(...args);
+      },
+    );
+    try {
+      const recording = service.recordSuccessfulRun({
+        endpointDefinitionId: endpointId, responseStatusCode: 200, ...(await capture()),
+      });
+      await waiting;
+      const object = await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({});
+      expect(object.state).toBe('staged');
+      let deletionFinished = false;
+      const deleting = service.deleteTestSample(object.sampleId).then(result => {
+        deletionFinished = true;
+        return result;
+      });
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(deletionFinished).toBe(false);
+      release();
+      const recorded = await recording;
+      expect(recorded.sample.id).toBe(object.sampleId);
+      expect(await deleting).toEqual({
+        sampleId: object.sampleId, deleted: false, pending: true,
+      });
+      expect((await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+        id: object.id,
+      })).state).toBe('delete_pending');
+    } finally {
+      release();
+      transaction.mockRestore();
+    }
+  });
+
+
+  it('defers a fresh unowned stage and persists the CAS before controlled unlink', async () => {
+    const row = await stagedOrphan();
+    expect(await service.cleanupPendingBinaryObjects()).toEqual(expect.objectContaining({
+      scannedCount: 1, deferredCount: 1, deletedCount: 0, batchLimit: 100,
+    }));
+    expect(await fs.readdir(root)).toEqual([row.objectKey + '.stage']);
+    await ageObject(row.id);
+    const originalUnlink = objects.unlinkPending.bind(objects);
+    const unlink = jest.spyOn(objects, 'unlinkPending').mockImplementation(async pending => {
+      const claimed = await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+        id: row.id,
+      });
+      expect(claimed.state).toBe('delete_pending');
+      expect(claimed.failureCode).toBe('ORPHAN_CLAIMED');
+      expect(await fs.readdir(root)).toEqual([row.objectKey + '.stage']);
+      return originalUnlink(pending);
+    });
+    try {
+      expect(await service.cleanupPendingBinaryObjects()).toEqual(expect.objectContaining({
+        scannedCount: 1, deletedCount: 1, orphanDeletedCount: 1, failedCount: 0,
+      }));
+      expect(unlink).toHaveBeenCalledTimes(1);
+    } finally { unlink.mockRestore(); }
+    expect((await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+      id: row.id,
+    })).state).toBe('deleted');
+    expect(await fs.readdir(root)).toEqual([]);
+    await restartFromExport();
+    expect((await service.cleanupPendingBinaryObjects()).scannedCount).toBe(0);
+  });
+
+  it('retains an orphan claim on unlink failure and retries after restart', async () => {
+    const row = await stagedOrphan();
+    await ageObject(row.id);
+    const unlink = jest.spyOn(fs, 'unlink').mockRejectedValueOnce(
+      Object.assign(new Error('simulated permission failure'), { code: 'EACCES' }),
+    );
+    try {
+      expect(await service.cleanupPendingBinaryObjects()).toEqual(expect.objectContaining({
+        deletedCount: 0, orphanDeletedCount: 0, failedCount: 1,
+      }));
+    } finally { unlink.mockRestore(); }
+    const pending = await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+      id: row.id,
+    });
+    expect(pending.state).toBe('delete_pending');
+    expect(pending.failureCode).toBe('ORPHAN_UNLINK_FAILED');
+    expect(pending.deleteAttempts).toBe(1);
+    expect(await fs.readdir(root)).toEqual([row.objectKey + '.stage']);
+    await restartFromExport();
+    expect(await service.cleanupPendingBinaryObjects()).toEqual(expect.objectContaining({
+      deletedCount: 1, orphanDeletedCount: 1,
+    }));
+    expect(await fs.readdir(root)).toEqual([]);
+  });
+
+  it('keeps an orphan tombstone after terminal DB failure and retries ENOENT', async () => {
+    const row = await stagedOrphan();
+    await ageObject(row.id);
+    await db.query(
+      "CREATE TRIGGER reject_orphan_finalize BEFORE UPDATE ON endpoint_test_sample_objects " +
+      "WHEN NEW.state = 'deleted' BEGIN SELECT RAISE(ABORT, 'blocked'); END",
+    );
+    expect(await service.cleanupPendingBinaryObjects()).toEqual(expect.objectContaining({
+      failedCount: 1, deletedCount: 0,
+    }));
+    expect(await fs.readdir(root)).toEqual([]);
+    expect((await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+      id: row.id,
+    }))).toEqual(expect.objectContaining({
+      state: 'delete_pending', failureCode: 'ORPHAN_FINALIZE_FAILED',
+    }));
+    await restartFromExport();
+    await db.query('DROP TRIGGER reject_orphan_finalize');
+    expect(await service.cleanupPendingBinaryObjects()).toEqual(expect.objectContaining({
+      orphanDeletedCount: 1, deletedCount: 1,
+    }));
+    expect((await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+      id: row.id,
+    })).state).toBe('deleted');
+  });
+
+  it('rejects stale ready promotion after an orphan CAS without a readable sample', async () => {
+    const row = await stagedOrphan();
+    await ageObject(row.id);
+    let claimed!: () => void;
+    let release!: () => void;
+    const atClaim = new Promise<void>(resolve => { claimed = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const originalUnlink = objects.unlinkPending.bind(objects);
+    const unlink = jest.spyOn(objects, 'unlinkPending').mockImplementation(async pending => {
+      expect((await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+        id: row.id,
+      })).state).toBe('delete_pending');
+      claimed();
+      await gate;
+      return originalUnlink(pending);
+    });
+    try {
+      const cleaning = service.cleanupPendingBinaryObjects();
+      await atClaim;
+      await expect(db.manager.transaction(async manager => {
+        const samples = manager.getRepository(EndpointTestSampleEntity);
+        await samples.save(samples.create({
+          id: row.sampleId, endpointDefinitionId: endpointId, testRunId: randomUUID(),
+          fingerprint: 'f'.repeat(64), responseStatusCode: 200,
+          status: EndpointTestSampleStatus.ACTIVE, enabled: true, capturedAt: new Date(),
+          responsePayload: {
+            kind: 'binary', schemaVersion: 1, captureState: 'stored',
+            opaqueObjectId: row.id,
+          },
+        }));
+        const promoted = await manager.getRepository(EndpointTestSampleObjectEntity).update(
+          { id: row.id, sampleId: row.sampleId, side: 'response', state: 'staged' },
+          { state: 'ready' },
+        );
+        if (promoted.affected !== 1) throw new Error('stale ready promotion rejected');
+      })).rejects.toThrow('stale ready promotion rejected');
+      expect(await db.getRepository(EndpointTestSampleEntity).findOneBy({
+        id: row.sampleId,
+      })).toBeNull();
+      await expect(service.readBinaryContent(row.sampleId)).rejects.toMatchObject({
+        status: 404,
+      });
+      release();
+      expect((await cleaning).orphanDeletedCount).toBe(1);
+      await expect(objects.publish(row.sampleId, row.id)).rejects.toThrow('OBJECT_UNAVAILABLE');
+    } finally {
+      release();
+      unlink.mockRestore();
+    }
+  });
+
+  it('reclaims an old storage_failed stage but preserves its sample evidence', async () => {
+    const rename = jest.spyOn(fs, 'rename').mockRejectedValueOnce(new Error('staging failure'));
+    let recorded: Awaited<ReturnType<EndpointTestingService['recordSuccessfulRun']>>;
+    try {
+      recorded = await service.recordSuccessfulRun({
+        endpointDefinitionId: endpointId, responseStatusCode: 200, ...(await capture()),
+      });
+    } finally { rename.mockRestore(); }
+    const row = await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+      sampleId: recorded.sample.id,
+    });
+    await ageObject(row.id);
+    const samples = db.getRepository(EndpointTestSampleEntity);
+    const sample = await samples.findOneByOrFail({ id: row.sampleId });
+    for (const opaqueObjectId of [row.id, randomUUID()]) {
+      await samples.update(row.sampleId, {
+        responsePayload: { ...(sample.responsePayload as object), opaqueObjectId },
+      });
+      expect((await service.cleanupPendingBinaryObjects()).failedCount).toBe(1);
+      expect((await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+        id: row.id,
+      })).state).toBe('staged');
+      expect(await fs.readdir(root)).toEqual([row.objectKey + '.stage']);
+    }
+    await samples.update(row.sampleId, { responsePayload: sample.responsePayload });
+    expect(await service.cleanupPendingBinaryObjects()).toEqual(expect.objectContaining({
+      orphanDeletedCount: 1, deletedCount: 1,
+    }));
+    const retained = await samples.findOneByOrFail({ id: row.sampleId });
+    expect((retained.responsePayload as any).captureState).toBe('storage_failed');
+    expect((retained.responsePayload as any).opaqueObjectId).toBeUndefined();
+    expect(await fs.readdir(root)).toEqual([]);
+    await expect(service.readBinaryContent(row.sampleId)).rejects.toMatchObject({
+      status: 404,
+    });
+    expect(await service.deleteTestSample(row.sampleId)).toEqual({
+      sampleId: row.sampleId, deleted: true, pending: false,
+    });
+  });
+
+
+  it('uses the explicit deletion grace after a staged orphan warning', async () => {
+    const rename = jest.spyOn(fs, 'rename').mockRejectedValueOnce(new Error('staging failure'));
+    let recorded: Awaited<ReturnType<EndpointTestingService['recordSuccessfulRun']>>;
+    try {
+      recorded = await service.recordSuccessfulRun({
+        endpointDefinitionId: endpointId, responseStatusCode: 200, ...(await capture()),
+      });
+    } finally { rename.mockRestore(); }
+    const objectsRepo = db.getRepository(EndpointTestSampleObjectEntity);
+    const samples = db.getRepository(EndpointTestSampleEntity);
+    const row = await objectsRepo.findOneByOrFail({ sampleId: recorded.sample.id });
+    await ageObject(row.id);
+    await samples.update(row.sampleId, {
+      responsePayload: {
+        ...(recorded.sample.responsePayload as object), opaqueObjectId: row.id,
+      },
+    });
+    expect((await service.cleanupPendingBinaryObjects()).failedCount).toBe(1);
+    expect((await objectsRepo.findOneByOrFail({ id: row.id })).failureCode).toBe('ORPHAN_REFERENCED');
+    expect(await service.deleteTestSample(row.sampleId)).toEqual({
+      sampleId: row.sampleId, deleted: false, pending: true,
+    });
+    expect((await objectsRepo.findOneByOrFail({ id: row.id })).failureCode).toBeNull();
+    expect(await service.cleanupPendingBinaryObjects()).toEqual(expect.objectContaining({
+      deletedCount: 0, deferredCount: 1,
+    }));
+    expect(await fs.readdir(root)).toEqual([row.objectKey + '.stage']);
+    await agePending(row.sampleId);
+    expect((await service.cleanupPendingBinaryObjects()).deletedCount).toBe(1);
+    expect(await fs.readdir(root)).toEqual([]);
+  });
+
+
+  it('refuses an invalid orphan key and keeps its file and pending claim', async () => {
+    const row = await stagedOrphan();
+    await ageObject(row.id);
+    const repo = db.getRepository(EndpointTestSampleObjectEntity);
+    await repo.update(row.id, { objectKey: '../outside' });
+    expect(await service.cleanupPendingBinaryObjects()).toEqual(expect.objectContaining({
+      deletedCount: 0, failedCount: 1,
+    }));
+    expect(await repo.findOneByOrFail({ id: row.id })).toEqual(expect.objectContaining({
+      state: 'delete_pending', failureCode: 'ORPHAN_UNAVAILABLE',
+    }));
+    expect(await fs.readdir(root)).toEqual([row.objectKey + '.stage']);
+    await repo.update(row.id, { objectKey: row.objectKey });
+    expect((await service.cleanupPendingBinaryObjects()).orphanDeletedCount).toBe(1);
+    expect(await fs.readdir(root)).toEqual([]);
+  });
+
+
+  it('does not unlink before an orphan claim commits and retries a rejected CAS', async () => {
+    const row = await stagedOrphan();
+    await ageObject(row.id);
+    const unlink = jest.spyOn(objects, 'unlinkPending');
+    await db.query(
+      "CREATE TRIGGER reject_orphan_claim BEFORE UPDATE ON endpoint_test_sample_objects " +
+      "WHEN NEW.state = 'delete_pending' BEGIN SELECT RAISE(ABORT, 'blocked'); END",
+    );
+    try {
+      expect(await service.cleanupPendingBinaryObjects()).toEqual(expect.objectContaining({
+        failedCount: 1, deletedCount: 0,
+      }));
+      expect(unlink).not.toHaveBeenCalled();
+      expect(await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+        id: row.id,
+      })).toEqual(expect.objectContaining({
+        state: 'staged', failureCode: 'ORPHAN_STORAGE_FAILED',
+      }));
+      expect(await fs.readdir(root)).toEqual([row.objectKey + '.stage']);
+    } finally {
+      await db.query('DROP TRIGGER reject_orphan_claim');
+      unlink.mockRestore();
+    }
+    expect((await service.cleanupPendingBinaryObjects()).orphanDeletedCount).toBe(1);
+  });
+
+  it('rechecks orphan age after a second service waits for the sample fence', async () => {
+    const row = await stagedOrphan();
+    await ageObject(row.id);
+    const { peerObjects, peerService } = peerServices();
+    let entered!: () => void;
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const blocker = objects.withSampleFence(row.sampleId, async () => {
+      entered();
+      await gate;
+    });
+    await held;
+    let queued!: () => void;
+    const waiting = new Promise<void>(resolve => { queued = resolve; });
+    const originalFence = peerObjects.withSampleFence.bind(peerObjects);
+    const fence = jest.spyOn(peerObjects, 'withSampleFence').mockImplementation(async (sampleId, work) => {
+      if (sampleId === row.sampleId) queued();
+      return originalFence(sampleId, work);
+    });
+    try {
+      const cleaning = peerService.cleanupPendingBinaryObjects();
+      await waiting;
+      await db.getRepository(EndpointTestSampleObjectEntity).update(row.id, {
+        createdAt: new Date(),
+      });
+      release();
+      expect(await cleaning).toEqual(expect.objectContaining({
+        deferredCount: 1, deletedCount: 0,
+      }));
+      expect((await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+        id: row.id,
+      })).state).toBe('staged');
+      expect(await fs.readdir(root)).toEqual([row.objectKey + '.stage']);
+    } finally {
+      release();
+      await blocker;
+      fence.mockRestore();
+    }
+    await ageObject(row.id);
+    expect((await service.cleanupPendingBinaryObjects()).orphanDeletedCount).toBe(1);
+  });
+
+  it('rechecks an ambiguous owner inserted while cleanup waits for the fence', async () => {
+    const row = await stagedOrphan();
+    await ageObject(row.id);
+    const { peerObjects, peerService } = peerServices();
+    let entered!: () => void;
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const blocker = objects.withSampleFence(row.sampleId, async () => {
+      entered();
+      await gate;
+    });
+    await held;
+    let queued!: () => void;
+    const waiting = new Promise<void>(resolve => { queued = resolve; });
+    const originalFence = peerObjects.withSampleFence.bind(peerObjects);
+    const fence = jest.spyOn(peerObjects, 'withSampleFence').mockImplementation(async (sampleId, work) => {
+      if (sampleId === row.sampleId) queued();
+      return originalFence(sampleId, work);
+    });
+    try {
+      const cleaning = peerService.cleanupPendingBinaryObjects();
+      await waiting;
+      const samples = db.getRepository(EndpointTestSampleEntity);
+      await samples.save(samples.create({
+        id: row.sampleId, endpointDefinitionId: endpointId, testRunId: randomUUID(),
+        fingerprint: 'f'.repeat(64), responseStatusCode: 200,
+        status: EndpointTestSampleStatus.ACTIVE, enabled: true, capturedAt: new Date(),
+        responsePayload: {
+          kind: 'binary', schemaVersion: 1, captureState: 'stored',
+          opaqueObjectId: row.id,
+        },
+      }));
+      release();
+      expect(await cleaning).toEqual(expect.objectContaining({
+        failedCount: 1, deletedCount: 0,
+      }));
+      expect((await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+        id: row.id,
+      })).state).toBe('staged');
+      expect(await fs.readdir(root)).toEqual([row.objectKey + '.stage']);
+      await samples.delete(row.sampleId);
+    } finally {
+      release();
+      await blocker;
+      fence.mockRestore();
+    }
+    expect((await service.cleanupPendingBinaryObjects()).orphanDeletedCount).toBe(1);
+  });
+
+  it('serializes two cleanup services and a stale publisher against one orphan', async () => {
+    const row = await stagedOrphan();
+    await ageObject(row.id);
+    const { peerObjects, peerService } = peerServices();
+    let entered!: () => void;
+    let release!: () => void;
+    const atUnlink = new Promise<void>(resolve => { entered = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const originalUnlink = objects.unlinkPending.bind(objects);
+    const unlink = jest.spyOn(objects, 'unlinkPending').mockImplementation(async pending => {
+      entered();
+      await gate;
+      return originalUnlink(pending);
+    });
+    let queued = 0;
+    let queuedBoth!: () => void;
+    const waiting = new Promise<void>(resolve => { queuedBoth = resolve; });
+    const originalFence = peerObjects.withSampleFence.bind(peerObjects);
+    const fence = jest.spyOn(peerObjects, 'withSampleFence').mockImplementation(async (sampleId, work) => {
+      if (sampleId === row.sampleId && ++queued === 2) queuedBoth();
+      return originalFence(sampleId, work);
+    });
+    try {
+      const first = service.cleanupPendingBinaryObjects();
+      await atUnlink;
+      const duplicate = peerService.cleanupPendingBinaryObjects();
+      const publisher = peerObjects.publish(row.sampleId, row.id);
+      await waiting;
+      release();
+      const [firstResult, duplicateResult] = await Promise.all([first, duplicate]);
+      expect(firstResult.orphanDeletedCount).toBe(1);
+      expect(duplicateResult).toEqual(expect.objectContaining({
+        deletedCount: 0, failedCount: 0,
+      }));
+      await expect(publisher).rejects.toThrow('OBJECT_UNAVAILABLE');
+      expect(unlink).toHaveBeenCalledTimes(1);
+      expect((await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+        id: row.id,
+      })).state).toBe('deleted');
+      expect(await db.getRepository(EndpointTestSampleEntity).findOneBy({
+        id: row.sampleId,
+      })).toBeNull();
+      expect(await fs.readdir(root)).toEqual([]);
+    } finally {
+      release();
+      unlink.mockRestore();
+      fence.mockRestore();
+    }
+  });
+
+
+  it('does not reclaim an aged staged row while its publisher still holds the fence', async () => {
+    const { peerObjects, peerService } = peerServices();
+    let entered!: (value: { sampleId: string; objectId: string }) => void;
+    let release!: () => void;
+    const staged = new Promise<{ sampleId: string; objectId: string }>(resolve => {
+      entered = resolve;
+    });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const originalStage = objects.stagePublishedFile.bind(objects);
+    const stage = jest.spyOn(objects, 'stagePublishedFile').mockImplementation(async (sampleId, objectId) => {
+      entered({ sampleId, objectId });
+      await gate;
+      return originalStage(sampleId, objectId);
+    });
+    let queued!: () => void;
+    const waiting = new Promise<void>(resolve => { queued = resolve; });
+    const originalFence = peerObjects.withSampleFence.bind(peerObjects);
+    const fence = jest.spyOn(peerObjects, 'withSampleFence').mockImplementation(async (sampleId, work) => {
+      queued();
+      return originalFence(sampleId, work);
+    });
+    try {
+      const recording = service.recordSuccessfulRun({
+        endpointDefinitionId: endpointId, responseStatusCode: 200, ...(await capture()),
+      });
+      const { sampleId, objectId } = await staged;
+      await ageObject(objectId);
+      const cleaning = peerService.cleanupPendingBinaryObjects();
+      await waiting;
+      release();
+      const recorded = await recording;
+      expect(recorded.sample.id).toBe(sampleId);
+      expect(await cleaning).toEqual(expect.objectContaining({
+        deletedCount: 0, failedCount: 0,
+      }));
+      expect((await db.getRepository(EndpointTestSampleObjectEntity).findOneByOrFail({
+        id: objectId,
+      })).state).toBe('ready');
+      expect(await service.readBinaryContent(sampleId)).toEqual(bytes);
+      expect((await fs.readdir(root)).length).toBe(1);
+    } finally {
+      release();
+      stage.mockRestore();
+      fence.mockRestore();
+    }
   });
 
 });

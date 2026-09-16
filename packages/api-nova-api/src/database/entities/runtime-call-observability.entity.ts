@@ -1,4 +1,4 @@
-import { Check, Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { Check, Column, Entity, Index, JoinColumn, OneToOne, PrimaryColumn } from 'typeorm';
 import { getJsonColumnOptions } from '../database-dialect';
 
 // Current development schema. These tables do not import historical audit formats.
@@ -775,10 +775,36 @@ export class RuntimePayloadQuotaReservationEntity {
   @Column({ type: 'varchar', length: 24 }) updatedAt: string;
 }
 
+/** Durable publication intent is written only for a newly created reservation.
+ * Old reservations without a row remain unknown; no migration backfills them. */
+@Entity('runtime_payload_publication_intents')
+@Index('IDX_obs_publication_intent_scope', ['ownerId', 'epoch', 'generation'])
+export class RuntimePayloadPublicationIntentEntity {
+  @PrimaryColumn({ type: 'varchar', length: 64, primaryKeyConstraintName: 'PK_obs_payload_publication_intents' })
+  reservationId: string;
+  @Column({ type: 'varchar', length: 120 }) ownerId: string;
+  @Column({ type: 'varchar', length: 36 }) epoch: string;
+  @Column({ type: 'varchar', length: 20 }) generation: string;
+  @Column({ type: 'varchar', length: 500 }) sourceInstanceId: string;
+  @Column({ type: 'varchar', length: 500 }) sourceEventId: string;
+  @Column({ type: 'varchar', length: 64 }) payloadId: string;
+  @Column({ type: 'varchar', length: 72 }) fileKey: string;
+  @Column({ type: 'varchar', length: 113 }) temporaryKey: string;
+  @Column({ type: 'varchar', length: 64 }) digest: string;
+  @Column({ type: 'varchar', length: 20 }) storedBytes: string;
+  @Column({ type: 'varchar', length: 64 }) intentHash: string;
+  @Column({ type: 'varchar', length: 24 }) createdAt: string;
+
+  @OneToOne(() => RuntimePayloadQuotaReservationEntity, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'reservationId', referencedColumnName: 'id',
+    foreignKeyConstraintName: 'FK_obs_publication_intent_reservation' })
+  reservation: RuntimePayloadQuotaReservationEntity;
+}
 export const CALL_OBSERVABILITY_ENTITIES = [
   RuntimePayloadInventoryCheckpointEntity,
   RuntimePayloadQuotaLedgerEntity,
   RuntimePayloadQuotaReservationEntity,
+  RuntimePayloadPublicationIntentEntity,
   RuntimeEventDeletionGapEntity,
   RuntimeInvocationEntity,
   RuntimePayloadEntity,

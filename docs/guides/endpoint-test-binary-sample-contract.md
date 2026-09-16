@@ -1,12 +1,12 @@
 ---
-doc-version: 0.6.0
+doc-version: 0.7.0
 doc-status: active
 implementation-status: partial
 doc-updated: 2026-09-16
 ---
 # 端点测试二进制样例合同
 
-PROD-04A交付源码核对与PROD-04B/04C实施边界。本文冻结本地受控对象存储的技术合同；第1–8节保留04A时的现状与实施要求，第9节记录04B1阶段，第10节记录本批限定实现。不表示原始二进制可自动脱敏或生产存储已经批准启用。DEV-04及父工作包状态不因04A/B1完成而关闭。
+PROD-04A交付源码核对与PROD-04B/04C实施边界。本文冻结本地受控对象存储的技术合同；第1–8节保留04A时的现状与实施要求，第9节记录04B1阶段，第10–12节记录各批限定实现。不表示原始二进制可自动脱敏或生产存储已经批准启用。DEV-04及父工作包状态不因04A/B1完成而关闭。
 
 ## 1. 04A阶段依据与缺口（历史快照）
 
@@ -124,3 +124,8 @@ PROD-04B1已建立专用对象实体及SQLite/PostgreSQL方言定义，新增默
 B3A在显式DELETE或过期归档清理时，先用同一数据库事务将对象转为delete_pending、撤销sample中的opaqueObjectId并保留pending样例行；后续读取前后复核返回410，PATCH白名单不能恢复引用，接口返回pending而不假报磁盘已回收。B3B新增受server:manage保护的显式有界整理，首次撤销至少5分钟后才处理仍有pending样例行的受管对象；每轮最多100个，2秒为开始下一对象前检查的软预算。普通单链接.stage/.raw文件经受控key核验后清理，ENOENT幂等；失败保留delete_pending及有限错误分类，下次显式执行可重试。四套定向测试53/53、API构建通过。
 
 B3C对于schemaVersion=1的binary descriptor，仅显式status-only可继续Gateway/MCP候选回放且仍比较HTTP状态；其余模式及未知版本在回放前BLOCKED并保留旧发布版本，三套44/44。没有binary-exact。B3B不处理run/sample事务失败后没有sample行的staged孤儿墓碑；这项已单列B3E并加入B3D/04C验收前置。当前没有生产定时器、Linux/NTFS权限或跨平台文件竞争验收；B3A/B/C的本机SQL.js证据不等于04C整体完成。
+## 12. 04B3E1/E2/E3限定孤儿整理证据（2026-09-16）
+
+E1使受信二进制发布、撤销和显式整理共用同一对象围栏：SQL.js按受控根和sampleId同进程排队，PostgreSQL代码使用独立会话advisory lock并在关键文件动作前后核验会话活性；锁不确定释放时不复用连接。E2只在显式server:manage整理入口按原100对象/2秒软预算处理无引用staged对象：首次创建满5分钟且持锁复核sample仍无对象引用后，先持久CAS为delete_pending，再按受控key清理；失败保ORPHAN墓碑重试。E3隔离SQL.js/临时目录矩阵覆盖第二服务排队、旧写者ready竞争、CAS失败、unlink/终结DB失败、ENOENT重启及显式删除宽限；endpoint-testing四套75/75、API构建通过。详见[第五批证据](../audits/2026-09-16-replanned-batch-5-evidence.md)。
+
+这不是自动定时器或生产留存验收。真实PostgreSQL跨进程/断线、单次文件操作中途锁丢失及跨平台权限仍待验证；旧写者即使遇断线，也必须受E2持久CAS阻断ready，不能凭年龄直接删除。

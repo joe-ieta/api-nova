@@ -103,11 +103,15 @@ async function generateSchema() {
   const migrationPath = path.join(packageRoot, 'src', 'database', 'migrations', timestamp + '-' + label + '.ts');
   const schemaDirectory = path.join(packageRoot, 'database');
   fs.mkdirSync(schemaDirectory, { recursive: true });
-  fs.writeFileSync(migrationPath, source);
+  // Once a forward migration exists, the historical Initial migration is
+  // immutable: fresh and existing databases must both run the new step.
+  const historicalMigrationPreserved = fs.existsSync(migrationPath);
+  if (!historicalMigrationPreserved) fs.writeFileSync(migrationPath, source);
   fs.writeFileSync(path.join(schemaDirectory, dialect + '-schema.sql'),
-    '-- Initial empty schema, generated from the runtime entity registry.\nBEGIN;\n' +
+    '-- Current empty schema snapshot, generated from the runtime entity registry.\nBEGIN;\n' +
     up.join(';\n') + ';\nCOMMIT;\n');
-  return { migration: path.relative(workspaceRoot, migrationPath), domainTables: domainTables().length };
+  return { migration: path.relative(workspaceRoot, migrationPath), historicalMigrationPreserved,
+    domainTables: domainTables().length };
 }
 
 async function persistenceSmoke() {
@@ -227,7 +231,8 @@ async function main() {
     result = await generateSchema();
   } else {
     const migrations = await dataSource.runMigrations({ transaction: 'all' });
-    assert.equal(migrations.length, 1, 'Exactly one dialect-specific initial migration is required');
+    assert.equal(migrations.length, dataSource.migrations.length,
+      'Every dialect-specific initial and forward migration must run on an empty database');
     const entityCount = dataSource.entityMetadatas.length;
     const tableCount = await verifyEmpty();
     await dataSource.destroy();
@@ -242,7 +247,8 @@ async function main() {
       await apiSmoke();
       await verifyEmpty();
     }
-    result = { entities: entityCount, domainTables: tableCount, empty: true, schemaDrift: 0,
+    result = { entities: entityCount, domainTables: tableCount, appliedMigrations: migrations.length,
+      empty: true, schemaDrift: 0,
       restart: true, restartMigrations: restartMigrations.length, restartSchemaDrift: 0,
       persistence: command === 'smoke', apiStartup: command === 'smoke',
       database: dialect === 'postgres' ? databaseName : sqlitePath };

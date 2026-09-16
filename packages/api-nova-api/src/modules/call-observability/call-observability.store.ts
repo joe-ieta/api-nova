@@ -1,4 +1,5 @@
 import { PayloadQuotaPrimitives } from './call-observability-payload-quota';
+import { PayloadPublicationIntentStore } from './call-observability-payload-publication-intent';
 import { Injectable } from '@nestjs/common';
 import { readEventRetentionPolicy } from './call-observability-policy';
 import { DataSource, EntityManager, In } from 'typeorm';
@@ -264,33 +265,41 @@ export class CallObservabilityStore {
         });
         const enabled = process.env.API_NOVA_OBSERVABILITY_PAYLOAD_QUOTA_ENABLED;
         const quota: PayloadPublicationQuota | undefined = enabled === undefined || enabled === 'false' ? undefined : {
-          reserve: async (payloadId, bytes) => {
+          reserve: async (payloadId, fileKey, digest, storedBytes) => {
             if (enabled !== 'true') throw new ObservabilityStorageError('QUOTA_UNAVAILABLE');
             const primitives = new PayloadQuotaPrimitives();
-            const operationId = 'publish:' + contentHash(canonicalJson([record.sourceInstanceId,
-              record.sourceEventId, payloadId, lease.generation]));
+            const intent = new PayloadPublicationIntentStore();
             const reservation = await this.transaction(async tx => {
               await this.payloadCoordination.assertWriter(tx, lease);
               const status = await primitives.status({ manager: tx.manager, now: tx.now, snapshotSeq: publicSequence(tx.currentSequence()) });
               if (!status || !status.configuration.enabled) throw new ObservabilityStorageError('QUOTA_NOT_READY');
-              if (bytes > status.configuration.maxBodyBytes * 2) throw new ObservabilityStorageError('QUOTA_BODY_LIMIT');
-              let result: Awaited<ReturnType<PayloadQuotaPrimitives['reserve']>>;
-              try { result = await primitives.reserve(tx, status.epoch, operationId, bytes); }
-              catch (error) {
+              if (storedBytes * 2 > status.configuration.maxBodyBytes * 2) throw new ObservabilityStorageError('QUOTA_BODY_LIMIT');
+              let result: Awaited<ReturnType<PayloadPublicationIntentStore['reserve']>>;
+              try {
+                result = await intent.reserve(tx, status.epoch, {
+                  sourceInstanceId: record.sourceInstanceId, sourceEventId: record.sourceEventId,
+                  payloadId, generation: lease.generation, fileKey, digest, storedBytes,
+                });
+              } catch (error) {
                 if (status.state === 'limited' && error instanceof ObservabilityStorageError && error.code === 'QUOTA_NOT_READY') {
                   throw new ObservabilityStorageError('QUOTA_EXHAUSTED');
                 }
                 throw error;
               }
-              if (result.replayed && result.reservationState !== 'settled') throw new ObservabilityStorageError('QUOTA_PUBLICATION_PENDING');
-              return { epoch: status.epoch, mode: result.replayed ? 'verify_existing' as const : 'publish' as const };
+              if (result.replayed && result.reservationState === 'uncertain') {
+                throw new ObservabilityStorageError('QUOTA_PUBLICATION_PENDING');
+              }
+              return { epoch: status.epoch, operationId: result.operationId,
+                temporaryKey: result.temporaryKey, replayed: result.replayed,
+                mode: result.reservationState === 'settled' ? 'verify_existing' as const : 'publish' as const };
             });
-            return { mode: reservation.mode, settle: async outcome => {
-              await this.transaction(async tx => {
-                await this.payloadCoordination.assertWriter(tx, lease);
-                await primitives.settle(tx, reservation.epoch, operationId, outcome);
-              });
-            } };
+            return { mode: reservation.mode, temporaryKey: reservation.temporaryKey,
+              replayed: reservation.replayed, settle: async outcome => {
+                await this.transaction(async tx => {
+                  await this.payloadCoordination.assertWriter(tx, lease);
+                  await primitives.settle(tx, reservation.epoch, reservation.operationId, outcome);
+                });
+              } };
           },
         };
         const request = await this.payloadStore.prepare({

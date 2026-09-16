@@ -161,11 +161,11 @@ for (const entry of entries) {
       assert.equal(parser.getRuntimeCallContext(), undefined);
       await registration.callback({});
       assert.equal(observed[0], undefined);
-      const local = { transport: 'mcp', protocolTransport: 'stdio', identitySource: 'anonymous', requestId: randomUUID() };
+      const local = { transport: 'mcp', protocolTransport: 'stdio', identitySource: 'local_process', requestId: randomUUID() };
       await parser.withRuntimeCallContext(local, () => registration.callback({}));
       assert.equal(observed.length, 2);
       assert.equal(observed[1].protocolTransport, 'stdio');
-      assert.equal(observed[1].identitySource, 'anonymous');
+      assert.equal(observed[1].identitySource, 'local_process');
       assert.equal(observed[1].callerId, undefined);
       assert.equal(observed[1].credentialId, undefined);
       assert.equal(parser.getRuntimeCallContext(), undefined);

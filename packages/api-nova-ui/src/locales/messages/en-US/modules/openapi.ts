@@ -664,6 +664,7 @@ export default {
         "Imported service record published successfully",
       publishFailed: "Publish failed",
       publicationConfigUpdated: "Publication configuration updated",
+      legacyPublicVisibilityProtected: "This legacy Public route currently requires JWT. Saving keeps it protected as Internal. Anonymous access requires explicitly selecting Public with an anonymous policy.",
       publicationConfigUpdateFailed: "Failed to update publication configuration",
       targetConfigBlocked: "Target config blocked: {reason}",
       profileBlocked: "Profile blocked: {reason}",

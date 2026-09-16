@@ -1,7 +1,7 @@
 # Testing Documentation
 
 > Document status: Active index
-> Last reviewed: 2026-09-06
+> Last reviewed: 2026-09-16
 
 This directory contains executable acceptance cases and release evidence requirements. Unit-test source remains next to implementation code; historical test plans belong in `docs/archive`.
 
@@ -9,6 +9,7 @@ This directory contains executable acceptance cases and release evidence require
 
 - [Runtime Publication Acceptance Cases](./runtime-publication-acceptance-cases.md)
 - [安全调用与日志审计验收用例](./runtime-security-audit-cases.md)
+- [SEC-A1-01 鉴权模式跨层矩阵](./sec-a1-01-auth-mode-cross-layer-matrix.md)
 
 ## Status Vocabulary
 

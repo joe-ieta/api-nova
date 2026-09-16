@@ -161,13 +161,17 @@ test('SQLite initial migration provides the durable gap table, indexes and range
   assert.equal((await database.query("SELECT name FROM sqlite_master WHERE name='runtime_event_deletion_gaps'")).length, 0);
 });
 
-test('both SQL baselines and initial migrations contain matching gap schema statements', () => {
+test('current snapshots and historical Initial migrations retain gap schema objects', () => {
   const fs = require('node:fs'), path = require('node:path');
   for (const [dialect, migration] of [['sqlite', '1788825600000-InitialSqliteSchema'], ['postgres', '1788825601000-InitialPostgresSchema']]) {
     const sql = fs.readFileSync(path.resolve(__dirname, '../database/' + dialect + '-schema.sql'), 'utf8');
     const ts = fs.readFileSync(path.resolve(__dirname, '../src/database/migrations/' + migration + '.ts'), 'utf8');
-    const statements = sql.split(';').map(s => s.trim()).filter(s => s.startsWith('CREATE') && s.includes('runtime_event_deletion_gaps'));
-    assert.equal(statements.length, 4);
-    for (const statement of statements) assert.ok(ts.includes(JSON.stringify(statement)), dialect + ': ' + statement);
+    // The final snapshot may spell keys differently after forward migrations.
+    for (const object of ['runtime_event_deletion_gaps', 'CHK_obs_event_gaps_range',
+      'IDX_obs_event_gaps_end', 'IDX_obs_event_gaps_scope_start',
+      'IDX_obs_event_gaps_scope_end']) {
+      assert.ok(sql.includes(object), dialect + ': snapshot lacks ' + object);
+      assert.ok(ts.includes(object), dialect + ': Initial lacks ' + object);
+    }
   }
 });

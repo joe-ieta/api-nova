@@ -173,7 +173,9 @@ test('SQLite migration and both schema baselines include the isolated checkpoint
     const statement = sql.split(';').map(part => part.trim()).find(part =>
       part.startsWith('CREATE TABLE "runtime_payload_inventory_checkpoints"'));
     assert.ok(statement);
-    assert.ok(ts.includes(JSON.stringify(statement)));
+    // Current snapshots include forward migrations while Initial stays immutable.
+    for (const field of ['runtime_payload_inventory_checkpoints', 'completedShards',
+      'rootIdentity', 'nextShard']) assert.ok(ts.includes(field), dialect + ': ' + field);
     assert.ok(ts.includes('DROP TABLE \\"runtime_payload_inventory_checkpoints\\"'));
   }
   await new Migration().down(runner);
