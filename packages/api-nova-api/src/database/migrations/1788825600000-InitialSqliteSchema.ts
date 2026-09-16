@@ -8,6 +8,7 @@ export class InitialSqliteSchema1788825600000 implements MigrationInterface {
   "CREATE TABLE \"endpoint_test_sample_objects\" (\"id\" varchar PRIMARY KEY NOT NULL, \"sampleId\" varchar(36) NOT NULL, \"side\" varchar(8) NOT NULL DEFAULT ('response'), \"objectKey\" varchar(64) NOT NULL, \"state\" varchar(16) NOT NULL DEFAULT ('staged'), \"mediaType\" varchar(128) NOT NULL, \"measurement\" varchar(32) NOT NULL, \"observedBytes\" integer NOT NULL, \"sha256\" varchar(64) NOT NULL, \"deleteAttempts\" integer NOT NULL DEFAULT (0), \"failureCode\" varchar(32), \"createdAt\" datetime NOT NULL DEFAULT (datetime('now')), \"updatedAt\" datetime NOT NULL DEFAULT (datetime('now')))",
   "CREATE UNIQUE INDEX \"IDX_sample_object_owner\" ON \"endpoint_test_sample_objects\" (\"sampleId\", \"side\")",
   "CREATE UNIQUE INDEX \"IDX_sample_object_key\" ON \"endpoint_test_sample_objects\" (\"objectKey\")",
+  "CREATE TABLE \"runtime_payload_inventory_checkpoints\" (\"ownerId\" varchar(120) NOT NULL, \"epoch\" varchar(36) NOT NULL, \"generation\" varchar(20) NOT NULL, \"rootIdentity\" varchar(64) NOT NULL, \"version\" integer NOT NULL, \"nextShard\" integer NOT NULL, \"completedShards\" text NOT NULL, \"updatedAt\" varchar(24) NOT NULL, CONSTRAINT \"PK_obs_payload_inventory_checkpoints\" PRIMARY KEY (\"ownerId\"))",
   "CREATE TABLE \"runtime_payload_quota_ledgers\" (\"ownerId\" varchar(120) NOT NULL, \"epoch\" varchar(36) NOT NULL, \"version\" integer NOT NULL, \"state\" varchar(24) NOT NULL, \"committedBytes\" varchar(20) NOT NULL, \"reservedBytes\" varchar(20) NOT NULL, \"baselineKey\" varchar(128), \"configuration\" text NOT NULL, \"updatedAt\" varchar(24) NOT NULL, CONSTRAINT \"PK_obs_payload_quota_ledgers\" PRIMARY KEY (\"ownerId\"))",
   "CREATE TABLE \"runtime_payload_quota_reservations\" (\"id\" varchar(64) NOT NULL, \"ownerId\" varchar(120) NOT NULL, \"operationId\" varchar(128) NOT NULL, \"epoch\" varchar(36) NOT NULL, \"generation\" varchar(20) NOT NULL, \"requestHash\" varchar(64) NOT NULL, \"reservedBytes\" varchar(20) NOT NULL, \"committedBytes\" varchar(20), \"state\" varchar(24) NOT NULL, \"settlementHash\" varchar(64), \"updatedAt\" varchar(24) NOT NULL, CONSTRAINT \"PK_obs_payload_quota_reservations\" PRIMARY KEY (\"id\"))",
   "CREATE UNIQUE INDEX \"IDX_obs_quota_reservation_owner_operation\" ON \"runtime_payload_quota_reservations\" (\"ownerId\", \"operationId\")",
@@ -264,6 +265,7 @@ export class InitialSqliteSchema1788825600000 implements MigrationInterface {
   }
   async down(queryRunner: QueryRunner): Promise<void> {
     for (const sql of [
+  "DROP TABLE \"runtime_payload_inventory_checkpoints\"",
   "DROP TABLE \"runtime_payload_quota_reservations\"",
   "DROP TABLE \"runtime_payload_quota_ledgers\"",
   "DROP TABLE \"runtime_event_deletion_gaps\"",

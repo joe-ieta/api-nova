@@ -4,6 +4,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Like, In, Repository } from 'typeorm';
 import { firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
+import { Readable } from 'node:stream';
+import {
+  binaryCaptureEnabled, binaryCaptureLimit, declaresBinaryResponse,
+  isBinaryMediaType, readBoundedTestResponse, responseMediaType, unavailableBinaryDescriptor,
+} from './binary-test-response';
 import { RuntimeCallContext } from 'api-nova-parser';
 import { endpointDependencyContext, observeEndpointDependency } from '../../endpoint-testing/services/endpoint-dependency-audit';
 import {
@@ -334,6 +339,8 @@ export class AssetCatalogService {
     const testUrl = this.substitutePathParameters(rawTestUrl, endpoint, parameters);
     const method = String(endpoint.method || 'GET').toUpperCase();
     const request = this.buildEndpointTestRequest(endpoint, parameters);
+    const binaryCapture = binaryCaptureEnabled();
+    const captureStream = binaryCapture && declaresBinaryResponse(endpoint.rawOperation);
     const startedAt = Date.now();
 
     try {
@@ -348,9 +355,15 @@ export class AssetCatalogService {
           validateStatus: () => true,
           ...request,
           ...agents,
+          ...(captureStream ? { responseType: 'stream' as const } : {}),
         }),
       ));
 
+      const responsePayload = captureStream
+        ? await readBoundedTestResponse(response.data, response.headers, binaryCaptureLimit())
+        : binaryCapture && isBinaryMediaType(responseMediaType(response.headers))
+          ? unavailableBinaryDescriptor(responseMediaType(response.headers), response.headers)
+          : response.data;
       const passed = response.status >= 200 && response.status < 400;
       endpoint.metadata = this.mergeTestingMetadata(endpoint, {
         testStatus: passed ? 'passed' : 'failed',
@@ -375,7 +388,7 @@ export class AssetCatalogService {
             typeof response.headers?.toJSON === 'function'
               ? response.headers.toJSON()
               : { ...(response.headers || {}) },
-          responsePayload: response.data,
+          responsePayload,
           durationMs,
           metadata: { method, url: testUrl, origin: 'asset-catalog-endpoint-test' },
         });
@@ -385,7 +398,7 @@ export class AssetCatalogService {
           sourceServiceInstanceId: sourceServiceInstance.id,
           requestPayload: parameters,
           responseStatusCode: response.status,
-          responsePayload: response.data,
+          responsePayload,
           durationMs,
           errorMessage: `HTTP ${response.status}`,
           metadata: { method, url: testUrl, origin: 'asset-catalog-endpoint-test' },
@@ -405,6 +418,10 @@ export class AssetCatalogService {
       };
     } catch (error) {
       const axiosErr = error as AxiosError;
+      const errorResponseData = axiosErr.response?.data;
+      if (errorResponseData instanceof Readable) errorResponseData.destroy();
+      const failureResponsePayload = errorResponseData instanceof Readable
+        ? { captureState: 'unavailable', reason: 'response_stream_failed' } : errorResponseData;
       endpoint.metadata = this.mergeTestingMetadata(endpoint, {
         testStatus: 'failed',
         qualificationState: 'test_blocked',
@@ -425,7 +442,7 @@ export class AssetCatalogService {
         sourceServiceInstanceId: sourceServiceInstance.id,
         requestPayload: parameters,
         responseStatusCode: axiosErr.response?.status,
-        responsePayload: axiosErr.response?.data,
+        responsePayload: failureResponsePayload,
         durationMs: Date.now() - startedAt,
         errorMessage:
           axiosErr.response?.status != null

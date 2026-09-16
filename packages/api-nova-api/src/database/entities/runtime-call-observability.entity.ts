@@ -746,6 +746,18 @@ export class RuntimePayloadQuotaLedgerEntity {
   @Column({ type: 'varchar', length: 24 }) updatedAt: string;
 }
 
+/** An unverified inventory prefix. This row never grants a writer fence or quota baseline. */
+@Entity('runtime_payload_inventory_checkpoints')
+export class RuntimePayloadInventoryCheckpointEntity {
+  @PrimaryColumn({ type: 'varchar', length: 120, primaryKeyConstraintName: 'PK_obs_payload_inventory_checkpoints' }) ownerId: string;
+  @Column({ type: 'varchar', length: 36 }) epoch: string;
+  @Column({ type: 'varchar', length: 20 }) generation: string;
+  @Column({ type: 'varchar', length: 64 }) rootIdentity: string;
+  @Column({ type: 'integer' }) version: number;
+  @Column({ type: 'integer' }) nextShard: number;
+  @Column(getJsonColumnOptions(process.env.DB_TYPE)) completedShards: any;
+  @Column({ type: 'varchar', length: 24 }) updatedAt: string;
+}
 @Entity('runtime_payload_quota_reservations')
 @Index('IDX_obs_quota_reservation_owner_operation', ['ownerId', 'operationId'], { unique: true })
 @Index('IDX_obs_quota_reservation_owner_state', ['ownerId', 'state'])
@@ -764,6 +776,7 @@ export class RuntimePayloadQuotaReservationEntity {
 }
 
 export const CALL_OBSERVABILITY_ENTITIES = [
+  RuntimePayloadInventoryCheckpointEntity,
   RuntimePayloadQuotaLedgerEntity,
   RuntimePayloadQuotaReservationEntity,
   RuntimeEventDeletionGapEntity,

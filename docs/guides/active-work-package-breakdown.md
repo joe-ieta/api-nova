@@ -1,5 +1,5 @@
 ---
-doc-version: 1.10.0
+doc-version: 1.11.0
 doc-status: active
 doc-updated: 2026-09-16
 ---
@@ -122,8 +122,10 @@ SEC父包：A0 DONE；A1/A2/A4/B1/B2/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a各I
 | OBS-14-05A | OBS-14 | CODE | 正文配额账本与预留原语 | 持久epoch、原子额度、幂等预留/结算、严格配置与未知占用保护 | OBS-14-04 |
 | OBS-14-05B | OBS-14 | CODE | 正文发布配额门禁 | prepare/publish接入预算，峰值/复用/失败的正文省略语义正确 | OBS-14-05A |
 | OBS-14-05C1 | OBS-14 | CODE | 正文配额只读盘点原语 | 有界只读枚举、完整性/字节/游标证据；不改账本、不删对象 | OBS-14-05B |
-| OBS-14-05C2 | OBS-14 | CODE | 持久盘点与epoch预留恢复 | 持久游标、owner/generation复核、预留与已计费孤儿对象对账；未知占用不少计 | OBS-14-05C1 |
-| OBS-14-05C3 | OBS-14 | VALIDATION | 崩溃重启与多写者配额验收 | 预留、写入、发布及元数据事务失败各点重启；不超卖、不少计、残留保护 | OBS-14-05C2 |
+| OBS-14-05C2A | OBS-14 | CODE | 持久只读完整前缀 | 完整shard前缀及游标持久证据，复核owner/epoch/generation；不建立baseline | OBS-14-05C1 |
+| OBS-14-05C2B | OBS-14 | CODE | 围栏与原子baseline | 跨批writer/GC围栏下复核持久前缀，原子建立不超卖的baseline | OBS-14-05C2A |
+| OBS-14-05C2C | OBS-14 | CODE | 未结算预留与孤儿占用恢复 | 保守对账未结算预留、发布后孤儿和残留文件，未知占用不少计 | OBS-14-05C2B |
+| OBS-14-05C3 | OBS-14 | VALIDATION | 崩溃重启与多写者配额验收 | 预留、写入、发布及元数据事务失败各点重启；不超卖、不少计、残留保护 | OBS-14-05C2C |
 | OBS-14-05D | OBS-14 | VALIDATION | 配额状态与故障联调 | 高低水位、物理余量、权限、长期压力与业务旁路完整验证 | OBS-14-05C3 |
 | OBS-14-06A | OBS-14 | CODE | 管理审计30天清理 | 独立审计保留边界与有界删除/权限审计有证据 | OBS-14-01 |
 | OBS-14-06T | OBS-14 | CODE | 未导入暂存恢复 | 暂存扫描、导入状态与重启恢复具有持久进度且不丢有效数据 | OBS-14-01 |
@@ -141,8 +143,10 @@ SEC父包：A0 DONE；A1/A2/A4/B1/B2/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a各I
 | PROD-03 | WP50/DEV02/03 | VALIDATION | 真实治理发布回归准备 | 现有内部实现不重做，注册→变更失效→重验→发布用例可执行 | — |
 | PROD-04A | WP40/DEV04 | DOC | 二进制样例存储合同 | 内容类型/编码/摘要/大小、对象引用、权限、TTL与清理顺序冻结 | — |
 | PROD-04B1 | WP40/DEV04 | CODE | 二进制对象模型与存储原语 | 专用实体、默认关闭根目录、staged→ready、有界字节/摘要与内部读取 | PROD-04A |
-| PROD-04B2 | WP40/DEV04 | CODE | 二进制采集与受权下载 | 真实响应字节采集、描述符、管理权限下载及失败补偿 | PROD-04B1 |
-| PROD-04B3 | WP40/DEV04 | CODE | 二进制引用撤销与验证语义 | 引用撤销/墓碑、显式整理及unsupported/binary-exact回放边界 | PROD-04B2 |
+| PROD-04B2A | WP40/DEV04 | CODE | 真实HTTP字节与描述符 | 识别真实响应字节、有界测量与描述符，默认关闭且不伪造完整摘要 | PROD-04B1 |
+| PROD-04B2B | WP40/DEV04 | CODE | 成功样例与对象事务补偿 | 对象发布、run/sample引用和失败补偿保持一致，无半对象可读 | PROD-04B2A |
+| PROD-04B2C | WP40/DEV04 | CODE | 受权二进制内容读取 | server:manage校验关联sample后读取，不泄路径与未授权内容 | PROD-04B2B |
+| PROD-04B3 | WP40/DEV04 | CODE | 二进制引用撤销与验证语义 | 引用撤销/墓碑、显式整理及unsupported/binary-exact回放边界 | PROD-04B2C |
 | PROD-04C | WP40/DEV04 | VALIDATION | 二进制样例留存验收 | 到期回收、引用一致、重启/重复执行及越权读取完整验证 | PROD-04B3 |
 | PROD-05 | WP80/DEV05 | CODE | 操作者透传与运营审计检索 | 实例/绑定变更actor到审计可查询，权限拒绝可验证 | — |
 | PROD-06 | WP70 | DOC | 核定CAS是否属于原包剩余出口 | 逐条引用批准要求区分原WP70已实现出口与新增并发强化，未确认不排入开发 | — |

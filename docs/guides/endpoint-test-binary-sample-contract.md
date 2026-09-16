@@ -1,5 +1,5 @@
 ---
-doc-version: 0.2.0
+doc-version: 0.4.0
 doc-status: active
 implementation-status: partial
 doc-updated: 2026-09-16
@@ -108,7 +108,10 @@ requestPayload继续使用现有JSON参数，不支持把binary descriptor变成
 | 验证 | 二进制unsupported或缺失阻断；status-only必须显式；支持binary-exact时真实不同字节失败，旧发布版本保留 |
 | 分离 | OBS正文目录、事件、TTL和配额不被本整理入口触碰 |
 
-04A最初仅交付DOC；04B1已有第9节所述局部对象原语，04B2/B3及04C尚未完成。现有内部读取不等于HTTP受权下载；binary-exact和真实字节采集仍不得标为已实现。
+04A最初仅交付DOC；04B1已有第9节所述局部对象原语，04B2A/B/C、04B3及04C尚未完成。现有内部读取不等于HTTP受权下载；binary-exact、样例对象持久化与HTTP受权下载仍不得标为已实现。
 ## 9. 04B1限定实现快照（2026-09-16）
 
-PROD-04B1已建立专用对象实体与SQLite/PostgreSQL空库初始化结构，新增默认关闭的私有对象根、staged→ready发布原语及有界内部读取；rename成功后数据库写入失败的重试/幂等恢复有专项覆盖。对象原语9/9、API构建通过；SQLite空库smoke核对67表且drift=0。当前没有启用真实测试响应字节采集、HTTP内容下载或对象删除；04B2已解锁，04B3引用撤销/整理与04C整体验收仍待完成。原始字节可能包含敏感信息，04B1的内部原语不构成生产配置启用或跨平台文件权限验收。
+PROD-04B1已建立专用对象实体与SQLite/PostgreSQL空库初始化结构，新增默认关闭的私有对象根、staged→ready发布原语及有界内部读取；rename成功后数据库写入失败的重试/幂等恢复有专项覆盖。对象原语9/9、API构建通过；SQLite空库smoke核对67表且drift=0。04B2A已在显式开关下验证真实loopback响应字节的有界descriptor；默认仍关闭，未将字节落盘，也未提供HTTP下载或对象删除。04B2B/C、04B3引用撤销/整理与04C整体验收仍待完成。原始字节可能包含敏感信息，04B1的内部原语不构成生产配置启用或跨平台文件权限验收。
+## 10. 04B2下一批拆分（2026-09-16）
+
+原聚合04B2拆成三个独立代码出口：04B2A从真实HTTP响应取得字节并生成有界descriptor，仍默认关闭；04B2B将成功run/sample引用与对象发布、失败补偿放入一致事务边界；04B2C在server:manage权限与sample真实归属核验后提供内容读取。04B2A已通过27/27及API typecheck：未声明二进制类型只返回unavailable，JSON/text/HTTP失败与默认off保持旧行为；不落盘/下载。04B2B已解锁，04B2C仍待事务补偿完成；04B3现依赖B2C。任何描述符、内部对象原语或计划中的下载路由都不代表原始内容已可受权读取或04C验收通过。

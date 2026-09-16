@@ -1,4 +1,8 @@
-import { of } from 'rxjs';
+import { from, of } from 'rxjs';
+import axios from 'axios';
+import { createHash } from 'node:crypto';
+import { createServer } from 'node:http';
+import { gzipSync } from 'node:zlib';
 import {
   EndpointDefinitionEntity,
   EndpointDefinitionStatus,
@@ -188,6 +192,206 @@ describe('AssetCatalogService', () => {
       }),
     );
     expect(endpointTestingService.recordFailedRun).not.toHaveBeenCalled();
+  });
+
+  describe('binary response capture at the real HTTP test boundary', () => {
+    const initialFlag = process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED;
+    const initialLimit = process.env.ENDPOINT_TEST_SAMPLE_MAX_BYTES;
+
+    afterEach(() => {
+      if (initialFlag === undefined) delete process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED;
+      else process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = initialFlag;
+      if (initialLimit === undefined) delete process.env.ENDPOINT_TEST_SAMPLE_MAX_BYTES;
+      else process.env.ENDPOINT_TEST_SAMPLE_MAX_BYTES = initialLimit;
+    });
+
+    async function serve(body: Buffer, contentType: string, status = 200, extraHeaders = {}) {
+      const server = createServer((_req, res) => {
+        res.writeHead(status, { 'content-type': contentType, 'content-length': body.length, ...extraHeaders });
+        res.end(body);
+      });
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const address = server.address();
+      if (!address || typeof address === 'string') throw new Error('Loopback address unavailable');
+      return {
+        baseUrl: 'http://127.0.0.1:' + address.port,
+        close: () => new Promise<void>(resolve => {
+          server.closeAllConnections();
+          server.close(() => resolve());
+        }),
+      };
+    }
+
+    function declaredBinaryEndpoint() {
+      endpointDefinitionRepository.findOne.mockResolvedValue({
+        ...endpointDefinition,
+        rawOperation: { responses: { '200': { content: { 'image/png': {} } } } },
+      });
+      httpService.request.mockImplementation(config => from(axios.request(config)));
+    }
+
+    it('measures decoded non-UTF-8 bytes without placing them in JSON evidence', async () => {
+      process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = 'true';
+      process.env.ENDPOINT_TEST_SAMPLE_MAX_BYTES = '32';
+      declaredBinaryEndpoint();
+      const original = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff, 0x80]);
+      const compressed = gzipSync(original);
+      const upstream = await serve(compressed, 'image/png; charset=binary', 200, { 'content-encoding': 'gzip' });
+      sourceServiceInstancesService.buildBaseUrl.mockReturnValue(upstream.baseUrl);
+      try {
+        const result = await service.executeEndpointDefinitionTest('endpoint-1');
+        expect(result.test.passed).toBe(true);
+        expect(httpService.request.mock.calls[0][0].responseType).toBe('stream');
+        expect(endpointTestingService.recordSuccessfulRun).toHaveBeenCalledWith(expect.objectContaining({
+          responsePayload: {
+            kind: 'binary', schemaVersion: 1, mediaType: 'image/png',
+            measurement: 'decoded_response_body', observedBytes: original.length,
+            isComplete: true, sha256: createHash('sha256').update(original).digest('hex'),
+            captureState: 'metadata_only', declaredBytes: compressed.length,
+          },
+        }));
+        const payload = endpointTestingService.recordSuccessfulRun.mock.calls[0][0].responsePayload;
+        expect(JSON.stringify(payload)).not.toContain(original.toString('base64'));
+      } finally { await upstream.close(); }
+    });
+
+    it('stops a binary stream at the configured bound without claiming a full hash', async () => {
+      process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = 'true';
+      process.env.ENDPOINT_TEST_SAMPLE_MAX_BYTES = '4';
+      declaredBinaryEndpoint();
+      const upstream = await serve(Buffer.alloc(4096, 0xfa), 'application/octet-stream');
+      sourceServiceInstancesService.buildBaseUrl.mockReturnValue(upstream.baseUrl);
+      try {
+        const result = await service.executeEndpointDefinitionTest('endpoint-1');
+        expect(result.test.passed).toBe(true);
+        expect(endpointTestingService.recordSuccessfulRun).toHaveBeenCalledWith(expect.objectContaining({
+          responsePayload: expect.objectContaining({
+            kind: 'binary', captureState: 'too_large', observedBytes: 5,
+            isComplete: false, sha256: null,
+          }),
+        }));
+      } finally { await upstream.close(); }
+    });
+
+    it('preserves JSON fallback and failed HTTP status when a declared binary endpoint responds with JSON', async () => {
+      process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = 'true';
+      declaredBinaryEndpoint();
+      const upstream = await serve(Buffer.from('{"error":"missing"}'), 'application/json', 404);
+      sourceServiceInstancesService.buildBaseUrl.mockReturnValue(upstream.baseUrl);
+      try {
+        const result = await service.executeEndpointDefinitionTest('endpoint-1');
+        expect(result.test.passed).toBe(false);
+        expect(endpointTestingService.recordFailedRun).toHaveBeenCalledWith(expect.objectContaining({
+          responseStatusCode: 404, responsePayload: { error: 'missing' },
+        }));
+      } finally { await upstream.close(); }
+    });
+
+    it('records a failed binary HTTP response as a bounded descriptor, never as a stream', async () => {
+      process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = 'true';
+      declaredBinaryEndpoint();
+      const upstream = await serve(Buffer.from([0xff, 0x00, 0xfe]), 'image/png', 500);
+      sourceServiceInstancesService.buildBaseUrl.mockReturnValue(upstream.baseUrl);
+      try {
+        const result = await service.executeEndpointDefinitionTest('endpoint-1');
+        expect(result.test.passed).toBe(false);
+        expect(endpointTestingService.recordFailedRun).toHaveBeenCalledWith(expect.objectContaining({
+          responseStatusCode: 500,
+          responsePayload: expect.objectContaining({
+            kind: 'binary', captureState: 'metadata_only', observedBytes: 3,
+          }),
+        }));
+        expect(endpointTestingService.recordSuccessfulRun).not.toHaveBeenCalled();
+      } finally { await upstream.close(); }
+    });
+
+    it('bounds unexpected text and stores only unavailable evidence when it exceeds the limit', async () => {
+      process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = 'true';
+      process.env.ENDPOINT_TEST_SAMPLE_MAX_BYTES = '4';
+      declaredBinaryEndpoint();
+      const upstream = await serve(Buffer.alloc(4096, 0x61), 'text/plain');
+      sourceServiceInstancesService.buildBaseUrl.mockReturnValue(upstream.baseUrl);
+      try {
+        const result = await service.executeEndpointDefinitionTest('endpoint-1');
+        expect(result.test.passed).toBe(true);
+        expect(endpointTestingService.recordSuccessfulRun).toHaveBeenCalledWith(expect.objectContaining({
+          responsePayload: {
+            captureState: 'unavailable', reason: 'non_binary_response_over_limit',
+            mediaType: 'text/plain', observedBytes: 5, isComplete: false,
+          },
+        }));
+      } finally { await upstream.close(); }
+    });
+
+    it.each([
+      ['application/json', '{"ok":true}', { ok: true }],
+      ['text/plain; charset=utf-8', 'plain response', 'plain response'],
+    ])('preserves enabled-stream %s success payloads', async (contentType, body, expected) => {
+      process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = 'true';
+      declaredBinaryEndpoint();
+      const upstream = await serve(Buffer.from(body), contentType);
+      sourceServiceInstancesService.buildBaseUrl.mockReturnValue(upstream.baseUrl);
+      try {
+        const result = await service.executeEndpointDefinitionTest('endpoint-1');
+        expect(result.test.passed).toBe(true);
+        expect(endpointTestingService.recordSuccessfulRun).toHaveBeenCalledWith(expect.objectContaining({
+          responsePayload: expected,
+        }));
+      } finally { await upstream.close(); }
+    });
+
+    it.each([undefined, 'false'])('leaves %s binary capture disabled with legacy JSON request settings and payload', async flag => {
+      if (flag === undefined) delete process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED;
+      else process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = flag;
+      declaredBinaryEndpoint();
+      const upstream = await serve(Buffer.from('{"ok":true}'), 'application/json');
+      sourceServiceInstancesService.buildBaseUrl.mockReturnValue(upstream.baseUrl);
+      try {
+        const result = await service.executeEndpointDefinitionTest('endpoint-1');
+        expect(result.test.passed).toBe(true);
+        expect(httpService.request.mock.calls[0][0].responseType).toBeUndefined();
+        expect(endpointTestingService.recordSuccessfulRun).toHaveBeenCalledWith(expect.objectContaining({
+          responsePayload: { ok: true },
+        }));
+      } finally { await upstream.close(); }
+    });
+
+    it('does not reconstruct undeclared binary bytes after the default Axios decoding path', async () => {
+      process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = 'true';
+      endpointDefinitionRepository.findOne.mockResolvedValue({ ...endpointDefinition, rawOperation: {} });
+      httpService.request.mockImplementation(config => from(axios.request(config)));
+      const upstream = await serve(Buffer.from([0x89, 0xff, 0x00, 0x50]), 'image/png');
+      sourceServiceInstancesService.buildBaseUrl.mockReturnValue(upstream.baseUrl);
+      try {
+        const result = await service.executeEndpointDefinitionTest('endpoint-1');
+        expect(result.test.passed).toBe(true);
+        expect(httpService.request.mock.calls[0][0].responseType).toBeUndefined();
+        expect(endpointTestingService.recordSuccessfulRun).toHaveBeenCalledWith(expect.objectContaining({
+          responsePayload: {
+            kind: 'binary', schemaVersion: 1, mediaType: 'image/png',
+            measurement: 'decoded_response_body', observedBytes: null,
+            isComplete: false, sha256: null, captureState: 'unavailable',
+            declaredBytes: 4,
+          },
+        }));
+      } finally { await upstream.close(); }
+    });
+
+    it('does not reconstruct original bytes from a JSON Buffer shape', async () => {
+      process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = 'true';
+      endpointDefinitionRepository.findOne.mockResolvedValue({ ...endpointDefinition, rawOperation: {} });
+      httpService.request.mockReturnValue(of({
+        status: 200, headers: { 'content-type': 'image/png' }, data: { type: 'Buffer', data: [137, 80, 78, 71] },
+      }));
+      const result = await service.executeEndpointDefinitionTest('endpoint-1');
+      expect(result.test.passed).toBe(true);
+      expect(endpointTestingService.recordSuccessfulRun).toHaveBeenCalledWith(expect.objectContaining({
+        responsePayload: expect.objectContaining({
+          kind: 'binary', captureState: 'unavailable', observedBytes: null,
+          isComplete: false, sha256: null,
+        }),
+      }));
+    });
   });
 
   it('creates an imported runtime instance when a usable source URL is registered', async () => {

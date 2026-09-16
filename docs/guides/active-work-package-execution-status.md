@@ -1,5 +1,5 @@
 ---
-doc-version: 1.15.0
+doc-version: 1.17.0
 doc-status: active
 doc-updated: 2026-09-16
 ---
@@ -10,18 +10,18 @@ doc-updated: 2026-09-16
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批的限定测试和未完成边界见[本批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)。远端此前核对为7ea27a0；本批尚未推送。
 父包专项统计仍是OBS 10/5/1、SEC 1/18/3/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计11/23/4/1。它不表示全项目完成率。
 
-本次登记104个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
+本次登记108个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 23 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 25 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 30 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 0 | 当前无在执行子项 |
-| WAIT_DEP | 32 | 等待列明子任务/条件 |
+| WAIT_DEP | 34 | 等待列明子任务/条件 |
 | NEED_ENV | 16 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
-第二批已完成SEC-E1-02A/B1/B2、OBS-14-03E1/E2A及05A/B/C1、PROD-02/03和04A/B1限定出口；05C1已完成，05C2与04B2已解锁；SEC-E1-02C1等待明确生产生命周期授权。事件物理删除E2B仍等待明确永久删除授权。READY不表示已开工。
+第二批已完成SEC-E1-02A/B1/B2、OBS-14-03E1/E2A及05A/B/C1、PROD-02/03和04A/B1限定出口；05C1已完成；05C2A与04B2A完成限定验证；C2B与B2B已解锁，C2C与B2C仍等待依赖；SEC-E1-02C1等待明确生产生命周期授权。事件物理删除E2B仍等待明确永久删除授权。READY不表示已开工。
 
 ## 2. 子任务状态与证据
 
@@ -90,8 +90,10 @@ doc-updated: 2026-09-16
 | OBS-14-05A | DONE | 独立ledger/reservation、epoch/CAS、幂等预留结算与严格配置；联合18/18，未接写入 |
 | OBS-14-05B | DONE | 默认关闭的payload prepare/publish门禁；专项11/11、旧六脚本81/81、API类型检查/构建通过；外围元数据失败孤儿计费留05C2 |
 | OBS-14-05C1 | DONE | 只读有界正文盘点、跨会话完整shard前缀复核；专项6/6、旧GC/容量27/27、API typecheck；writerFenceRequired=true、baselineReady=false，不改账本/schema/删除 |
-| OBS-14-05C2 | READY | 持久游标、epoch/预留及已计费孤儿对象恢复；C1只读证据已可复用 |
-| OBS-14-05C3 | WAIT_DEP | 崩溃重启、多写者与各失败点验收等待C2 |
+| OBS-14-05C2A | DONE | 持久未验证完整shard前缀与owner/epoch/generation CAS；专项5/5、C1 6/6、quota 8/8、API typecheck；不持围栏、不确认baseline、不改ledger |
+| OBS-14-05C2B | READY | 跨批writer/GC围栏和原子baseline；C2A持久前缀已可复用 |
+| OBS-14-05C2C | WAIT_DEP | 未结算预留、发布后孤儿与残留占用恢复等待C2B |
+| OBS-14-05C3 | WAIT_DEP | 崩溃重启、多写者与各失败点验收等待C2C |
 | OBS-14-05D | WAIT_DEP | 状态/故障联调等待05C3 |
 | OBS-14-06A | READY | 生命周期合同已冻结；审计清理尚未实施 |
 | OBS-14-06T | READY | 生命周期合同已冻结；暂存恢复尚未实施 |
@@ -109,8 +111,10 @@ doc-updated: 2026-09-16
 | PROD-03 | DONE | Gateway/MCP本地失效→重验→再发布循环；修Gateway stale激活，七套76/76；真实入口仍归EXT |
 | PROD-04A | DONE | [二进制样例合同](./endpoint-test-binary-sample-contract.md)冻结采集/存储/权限/TTL与回放边界；仅DOC |
 | PROD-04B1 | DONE | 专用对象原语、默认关闭私有根、staged→ready及有界内部读取；rename后DB失败幂等恢复；9/9、API构建、SQLite空库67表零漂移；无采集/HTTP读取/删除 |
-| PROD-04B2 | READY | 真实响应字节采集与受权下载；04B1原语已可复用 |
-| PROD-04B3 | WAIT_DEP | 引用撤销/墓碑、显式整理和验证语义等待04B2 |
+| PROD-04B2A | DONE | 显式开关下真实loopback响应字节有界descriptor；未声明二进制只unavailable，JSON/text/HTTP失败与默认off回归；27/27、API typecheck；不落盘/下载 |
+| PROD-04B2B | READY | 成功样例/对象事务补偿；B2A字节descriptor已可复用 |
+| PROD-04B2C | WAIT_DEP | server:manage内容读取与sample归属核验等待B2B |
+| PROD-04B3 | WAIT_DEP | 引用撤销/墓碑、显式整理和验证语义等待04B2C |
 | PROD-04C | WAIT_DEP | 留存整体验收等待04B3 |
 | PROD-05 | READY | 既有变更审计不重做 |
 | PROD-06 | SCOPE_REVIEW | 近期把完整CAS反复列作未完成，存在范围扩张风险 |
