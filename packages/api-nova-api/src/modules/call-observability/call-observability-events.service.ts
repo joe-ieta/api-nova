@@ -1,3 +1,4 @@
+import { hasEventDeletionGap } from './call-observability-event-gaps';
 import { OBSERVABILITY_PUBLIC_BASE } from '../../common/http-api-paths';
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { RuntimeObservabilityEventEntity } from '../../database/entities/runtime-observability-event.entity';
@@ -133,6 +134,9 @@ export class CallObservabilityEventsService {
       if (BigInt(high) > BigInt(tx.snapshotSeq) || BigInt(start) > BigInt(high) ||
         (after && after.position.complete !== 'true' && BigInt(high) > BigInt(after.snapshotSeq))) {
         throw new ObservabilityApiError('CURSOR_SCOPE_MISMATCH');
+      }
+      if ((after || snapshotStart !== undefined) && await hasEventDeletionGap(tx, assets, start, high)) {
+        throw new ObservabilityApiError('EVENT_CURSOR_EXPIRED');
       }
       // Use the driver's timestamp representation on SQLite and PostgreSQL alike.
       const column = repository.metadata.findColumnWithPropertyName('expiresAt')!;

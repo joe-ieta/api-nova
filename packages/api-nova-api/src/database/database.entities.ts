@@ -1,3 +1,4 @@
+import { EndpointTestSampleObjectEntity } from './entities/endpoint-test-sample-object.entity';
 import { ConfigOverrideEntity } from './entities/config-override.entity';
 import { ConfigBackupEntity } from './entities/config-backup.entity';
 import { MCPServerEntity } from './entities/mcp-server.entity';
@@ -43,6 +44,7 @@ import { HealthCheckResultEntity } from '../modules/servers/entities/health-chec
 import { CALL_OBSERVABILITY_ENTITIES } from './entities/runtime-call-observability.entity';
 
 export const DATABASE_ENTITIES = [
+  EndpointTestSampleObjectEntity,
   ...CALL_OBSERVABILITY_ENTITIES,
   ConfigOverrideEntity,
   ConfigBackupEntity,

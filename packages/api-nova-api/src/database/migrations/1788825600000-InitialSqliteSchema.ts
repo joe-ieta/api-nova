@@ -5,6 +5,17 @@ export class InitialSqliteSchema1788825600000 implements MigrationInterface {
   name = "InitialSqliteSchema1788825600000";
   async up(queryRunner: QueryRunner): Promise<void> {
     for (const sql of [
+  "CREATE TABLE \"endpoint_test_sample_objects\" (\"id\" varchar PRIMARY KEY NOT NULL, \"sampleId\" varchar(36) NOT NULL, \"side\" varchar(8) NOT NULL DEFAULT ('response'), \"objectKey\" varchar(64) NOT NULL, \"state\" varchar(16) NOT NULL DEFAULT ('staged'), \"mediaType\" varchar(128) NOT NULL, \"measurement\" varchar(32) NOT NULL, \"observedBytes\" integer NOT NULL, \"sha256\" varchar(64) NOT NULL, \"deleteAttempts\" integer NOT NULL DEFAULT (0), \"failureCode\" varchar(32), \"createdAt\" datetime NOT NULL DEFAULT (datetime('now')), \"updatedAt\" datetime NOT NULL DEFAULT (datetime('now')))",
+  "CREATE UNIQUE INDEX \"IDX_sample_object_owner\" ON \"endpoint_test_sample_objects\" (\"sampleId\", \"side\")",
+  "CREATE UNIQUE INDEX \"IDX_sample_object_key\" ON \"endpoint_test_sample_objects\" (\"objectKey\")",
+  "CREATE TABLE \"runtime_payload_quota_ledgers\" (\"ownerId\" varchar(120) NOT NULL, \"epoch\" varchar(36) NOT NULL, \"version\" integer NOT NULL, \"state\" varchar(24) NOT NULL, \"committedBytes\" varchar(20) NOT NULL, \"reservedBytes\" varchar(20) NOT NULL, \"baselineKey\" varchar(128), \"configuration\" text NOT NULL, \"updatedAt\" varchar(24) NOT NULL, CONSTRAINT \"PK_obs_payload_quota_ledgers\" PRIMARY KEY (\"ownerId\"))",
+  "CREATE TABLE \"runtime_payload_quota_reservations\" (\"id\" varchar(64) NOT NULL, \"ownerId\" varchar(120) NOT NULL, \"operationId\" varchar(128) NOT NULL, \"epoch\" varchar(36) NOT NULL, \"generation\" varchar(20) NOT NULL, \"requestHash\" varchar(64) NOT NULL, \"reservedBytes\" varchar(20) NOT NULL, \"committedBytes\" varchar(20), \"state\" varchar(24) NOT NULL, \"settlementHash\" varchar(64), \"updatedAt\" varchar(24) NOT NULL, CONSTRAINT \"PK_obs_payload_quota_reservations\" PRIMARY KEY (\"id\"))",
+  "CREATE UNIQUE INDEX \"IDX_obs_quota_reservation_owner_operation\" ON \"runtime_payload_quota_reservations\" (\"ownerId\", \"operationId\")",
+  "CREATE INDEX \"IDX_obs_quota_reservation_owner_state\" ON \"runtime_payload_quota_reservations\" (\"ownerId\", \"state\")",
+  "CREATE TABLE \"runtime_event_deletion_gaps\" (\"id\" varchar(64) NOT NULL, \"assetScope\" varchar(500) NOT NULL, \"startSequence\" varchar(20) NOT NULL, \"endSequence\" varchar(20) NOT NULL, CONSTRAINT \"PK_obs_event_deletion_gaps\" PRIMARY KEY (\"id\"), CONSTRAINT \"CHK_obs_event_gaps_range\" CHECK (length(\"startSequence\") = 20 AND length(\"endSequence\") = 20 AND \"startSequence\" > '00000000000000000000' AND \"startSequence\" <= \"endSequence\"))",
+  "CREATE INDEX \"IDX_obs_event_gaps_end\" ON \"runtime_event_deletion_gaps\" (\"endSequence\")",
+  "CREATE UNIQUE INDEX \"IDX_obs_event_gaps_scope_start\" ON \"runtime_event_deletion_gaps\" (\"assetScope\", \"startSequence\")",
+  "CREATE INDEX \"IDX_obs_event_gaps_scope_end\" ON \"runtime_event_deletion_gaps\" (\"assetScope\", \"endSequence\")",
   "CREATE TABLE \"ai_assistant_configs\" (\"id\" varchar PRIMARY KEY NOT NULL, \"name\" varchar(100) NOT NULL, \"description\" text, \"templateId\" varchar(36) NOT NULL, \"generatedConfig\" text NOT NULL, \"customParameters\" text, \"status\" varchar CHECK( \"status\" IN ('generated','exported','applied','archived') ) NOT NULL DEFAULT ('generated'), \"exportFormat\" varchar CHECK( \"exportFormat\" IN ('json','yaml','env','shell_script') ), \"exportedContent\" text, \"tags\" text, \"isFavorite\" boolean NOT NULL DEFAULT (0), \"usageCount\" integer NOT NULL DEFAULT (0), \"lastUsedAt\" datetime, \"createdBy\" varchar(100), \"notes\" text, \"createdAt\" datetime NOT NULL DEFAULT (datetime('now')), \"updatedAt\" datetime NOT NULL DEFAULT (datetime('now')), CONSTRAINT \"FK_7fc97afe3f88aafbf18c408c0a2\" FOREIGN KEY (\"templateId\") REFERENCES \"ai_assistant_templates\" (\"id\") ON DELETE NO ACTION ON UPDATE NO ACTION)",
   "CREATE TABLE \"ai_assistant_templates\" (\"id\" varchar PRIMARY KEY NOT NULL, \"name\" varchar(100) NOT NULL, \"description\" text, \"type\" varchar CHECK( \"type\" IN ('claude_desktop','openai_assistant','anthropic_api','custom') ) NOT NULL DEFAULT ('claude_desktop'), \"category\" varchar CHECK( \"category\" IN ('general','development','business','research','education') ) NOT NULL DEFAULT ('general'), \"status\" varchar CHECK( \"status\" IN ('active','inactive','draft') ) NOT NULL DEFAULT ('active'), \"configTemplate\" text NOT NULL, \"defaultValues\" text, \"validationRules\" text, \"tags\" text, \"isPublic\" boolean NOT NULL DEFAULT (1), \"version\" varchar NOT NULL DEFAULT ('1.0.0'), \"author\" varchar(100), \"usageCount\" integer NOT NULL DEFAULT (0), \"rating\" decimal(3,2) NOT NULL DEFAULT (0), \"createdAt\" datetime NOT NULL DEFAULT (datetime('now')), \"updatedAt\" datetime NOT NULL DEFAULT (datetime('now')))",
   "CREATE TABLE \"audit_logs\" (\"id\" varchar PRIMARY KEY NOT NULL, \"action\" varchar CHECK( \"action\" IN ('user_login','user_logout','user_login_failed','user_created','user_updated','user_deleted','user_password_changed','user_role_assigned','user_role_removed','user_locked','user_unlocked','server_created','server_updated','server_deleted','server_started','server_stopped','server_restarted','api_called','api_configured','api_tested','config_updated','config_exported','config_imported','config_reset','permission_granted','permission_revoked','role_created','role_updated','role_deleted','api_key_created','api_key_deleted','api_key_used','system_backup','system_restore','system_maintenance') ) NOT NULL, \"description\" varchar(255), \"level\" varchar CHECK( \"level\" IN ('info','warning','error','critical') ) NOT NULL DEFAULT ('info'), \"status\" varchar CHECK( \"status\" IN ('success','failed','pending') ) NOT NULL DEFAULT ('success'), \"resource\" varchar(100), \"resourceId\" varchar(255), \"ipAddress\" varchar(45), \"userAgent\" varchar(500), \"sessionId\" varchar(255), \"details\" text, \"metadata\" text, \"userId\" varchar(36), \"createdAt\" datetime NOT NULL DEFAULT (datetime('now')), CONSTRAINT \"FK_cfa83f61e4d27a87fcae1e025ab\" FOREIGN KEY (\"userId\") REFERENCES \"users\" (\"id\") ON DELETE SET NULL ON UPDATE NO ACTION)",
@@ -253,6 +264,9 @@ export class InitialSqliteSchema1788825600000 implements MigrationInterface {
   }
   async down(queryRunner: QueryRunner): Promise<void> {
     for (const sql of [
+  "DROP TABLE \"runtime_payload_quota_reservations\"",
+  "DROP TABLE \"runtime_payload_quota_ledgers\"",
+  "DROP TABLE \"runtime_event_deletion_gaps\"",
   "DROP TABLE \"runtime_ingest_quarantine\"",
   "DROP TABLE \"runtime_invocation_revisions\"",
   "DROP TABLE \"runtime_observability_idempotency\"",
@@ -275,6 +289,7 @@ export class InitialSqliteSchema1788825600000 implements MigrationInterface {
   "DROP TABLE \"runtime_invocations\""
 ]) await queryRunner.query(sql);
     for (const sql of [
+  "DROP TABLE \"endpoint_test_sample_objects\"",
   "PRAGMA defer_foreign_keys = ON",
   "DROP TABLE \"users\"",
   "DROP TABLE \"user_roles\"",

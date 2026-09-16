@@ -1,3 +1,4 @@
+import { PayloadQuotaPrimitives } from './call-observability-payload-quota';
 import { Injectable } from '@nestjs/common';
 import { readEventRetentionPolicy } from './call-observability-policy';
 import { DataSource, EntityManager, In } from 'typeorm';
@@ -19,7 +20,7 @@ import {
   RuntimeObservabilityEventFamily, RuntimeObservabilityRetentionClass,
   RuntimeObservabilitySeverity, RuntimeObservabilityStatus,
 } from '../../database/entities/runtime-observability-event.entity';
-import { CallObservabilityPayloadStore, PreparedPayload } from './call-observability-payload.store';
+import { CallObservabilityPayloadStore, PreparedPayload, PayloadPublicationQuota } from './call-observability-payload.store';
 import {
   canonicalJson, contentHash, expiresAfter, ObservabilityStorageError,
   publicSequence, sequenceKey, SerialStorageLane, ZERO_SEQUENCE,
@@ -261,12 +262,43 @@ export class CallObservabilityStore {
           const defaultExpiry = expiresAfter(retainFrom, policy.payloadDays);
           return { request: request?.expiresAt ?? defaultExpiry, response: response?.expiresAt ?? defaultExpiry };
         });
+        const enabled = process.env.API_NOVA_OBSERVABILITY_PAYLOAD_QUOTA_ENABLED;
+        const quota: PayloadPublicationQuota | undefined = enabled === undefined || enabled === 'false' ? undefined : {
+          reserve: async (payloadId, bytes) => {
+            if (enabled !== 'true') throw new ObservabilityStorageError('QUOTA_UNAVAILABLE');
+            const primitives = new PayloadQuotaPrimitives();
+            const operationId = 'publish:' + contentHash(canonicalJson([record.sourceInstanceId,
+              record.sourceEventId, payloadId, lease.generation]));
+            const reservation = await this.transaction(async tx => {
+              await this.payloadCoordination.assertWriter(tx, lease);
+              const status = await primitives.status({ manager: tx.manager, now: tx.now, snapshotSeq: publicSequence(tx.currentSequence()) });
+              if (!status || !status.configuration.enabled) throw new ObservabilityStorageError('QUOTA_NOT_READY');
+              if (bytes > status.configuration.maxBodyBytes * 2) throw new ObservabilityStorageError('QUOTA_BODY_LIMIT');
+              let result: Awaited<ReturnType<PayloadQuotaPrimitives['reserve']>>;
+              try { result = await primitives.reserve(tx, status.epoch, operationId, bytes); }
+              catch (error) {
+                if (status.state === 'limited' && error instanceof ObservabilityStorageError && error.code === 'QUOTA_NOT_READY') {
+                  throw new ObservabilityStorageError('QUOTA_EXHAUSTED');
+                }
+                throw error;
+              }
+              if (result.replayed && result.reservationState !== 'settled') throw new ObservabilityStorageError('QUOTA_PUBLICATION_PENDING');
+              return { epoch: status.epoch, mode: result.replayed ? 'verify_existing' as const : 'publish' as const };
+            });
+            return { mode: reservation.mode, settle: async outcome => {
+              await this.transaction(async tx => {
+                await this.payloadCoordination.assertWriter(tx, lease);
+                await primitives.settle(tx, reservation.epoch, operationId, outcome);
+              });
+            } };
+          },
+        };
         const request = await this.payloadStore.prepare({
           sourceInstanceId: record.sourceInstanceId, invocationId: record.invocationId, side: 'request',
-        }, record.request, now, bodyExpiry.request, lease.generation);
+        }, record.request, now, bodyExpiry.request, lease.generation, quota);
         const response = await this.payloadStore.prepare({
           sourceInstanceId: record.sourceInstanceId, invocationId: record.invocationId, side: 'response',
-        }, record.response, now, bodyExpiry.response, lease.generation);
+        }, record.response, now, bodyExpiry.response, lease.generation, quota);
         const receiptId = contentHash(canonicalJson([record.sourceInstanceId, record.sourceEventId]));
         return this.transaction(async tx => {
           await this.payloadCoordination.assertWriter(tx, lease);

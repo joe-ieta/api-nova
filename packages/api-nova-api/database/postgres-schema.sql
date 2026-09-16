@@ -314,4 +314,15 @@ ALTER TABLE "runtime_observability_events" ADD COLUMN "expiresAt" timestamp with
 CREATE UNIQUE INDEX "IDX_obs_events_sequence" ON "runtime_observability_events" ("sequence");
 CREATE INDEX "IDX_obs_events_dispatch_sequence" ON "runtime_observability_events" ("dispatchState", "sequence");
 CREATE INDEX "IDX_obs_events_expiry" ON "runtime_observability_events" ("expiresAt");
+CREATE TABLE "runtime_event_deletion_gaps" ("id" varchar(64) NOT NULL, "assetScope" varchar(500) NOT NULL, "startSequence" varchar(20) NOT NULL, "endSequence" varchar(20) NOT NULL, CONSTRAINT "PK_obs_event_deletion_gaps" PRIMARY KEY ("id"), CONSTRAINT "CHK_obs_event_gaps_range" CHECK (length("startSequence") = 20 AND length("endSequence") = 20 AND "startSequence" > '00000000000000000000' AND "startSequence" <= "endSequence"));
+CREATE UNIQUE INDEX "IDX_obs_event_gaps_scope_start" ON "runtime_event_deletion_gaps" ("assetScope", "startSequence");
+CREATE INDEX "IDX_obs_event_gaps_scope_end" ON "runtime_event_deletion_gaps" ("assetScope", "endSequence");
+CREATE INDEX "IDX_obs_event_gaps_end" ON "runtime_event_deletion_gaps" ("endSequence");
+CREATE TABLE "runtime_payload_quota_ledgers" ("ownerId" varchar(120) NOT NULL, "epoch" varchar(36) NOT NULL, "version" integer NOT NULL, "state" varchar(24) NOT NULL, "committedBytes" varchar(20) NOT NULL, "reservedBytes" varchar(20) NOT NULL, "baselineKey" varchar(128), "configuration" jsonb NOT NULL, "updatedAt" varchar(24) NOT NULL, CONSTRAINT "PK_obs_payload_quota_ledgers" PRIMARY KEY ("ownerId"));
+CREATE TABLE "runtime_payload_quota_reservations" ("id" varchar(64) NOT NULL, "ownerId" varchar(120) NOT NULL, "operationId" varchar(128) NOT NULL, "epoch" varchar(36) NOT NULL, "generation" varchar(20) NOT NULL, "requestHash" varchar(64) NOT NULL, "reservedBytes" varchar(20) NOT NULL, "committedBytes" varchar(20), "state" varchar(24) NOT NULL, "settlementHash" varchar(64), "updatedAt" varchar(24) NOT NULL, CONSTRAINT "PK_obs_payload_quota_reservations" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "IDX_obs_quota_reservation_owner_operation" ON "runtime_payload_quota_reservations" ("ownerId", "operationId");
+CREATE INDEX "IDX_obs_quota_reservation_owner_state" ON "runtime_payload_quota_reservations" ("ownerId", "state");
+CREATE TABLE "endpoint_test_sample_objects" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "sampleId" character varying(36) NOT NULL, "side" character varying(8) NOT NULL DEFAULT 'response', "objectKey" character varying(64) NOT NULL, "state" character varying(16) NOT NULL DEFAULT 'staged', "mediaType" character varying(128) NOT NULL, "measurement" character varying(32) NOT NULL, "observedBytes" integer NOT NULL, "sha256" character varying(64) NOT NULL, "deleteAttempts" integer NOT NULL DEFAULT 0, "failureCode" character varying(32), "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_endpoint_test_sample_objects" PRIMARY KEY ("id"));
+CREATE UNIQUE INDEX "IDX_sample_object_owner" ON "endpoint_test_sample_objects" ("sampleId", "side");
+CREATE UNIQUE INDEX "IDX_sample_object_key" ON "endpoint_test_sample_objects" ("objectKey");
 COMMIT;

@@ -1,3 +1,4 @@
+import { resolveMcpEndpoint, previewMcpEndpoint, assertMcpEndpointChange } from './mcp-endpoint-config';
 import { readMcpOwnership } from './mcp-ownership-reader';
 import { createMcpTrustedOperationBindings } from './mcp-trusted-operation-bindings';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
@@ -719,6 +720,23 @@ export class RuntimeAssetsService {
     return this.getRuntimeAssetObservability(runtimeAsset.id);
   }
 
+  private async resolveMcpEndpointServer(runtimeAsset: RuntimeAssetEntity, dto: DeployRuntimeAssetMcpDto) {
+    const server = await this.mcpServerRepository.findOne({ where: dto.targetServerId ?
+      { id: dto.targetServerId } : { name: dto.name || runtimeAsset.name } });
+    if (dto.targetServerId && !server) throw new NotFoundException('Managed server not found');
+    if (server && server.config?.runtimeAssetId !== runtimeAsset.id) {
+      throw new ConflictException('MCP_SERVER_OWNERSHIP_CONFLICT');
+    }
+    return server;
+  }
+
+  async previewMcpRuntimeAssetEndpoint(runtimeAssetId: string, dto: DeployRuntimeAssetMcpDto = {}) {
+    const asset = await this.requireRuntimeAsset(runtimeAssetId);
+    if (asset.type !== RuntimeAssetType.MCP_SERVER) throw new ConflictException('Runtime asset is not MCP');
+    const server = await this.resolveMcpEndpointServer(asset, dto);
+    return previewMcpEndpoint(dto, server);
+  }
+
   async deployMcpRuntimeAsset(
     runtimeAssetId: string,
     dto: DeployRuntimeAssetMcpDto = {},
@@ -727,21 +745,13 @@ export class RuntimeAssetsService {
     const assembled = await this.assembleMcpRuntimeAssetPayload(runtimeAssetId);
     const runtimeAsset = assembled.runtimeAsset;
     const desiredName = dto.name || runtimeAsset.name;
-    const desiredTransport = (dto.transport || TransportType.STREAMABLE) as TransportType;
 
-    let server: MCPServerEntity | null = null;
-    if (dto.targetServerId) {
-      server = await this.mcpServerRepository.findOne({
-        where: { id: dto.targetServerId },
-      });
-      if (!server) {
-        throw new NotFoundException(`Managed server '${dto.targetServerId}' not found`);
-      }
-    } else {
-      server = await this.mcpServerRepository.findOne({
-        where: { name: desiredName },
-      });
-    }
+    let server = await this.resolveMcpEndpointServer(runtimeAsset, dto);
+    const endpointConfig = resolveMcpEndpoint(dto, server);
+    assertMcpEndpointChange(server, endpointConfig);
+    const desiredTransport = endpointConfig.transport;
+    const targetPort = endpointConfig.port ?? await this.findAvailableManagedServerPort();
+    const candidateEndpointConfig = { ...endpointConfig, port: targetPort };
 
     if (dto.port) {
       const portConflict = await this.mcpServerRepository.findOne({
@@ -768,6 +778,7 @@ export class RuntimeAssetsService {
       },
       {
         behaviorFingerprint: candidateBehaviorFingerprint,
+        mcpEndpointConfig: candidateEndpointConfig,
         waiverActorId: verificationContext.actorId,
       },
     );
@@ -792,8 +803,6 @@ export class RuntimeAssetsService {
     }
 
     if (!server) {
-      const targetPort =
-        dto.port || (await this.findAvailableManagedServerPort());
       server = this.mcpServerRepository.create({
         name: desiredName,
         version: '1.0.0',
@@ -811,6 +820,7 @@ export class RuntimeAssetsService {
         autoStart: dto.autoStart ?? false,
         tags: ['runtime-asset', 'mcp-runtime'],
         config: {
+          endpoint: endpointConfig.endpointPath,
           runtimeAssetId,
           managedByRuntimeAsset: true,
           verifiedCandidateRevision: verification.run.candidateRevision,
@@ -819,28 +829,20 @@ export class RuntimeAssetsService {
         },
       });
     } else {
-      if (server.status === ServerStatus.RUNNING) {
-        if (dto.port && dto.port !== server.port) {
-          throw new ConflictException('Cannot change port while managed server is running');
-        }
-        if (dto.transport && dto.transport !== server.transport) {
-          throw new ConflictException('Cannot change transport while managed server is running');
-        }
-      }
-
       server.name = desiredName;
       server.description =
         dto.description ||
         runtimeAsset.description ||
         server.description;
       server.port = dto.port || server.port;
-      server.transport = desiredTransport || server.transport;
+      server.transport = desiredTransport;
       server.openApiData = assembled.openApiData;
       server.tools = assembled.tools;
       server.toolsCount = assembled.toolsCount;
       server.autoStart = dto.autoStart ?? server.autoStart;
       server.config = {
         ...(server.config || {}),
+        endpoint: endpointConfig.endpointPath,
         runtimeAssetId,
         managedByRuntimeAsset: true,
         verifiedCandidateRevision: verification.run.candidateRevision,
@@ -1471,6 +1473,11 @@ export class RuntimeAssetsService {
     return this.toManagedServerSummary(managedServer);
   }
 
+  private mcpEndpointSummary(server: MCPServerEntity) {
+    try { return { endpointPath: resolveMcpEndpoint({}, server).endpointPath, endpointPreview: previewMcpEndpoint({}, server) }; }
+    catch { return { endpointPath: server.config?.endpoint ?? null, endpointPreview: null, endpointConfigurationError: 'INVALID_MCP_ENDPOINT_CONFIG' }; }
+  }
+
   private toManagedServerSummary(managedServer?: MCPServerEntity | null) {
     if (!managedServer) {
       return null;
@@ -1482,6 +1489,7 @@ export class RuntimeAssetsService {
       status: managedServer.status,
       healthy: managedServer.healthy,
       endpoint: managedServer.endpoint,
+      ...this.mcpEndpointSummary(managedServer),
       port: managedServer.port,
       transport: managedServer.transport,
       toolsCount: managedServer.toolsCount,

@@ -1,7 +1,7 @@
 ---
-doc-version: 2.12.0
+doc-version: 2.14.0
 doc-status: active
-doc-updated: 2026-09-15
+doc-updated: 2026-09-16
 ---
 # 可观测性开发执行与验收状态
 
@@ -168,3 +168,10 @@ unlink成功但数据库回滚后的过期元数据残留尚未实现独立整�
 删除成功而元数据事务回滚的残留已由collect内持久keyset分页恢复；单轮最多scanLimit，同GC fence，cursor与行修复同事务。仅TTL到期且受控文件确认缺失才更新expired/fileKey；有效对象、当前/历史调用引用不改。状态接口仅公开独立checked/reconciled/retained/hasMore，内部游标不公开，也不混入磁盘扫描容量证据。
 
 API构建通过，五脚本联合67/67通过，包含7项恢复专项及SQL.js数据库连接重建恢复。子项OBS-14-02 DONE，OBS-TP-14父包保持IN_PROGRESS；事件/receipt清理、引用墓碑合同及配额仍按[新划分](./active-work-package-breakdown.md)独立推进。
+## 18. 重拆第二批生命周期与配额基础（2026-09-16）
+
+[生命周期、引用与墓碑合同](../reference/runtime-observability-lifecycle-contract.md)完成OBS-14-01文档出口；[容量计量、配额与降级合同](../reference/runtime-observability-capacity-quota-contract.md)完成OBS-14-04文档出口。合同约束后续实现，不代表任何物理清理或强制配额已开启。两个DOC出口不提升OBS-TP-14父包状态。
+
+OBS-14-03E1新增持久非连续事件缺口记录，授权历史查询在命中已删除区间时返回410；SQLite/PostgreSQL初始化结构与实体同步。OBS-14-03E2A只提供默认关闭的只读保留候选预览，核对授权、TTL、租约和投递资格，不写入也不删除。事件历史/缺口/预览联合26/26通过。OBS-14-03E2B真正物理删除执行器未落地：自动审批要求明确授权永久删除行为；E3生命周期验证依赖E2B。任何dry-run候选都不能宣称空间已回收。
+
+OBS-14-05A提供隔离的正文预算ledger与reservation原语，校验epoch、并发CAS、幂等预留/结算、高低水位、未知占用和回滚；配额/缺口/预览联合18/18通过。OBS-14-05B已把默认关闭的门禁接入可选正文prepare/publish，启用但账本不可用/额度不足时先于临时文件写入省略正文，专项11/11、旧六脚本81/81及API类型检查/构建通过。发布后外围元数据事务失败可能留下已计费孤儿对象。OBS-14-05C1已完成只读有界正文盘点和跨会话完整shard前缀复核，专项6/6、旧GC/容量27/27及API typecheck通过；结果始终要求writerFenceRequired=true且baselineReady=false，不改账本、schema或文件。05C2持久游标与epoch/预留恢复、05C3崩溃重启/多写者验收及05D全局状态/策略仍未完成。quotaEnforced仍为false，不将盘点证据或局部门禁说成完整配额已启用。所有结果均为本地SQL.js/合成夹具和代码测试，不是当前版本PostgreSQL/Linux、多进程容量或生产清理证据。任务状态以[统一子任务台账](./active-work-package-execution-status.md)为准。

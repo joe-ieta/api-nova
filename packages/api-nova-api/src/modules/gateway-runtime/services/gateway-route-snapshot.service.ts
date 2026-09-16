@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { GatewayRouteSnapshotEntity } from '../../../database/entities/gateway-route-snapshot.entity';
 import { createHash } from 'node:crypto';
 import {
@@ -201,7 +201,7 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
       ?.entries.find(entry => entry.membership.id === runtimeMembershipId) || null;
   }
 
-  async activateCandidate(candidateRevision: string) {
+  async activateCandidate(candidateRevision: string, manager?: EntityManager) {
     const candidate = this.candidateSnapshots.get(candidateRevision);
     if (!candidate) {
       throw new Error(`Gateway candidate snapshot '${candidateRevision}' was not found`);
@@ -209,8 +209,9 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
     const previousEntries = this.snapshot.filter(
       entry => entry.runtimeAsset.id === candidate.runtimeAssetId,
     );
-    await this.persistedSnapshotRepository.save(
-      this.persistedSnapshotRepository.create({
+    const repository = manager?.getRepository(GatewayRouteSnapshotEntity) || this.persistedSnapshotRepository;
+    await repository.save(
+      repository.create({
         runtimeAssetId: candidate.runtimeAssetId,
         revision: candidateRevision,
         fingerprint: candidate.snapshotFingerprint,

@@ -5,7 +5,7 @@ import { RuntimeUpstreamBindingStatus } from '../../../database/entities/runtime
 import { RuntimeVerificationService } from './runtime-verification.service';
 
 describe('RuntimeVerificationService', () => {
-  const runtimeAssetRepository = { findOne: jest.fn(), save: jest.fn(async value => value) };
+  const runtimeAssetRepository = { findOne: jest.fn(), save: jest.fn(async value => value), manager: { transaction: async (work: any) => work({ getRepository: () => runtimeAssetRepository }) } };
   const membershipRepository = { find: jest.fn() };
   const sampleRepository = { find: jest.fn() };
   const runRepository = {
@@ -63,6 +63,7 @@ describe('RuntimeVerificationService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    runtimeAsset.metadata = {};
     runtimeAssetRepository.findOne.mockResolvedValue(runtimeAsset);
     membershipRepository.find.mockResolvedValue([membership]);
     upstreamBindingsService.getByMembership.mockResolvedValue({
@@ -300,6 +301,7 @@ describe('RuntimeVerificationService', () => {
       runtimeAssetId: 'runtime-1',
       candidateRevision: 'revision-waiver-only',
       status: RuntimeVerificationRunStatus.PLANNED,
+      upstreamBindingRevisions: [],
       activationStatus: 'not_attempted',
       blockers: [],
     };
@@ -327,7 +329,7 @@ describe('RuntimeVerificationService', () => {
     expect(result.run.passedCount).toBe(1);
     expect(gatewayCandidateReplayService.replay).not.toHaveBeenCalled();
     expect(gatewayRouteSnapshotService.activateCandidate).toHaveBeenCalledWith(
-      'revision-waiver-only',
+      'revision-waiver-only', expect.objectContaining({ getRepository: expect.any(Function) }),
     );
   });
 
@@ -337,6 +339,7 @@ describe('RuntimeVerificationService', () => {
       runtimeAssetId: 'runtime-1',
       candidateRevision: 'revision-1',
       status: RuntimeVerificationRunStatus.PLANNED,
+      upstreamBindingRevisions: [],
       activationStatus: 'not_attempted',
       blockers: [],
     };
@@ -375,7 +378,7 @@ describe('RuntimeVerificationService', () => {
         responsePayload: { token: '[REDACTED]', ok: true },
       }),
     );
-    expect(gatewayRouteSnapshotService.activateCandidate).toHaveBeenCalledWith('revision-1');
+    expect(gatewayRouteSnapshotService.activateCandidate).toHaveBeenCalledWith('revision-1', expect.objectContaining({ getRepository: expect.any(Function) }));
     expect(runtimeAssetRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({
         metadata: expect.objectContaining({ activeRevision: 'revision-1' }),
@@ -594,6 +597,25 @@ describe('RuntimeVerificationService', () => {
   });
 
 
+  it('binds every actual endpoint field into MCP candidate identity and persisted metadata', async () => {
+    runtimeAssetRepository.findOne.mockResolvedValue({ ...runtimeAsset, type: 'mcp_server' });
+    sampleRepository.find.mockResolvedValue([]);
+    const endpoints = [
+      { port: 9022, transport: 'streamable', endpointPath: '/mcp' },
+      { port: 9023, transport: 'streamable', endpointPath: '/mcp' },
+      { port: 9022, transport: 'sse', endpointPath: '/mcp' },
+      { port: 9022, transport: 'streamable', endpointPath: '/other' },
+    ];
+    const revisions = [];
+    for (const endpoint of endpoints) {
+      const result = await service.planCandidate('runtime-1', {}, { mcpEndpointConfig: endpoint as any });
+      expect(result.run.metadata.mcpEndpointConfig).toEqual(endpoint);
+      revisions.push(result.run.candidateRevision);
+    }
+    expect(new Set(revisions).size).toBe(4);
+    expect((await service.planCandidate('runtime-1', {}, { mcpEndpointConfig: endpoints[0] as any })).run.candidateRevision).toBe(revisions[0]);
+  });
+
   it('finalizes MCP activation through the caller transaction repositories', async () => {
     const run = {
       id: 'run-mcp-tx',
@@ -602,6 +624,7 @@ describe('RuntimeVerificationService', () => {
       status: RuntimeVerificationRunStatus.PASSED,
       activationStatus: 'not_attempted',
       upstreamBindingRevisions: [],
+      metadata: { mcpEndpointConfig: { port: 9022, transport: 'streamable', endpointPath: '/mcp' } },
     };
     const asset = {
       id: 'runtime-mcp-tx',
@@ -618,7 +641,8 @@ describe('RuntimeVerificationService', () => {
     };
     const manager = {
       getRepository: jest.fn((entity) =>
-        entity.name === 'RuntimeVerificationRunEntity' ? txRunRepository : txAssetRepository,
+        entity.name === 'RuntimeVerificationRunEntity' ? txRunRepository : entity.name === 'MCPServerEntity' ?
+          { findOne: jest.fn().mockResolvedValue({ port: 9022, transport: 'streamable', config: { runtimeAssetId: asset.id, endpoint: '/mcp' } }) } : txAssetRepository,
       ),
     };
 

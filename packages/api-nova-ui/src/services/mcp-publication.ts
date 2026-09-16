@@ -1,0 +1,77 @@
+export type McpTransport = 'streamable' | 'sse';
+export interface McpDeploymentInput { targetServerId?: string; transport?: McpTransport; port?: number; endpointPath?: string; missingSmokeWaiverReason?: string; autoStart?: boolean; name?: string; description?: string; }
+export interface McpEndpointPreview { transport: McpTransport; port: number | null; endpointPath: string; portMode: 'automatic' | 'existing' | 'explicit'; consumerUrl: string | null; messagesUrl: string | null; addressScope: 'loopback'; availability: 'not_checked'; }
+export async function mcpPublicationRequest(id: string, operation: 'detail' | 'preview' | 'deploy' | 'redeploy', token: string, signal: AbortSignal, input?: McpDeploymentInput) {
+  const suffix = operation === 'detail' ? '' : operation === 'preview' ? '/mcp-endpoint-preview' : operation === 'redeploy' ? '/redeploy' : '/deploy-mcp';
+  const response = await fetch('/api/v1/runtime-assets/' + encodeURIComponent(id) + suffix, {
+    method: operation === 'detail' ? 'GET' : 'POST', signal, cache: 'no-store',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    ...(operation === 'detail' ? {} : { body: JSON.stringify(input) }),
+  });
+  const body = await response.json();
+  if (!response.ok) throw new Error('MCP_PUBLICATION_FAILED');
+  return body;
+}
+export const mcpPublicationState = () => ({ visible: false, loading: false, previewLoading: false, saving: false,
+  error: null as 'load' | 'preview' | 'deploy' | null, id: '', transport: 'streamable' as McpTransport,
+  port: undefined as number | undefined, endpointPath: '/mcp', targetServerId: undefined as string | undefined,
+  actualEndpoint: null as string | null, actualStatus: null as string | null, preview: null as McpEndpointPreview | null });
+export class McpPublicationForm {
+  private generation = 0; private controller: AbortController | null = null;
+  private mode: 'deploy' | 'redeploy' = 'deploy';
+  private owner: string | null = null; private waiver: string | undefined;
+  private done: ((saved: boolean) => void) | null = null;
+  constructor(readonly state: ReturnType<typeof mcpPublicationState>, private session: () => { key: string; token: string } | null, private request = mcpPublicationRequest) {}
+  close(saved = false) { this.generation++; this.controller?.abort(); this.controller = null; this.owner = null;
+    Object.assign(this.state, mcpPublicationState()); this.done?.(saved); this.done = null; }
+  open(id: string, waiver?: string, mode: 'deploy' | 'redeploy' = 'deploy'): Promise<boolean> {
+    this.close(); const session = this.session(); if (!session) return Promise.resolve(false);
+    this.owner = session.key; this.waiver = waiver; this.mode = mode; this.state.visible = true; this.state.id = id;
+    const result = new Promise<boolean>(resolve => { this.done = resolve; }); void this.load(); return result;
+  }
+  private valid(generation: number) { return generation === this.generation && this.owner === this.session()?.key; }
+  private begin() { this.controller?.abort(); const controller = new AbortController(); this.controller = controller;
+    const generation = ++this.generation; const deadline = setTimeout(() => controller.abort(), 10000);
+    return { controller, generation, finish: () => clearTimeout(deadline) }; }
+  private input(): McpDeploymentInput { return { targetServerId: this.state.targetServerId, transport: this.state.transport,
+    ...(this.state.port === undefined ? {} : { port: this.state.port }), endpointPath: this.state.endpointPath,
+    ...(this.waiver ? { missingSmokeWaiverReason: this.waiver } : {}) }; }
+  async load() {
+    const session = this.session(); if (!session || !this.state.visible) return;
+    const task = this.begin(); this.state.loading = true; this.state.error = null;
+    try {
+      const detail = await this.request(this.state.id, 'detail', session.token, task.controller.signal);
+      if (!this.valid(task.generation)) return;
+      if (detail?.asset?.type !== 'mcp_server') throw new Error('INVALID_DETAIL');
+      const server = detail.managedServer;
+      if (server && (!['streamable', 'sse'].includes(server.transport) || !Number.isInteger(server.port))) throw new Error('INVALID_DETAIL');
+      this.state.transport = server?.transport ?? 'streamable'; this.state.port = server?.port;
+      this.state.endpointPath = server?.endpointPath ?? (this.state.transport === 'sse' ? '/sse' : '/mcp');
+      this.state.targetServerId = server?.id; this.state.actualEndpoint = server?.endpoint ?? null; this.state.actualStatus = server?.status ?? null;
+    } catch { if (this.valid(task.generation)) this.state.error = 'load'; }
+    finally { task.finish(); if (this.valid(task.generation)) { this.state.loading = false; if (!this.state.error) void this.refresh(); } }
+  }
+  async refresh() {
+    if (!this.state.visible || this.state.loading || this.state.saving || this.state.error === 'load') return;
+    const session = this.session(); if (!session) { this.close(); return; }
+    const task = this.begin(); this.state.preview = null; this.state.previewLoading = true; this.state.error = null;
+    try {
+      const preview = await this.request(this.state.id, 'preview', session.token, task.controller.signal, this.input());
+      if (!this.valid(task.generation)) return;
+      if (preview?.addressScope !== 'loopback' || preview?.availability !== 'not_checked' ||
+        preview.transport !== this.state.transport || preview.endpointPath !== this.state.endpointPath ||
+        !(preview.port === null || Number.isInteger(preview.port))) throw new Error('INVALID_PREVIEW');
+      this.state.preview = preview;
+    } catch { if (this.valid(task.generation)) this.state.error = 'preview'; }
+    finally { task.finish(); if (this.valid(task.generation)) this.state.previewLoading = false; }
+  }
+  async save() {
+    if (!this.state.preview || this.state.saving || this.state.previewLoading || this.state.loading) return;
+    const session = this.session(); if (!session || session.key !== this.owner) { this.close(); return; }
+    const task = this.begin(); this.state.saving = true; this.state.error = null;
+    try { await this.request(this.state.id, this.mode, session.token, task.controller.signal, this.input());
+      if (this.valid(task.generation)) this.close(true);
+    } catch { if (this.valid(task.generation)) { this.state.error = 'deploy'; this.state.preview = null; } }
+    finally { task.finish(); if (this.valid(task.generation)) this.state.saving = false; }
+  }
+}

@@ -388,3 +388,15 @@ function convertInputSchemaToZod(inputSchema: MCPTool['inputSchema']): z.ZodRawS
 
   return zodSchema;
 }
+
+/** Managed mode has no cache/default-spec fallback and registration is atomic
+ * from its caller's perspective: any failure aborts before the HTTP listener. */
+export function registerManagedMcpTools(server: McpServer, tools: readonly MCPTool[]): void {
+  const register = server.registerTool.bind(server) as RegisterToolCompat;
+  for (const tool of tools) register(tool.name, { description: tool.description, inputSchema: convertInputSchemaToZod(tool.inputSchema) }, async args => {
+    await assertMcpToolExecutionScopes(tool.name);
+    try { return await tool.handler(args) as unknown as CallToolResult; }
+    catch { return { isError: true, content: [{ type: 'text', text: 'MANAGED_TOOL_EXECUTION_FAILED' }] }; }
+  });
+  installMcpToolListScopeFilter(server);
+}

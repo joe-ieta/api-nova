@@ -1,5 +1,24 @@
 export default {
   monitoring: {
+    mcpPublication: {
+      "title": "MCP deployment endpoint",
+      "transport": "Transport",
+      "port": "Port",
+      "path": "Endpoint path",
+      "defaultPath": "Use transport default path",
+      "automatic": "Leave port empty for automatic allocation on first deployment; existing servers retain their saved port.",
+      "preview": "Configuration preview",
+      "unassigned": "No confirmed preview URL",
+      "localOnly": "Loopback address on the server machine. Preview does not verify connectivity or reserve the port.",
+      "messages": "SSE message endpoint",
+      "actual": "Last reported runtime state / endpoint",
+      "unknown": "Unknown",
+      "retryPreview": "Read preview",
+      "deploy": "Verify and deploy",
+      "loadError": "Could not read saved configuration. Retry before editing.",
+      "previewError": "Preview failed. Check fields, ownership and runtime state; stop the server before changing its endpoint.",
+      "deployError": "Deployment failed or its result is uncertain. The draft is retained. Check runtime state before submitting again."
+},
     diagnostics: {
       pipelineReadAt: "Pipeline evidence read at",
       scanSample: "Pre-cleanup scan sample", scanScope: "Logical file lengths measured before cleanup in one scan batch. Even complete scan coverage is not an atomic current disk total or an enforced quota.",

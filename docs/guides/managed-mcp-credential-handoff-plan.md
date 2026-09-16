@@ -1,11 +1,11 @@
 ---
-doc-version: 0.2.0
+doc-version: 0.3.0
 doc-status: reviewed-slice
-doc-updated: 2026-09-15
+doc-updated: 2026-09-16
 ---
 # 托管 MCP 凭据交付设计与验收契约
 
-SEC-E1-01 为草案交付；SEC-E1-01R 已完成代码链技术审查，首个实施切片按第9节冻结。第2–8节保留总体设计和后续决策背景，第9节优先约束02A；不表示整个方案获产品批准，也不表示运行时能力完成。关联 TP-E1/C4、F3；OAuth2、协议升级和完整 SSRF 不在本切片内。
+SEC-E1-01 为草案交付；SEC-E1-01R 已完成代码链技术审查。第2–8节保留当时的总体设计与建议，第9节记录02A技术冻结；已完成02A/B1/B2的实际范围、后续边界以第10节和[统一子任务台账](./active-work-package-execution-status.md)为准。本文不表示整个方案获产品批准或受管生命周期已接入。关联 TP-E1/C4、F3；OAuth2、协议升级和完整 SSRF 不在本切片内。
 
 ## 1. 已核对的实际调用链
 
@@ -230,3 +230,14 @@ wire消息按方向分离：父→child只有`handoff(version,launchId,payload)`
 - 无停机切换：未证明旧实例保留能力，不承诺。02C完成失败/重启语义；改变既有停机策略时单独说明实际影响。
 
 01R退出依据：已对照统一拆分§SEC-E1-01R/02A、实际spawn/CLI/ServerOptions/initTools/runtime-auth代码审查，确定安全技术默认、真实child首片与必选验收；未运行代码或测试，未改变统一台账。父任务可据此登记01R完成并排入02A。
+## 10. 当前实现证据与未接入边界（2026-09-16）
+
+| 子项 | 已验证范围 | 尚不能推导 |
+| --- | --- | --- |
+| SEC-E1-02A | API内部受管通道直启真实Node child，shell:false、四路stdio含IPC、精确环境、内存交付；ACK与READY分离，超时/断连关闭；真实child通道11/11、原ProcessManager回归3/3 | 不能由PID/ACK标RUNNING；不代表产品生命周期已切换 |
+| SEC-E1-02B1 | 受保护ConfigService Registry来源、资产/绑定/候选双次DB重读、稳定文件摘要与环境核验，准备一次性handoff；专项23/23 | 不是跨进程CAS，也不允许HTTP提交任意Registry路径 |
+| SEC-E1-02B2 | child再次稳定读Registry并核验revision/digest；标准Streamable/SSE工具处理器使用共享single-hop Resolver，监听后READY；三脚本联合47/47 | 仅合成Registry与回环上游；尚不是现有产品startServer的完整入口 |
+
+首版实现仅支持可信Registry中按endpoint ID的覆盖；method/path覆盖未纳入当前02B2出口。入站MCP客户端认证在此运行时限定为已配置API Key；匿名、缺认证或JWT配置在监听前失败。上游凭据采用每次调用的单跳决议，None或缺Secret不从旧配置/消费者身份回退，302不自动跟随。该结果不覆盖F3完整网络边界。
+
+SEC-E1-02C1的本地未验收生命周期接线草稿已撤回；自动审批要求明确授权改变生产托管启动/停止状态行为后才可继续。因此现有产品Server启动流程仍未通过02B1/B2的受信handoff集成验收，不能以独立child的READY推断现有服务RUNNING安全。02C2的重启/失败/legacy和03的真实产品路径单跳验证继续等待。旧CLI与已存托管秘密argv无自动迁移；运行中撤销/版本变化留给04。没有真实业务Registry、PostgreSQL/Linux或生产部署证据。

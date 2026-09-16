@@ -871,7 +871,7 @@ describe('RuntimeAssetsService', () => {
     requireSpy.mockRestore();
   });
 
-  it('persists and activates an MCP candidate only after replay passes', async () => {
+  it.each([9033, undefined])('binds actual allocated or explicit port %s before replay and activation', async port => {
     const mcpAsset = {
       id: 'runtime-mcp-verify',
       type: RuntimeAssetType.MCP_SERVER,
@@ -908,7 +908,16 @@ describe('RuntimeAssetsService', () => {
       activeRevision: 'latest-active', verificationRequired: true,
       verificationRequiredAt: '2026-09-15T00:00:01Z', operatorNote: 'latest-note',
     } });
-    const deployed = await service.deployMcpRuntimeAsset(mcpAsset.id, { port: 9033 });
+    const allocate = jest.spyOn(service as any, 'findAvailableManagedServerPort').mockResolvedValue(9044);
+    const deployed = await service.deployMcpRuntimeAsset(mcpAsset.id, { port, endpointPath: '/custom' });
+    const expectedPort = port ?? 9044;
+    expect(runtimeVerificationService.planCandidate).toHaveBeenCalledWith(mcpAsset.id, expect.anything(), expect.objectContaining({
+      mcpEndpointConfig: { transport: 'streamable', port: expectedPort, endpointPath: '/custom' },
+    }));
+    expect(deployed.managedServer.port).toBe(expectedPort);
+    expect(deployed.managedServer.endpointPath).toBe('/custom');
+    if (port === undefined) expect(allocate.mock.invocationCallOrder[0]).toBeLessThan(runtimeVerificationService.planCandidate.mock.invocationCallOrder[0]);
+    else expect(allocate).not.toHaveBeenCalled();
 
     expect(runtimeVerificationService.executeMcpCandidate).toHaveBeenCalledWith(
       mcpAsset.id,
@@ -916,6 +925,67 @@ describe('RuntimeAssetsService', () => {
       expect.arrayContaining([expect.objectContaining({ runtimeMembershipId: 'membership-1' })]),
     );
     expect(mcpServerRepository.save).toHaveBeenCalled();
+    expect(runtimeAssetRepository.save).toHaveBeenCalledWith(expect.objectContaining({ metadata: expect.objectContaining({
+      activeRevision: 'latest-active', verificationRequired: true,
+      verificationRequiredAt: '2026-09-15T00:00:01Z', operatorNote: 'latest-note',
+    }) }));
+    expect(runtimeVerificationService.activateMcpCandidate).toHaveBeenCalledWith(
+      mcpAsset.id,
+      'verification-mcp-passed',
+      expect.objectContaining({ getRepository: expect.any(Function) }),
+    );
+    expect(deployed.verification.activation.run.activationStatus).toBe('activated');
+    assembleSpy.mockRestore();
+    requireSpy.mockRestore();
+  });
+
+  it('preserves existing SSE transport and custom endpoint through actual deployment', async () => {
+    const mcpAsset = {
+      id: 'runtime-mcp-verify',
+      type: RuntimeAssetType.MCP_SERVER,
+      status: 'draft',
+      name: 'orders-mcp',
+      displayName: 'Orders MCP',
+      metadata: {},
+    };
+    const requireSpy = jest.spyOn(service as any, 'requireRuntimeAsset').mockResolvedValue(mcpAsset);
+    const assembleSpy = jest.spyOn(service, 'assembleMcpRuntimeAssetPayload').mockResolvedValue({
+      runtimeAsset: mcpAsset,
+      openApiData: { openapi: '3.0.3' },
+      tools: [{ name: 'createOrder' }],
+      verificationTools: [{ runtimeMembershipId: 'membership-1', tool: { name: 'createOrder' } }],
+      toolsCount: 1,
+      includedMembershipCount: 1,
+    } as any);
+    mcpServerRepository.findOne.mockResolvedValue({ id: 'server-sse', name: 'orders-mcp', port: 9033, transport: 'sse', status: ServerStatus.STOPPED, config: { runtimeAssetId: mcpAsset.id, endpoint: '/events/custom' } });
+    runtimeVerificationService.planCandidate.mockResolvedValue({
+      canExecute: true,
+      run: { id: 'verification-mcp-passed' },
+      results: [],
+    });
+    runtimeVerificationService.executeMcpCandidate.mockResolvedValue({
+      run: { id: 'verification-mcp-passed', status: 'passed' },
+      results: [],
+    });
+    runtimeVerificationService.activateMcpCandidate.mockResolvedValue({
+      run: { id: 'verification-mcp-passed', activationStatus: 'activated' },
+      runtimeAsset: mcpAsset,
+    });
+
+    runtimeAssetRepository.findOne.mockResolvedValue({ ...mcpAsset, metadata: {
+      activeRevision: 'latest-active', verificationRequired: true,
+      verificationRequiredAt: '2026-09-15T00:00:01Z', operatorNote: 'latest-note',
+    } });
+    const deployed = await service.deployMcpRuntimeAsset(mcpAsset.id, {});
+
+    expect(runtimeVerificationService.executeMcpCandidate).toHaveBeenCalledWith(
+      mcpAsset.id,
+      'verification-mcp-passed',
+      expect.arrayContaining([expect.objectContaining({ runtimeMembershipId: 'membership-1' })]),
+    );
+    expect(mcpServerRepository.save).toHaveBeenCalledWith(expect.objectContaining({ transport: 'sse', port: 9033, config: expect.objectContaining({ endpoint: '/events/custom' }) }));
+    expect(deployed.managedServer.endpointPath).toBe('/events/custom');
+    expect(deployed.managedServer.endpointPreview.messagesUrl).toBe('http://127.0.0.1:9033/events/custom/messages');
     expect(runtimeAssetRepository.save).toHaveBeenCalledWith(expect.objectContaining({ metadata: expect.objectContaining({
       activeRevision: 'latest-active', verificationRequired: true,
       verificationRequiredAt: '2026-09-15T00:00:01Z', operatorNote: 'latest-note',

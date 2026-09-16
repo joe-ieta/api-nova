@@ -5,7 +5,18 @@ export class InitialPostgresSchema1788825601000 implements MigrationInterface {
   name = "InitialPostgresSchema1788825601000";
   async up(queryRunner: QueryRunner): Promise<void> {
     for (const sql of [
+  "CREATE TABLE \"runtime_payload_quota_ledgers\" (\"ownerId\" varchar(120) NOT NULL, \"epoch\" varchar(36) NOT NULL, \"version\" integer NOT NULL, \"state\" varchar(24) NOT NULL, \"committedBytes\" varchar(20) NOT NULL, \"reservedBytes\" varchar(20) NOT NULL, \"baselineKey\" varchar(128), \"configuration\" jsonb NOT NULL, \"updatedAt\" varchar(24) NOT NULL, CONSTRAINT \"PK_obs_payload_quota_ledgers\" PRIMARY KEY (\"ownerId\"))",
+  "CREATE TABLE \"runtime_payload_quota_reservations\" (\"id\" varchar(64) NOT NULL, \"ownerId\" varchar(120) NOT NULL, \"operationId\" varchar(128) NOT NULL, \"epoch\" varchar(36) NOT NULL, \"generation\" varchar(20) NOT NULL, \"requestHash\" varchar(64) NOT NULL, \"reservedBytes\" varchar(20) NOT NULL, \"committedBytes\" varchar(20), \"state\" varchar(24) NOT NULL, \"settlementHash\" varchar(64), \"updatedAt\" varchar(24) NOT NULL, CONSTRAINT \"PK_obs_payload_quota_reservations\" PRIMARY KEY (\"id\"))",
+  "CREATE UNIQUE INDEX \"IDX_obs_quota_reservation_owner_operation\" ON \"runtime_payload_quota_reservations\" (\"ownerId\", \"operationId\")",
+  "CREATE INDEX \"IDX_obs_quota_reservation_owner_state\" ON \"runtime_payload_quota_reservations\" (\"ownerId\", \"state\")",
+  "CREATE TABLE \"runtime_event_deletion_gaps\" (\"id\" varchar(64) NOT NULL, \"assetScope\" varchar(500) NOT NULL, \"startSequence\" varchar(20) NOT NULL, \"endSequence\" varchar(20) NOT NULL, CONSTRAINT \"PK_obs_event_deletion_gaps\" PRIMARY KEY (\"id\"), CONSTRAINT \"CHK_obs_event_gaps_range\" CHECK (length(\"startSequence\") = 20 AND length(\"endSequence\") = 20 AND \"startSequence\" > '00000000000000000000' AND \"startSequence\" <= \"endSequence\"))",
+  "CREATE INDEX \"IDX_obs_event_gaps_end\" ON \"runtime_event_deletion_gaps\" (\"endSequence\")",
+  "CREATE UNIQUE INDEX \"IDX_obs_event_gaps_scope_start\" ON \"runtime_event_deletion_gaps\" (\"assetScope\", \"startSequence\")",
+  "CREATE INDEX \"IDX_obs_event_gaps_scope_end\" ON \"runtime_event_deletion_gaps\" (\"assetScope\", \"endSequence\")",
   "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"",
+  "CREATE TABLE \"endpoint_test_sample_objects\" (\"id\" uuid NOT NULL DEFAULT uuid_generate_v4(), \"sampleId\" character varying(36) NOT NULL, \"side\" character varying(8) NOT NULL DEFAULT 'response', \"objectKey\" character varying(64) NOT NULL, \"state\" character varying(16) NOT NULL DEFAULT 'staged', \"mediaType\" character varying(128) NOT NULL, \"measurement\" character varying(32) NOT NULL, \"observedBytes\" integer NOT NULL, \"sha256\" character varying(64) NOT NULL, \"deleteAttempts\" integer NOT NULL DEFAULT 0, \"failureCode\" character varying(32), \"createdAt\" TIMESTAMP NOT NULL DEFAULT now(), \"updatedAt\" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT \"PK_endpoint_test_sample_objects\" PRIMARY KEY (\"id\"))",
+  "CREATE UNIQUE INDEX \"IDX_sample_object_owner\" ON \"endpoint_test_sample_objects\" (\"sampleId\", \"side\")",
+  "CREATE UNIQUE INDEX \"IDX_sample_object_key\" ON \"endpoint_test_sample_objects\" (\"objectKey\")",
   "CREATE TABLE \"config_overrides\" (\"id\" uuid NOT NULL DEFAULT uuid_generate_v4(), \"envKey\" character varying(128) NOT NULL, \"section\" character varying(64) NOT NULL, \"field\" character varying(64) NOT NULL, \"valueType\" character varying(16) NOT NULL, \"value\" jsonb NOT NULL, \"restartRequired\" boolean NOT NULL DEFAULT false, \"description\" character varying(255), \"createdAt\" TIMESTAMP NOT NULL DEFAULT now(), \"updatedAt\" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT \"PK_ab61ea3bd77a9d05e984eab2e99\" PRIMARY KEY (\"id\"))",
   "CREATE INDEX \"IDX_79e388fe550f8c472347fe7dd8\" ON \"config_overrides\" (\"section\") ",
   "CREATE UNIQUE INDEX \"IDX_764904ce9d58083275f9f6aedf\" ON \"config_overrides\" (\"envKey\") ",
@@ -325,6 +336,9 @@ export class InitialPostgresSchema1788825601000 implements MigrationInterface {
   }
   async down(queryRunner: QueryRunner): Promise<void> {
     for (const sql of [
+  "DROP TABLE \"runtime_payload_quota_reservations\"",
+  "DROP TABLE \"runtime_payload_quota_ledgers\"",
+  "DROP TABLE \"runtime_event_deletion_gaps\"",
   "DROP TABLE \"runtime_ingest_quarantine\"",
   "DROP TABLE \"runtime_invocation_revisions\"",
   "DROP TABLE \"runtime_observability_idempotency\"",
@@ -347,6 +361,7 @@ export class InitialPostgresSchema1788825601000 implements MigrationInterface {
   "DROP TABLE \"runtime_invocations\""
 ]) await queryRunner.query(sql);
     for (const sql of [
+  "DROP TABLE \"endpoint_test_sample_objects\"",
   "ALTER TABLE \"user_roles\" DROP CONSTRAINT \"FK_86033897c009fcca8b6505d6be2\"",
   "ALTER TABLE \"user_roles\" DROP CONSTRAINT \"FK_472b25323af01488f1f66a06b67\"",
   "ALTER TABLE \"role_permissions\" DROP CONSTRAINT \"FK_06792d0c62ce6b0203c03643cdd\"",

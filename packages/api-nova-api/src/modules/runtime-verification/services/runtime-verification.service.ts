@@ -1,3 +1,5 @@
+import { resolveMcpEndpoint } from '../../runtime-assets/services/mcp-endpoint-config';
+import { MCPServerEntity } from '../../../database/entities/mcp-server.entity';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash } from 'node:crypto';
@@ -53,7 +55,7 @@ export class RuntimeVerificationService {
   async planCandidate(
     runtimeAssetId: string,
     dto: PlanRuntimeVerificationDto = {},
-    candidateContext: { behaviorFingerprint?: string; waiverActorId?: string } = {},
+    candidateContext: { behaviorFingerprint?: string; waiverActorId?: string; mcpEndpointConfig?: ReturnType<typeof resolveMcpEndpoint> } = {},
   ) {
     const runtimeAsset = await this.runtimeAssetRepository.findOne({
       where: { id: runtimeAssetId },
@@ -226,6 +228,7 @@ export class RuntimeVerificationService {
           .filter(Boolean)
           .sort(),
         behaviorFingerprint: candidateContext.behaviorFingerprint || null,
+        ...(runtimeAsset.type === RuntimeAssetType.MCP_SERVER ? { mcpEndpointConfig: candidateContext.mcpEndpointConfig || null } : {}),
         waivers,
       }))
       .digest('hex');
@@ -294,6 +297,7 @@ export class RuntimeVerificationService {
         metadata: {
           includeRegression: dto.includeRegression !== false,
           behaviorFingerprint: candidateContext.behaviorFingerprint,
+          ...(runtimeAsset.type === RuntimeAssetType.MCP_SERVER ? { mcpEndpointConfig: candidateContext.mcpEndpointConfig || null } : {}),
           waivers,
           candidateSnapshot,
         },
@@ -437,28 +441,50 @@ export class RuntimeVerificationService {
 
     let activation: Record<string, unknown>;
     if (run.failedCount === 0 && run.blockedCount === 0 && run.passedCount > 0) {
+      let snapshotActivated = false;
       try {
-        const activated = await this.gatewayRouteSnapshotService.activateCandidate(run.candidateRevision);
-        activation = activated;
-        runtimeAsset.status = 'active' as any;
-        runtimeAsset.metadata = {
-          ...(runtimeAsset.metadata || {}),
-          previousActiveRevision: run.previousActiveRevision,
-          activeRevision: run.candidateRevision,
-          activeGatewaySnapshotFingerprint: activated.snapshotFingerprint,
-          activeUpstreamBindingRevisions: run.upstreamBindingRevisions || [],
-          lastVerificationRunId: run.id,
-          activatedAt: new Date().toISOString(),
-          verificationRequired: false,
-          verificationRequiredAt: undefined,
-          verificationRequiredReason: undefined,
-          verificationRequiredContext: undefined,
-        };
-        await this.runtimeAssetRepository.save(runtimeAsset);
+        await this.runtimeAssetRepository.manager.transaction(async manager => {
+          const current = await manager.getRepository(RuntimeAssetEntity).findOne({ where: { id: runtimeAssetId } });
+          const stale = () => new ConflictException('GATEWAY_CANDIDATE_STALE');
+          if (!current || current.type !== RuntimeAssetType.GATEWAY_SERVICE ||
+            (current.metadata?.activeRevision || null) !== (run.previousActiveRevision || null)) throw stale();
+          if (current.metadata?.verificationRequired === true) {
+            const invalidated = Date.parse(String(current.metadata.verificationRequiredAt));
+            const planned = new Date(run.createdAt).getTime();
+            if (!Number.isFinite(invalidated) || !Number.isFinite(planned) || invalidated >= planned) throw stale();
+          }
+          if (!Array.isArray(run.upstreamBindingRevisions)) throw stale();
+          const seen = new Set<string>();
+          for (const expected of run.upstreamBindingRevisions) {
+            if (!expected || !expected.bindingId || !expected.runtimeMembershipId || !Number.isSafeInteger(expected.revision) || expected.revision < 1 || seen.has(expected.bindingId)) throw stale();
+            seen.add(expected.bindingId);
+            const binding = await manager.getRepository(RuntimeUpstreamBindingEntity).findOne({ where: { id: expected.bindingId } });
+            if (!binding || binding.revision !== expected.revision || binding.runtimeAssetEndpointBindingId !== expected.runtimeMembershipId || binding.status !== RuntimeUpstreamBindingStatus.ACTIVE) throw stale();
+          }
+          const activated = await this.gatewayRouteSnapshotService.activateCandidate(run.candidateRevision, manager);
+          snapshotActivated = true;
+          activation = activated;
+          current.status = 'active' as any;
+          current.metadata = {
+            ...(current.metadata || {}),
+            previousActiveRevision: run.previousActiveRevision,
+            activeRevision: run.candidateRevision,
+            activeGatewaySnapshotFingerprint: activated.snapshotFingerprint,
+            activeUpstreamBindingRevisions: run.upstreamBindingRevisions || [],
+            lastVerificationRunId: run.id,
+            activatedAt: new Date().toISOString(),
+            verificationRequired: false,
+            verificationRequiredAt: undefined,
+            verificationRequiredReason: undefined,
+            verificationRequiredContext: undefined,
+          };
+          await manager.getRepository(RuntimeAssetEntity).save(current);
+        });
         run.status = RuntimeVerificationRunStatus.PASSED;
         run.activationStatus = RuntimeVerificationActivationStatus.ACTIVATED;
       } catch (error) {
-        this.gatewayRouteSnapshotService.rollbackRuntimeAsset(runtimeAssetId);
+        if (snapshotActivated) this.gatewayRouteSnapshotService.rollbackRuntimeAsset(runtimeAssetId);
+        else this.gatewayRouteSnapshotService.discardCandidate(run.candidateRevision);
         run.status = RuntimeVerificationRunStatus.FAILED;
         run.activationStatus = run.previousActiveRevision
           ? RuntimeVerificationActivationStatus.RETAINED_PREVIOUS
@@ -599,6 +625,20 @@ export class RuntimeVerificationService {
       throw new NotFoundException(`MCP runtime asset '${runtimeAssetId}' not found`);
     }
     const stale = () => new ConflictException('MCP_CANDIDATE_STALE');
+    const expectedEndpoint = run.metadata?.mcpEndpointConfig as any;
+    const managedServerId = runtimeAsset.metadata?.managedServerId;
+    if (!expectedEndpoint || !Number.isInteger(expectedEndpoint.port) || typeof expectedEndpoint.transport !== 'string' ||
+      typeof expectedEndpoint.endpointPath !== 'string' || typeof managedServerId !== 'string') throw stale();
+    const endpointServer = await (manager || this.runRepository.manager).getRepository(MCPServerEntity)
+      .findOne({ where: { id: managedServerId } });
+    if (!endpointServer || endpointServer.config?.runtimeAssetId !== runtimeAssetId) throw stale();
+    try {
+      const expected = resolveMcpEndpoint(expectedEndpoint);
+      const actual = resolveMcpEndpoint({}, endpointServer);
+      if (expected.port === null || expected.transport !== actual.transport || expected.port !== actual.port ||
+        expected.endpointPath !== actual.endpointPath) throw stale();
+    } catch { throw stale(); }
+
     if ((runtimeAsset.metadata?.activeRevision || null) !== (run.previousActiveRevision || null)) throw stale();
     const invalidatedAt = runtimeAsset.metadata?.verificationRequiredAt;
     if (runtimeAsset.metadata?.verificationRequired === true) {

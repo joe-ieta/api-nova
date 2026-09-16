@@ -5,6 +5,8 @@ import { promises as fs } from 'fs';
 import { dirname, join, resolve } from 'path';
 import { randomUUID } from 'crypto';
 import { auditBodyLimit, auditDirectory, InvocationBody } from 'api-nova-parser';
+import type { QuotaSettlement } from './call-observability-payload-quota';
+import { PayloadInventorySession, type PayloadInventoryResumeEvidence } from './call-observability-payload-inventory';
 import { RuntimePayloadEntity } from '../../database/entities/runtime-call-observability.entity';
 import {
   canonicalJson, contentHash, ObservabilityStorageError, publicSequence, sequenceKey, SerialStorageLane,
@@ -40,6 +42,13 @@ export interface PayloadScanUsage {
   truncated: boolean;
 }
 
+export interface PayloadPublicationQuota {
+  reserve(payloadId: string, bytes: number): Promise<{
+    mode: 'publish' | 'verify_existing';
+    settle(outcome: QuotaSettlement): Promise<void>;
+  }>;
+}
+
 export interface PreparedPayload {
   entity: RuntimePayloadEntity;
   body: Omit<InvocationBody, 'data'>;
@@ -69,7 +78,7 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
   private scannerShutdown?: Promise<void>;
 
   async prepare(identity: PayloadIdentity, body: InvocationBody,
-    createdAt: string, expiresAt: string, generation: string): Promise<PreparedPayload> {
+    createdAt: string, expiresAt: string, generation: string, quota?: PayloadPublicationQuota): Promise<PreparedPayload> {
     return this.lane.run(async () => {
       if (!this.ownerId) throw new ObservabilityStorageError('PAYLOAD_STORAGE_NOT_BOUND');
       const namespace = { storageOwnerId: this.ownerId, storageGeneration: publicSequence(sequenceKey(generation)) };
@@ -99,14 +108,42 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
       }
       let id = contentHash(canonicalJson({ ...identity, ...namespace, metadata, digest }));
       if (data !== undefined && metadata.storedBytes > 0) {
+        let reservation: Awaited<ReturnType<PayloadPublicationQuota['reserve']>> | undefined;
+        let publicationStarted = false;
         try {
           fileKey = this.key(id);
-          await this.publish(fileKey, data, digest!);
-        } catch {
-          // Payload loss never advances a checkpoint on its own or discards metadata.
-          storageFailed = true;
+          const enabled = process.env.API_NOVA_OBSERVABILITY_PAYLOAD_QUOTA_ENABLED;
+          if (quota || (enabled !== undefined && enabled !== 'false')) {
+            if (!quota) throw new ObservabilityStorageError('QUOTA_UNAVAILABLE');
+            reservation = await quota.reserve(id, metadata.storedBytes * 2);
+          }
+          if (reservation?.mode === 'verify_existing') {
+            const path = await this.objectPath(fileKey, false);
+            const existing = await this.readBounded(path, metadata.storedBytes);
+            if (contentHash(existing) !== digest) throw new ObservabilityStorageError('PAYLOAD_INTEGRITY_ERROR');
+          } else {
+            publicationStarted = true;
+            const published = await this.publish(fileKey, data, digest!);
+            if (reservation) {
+              if (!published.temporaryAbsent) {
+                await reservation.settle({ reason: 'unknown' });
+                throw new ObservabilityStorageError('QUOTA_PUBLICATION_UNCERTAIN');
+              }
+              await reservation.settle({ reason: 'confirmed_occupancy_and_unused_absent',
+                committedBytes: published.created ? metadata.storedBytes : 0 });
+            }
+          }
+        } catch (error) {
+          if (reservation && publicationStarted) await reservation.settle({ reason: 'unknown' }).catch(() => undefined);
+          // Only known quota errors get quota reasons. Filesystem/DB faults retain
+          // the existing storage_error category; no partial success claims captured.
+          const quotaCode = error instanceof ObservabilityStorageError ? error.code : '';
+          const quotaReason: Record<string, string> = { QUOTA_EXHAUSTED: 'quota_exhausted', QUOTA_NOT_READY: 'quota_unavailable',
+            QUOTA_UNAVAILABLE: 'quota_unavailable', QUOTA_BODY_LIMIT: 'quota_body_limit', QUOTA_PUBLICATION_PENDING: 'quota_publication_pending',
+            QUOTA_PUBLICATION_UNCERTAIN: 'quota_publication_uncertain', QUOTA_EPOCH_MISMATCH: 'quota_unavailable' };
+          storageFailed = !quotaReason[quotaCode];
           metadata.state = 'omitted';
-          metadata.reason = 'storage_error';
+          metadata.reason = quotaReason[quotaCode] ?? 'storage_error';
           metadata.storedBytes = 0;
           digest = null;
           fileKey = null;
@@ -211,6 +248,12 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
     if (!this.ownerId || await this.readOwner() !== this.ownerId) {
       throw new ObservabilityStorageError('PAYLOAD_ROOT_OWNER_MISMATCH');
     }
+  }
+
+  async openInventory(startShard = 0, resume?: PayloadInventoryResumeEvidence): Promise<PayloadInventorySession> {
+    await this.assertOwnedRoot();
+    return PayloadInventorySession.open(this.root, key => this.objectPath(key, false),
+      () => this.assertOwnedRoot(), startShard, resume);
   }
 
   async scanGarbage(scanLimit: number, candidateLimit: number, olderThan: number,
@@ -432,10 +475,11 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
     }
   }
 
-  private async publish(key: string, data: string, digest: string): Promise<void> {
+  private async publish(key: string, data: string, digest: string): Promise<{ created: boolean; temporaryAbsent: boolean }> {
     const path = await this.objectPath(key, true);
     const temporary = path + '.' + randomUUID() + '.tmp';
     const handle = await fs.open(temporary, 'wx', 0o600);
+    let created = false, temporaryAbsent = false;
     try {
       try {
         await handle.writeFile(data, 'utf8');
@@ -446,6 +490,7 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
       try {
         // A hard link publishes atomically without replacing immutable evidence.
         await fs.link(temporary, path);
+        created = true;
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
         const previous = await this.readBounded(path, Buffer.byteLength(data, 'utf8'));
@@ -456,7 +501,10 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
         try { await directory.sync(); } finally { await directory.close(); }
       }
     } finally {
-      await fs.unlink(temporary).catch(() => undefined);
+      await fs.unlink(temporary).then(() => { temporaryAbsent = true; }).catch(error => {
+        temporaryAbsent = (error as NodeJS.ErrnoException).code === 'ENOENT';
+      });
     }
+    return { created, temporaryAbsent };
   }
 }

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ManagedMcpHandoffPreparationService } from './services/managed-mcp-handoff-preparation.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { HttpModule } from '@nestjs/axios';
@@ -69,6 +70,7 @@ import { SecurityModule } from '../security/security.module';
     ServersLifecycleController,
   ],
   providers: [
+    ManagedMcpHandoffPreparationService,
     ServerManagerService,
     ServerLifecycleService,
     ServerHealthService,

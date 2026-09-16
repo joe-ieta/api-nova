@@ -1,5 +1,24 @@
 export default {
   monitoring: {
+    mcpPublication: {
+      "title": "MCP发布端点",
+      "transport": "传输方式",
+      "port": "端口",
+      "path": "端点路径",
+      "defaultPath": "使用该传输的默认路径",
+      "automatic": "首次部署端口留空时自动分配；已有服务保留已保存端口。",
+      "preview": "配置预览",
+      "unassigned": "尚无已确认的预览地址",
+      "localOnly": "此地址仅用于服务器本机回环访问。预览不验证连通性，也不预留端口。",
+      "messages": "SSE消息入口",
+      "actual": "最近报告的运行状态 / 实际端点",
+      "unknown": "未知",
+      "retryPreview": "读取预览",
+      "deploy": "验证并部署",
+      "loadError": "无法读取已保存配置，请重试后再编辑。",
+      "previewError": "预览失败，请检查字段、归属和运行状态；修改端点前需先停止服务。",
+      "deployError": "部署失败或结果尚不确定，已保留草稿。再次提交前请确认运行状态。"
+},
     diagnostics: {
       pipelineReadAt: "管线证据读取时间",
       scanSample: "清理前扫描样本", scanScope: "仅为单批扫描在清理前测得的文件逻辑长度；即使扫描覆盖完整，也不是原子的当前磁盘总量或已实施的配额。",

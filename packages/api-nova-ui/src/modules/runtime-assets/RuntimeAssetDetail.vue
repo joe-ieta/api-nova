@@ -434,10 +434,12 @@
         </el-button>
       </template>
     </el-dialog>
+    <McpPublicationDialog ref="mcpPublicationDialog" />
   </div>
 </template>
 
 <script setup lang="ts">
+import McpPublicationDialog from "@/modules/runtime-assets/McpPublicationDialog.vue";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
@@ -448,6 +450,7 @@ import { useWebSocketStore } from "@/stores/websocket";
 import RuntimeVerificationDialog from "./RuntimeVerificationDialog.vue";
 
 const route = useRoute();
+const mcpPublicationDialog = ref<InstanceType<typeof McpPublicationDialog> | null>(null);
 const router = useRouter();
 const { t, locale } = useI18n();
 const websocketStore = useWebSocketStore();
@@ -655,15 +658,14 @@ const runAction = async (
   }
 };
 
-const deployRuntimeAsset = async () =>
-  runAction(
-    "deploy",
-    () =>
-      asset.value?.type === "gateway_service"
-        ? runtimeAssetsAPI.deployGatewayRuntimeAsset(runtimeAssetId.value)
-        : runtimeAssetsAPI.deployMcpRuntimeAsset(runtimeAssetId.value),
-    t("monitoring.runtimeAssets.actions.deploySuccess", { name: assetTitle.value }),
-  );
+const deployRuntimeAsset = async () => {
+  if (asset.value?.type === "mcp_server") {
+    if (await mcpPublicationDialog.value?.open(runtimeAssetId.value)) await loadDetail();
+    return;
+  }
+  return runAction("deploy", () => runtimeAssetsAPI.deployGatewayRuntimeAsset(runtimeAssetId.value),
+    t("monitoring.runtimeAssets.actions.deploySuccess", { name: assetTitle.value }));
+};
 
 const deployWithWaiver = async () => {
   const reason = waiverReason.value.trim();
@@ -671,15 +673,17 @@ const deployWithWaiver = async () => {
     ElMessage.warning(t("monitoring.runtimeAssets.verification.waiverReasonRequired"));
     return;
   }
+  if (asset.value?.type === "mcp_server") {
+    if (await mcpPublicationDialog.value?.open(runtimeAssetId.value, reason)) {
+      waiverDialogVisible.value = false; waiverReason.value = ""; await loadDetail();
+    }
+    return;
+  }
   const succeeded = await runAction(
     "deploy",
-    () => asset.value?.type === "gateway_service"
-      ? runtimeAssetsAPI.deployGatewayRuntimeAsset(runtimeAssetId.value, {
-          missingSmokeWaiverReason: reason,
-        })
-      : runtimeAssetsAPI.deployMcpRuntimeAsset(runtimeAssetId.value, {
-          missingSmokeWaiverReason: reason,
-        }),
+    () => runtimeAssetsAPI.deployGatewayRuntimeAsset(runtimeAssetId.value, {
+      missingSmokeWaiverReason: reason,
+    }),
     t("monitoring.runtimeAssets.verification.waiverSuccess"),
   );
   if (succeeded) {
@@ -702,12 +706,14 @@ const stopRuntimeAsset = async () =>
     t("monitoring.runtimeAssets.actions.stopSuccess", { name: assetTitle.value }),
   );
 
-const redeployRuntimeAsset = async () =>
-  runAction(
-    "redeploy",
-    () => runtimeAssetsAPI.redeployRuntimeAsset(runtimeAssetId.value),
-    t("monitoring.runtimeAssets.actions.redeploySuccess", { name: assetTitle.value }),
-  );
+const redeployRuntimeAsset = async () => {
+  if (asset.value?.type === "mcp_server") {
+    if (await mcpPublicationDialog.value?.open(runtimeAssetId.value, undefined, "redeploy")) await loadDetail();
+    return;
+  }
+  return runAction("redeploy", () => runtimeAssetsAPI.redeployRuntimeAsset(runtimeAssetId.value),
+    t("monitoring.runtimeAssets.actions.redeploySuccess", { name: assetTitle.value }));
+};
 
 const goBack = () => {
   router.push("/runtime-assets");

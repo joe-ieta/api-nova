@@ -278,7 +278,7 @@ export class ServerLifecycleService {
    * 获取健康检查端点
    */
   private getHealthCheckEndpoint(serverEntity: MCPServerEntity): string | undefined {
-    return `http://localhost:${serverEntity.port}/health`;
+    return `http://127.0.0.1:${serverEntity.port}/health`;
   }
 
   /**
@@ -291,7 +291,7 @@ export class ServerLifecycleService {
         const endpoint =
           serverEntity.config?.endpoint ||
           (serverEntity.transport === TransportType.SSE ? '/sse' : '/mcp');
-        return `http://localhost:${serverEntity.port}${endpoint}`;
+        return `http://127.0.0.1:${serverEntity.port}${endpoint}`;
       }
       
 

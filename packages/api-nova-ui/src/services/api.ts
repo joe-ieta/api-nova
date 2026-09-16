@@ -1,3 +1,4 @@
+import type { McpDeploymentInput } from "./mcp-publication";
 import axios, { type AxiosInstance, type AxiosResponse } from "axios";
 import type {
   ApiResponse,
@@ -1879,7 +1880,7 @@ export const runtimeAssetsAPI = {
     return response.data;
   },
 
-  async deployMcpRuntimeAsset(id: string, payload?: Record<string, unknown>): Promise<any> {
+  async deployMcpRuntimeAsset(id: string, payload?: McpDeploymentInput): Promise<any> {
     const response = await api.post(`/v1/runtime-assets/${id}/deploy-mcp`, payload || {});
     return response.data;
   },

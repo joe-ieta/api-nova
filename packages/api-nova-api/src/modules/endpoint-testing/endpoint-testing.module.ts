@@ -1,3 +1,5 @@
+import { EndpointTestSampleObjectEntity } from '../../database/entities/endpoint-test-sample-object.entity';
+import { EndpointTestSampleObjectService } from './services/endpoint-test-sample-object.service';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EndpointDefinitionEntity } from '../../database/entities/endpoint-definition.entity';
@@ -11,6 +13,7 @@ import { EndpointTestingService } from './services/endpoint-testing.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
+      EndpointTestSampleObjectEntity,
       EndpointDefinitionEntity,
       EndpointTestCaseEntity,
       EndpointTestRunEntity,
@@ -19,7 +22,7 @@ import { EndpointTestingService } from './services/endpoint-testing.service';
     SecurityModule,
   ],
   controllers: [EndpointTestingController],
-  providers: [EndpointTestingService],
-  exports: [EndpointTestingService],
+  providers: [EndpointTestingService, EndpointTestSampleObjectService],
+  exports: [EndpointTestingService, EndpointTestSampleObjectService],
 })
 export class EndpointTestingModule {}

@@ -493,10 +493,12 @@
       :server="editingServer"
       @success="handleFormSuccess"
     />
+    <McpPublicationDialog ref="mcpPublicationDialog" />
   </div>
 </template>
 
 <script setup lang="ts">
+import McpPublicationDialog from "@/modules/runtime-assets/McpPublicationDialog.vue";
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
@@ -543,6 +545,7 @@ type RuntimeAssetListRow = MCPServer & {
 
 // 路由和状态
 const route = useRoute();
+const mcpPublicationDialog = ref<InstanceType<typeof McpPublicationDialog> | null>(null);
 const router = useRouter();
 const serverStore = useServerStore();
 const { t } = useI18n();
@@ -905,13 +908,18 @@ const deployRuntime = async (server: MCPServer | RuntimeAssetListRow) => {
     return;
   }
 
+  if ((server as RuntimeAssetListRow).runtimeAssetType === "mcp_server") {
+    if (await mcpPublicationDialog.value?.open(server.id)) await refreshServers();
+    return;
+  }
+
   try {
     await measureFunction("deployRuntime", async () => {
       const runtimeAsset = server as RuntimeAssetListRow;
       if (runtimeAsset.runtimeAssetType === "gateway_service") {
         await runtimeAssetsAPI.deployGatewayRuntimeAsset(server.id);
       } else {
-        await runtimeAssetsAPI.deployMcpRuntimeAsset(server.id);
+        await mcpPublicationDialog.value?.open(server.id);
       }
     });
     ElMessage.success(`Runtime asset "${server.name}" deployed`);
@@ -1009,6 +1017,10 @@ const restartServer = async (server: MCPServer | RuntimeAssetListRow) => {
     ElMessage.warning(
       t("servers.runtimeAssetsMessages.deploymentRequired", { name: server.name }),
     );
+    return;
+  }
+  if (isRuntimeAssetsSurface.value && (server as RuntimeAssetListRow).runtimeAssetType === "mcp_server") {
+    if (await mcpPublicationDialog.value?.open(server.id, undefined, "redeploy")) await refreshServers();
     return;
   }
   const confirmed = await confirmDangerousAction(

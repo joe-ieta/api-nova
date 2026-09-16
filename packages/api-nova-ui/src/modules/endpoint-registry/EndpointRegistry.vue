@@ -1899,10 +1899,12 @@
       :endpoint-name="selectedPublicationMembershipRow?.methodPath"
       @saved="loadOverview"
     />
+    <McpPublicationDialog ref="mcpPublicationDialog" />
   </div>
 </template>
 
 <script setup lang="ts">
+import McpPublicationDialog from "@/modules/runtime-assets/McpPublicationDialog.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import type { FormInstance } from "element-plus";
 import { ElMessage, ElMessageBox } from "element-plus";
@@ -1930,6 +1932,7 @@ import RuntimeUpstreamBindingDialog from "./RuntimeUpstreamBindingDialog.vue";
 
 const { t } = useI18n();
 const route = useRoute();
+const mcpPublicationDialog = ref<InstanceType<typeof McpPublicationDialog> | null>(null);
 const router = useRouter();
 
 type ProductSurface = "registration" | "governance" | "publication";
@@ -4002,11 +4005,13 @@ const executeRuntimeAssetAction = async (
 
   try {
     setActionLoading(runtimeAssetId, action);
-    if (action === "deploy") {
+    if ((action === "deploy" || action === "redeploy") && (runtimeAssetType || runtimeAsset?.asset?.type) === "mcp_server") {
+      if (!await mcpPublicationDialog.value?.open(runtimeAssetId, undefined, action)) return;
+    } else if (action === "deploy") {
       if (runtimeAssetType === "gateway_service") {
         await runtimeAssetsAPI.deployGatewayRuntimeAsset(runtimeAssetId);
       } else {
-        await runtimeAssetsAPI.deployMcpRuntimeAsset(runtimeAssetId);
+        if (!await mcpPublicationDialog.value?.open(runtimeAssetId)) return;
       }
     } else if (action === "start") {
       await runtimeAssetsAPI.startRuntimeAsset(runtimeAssetId);

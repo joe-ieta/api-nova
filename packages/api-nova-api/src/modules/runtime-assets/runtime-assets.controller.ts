@@ -143,6 +143,13 @@ export class RuntimeAssetsController {
     });
   }
 
+  @Post(':id/mcp-endpoint-preview')
+  @RequirePermissions('server:manage')
+  @ApiOperation({ summary: 'Preview managed MCP endpoint without allocation or deployment' })
+  async previewMcpEndpoint(@Param('id') id: string, @Body() body: DeployRuntimeAssetMcpDto) {
+    return this.runtimeAssetsService.previewMcpRuntimeAssetEndpoint(id, body);
+  }
+
   @Post(':id/deploy-mcp')
   @RequirePermissions('server:manage')
   @ApiOperation({ summary: 'Deploy MCP runtime asset into one managed server record' })

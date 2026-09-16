@@ -3,6 +3,10 @@ import {
   IsEnum,
   IsBoolean,
   IsNumber,
+  IsInt,
+  ValidateIf,
+  Matches,
+  MaxLength,
   IsOptional,
   IsString,
   Length,
@@ -47,16 +51,23 @@ export class DeployRuntimeAssetMcpDto {
   description?: string;
 
   @ApiPropertyOptional({ enum: TransportType, example: TransportType.STREAMABLE })
-  @IsOptional()
-  @IsString()
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsEnum(TransportType)
   transport?: TransportType;
 
   @ApiPropertyOptional({ example: 9022, minimum: 1024, maximum: 65535 })
-  @IsOptional()
-  @IsNumber()
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
   @Min(1024)
   @Max(65535)
   port?: number;
+
+  @ApiPropertyOptional({ example: '/mcp', maxLength: 256 })
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsString()
+  @MaxLength(256)
+  @Matches(/^\/(?!health(?:\/|$))[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/)
+  endpointPath?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
