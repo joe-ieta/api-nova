@@ -103,31 +103,42 @@ export class EndpointTestSampleObjectService {
     return bytes;
   }
 
+  private async publishFile(row: ObjectEntity): Promise<void> {
+    const root = await this.guardRoot();
+    const stage = join(root, row.objectKey + '.stage');
+    const published = join(root, row.objectKey + '.raw');
+    const exists = async (path: string) => {
+      try { await fs.lstat(path); return true; }
+      catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false; throw error; }
+    };
+    const stageExists = await exists(stage);
+    const publishedExists = await exists(published);
+    if (stageExists && publishedExists) fail('OBJECT_DESTINATION_EXISTS');
+    if (stageExists) {
+      await this.readFile(row, true);
+      if (await exists(published)) fail('OBJECT_DESTINATION_EXISTS');
+      await fs.rename(stage, published);
+    } else if (!publishedExists) {
+      fail('OBJECT_UNAVAILABLE');
+    }
+    // The complete file remains unreadable while the database row is staged.
+    // A retry may verify a prior rename before the transaction promotes it.
+    await this.readFile(row, false);
+  }
+
+  async stagePublishedFile(sampleId: string, objectId: string): Promise<void> {
+    return this.bounded(async () => {
+      const row = await this.row(sampleId, objectId, 'staged');
+      await this.publishFile(row);
+    });
+  }
+
   async publish(sampleId: string, objectId: string): Promise<void> {
     return this.bounded(async () => {
       const row = await this.row(sampleId, objectId);
       if (row.state === 'ready') { await this.readFile(row, false); return; }
       if (row.state !== 'staged') fail('OBJECT_UNAVAILABLE');
-      const root = await this.guardRoot();
-      const stage = join(root, row.objectKey + '.stage');
-      const published = join(root, row.objectKey + '.raw');
-      const exists = async (path: string) => {
-        try { await fs.lstat(path); return true; }
-        catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false; throw error; }
-      };
-      const stageExists = await exists(stage);
-      const publishedExists = await exists(published);
-      if (stageExists && publishedExists) fail('OBJECT_DESTINATION_EXISTS');
-      if (stageExists) {
-        await this.readFile(row, true);
-        if (await exists(published)) fail('OBJECT_DESTINATION_EXISTS');
-        await fs.rename(stage, published);
-      } else if (!publishedExists) {
-        fail('OBJECT_UNAVAILABLE');
-      }
-      // A valid final file with no staged file is recoverable after rename
-      // succeeded but the ready-state database update failed.
-      await this.readFile(row, false);
+      await this.publishFile(row);
       const result = await this.objects.update({ id: objectId, sampleId, state: 'staged' }, { state: 'ready' });
       if (result.affected !== 1) {
         const current = await this.row(sampleId, objectId, 'ready');

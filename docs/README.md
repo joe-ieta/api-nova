@@ -1,12 +1,12 @@
 ---
-doc-version: 1.3.0
+doc-version: 1.3.1
 doc-status: active
-doc-updated: 2026-09-14
+doc-updated: 2026-09-16
 ---
 # ApiNova Documentation Index
 
 > Document status: Active canonical index
-> Last reviewed: 2026-09-14
+> Last reviewed: 2026-09-16
 
 ## Documentation Classes
 
@@ -31,6 +31,7 @@ doc-updated: 2026-09-14
 
 - [Security Development Task Plan](./guides/security-development-task-plan.md)
 - [Security Development Execution Status](./guides/security-development-execution-status.md)
+- [Security Delivery Evidence Index](./guides/security-delivery-evidence-index.md)
 - [Staged Development Plan](./guides/staged-development-plan.md)
 - [Runtime Instance And Regression Closure Plan](./guides/runtime-instance-and-regression-closure-plan.md)
 - [Runtime Closure Design And Implementation Review](./reference/runtime-closure-design-implementation-review.md)

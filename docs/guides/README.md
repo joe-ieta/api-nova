@@ -1,12 +1,12 @@
 ---
-doc-version: 1.3.0
+doc-version: 1.3.1
 doc-status: active
-doc-updated: 2026-09-14
+doc-updated: 2026-09-16
 ---
 # Guides
 
 > Document status: Active index
-> Last reviewed: 2026-09-14
+> Last reviewed: 2026-09-16
 
 Only currently supported product paths, durable architecture contracts, and active execution plans belong here.
 
@@ -19,6 +19,7 @@ Only currently supported product paths, durable architecture contracts, and acti
 
 - [Security Development Task Plan](./security-development-task-plan.md)
 - [Security Development Execution Status](./security-development-execution-status.md)
+- [Security Delivery Evidence Index](./security-delivery-evidence-index.md)
 - [Staged Development Plan](./staged-development-plan.md)
 - [Runtime Instance And Regression Closure Plan](./runtime-instance-and-regression-closure-plan.md)
 - [Release Readiness Checklist](./release-readiness-checklist.md)

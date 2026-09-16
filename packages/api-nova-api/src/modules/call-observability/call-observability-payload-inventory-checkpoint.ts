@@ -1,6 +1,7 @@
 import {
   RuntimePayloadInventoryCheckpointEntity as Checkpoint,
   RuntimePayloadQuotaLedgerEntity as Ledger,
+  RuntimePayloadQuotaReservationEntity as Reservation,
   RuntimePipelineStateEntity,
 } from '../../database/entities/runtime-call-observability.entity';
 import type { ObservabilityReadTransaction, ObservabilityWriteTransaction } from './call-observability.store';
@@ -123,6 +124,17 @@ export class PayloadInventoryCheckpointStore {
       resumeEvidence: { rootIdentity: row.rootIdentity, completedShards } };
   }
 
+  /** Rebuild may inspect an old generation, but never a different owner or
+   * epoch. Its unverified rows remain unusable until a fenced rescan. */
+  async loadForRebuild(tx: Transaction, epoch: string): Promise<{
+    checkpoint: UnverifiedPayloadInventoryCheckpoint | null; currentGeneration: string }> {
+    const { ownerId, generation } = await this.scope(tx, epoch);
+    const row = await tx.manager.getRepository(Checkpoint).findOneBy({ ownerId });
+    if (!row) return { checkpoint: null, currentGeneration: generation };
+    if (row.epoch !== epoch) return fail('PAYLOAD_INVENTORY_CHECKPOINT_SCOPE_MISMATCH');
+    return { checkpoint: this.view(row), currentGeneration: generation };
+  }
+
   async load(tx: ObservabilityReadTransaction | ObservabilityWriteTransaction,
     epoch: string): Promise<UnverifiedPayloadInventoryCheckpoint | null> {
     const { ownerId, generation } = await this.scope(tx, epoch);
@@ -130,6 +142,27 @@ export class PayloadInventoryCheckpointStore {
     if (!row) return null;
     if (row.epoch !== epoch || row.generation !== generation) return fail('PAYLOAD_INVENTORY_CHECKPOINT_SCOPE_MISMATCH');
     return this.view(row);
+  }
+
+  /** Discard only stale, unverified progress. The caller must hold an inventory
+   * fence and rebuild from shard 0 in the same transaction if rows are ready. */
+  async discardUnverified(tx: ObservabilityWriteTransaction, epoch: string,
+    expected: UnverifiedPayloadInventoryCheckpoint, fencedGeneration: string): Promise<void> {
+    const { ownerId, generation } = await this.scope(tx, epoch);
+    if (expected.ownerId !== ownerId || expected.epoch !== epoch || generation !== fencedGeneration) {
+      return fail('PAYLOAD_INVENTORY_CHECKPOINT_SCOPE_MISMATCH');
+    }
+    const ledger = await tx.manager.getRepository(Ledger).findOneBy({ ownerId });
+    if (!ledger || ledger.state !== 'initializing' || ledger.baselineKey !== null ||
+      ledger.committedBytes !== '0' || ledger.reservedBytes !== '0' ||
+      await tx.manager.getRepository(Reservation).countBy({ ownerId })) {
+      return fail('PAYLOAD_INVENTORY_CHECKPOINT_NOT_READY');
+    }
+    const result = await tx.manager.getRepository(Checkpoint).delete({
+      ownerId, epoch, generation: expected.generation, version: expected.version,
+      rootIdentity: expected.resumeEvidence.rootIdentity,
+    });
+    if (result.affected !== 1) return fail('PAYLOAD_INVENTORY_CHECKPOINT_CONFLICT');
   }
 
   async append(tx: ObservabilityWriteTransaction, epoch: string, expectedVersion: number | null,

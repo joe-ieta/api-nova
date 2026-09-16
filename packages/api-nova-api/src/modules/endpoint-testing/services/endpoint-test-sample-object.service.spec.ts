@@ -53,6 +53,16 @@ describe('sample binary object primitives (isolated filesystem and SQL.js)', () 
     expect(await service.read('sample-a', id)).toEqual(bytes);
     expect((await fs.readdir(root))).toEqual([row.objectKey + '.raw']);
   });
+  it('publishes complete bytes while keeping the object staged and unreadable for the caller transaction', async () => {
+    const { objectId: id } = await prepare() as any;
+    await service.stagePublishedFile('sample-a', id);
+    const row = await repo.findOneByOrFail({ id });
+    expect(row.state).toBe('staged');
+    expect((await fs.readdir(root))).toEqual([row.objectKey + '.raw']);
+    await expect(service.read('sample-a', id)).rejects.toThrow('OBJECT_UNAVAILABLE');
+    await service.stagePublishedFile('sample-a', id);
+    expect((await repo.findOneByOrFail({ id })).state).toBe('staged');
+  });
   it('rejects over-limit and non-byte input without a file or reference', async () => {
     expect((await service.prepare('sample-a', Buffer.alloc(5), 'image/png', 'decoded_response_body')).captureState).toBe('too_large');
     await expect(service.prepare('sample-a', { type: 'Buffer', data: [1] } as any, 'image/png', 'decoded_response_body')).rejects.toThrow('OBJECT_BYTES_INVALID');

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 
-export type BinaryCaptureState = 'metadata_only' | 'too_large' | 'unavailable';
+export type BinaryCaptureState = 'metadata_only' | 'too_large' | 'unavailable' | 'stored' | 'storage_failed';
 
 export interface BinaryResponseDescriptor {
   kind: 'binary';
@@ -13,6 +13,19 @@ export interface BinaryResponseDescriptor {
   sha256: string | null;
   captureState: BinaryCaptureState;
   declaredBytes?: number;
+  opaqueObjectId?: string;
+}
+
+const trustedBinaryCaptures = new WeakSet<object>();
+
+/** Only the bounded HTTP stream reader can create this short-lived byte source. */
+export interface TrustedBinaryCapture {
+  readonly descriptor: BinaryResponseDescriptor;
+  readonly bytes: Buffer;
+}
+
+export function isTrustedBinaryCapture(value: unknown): value is TrustedBinaryCapture {
+  return value !== null && typeof value === 'object' && trustedBinaryCaptures.has(value);
 }
 
 export function binaryCaptureEnabled(): boolean {
@@ -73,6 +86,7 @@ export function unavailableBinaryDescriptor(mediaType: string, headers?: unknown
 /** Axios's Node adapter supplies a decoded Readable only with responseType=stream. */
 export async function readBoundedTestResponse(
   data: unknown, headers: unknown, maxBytes: number,
+  onTrustedBinary?: (capture: TrustedBinaryCapture) => void,
 ): Promise<unknown> {
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 128 * 1024 * 1024) {
     if (data instanceof Readable) data.destroy();
@@ -158,11 +172,18 @@ export async function readBoundedTestResponse(
     try { return JSON.parse(text); } catch { return text; }
   }
   const declaredBytes = declaredLength(headers);
-  return {
+  const bytes = complete ? Buffer.concat(chunks) : undefined;
+  const descriptor = {
     kind: 'binary', schemaVersion: 1, mediaType, measurement: 'decoded_response_body',
     observedBytes, isComplete: complete,
-    sha256: complete ? createHash('sha256').update(Buffer.concat(chunks)).digest('hex') : null,
+    sha256: bytes ? createHash('sha256').update(bytes).digest('hex') : null,
     captureState: complete ? 'metadata_only' : 'too_large',
     ...(declaredBytes === undefined ? {} : { declaredBytes }),
   } satisfies BinaryResponseDescriptor;
+  if (bytes && onTrustedBinary) {
+    const capture = { descriptor, bytes };
+    trustedBinaryCaptures.add(capture);
+    onTrustedBinary(capture);
+  }
+  return descriptor;
 }

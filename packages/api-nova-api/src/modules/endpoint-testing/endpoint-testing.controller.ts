@@ -1,15 +1,19 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
+  Header,
+  Headers,
   Param,
   Patch,
   Post,
   Query,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { RequirePermissions } from '../security/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../security/guards/jwt-auth.guard';
@@ -85,6 +89,25 @@ export class EndpointTestingController {
     @Query() query: EndpointTestSampleQueryDto,
   ) {
     return this.endpointTestingService.listTestSamples(endpointDefinitionId, query);
+  }
+
+  @Get('test-samples/:sampleId/binary-content')
+  @RequirePermissions('server:manage')
+  @ApiProduces('application/octet-stream')
+  @ApiOperation({ summary: 'Download a stored binary response sample' })
+  @Header('Cache-Control', 'no-store')
+  @Header('X-Content-Type-Options', 'nosniff')
+  async readBinaryContent(
+    @Param('sampleId') sampleId: string,
+    @Headers('range') range?: string,
+  ) {
+    if (range !== undefined) throw new BadRequestException('Range is not supported');
+    const bytes = await this.endpointTestingService.readBinaryContent(sampleId);
+    return new StreamableFile(bytes, {
+      type: 'application/octet-stream',
+      disposition: 'attachment; filename="endpoint-test-sample.bin"',
+      length: bytes.length,
+    });
   }
 
   @Patch('test-samples/:sampleId')

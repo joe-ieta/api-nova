@@ -1,14 +1,28 @@
 import {
   ConflictException,
+  GoneException,
+  HttpException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { Repository } from 'typeorm';
 import { LessThan } from 'typeorm';
 import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
 import { EndpointTestCaseEntity } from '../../../database/entities/endpoint-test-case.entity';
+import { EndpointTestSampleObjectEntity } from '../../../database/entities/endpoint-test-sample-object.entity';
+import {
+  BinaryResponseDescriptor,
+  binaryCaptureEnabled,
+  isTrustedBinaryCapture,
+  TrustedBinaryCapture,
+} from '../../asset-catalog/services/binary-test-response';
+import {
+  EndpointTestSampleObjectService,
+  SampleObjectError,
+} from './endpoint-test-sample-object.service';
 import {
   EndpointTestRunEntity,
   EndpointTestRunStatus,
@@ -37,6 +51,8 @@ export interface RecordEndpointTestSuccessInput {
   durationMs?: number;
   executedAt?: Date;
   metadata?: Record<string, unknown>;
+  /** Supplied only by the bounded HTTP stream reader, never by request JSON. */
+  trustedBinaryCapture?: TrustedBinaryCapture;
 }
 
 export interface RecordEndpointTestFailureInput {
@@ -53,6 +69,8 @@ export interface RecordEndpointTestFailureInput {
   executedAt?: Date;
   metadata?: Record<string, unknown>;
 }
+
+class BinaryObjectPromotionError extends Error {}
 
 @Injectable()
 export class EndpointTestingService {
@@ -76,6 +94,9 @@ export class EndpointTestingService {
     private readonly testRunRepository: Repository<EndpointTestRunEntity>,
     @InjectRepository(EndpointTestSampleEntity)
     private readonly testSampleRepository: Repository<EndpointTestSampleEntity>,
+    @InjectRepository(EndpointTestSampleObjectEntity)
+    private readonly sampleObjectRepository: Repository<EndpointTestSampleObjectEntity>,
+    private readonly sampleObjectService: EndpointTestSampleObjectService,
   ) {}
 
   async createTestCase(
@@ -167,6 +188,82 @@ export class EndpointTestingService {
     return this.toPage(data, total, page, limit);
   }
 
+  async readBinaryContent(sampleId: string): Promise<Buffer> {
+    const unavailable = () => new NotFoundException('Binary sample content unavailable');
+    const revoked = () => new GoneException('Binary sample content revoked');
+    const failed = () => new ServiceUnavailableException('Binary sample content unavailable');
+    try {
+      if (!binaryCaptureEnabled()) throw unavailable();
+      const sample = await this.requireTestSample(sampleId);
+      if (sample.status !== EndpointTestSampleStatus.ACTIVE &&
+        sample.status !== EndpointTestSampleStatus.ARCHIVED) throw unavailable();
+      await this.requireEndpoint(sample.endpointDefinitionId);
+
+      const descriptor = sample.responsePayload as BinaryResponseDescriptor | undefined;
+      if (!descriptor || typeof descriptor !== 'object' ||
+        descriptor.kind !== 'binary' || descriptor.schemaVersion !== 1 ||
+        descriptor.captureState !== 'stored' || !descriptor.isComplete ||
+        typeof descriptor.opaqueObjectId !== 'string' ||
+        !/^[0-9a-f-]{36}$/.test(descriptor.opaqueObjectId)) throw unavailable();
+      const objectId = descriptor.opaqueObjectId;
+      const object = await this.sampleObjectRepository.findOne({
+        where: { id: objectId, sampleId, side: 'response' },
+      });
+      if (!object) throw unavailable();
+      if (object.state === 'delete_pending' || object.state === 'deleted') throw revoked();
+      if (object.state !== 'ready') throw unavailable();
+      if (descriptor.mediaType !== object.mediaType ||
+        descriptor.measurement !== object.measurement ||
+        descriptor.observedBytes !== object.observedBytes ||
+        descriptor.sha256 !== object.sha256) throw failed();
+
+      let bytes: Buffer;
+      try {
+        bytes = await this.sampleObjectService.read(sampleId, objectId);
+      } catch (error) {
+        if (!(error instanceof SampleObjectError) || error.code !== 'OBJECT_UNAVAILABLE') {
+          throw error;
+        }
+        const current = await this.sampleObjectRepository.findOne({
+          where: { id: objectId, sampleId, side: 'response' },
+        });
+        if (current?.state === 'delete_pending' || current?.state === 'deleted') throw revoked();
+        if (!current || current.state === 'staged') throw unavailable();
+        throw failed();
+      }
+      // The file read closes before these final checks. No bytes are returned
+      // after a completed sample-reference or object-state change.
+      const currentSample = await this.testSampleRepository.findOne({
+        where: { id: sampleId },
+      });
+      const currentObject = await this.sampleObjectRepository.findOne({
+        where: { id: objectId, sampleId, side: 'response' },
+      });
+      if (currentObject?.state === 'delete_pending' || currentObject?.state === 'deleted') {
+        throw revoked();
+      }
+      const currentDescriptor = currentSample?.responsePayload as BinaryResponseDescriptor | undefined;
+      if (!currentSample || currentSample.endpointDefinitionId !== sample.endpointDefinitionId ||
+        (currentSample.status !== EndpointTestSampleStatus.ACTIVE &&
+          currentSample.status !== EndpointTestSampleStatus.ARCHIVED) ||
+        currentDescriptor?.captureState !== 'stored' ||
+        currentDescriptor.opaqueObjectId !== objectId ||
+        currentObject?.state !== 'ready') throw unavailable();
+      if (currentDescriptor.sha256 !== object.sha256 ||
+        currentDescriptor.observedBytes !== object.observedBytes ||
+        currentDescriptor.mediaType !== object.mediaType ||
+        currentDescriptor.measurement !== object.measurement ||
+        currentObject.sha256 !== object.sha256 ||
+        currentObject.observedBytes !== object.observedBytes ||
+        currentObject.objectKey !== object.objectKey) throw failed();
+      await this.requireEndpoint(sample.endpointDefinitionId);
+      return bytes;
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw failed();
+    }
+  }
+
   async updateTestSample(
     sampleId: string,
     dto: UpdateEndpointTestSampleDto,
@@ -194,6 +291,7 @@ export class EndpointTestingService {
 
   async deleteTestSample(sampleId: string) {
     await this.requireTestSample(sampleId);
+    await this.assertNoSampleObject(sampleId);
     await this.testSampleRepository.delete({ id: sampleId });
     return { sampleId, deleted: true };
   }
@@ -209,56 +307,162 @@ export class EndpointTestingService {
       },
       select: { id: true },
     });
+    let deletedCount = 0;
+    let skippedObjectCount = 0;
     for (const sample of expired) {
+      if (await this.hasSampleObject(sample.id)) {
+        skippedObjectCount++;
+        continue;
+      }
       await this.testSampleRepository.delete({ id: sample.id });
+      deletedCount++;
     }
-    return { deletedCount: expired.length, retentionDays: days, cutoff };
+    return { deletedCount, skippedObjectCount, retentionDays: days, cutoff };
   }
 
   async recordSuccessfulRun(input: RecordEndpointTestSuccessInput) {
     await this.validateRunReferences(input.endpointDefinitionId, input.testCaseId);
     const executedAt = input.executedAt ?? new Date();
     const evidence = this.sanitizeEvidence(input);
-    const fingerprint = this.createEvidenceFingerprint({
-      requestHeaders: evidence.requestHeaders,
-      requestPayload: evidence.requestPayload,
-      responseStatusCode: input.responseStatusCode,
-      responsePayload: evidence.responsePayload,
-    });
+    const sampleId = randomUUID();
+    const binary = await this.prepareBinaryEvidence(input, sampleId);
 
-    return this.testRunRepository.manager.transaction(async manager => {
-      const runRepository = manager.getRepository(EndpointTestRunEntity);
-      const sampleRepository = manager.getRepository(EndpointTestSampleEntity);
-      const run = await runRepository.save(
-        runRepository.create({
-          endpointDefinitionId: input.endpointDefinitionId,
-          testCaseId: input.testCaseId,
-          sourceServiceInstanceId: input.sourceServiceInstanceId,
-          status: EndpointTestRunStatus.SUCCESS,
-          ...evidence,
-          responseStatusCode: input.responseStatusCode,
-          durationMs: input.durationMs,
-          executedAt,
-        }),
-      );
-      const sample = await sampleRepository.save(
-        sampleRepository.create({
-          endpointDefinitionId: input.endpointDefinitionId,
-          testCaseId: input.testCaseId,
-          testRunId: run.id,
-          sourceServiceInstanceId: input.sourceServiceInstanceId,
-          fingerprint,
-          enabled: true,
-          status: EndpointTestSampleStatus.ACTIVE,
-          ...evidence,
-          responseStatusCode: input.responseStatusCode,
-          durationMs: input.durationMs,
-          capturedAt: executedAt,
-        }),
-      );
+    const persist = (
+      runResponsePayload: unknown,
+      sampleResponsePayload: unknown,
+      objectId?: string,
+    ) => {
+      const fingerprint = this.createEvidenceFingerprint({
+        requestHeaders: evidence.requestHeaders,
+        requestPayload: evidence.requestPayload,
+        responseStatusCode: input.responseStatusCode,
+        responsePayload: runResponsePayload,
+      });
+      return this.testRunRepository.manager.transaction(async manager => {
+        const runRepository = manager.getRepository(EndpointTestRunEntity);
+        const sampleRepository = manager.getRepository(EndpointTestSampleEntity);
+        const run = await runRepository.save(
+          runRepository.create({
+            endpointDefinitionId: input.endpointDefinitionId,
+            testCaseId: input.testCaseId,
+            sourceServiceInstanceId: input.sourceServiceInstanceId,
+            status: EndpointTestRunStatus.SUCCESS,
+            ...evidence,
+            responsePayload: runResponsePayload,
+            responseStatusCode: input.responseStatusCode,
+            durationMs: input.durationMs,
+            executedAt,
+          }),
+        );
+        const sample = await sampleRepository.save(
+          sampleRepository.create({
+            id: sampleId,
+            endpointDefinitionId: input.endpointDefinitionId,
+            testCaseId: input.testCaseId,
+            testRunId: run.id,
+            sourceServiceInstanceId: input.sourceServiceInstanceId,
+            fingerprint,
+            enabled: true,
+            status: EndpointTestSampleStatus.ACTIVE,
+            ...evidence,
+            responsePayload: sampleResponsePayload,
+            responseStatusCode: input.responseStatusCode,
+            durationMs: input.durationMs,
+            capturedAt: executedAt,
+          }),
+        );
+        if (objectId) {
+          try {
+            const promoted = await manager.getRepository(EndpointTestSampleObjectEntity).update(
+              { id: objectId, sampleId, side: 'response', state: 'staged' },
+              { state: 'ready' },
+            );
+            if (promoted.affected !== 1) throw new Error('Object was not staged');
+          } catch {
+            throw new BinaryObjectPromotionError();
+          }
+        }
+        return { run, sample };
+      });
+    };
 
-      return { run, sample };
+    try {
+      return await persist(
+        binary?.runPayload ?? evidence.responsePayload,
+        binary?.samplePayload ?? evidence.responsePayload,
+        binary?.objectId,
+      );
+    } catch (error) {
+      if (!(error instanceof BinaryObjectPromotionError) || !binary?.objectId) throw error;
+      // The failed transaction rolled back run/sample and the object promotion.
+      // The published file remains staged, so retry only the metadata-only result.
+      const payload: BinaryResponseDescriptor = {
+        ...binary.runPayload, captureState: 'storage_failed',
+      };
+      return persist(payload, payload);
+    }
+  }
+
+  private async prepareBinaryEvidence(
+    input: RecordEndpointTestSuccessInput,
+    sampleId: string,
+  ): Promise<{
+    runPayload: BinaryResponseDescriptor;
+    samplePayload: BinaryResponseDescriptor;
+    objectId?: string;
+  } | undefined> {
+    const capture = input.trustedBinaryCapture;
+    if (!binaryCaptureEnabled() || !isTrustedBinaryCapture(capture) ||
+      capture.descriptor !== input.responsePayload) return undefined;
+    const descriptor = capture.descriptor;
+    const bytes = Buffer.from(capture.bytes);
+    if (descriptor.kind !== 'binary' || descriptor.schemaVersion !== 1 ||
+      descriptor.captureState !== 'metadata_only' || !descriptor.isComplete ||
+      descriptor.measurement !== 'decoded_response_body' ||
+      descriptor.observedBytes !== bytes.length ||
+      descriptor.sha256 !== createHash('sha256').update(bytes).digest('hex')) {
+      return undefined;
+    }
+    try {
+      const prepared = await this.sampleObjectService.prepare(
+        sampleId, bytes, descriptor.mediaType, descriptor.measurement,
+      );
+      if (prepared.captureState === 'staged') {
+        await this.sampleObjectService.stagePublishedFile(sampleId, prepared.objectId);
+        const runPayload: BinaryResponseDescriptor = {
+          ...descriptor, captureState: 'stored',
+        };
+        return {
+          runPayload,
+          samplePayload: { ...runPayload, opaqueObjectId: prepared.objectId },
+          objectId: prepared.objectId,
+        };
+      }
+      const payload: BinaryResponseDescriptor = {
+        ...descriptor,
+        captureState: prepared.captureState,
+        ...(prepared.captureState === 'too_large' ? { sha256: null } : {}),
+      };
+      return { runPayload: payload, samplePayload: payload };
+    } catch {
+      const payload: BinaryResponseDescriptor = {
+        ...descriptor, captureState: 'storage_failed',
+      };
+      return { runPayload: payload, samplePayload: payload };
+    }
+  }
+
+  private async hasSampleObject(sampleId: string): Promise<boolean> {
+    return !!await this.sampleObjectRepository.findOne({
+      where: { sampleId, side: 'response' },
+      select: { id: true },
     });
+  }
+
+  private async assertNoSampleObject(sampleId: string): Promise<void> {
+    if (await this.hasSampleObject(sampleId)) {
+      throw new ConflictException('Binary sample object requires explicit reference revocation');
+    }
   }
 
   async recordFailedRun(input: RecordEndpointTestFailureInput) {

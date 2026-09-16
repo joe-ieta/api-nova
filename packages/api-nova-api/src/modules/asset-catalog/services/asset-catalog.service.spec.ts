@@ -194,6 +194,17 @@ describe('AssetCatalogService', () => {
     expect(endpointTestingService.recordFailedRun).not.toHaveBeenCalled();
   });
 
+  it('does not convert a successful HTTP result into a failed run when persistence fails', async () => {
+    httpService.request.mockReturnValue(
+      of({ status: 200, data: { orderId: 'order-1' }, headers: { 'content-type': 'application/json' } }),
+    );
+    endpointTestingService.recordSuccessfulRun.mockRejectedValueOnce(new Error('sample database unavailable'));
+    await expect(service.executeEndpointDefinitionTest('endpoint-1')).rejects.toThrow(
+      'sample database unavailable',
+    );
+    expect(endpointTestingService.recordFailedRun).not.toHaveBeenCalled();
+  });
+
   describe('binary response capture at the real HTTP test boundary', () => {
     const initialFlag = process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED;
     const initialLimit = process.env.ENDPOINT_TEST_SAMPLE_MAX_BYTES;
@@ -250,7 +261,10 @@ describe('AssetCatalogService', () => {
             captureState: 'metadata_only', declaredBytes: compressed.length,
           },
         }));
-        const payload = endpointTestingService.recordSuccessfulRun.mock.calls[0][0].responsePayload;
+        const recorded = endpointTestingService.recordSuccessfulRun.mock.calls[0][0];
+        const payload = recorded.responsePayload;
+        expect(recorded.trustedBinaryCapture.descriptor).toBe(payload);
+        expect(recorded.trustedBinaryCapture.bytes).toEqual(original);
         expect(JSON.stringify(payload)).not.toContain(original.toString('base64'));
       } finally { await upstream.close(); }
     });

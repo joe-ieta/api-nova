@@ -1,5 +1,5 @@
 ---
-doc-version: 1.4.0
+doc-version: 1.5.0
 doc-status: active
 doc-updated: 2026-09-16
 implementation-status: partial
@@ -96,7 +96,9 @@ implementation-status: partial
 | 05B 正文发布门禁 | 现有prepare/publish接入预算与省略语义 | 临时+最终峰值、既有对象复用、摘要冲突、空正文、并发大正文、ENOSPC/EACCES；业务响应与上游次数不变，原因与字节语义正确。 |
 | 05C1 只读盘点原语 | 有界枚举、完整性/字节/游标证据；不改账本、不删除 | 空目录、未知文件、路径变化、分页边界和失败不伪造完整覆盖。 |
 | 05C2A 持久只读前缀 | 完整shard前缀与owner/epoch/generation核验 | 跨会话前缀一致、持久游标可复核；不建立ready baseline。 |
-| 05C2B 围栏与baseline | 跨批writer/GC围栏和原子baseline | 围栏失效、generation变化、覆盖不完整时拒绝ready。 |
+| 05C2B1 跨批围栏 | 同owner/generation的inventory租约，跨批阻挡writer/GC | 过期、重启和双Store竞争不复用旧证据。 |
+| 05C2B2 原子baseline | 围栏下重扫持久前缀，必要时CAS重建，并在最终事务确认 | 完整256 shard、owner/epoch/generation和预留一致；不完整不ready。 |
+| 05C2B3 故障验收 | 独立并发、重启、事务故障矩阵 | 不超卖、不误ready；不代替05C3跨平台验收。 |
 | 05C2C 预留与孤儿恢复 | 未结算预留、发布后孤儿和残留占用保守对账 | 未知占用不少计；恢复失败不释放额度。 |
 | 05C3 崩溃与多写者验收 | 预留、写入、发布、DB提交各失败点重建验证 | 多实例不能超卖/少计，重启不重复收费，残留保护和回滚证据完整。 |
 | 05D 状态/策略与本地故障联调 | 受权配置、版本审计、只读容量状态、水位恢复 | 90%受限、80%恢复、物理余量及15秒陈旧边界；缩小Q不删旧数据；账号/资产权限不泄余额；长期压力下队列/内存有限，业务不中断。 |
@@ -120,4 +122,10 @@ implementation-status: partial
 
 OBS-14-05A新增受管正文预算ledger/reservation、严格Q/H/L配置、epoch/CAS与幂等预留结算；隔离联合18/18通过。OBS-14-05B将可选正文prepare/publish接入预算：启用但账本未就绪或额度不足时在写临时文件前省略正文，维持业务结果和有限元数据；已验证峰值预留、复用、结算失败保守占用和默认关闭回归。05B专项11/11、旧六脚本81/81以及API类型检查/构建通过。关闭开关时沿用旧行为；对外scanUsage.quotaEnforced仍为false，不能把局部写入门禁称为全域强制配额。
 
-发布成功后若外围元数据事务失败，已计费对象可能暂时成为孤儿。05C1只读有界盘点与跨会话完整shard前缀复核已通过专项6/6、旧GC/容量27/27及API typecheck；它只提供writerFenceRequired=true、baselineReady=false的证据，不改账本、schema或文件。05C2A已完成持久但未验证的完整shard前缀与owner/epoch/generation CAS，专项5/5、C1 6/6、quota 8/8及API typecheck通过；未持writer/GC围栏、未确认baseline、未改ledger。05C2B跨批围栏及原子baseline已解锁，05C2C未结算预留/孤儿对象恢复、05C3重启/多写者验收和05D受权状态、物理余量及全局策略均尚未完成。未知占用仍须保守保留，不能把C1盘点证据用作ready baseline。以上为Windows本地SQL.js/故障夹具结果，不是当前版本PostgreSQL/Linux、多进程磁盘压力或生产配额验收。完整状态以[统一子任务台账](../guides/active-work-package-execution-status.md)为准。
+发布成功后若外围元数据事务失败，已计费对象可能暂时成为孤儿。05C1只读有界盘点与跨会话完整shard前缀复核已通过专项6/6、旧GC/容量27/27及API typecheck；它只提供writerFenceRequired=true、baselineReady=false的证据，不改账本、schema或文件。05C2A已完成持久但未验证的完整shard前缀与owner/epoch/generation CAS，专项5/5、C1 6/6、quota 8/8及API typecheck通过；未持writer/GC围栏、未确认baseline、未改ledger。05C2B1/B2/B3的后续限定证据见第11节；05C2C未结算预留/孤儿对象恢复、05C3重启/多写者验收和05D受权状态、物理余量及全局策略均尚未完成。未知占用仍须保守保留，不能把C1盘点证据用作ready baseline。以上为Windows本地SQL.js/故障夹具结果，不是当前版本PostgreSQL/Linux、多进程磁盘压力或生产配额验收。完整状态以[统一子任务台账](../guides/active-work-package-execution-status.md)为准。
+
+## 11. 05C2B1/B2/B3限定证据（2026-09-16）
+
+05C2B1完成跨批inventory围栏：同一generation下持有、续租、事务断言和原子结束，跨Store阻挡writer/GC；租约过期使旧前缀代次持久失效，专项7/7。05C2B2在该围栏内从shard 0有界重扫，核对C2A未验证前缀；旧代次或原地变化时仅在ledger仍initializing、无reservation且owner/epoch已确认的条件下CAS废弃并重建。完整256 shard与owner/root/generation/账本/预留在最终事务复核，确认baseline后quotaEnforced仍为false。单批最多1000条，默认32批、显式上限10000批；超预算仅返回incomplete，不标ready。专项15/15。05C2B3隔离SQL.js故障矩阵7/7，覆盖双Store竞争、模拟崩溃导出重启、扫描/事务失败、租约超时及确认后硬上限。
+
+这三项仅证明受管正文域的限定基线能力，未接入管理入口或启动流程，也未结算未知预留/孤儿或启用全域强制配额。外部直接修改文件不能与数据库形成原子快照；Linux、PostgreSQL、真实多进程/杀进程和磁盘压力仍属05C3/05D独立验收。OBS-14-05C2C已解锁，完整状态见[统一台账](../guides/active-work-package-execution-status.md)。

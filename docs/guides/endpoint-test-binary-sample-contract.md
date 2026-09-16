@@ -1,16 +1,16 @@
 ---
-doc-version: 0.4.0
+doc-version: 0.5.0
 doc-status: active
 implementation-status: partial
 doc-updated: 2026-09-16
 ---
 # 端点测试二进制样例合同
 
-PROD-04A交付源码核对与PROD-04B/04C实施边界。本文冻结本地受控对象存储的技术合同；第1–8节保留04A时的现状与实施要求，第9节记录04B1限定实现。不表示原始二进制可自动脱敏或生产存储已经批准启用。DEV-04及父工作包状态不因04A/B1完成而关闭。
+PROD-04A交付源码核对与PROD-04B/04C实施边界。本文冻结本地受控对象存储的技术合同；第1–8节保留04A时的现状与实施要求，第9节记录04B1阶段，第10节记录本批限定实现。不表示原始二进制可自动脱敏或生产存储已经批准启用。DEV-04及父工作包状态不因04A/B1完成而关闭。
 
-## 1. 已实现依据与缺口
+## 1. 04A阶段依据与缺口（历史快照）
 
-| 层次 | 当前事实 | 尚需实现 |
+| 层次 | 04A阶段事实 | 04A阶段待实现 |
 | --- | --- | --- |
 | 实际采集 | AssetCatalogService调用HttpService后把response.data传给recordSuccessfulRun；没有显式二进制responseType或完整字节测量合同 | 在真实测试响应边界识别字节，不能从已经转码的字符串恢复原始二进制 |
 | 样例/运行记录 | 成功测试在同一数据库事务生成run与一个独立sample；requestPayload/responsePayload均是JSON列 | 二进制对象描述符及独立受控对象引用 |
@@ -108,10 +108,14 @@ requestPayload继续使用现有JSON参数，不支持把binary descriptor变成
 | 验证 | 二进制unsupported或缺失阻断；status-only必须显式；支持binary-exact时真实不同字节失败，旧发布版本保留 |
 | 分离 | OBS正文目录、事件、TTL和配额不被本整理入口触碰 |
 
-04A最初仅交付DOC；04B1已有第9节所述局部对象原语，04B2A/B/C、04B3及04C尚未完成。现有内部读取不等于HTTP受权下载；binary-exact、样例对象持久化与HTTP受权下载仍不得标为已实现。
+04A最初仅交付DOC；04B1已有第9节所述局部对象原语，04B2A/B/C已有各自限定证据；04B3及04C尚未完成。04B1阶段的内部读取本身不等于HTTP受权下载；B2B1/B2C现已有独立限定证据，binary-exact、引用撤销与对象整理仍不得标为已实现。
+
 ## 9. 04B1限定实现快照（2026-09-16）
 
-PROD-04B1已建立专用对象实体与SQLite/PostgreSQL空库初始化结构，新增默认关闭的私有对象根、staged→ready发布原语及有界内部读取；rename成功后数据库写入失败的重试/幂等恢复有专项覆盖。对象原语9/9、API构建通过；SQLite空库smoke核对67表且drift=0。04B2A已在显式开关下验证真实loopback响应字节的有界descriptor；默认仍关闭，未将字节落盘，也未提供HTTP下载或对象删除。04B2B/C、04B3引用撤销/整理与04C整体验收仍待完成。原始字节可能包含敏感信息，04B1的内部原语不构成生产配置启用或跨平台文件权限验收。
-## 10. 04B2下一批拆分（2026-09-16）
+PROD-04B1已建立专用对象实体及SQLite/PostgreSQL方言定义，新增默认关闭的私有对象根、staged→ready发布原语及有界内部读取；rename成功后数据库写入失败的重试/幂等恢复有专项覆盖。对象原语9/9、API构建通过；SQLite空库smoke核对67表且drift=0。04B2A已在显式开关下验证真实loopback响应字节的有界descriptor；默认仍关闭，未将字节落盘，也未提供HTTP下载或对象删除。04B2B/C后续进展见第10节；04B3引用撤销/整理与04C整体验收仍待完成。原始字节可能包含敏感信息，04B1的内部原语不构成生产配置启用或跨平台文件权限验收。
 
-原聚合04B2拆成三个独立代码出口：04B2A从真实HTTP响应取得字节并生成有界descriptor，仍默认关闭；04B2B将成功run/sample引用与对象发布、失败补偿放入一致事务边界；04B2C在server:manage权限与sample真实归属核验后提供内容读取。04B2A已通过27/27及API typecheck：未声明二进制类型只返回unavailable，JSON/text/HTTP失败与默认off保持旧行为；不落盘/下载。04B2B已解锁，04B2C仍待事务补偿完成；04B3现依赖B2C。任何描述符、内部对象原语或计划中的下载路由都不代表原始内容已可受权读取或04C验收通过。
+## 10. 04B2限定实施快照（2026-09-16）
+
+原聚合04B2现按任务划分为B2A、B2B1、B2B2和B2C。B2A从真实HTTP响应取得有界原始字节与descriptor，默认关闭；未知二进制类型返回unavailable，JSON/text/HTTP失败保持原有路径，专项27/27。B2B1只允许受信流字节进入样例对象事务：run不持对象引用，sample的服务端字段持opaqueObjectId；完整文件在对象行ready前仍staged且不可读，文件或对象状态故障把真实HTTP成功记录为storage_failed。直接删除和到期整理对已有对象行暂时拒绝或跳过，防止留下可读孤儿。B2B2在隔离SQL.js与临时目录下验证重启、重复样例、文件open/rename与事务故障，staged半对象重启后仍不可读。B2C新增server:manage受权内容读取，经真实JWT守卫、sample归属与对象ready状态核验，固定octet-stream/attachment/nosniff/no-store响应；归档不立即撤销，Range不支持。五套二进制专项合计68/68，API类型检查与构建通过。
+
+以上是限定本机证据。B3仍需引用撤销、显式对象整理和binary-exact/unsupported验证语义；04C需实际留存、跨平台权限及完整安全矩阵。当前不自动清除staged墓碑，也不启用生产对象存储；完整状态以[统一子任务台账](./active-work-package-execution-status.md)为准。

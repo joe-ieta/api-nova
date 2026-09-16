@@ -1,4 +1,7 @@
 import { ConflictException } from '@nestjs/common';
+import { Readable } from 'node:stream';
+import { readBoundedTestResponse, TrustedBinaryCapture } from '../../asset-catalog/services/binary-test-response';
+import { EndpointTestSampleObjectEntity } from '../../../database/entities/endpoint-test-sample-object.entity';
 import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
 import { EndpointTestCaseEntity } from '../../../database/entities/endpoint-test-case.entity';
 import { EndpointTestRunEntity } from '../../../database/entities/endpoint-test-run.entity';
@@ -36,11 +39,21 @@ describe('EndpointTestingService', () => {
     delete: jest.fn(),
   };
 
+  const sampleObjectRepository = {
+    findOne: jest.fn(),
+    update: jest.fn(),
+  };
+  const sampleObjectService = {
+    prepare: jest.fn(),
+    stagePublishedFile: jest.fn(),
+  };
   const service = new EndpointTestingService(
     endpointRepository as any,
     testCaseRepository as any,
     testRunRepository as any,
     testSampleRepository as any,
+    sampleObjectRepository as any,
+    sampleObjectService as any,
   );
 
   let runSequence: number;
@@ -63,11 +76,15 @@ describe('EndpointTestingService', () => {
       id: `run-${++runSequence}`,
       ...(value as Record<string, unknown>),
     }));
+    sampleObjectRepository.findOne.mockResolvedValue(null);
+    sampleObjectRepository.update.mockResolvedValue({ affected: 1 });
+    sampleObjectService.prepare.mockResolvedValue({ captureState: 'metadata_only' });
+    sampleObjectService.stagePublishedFile.mockResolvedValue(undefined);
     testSampleRepository.create.mockImplementation(value => value);
     testSampleRepository.save.mockImplementation(async value => {
       const saved = {
-        id: `sample-${++sampleSequence}`,
         ...(value as Record<string, unknown>),
+        id: `sample-${++sampleSequence}`,
       };
       savedSamples.push(saved);
       return saved;
@@ -81,6 +98,9 @@ describe('EndpointTestingService', () => {
             }
             if (entity === EndpointTestSampleEntity) {
               return testSampleRepository;
+            }
+            if (entity === EndpointTestSampleObjectEntity) {
+              return sampleObjectRepository;
             }
             throw new Error('Unexpected entity');
           },
@@ -256,5 +276,152 @@ describe('EndpointTestingService', () => {
       deleted: true,
     });
     expect(testSampleRepository.delete).toHaveBeenCalledWith({ id: 'sample-1' });
+  });
+  it('stores only a stream-authenticated binary response with a server-owned object reference', async () => {
+    const previous = process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED;
+    process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = 'true';
+    try {
+      const bytes = Buffer.from([0, 255, 128, 1]);
+      let trustedBinaryCapture: TrustedBinaryCapture | undefined;
+      const responsePayload = await readBoundedTestResponse(
+        Readable.from([bytes], { objectMode: false }),
+        { 'content-type': 'application/pdf' },
+        4,
+        capture => { trustedBinaryCapture = capture; },
+      );
+      sampleObjectService.prepare.mockResolvedValue({
+        captureState: 'staged', objectId: 'object-1',
+        observedBytes: 4, isComplete: true,
+      });
+      testSampleRepository.save.mockImplementation(async value => {
+        const saved = { ...(value as Record<string, unknown>) };
+        savedSamples.push(saved);
+        return saved;
+      });
+      const result = await service.recordSuccessfulRun({
+        endpointDefinitionId: 'endpoint-1',
+        responseStatusCode: 200,
+        responsePayload,
+        trustedBinaryCapture,
+      });
+      const ownerId = sampleObjectService.prepare.mock.calls[0][0];
+      expect(ownerId).toBe(result.sample.id);
+      expect(sampleObjectService.prepare.mock.calls[0][1]).toEqual(bytes);
+      expect(sampleObjectService.stagePublishedFile).toHaveBeenCalledWith(ownerId, 'object-1');
+      expect(sampleObjectRepository.update).toHaveBeenCalledWith(
+        { id: 'object-1', sampleId: ownerId, side: 'response', state: 'staged' },
+        { state: 'ready' },
+      );
+      expect(result.run.responsePayload).toEqual(expect.objectContaining({
+        kind: 'binary', captureState: 'stored', observedBytes: 4,
+      }));
+      expect((result.run.responsePayload as any).opaqueObjectId).toBeUndefined();
+      expect(result.sample.responsePayload).toEqual(expect.objectContaining({
+        captureState: 'stored', opaqueObjectId: 'object-1',
+      }));
+      expect(result.sample.metadata).toBeUndefined();
+    } finally {
+      if (previous === undefined) delete process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED;
+      else process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = previous;
+    }
+  });
+
+  it('does not reconstruct binary bytes from a forged descriptor or user metadata', async () => {
+    const previous = process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED;
+    process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = 'true';
+    try {
+      const descriptor = {
+        kind: 'binary', schemaVersion: 1, mediaType: 'application/pdf',
+        measurement: 'decoded_response_body', observedBytes: 4, isComplete: true,
+        sha256: 'a'.repeat(64), captureState: 'metadata_only',
+      };
+      const result = await service.recordSuccessfulRun({
+        endpointDefinitionId: 'endpoint-1', responseStatusCode: 200,
+        responsePayload: descriptor,
+        metadata: { bytes: [0, 255, 128, 1], opaqueObjectId: 'forged' },
+      });
+      expect(sampleObjectService.prepare).not.toHaveBeenCalled();
+      expect(result.sample.responsePayload).toEqual(descriptor);
+      expect((result.sample.responsePayload as any).opaqueObjectId).toBeUndefined();
+    } finally {
+      if (previous === undefined) delete process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED;
+      else process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = previous;
+    }
+  });
+
+  it('preserves HTTP success as storage_failed when object publication fails', async () => {
+    const previous = process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED;
+    process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = 'true';
+    try {
+      let trustedBinaryCapture: TrustedBinaryCapture | undefined;
+      const responsePayload = await readBoundedTestResponse(
+        Readable.from([Buffer.from([0, 255])], { objectMode: false }),
+        { 'content-type': 'image/png' }, 2,
+        capture => { trustedBinaryCapture = capture; },
+      );
+      sampleObjectService.prepare.mockResolvedValue({
+        captureState: 'staged', objectId: 'object-2',
+        observedBytes: 2, isComplete: true,
+      });
+      sampleObjectService.stagePublishedFile.mockRejectedValue(new Error('disk failed'));
+      const result = await service.recordSuccessfulRun({
+        endpointDefinitionId: 'endpoint-1', responseStatusCode: 200,
+        responsePayload, trustedBinaryCapture,
+      });
+      expect(result.run.status).toBe('success');
+      expect(result.sample.responsePayload).toEqual(expect.objectContaining({
+        captureState: 'storage_failed',
+      }));
+      expect((result.sample.responsePayload as any).opaqueObjectId).toBeUndefined();
+      expect(sampleObjectRepository.update).not.toHaveBeenCalled();
+    } finally {
+      if (previous === undefined) delete process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED;
+      else process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = previous;
+    }
+  });
+
+  it('falls back to a storage_failed success when promotion affects no staged row', async () => {
+    const previous = process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED;
+    process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = 'true';
+    try {
+      let trustedBinaryCapture: TrustedBinaryCapture | undefined;
+      const responsePayload = await readBoundedTestResponse(
+        Readable.from([Buffer.from([0, 255])], { objectMode: false }),
+        { 'content-type': 'application/pdf' }, 2,
+        capture => { trustedBinaryCapture = capture; },
+      );
+      sampleObjectService.prepare.mockResolvedValue({
+        captureState: 'staged', objectId: 'object-3',
+        observedBytes: 2, isComplete: true,
+      });
+      sampleObjectRepository.update.mockResolvedValue({ affected: 0 });
+      const result = await service.recordSuccessfulRun({
+        endpointDefinitionId: 'endpoint-1', responseStatusCode: 200,
+        responsePayload, trustedBinaryCapture,
+      });
+      expect(result.run.status).toBe('success');
+      expect(result.sample.responsePayload).toEqual(expect.objectContaining({
+        captureState: 'storage_failed',
+      }));
+      expect((result.sample.responsePayload as any).opaqueObjectId).toBeUndefined();
+      expect(testRunRepository.manager.transaction).toHaveBeenCalledTimes(2);
+    } finally {
+      if (previous === undefined) delete process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED;
+      else process.env.ENDPOINT_TEST_SAMPLE_BINARY_CAPTURE_ENABLED = previous;
+    }
+  });
+
+  it.each(['ready', 'staged'])('protects %s object samples from direct and retention deletion', async state => {
+    testSampleRepository.findOne.mockResolvedValue({
+      id: 'sample-1', endpointDefinitionId: 'endpoint-1',
+    });
+    testSampleRepository.find.mockResolvedValue([{ id: 'sample-1' }]);
+    sampleObjectRepository.findOne.mockResolvedValue({ id: 'object-1', state });
+    await expect(service.deleteTestSample('sample-1')).rejects.toBeInstanceOf(ConflictException);
+    expect(testSampleRepository.delete).not.toHaveBeenCalled();
+    await expect(service.cleanupExpiredSamples(30)).resolves.toEqual(
+      expect.objectContaining({ deletedCount: 0, skippedObjectCount: 1 }),
+    );
+    expect(testSampleRepository.delete).not.toHaveBeenCalled();
   });
 });

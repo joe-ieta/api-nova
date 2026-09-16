@@ -7,7 +7,8 @@ import { AxiosError } from 'axios';
 import { Readable } from 'node:stream';
 import {
   binaryCaptureEnabled, binaryCaptureLimit, declaresBinaryResponse,
-  isBinaryMediaType, readBoundedTestResponse, responseMediaType, unavailableBinaryDescriptor,
+  isBinaryMediaType, readBoundedTestResponse, responseMediaType, TrustedBinaryCapture,
+  unavailableBinaryDescriptor,
 } from './binary-test-response';
 import { RuntimeCallContext } from 'api-nova-parser';
 import { endpointDependencyContext, observeEndpointDependency } from '../../endpoint-testing/services/endpoint-dependency-audit';
@@ -342,6 +343,7 @@ export class AssetCatalogService {
     const binaryCapture = binaryCaptureEnabled();
     const captureStream = binaryCapture && declaresBinaryResponse(endpoint.rawOperation);
     const startedAt = Date.now();
+    let completedHttpResponse = false;
 
     try {
       const response = await observeEndpointDependency(endpointDependencyContext('test', {
@@ -359,12 +361,17 @@ export class AssetCatalogService {
         }),
       ));
 
+      let trustedBinaryCapture: TrustedBinaryCapture | undefined;
       const responsePayload = captureStream
-        ? await readBoundedTestResponse(response.data, response.headers, binaryCaptureLimit())
+        ? await readBoundedTestResponse(
+          response.data, response.headers, binaryCaptureLimit(),
+          capture => { trustedBinaryCapture = capture; },
+        )
         : binaryCapture && isBinaryMediaType(responseMediaType(response.headers))
           ? unavailableBinaryDescriptor(responseMediaType(response.headers), response.headers)
           : response.data;
       const passed = response.status >= 200 && response.status < 400;
+      completedHttpResponse = true;
       endpoint.metadata = this.mergeTestingMetadata(endpoint, {
         testStatus: passed ? 'passed' : 'failed',
         qualificationState: passed ? 'tested' : 'test_blocked',
@@ -389,6 +396,7 @@ export class AssetCatalogService {
               ? response.headers.toJSON()
               : { ...(response.headers || {}) },
           responsePayload,
+          trustedBinaryCapture,
           durationMs,
           metadata: { method, url: testUrl, origin: 'asset-catalog-endpoint-test' },
         });
@@ -417,6 +425,9 @@ export class AssetCatalogService {
         testingState: this.buildTestingState(endpoint),
       };
     } catch (error) {
+      // A persistence failure after receiving the HTTP result must not be
+      // recorded as an upstream execution failure.
+      if (completedHttpResponse) throw error;
       const axiosErr = error as AxiosError;
       const errorResponseData = axiosErr.response?.data;
       if (errorResponseData instanceof Readable) errorResponseData.destroy();
