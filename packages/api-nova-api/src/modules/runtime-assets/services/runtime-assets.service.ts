@@ -16,7 +16,7 @@ import {
   GatewayConsumerCredentialEntity,
   GatewayConsumerCredentialStatus,
 } from '../../../database/entities/gateway-consumer-credential.entity';
-import { MCPServerEntity, ServerStatus, TransportType } from '../../../database/entities/mcp-server.entity';
+import { configuredMcpInboundAuthMode, MCPServerEntity, ServerStatus, TransportType } from '../../../database/entities/mcp-server.entity';
 import { PublicationProfileEntity } from '../../../database/entities/publication-profile.entity';
 import { PublicationProfileHistoryEntity } from '../../../database/entities/publication-profile-history.entity';
 import { RuntimeAssetEndpointBindingEntity } from '../../../database/entities/runtime-asset-endpoint-binding.entity';
@@ -734,7 +734,13 @@ export class RuntimeAssetsService {
     const asset = await this.requireRuntimeAsset(runtimeAssetId);
     if (asset.type !== RuntimeAssetType.MCP_SERVER) throw new ConflictException('Runtime asset is not MCP');
     const server = await this.resolveMcpEndpointServer(asset, dto);
-    return previewMcpEndpoint(dto, server);
+    return {
+      ...previewMcpEndpoint(dto, server),
+      inboundAuthMode: configuredMcpInboundAuthMode(
+        dto.inboundAuthMode === undefined ? server?.inboundAuthMode : dto.inboundAuthMode,
+      ) || 'unknown',
+      effectiveInboundAuthMode: 'unknown' as const,
+    };
   }
 
   async deployMcpRuntimeAsset(
@@ -747,6 +753,21 @@ export class RuntimeAssetsService {
     const desiredName = dto.name || runtimeAsset.name;
 
     let server = await this.resolveMcpEndpointServer(runtimeAsset, dto);
+    const inboundAuthMode = configuredMcpInboundAuthMode(
+      dto.inboundAuthMode === undefined ? server?.inboundAuthMode : dto.inboundAuthMode,
+    );
+    if (!inboundAuthMode) {
+      throw new ConflictException({
+        code: 'MCP_INBOUND_AUTH_MODE_REQUIRED',
+        message: 'Choose a supported MCP HTTP inbound authentication mode before deployment',
+      });
+    }
+    if (server?.status === ServerStatus.RUNNING && server.inboundAuthMode !== inboundAuthMode) {
+      throw new ConflictException({
+        code: 'MCP_INBOUND_AUTH_MODE_CHANGE_REQUIRES_STOP',
+        message: 'A running MCP server cannot change its configured inbound authentication mode',
+      });
+    }
     const endpointConfig = resolveMcpEndpoint(dto, server);
     assertMcpEndpointChange(server, endpointConfig);
     const desiredTransport = endpointConfig.transport;
@@ -812,6 +833,7 @@ export class RuntimeAssetsService {
           'Managed MCP runtime asset deployment',
         port: targetPort,
         transport: desiredTransport,
+        inboundAuthMode,
         status: ServerStatus.STOPPED,
         openApiData: assembled.openApiData,
         tools: assembled.tools,
@@ -836,6 +858,7 @@ export class RuntimeAssetsService {
         server.description;
       server.port = dto.port || server.port;
       server.transport = desiredTransport;
+      server.inboundAuthMode = inboundAuthMode;
       server.openApiData = assembled.openApiData;
       server.tools = assembled.tools;
       server.toolsCount = assembled.toolsCount;
@@ -1492,6 +1515,8 @@ export class RuntimeAssetsService {
       ...this.mcpEndpointSummary(managedServer),
       port: managedServer.port,
       transport: managedServer.transport,
+      inboundAuthMode: configuredMcpInboundAuthMode(managedServer.inboundAuthMode) || 'unknown',
+      effectiveInboundAuthMode: 'unknown',
       toolsCount: managedServer.toolsCount,
       lastHealthCheck: managedServer.lastHealthCheck,
       errorMessage: managedServer.errorMessage,

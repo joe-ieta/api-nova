@@ -1,3 +1,5 @@
+jest.mock('../config/environment', () => ({}));
+
 import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -20,14 +22,16 @@ describe('database options', () => {
       expect(DATABASE_ENTITIES).toEqual(expect.arrayContaining([
         ProcessInfoEntity, ProcessLogEntity, HealthCheckResultEntity,
       ]));
-      expect(options.migrations).toHaveLength(2);
+      expect(options.migrations).toHaveLength(3);
       expect(options.migrations[0]).toContain('InitialSqliteSchema');
       expect(options.migrations[1]).toContain('PayloadPublicationIntentSqlite');
+      expect(options.migrations[2]).toContain('McpInboundAuthModeSqlite');
       process.env.DB_TYPE = 'postgres';
       const postgres = buildDatabaseOptions();
-      expect(postgres.migrations).toHaveLength(2);
+      expect(postgres.migrations).toHaveLength(3);
       expect(postgres.migrations[0]).toContain('InitialPostgresSchema');
       expect(postgres.migrations[1]).toContain('PayloadPublicationIntentPostgres');
+      expect(postgres.migrations[2]).toContain('McpInboundAuthModePostgres');
     } finally {
       process.env = saved;
       rmSync(directory, { recursive: true, force: true });

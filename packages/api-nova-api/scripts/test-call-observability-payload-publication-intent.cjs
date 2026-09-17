@@ -21,7 +21,8 @@ const { PayloadPublicationIntentStore } = load('modules/call-observability/call-
 const { canonicalJson, contentHash } = load('modules/call-observability/call-observability-storage');
 const parent = path.resolve(__dirname, '../../../tmp/observability-publication-intent-tests');
 const code = expected => error => error.code === expected;
-const migrations = [Initial, Forward];
+const { McpInboundAuthModeSqlite1790000002000: InboundMode } = load('database/migrations/1790000002000-McpInboundAuthModeSqlite');
+const migrations = [Initial, Forward, InboundMode];
 
 async function fixture(t) {
   await fs.mkdir(parent, { recursive: true });
@@ -151,7 +152,7 @@ test('existing SQLite database applies only forward migration and never backfill
     entities: DATABASE_ENTITIES, migrations, synchronize: false }).initialize();
   t.after(() => upgraded.destroy());
   const applied = await upgraded.runMigrations({ transaction: 'all' });
-  assert.equal(applied.length, 1);
+  assert.equal(applied.length, 2);
   assert.equal(await upgraded.getRepository(entities.RuntimePayloadPublicationIntentEntity).count(), 0);
   assert.equal(await upgraded.getRepository(entities.RuntimePayloadQuotaReservationEntity).count(), 1);
   assert.equal((await upgraded.driver.createSchemaBuilder().log()).upQueries.length, 0);
@@ -163,11 +164,11 @@ test('existing SQLite database applies only forward migration and never backfill
   assert.equal(await restarted.getRepository(entities.RuntimePayloadPublicationIntentEntity).count(), 0);
 });
 
-test('fresh SQLite database runs both migrations and current schema has no drift', async t => {
+test('fresh SQLite database runs all current migrations and has no schema drift', async t => {
   const db = await new DataSource({ type: 'sqljs', entities: DATABASE_ENTITIES,
     migrations, synchronize: false }).initialize();
   t.after(() => db.destroy());
-  assert.equal((await db.runMigrations({ transaction: 'all' })).length, 2);
+  assert.equal((await db.runMigrations({ transaction: 'all' })).length, 3);
   assert.equal(await db.getRepository(entities.RuntimePayloadPublicationIntentEntity).count(), 0);
   assert.equal((await db.driver.createSchemaBuilder().log()).upQueries.length, 0);
 });

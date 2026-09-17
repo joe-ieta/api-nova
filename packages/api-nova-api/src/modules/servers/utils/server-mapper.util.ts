@@ -1,4 +1,4 @@
-import { MCPServerEntity } from '../../../database/entities/mcp-server.entity';
+import { configuredMcpInboundAuthMode, MCPServerEntity } from '../../../database/entities/mcp-server.entity';
 import { ServerResponseDto, PaginatedResponseDto } from '../dto/server.dto';
 
 /**
@@ -17,6 +17,8 @@ export class ServerMapper {
     dto.description = entity.description;
     dto.port = entity.port;
     dto.transport = entity.transport;
+    dto.inboundAuthMode = configuredMcpInboundAuthMode(entity.inboundAuthMode) || 'unknown';
+    dto.effectiveInboundAuthMode = 'unknown';
     dto.status = entity.status;
     dto.healthy = entity.healthy;
     dto.endpoint = entity.endpoint;

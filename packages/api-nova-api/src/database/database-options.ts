@@ -13,6 +13,7 @@ export function buildDatabaseOptions(): DataSourceOptions {
     migrations: [
       join(__dirname, 'migrations', `*-Initial${dialect}Schema.${extension}`),
       join(__dirname, 'migrations', `*-PayloadPublicationIntent${dialect}.${extension}`),
+      join(__dirname, 'migrations', `*-McpInboundAuthMode${dialect}.${extension}`),
     ],
     synchronize: false,
     logging: process.env.DB_LOGGING === 'true',

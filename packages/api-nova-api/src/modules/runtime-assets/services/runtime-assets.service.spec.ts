@@ -1,7 +1,7 @@
 import * as ownershipReader from './mcp-ownership-reader';
 import { ConflictException } from '@nestjs/common';
 import { RuntimeAssetType } from '../../../database/entities/runtime-asset.entity';
-import { ServerStatus } from '../../../database/entities/mcp-server.entity';
+import { McpInboundAuthMode, ServerStatus } from '../../../database/entities/mcp-server.entity';
 import { AuditAction } from '../../../database/entities/audit-log.entity';
 import { RuntimeAssetsService } from './runtime-assets.service';
 
@@ -848,6 +848,7 @@ describe('RuntimeAssetsService', () => {
       port: 9022,
       transport: 'streamable',
       status: ServerStatus.RUNNING,
+      inboundAuthMode: 'private_api_key',
       tools: [{ name: 'oldTool' }],
       config: { runtimeAssetId: mcpAsset.id },
     });
@@ -867,6 +868,56 @@ describe('RuntimeAssetsService', () => {
 
     expect(mcpServerRepository.save).not.toHaveBeenCalled();
     expect(runtimeVerificationService.activateMcpCandidate).not.toHaveBeenCalled();
+    assembleSpy.mockRestore();
+    requireSpy.mockRestore();
+  });
+
+  it('previews configured MCP mode separately from unknown runtime execution', async () => {
+    const asset = { id: 'runtime-mcp-preview', type: RuntimeAssetType.MCP_SERVER, name: 'preview-mcp' };
+    const requireSpy = jest.spyOn(service as any, 'requireRuntimeAsset').mockResolvedValue(asset);
+    mcpServerRepository.findOne.mockResolvedValue({
+      id: 'preview-server', name: asset.name, status: ServerStatus.RUNNING,
+      port: 9022, transport: 'streamable', config: { runtimeAssetId: asset.id },
+    });
+    await expect(service.previewMcpRuntimeAssetEndpoint(asset.id)).resolves.toMatchObject({
+      inboundAuthMode: 'unknown', effectiveInboundAuthMode: 'unknown',
+    });
+    await expect(service.previewMcpRuntimeAssetEndpoint(asset.id, {
+      inboundAuthMode: McpInboundAuthMode.PRIVATE_JWT,
+    })).resolves.toMatchObject({
+      inboundAuthMode: McpInboundAuthMode.PRIVATE_JWT,
+      effectiveInboundAuthMode: 'unknown',
+    });
+    requireSpy.mockRestore();
+  });
+
+  it('keeps a running legacy MCP server untouched when its inbound mode is unknown', async () => {
+    const asset = { id: 'runtime-mcp-legacy', type: RuntimeAssetType.MCP_SERVER, name: 'legacy-mcp' };
+    const requireSpy = jest.spyOn(service as any, 'requireRuntimeAsset').mockResolvedValue(asset);
+    const assembleSpy = jest.spyOn(service, 'assembleMcpRuntimeAssetPayload').mockResolvedValue({
+      runtimeAsset: asset, openApiData: {}, tools: [], verificationTools: [], toolsCount: 0,
+      includedMembershipCount: 0,
+    } as any);
+    const legacy = { id: 'legacy-server', name: 'legacy-mcp', status: ServerStatus.RUNNING,
+      config: { runtimeAssetId: asset.id }, authConfig: { type: 'bearer', config: {} } };
+    mcpServerRepository.findOne.mockResolvedValue(legacy);
+
+    await expect(service.deployMcpRuntimeAsset(asset.id)).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'MCP_INBOUND_AUTH_MODE_REQUIRED' }),
+    });
+    await expect(service.deployMcpRuntimeAsset(asset.id, {
+      inboundAuthMode: McpInboundAuthMode.PRIVATE_API_KEY,
+    })).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'MCP_INBOUND_AUTH_MODE_CHANGE_REQUIRES_STOP' }),
+    });
+    expect(legacy.status).toBe(ServerStatus.RUNNING);
+    expect(legacy.authConfig.type).toBe('bearer');
+    expect((legacy as any).inboundAuthMode).toBeUndefined();
+    expect((service as any).toManagedServerSummary(legacy)).toMatchObject({
+      inboundAuthMode: 'unknown', effectiveInboundAuthMode: 'unknown',
+    });
+    expect(runtimeVerificationService.planCandidate).not.toHaveBeenCalled();
+    expect(mcpServerRepository.save).not.toHaveBeenCalled();
     assembleSpy.mockRestore();
     requireSpy.mockRestore();
   });
@@ -909,12 +960,14 @@ describe('RuntimeAssetsService', () => {
       verificationRequiredAt: '2026-09-15T00:00:01Z', operatorNote: 'latest-note',
     } });
     const allocate = jest.spyOn(service as any, 'findAvailableManagedServerPort').mockResolvedValue(9044);
-    const deployed = await service.deployMcpRuntimeAsset(mcpAsset.id, { port, endpointPath: '/custom' });
+    const deployed = await service.deployMcpRuntimeAsset(mcpAsset.id, { port, endpointPath: '/custom', inboundAuthMode: McpInboundAuthMode.PRIVATE_API_KEY });
     const expectedPort = port ?? 9044;
     expect(runtimeVerificationService.planCandidate).toHaveBeenCalledWith(mcpAsset.id, expect.anything(), expect.objectContaining({
       mcpEndpointConfig: { transport: 'streamable', port: expectedPort, endpointPath: '/custom' },
     }));
     expect(deployed.managedServer.port).toBe(expectedPort);
+    expect(deployed.managedServer.inboundAuthMode).toBe(McpInboundAuthMode.PRIVATE_API_KEY);
+    expect(deployed.managedServer.effectiveInboundAuthMode).toBe('unknown');
     expect(deployed.managedServer.endpointPath).toBe('/custom');
     if (port === undefined) expect(allocate.mock.invocationCallOrder[0]).toBeLessThan(runtimeVerificationService.planCandidate.mock.invocationCallOrder[0]);
     else expect(allocate).not.toHaveBeenCalled();
@@ -957,7 +1010,7 @@ describe('RuntimeAssetsService', () => {
       toolsCount: 1,
       includedMembershipCount: 1,
     } as any);
-    mcpServerRepository.findOne.mockResolvedValue({ id: 'server-sse', name: 'orders-mcp', port: 9033, transport: 'sse', status: ServerStatus.STOPPED, config: { runtimeAssetId: mcpAsset.id, endpoint: '/events/custom' } });
+    mcpServerRepository.findOne.mockResolvedValue({ id: 'server-sse', name: 'orders-mcp', port: 9033, transport: 'sse', status: ServerStatus.STOPPED, inboundAuthMode: 'private_api_key', config: { runtimeAssetId: mcpAsset.id, endpoint: '/events/custom' } });
     runtimeVerificationService.planCandidate.mockResolvedValue({
       canExecute: true,
       run: { id: 'verification-mcp-passed' },

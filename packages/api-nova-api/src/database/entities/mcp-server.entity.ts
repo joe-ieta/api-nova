@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  Check,
 } from 'typeorm';
 import {
   getEnumColumnOptions,
@@ -25,9 +26,22 @@ export enum TransportType {
   SSE = 'sse',
 }
 
+export enum McpInboundAuthMode {
+  PRIVATE_JWT = 'private_jwt',
+  PRIVATE_API_KEY = 'private_api_key',
+  ANONYMOUS = 'anonymous',
+}
+
+export function configuredMcpInboundAuthMode(value: unknown): McpInboundAuthMode | null {
+  return Object.values(McpInboundAuthMode).includes(value as McpInboundAuthMode)
+    ? value as McpInboundAuthMode : null;
+}
+
+
 @Entity('mcp_servers')
 @Index(['name'], { unique: true })
 @Index(['status'])
+@Check('CHK_mcp_servers_inbound_auth_mode', `"inboundAuthMode" IN ('private_jwt', 'private_api_key', 'anonymous')`)
 export class MCPServerEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -55,6 +69,9 @@ export class MCPServerEntity {
     default: ServerStatus.STOPPED,
   })
   status: ServerStatus;
+
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  inboundAuthMode?: McpInboundAuthMode | null;
 
   @Column({ type: 'text', nullable: true })
   endpoint?: string;

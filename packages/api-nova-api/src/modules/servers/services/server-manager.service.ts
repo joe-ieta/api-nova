@@ -404,6 +404,7 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
       description: createDto.description,
       port: createDto.port || await this.findAvailablePort(),
       transport: createDto.transport || TransportType.STREAMABLE,
+      inboundAuthMode: createDto.inboundAuthMode,
       openApiData: openApiData,
       config: createDto.config,
       status: ServerStatus.STOPPED,
@@ -519,6 +520,10 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
         updateDto.transport !== (server.transport as unknown as typeof updateDto.transport)
       ) {
         throw new ConflictException('Cannot change transport while server is running');
+      }
+      if (updateDto.inboundAuthMode !== undefined &&
+        updateDto.inboundAuthMode !== server.inboundAuthMode) {
+        throw new ConflictException('Cannot change inbound authentication mode while server is running');
       }
     }
 

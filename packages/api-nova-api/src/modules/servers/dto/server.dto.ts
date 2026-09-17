@@ -1,8 +1,8 @@
-import { IsString, IsOptional, IsNumber, IsBoolean, IsEnum, IsIn, IsArray, IsObject, ValidateNested, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsBoolean, IsEnum, IsIn, IsArray, IsObject, ValidateNested, ValidateIf, Min, Max } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-import { ServerStatus } from '../../../database/entities/mcp-server.entity';
+import { McpInboundAuthMode, ServerStatus } from '../../../database/entities/mcp-server.entity';
 import { AuthType } from '../../../database/entities/auth-config.entity';
 
 const CURRENT_AUTH_TYPES = [
@@ -50,6 +50,11 @@ export class CreateServerDto {
   @IsOptional()
   @IsEnum(ManagedTransportType)
   transport?: ManagedTransportType;
+
+  @ApiPropertyOptional({ enum: McpInboundAuthMode, description: 'MCP HTTP inbound mode, independent of outbound authConfig' })
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsEnum(McpInboundAuthMode)
+  inboundAuthMode?: McpInboundAuthMode;
 
   @ApiProperty({ description: 'OpenAPI规范数据', type: 'object' })
   @IsObject()
@@ -116,6 +121,11 @@ export class UpdateServerDto {
   @IsOptional()
   @IsEnum(ManagedTransportType)
   transport?: ManagedTransportType;
+
+  @ApiPropertyOptional({ enum: McpInboundAuthMode, description: 'MCP HTTP inbound mode, independent of outbound authConfig' })
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsEnum(McpInboundAuthMode)
+  inboundAuthMode?: McpInboundAuthMode;
 
   @ApiPropertyOptional({ description: 'OpenAPI规范数据', type: 'object' })
   @IsOptional()
@@ -465,7 +475,13 @@ export class ServerResponseDto {
   })
   transport: string;
 
-  @ApiProperty({ description: '服务器状态', enum: ServerStatus })
+  @ApiProperty({ enum: [...Object.values(McpInboundAuthMode), 'unknown'] })
+  inboundAuthMode: McpInboundAuthMode | 'unknown';
+
+  @ApiProperty({ enum: ['unknown'], description: 'Runtime effective mode is not verified until execution wiring is complete' })
+  effectiveInboundAuthMode: 'unknown';
+
+  @ApiProperty({ enum: ServerStatus })
   status: ServerStatus;
 
   @ApiProperty({ description: '是否健康' })

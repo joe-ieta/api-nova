@@ -14,7 +14,7 @@ import {
   Min,
 } from 'class-validator';
 import { RuntimeAssetStatus, RuntimeAssetType } from '../../../database/entities/runtime-asset.entity';
-import { TransportType } from '../../../database/entities/mcp-server.entity';
+import { McpInboundAuthMode, TransportType } from '../../../database/entities/mcp-server.entity';
 import { GatewayConsumerCredentialStatus } from '../../../database/entities/gateway-consumer-credential.entity';
 
 export class RuntimeAssetQueryDto {
@@ -54,6 +54,11 @@ export class DeployRuntimeAssetMcpDto {
   @ValidateIf((_object, value) => value !== undefined)
   @IsEnum(TransportType)
   transport?: TransportType;
+
+  @ApiPropertyOptional({ enum: McpInboundAuthMode, description: 'MCP HTTP consumer authentication mode; separate from upstream authConfig' })
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsEnum(McpInboundAuthMode)
+  inboundAuthMode?: McpInboundAuthMode;
 
   @ApiPropertyOptional({ example: 9022, minimum: 1024, maximum: 65535 })
   @ValidateIf((_object, value) => value !== undefined)
