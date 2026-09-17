@@ -27,6 +27,7 @@ export interface ProcessConfig {
   // 新增：MCP特定配置
   mcpConfig?: {
     transport: 'stdio' | 'sse' | 'streamable';
+    inboundAuthMode?: 'jwt' | 'api_key' | 'anonymous';
     port?: number;
     endpoint?: string;
     openApiSource?: string;

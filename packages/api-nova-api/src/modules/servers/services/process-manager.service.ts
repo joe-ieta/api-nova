@@ -23,6 +23,7 @@ import { ProcessResourceMonitorService, ProcessResourceMetrics, SystemResourceIn
 import { ProcessLogMonitorService, ProcessLogEntry } from './process-log-monitor.service';
 import { AppConfigService } from '../../../config/app-config.service';
 import { auditDirectory } from 'api-nova-parser';
+import { mcpInboundSpawnEnv } from './mcp-inbound-process-env';
 
 // MCP连接监控相关接口
 interface MCPConnectionEvent {
@@ -144,9 +145,16 @@ export class ProcessManagerService implements OnModuleDestroy {
       this.logger.debug(`Starting configured process for server ${serverId}`);
       
       // 创建子进程 - 支持CLI可执行文件
+      // Keep inbound credentials out of ProcessConfig and ProcessInfo.
+      const mode = config.mcpConfig?.inboundAuthMode;
+      if (config.mcpConfig?.managed && (!mode || config.env?.API_NOVA_RUNTIME_AUTH_MODE !== mode)) {
+        throw new Error('Managed MCP process requires a matching inbound authentication mode');
+      }
+      const inheritedEnv = { ...process.env, ...config.env };
+      const childEnv = mode ? mcpInboundSpawnEnv(mode, inheritedEnv) : inheritedEnv;
       const childProcess = spawn(config.scriptPath, config.args, {
         cwd: config.cwd || process.cwd(),
-        env: { ...process.env, ...config.env, API_NOVA_AUDIT_DIR: auditDirectory(), API_NOVA_AUDIT_SERVER_ID: serverId },
+        env: { ...childEnv, API_NOVA_AUDIT_DIR: auditDirectory(), API_NOVA_AUDIT_SERVER_ID: serverId },
         stdio: ['pipe', 'pipe', 'pipe'],
         detached: false,
         shell: process.platform === 'win32', // Windows需要shell

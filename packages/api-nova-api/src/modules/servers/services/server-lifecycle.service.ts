@@ -8,6 +8,7 @@ import { dirname, join } from 'path';
 import { firstValueFrom } from 'rxjs';
 
 import { MCPServerEntity, TransportType } from '../../../database/entities/mcp-server.entity';
+import { persistedMcpInboundMode } from './mcp-inbound-process-env';
 import { ServerInstance } from './server-manager.service';
 import { ProcessManagerService } from './process-manager.service';
 import { ProcessHealthService } from './process-health.service';
@@ -88,10 +89,15 @@ export class ServerLifecycleService {
   /**
    * 启动MCP服务器（使用CLI spawn方式实现进程隔离）
    */
+  preflightInboundAuth(serverEntity: MCPServerEntity) {
+    return persistedMcpInboundMode(serverEntity);
+  }
+
   async startServer(serverEntity: MCPServerEntity): Promise<ServerStartResult> {
     this.logger.log(`Starting server '${serverEntity.name}' on port ${serverEntity.port} using CLI spawn`);
 
     try {
+      const inboundAuthMode = this.preflightInboundAuth(serverEntity);
       // 验证OpenAPI数据
       await this.validateOpenApiData(serverEntity.openApiData);
 
@@ -106,7 +112,7 @@ export class ServerLifecycleService {
         scriptPath: process.execPath,
         args: [this.resolveManagedCliPath(), ...cliArgs],
         env: {
-          ...process.env,
+          API_NOVA_RUNTIME_AUTH_MODE: inboundAuthMode,
           NODE_ENV: this.configService.get('NODE_ENV', 'development'),
           MCP_MANAGED: 'true',
         },
@@ -130,6 +136,7 @@ export class ServerLifecycleService {
         // MCP特定配置
         mcpConfig: {
           transport: serverEntity.transport.toLowerCase() as 'sse' | 'streamable',
+          inboundAuthMode,
           port: serverEntity.port,
           endpoint:
             serverEntity.config?.endpoint ||

@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
-import { MCPServerEntity, TransportType } from '../../../database/entities/mcp-server.entity';
+import { MCPServerEntity, McpInboundAuthMode, TransportType } from '../../../database/entities/mcp-server.entity';
 import { ServerLifecycleService } from './server-lifecycle.service';
 import { previewMcpEndpoint } from '../../runtime-assets/services/mcp-endpoint-config';
 
@@ -20,17 +20,20 @@ describe('saved publication endpoint to lifecycle CLI and process configuration'
     return service;
   }
   it.each([TransportType.STREAMABLE,TransportType.SSE])('persisted %s endpoint reaches every lifecycle argument', async transport => {
-    const saved=await db.getRepository(MCPServerEntity).save({name:'fixture',port:9044,transport,openApiData:{openapi:'3.0.3',info:{title:'fixture',version:'1'},paths:{}},config:{runtimeAssetId:'fixture',endpoint:'/team/custom'}});
+    const saved=await db.getRepository(MCPServerEntity).save({name:'fixture',port:9044,transport,inboundAuthMode:McpInboundAuthMode.ANONYMOUS,openApiData:{openapi:'3.0.3',info:{title:'fixture',version:'1'},paths:{}},config:{runtimeAssetId:'fixture',endpoint:'/team/custom'}});
     const server=await db.getRepository(MCPServerEntity).findOneByOrFail({id:saved.id});
     const service=fixture(), result=await service.startServer(server), config=service.processManager.startProcess.mock.calls[0][0];
     const value=(flag:string)=>config.args[config.args.indexOf(flag)+1];
     expect(value('--endpoint')).toBe('/team/custom'); expect(value('--transport')).toBe(transport); expect(value('--port')).toBe('9044');
     expect(config.mcpConfig).toMatchObject({endpoint:'/team/custom',port:9044,transport});
+    expect(config.mcpConfig.inboundAuthMode).toBe('anonymous');
+    expect(config.env.API_NOVA_RUNTIME_AUTH_MODE).toBe('anonymous');
+    expect(config.env.API_NOVA_RUNTIME_API_KEYS).toBeUndefined();
     expect(result.endpoint).toBe(previewMcpEndpoint({},server).consumerUrl);
     expect(config.healthCheck.endpoint).toBe('http://127.0.0.1:9044/health');
   });
   it('process start failure does not alter saved endpoint or emit a successful lifecycle result', async () => {
-    const server=await db.getRepository(MCPServerEntity).save({name:'fixture',port:9044,transport:TransportType.SSE,openApiData:{},config:{runtimeAssetId:'fixture',endpoint:'/old'}});
+    const server=await db.getRepository(MCPServerEntity).save({name:'fixture',port:9044,transport:TransportType.SSE,inboundAuthMode:McpInboundAuthMode.ANONYMOUS,openApiData:{},config:{runtimeAssetId:'fixture',endpoint:'/old'}});
     const service=fixture(true), before=previewMcpEndpoint({},server);
     await expect(service.startServer(server)).rejects.toThrow('EADDRINUSE');
     expect(service.processManager.startProcess).toHaveBeenCalledTimes(1);
