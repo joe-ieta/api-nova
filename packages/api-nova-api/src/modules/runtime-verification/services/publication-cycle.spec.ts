@@ -4,6 +4,7 @@ import { RuntimeVerificationService } from './runtime-verification.service';
 import { RuntimeResponseAssertionService } from './runtime-response-assertion.service';
 import { McpCandidateReplayService } from './mcp-candidate-replay.service';
 import { GatewayRouteSnapshotService } from '../../gateway-runtime/services/gateway-route-snapshot.service';
+import { GatewayPolicyService } from '../../gateway-runtime/services/gateway-policy.service';
 import { RuntimeUpstreamBindingsService } from '../../runtime-upstream-bindings/services/runtime-upstream-bindings.service';
 import { RuntimeGovernanceInvalidationService } from '../../runtime-governance/services/runtime-governance-invalidation.service';
 import { RuntimeAssetEntity } from '../../../database/entities/runtime-asset.entity';
@@ -35,10 +36,11 @@ describe('bounded SQL.js registered fixture -> binding -> verification -> activa
   const invalidate=new RuntimeGovernanceInvalidationService(repo(RuntimeAssetEntity),repo(RuntimeAssetEndpointBindingEntity),repo(RuntimeUpstreamBindingEntity),repo(RuntimeUpstreamBindingInstanceEntity));
   const bindings=new RuntimeUpstreamBindingsService(repo(RuntimeUpstreamBindingEntity),repo(RuntimeUpstreamBindingInstanceEntity),repo(SourceServiceInstanceEntity),db,{log:async()=>{}} as any,invalidate);
   const dto:any={sourceServiceAssetId:id(1),environment:'test',selectionMode:'fixed_primary',primaryInstanceId:id(2),status:'active',candidates:[{sourceServiceInstanceId:id(2)}]};
-  let binding=await bindings.upsert(id(4),dto,{actorId:'operator-fixture'}); await wait();
-  const snapshot:any=new GatewayRouteSnapshotService({} as any,{} as any,repo(GatewayRouteSnapshotEntity),repo(RuntimeAssetEndpointBindingEntity),{} as any,repo(RuntimeAssetEntity),{} as any,repo(SourceServiceAssetEntity),bindings);
+  const binding=await bindings.upsert(id(4),dto,{actorId:'operator-fixture'}); await wait();
+  const gatewayPolicy = new GatewayPolicyService();
+  const snapshot:any=new GatewayRouteSnapshotService(gatewayPolicy,{} as any,repo(GatewayRouteSnapshotEntity),repo(RuntimeAssetEndpointBindingEntity),{} as any,repo(RuntimeAssetEntity),{} as any,repo(SourceServiceAssetEntity),bindings);
   // Synthetic route construction only; candidate storage, activation and rollback are production implementations.
-  snapshot.buildSnapshot=async()=>[{runtimeAsset:await repo(RuntimeAssetEntity).findOneBy({id:id(3)}),membership:await repo(RuntimeAssetEndpointBindingEntity).findOneBy({id:id(4)}),publishBinding:{id:id(10)},routeBinding:{id:id(11),updatedAt:new Date(),pathMatchMode:'exact'},sourceServiceInstance:{id:id(2)},normalizedRoutePath:'/fixture/ping',routeMethod:'GET',upstreamBaseUrl:'http://127.0.0.1:1',policies:{},priorityScore:1}];
+  snapshot.buildSnapshot=async()=>[{runtimeAsset:await repo(RuntimeAssetEntity).findOneBy({id:id(3)}),membership:await repo(RuntimeAssetEndpointBindingEntity).findOneBy({id:id(4)}),publishBinding:{id:id(10)},routeBinding:{id:id(11),updatedAt:new Date(),pathMatchMode:'exact',authPolicyRef:'jwt-default'},sourceServiceInstance:{id:id(2)},normalizedRoutePath:'/fixture/ping',routeMethod:'GET',upstreamBaseUrl:'http://127.0.0.1:1',policies:gatewayPolicy.compileForRoute({authPolicyRef:'jwt-default'} as any),priorityScore:1}];
   let status=200;
   // No real upstream: replay outcome is injected for the state-machine test, not claimed as HTTP evidence.
   const gatewayReplay:any={replay:async()=>({statusCode:status,body:{ok:status===200},headers:{},bodyBytes:2,truncated:false,durationMs:1,routePath:'/fixture/ping',method:'GET'})};
@@ -54,7 +56,7 @@ describe('bounded SQL.js registered fixture -> binding -> verification -> activa
   const first=await plan();expect(first.canExecute).toBe(true);await execute(first.run);
   const active=(await repo(RuntimeAssetEntity).findOneByOrFail({id:id(3)})).metadata.activeRevision;expect(active).toBe(first.run.candidateRevision);
   context.behaviorFingerprint = 'unpublished-candidate'; const old=await plan();
-  binding=await bindings.upsert(id(4),{...dto,expectedRevision:binding.binding.revision},{actorId:'operator-fixture'});
+  await bindings.upsert(id(4),{...dto,expectedRevision:binding.binding.revision},{actorId:'operator-fixture'});
   const changed=await repo(RuntimeAssetEntity).findOneByOrFail({id:id(3)});
   expect(changed.metadata.verificationRequired).toBe(true);expect(changed.metadata.verificationRequiredContext.actorId).toBe('operator-fixture');
   if(type==='mcp_server')await expect(execute(old.run)).rejects.toThrow('MCP_CANDIDATE_STALE');

@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
 import { GatewayRouteSnapshotEntity } from '../../../database/entities/gateway-route-snapshot.entity';
 import { createHash } from 'node:crypto';
 import {
@@ -112,7 +112,11 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
       return;
     }
     if (reason === 'runtime_assets.gateway_deployed') {
-      void this.reload();
+      void this.reload().catch(() => {
+        // A hot reload failure keeps the last verified in-memory registry.
+        // Startup still propagates the same validation failure to Nest.
+        this.logger.error('Rejected invalid Gateway snapshot during hot reload');
+      });
       return;
     }
     this.logger.debug(
@@ -121,17 +125,19 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
   }
 
   private async performReload() {
+    const runtimeAssets = await this.runtimeAssetRepository.find({
+      where: {
+        type: RuntimeAssetType.GATEWAY_SERVICE,
+        status: In([RuntimeAssetStatus.ACTIVE, RuntimeAssetStatus.DEGRADED]),
+      },
+    });
+    const activePublishedAssets = runtimeAssets.filter(asset =>
+      typeof asset.metadata?.activeRevision === 'string' &&
+      Boolean(asset.metadata.activeRevision.trim()),
+    );
     const persisted = await this.persistedSnapshotRepository.find({
       order: { activatedAt: 'DESC' },
     });
-    if (persisted.length === 0) {
-      this.snapshot = [];
-      this.snapshotInitialized = true;
-      this.logger.log('Loaded gateway route snapshot with 0 persisted verified routes');
-      return;
-    }
-    const runtimeAssetIds = Array.from(new Set(persisted.map(item => item.runtimeAssetId)));
-    const runtimeAssets = await this.runtimeAssetRepository.findByIds(runtimeAssetIds);
     const runtimeAssetMap = new Map(runtimeAssets.map(item => [item.id, item]));
     const restored: GatewaySnapshotRouteEntry[] = [];
     const restoredAssets = new Set<string>();
@@ -145,13 +151,27 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
       ) {
         continue;
       }
-      const entries = this.deserializeEntries(item.payload, runtimeAsset);
-      if (this.fingerprintEntries(entries) !== item.fingerprint) {
-        this.logger.warn(`Skipped corrupted Gateway snapshot '${item.revision}'`);
-        continue;
+      let entries: GatewaySnapshotRouteEntry[];
+      try {
+        entries = this.deserializeEntries(item.payload, runtimeAsset);
+        this.assertSnapshotPolicies(entries);
+        if (entries.length === 0 || entries.length !== item.routeCount ||
+          this.fingerprintEntries(entries) !== item.fingerprint ||
+          runtimeAsset.metadata?.activeGatewaySnapshotFingerprint !== item.fingerprint) {
+          throw new Error('fingerprint mismatch');
+        }
+      } catch {
+        // Only the selected active revision can be routed. A corrupt one must
+        // reject startup/reload while leaving any in-memory registry unchanged.
+        throw new Error('GATEWAY_ACTIVE_SNAPSHOT_INVALID');
       }
       restored.push(...entries);
       restoredAssets.add(item.runtimeAssetId);
+    }
+    if (restoredAssets.size !== activePublishedAssets.length) {
+      // A published active revision without its persisted snapshot cannot be
+      // reconstructed; retain the last verified registry on hot reload.
+      throw new Error('GATEWAY_ACTIVE_SNAPSHOT_MISSING');
     }
     this.snapshot = this.sortSnapshot(restored);
     this.snapshotInitialized = true;
@@ -167,6 +187,7 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
       runtimeAssetId,
       allowInactiveRuntime: true,
     });
+    this.assertSnapshotPolicies(entries);
     const snapshotFingerprint = this.fingerprintEntries(entries);
     this.candidateSnapshots.set(revision, {
       runtimeAssetId,
@@ -205,6 +226,10 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
     const candidate = this.candidateSnapshots.get(candidateRevision);
     if (!candidate) {
       throw new Error(`Gateway candidate snapshot '${candidateRevision}' was not found`);
+    }
+    this.assertSnapshotPolicies(candidate.entries);
+    if (this.fingerprintEntries(candidate.entries) !== candidate.snapshotFingerprint) {
+      throw new Error('GATEWAY_CANDIDATE_FINGERPRINT_INVALID');
     }
     const previousEntries = this.snapshot.filter(
       entry => entry.runtimeAsset.id === candidate.runtimeAssetId,
@@ -280,17 +305,43 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
       .map(([runtimeAssetId, activeRouteCount]) => Object.freeze({ runtimeAssetId, activeRouteCount })));
   }
 
+  private assertSnapshotPolicies(entries: GatewaySnapshotRouteEntry[]) {
+    for (const entry of entries) {
+      try {
+        const compiled = this.gatewayPolicyService.compileForRoute(entry.routeBinding);
+        if (JSON.stringify(this.canonicalize(compiled)) !==
+          JSON.stringify(this.canonicalize(entry.policies))) {
+          throw new Error('policy mismatch');
+        }
+      } catch {
+        // Do not echo persisted policy text or references in startup errors.
+        throw new Error('GATEWAY_SNAPSHOT_POLICY_INVALID');
+      }
+    }
+  }
+
   private serializeEntries(entries: GatewaySnapshotRouteEntry[]) {
     return JSON.parse(JSON.stringify(entries)) as unknown[];
   }
 
   private deserializeEntries(payload: unknown[], runtimeAsset: RuntimeAssetEntity) {
-    return (Array.isArray(payload) ? payload : []).map(raw => {
+    if (!Array.isArray(payload)) throw new Error('GATEWAY_SNAPSHOT_PAYLOAD_INVALID');
+    return payload.map(raw => {
       const entry = raw as GatewaySnapshotRouteEntry;
-      entry.runtimeAsset = runtimeAsset;
-      entry.routeBinding.updatedAt = new Date(entry.routeBinding.updatedAt);
-      entry.routeBinding.createdAt = new Date(entry.routeBinding.createdAt);
-      return entry;
+      if (!entry || typeof entry !== 'object' ||
+        !entry.routeBinding || typeof entry.routeBinding !== 'object' ||
+        !entry.policies || typeof entry.policies !== 'object') {
+        throw new Error('GATEWAY_SNAPSHOT_PAYLOAD_INVALID');
+      }
+      return {
+        ...entry,
+        runtimeAsset,
+        routeBinding: {
+          ...entry.routeBinding,
+          updatedAt: new Date(entry.routeBinding.updatedAt),
+          createdAt: new Date(entry.routeBinding.createdAt),
+        },
+      };
     });
   }
 

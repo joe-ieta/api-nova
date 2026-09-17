@@ -1,3 +1,8 @@
+import 'reflect-metadata';
+import { createHash } from 'node:crypto';
+import { DataSource } from 'typeorm';
+import { GatewayRouteSnapshotEntity } from '../../../database/entities/gateway-route-snapshot.entity';
+import { RuntimeAssetEntity } from '../../../database/entities/runtime-asset.entity';
 import {
   GatewayRoutePathMatchMode,
   GatewayRouteBindingStatus,
@@ -12,6 +17,7 @@ import {
   RuntimeAssetStatus,
   RuntimeAssetType,
 } from '../../../database/entities/runtime-asset.entity';
+import { GatewayPolicyService } from './gateway-policy.service';
 import { GatewayRouteSnapshotService } from './gateway-route-snapshot.service';
 
 describe('GatewayRouteSnapshotService', () => {
@@ -32,6 +38,7 @@ describe('GatewayRouteSnapshotService', () => {
           runtimeAssetEndpointBindingId: 'membership-1',
           routePath: '/pets/{id}',
           routeMethod: 'GET',
+          authPolicyRef: 'jwt-default',
           upstreamPath: '/upstream/pets/{id}',
           upstreamMethod: 'GET',
           status: GatewayRouteBindingStatus.ACTIVE,
@@ -42,6 +49,7 @@ describe('GatewayRouteSnapshotService', () => {
           runtimeAssetEndpointBindingId: 'membership-2',
           routePath: '/pets/special',
           routeMethod: 'GET',
+          authPolicyRef: 'jwt-default',
           upstreamPath: '/upstream/pets/special',
           upstreamMethod: 'GET',
           status: GatewayRouteBindingStatus.ACTIVE,
@@ -81,15 +89,15 @@ describe('GatewayRouteSnapshotService', () => {
         },
       ]),
     };
+    const runtimeAssets = [{
+      id: 'runtime-1',
+      type: RuntimeAssetType.GATEWAY_SERVICE,
+      status: RuntimeAssetStatus.ACTIVE,
+      servicePrefix,
+    }];
     const runtimeAssetRepository = {
-      findByIds: jest.fn().mockResolvedValue([
-        {
-          id: 'runtime-1',
-          type: RuntimeAssetType.GATEWAY_SERVICE,
-          status: RuntimeAssetStatus.ACTIVE,
-          servicePrefix,
-        },
-      ]),
+      find: jest.fn(async () => runtimeAssets),
+      findByIds: jest.fn(async () => runtimeAssets),
     };
     const endpointDefinitionRepository = {
       findByIds: jest.fn().mockResolvedValue([
@@ -114,30 +122,7 @@ describe('GatewayRouteSnapshotService', () => {
         },
       ]),
     };
-    const gatewayPolicyService = {
-      compileForRoute: jest.fn().mockImplementation(routeBinding => ({
-        auth: {
-          ref: routeBinding.authPolicyRef,
-          mode: routeBinding.authPolicyRef ? 'jwt' : 'anonymous',
-        },
-        traffic: {
-          ref: routeBinding.trafficPolicyRef,
-          timeoutMs: routeBinding.timeoutMs ?? 30000,
-        },
-        logging: {
-          ref: routeBinding.loggingPolicyRef,
-          captureMode: 'meta_only',
-        },
-        cache: {
-          ref: routeBinding.cachePolicyRef,
-          enabled: Boolean(routeBinding.cachePolicyRef),
-          methods: ['GET', 'HEAD'],
-        },
-        upstream: {
-          raw: routeBinding.upstreamConfig,
-        },
-      })),
-    };
+    const gatewayPolicyService = new GatewayPolicyService();
     const runtimeUpstreamBindingsService = {
       resolve: jest.fn().mockResolvedValue({
         resolved: true,
@@ -154,7 +139,7 @@ describe('GatewayRouteSnapshotService', () => {
     };
 
     return new GatewayRouteSnapshotService(
-      gatewayPolicyService as any,
+      gatewayPolicyService,
       routeBindingRepository as any,
       persistedSnapshotRepository as any,
       runtimeBindingRepository as any,
@@ -274,9 +259,192 @@ describe('GatewayRouteSnapshotService', () => {
     const persisted = await (service as any).persistedSnapshotRepository.find();
     persisted[0].fingerprint = `${prepared.snapshotFingerprint}-stale`;
 
-    await service.reload();
+    await expect(service.reload()).rejects.toThrow('GATEWAY_ACTIVE_SNAPSHOT_INVALID');
+    expect(service.resolve('localhost:9001', 'GET', '/pets/special')?.routeBinding.id)
+      .toBe('route-static');
 
+    const restarted = new GatewayRouteSnapshotService(
+      new GatewayPolicyService(),
+      (service as any).routeBindingRepository,
+      (service as any).persistedSnapshotRepository,
+      (service as any).runtimeBindingRepository,
+      (service as any).publishBindingRepository,
+      (service as any).runtimeAssetRepository,
+      (service as any).endpointDefinitionRepository,
+      (service as any).sourceServiceRepository,
+      (service as any).runtimeUpstreamBindingsService,
+    );
+    await expect(restarted.onModuleInit()).rejects.toThrow('GATEWAY_ACTIVE_SNAPSHOT_INVALID');
+    expect(restarted.resolve('localhost:9001', 'GET', '/pets/special')).toBeNull();
+  });
+
+
+  it('rejects a missing published snapshot on cold start and keeps hot routes', async () => {
+    const service = buildService();
+    const prepared = await service.prepareCandidate('runtime-1', 'published-missing');
+    await service.activateCandidate('published-missing');
+    const active = service.resolve('localhost:9001', 'GET', '/pets/special')!;
+    active.runtimeAsset.metadata = {
+      activeRevision: 'published-missing',
+      activeGatewaySnapshotFingerprint: prepared.snapshotFingerprint,
+    };
+    (service as any).persistedSnapshotRepository.find.mockResolvedValue([]);
+    await expect(service.reload()).rejects.toThrow('GATEWAY_ACTIVE_SNAPSHOT_MISSING');
+    expect(service.resolve('localhost:9001', 'GET', '/pets/special')?.routeBinding.id)
+      .toBe('route-static');
+
+    const restarted = new GatewayRouteSnapshotService(
+      new GatewayPolicyService(),
+      (service as any).routeBindingRepository,
+      (service as any).persistedSnapshotRepository,
+      (service as any).runtimeBindingRepository,
+      (service as any).publishBindingRepository,
+      (service as any).runtimeAssetRepository,
+      (service as any).endpointDefinitionRepository,
+      (service as any).sourceServiceRepository,
+      (service as any).runtimeUpstreamBindingsService,
+    );
+    await expect(restarted.onModuleInit()).rejects.toThrow('GATEWAY_ACTIVE_SNAPSHOT_MISSING');
+    expect(restarted.resolve('localhost:9001', 'GET', '/pets/special')).toBeNull();
+  });
+
+  it.each(['empty', 'count-mismatch'])(
+    'rejects a persisted active snapshot with %s routes without replacing hot routes',
+    async corruption => {
+      const service = buildService();
+      const prepared = await service.prepareCandidate('runtime-1', 'invalid-count');
+      await service.activateCandidate('invalid-count');
+      const active = service.resolve('localhost:9001', 'GET', '/pets/special')!;
+      active.runtimeAsset.metadata = {
+        activeRevision: 'invalid-count',
+        activeGatewaySnapshotFingerprint: prepared.snapshotFingerprint,
+      };
+      const persisted = await (service as any).persistedSnapshotRepository.find();
+      if (corruption === 'empty') {
+        persisted[0].payload = [];
+        persisted[0].routeCount = 0;
+        const fingerprint = createHash('sha256').update('[]').digest('hex');
+        persisted[0].fingerprint = fingerprint;
+        active.runtimeAsset.metadata.activeGatewaySnapshotFingerprint = fingerprint;
+      } else {
+        persisted[0].routeCount = 0;
+      }
+      await expect(service.reload()).rejects.toThrow('GATEWAY_ACTIVE_SNAPSHOT_INVALID');
+      expect(service.resolve('localhost:9001', 'GET', '/pets/special')?.routeBinding.id)
+        .toBe('route-static');
+    },
+  );
+
+  it.each([undefined, 'unknown-policy', 'oauth'])(
+    'rejects candidate publication with missing or unsupported auth policy %s',
+    async policy => {
+      const service = buildService();
+      const routes = (service as any).routeBindingRepository;
+      const configured = await routes.find();
+      routes.find.mockResolvedValue(configured.map((route: any) =>
+        route.id === 'route-static' ? { ...route, authPolicyRef: policy } : route));
+      await expect(service.prepareCandidate('runtime-1', 'invalid-policy'))
+        .rejects.toThrow();
+      expect(service.getCandidateRoute('invalid-policy', 'membership-2')).toBeNull();
+      expect(service.resolve('localhost:9001', 'GET', '/pets/special')).toBeNull();
+      expect(await (service as any).persistedSnapshotRepository.find()).toEqual([]);
+    },
+  );
+
+  it('refuses activation if a prepared candidate policy is later changed', async () => {
+    const service = buildService();
+    await service.prepareCandidate('runtime-1', 'candidate-tampered');
+    const route = service.getCandidateRoute('candidate-tampered', 'membership-2')!;
+    (route.policies.auth as any).mode = 'anonymous';
+    await expect(service.activateCandidate('candidate-tampered'))
+      .rejects.toThrow('GATEWAY_SNAPSHOT_POLICY_INVALID');
     expect(service.resolve('localhost:9001', 'GET', '/pets/special')).toBeNull();
+    expect(await (service as any).persistedSnapshotRepository.find()).toEqual([]);
+  });
+
+  it('rejects publication when a prepared route no longer matches its fingerprint', async () => {
+    const service = buildService();
+    await service.prepareCandidate('runtime-1', 'candidate-stale-fingerprint');
+    const route = service.getCandidateRoute('candidate-stale-fingerprint', 'membership-2')!;
+    route.normalizedRoutePath = '/changed-after-preparation';
+    await expect(service.activateCandidate('candidate-stale-fingerprint'))
+      .rejects.toThrow('GATEWAY_CANDIDATE_FINGERPRINT_INVALID');
+    expect(await (service as any).persistedSnapshotRepository.find()).toEqual([]);
+    expect(service.resolve('localhost:9001', 'GET', '/changed-after-preparation')).toBeNull();
+  });
+
+  it('preserves the prior registry when a hot deployment reload finds a bad fingerprint', async () => {
+    const service = buildService();
+    const prepared = await service.prepareCandidate('runtime-1', 'hot-recovery');
+    await service.activateCandidate('hot-recovery');
+    const active = service.resolve('localhost:9001', 'GET', '/pets/special')!;
+    active.runtimeAsset.metadata = {
+      activeRevision: 'hot-recovery',
+      activeGatewaySnapshotFingerprint: prepared.snapshotFingerprint,
+    };
+    const persisted = await (service as any).persistedSnapshotRepository.find();
+    persisted[0].fingerprint = '0'.repeat(64);
+    const log = jest.spyOn((service as any).logger, 'error').mockImplementation(() => {});
+    try {
+      service.handleSnapshotRefreshRequested({
+        reason: 'runtime_assets.gateway_deployed', runtimeAssetId: 'runtime-1',
+      });
+      await new Promise(resolve => setImmediate(resolve));
+      expect(log).toHaveBeenCalledWith('Rejected invalid Gateway snapshot during hot reload');
+      expect(service.resolve('localhost:9001', 'GET', '/pets/special')?.policies.auth.mode)
+        .toBe('jwt');
+    } finally { log.mockRestore(); }
+  });
+
+  it.each(['missing', 'unknown', 'downgraded', 'unknown-ref'])(
+    'rejects a self-consistent but invalid active policy snapshot %s',
+    async corruption => {
+      const service = buildService();
+      const prepared = await service.prepareCandidate('runtime-1', 'revision-policy');
+      await service.activateCandidate('revision-policy');
+      const active = service.resolve('localhost:9001', 'GET', '/pets/special')!;
+      active.runtimeAsset.metadata = {
+        activeRevision: 'revision-policy',
+        activeGatewaySnapshotFingerprint: prepared.snapshotFingerprint,
+      };
+      const persisted = await (service as any).persistedSnapshotRepository.find();
+      const entry = persisted[0].payload[0];
+      if (corruption === 'missing') delete entry.policies.auth.mode;
+      if (corruption === 'unknown') entry.policies.auth.mode = 'unsupported';
+      if (corruption === 'downgraded') entry.policies.auth.mode = 'anonymous';
+      if (corruption === 'unknown-ref') entry.routeBinding.authPolicyRef = 'removed-policy';
+      const entries = (service as any).deserializeEntries(
+        persisted[0].payload, active.runtimeAsset,
+      );
+      const fingerprint = (service as any).fingerprintEntries(entries);
+      persisted[0].fingerprint = fingerprint;
+      active.runtimeAsset.metadata.activeGatewaySnapshotFingerprint = fingerprint;
+      await expect(service.reload()).rejects.toThrow('GATEWAY_ACTIVE_SNAPSHOT_INVALID');
+      expect(service.resolve('localhost:9001', 'GET', '/pets/special')?.policies.auth.mode)
+        .toBe('jwt');
+    },
+  );
+
+  it('keeps an explicit internal development anonymous ref traceable as JWT', async () => {
+    const service = buildService();
+    const routes = (service as any).routeBindingRepository;
+    const configured = await routes.find();
+    routes.find.mockResolvedValue(configured.map((route: any) => ({
+      ...route, authPolicyRef: 'anonymous', routeVisibility: 'internal',
+    })));
+    const prepared = await service.prepareCandidate('runtime-1', 'development-mode');
+    await service.activateCandidate('development-mode');
+    const active = service.resolve('localhost:9001', 'GET', '/pets/special')!;
+    expect(active.policies.auth).toEqual(expect.objectContaining({
+      ref: 'anonymous', mode: 'jwt',
+    }));
+    active.runtimeAsset.metadata = {
+      activeRevision: 'development-mode',
+      activeGatewaySnapshotFingerprint: prepared.snapshotFingerprint,
+    };
+    await service.reload();
+    expect(service.resolve('localhost:9001', 'GET', '/pets/special')?.policies.auth)
+      .toEqual(expect.objectContaining({ ref: 'anonymous', mode: 'jwt' }));
   });
 
   it('removes only the stopped runtime without reloading unverified database state', async () => {
@@ -349,4 +517,73 @@ describe('GatewayRouteSnapshotService', () => {
     );
     expect(service.resolve('localhost:9001', 'GET', '/orders/pets/special')).toBeNull();
   });
+
+  it('rejects a bad active fingerprint after real SQL.js export and cold restart', async () => {
+    const entities = [GatewayRouteSnapshotEntity, RuntimeAssetEntity];
+    let db = await new DataSource({
+      type: 'sqljs', entities, synchronize: true,
+    }).initialize();
+    try {
+      const runtimeAssetId = '00000000-0000-0000-0000-000000000001';
+      const createRestorer = () => new GatewayRouteSnapshotService(
+        new GatewayPolicyService(),
+        {} as any, db.getRepository(GatewayRouteSnapshotEntity),
+        {} as any, {} as any, db.getRepository(RuntimeAssetEntity),
+        {} as any, {} as any, {} as any,
+      );
+      const runtimeAsset = await db.getRepository(RuntimeAssetEntity).save({
+        id: runtimeAssetId, name: 'gateway-policy-fixture',
+        type: RuntimeAssetType.GATEWAY_SERVICE, status: RuntimeAssetStatus.ACTIVE,
+      });
+      const routeBinding = {
+        id: 'route-1', authPolicyRef: 'jwt-default',
+        pathMatchMode: GatewayRoutePathMatchMode.EXACT,
+        upstreamPath: '/fixture', upstreamMethod: 'GET',
+        createdAt: new Date(), updatedAt: new Date(),
+      };
+      const entries = [{
+        runtimeAsset,
+        membership: { id: 'membership-1', publicationRevision: 1 },
+        publishBinding: { id: 'publication-1' },
+        routeBinding,
+        sourceServiceInstance: { id: 'source-1' },
+        normalizedRoutePath: '/fixture', routeMethod: 'GET',
+        upstreamBaseUrl: 'http://127.0.0.1:1',
+        policies: new GatewayPolicyService().compileForRoute(routeBinding as any),
+      }];
+      const fingerprint = (createRestorer() as any).fingerprintEntries(entries);
+      await db.getRepository(RuntimeAssetEntity).update(runtimeAssetId, {
+        metadata: {
+          activeRevision: 'verified-route',
+          activeGatewaySnapshotFingerprint: fingerprint,
+        },
+      });
+      const snapshot = await db.getRepository(GatewayRouteSnapshotEntity).save({
+        runtimeAssetId, revision: 'verified-route', fingerprint,
+        routeCount: 1, payload: JSON.parse(JSON.stringify(entries)),
+        activatedAt: new Date(),
+      });
+      await expect(createRestorer().onModuleInit()).resolves.toBeUndefined();
+      const invalid = '0'.repeat(64);
+      await db.getRepository(GatewayRouteSnapshotEntity).update(snapshot.id, {
+        fingerprint: invalid,
+      });
+      await db.getRepository(RuntimeAssetEntity).update(runtimeAssetId, {
+        metadata: {
+          activeRevision: 'verified-route',
+          activeGatewaySnapshotFingerprint: invalid,
+        },
+      });
+      const database = (db.driver as any).export() as Uint8Array;
+      await db.destroy();
+      db = await new DataSource({
+        type: 'sqljs', database, entities, synchronize: false,
+      }).initialize();
+      await expect(createRestorer().onModuleInit())
+        .rejects.toThrow('GATEWAY_ACTIVE_SNAPSHOT_INVALID');
+    } finally {
+      if (db.isInitialized) await db.destroy();
+    }
+  });
+
 });
