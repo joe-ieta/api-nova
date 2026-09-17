@@ -11,7 +11,12 @@ import {
 describe('RuntimeVerificationService', () => {
   const runtimeAssetRepository = { findOne: jest.fn(), save: jest.fn(async value => value), manager: { transaction: async (work: any) => work({ getRepository: () => runtimeAssetRepository }) } };
   const membershipRepository = { find: jest.fn() };
-  const sampleRepository = { find: jest.fn() };
+  const objectRepository = { findOneBy: jest.fn() };
+  const sampleRepository = {
+    find: jest.fn(),
+    findOneBy: jest.fn(),
+    manager: { getRepository: jest.fn(() => objectRepository) },
+  };
   const runRepository = {
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => ({ id: 'verification-run-1', ...value })),
@@ -101,6 +106,18 @@ describe('RuntimeVerificationService', () => {
       mismatches: [],
     });
     responseAssertionService.preflight.mockImplementation(sample => realAssertion.preflight(sample));
+    sampleRepository.findOneBy.mockImplementation(async ({ id }) => {
+      const samples = await sampleRepository.find();
+      const sample = samples.find((item: { id: string }) => item.id === id);
+      return sample ? {
+        status: EndpointTestSampleStatus.ACTIVE, enabled: true, ...sample,
+      } : null;
+    });
+    objectRepository.findOneBy.mockImplementation(async ({ id, sampleId }) => ({
+      id, sampleId, side: 'response', state: 'ready',
+      mediaType: 'application/pdf', measurement: 'decoded_response_body',
+      observedBytes: 4, sha256: 'a'.repeat(64),
+    }));
   });
 
   it('blocks a candidate when a membership has no smoke sample', async () => {
@@ -807,6 +824,139 @@ describe('RuntimeVerificationService', () => {
       ? RuntimeVerificationResultStatus.PASSED : RuntimeVerificationResultStatus.FAILED);
     expect(result.run.status).toBe(statusCode === 200
       ? RuntimeVerificationRunStatus.PASSED : RuntimeVerificationRunStatus.FAILED);
+  });
+
+
+  it.each(['gateway', 'mcp'] as const)(
+    'blocks %s replay before candidate dispatch when the selected binary sample was revoked',
+    async transport => {
+      const mcp = transport === 'mcp';
+      const assetId = mcp ? 'runtime-mcp-revoked' : 'runtime-1';
+      const run = {
+        id: 'run-revoked', runtimeAssetId: assetId,
+        candidateRevision: 'candidate-revoked', previousActiveRevision: 'revision-stable',
+        status: RuntimeVerificationRunStatus.PLANNED, blockers: [],
+      };
+      const verificationResult = {
+        id: 'result-revoked', verificationRunId: run.id,
+        runtimeMembershipId: 'membership-1', endpointDefinitionId: 'endpoint-1',
+        endpointTestSampleId: 'sample-binary', expectedStatusCode: 200,
+        status: RuntimeVerificationResultStatus.PENDING, evidence: {},
+      };
+      if (mcp) runtimeAssetRepository.findOne.mockResolvedValue({
+        id: assetId, type: 'mcp_server', metadata: { activeRevision: 'revision-stable' },
+      });
+      runRepository.findOne.mockResolvedValue(run);
+      resultRepository.find.mockResolvedValue([verificationResult]);
+      sampleRepository.find.mockResolvedValue([{
+        id: 'sample-binary', status: EndpointTestSampleStatus.ARCHIVED, enabled: false,
+        responsePayload: {
+          ...binaryDescriptor, captureState: 'unavailable', deletionState: 'pending',
+          opaqueObjectId: undefined,
+        },
+        metadata: { responseAssertion: { mode: 'status' } },
+      }]);
+      const outcome = mcp
+        ? await service.executeMcpCandidate(assetId, run.id, [
+            { runtimeMembershipId: 'membership-1', tool: { name: 'getBinary' } },
+          ])
+        : await service.executeGatewayCandidate(assetId, run.id);
+      expect(outcome.run.status).toBe(RuntimeVerificationRunStatus.BLOCKED);
+      expect(outcome.run.activationStatus).toBe('retained_previous');
+      expect(verificationResult.status).toBe(RuntimeVerificationResultStatus.BLOCKED);
+      expect((verificationResult as any).blockerCode).toBe('verification_sample_unavailable');
+      expect(gatewayCandidateReplayService.replay).not.toHaveBeenCalled();
+      expect(mcpCandidateReplayService.replay).not.toHaveBeenCalled();
+      expect(gatewayRouteSnapshotService.activateCandidate).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['gateway', 'mcp'] as const)(
+    'blocks %s result when DELETE revokes its sample during candidate replay',
+    async transport => {
+      const mcp = transport === 'mcp';
+      const assetId = mcp ? 'runtime-mcp-racing' : 'runtime-1';
+      const run = {
+        id: 'run-racing', runtimeAssetId: assetId,
+        candidateRevision: 'candidate-racing', previousActiveRevision: 'revision-stable',
+        status: RuntimeVerificationRunStatus.PLANNED, blockers: [],
+      };
+      const verificationResult = {
+        id: 'result-racing', verificationRunId: run.id,
+        runtimeMembershipId: 'membership-1', endpointDefinitionId: 'endpoint-1',
+        endpointTestSampleId: 'sample-binary', expectedStatusCode: 200,
+        status: RuntimeVerificationResultStatus.PENDING, evidence: {},
+      };
+      const active = {
+        id: 'sample-binary', status: EndpointTestSampleStatus.ACTIVE, enabled: true,
+        responsePayload: binaryDescriptor,
+        metadata: { responseAssertion: { mode: 'status' } },
+      };
+      const revoked = {
+        ...active, status: EndpointTestSampleStatus.ARCHIVED, enabled: false,
+        responsePayload: {
+          ...binaryDescriptor, captureState: 'unavailable',
+          deletionState: 'pending', opaqueObjectId: undefined,
+        },
+      };
+      if (mcp) runtimeAssetRepository.findOne.mockResolvedValue({
+        id: assetId, type: 'mcp_server', metadata: { activeRevision: 'revision-stable' },
+      });
+      runRepository.findOne.mockResolvedValue(run);
+      resultRepository.find.mockResolvedValue([verificationResult]);
+      sampleRepository.find.mockResolvedValue([active]);
+      sampleRepository.findOneBy.mockResolvedValueOnce(active).mockResolvedValueOnce(revoked);
+      gatewayCandidateReplayService.replay.mockResolvedValue({
+        statusCode: 200, durationMs: 1, routePath: '/binary', method: 'GET',
+        headers: {}, body: { unrelated: true }, bodyBytes: 4, truncated: false,
+      });
+      mcpCandidateReplayService.replay.mockResolvedValue({
+        statusCode: 200, durationMs: 1, isError: false,
+        body: { unrelated: true }, toolName: 'getBinary',
+      });
+      const outcome = mcp
+        ? await service.executeMcpCandidate(assetId, run.id, [
+            { runtimeMembershipId: 'membership-1', tool: { name: 'getBinary' } },
+          ])
+        : await service.executeGatewayCandidate(assetId, run.id);
+      expect(outcome.run.status).toBe(RuntimeVerificationRunStatus.BLOCKED);
+      expect(outcome.run.activationStatus).toBe('retained_previous');
+      expect(verificationResult.status).toBe(RuntimeVerificationResultStatus.BLOCKED);
+      expect((verificationResult as any).blockerCode).toBe('verification_sample_unavailable');
+      expect(mcp ? mcpCandidateReplayService.replay : gatewayCandidateReplayService.replay)
+        .toHaveBeenCalledTimes(1);
+      expect(gatewayRouteSnapshotService.activateCandidate).not.toHaveBeenCalled();
+    },
+  );
+
+  it('blocks a status-only binary replay if its object is no longer ready', async () => {
+    const run = {
+      id: 'run-object-pending', runtimeAssetId: 'runtime-1',
+      candidateRevision: 'candidate-pending', previousActiveRevision: 'revision-stable',
+      status: RuntimeVerificationRunStatus.PLANNED, blockers: [],
+    };
+    const verificationResult = {
+      id: 'result-object-pending', verificationRunId: run.id,
+      runtimeMembershipId: 'membership-1', endpointDefinitionId: 'endpoint-1',
+      endpointTestSampleId: 'sample-binary', expectedStatusCode: 200,
+      status: RuntimeVerificationResultStatus.PENDING, evidence: {},
+    };
+    runRepository.findOne.mockResolvedValue(run);
+    resultRepository.find.mockResolvedValue([verificationResult]);
+    sampleRepository.find.mockResolvedValue([{
+      id: 'sample-binary', status: EndpointTestSampleStatus.ACTIVE, enabled: true,
+      responsePayload: binaryDescriptor,
+      metadata: { responseAssertion: { mode: 'status' } },
+    }]);
+    objectRepository.findOneBy.mockResolvedValue({
+      id: binaryDescriptor.opaqueObjectId, sampleId: 'sample-binary',
+      state: 'delete_pending',
+    });
+    const outcome = await service.executeGatewayCandidate('runtime-1', run.id);
+    expect(outcome.run.status).toBe(RuntimeVerificationRunStatus.BLOCKED);
+    expect((verificationResult as any).blockerCode).toBe('binary_sample_object_unavailable');
+    expect(gatewayCandidateReplayService.replay).not.toHaveBeenCalled();
+    expect(gatewayRouteSnapshotService.activateCandidate).not.toHaveBeenCalled();
   });
 
 });

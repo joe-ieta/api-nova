@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { createHash } from 'node:crypto';
 import { EntityManager, In, Repository } from 'typeorm';
 import { EndpointTestSampleEntity, EndpointTestSampleStatus } from '../../../database/entities/endpoint-test-sample.entity';
+import { EndpointTestSampleObjectEntity } from '../../../database/entities/endpoint-test-sample-object.entity';
 import { RuntimeAssetEndpointBindingEntity } from '../../../database/entities/runtime-asset-endpoint-binding.entity';
 import { RuntimeAssetEntity, RuntimeAssetType } from '../../../database/entities/runtime-asset.entity';
 import {
@@ -23,7 +24,7 @@ import { RuntimeUpstreamBindingsService } from '../../runtime-upstream-bindings/
 import { GatewayRouteSnapshotService } from '../../gateway-runtime/services/gateway-route-snapshot.service';
 import { GatewayCandidateReplayService } from './gateway-candidate-replay.service';
 import { McpCandidateReplayService } from './mcp-candidate-replay.service';
-import { RuntimeResponseAssertionService } from './runtime-response-assertion.service';
+import { BINARY_RESPONSE_ASSERTION_UNSUPPORTED, RuntimeResponseAssertionService } from './runtime-response-assertion.service';
 import { PlanRuntimeVerificationDto } from '../dto/runtime-verification.dto';
 
 type VerificationBlocker = {
@@ -385,29 +386,15 @@ export class RuntimeVerificationService {
         ? sampleById.get(result.endpointTestSampleId)
         : undefined;
       if (!sample) {
-        result.status = RuntimeVerificationResultStatus.FAILED;
-        result.errorMessage = 'The selected endpoint test sample no longer exists';
-        await this.resultRepository.save(result);
+        await this.blockReplaySample(run, result, {
+          code: 'verification_sample_unavailable',
+          message: 'The selected endpoint test sample is no longer active and readable',
+        });
         continue;
       }
-      const unsupported = this.responseAssertionService.preflight(sample);
-      if (unsupported) {
-        result.status = RuntimeVerificationResultStatus.BLOCKED;
-        result.blockerCode = unsupported.code;
-        result.errorMessage = unsupported.message;
-        result.evidence = {
-          ...(result.evidence || {}),
-          responseAssertion: {
-            passed: false, mode: 'unsupported', mismatches: [],
-            blockerCode: unsupported.code, reason: unsupported.message,
-          },
-        };
-        run.blockers = [
-          ...(run.blockers || []),
-          { code: unsupported.code, runtimeMembershipId: result.runtimeMembershipId,
-            message: unsupported.message },
-        ];
-        await this.resultRepository.save(result);
+      const beforeReplay = await this.replaySampleCheck(sample.id);
+      if (!beforeReplay.sample) {
+        await this.blockReplaySample(run, result, beforeReplay.blocker!);
         continue;
       }
       try {
@@ -415,11 +402,16 @@ export class RuntimeVerificationService {
           candidateRevision: run.candidateRevision,
           runtimeMembershipId: result.runtimeMembershipId,
           verificationRunId: run.id,
-          sample,
+          sample: beforeReplay.sample,
         });
+        const afterReplay = await this.replaySampleCheck(sample.id);
+        if (!afterReplay.sample) {
+          await this.blockReplaySample(run, result, afterReplay.blocker!);
+          continue;
+        }
         result.actualStatusCode = replay.statusCode;
         result.durationMs = replay.durationMs;
-        const responseAssertion = this.responseAssertionService.assert(sample, replay.body);
+        const responseAssertion = this.responseAssertionService.assert(afterReplay.sample, replay.body);
         result.evidence = {
           ...(result.evidence || {}),
           routePath: replay.routePath,
@@ -572,42 +564,38 @@ export class RuntimeVerificationService {
         ? sampleMap.get(result.endpointTestSampleId)
         : undefined;
       const tool = toolMap.get(result.runtimeMembershipId);
-      if (!sample || !tool) {
+      if (!sample) {
+        await this.blockReplaySample(run, result, {
+          code: 'verification_sample_unavailable',
+          message: 'The selected endpoint test sample is no longer active and readable',
+        });
+        continue;
+      }
+      if (!tool) {
         result.status = RuntimeVerificationResultStatus.FAILED;
-        result.errorMessage = !sample
-          ? 'Verification sample was not found'
-          : 'MCP candidate tool was not assembled for this membership';
+        result.errorMessage = 'MCP candidate tool was not assembled for this membership';
         await this.resultRepository.save(result);
         continue;
       }
-      const unsupported = this.responseAssertionService.preflight(sample);
-      if (unsupported) {
-        result.status = RuntimeVerificationResultStatus.BLOCKED;
-        result.blockerCode = unsupported.code;
-        result.errorMessage = unsupported.message;
-        result.evidence = {
-          ...(result.evidence || {}),
-          responseAssertion: {
-            passed: false, mode: 'unsupported', mismatches: [],
-            blockerCode: unsupported.code, reason: unsupported.message,
-          },
-        };
-        run.blockers = [
-          ...(run.blockers || []),
-          { code: unsupported.code, runtimeMembershipId: result.runtimeMembershipId,
-            message: unsupported.message },
-        ];
-        await this.resultRepository.save(result);
+      const beforeReplay = await this.replaySampleCheck(sample.id);
+      if (!beforeReplay.sample) {
+        await this.blockReplaySample(run, result, beforeReplay.blocker!);
         continue;
       }
       const startedAt = Date.now();
       try {
         const replay = await this.mcpCandidateReplayService.replay({
-          tool, sample, runtimeAssetId, runtimeMembershipId: result.runtimeMembershipId,
+          tool, sample: beforeReplay.sample, runtimeAssetId,
+          runtimeMembershipId: result.runtimeMembershipId,
         });
+        const afterReplay = await this.replaySampleCheck(sample.id);
+        if (!afterReplay.sample) {
+          await this.blockReplaySample(run, result, afterReplay.blocker!);
+          continue;
+        }
         result.actualStatusCode = replay.statusCode;
         result.durationMs = replay.durationMs;
-        const responseAssertion = this.responseAssertionService.assert(sample, replay.body);
+        const responseAssertion = this.responseAssertionService.assert(afterReplay.sample, replay.body);
         result.evidence = this.sanitizeValue({
           toolName: replay.toolName,
           isError: replay.isError,
@@ -719,6 +707,81 @@ export class RuntimeVerificationService {
     await runtimeAssetRepository.save(runtimeAsset);
     run.activationStatus = RuntimeVerificationActivationStatus.ACTIVATED;
     return { run: await runRepository.save(run), runtimeAsset };
+  }
+
+  private async replaySampleCheck(sampleId: string): Promise<{
+    sample?: EndpointTestSampleEntity;
+    blocker?: { code: string; message: string };
+  }> {
+    // Planning is only a snapshot. DELETE, archival or a failed object state
+    // can invalidate a sample before or during candidate replay.
+    const sample = await this.sampleRepository.findOneBy({ id: sampleId });
+    const payload = sample?.responsePayload;
+    const descriptor = payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? payload as Record<string, unknown> : undefined;
+    if (!sample || sample.status !== EndpointTestSampleStatus.ACTIVE ||
+      sample.enabled !== true || descriptor?.deletionState !== undefined) {
+      return { blocker: {
+        code: 'verification_sample_unavailable',
+        message: 'The selected endpoint test sample is no longer active and readable',
+      } };
+    }
+    const unsupported = this.responseAssertionService.preflight(sample);
+    if (unsupported) return { blocker: unsupported };
+    if (descriptor?.kind === 'binary') {
+      const objectId = descriptor.opaqueObjectId;
+      if (descriptor.captureState !== 'stored' || typeof objectId !== 'string' ||
+        !/^[0-9a-f-]{36}$/.test(objectId)) {
+        return { blocker: {
+          code: 'binary_sample_object_unavailable',
+          message: 'The selected binary sample object is no longer readable',
+        } };
+      }
+      const object = await this.sampleRepository.manager
+        .getRepository(EndpointTestSampleObjectEntity)
+        .findOneBy({ id: objectId, sampleId, side: 'response' });
+      if (!object || object.state !== 'ready' ||
+        descriptor.mediaType !== object.mediaType ||
+        descriptor.measurement !== object.measurement ||
+        descriptor.observedBytes !== object.observedBytes ||
+        descriptor.sha256 !== object.sha256) {
+        return { blocker: {
+          code: 'binary_sample_object_unavailable',
+          message: 'The selected binary sample object is no longer readable',
+        } };
+      }
+    }
+    return { sample };
+  }
+
+  private async blockReplaySample(
+    run: RuntimeVerificationRunEntity,
+    result: RuntimeVerificationResultEntity,
+    blocker: { code: string; message: string },
+  ): Promise<void> {
+    result.status = RuntimeVerificationResultStatus.BLOCKED;
+    result.blockerCode = blocker.code;
+    result.errorMessage = blocker.message;
+    result.evidence = blocker.code === BINARY_RESPONSE_ASSERTION_UNSUPPORTED
+      ? {
+          ...(result.evidence || {}),
+          responseAssertion: {
+            passed: false, mode: 'unsupported', mismatches: [],
+            blockerCode: blocker.code, reason: blocker.message,
+          },
+        }
+      : {
+          ...(result.evidence || {}),
+          sampleAvailability: {
+            available: false, blockerCode: blocker.code, reason: blocker.message,
+          },
+        };
+    run.blockers = [
+      ...(run.blockers || []),
+      { code: blocker.code, runtimeMembershipId: result.runtimeMembershipId,
+        message: blocker.message },
+    ];
+    await this.resultRepository.save(result);
   }
 
   private sampleResultPlan(
