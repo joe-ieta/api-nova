@@ -1,7 +1,7 @@
 ---
-doc-version: 1.18.0
+doc-version: 1.22.0
 doc-status: active
-doc-updated: 2026-09-16
+doc-updated: 2026-09-17
 ---
 # 活跃工作包划分与验收子任务
 
@@ -68,8 +68,9 @@ SEC父包：A0 DONE；A1/A2/A4/B1/B2/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a各I
 | SEC-A1-02B4 | SEC-A1 | CODE | MCP模式UI选择与回填 | 选择、保存、重载、预览和有效模式标签同服务端一致；阻断态可见 | SEC-A1-02B1;SEC-A1-02B2;SEC-A1-02B3 |
 | SEC-A1-02C | SEC-A1 | CODE | stdio本地进程身份标签 | local_process在直连stdio元数据和审计中明确，不误报HTTP anonymous | SEC-A1-01 |
 | SEC-A1-02D | SEC-A1 | VALIDATION | 鉴权模式保存到执行闭环 | Gateway/MCP/stdio按保存、发布、重启和真实请求核对有效模式与标签 | SEC-A1-02A;SEC-A1-02B4;SEC-A1-02C |
-| SEC-A2-01 | SEC-A2 | VALIDATION | 非法策略发布/恢复/启动拒绝 | 缺失、未知、非法快照覆盖三入口；合法开发默认可追溯 | — |
-| SEC-A3-01 | SEC-A3 | CODE | 临时匿名治理 | reason/actor/expiry、生产双许可、到期拒绝与审计同一用例通过 | SEC-B1-01;SEC-A2-01 |
+| SEC-A2-01A | SEC-A2 | VALIDATION | Gateway非法策略三入口拒绝 | 缺失/未知ref、非法或坏指纹持久快照在发布/热恢复/冷启动均拒绝；热恢复保旧有效快照 | SEC-A1-02A |
+| SEC-A2-01B | SEC-A2 | VALIDATION | MCP入站模式三入口拒绝 | 缺失/未知/配置不符模式在部署、恢复和child启动均失败关闭，合法开发默认可追溯 | SEC-A1-02B2;SEC-A1-02B3 |
+| SEC-A3-01 | SEC-A3 | CODE | 临时匿名治理 | reason/actor/expiry、生产双许可、到期拒绝与审计同一用例通过 | SEC-B1-01;SEC-A2-01A;SEC-A2-01B |
 | SEC-A4-01 | SEC-A4 | VALIDATION | 当前版本SQLite空库和重启 | 当前实体数、初始化一次、重启零漂移记录到同一基线 | — |
 | SEC-A4-02 | SEC-A4 | ENV | 当前版本PostgreSQL空库 | 同版本初始化/重启/零漂移原始日志；明确目标隔离库 | SEC-A4-01 |
 | SEC-B1-01 | SEC-B1 | CODE | 统一消费者凭证模型 | Protocol/Tool scope、Subject、到期、Actor字段管理与Gateway/MCP解释一致 | — |
@@ -137,8 +138,10 @@ SEC父包：A0 DONE；A1/A2/A4/B1/B2/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a各I
 | OBS-14-05C2C2B1 | OBS-14 | CODE | 双方言发布意图模型 | 独立表、SQLite/PostgreSQL前向迁移与注册/原语；旧预留不回填，不接写入或结算 | OBS-14-05C2C2A |
 | OBS-14-05C2C2B2 | OBS-14 | CODE | 预留与意图同事务写入 | 首次文件操作前同事务保存预留/精确final/temp意图，重复发布复用原路径；不结算旧未知 | OBS-14-05C2C2B1 |
 | OBS-14-05C2C2B3 | OBS-14 | VALIDATION | 意图崩溃窗口验收 | 写前、临时写、发布、结算及receipt前崩溃导出重启；旧无意图保持未知 | OBS-14-05C2C2B2 |
-| OBS-14-05C2C2C | OBS-14 | CODE | 可证明的预留与孤儿账本对账 | 仅用完整意图、文件及元数据证据结算；不匹配/旧未知持续占用，不超卖 | OBS-14-05C2C2B3 |
-| OBS-14-05C2C3 | OBS-14 | VALIDATION | 恢复对账故障验收 | 重启、重复、外部元数据失败和残留占用不漏计 | OBS-14-05C2C2C |
+| OBS-14-05C2C2C1 | OBS-14 | CODE | 围栏内只读精确关联判定 | 从意图到预留、receipt、invocation及当前/历史payload引用逐项证明；缺失/冲突仅blocked，不改账本或文件 | OBS-14-05C2C2B3 |
+| OBS-14-05C2C2C2A | OBS-14 | CODE | 围栏内只读文件占用证明 | 在单次inventory围栏内重验DB链、完整扫描受管根、final digest/长度与temp缺失；仅产未提交证明，不动账本 | OBS-14-05C2C2C1 |
+| OBS-14-05C2C2C2B | OBS-14 | CODE | 最终事务原子结算 | 同围栏内再次核对DB/文件与账本CAS，只对完整正向证据结算；任何旧未知或冲突保持占用 | OBS-14-05C2C2C2A |
+| OBS-14-05C2C3 | OBS-14 | VALIDATION | 恢复对账故障验收 | 重启、重复、外部元数据失败和残留占用不漏计 | OBS-14-05C2C2C2B |
 | OBS-14-05C3 | OBS-14 | VALIDATION | 崩溃重启与多写者配额验收 | 预留、写入、发布及元数据事务失败各点重启；不超卖、不少计、残留保护 | OBS-14-05C2C3 |
 | OBS-14-05D | OBS-14 | VALIDATION | 配额状态与故障联调 | 高低水位、物理余量、权限、长期压力与业务旁路完整验证 | OBS-14-05C3 |
 | OBS-14-06A | OBS-14 | CODE | 管理审计30天清理 | 独立审计保留边界与有界删除/权限审计有证据 | OBS-14-01 |
@@ -206,3 +209,9 @@ SEC父包：A0 DONE；A1/A2/A4/B1/B2/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a各I
 SEC-E1-01R已冻结[受管启动交付设计第9节](./managed-mcp-credential-handoff-plan.md)：02A交付真实Node IPC与严格环境通道，ACK不代表READY；02B1/02B2接入同一通道，不能另起实现。PROD-01已冻结[MCP发布端点合同](./mcp-publication-endpoint-contract.md)：原PROD-02进一步拆成02A1后端、02A2候选绑定、02B UI、02C真实监听验收，避免一个子任务横跨三种独立退出。
 
 OBS-14-02限定为同GC fence下的过期metadata缺文件整理，持久分页和恢复；不扩大为事件/receipt清理或配额。三个首批子任务完成后，第二批按SEC-E1-02A、PROD-02A1/02A2及OBS-14-01推进，具体状态只在执行台账登记。
+
+## 8. 额度中断恢复后的调度（2026-09-17）
+
+本批收尾B1/B2持久模式与现行CLI接线、SEC-A2-01A、PROD-04B3D及OBS-14-05C2C2C关联/文件证明/安全结算；证据见[恢复审计](../audits/2026-09-17-interruption-recovery-evidence.md)。132个叶子不继续机械扩拆。下一批可并行取SEC-A1-02B3与OBS-14-05C2C3；B4和A2-01B仍等待B3。生产和跨平台验收继续单列环境项。
+
+用户已明确授权将ApiNova源码、测试和文档提交推送到joe-ieta/api-nova的main，后续每完成一个任务包推送一次，无需重复索取该推送授权。提交推送授权不替代独立生产启用或永久数据删除边界。

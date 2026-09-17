@@ -1,8 +1,8 @@
 ---
-doc-version: 0.7.0
+doc-version: 0.8.0
 doc-status: active
 implementation-status: partial
-doc-updated: 2026-09-16
+doc-updated: 2026-09-17
 ---
 # 端点测试二进制样例合同
 
@@ -129,3 +129,8 @@ B3C对于schemaVersion=1的binary descriptor，仅显式status-only可继续Gate
 E1使受信二进制发布、撤销和显式整理共用同一对象围栏：SQL.js按受控根和sampleId同进程排队，PostgreSQL代码使用独立会话advisory lock并在关键文件动作前后核验会话活性；锁不确定释放时不复用连接。E2只在显式server:manage整理入口按原100对象/2秒软预算处理无引用staged对象：首次创建满5分钟且持锁复核sample仍无对象引用后，先持久CAS为delete_pending，再按受控key清理；失败保ORPHAN墓碑重试。E3隔离SQL.js/临时目录矩阵覆盖第二服务排队、旧写者ready竞争、CAS失败、unlink/终结DB失败、ENOENT重启及显式删除宽限；endpoint-testing四套75/75、API构建通过。详见[第五批证据](../audits/2026-09-16-replanned-batch-5-evidence.md)。
 
 这不是自动定时器或生产留存验收。真实PostgreSQL跨进程/断线、单次文件操作中途锁丢失及跨平台权限仍待验证；旧写者即使遇断线，也必须受E2持久CAS阻断ready，不能凭年龄直接删除。
+## 13. 04B3D限定删除与回放验收（2026-09-17）
+
+Gateway/MCP在回放前及判定结果前鲜读样例启用/撤销状态；二进制status-only还须对应同一样例的ready对象及一致描述符，失效立即BLOCKED并保留旧版本。本地真实JWT HTTP下载200、DELETE后410、SQL.js重启/重复删除、unlink失败墓碑保留和再次整理404均通过；active/archived留存与回放期间撤销纳入11套148/148。
+
+候选外发使用mock；真实PostgreSQL、跨平台权限、生产身份/留存仍由04C验收。未新增binary-exact或生产定时器。详见[恢复审计](../audits/2026-09-17-interruption-recovery-evidence.md)。

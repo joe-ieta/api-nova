@@ -1,7 +1,7 @@
 ---
-doc-version: 1.7.0
+doc-version: 1.8.0
 doc-status: active
-doc-updated: 2026-09-16
+doc-updated: 2026-09-17
 implementation-status: partial
 ---
 # 可观测性容量计量、配额与降级合同
@@ -139,3 +139,8 @@ C2C2A是保守持有原语：同一围栏内精确核对owner、epoch、generati
 B1新增独立发布意图实体及SQLite/PostgreSQL前向迁移，旧reservation不回填。隔离SQLite新库为69实体/69业务表、2次迁移，旧库只运行1次前向迁移，同库重启0迁移/0漂移；真实PostgreSQL运行未验。B2在writer校验的同一事务中先持久预留与owner/epoch/generation/sourceEvent/payload/final/temp/digest/bytes意图，事务提交后才开始文件I/O；重放使用原temp key，残留temp不覆盖，settled仅核验final，uncertain不写，reserved重放无论看到旧final与否都不释放未知额度。B3隔离SQL.js导出重启矩阵8/8覆盖首次open前崩溃、旧无意图记录、残留temp及owner/epoch/generation变化。B1/B2/B3专项分别9/9、13/13、8/8，详见[第五批证据](../audits/2026-09-16-replanned-batch-5-evidence.md)。
 
 这三项不实施C2C2C的可证明恢复结算，旧无意图预留仍为unknown；quotaEnforced保持false。PostgreSQL、Linux、真实多进程/杀进程和容量压力仍须单独验收。
+## 14. 可证明恢复结算原语（2026-09-17）
+
+05C2C2C1在inventory围栏内关联持久意图/预留/receipt/元数据，仅产生linked_unverified；C2A完整有界扫描并核对最终文件摘要/长度和临时文件缺失，仅产生file_proof_uncommitted。C2B在同一活跃围栏的最终事务重核owner/epoch/generation、意图/receipt/元数据/ledger/reservation版本与金额，再次完整扫描并在结算前后核对精确文件证明，才允许reserved峰值转为实际committed金额。失败回滚、证据缺失保守持有；旧无意图记录不推测释放。
+
+三专项分别5/5、8/8、10/10，相邻回归55/55。该原语尚不代表C2C3综合故障矩阵、C3跨平台多写者或05D完成；quotaEnforced保持false，未接生产恢复调度。外部直接改盘不具有SQL与文件系统原子保证。当前SQLite迁移总数已随入站模式迁移变为3，历史第13节的2次迁移保留为当时证据。详见[恢复审计](../audits/2026-09-17-interruption-recovery-evidence.md)。
