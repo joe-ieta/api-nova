@@ -306,6 +306,38 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
       () => this.assertOwnedRoot(), startShard, resume);
   }
 
+  /** Exact read-only publication proof for recovery. The caller owns a live
+   * inventory fence; this method never creates, writes, or removes a path. */
+  async verifyRecoveryPublication(fileKey: string, temporaryKey: string,
+    digest: string, storedBytes: number, checkFence: () => Promise<void>): Promise<void> {
+    if (!/^[a-f0-9]{2}\/[a-f0-9]{64}\.body$/.test(fileKey) ||
+      !temporaryKey.startsWith(fileKey + '.') ||
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.tmp$/
+        .test(temporaryKey.slice(fileKey.length + 1)) ||
+      !/^[a-f0-9]{64}$/.test(digest) || !Number.isSafeInteger(storedBytes) ||
+      storedBytes < 1 || storedBytes > this.readLimit) {
+      throw new ObservabilityStorageError('INVALID_PAYLOAD_RECOVERY_PROOF');
+    }
+    await checkFence();
+    await this.assertOwnedRoot();
+    const finalPath = await this.objectPath(fileKey, false);
+    const temporaryPath = await this.candidatePath(temporaryKey);
+    const assertTemporaryAbsent = async (): Promise<void> => {
+      try {
+        await fs.lstat(temporaryPath);
+        throw new ObservabilityStorageError('PAYLOAD_RECOVERY_TEMP_PRESENT');
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      }
+    };
+    await assertTemporaryAbsent();
+    const data = await this.readBounded(finalPath, storedBytes);
+    if (contentHash(data) !== digest) throw new ObservabilityStorageError('PAYLOAD_INTEGRITY_ERROR');
+    await checkFence();
+    await this.assertOwnedRoot();
+    await assertTemporaryAbsent();
+  }
+
   /** Read-only, bounded evidence over the managed payload root. The caller must
    * hold and check a persistent inventory fence; this never advances the GC cursor. */
   async scanRecoveryPaths(maxEntriesPerBatch: number, maxBatches: number,
