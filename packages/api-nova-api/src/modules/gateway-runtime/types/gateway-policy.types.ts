@@ -47,6 +47,10 @@ export type GatewayTrafficRateLimitConfig = {
   runtimeAssetMax?: number;
   routeMax?: number;
   consumerMax?: number;
+  /** Per route and transport peer; forwarded headers are not trusted. */
+  ipMax?: number;
+  /** Shared by all explicitly anonymous requests to this route. */
+  anonymousMax?: number;
 };
 
 export type GatewayTrafficConcurrencyConfig = {

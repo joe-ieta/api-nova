@@ -149,6 +149,8 @@ export class GatewayPolicyService {
       runtimeAssetMax: this.positiveNumber(config.runtimeAssetMax),
       routeMax: this.positiveNumber(config.routeMax),
       consumerMax: this.positiveNumber(config.consumerMax),
+      ipMax: this.positiveNumber(config.ipMax),
+      anonymousMax: this.positiveNumber(config.anonymousMax),
     };
   }
 

@@ -3,7 +3,7 @@
 > 2026-09-08: 数据库与持久化清理、43 表 PG/SQLite 空库及完整回归结果见 [本轮清理审查记录](./2026-09-08-persistence-cleanup.md)。旧报告中的 38/40 表与环境阻塞结论保留为历史证据。
 
 ---
-doc-version: 1.27.0
+doc-version: 1.28.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -26,6 +26,8 @@ doc-updated: 2026-09-21
 本批证据：[SEC-A4-02当前版本PostgreSQL空库验收](./2026-09-21-isolated-postgres-schema.md)。
 
 本批证据：[SEC-C3-01 固定凭据文件自动重载验收](./2026-09-21-registry-watch.md)。
+
+本批证据：[SEC-D2-01 Gateway IP与匿名独立限流验收](./2026-09-21-independent-rate-limits.md)。
 
 ## Purpose
 

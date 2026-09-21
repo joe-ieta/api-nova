@@ -1,5 +1,5 @@
 ---
-doc-version: 1.43.0
+doc-version: 1.44.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,9 +14,9 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 60 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 61 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 22 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 2 | SEC-A1-02D、SEC-D2-01 |
+| IN_PROGRESS | 1 | SEC-A1-02D |
 | WAIT_DEP | 28 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -60,7 +60,7 @@ doc-updated: 2026-09-21
 | SEC-C4-01 | WAIT_DEP | 纯Resolver不重写 |
 | SEC-D1-01 | READY | 现有30项草案不是实现 |
 | SEC-D1-02 | WAIT_DEP | Connection修复转维护 |
-| SEC-D2-01 | IN_PROGRESS | 核对并实现IP与Anonymous独立限流入口，实际HTTP验证身份缓存不能绕过 |
+| SEC-D2-01 | DONE | 真实HTTP独立IP/Anonymous桶、peer可信边界、缓存命中仍限流；Gateway全套201/201、主任务联合复验42/42；见2026-09-21-independent-rate-limits证据 |
 | SEC-D2-02 | WAIT_DEP | 不把限流器单测当整包验收 |
 | SEC-E0-01 | READY | 不升级无状态协议 |
 | SEC-E1-01 | DONE | managed-mcp-credential-handoff-plan.md 0.1.0 draft；无代码交付；[草案](./managed-mcp-credential-handoff-plan.md) |

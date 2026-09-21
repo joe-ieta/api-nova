@@ -1,5 +1,5 @@
 ---
-doc-version: 1.27.0
+doc-version: 1.28.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -35,7 +35,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-C3 | SEC-C03；C2 | IN_PROGRESS | Stable Read、manual及Watch/debounce、受权Reload/状态和代次冲突已验证；C3-01完成，C3-02 DB归属与C3-03多进程待验 |
 | TP-C4 | SEC-C04；C3 | IN_PROGRESS | Gateway与显式MCP single-hop Resolver已验证；SEC-C4-01验收真实受管child执行及Unresolved门禁，依赖E1/F1；网络政策主归F3，不在C4复制实现 |
 | TP-D1 | SEC-D01；C4 | IN_PROGRESS | 消费者/逐跳/托管Header清理及共享Resolver已用于Gateway；Connection大小写联合提名、代理生成字段去别名和XFF不重引入已补；业务Header Allowlist、缓存/传输兼容和保留字段统一策略仍未完成，30 项 D1/F3 矩阵为 draft |
-| TP-D2 | SEC-D02；B1/B2/D1 | IN_PROGRESS | 认证先于缓存、身份隔离和限流已有；本轮补缓存读写缺身份旁路与模式/主体/凭证/权限隔离，Gateway161项通过；IP层、Anonymous独立Bucket和完整层级验收不足 |
+| TP-D2 | SEC-D02；B1/B2/D1 | IN_PROGRESS | 认证先于缓存，身份隔离及独立IP/Anonymous Bucket已通过真实HTTP；D2-01完成，完整Global/Runtime/Route/Credential/IP组合及多节点验收未完成 |
 | TP-E0 | MCP Adapter；A0 | IN_PROGRESS | HTTP/Session/SSE/stdio 和 Discovery 禁用已有；完整版本/错误边界待验收 |
 | TP-E1 | SEC-E01；B3/C4/E0 | IN_PROGRESS | 可信映射、管理侧装配/发布读取、跨源校验及旧候选guard已验；SEC-E1-01~04负责技术方案、真实child接线、argv秘密移除、端到端与运行中撤销；管理侧继续微修不替代出口 |
 | TP-E2 | SEC-E02；E1 | IN_PROGRESS | 安全 smoke/跨进程/传输专项有历史证据；当前完整安全矩阵、撤销/取消/重连和平台组合未完成 |
@@ -645,3 +645,7 @@ SEC-A4-02此前缺明确隔离目标；现通过本机PostgreSQL16.10二进制�
 ## 文件自动重载交付（2026-09-21）
 
 SEC-C3-01按原定义DONE。固定源主机配置显式启用Watch，失败保留旧代，关闭阻止在途提交；管理员在审计等待期间遇到代次变化会拒绝旧请求。详见[真实监听证据](../audits/2026-09-21-registry-watch.md)。父包C3仍IN_PROGRESS，未覆盖DB归属、Linux权限和多进程传播。
+
+## IP与匿名独立限流交付（2026-09-21）
+
+SEC-D2-01按原定义DONE。真实HTTP证明暖缓存仍计数、伪造转发头不改peer桶、匿名与合法凭证桶分离、无效凭证不能读取缓存。计数为当前进程内；详见[限流证据](../audits/2026-09-21-independent-rate-limits.md)。父包D2仍IN_PROGRESS，完整层级组合依赖B1-02。

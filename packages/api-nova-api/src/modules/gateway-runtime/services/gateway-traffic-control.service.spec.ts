@@ -96,6 +96,30 @@ describe('GatewayTrafficControlService', () => {
     ).resolves.toEqual(expect.objectContaining({ release: expect.any(Function) }));
   });
 
+  it('fails closed when configured peer or authentication context is unavailable', async () => {
+    const service = buildService();
+    const route = resolvedRoute();
+    route.policies.traffic.trafficControl = { rateLimit: { windowMs: 1000, ipMax: 1 } };
+    await expect(service.admit(route, { mode: 'anonymous' })).rejects.toThrow('peer is unavailable');
+    route.policies.traffic.trafficControl.rateLimit = { windowMs: 1000, anonymousMax: 1 };
+    await expect(service.admit(route)).rejects.toThrow('identity is unavailable');
+  });
+
+  it('normalizes IPv4-mapped peers and restores capacity after the window expires', async () => {
+    jest.useFakeTimers();
+    try {
+      const service = buildService();
+      const route = resolvedRoute();
+      route.policies.traffic.trafficControl = { rateLimit: { windowMs: 1000, ipMax: 1 } };
+      const peer = (remoteAddress: string) => ({ socket: { remoteAddress } }) as any;
+      await service.admit(route, { mode: 'anonymous' }, peer('::ffff:127.0.0.1'));
+      await expect(service.admit(route, { mode: 'anonymous' }, peer('127.0.0.1'))).rejects.toThrow(HttpException);
+      await expect(service.admit(route, { mode: 'anonymous' }, peer('127.0.0.2'))).resolves.toBeDefined();
+      jest.advanceTimersByTime(1000);
+      await expect(service.admit(route, { mode: 'anonymous' }, peer('127.0.0.1'))).resolves.toBeDefined();
+    } finally { jest.useRealTimers(); }
+  });
+
   it('opens the breaker after repeated failures and recovers after a successful probe', async () => {
     jest.useFakeTimers();
     const runtimeObservabilityService = {

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.26.0
+doc-version: 1.27.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -231,3 +231,5 @@ OBS-14-02限定为同GC fence下的过期metadata缺文件整理，持久分页�
 冻结三条独立线：SEC-A1-02D以新增端到端脚本验证既定鉴权保存/发布/重启/请求和标签；SEC-C3-01在固定受保护Registry源接入Watch/debounce与关闭生命周期，避免重写manual；SEC-D2-01实现IP和Anonymous独立限流层及真实请求验收，完整多层组合仍归D2-02。若三线发现跨文件依赖，由主任务协调，不能并发覆盖同一路实现。
 
 SEC-C3-01已按原出口完成：主机明确启用watch，固定文件、并发代次检查、关闭释放均有真实文件和Nest接线证据；C3-02 DB归属与C3-03多进程仍各按依赖推进，不随此项提升。
+
+SEC-D2-01已完成route+socket peer与route共享匿名桶。按鉴权→限流→缓存执行；完整层级组合D2-02仍等待B1-02，不把局部HTTP结果当成多节点或完整Credential模型验收。

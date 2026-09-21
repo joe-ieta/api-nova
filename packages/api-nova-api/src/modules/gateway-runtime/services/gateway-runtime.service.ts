@@ -64,7 +64,7 @@ export class GatewayRuntimeService {
     try {
       const authContext = await this.gatewaySecurityService.authorize(target, req);
       audit.authenticated();
-      const admission = await this.gatewayTrafficControlService.admit(target, authContext);
+      const admission = await this.gatewayTrafficControlService.admit(target, authContext, req);
       try {
         const requestId = this.resolveRequestId(req, res);
         const correlationId = this.resolveCorrelationId(req);

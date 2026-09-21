@@ -16,9 +16,12 @@ import {
   GatewayBreakerState,
   GatewayTrafficAdmission,
 } from '../types/gateway-traffic.types';
+import type { Request } from 'express';
+import { isIP } from 'node:net';
 import { GatewayRuntimeMetricsService } from './gateway-runtime-metrics.service';
 
 type CounterState = {
+  expiresAt: number;
   windowStartedAt: number;
   count: number;
 };
@@ -33,6 +36,7 @@ type BreakerRuntimeState = {
 @Injectable()
 export class GatewayTrafficControlService {
   private readonly rateLimitCounters = new Map<string, CounterState>();
+  private nextRateLimitSweepAt = 0;
   private readonly concurrencyCounters = new Map<string, number>();
   private readonly breakerStates = new Map<string, BreakerRuntimeState>();
 
@@ -44,6 +48,7 @@ export class GatewayTrafficControlService {
   async admit(
     resolvedRoute: GatewayResolvedRoute,
     authContext?: GatewayRequestAuthContext,
+    req?: Pick<Request, 'socket'>,
   ): Promise<GatewayTrafficAdmission> {
     const trafficControl = resolvedRoute.policies.traffic.trafficControl;
     if (!trafficControl) {
@@ -51,7 +56,7 @@ export class GatewayTrafficControlService {
     }
 
     await this.beforeAttempt(resolvedRoute);
-    this.enforceRateLimit(resolvedRoute, authContext);
+    this.enforceRateLimit(resolvedRoute, authContext, req);
     return this.acquireConcurrency(resolvedRoute, authContext);
   }
 
@@ -175,6 +180,7 @@ export class GatewayTrafficControlService {
   private enforceRateLimit(
     resolvedRoute: GatewayResolvedRoute,
     authContext?: GatewayRequestAuthContext,
+    req?: Pick<Request, 'socket'>,
   ) {
     const rateLimit = resolvedRoute.policies.traffic.trafficControl?.rateLimit;
     if (!rateLimit) {
@@ -182,6 +188,21 @@ export class GatewayTrafficControlService {
     }
 
     const now = Date.now();
+    if (now >= this.nextRateLimitSweepAt) {
+      for (const [key, counter] of this.rateLimitCounters) {
+        if (counter.expiresAt <= now) this.rateLimitCounters.delete(key);
+      }
+      this.nextRateLimitSweepAt = now + 1000;
+    }
+    // Match the ingress audit trust boundary: only the transport peer is trusted.
+    let peer = req?.socket?.remoteAddress;
+    if (peer?.startsWith('::ffff:') && isIP(peer.slice(7)) === 4) peer = peer.slice(7);
+    if (rateLimit.ipMax && (!peer || !isIP(peer))) {
+      throw new ServiceUnavailableException('Gateway rate limit peer is unavailable');
+    }
+    if (rateLimit.anonymousMax && !authContext) {
+      throw new ServiceUnavailableException('Gateway rate limit identity is unavailable');
+    }
     const checks = [
       rateLimit.globalMax
         ? { key: 'global', limit: rateLimit.globalMax }
@@ -204,6 +225,12 @@ export class GatewayTrafficControlService {
             limit: rateLimit.consumerMax,
           }
         : undefined,
+      rateLimit.ipMax
+        ? { key: `ip:${resolvedRoute.routeBinding.id}:${peer}`, limit: rateLimit.ipMax }
+        : undefined,
+      rateLimit.anonymousMax && authContext?.mode === 'anonymous'
+        ? { key: `anonymous:${resolvedRoute.routeBinding.id}`, limit: rateLimit.anonymousMax }
+        : undefined,
     ].filter((item): item is { key: string; limit: number } => Boolean(item));
 
     const touched: Array<{ key: string; nextState: CounterState }> = [];
@@ -212,7 +239,7 @@ export class GatewayTrafficControlService {
       const activeWindow =
         current && now - current.windowStartedAt < rateLimit.windowMs
           ? current
-          : { windowStartedAt: now, count: 0 };
+          : { windowStartedAt: now, expiresAt: now + rateLimit.windowMs, count: 0 };
       if (activeWindow.count + 1 > check.limit) {
         void this.runtimeObservabilityService.recordRuntimeControlEvent({
           runtimeAssetId: resolvedRoute.runtimeAsset.id,
@@ -247,6 +274,7 @@ export class GatewayTrafficControlService {
         key: check.key,
         nextState: {
           windowStartedAt: activeWindow.windowStartedAt,
+          expiresAt: activeWindow.expiresAt,
           count: activeWindow.count + 1,
         },
       });
