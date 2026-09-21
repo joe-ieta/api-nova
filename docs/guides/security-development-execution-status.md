@@ -1,5 +1,5 @@
 ---
-doc-version: 1.43.0
+doc-version: 1.44.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -30,7 +30,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-B1 | SEC-B01；A2 | DONE | 统一持久模型、协议/Route/Tool Scope、同Subject多Key轮换及跨Gateway/MCP下一请求撤销；动态CLI需主机显式database来源 |
 | TP-B2 | SEC-B02；A1 | DONE | 固定可信JWK/JWKS与issuer/audience已有；算法/必需claims/clock skew保存、启动、签名拒绝和SSE截止现已按原出口验收 |
 | TP-B3 | SEC-B03；B1/B2/E0 | DONE | 持久逐请求撤销、Session主体绑定、Tool过滤/二次授权及SDK通知边界均有证据；B1/B2/E0依赖闭合，不承诺权限广播或取消已接纳请求 |
-| TP-C1 | SEC-C01；A0 | IN_PROGRESS | 纯对象与 JSON/YAML loader 已实现，并经 C3 稳定文件读取激活到 Gateway；完整凭据类型、安全对账与全链路验收仍待完成 |
+| TP-C1 | SEC-C01；A0 | IN_PROGRESS | 纯对象与 JSON/YAML loader 已实现，并经 C3 稳定文件读取激活到 Gateway；C1-01四类目标/生命周期/Scope合同已定稿，C1-02实现、安全对账与全链路验收仍待完成 |
 | TP-C2 | SEC-C02；C1 | IN_PROGRESS | Env/File Provider 已用于 Registry，Gateway 显式配置激活链已贯通；本机契约历史 53 项通过，真实 Linux 权限 30 场景待补证，Windows Secret File ACL已完成C2-02原生验收，Linux环境出口待验 |
 | TP-C3 | SEC-C03；C2 | IN_PROGRESS | Stable Read、manual及Watch/debounce、受权Reload/状态和代次冲突已验证；C3-01 Watch与C3-02 DB归属完成，C3-03多进程待验 |
 | TP-C4 | SEC-C04；C3 | IN_PROGRESS | Gateway与显式MCP single-hop Resolver已验证；SEC-C4-01验收真实受管child执行及Unresolved门禁，依赖E1/F1；网络政策主归F3，不在C4复制实现 |
@@ -713,3 +713,7 @@ D2-02完成，见[组合证据](../audits/2026-09-21-layered-rate-limit-composit
 ## Adapter与B3父出口（2026-09-21）
 
 [当前协议矩阵](../audits/2026-09-21-mcp-adapter-contract.md)关闭E0-01/TP-E0；结合B3两叶已有证据和已闭合B1/B2/E0，TP-B3按原条件DONE。Header编译准备及F1合同仍不等于对应父包完成。
+
+## 上游凭据类型合同（2026-09-21）
+
+[C1-01合同](./upstream-credential-types-contract.md)固定API Key Header/Bearer/Basic/单值Custom Header及明确拒绝类型，定义时间、环境、Host、Endpoint与Method约束，保持F1四态/OR-AND一致。仅静态代码及链接核对；C1-02 READY，未新增运行测试或父包DONE。

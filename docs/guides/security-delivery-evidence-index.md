@@ -1,5 +1,5 @@
 ---
-doc-version: 1.18.0
+doc-version: 1.19.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -39,8 +39,8 @@ doc-updated: 2026-09-21
 | SEC-B2-01 | [JWT真实生命周期](../audits/2026-09-21-jwt-policy-lifecycle.md) | **限定执行/DONE**：参数保存、固定信任源、真实冷重开CLI签名矩阵与长连接有效截止；非在线热更新/真实身份提供方部署。 |
 | SEC-B3-01 | [真实会话撤销](../audits/2026-09-21-persistent-session-revocation.md) | **限定执行/DONE**：Streamable/SSE既有长连接、scope变化、撤销/重连/DB重开拒绝2/2；非在途取消/异步权限通知。 |
 | SEC-B3-02 | [SDK会话矩阵](../audits/2026-09-21-sdk-session-contract.md) | **限定执行/DONE**：11项新增、联合71/71，固定dispatcher/Session/通知边界；不升级SDK或实现权限广播。 |
-| SEC-C1-01 | [Loader/Schema 测试](../../packages/api-nova-parser/src/credentials/loader.spec.ts)、[配置规划](./security-development-task-plan.md) | **限定执行/准备**：header API Key/Bearer 及拒绝型 loader 有本机结果；批准凭据类型的逐项支持/拒绝、生命周期和作用域合同未定稿。 |
-| SEC-C1-02 | 无覆盖全部批准类型的当前脚本 | **待验收**：须先按 C1-01 逐类型实现解析、注入、脱敏和拒绝；OAuth2 不属于本轮。 |
+| SEC-C1-01 | [类型、生命周期与作用域合同](./upstream-credential-types-contract.md) | **政策定稿/DONE（DOC）**：四类支持目标与拒绝类型、时间/Scope、F1兼容已冻结；C1-02代码仍待实现。 |
+| SEC-C1-02 | 无覆盖全部批准类型的当前脚本 | **待验收**：按已定稿 C1-01 逐类型实现解析、注入、脱敏和拒绝；OAuth2 不属于本轮。 |
 | SEC-C2-01 | [Linux 隔离操作说明](../testing/upstream-secret-provider-linux.md)、[Provider 脚本](../../packages/api-nova-parser/scripts/test-upstream-secret-provider.cjs) | **准备/待验收（环境）**：Windows 本机 53 项通过；30 个真实 Linux 文件权限场景尚未执行。说明中 82 通过只是预期值。 |
 | SEC-C2-02 | [Windows ACL证据](../audits/2026-09-21-windows-secret-acl.md) | **限定执行/DONE**：真实NTFS28/28、主任务复跑通过；仅本地驱动器，需要系统PowerShell/Add-Type，未替代Linux验收。 |
 | SEC-C3-01 | [Watch交付证据](../audits/2026-09-21-registry-watch.md) | **限定执行/DONE**：Windows真实固定文件监听8/8、Parser凭据252/252、Gateway接线31/31；含坏文件保旧、并发管理员CAS、Nest关闭。DB归属、多进程及Linux不在此叶。 |
@@ -53,7 +53,7 @@ doc-updated: 2026-09-21
 | 叶子出口 | 已有入口/版本与环境 | 当前证据和未闭合项 |
 | --- | --- | --- |
 | SEC-D1-01 | [Header合同1.0.0](./security-header-network-boundary-contract.md) | **政策定稿/DONE（DOC）**：双向allowlist、多值/framing、保留字段/缓存/迁移已选择；H01–H12执行待D1-02，F3网络仍提案。 |
-| SEC-D1-02A/B/C/D（原02） | [02A编译证据](../audits/2026-09-21-header-policy-compilation.md) | **准备实现/部分完成**：A DONE，B READY，C/D WAIT_DEP；完整Header流/缓存/迁移未交付，产品激活明确拒绝。 |
+| SEC-D1-02A/B/C/D（原02） | [02A编译证据](../audits/2026-09-21-header-policy-compilation.md) | **准备实现/部分完成**：A DONE，B IN_PROGRESS，C/D WAIT_DEP；完整Header流/缓存/迁移未交付，产品激活明确拒绝。 |
 | SEC-D2-01 | [独立限流证据](../audits/2026-09-21-independent-rate-limits.md) | **限定执行/DONE**：真实HTTP覆盖IP/匿名独立桶、暖缓存和伪造转发头；Gateway全套201/201。进程内计数，完整层级及多节点不在此叶。 |
 | SEC-D2-02 | [真实HTTP组合证据](../audits/2026-09-21-layered-rate-limit-composition.md) | **限定执行/DONE**：六层组合、缓存计量、同主体轮换、冲突窗口与精确并发准入；单进程既有范围。 |
 | SEC-E0-01 | [Adapter当前矩阵](../audits/2026-09-21-mcp-adapter-contract.md) | **限定执行/DONE**：原始HTTP、锁定SDK会话及真实stdio60/60；方法405修复，不升级协议或替代E2完整安全验收。 |

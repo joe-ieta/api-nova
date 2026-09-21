@@ -1,5 +1,5 @@
 ---
-doc-version: 1.59.0
+doc-version: 1.60.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,10 +14,10 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 77 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 14 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
-| WAIT_DEP | 24 | 等待列明子任务/条件 |
+| DONE | 78 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 12 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 2 | SEC-D1-02B、SEC-F3-01 |
+| WAIT_DEP | 23 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -50,8 +50,8 @@ doc-updated: 2026-09-21
 | SEC-B2-01 | DONE | 共享algorithms/requiredClaims/skew保存与执行；真实SQLite重开/CLI/Gateway一致、运行中修改须先停止、SSE有效截止17项，见JWT参数证据 |
 | SEC-B3-01 | DONE | 真实Streamable/SSE长连接2/2：scope收窄、持久撤销、旧session/新连接/重连拒绝、SQLite重开及同PID有效Key对照；见会话撤销证据 |
 | SEC-B3-02 | DONE | SDK1.29.0 dispatcher/双传输Session/同主体换钥/跨主体拒绝/通知边界11项，统一入口71/71；scope不自动通知，目录变更阳性对照，见SDK证据 |
-| SEC-C1-01 | READY | header API Key/Bearer已有 |
-| SEC-C1-02 | WAIT_DEP | 类型很多时逐类型再拆后执行 |
+| SEC-C1-01 | DONE | [类型合同](./upstream-credential-types-contract.md)冻结四类目标、拒绝类型、生命周期/Scope与F1兼容；DOC完成，非实现 |
+| SEC-C1-02 | READY | 按类型合同四切片补Basic/CustomHeader、生命周期/Scope及真实出站；复用现有loader/Provider |
 | SEC-C2-01 | NEED_ENV | Env/File本机实现已有 |
 | SEC-C2-02 | DONE | Windows原生句柄ACL验证；真实NTFS28/28主任务独立复跑，越权/链接/替换/并发写入均通过；依赖系统PowerShell与Add-Type，Linux另验 |
 | SEC-C3-01 | DONE | 固定文件Watch/debounce、坏文件保旧、admin锁内代次检查和Nest关闭已通过；Windows真实监听8/8、Parser252/252、Gateway31/31；见2026-09-21-registry-watch证据 |
@@ -60,7 +60,7 @@ doc-updated: 2026-09-21
 | SEC-C4-01 | WAIT_DEP | 纯Resolver不重写 |
 | SEC-D1-01 | DONE | Header政策1.0.0定稿：双向精确allowlist、多值/framing、保留字段、缓存和限时迁移；H01–H12待实现，N01–N17仍F3提案 |
 | SEC-D1-02A | DONE | Parser v1编译/不可变快照/继承/摘要/冲突294项；Gateway双源及未就绪激活拒绝、真实固定文件保旧/SQL.js冷恢复拒绝；仅准备 |
-| SEC-D1-02B | READY | 02A已完成；下一步双向allowlist/rawHeaders/framing/代理字段/Resolver最后注入与H01–H08真实传输 |
+| SEC-D1-02B | IN_PROGRESS | 并行实现纯双向过滤、真实proxy流与Expect入口；生产激活门禁保持至02D |
 | SEC-D1-02C | WAIT_DEP | 待02B；Header维度缓存隔离与真实miss/hit |
 | SEC-D1-02D | WAIT_DEP | 待02C；默认迁移、防降级与H01–H12联合验收 |
 | SEC-D2-01 | DONE | 真实HTTP独立IP/Anonymous桶、peer可信边界、缓存命中仍限流；Gateway全套201/201、主任务联合复验42/42；见2026-09-21-independent-rate-limits证据 |
@@ -81,7 +81,7 @@ doc-updated: 2026-09-21
 | SEC-F1-02 | WAIT_DEP | 未完成 |
 | SEC-F2-01 | DONE | Consumer/Upstream分区、真实binding revision/Registry generation与reload恢复；UI12/12、实际UI适配器到Nest/Registry HTTP1/1、后端21/21；进程范围明确，浏览器点击未验 |
 | SEC-F2-02 | DONE | Gateway/MCP临时匿名原因/到期/生产风险和actor回显，保存重开及拒绝反馈；UI构建、表单/真实模板26/26，浏览器点击未验，见UI证据 |
-| SEC-F3-01 | READY | 不将零redirect称SSRF完成 |
+| SEC-F3-01 | IN_PROGRESS | 网络政策已起草定稿，正在对齐合同矩阵与共享台账 |
 | SEC-F3-02 | WAIT_DEP | 未完成 |
 | SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
 | SEC-F3a-01 | READY | 需在线公告时另行验证，不复用旧漏洞数 |
@@ -224,3 +224,7 @@ F2-01完成，见[真实管理面板证据](../audits/2026-09-21-upstream-creden
 D1-02A编译准备完成，02B转READY，见[证据](../audits/2026-09-21-header-policy-compilation.md)。不将未接过滤执行器的候选元数据计为Header保护上线。
 
 E0-01完成，见[Adapter证据](../audits/2026-09-21-mcp-adapter-contract.md)，原E0/B3父包出口与依赖复核DONE。本批实际关闭3叶（DOC1/CODE准备1/VALIDATION含修复1）；当前77DONE/135叶，14READY、24WAIT_DEP、17NEED_ENV、1SCOPE_REVIEW、2DEFERRED。
+
+## 2026-09-21 类型合同与双向流推进
+
+C1-01已完成[合同](./upstream-credential-types-contract.md)与源码静态对照；新增Basic/CustomHeader、生命周期/Scope尚待C1-02执行。DOC不计作新代码或测试，父包C1继续IN_PROGRESS。02B与F3-01并行推进中。
