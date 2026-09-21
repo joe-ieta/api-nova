@@ -1,5 +1,5 @@
 ---
-doc-version: 1.38.0
+doc-version: 1.39.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -87,7 +87,10 @@ SEC父包：A0/A1/A2/A3/B1/B2 DONE；A4/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a�
 | SEC-C3-03 | SEC-C3 | CODE | 多进程Registry版本协调 | 激活/失败状态与实际generation跨进程可观测且无混版本执行 | SEC-E1-02B2;SEC-C3-02;SEC-E1-02C1 |
 | SEC-C4-01 | SEC-C4 | VALIDATION | 两运行时Resolver执行验收 | Gateway与受管MCP继承/覆盖/None/Unresolved的联网前拒绝一致 | SEC-E1-03;SEC-F1-02 |
 | SEC-D1-01 | SEC-D1 | DOC | Header业务政策定稿 | 请求/响应、多值/framing、保留字段、迁移例外逐项选择并记录 | — |
-| SEC-D1-02 | SEC-D1 | CODE | Allowlist与传输兼容 | 落实D1-01并覆盖缓存、正文长度、响应字段及禁用迁移路径 | SEC-D1-01 |
+| SEC-D1-02A | SEC-D1 | CODE | Header策略编译与快照准备 | v1 schema/继承/摘要/认证名冲突与候选保旧；Gateway两源冲突及未就绪激活拒绝 | SEC-D1-01 |
+| SEC-D1-02B | SEC-D1 | CODE | 双向Header与真实流执行 | allowlist/rawHeaders/framing/代理字段/Resolver最后注入、Expect及真实字节H01–H08 | SEC-D1-02A |
+| SEC-D1-02C | SEC-D1 | CODE | Header缓存隔离 | 必需vary/策略identity、条件和范围bypass、原始响应禁存信号及真实miss/hit | SEC-D1-02B |
+| SEC-D1-02D | SEC-D1 | VALIDATION | 迁移防降级与联合验收 | 默认开启、限时具名例外、防删除降级与H01–H12整合；不推断生产迁移 | SEC-D1-02C |
 | SEC-D2-01 | SEC-D2 | CODE | IP与Anonymous独立限流层 | 真实请求分别触发IP、匿名bucket，鉴权缓存不能绕过 | — |
 | SEC-D2-02 | SEC-D2 | VALIDATION | 完整层级限流组合 | Global/Runtime/Route/Credential/IP组合顺序与拒绝归因可验证 | SEC-D2-01;SEC-B1-02 |
 | SEC-E0-01 | SEC-E0 | VALIDATION | 锁定MCP协议边界矩阵 | Method/Header/错误/Session/stdio按当前协议逐入口验收 | — |
@@ -107,7 +110,7 @@ SEC父包：A0/A1/A2/A3/B1/B2 DONE；A4/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a�
 | SEC-F2-01 | SEC-F2 | CODE | Consumer/Upstream与Reload界面 | 分区明确、binding revision与reload真实generation可查看及恢复 | — |
 | SEC-F2-02 | SEC-F2 | CODE | 匿名风险与到期界面 | 申请、风险、到期和服务端拒绝一致显示 | SEC-A3-01 |
 | SEC-F3-01 | SEC-F3 | DOC | 上游网络边界政策 | DNS、连接、redirect、代理及内网例外有明确允许/拒绝合同 | — |
-| SEC-F3-02 | SEC-F3 | CODE | 网络边界执行 | DNS解析/连接/每跳凭据重建按政策执行与拒绝型验收 | SEC-F3-01;SEC-D1-02 |
+| SEC-F3-02 | SEC-F3 | CODE | 网络边界执行 | DNS解析/连接/每跳凭据重建按政策执行与拒绝型验收 | SEC-F3-01;SEC-D1-02D |
 | SEC-F3-03 | SEC-F3 | VALIDATION | 秘密与生命周期审计矩阵 | argv/log/错误/证据无完整Secret；创建/更新/撤销审计可检索 | SEC-E1-03;SEC-C3-02 |
 | SEC-F3a-01 | SEC-F3a | VALIDATION | 当前依赖可达性审计 | 锁文件固定、生产可达性、补丁/风险处置逐项记录 | — |
 | SEC-F4-01 | SEC-F4 | VALIDATION | 安全交付证据索引 | 各验收项映射脚本/版本/环境/缺口，区分准备与执行 | — |
@@ -269,3 +272,7 @@ B2-01已通过保存/真实冷重开CLI和双运行时签名矩阵，TP-B2按原
 D1-01政策出口完成，D1-02解除依赖。D1-02按编译/快照、双向传输、缓存、迁移防降级四个内部阶段实施，最终统一通过H01–H12；政策定稿不代表任何新过滤代码已经上线。
 
 本批B3-02、F2-01、D1-01闭合，分别为SDK合同验证、管理分区/Reload功能、Header政策DOC。DONE71→74，132总量不变。D1-02已READY；后续并行优先D1-02实现、E0-01 Adapter合同、F1-01安全对账模型，继续解除真实父依赖。B3/F2父依赖未完成，不因叶子数自动提升。
+
+## 16. Header实施拆分、Adapter与安全对账（2026-09-21）
+
+原D1-02横跨四个真实出口，替换为02A编译快照、02B双向流、02C缓存、02D迁移验收（顺序依赖），原引用改依赖02D。叶子132→135只因这次替换，不能算新增完成。本批并行02A、E0-01、F1-01；02A接线明确拒绝尚无执行器的策略激活，不能以编译通过宣称Header过滤上线。

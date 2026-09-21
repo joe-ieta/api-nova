@@ -1,5 +1,5 @@
 ---
-doc-version: 1.56.0
+doc-version: 1.57.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -10,14 +10,14 @@ doc-updated: 2026-09-21
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
 父包专项统计仍是OBS 10/5/1、SEC 6/14/2/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计16/19/3/1。它不表示全项目完成率。
 
-本次登记132个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
+本次登记135个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 74 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 16 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
-| WAIT_DEP | 22 | 等待列明子任务/条件 |
+| DONE | 75 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 13 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 2 | SEC-D1-02A、SEC-E0-01 |
+| WAIT_DEP | 25 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -59,10 +59,13 @@ doc-updated: 2026-09-21
 | SEC-C3-03 | WAIT_DEP | 复核发现实验handoff只启动时captureSnapshot且generation恒从1起；完整产品跨进程协调依赖E1-02C1，不能用实验cohort原语冒充交付 |
 | SEC-C4-01 | WAIT_DEP | 纯Resolver不重写 |
 | SEC-D1-01 | DONE | Header政策1.0.0定稿：双向精确allowlist、多值/framing、保留字段、缓存和限时迁移；H01–H12待实现，N01–N17仍F3提案 |
-| SEC-D1-02 | READY | D1-01已定稿；按编译快照、双向传输、缓存隔离、防降级四个实施阶段落实H01–H12 |
+| SEC-D1-02A | IN_PROGRESS | 共享v1编译/Registry不可变快照准备，Gateway来源冲突和未就绪激活拒绝 |
+| SEC-D1-02B | WAIT_DEP | 待02A；双向原始头/流执行与H01–H08 |
+| SEC-D1-02C | WAIT_DEP | 待02B；Header维度缓存隔离与真实miss/hit |
+| SEC-D1-02D | WAIT_DEP | 待02C；默认迁移、防降级与H01–H12联合验收 |
 | SEC-D2-01 | DONE | 真实HTTP独立IP/Anonymous桶、peer可信边界、缓存命中仍限流；Gateway全套201/201、主任务联合复验42/42；见2026-09-21-independent-rate-limits证据 |
 | SEC-D2-02 | DONE | 六层真实HTTP组合19项、四套73/73；共享窗口冲突503且到期恢复、24并发精确7准入；见六层限流组合证据 |
-| SEC-E0-01 | READY | 不升级无状态协议 |
+| SEC-E0-01 | IN_PROGRESS | 当前Streamable/SSE/stdio协议入口矩阵；不升级SDK协议 |
 | SEC-E1-01 | DONE | managed-mcp-credential-handoff-plan.md 0.1.0 draft；无代码交付；[草案](./managed-mcp-credential-handoff-plan.md) |
 | SEC-E1-01R | DONE | [交付设计第9节](./managed-mcp-credential-handoff-plan.md)，02A通道与真实child验收冻结；仅DOC |
 | SEC-E1-02A | DONE | 真实Node IPC、精确环境、ACK后固定拒绝、断连/超时/幂等关闭；专项11/11，ProcessManager 3/3 |
@@ -74,7 +77,7 @@ doc-updated: 2026-09-21
 | SEC-E1-04 | WAIT_DEP | 未完成 |
 | SEC-E2-01 | WAIT_DEP | 复用已有smoke |
 | SEC-E2-02 | NEED_ENV | 需核实环境 |
-| SEC-F1-01 | READY | 不回塞到C1造成循环 |
+| SEC-F1-01 | DONE | 四态、OpenAPI继承/OR-AND、Binding兼容及验证失效合同定稿；同revision秘密变更须重新验证；F1-02仍依赖C1-02 |
 | SEC-F1-02 | WAIT_DEP | 未完成 |
 | SEC-F2-01 | DONE | Consumer/Upstream分区、真实binding revision/Registry generation与reload恢复；UI12/12、实际UI适配器到Nest/Registry HTTP1/1、后端21/21；进程范围明确，浏览器点击未验 |
 | SEC-F2-02 | DONE | Gateway/MCP临时匿名原因/到期/生产风险和actor回显，保存重开及拒绝反馈；UI构建、表单/真实模板26/26，浏览器点击未验，见UI证据 |
@@ -213,3 +216,7 @@ D1-01已定稿，D1-02转READY；这1项是DOC完成，不计为Header功能实�
 B3-02完成，见[SDK合同](../audits/2026-09-21-sdk-session-contract.md)。B3两叶出口完成但父依赖E0仍缺；不机械提升父状态。
 
 F2-01完成，见[真实管理面板证据](../audits/2026-09-21-upstream-credential-management-ui.md)。本批3叶完成（CODE1/VALIDATION1/DOC1），DONE由71升74；132总量不变，剩余READY16、WAIT_DEP22、NEED_ENV17、SCOPE_REVIEW1、DEFERRED2。D1-02已解锁，Header执行缺口仍真实登记；B3/F2父包只保留原独立依赖。
+
+## Header拆分、Adapter与对账批次（2026-09-21）
+
+原D1-02替换为02A/B/C/D四叶，总量132→135不是新增完成。F1-01[四态合同](./upstream-security-reconciliation-contract.md)已定稿，实际门禁F1-02仍等待C1-02。

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.15.0
+doc-version: 1.16.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -73,7 +73,7 @@ doc-updated: 2026-09-21
 
 | 叶子出口 | 已有入口/版本与环境 | 当前证据和未闭合项 |
 | --- | --- | --- |
-| SEC-F1-01 | [安全规划](./security-development-task-plan.md) | **准备**：Unsecured/Declared/Configured/Verified 与 OR/AND/Binding 转移表尚未定稿。 |
+| SEC-F1-01 | [四态与发布门禁合同](./upstream-security-reconciliation-contract.md) | **政策定稿/DONE（DOC）**：继承/OR-AND/兼容/失效表固定，非发布门禁实现；F1-02依赖C1-02。 |
 | SEC-F1-02 | [OpenAPI 提取测试](../../packages/api-nova-parser/tests/unit/security-extractor.test.ts)、[发布测试](../../packages/api-nova-api/src/modules/publication/services/publication.service.spec.ts) | **历史执行/待验收**：提取与发布各有局部覆盖；受保护未配置/未验证阻止发布、OR/AND 不弱化仍无当前执行证据。 |
 | SEC-F2-01 | [分区与重载UI证据](../audits/2026-09-21-upstream-credential-management-ui.md) | **限定执行/DONE**：binding revision/进程Registry generation及失败刷新恢复，UI12+真实HTTP1+后端21；非浏览器点击或MCP完整凭证编辑。 |
 | SEC-F2-02 | [匿名UI证据](../audits/2026-09-21-temporary-anonymous-ui.md) | **限定执行/DONE**：Gateway/MCP申请、到期/生产风险与拒绝显示，26/26和构建；无真实浏览器点击验收。 |
