@@ -1,3 +1,5 @@
+import { watch, type FSWatcher } from 'node:fs';
+import { basename, dirname, resolve } from 'node:path';
 import { validateUpstreamCredentialBindings } from './schema';
 import { readStableUpstreamCredentialText, UpstreamCredentialFileError } from './file-source';
 import { parseUpstreamCredentialBindings, type UpstreamCredentialTextFormat } from './loader';
@@ -15,7 +17,8 @@ export type UpstreamCredentialRegistryErrorCode =
   | 'INVALID_REGISTRY_CONFIGURATION' | 'REGISTRY_NOT_READY'
   | 'RELOAD_IN_PROGRESS' | 'CANDIDATE_REJECTED' | 'ENVIRONMENT_MISMATCH'
   | 'REVISION_ALREADY_ACTIVE' | 'SECRET_RESOLUTION_FAILED' | 'UNKNOWN_CREDENTIAL'
-  | 'CONFIGURATION_READ_FAILED' | 'CONFIGURATION_UNSTABLE' | 'UNSUPPORTED_RELOAD_MODE';
+  | 'CONFIGURATION_READ_FAILED' | 'CONFIGURATION_UNSTABLE' | 'UNSUPPORTED_RELOAD_MODE'
+  | 'WATCH_STOPPED' | 'WATCH_ALREADY_STARTED' | 'WATCH_SOURCE_MISMATCH' | 'GENERATION_CONFLICT';
 
 export class UpstreamCredentialRegistryError extends Error {
   constructor(public readonly code: UpstreamCredentialRegistryErrorCode) {
@@ -51,6 +54,11 @@ export interface UpstreamCredentialRegistryStatus {
   readonly revision?: string;
   readonly reloading: boolean;
   readonly lastReloadError?: UpstreamCredentialRegistryErrorCode;
+}
+
+interface RegistryWatchState {
+  path: string; format: UpstreamCredentialTextFormat; watcher?: FSWatcher;
+  timer?: ReturnType<typeof setTimeout>; pending: boolean; running: boolean; debounceMs: number;
 }
 
 interface SecretBinding {
@@ -112,7 +120,7 @@ async function resolveBinding(binding: SecretBinding): Promise<string> {
 }
 
 /**
- * Manual, process-local candidate registry. No watcher, persistence, transport or auto-activation.
+ * Process-local registry with explicit host-owned file watching and atomic candidate swaps.
  * An active snapshot stays available while a replacement undergoes dry resolution.
  */
 export class UpstreamCredentialRegistry {
@@ -120,6 +128,7 @@ export class UpstreamCredentialRegistry {
   private readonly providerFactory: UpstreamSecretProviderFactory;
   private active: UpstreamCredentialRegistrySnapshot | undefined;
   private reloading = false;
+  private watchState?: RegistryWatchState;
   private lastReloadError: UpstreamCredentialRegistryErrorCode | undefined;
 
   constructor(options: UpstreamCredentialRegistryOptions) {
@@ -146,6 +155,7 @@ export class UpstreamCredentialRegistry {
   }
 
   async reload(input: unknown): Promise<UpstreamCredentialRegistrySnapshot> {
+    if (this.watchState) return reject('WATCH_SOURCE_MISMATCH');
     return this.performReload(() => validateUpstreamCredentialBindings(input));
   }
 
@@ -157,25 +167,102 @@ export class UpstreamCredentialRegistry {
     text: string,
     format: UpstreamCredentialTextFormat,
   ): Promise<UpstreamCredentialRegistrySnapshot> {
+    if (this.watchState) return reject('WATCH_SOURCE_MISMATCH');
     return this.performReload(() => parseUpstreamCredentialBindings(text, format));
   }
 
-  /** Stable local-file activation; watch mode requires a future lifecycle adapter. */
+  /** Stable local-file activation; a running watcher only accepts its fixed source. */
   async reloadFile(
     path: string,
     format: UpstreamCredentialTextFormat,
+    expectedGeneration?: number,
   ): Promise<UpstreamCredentialRegistrySnapshot> {
+    const watching = this.watchState;
+    if (watching && (resolve(path) !== watching.path || format !== watching.format)) {
+      return reject('WATCH_SOURCE_MISMATCH');
+    }
     return this.performReload(async () => {
+      if (expectedGeneration !== undefined && expectedGeneration !== (this.active?.generation ?? 0)) {
+        return reject('GENERATION_CONFLICT');
+      }
       if (format !== 'json' && format !== 'yaml') return reject('CANDIDATE_REJECTED');
       const text = await readStableUpstreamCredentialText(path);
       const candidate = parseUpstreamCredentialBindings(text, format);
-      if (candidate.reload.mode !== 'manual') return reject('UNSUPPORTED_RELOAD_MODE');
+      if (candidate.reload.mode !== (watching ? 'watch' : 'manual')) return reject('UNSUPPORTED_RELOAD_MODE');
       return candidate;
-    });
+    }, watching ? () => this.watchState === watching : undefined);
   }
+
+  /** Host-only opt-in. Watches the parent directory so atomic replacements remain visible. */
+  async startWatchingFile(path: string, format: UpstreamCredentialTextFormat): Promise<void> {
+    if (this.watchState) return reject('WATCH_ALREADY_STARTED');
+    if (this.reloading) return reject('RELOAD_IN_PROGRESS');
+    if (typeof path !== 'string') return reject('CONFIGURATION_READ_FAILED');
+    const registry = this;
+    const state = { path: resolve(path), format, pending: false, running: false, debounceMs: 50 } as RegistryWatchState;
+    this.watchState = state;
+    try {
+      // Validate the original native absolute path before opening a native watch handle.
+      await readStableUpstreamCredentialText(path);
+      if (this.watchState !== state) return reject('WATCH_STOPPED');
+      state.watcher = watch(dirname(state.path), (_event, filename) => {
+        if (filename === null || filename.toString() === basename(state.path)) {
+          state.pending = true;
+          schedule();
+        }
+      });
+      state.watcher.on('error', () => {
+        if (this.watchState !== state) return;
+        this.lastReloadError = 'CONFIGURATION_READ_FAILED';
+        this.stopWatching();
+      });
+      state.running = true;
+      await this.reloadFile(state.path, format);
+      state.debounceMs = this.captureSnapshot().candidate.reload.debounceMs;
+      state.running = false;
+      if (state.pending) schedule();
+    } catch (error) {
+      if (this.watchState === state) this.stopWatching();
+      throw new UpstreamCredentialRegistryError(error instanceof UpstreamCredentialRegistryError || error instanceof UpstreamCredentialFileError
+        ? error.code : 'CONFIGURATION_READ_FAILED');
+    }
+
+    function schedule(): void {
+      if (registry.watchState !== state || state.running) return;
+      if (state.timer) clearTimeout(state.timer);
+      state.timer = setTimeout(() => { void reload(); }, Math.max(10, state.debounceMs));
+    }
+    async function reload(): Promise<void> {
+      state.timer = undefined;
+      if (registry.watchState !== state) return;
+      if (registry.reloading) { schedule(); return; }
+      state.pending = false;
+      state.running = true;
+      try {
+        await registry.reloadFile(state.path, state.format);
+        state.debounceMs = registry.captureSnapshot().candidate.reload.debounceMs;
+      } catch {
+        // The registry records sanitized errors and preserves its last good snapshot.
+      } finally {
+        state.running = false;
+        if (state.pending) schedule();
+      }
+    }
+  }
+
+  stopWatching(): void {
+    const state = this.watchState;
+    this.watchState = undefined;
+    if (state?.timer) clearTimeout(state.timer);
+    state?.watcher?.close();
+  }
+
+  /** Nest also calls this on factory-provided instances during application shutdown. */
+  onModuleDestroy(): void { this.stopWatching(); }
 
   private async performReload(
     loadCandidate: () => UpstreamCredentialBindingsCandidate | Promise<UpstreamCredentialBindingsCandidate>,
+    commitAllowed?: () => boolean,
   ): Promise<UpstreamCredentialRegistrySnapshot> {
     // Acquire synchronously before parsing or provider I/O. Attempts cannot commit out of order.
     if (this.reloading) return reject('RELOAD_IN_PROGRESS');
@@ -189,7 +276,7 @@ export class UpstreamCredentialRegistry {
         if (error instanceof UpstreamCredentialRegistryError) throw error;
         return reject('CANDIDATE_REJECTED');
       }
-      return await this.activateCandidate(candidate);
+      return await this.activateCandidate(candidate, commitAllowed);
     } catch (error) {
       const safe = error instanceof UpstreamCredentialRegistryError
         ? new UpstreamCredentialRegistryError(error.code)
@@ -203,6 +290,7 @@ export class UpstreamCredentialRegistry {
 
   private async activateCandidate(
     candidate: UpstreamCredentialBindingsCandidate,
+    commitAllowed?: () => boolean,
   ): Promise<UpstreamCredentialRegistrySnapshot> {
     if (candidate.metadata.environment !== this.environment) return reject('ENVIRONMENT_MISMATCH');
     if (candidate.metadata.revision === this.active?.candidate.metadata.revision) {
@@ -242,6 +330,7 @@ export class UpstreamCredentialRegistry {
       },
     });
     // The only commit point; no await occurs after completed validation and before the swap.
+    if (commitAllowed && !commitAllowed()) return reject('WATCH_STOPPED');
     this.active = snapshot;
     this.lastReloadError = undefined;
     return snapshot;

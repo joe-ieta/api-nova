@@ -54,11 +54,12 @@ export class GatewayUpstreamCredentialAdminService {
       }
       // Fail before activation if the intent cannot be durably recorded.
       await this.record(actorId, operationId, AuditStatus.PENDING, before, 'requested', reasonDigest);
-      try { await this.registry.reloadFile(this.file, this.format); }
+      try { await this.registry.reloadFile(this.file, this.format, before); }
       catch (error) {
         const code = error instanceof UpstreamCredentialRegistryError ? error.code : 'RELOAD_FAILED';
         await this.record(actorId, operationId, AuditStatus.FAILED, before, code, reasonDigest);
-        throw new BadRequestException({ code, operationId, generation: this.registry.getStatus().generation });
+        const Exception = code === 'GENERATION_CONFLICT' || code === 'RELOAD_IN_PROGRESS' ? ConflictException : BadRequestException;
+        throw new Exception({ code, operationId, generation: this.registry.getStatus().generation });
       }
       await this.record(actorId, operationId, AuditStatus.SUCCESS, before, 'activated', reasonDigest);
       return { ...this.status(), reloading: false, operationId };

@@ -12,6 +12,7 @@ export const GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY =
 
 export const GATEWAY_UPSTREAM_CREDENTIAL_CONFIG = Object.freeze({
   file: 'API_NOVA_UPSTREAM_CREDENTIAL_FILE',
+  reloadMode: 'API_NOVA_UPSTREAM_CREDENTIAL_RELOAD_MODE',
   format: 'API_NOVA_UPSTREAM_CREDENTIAL_FORMAT',
   environment: 'API_NOVA_UPSTREAM_CREDENTIAL_ENVIRONMENT',
 });
@@ -27,14 +28,17 @@ export async function createConfiguredGatewayCredentialRegistry(
     const file = config.get<unknown>(GATEWAY_UPSTREAM_CREDENTIAL_CONFIG.file);
     const format = config.get<unknown>(GATEWAY_UPSTREAM_CREDENTIAL_CONFIG.format);
     const environment = config.get<unknown>(GATEWAY_UPSTREAM_CREDENTIAL_CONFIG.environment);
-    if (file === undefined && format === undefined && environment === undefined) return null;
-    if (typeof file !== 'string' || !file ||
+    const reloadMode = config.get<unknown>(GATEWAY_UPSTREAM_CREDENTIAL_CONFIG.reloadMode);
+    if (reloadMode === undefined && file === undefined && format === undefined && environment === undefined) return null;
+    if ((reloadMode !== undefined && reloadMode !== 'manual' && reloadMode !== 'watch') ||
+        typeof file !== 'string' || !file ||
         (format !== 'json' && format !== 'yaml') ||
         typeof environment !== 'string' || !environment) {
       throw new Error('invalid configuration');
     }
     const registry = new UpstreamCredentialRegistry({ environment });
-    await registry.reloadFile(file, format);
+    if (reloadMode === 'watch') await registry.startWatchingFile(file, format);
+    else await registry.reloadFile(file, format);
     return registry;
   } catch {
     // Config values, filesystem paths and provider details must not reach logs.

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.26.0
+doc-version: 1.27.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -8,7 +8,7 @@ doc-updated: 2026-09-21
 > Document status: Active execution ledger
 > Last updated: 2026-09-21
 > 范围：JWT/API Key/显式 Anonymous；MCP SDK 1.29 的 2025 Session 基线。OAuth2 与后续无状态协议升级延期。
-> 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置仅支持 manual，受权管理Reload/状态API已验证；Watch/MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；可信资产快照生成与提交整理见第24节；装配接线见第25节；单语句归属读取见第26节；发布信息并入同语句见第27节；上游跨源核验见第28节；最新激活版本防护见第29节。
+> 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置现支持主机显式Watch及manual，受权管理Reload/状态API已验证；MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；可信资产快照生成与提交整理见第24节；装配接线见第25节；单语句归属读取见第26节；发布信息并入同语句见第27节；上游跨源核验见第28节；最新激活版本防护见第29节。
 
 > 2026-09-15 调度重排：父包原退出条件不变；当前细分、跨计划归属和下一队列见[工作包划分](./active-work-package-breakdown.md)，逐项状态见[子任务执行台账](./active-work-package-execution-status.md)。父包 IN_PROGRESS 不表示正在同时执行；文档子项完成不计为代码完成。
 
@@ -32,7 +32,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-B3 | SEC-B03；B1/B2/E0 | IN_PROGRESS | tools/list 请求级 scope 过滤 34/34，tools/call 二次检查及会话绑定已有；SDK 内部桥接、持久撤销与权限通知未闭环 |
 | TP-C1 | SEC-C01；A0 | IN_PROGRESS | 纯对象与 JSON/YAML loader 已实现，并经 C3 稳定文件读取激活到 Gateway；完整凭据类型、安全对账与全链路验收仍待完成 |
 | TP-C2 | SEC-C02；C1 | IN_PROGRESS | Env/File Provider 已用于 Registry，Gateway 显式配置激活链已贯通；本机契约历史 53 项通过，真实 Linux 权限 30 场景待补证，Windows Secret File ACL 未适配 |
-| TP-C3 | SEC-C03；C2 | IN_PROGRESS | Stable Read、manual Reload/状态及意图/结果审计已验证；SEC-C3-01~03分别负责Watch、Registry配置DB归属、多进程；不重新开发已完成管理接口 |
+| TP-C3 | SEC-C03；C2 | IN_PROGRESS | Stable Read、manual及Watch/debounce、受权Reload/状态和代次冲突已验证；C3-01完成，C3-02 DB归属与C3-03多进程待验 |
 | TP-C4 | SEC-C04；C3 | IN_PROGRESS | Gateway与显式MCP single-hop Resolver已验证；SEC-C4-01验收真实受管child执行及Unresolved门禁，依赖E1/F1；网络政策主归F3，不在C4复制实现 |
 | TP-D1 | SEC-D01；C4 | IN_PROGRESS | 消费者/逐跳/托管Header清理及共享Resolver已用于Gateway；Connection大小写联合提名、代理生成字段去别名和XFF不重引入已补；业务Header Allowlist、缓存/传输兼容和保留字段统一策略仍未完成，30 项 D1/F3 矩阵为 draft |
 | TP-D2 | SEC-D02；B1/B2/D1 | IN_PROGRESS | 认证先于缓存、身份隔离和限流已有；本轮补缓存读写缺身份旁路与模式/主体/凭证/权限隔离，Gateway161项通过；IP层、Anonymous独立Bucket和完整层级验收不足 |
@@ -641,3 +641,7 @@ SEC-A2-01B核对RuntimeAssets部署保存、应用自动恢复和child启动三�
 SEC-A4-02此前缺明确隔离目标；现通过本机PostgreSQL16.10二进制新建专用集群解除阻塞。新wrapper只保留OS执行环境，显式设置专用身份、随机回环端口、数据库和私有日志根，JWT为内存随机值；现有database-tool创建随机空库，69实体/69业务表、3迁移、初始/连接重建零漂移、重连0迁移，持久化/约束回滚、真实API启动和管理匿名401均通过。父任务独立复跑，集群停止删除确认。
 
 这里的restart是数据库连接重建，不是PG守护进程故障恢复；不覆盖历史版本升级、Linux、生产配置或备份恢复。详见[PG空库证据](../audits/2026-09-21-isolated-postgres-schema.md)。父包状态不因单项环境证据自动升级。
+
+## 文件自动重载交付（2026-09-21）
+
+SEC-C3-01按原定义DONE。固定源主机配置显式启用Watch，失败保留旧代，关闭阻止在途提交；管理员在审计等待期间遇到代次变化会拒绝旧请求。详见[真实监听证据](../audits/2026-09-21-registry-watch.md)。父包C3仍IN_PROGRESS，未覆盖DB归属、Linux权限和多进程传播。

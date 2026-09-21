@@ -1,5 +1,5 @@
 ---
-doc-version: 1.42.0
+doc-version: 1.43.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,9 +14,9 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 59 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 25 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
+| DONE | 60 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 22 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 2 | SEC-A1-02D、SEC-D2-01 |
 | WAIT_DEP | 28 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -39,7 +39,7 @@ doc-updated: 2026-09-21
 | SEC-A1-02B3 | DONE | 持久private_api_key→handoff→child api_key→READY一致性；缺失/不支持/不符拒绝，旧实验包不默认兼容；父端46/46、真实child HTTP13/13；未接生产生命周期，CLI effective仍unknown |
 | SEC-A1-02B4 | DONE | 三值明确选择、保存/重载、草稿/配置/预览/实际未知分离；旧未知与运行中改模式阻断，详情空记录及Gateway隔离；Vue状态/SFC SSR19/19、UI构建/typecheck；真实浏览器端到端未跑 |
 | SEC-A1-02C | DONE | 直连stdio审计标local_process/unknown、不虚构callerId；真实子进程12/12、HTTP权限20/20、Parser规范化41/41；HTTP anonymous保持原义 |
-| SEC-A1-02D | READY | A/B1-B4/C已完成；下一批按真实保存、发布、重启和请求核对跨层模式，不把UI状态夹具当完整闭环 |
+| SEC-A1-02D | IN_PROGRESS | 执行保存/发布/重启/真实请求闭环，重点隔离持久化与真实child，不复用UI夹具冒充 |
 | SEC-A2-01A | DONE | Gateway缺失/空/损坏active快照拒绝，策略与指纹重核；热恢复保留旧registry，冷启动拒绝；相邻28套339/339，父任务定向28/28 |
 | SEC-A2-01B | DONE | 实际部署保存入口拒缺失/未知/非法模式且无候选/保存副作用；自动恢复真实preflight拒绝、显式匿名可追溯；ProcessManager重启先校验再stop且spawn前重验；父任务12套88/88，CLI HTTP3/3、实验child14/14，API构建 |
 | SEC-A3-01 | WAIT_DEP | 未实现闭环 |
@@ -54,13 +54,13 @@ doc-updated: 2026-09-21
 | SEC-C1-02 | WAIT_DEP | 类型很多时逐类型再拆后执行 |
 | SEC-C2-01 | NEED_ENV | Env/File本机实现已有 |
 | SEC-C2-02 | READY | 适配未完成 |
-| SEC-C3-01 | READY | manual reload不重做 |
+| SEC-C3-01 | DONE | 固定文件Watch/debounce、坏文件保旧、admin锁内代次检查和Nest关闭已通过；Windows真实监听8/8、Parser252/252、Gateway31/31；见2026-09-21-registry-watch证据 |
 | SEC-C3-02 | READY | 管理装配查询不等于Registry校验 |
 | SEC-C3-03 | WAIT_DEP | 需先有真实child链 |
 | SEC-C4-01 | WAIT_DEP | 纯Resolver不重写 |
 | SEC-D1-01 | READY | 现有30项草案不是实现 |
 | SEC-D1-02 | WAIT_DEP | Connection修复转维护 |
-| SEC-D2-01 | READY | 已有缓存身份边界不重做 |
+| SEC-D2-01 | IN_PROGRESS | 核对并实现IP与Anonymous独立限流入口，实际HTTP验证身份缓存不能绕过 |
 | SEC-D2-02 | WAIT_DEP | 不把限流器单测当整包验收 |
 | SEC-E0-01 | READY | 不升级无状态协议 |
 | SEC-E1-01 | DONE | managed-mcp-credential-handoff-plan.md 0.1.0 draft；无代码交付；[草案](./managed-mcp-credential-handoff-plan.md) |

@@ -133,4 +133,42 @@ describe('Gateway configured credential activation', () => {
     expect(String(error)).not.toContain('synthetic-gateway-secret');
     expect(error.cause).toBeUndefined();
   });
+  test('host watch opt-in updates the live DI resolver and Nest close stops it', async () => {
+    const initial = document(); initial.reload.mode = 'watch'; initial.reload.debounceMs = 40;
+    await fs.writeFile(file, JSON.stringify(initial));
+    const module = await Test.createTestingModule({ providers: [
+      { provide: ConfigService, useValue: config({
+        [keys.file]: file, [keys.format]: 'json', [keys.environment]: 'test', [keys.reloadMode]: 'watch',
+      }) }, gatewayUpstreamCredentialRegistryProvider, gatewayUpstreamCredentialResolverProvider,
+    ] }).compile();
+    const registry = module.get<UpstreamCredentialRegistry>(GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY);
+    try {
+      const resolver = module.get<GatewayUpstreamCredentialResolver>(GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER);
+      const route: any = { sourceServiceAsset: { id: 'asset' }, endpointDefinition: { id: 'endpoint' } };
+      expect((await resolver.resolve(route, 'https://api.example.com/items')).headers)
+        .toEqual({ authorization: 'Bearer synthetic-gateway-secret' });
+      const replacement = document('r2'); replacement.reload.mode = 'watch';
+      replacement.sites[0].endpoints[0].credential = 'none';
+      await fs.writeFile(file, JSON.stringify(replacement));
+      const deadline = Date.now() + 4000;
+      while (registry.getStatus().revision !== 'r2' && Date.now() < deadline) {
+        await new Promise(done => setTimeout(done, 20));
+      }
+      expect(registry.getStatus().revision).toBe('r2');
+      expect((await resolver.resolve(route, 'https://api.example.com/items')).headers).toEqual({});
+    } finally { await module.close(); }
+    const retained = registry.captureSnapshot();
+    const afterClose = document('r3'); afterClose.reload.mode = 'watch';
+    await fs.writeFile(file, JSON.stringify(afterClose));
+    await new Promise(done => setTimeout(done, 200));
+    expect(registry.captureSnapshot()).toBe(retained);
+  });
+
+  test.each(['auto', true, ''])('rejects invalid host reload mode %p', async reloadMode => {
+    await fs.writeFile(file, JSON.stringify(document()));
+    await expect(createConfiguredGatewayCredentialRegistry(config({
+      [keys.file]: file, [keys.format]: 'json', [keys.environment]: 'test', [keys.reloadMode]: reloadMode,
+    }))).rejects.toThrow('gateway_upstream_credential_configuration_failed');
+  });
+
 });

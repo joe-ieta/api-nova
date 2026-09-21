@@ -78,4 +78,16 @@ describe('credential management manual reload', () => {
     await expect(service.reload(body, actor)).rejects.toMatchObject({ response: { code: 'RELOAD_AUDIT_UNAVAILABLE', generation: 2 } });
     expect(service.status()).toMatchObject({ revision: 'r2', generation: 2, reloading: false });
   });
+  it('rechecks generation under registry lock after durable audit yields to another activation', async () => {
+    audit.log.mockImplementationOnce(async () => {
+      await registry.reload(candidate('concurrent-r2'));
+      return { id: randomUUID() };
+    });
+    await expect(service.reload(body, actor)).rejects.toMatchObject({
+      status: 409, response: { code: 'GENERATION_CONFLICT', generation: 2 },
+    });
+    expect(registry.getStatus().revision).toBe('concurrent-r2');
+    expect(audit.log.mock.calls[1][0]).toMatchObject({ status: 'failed', details: { result: 'GENERATION_CONFLICT' } });
+  });
+
 });
