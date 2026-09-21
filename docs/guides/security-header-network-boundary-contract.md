@@ -1,11 +1,11 @@
 ---
-doc-version: 0.3.0
-doc-status: draft
-doc-updated: 2026-09-14
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-09-21
 ---
 # D1/F3 请求头与网络边界契约
 
-本文定义 D1 业务 Header allowlist 与 F3 redirect/DNS/SSRF 的兼容策略和验收边界。当前能力以实现引用为依据；D1/F3 目标规则仍为提案，不代表已上线能力，也不改变默认网络策略。
+本文定义 D1 业务 Header allowlist 与 F3 redirect/DNS/SSRF 的兼容策略和验收边界。当前能力以实现引用为依据。2026-09-21 冻结 D1 Header 政策（第 3 节），作为 SEC-D1-02 的实施约束；政策定稿不代表代码已实现。F3 网络政策仍是独立提案，不因 D1 定稿改变默认网络策略。
 
 ## 1. 范围与证据
 
@@ -34,7 +34,7 @@ doc-updated: 2026-09-14
 
 - 已新增 `reloadFile(path, format)`，受统一重载锁保护；使用有界双采样稳定读取，限制 1 MiB、采样间隔 50 ms，检查 file stat/identity/content，拒绝 links 和非法 UTF-8。
 - GatewayRuntimeModule 已注册基于 ConfigService 的异步 Registry/Resolver factories。显式 `API_NOVA_UPSTREAM_CREDENTIAL_FILE`、`API_NOVA_UPSTREAM_CREDENTIAL_FORMAT`（`json|yaml`）、`API_NOVA_UPSTREAM_CREDENTIAL_ENVIRONMENT` 三项齐备且有效时，在 bootstrap 前激活。
-- 三项均未配置时保持 legacy；只配置部分、值非法或加载失败时拒绝启动。仅支持 manual 模式，watch 配置文件拒绝加载。不能把稳定读取称为已实现自动 Watch。
+- 三项均未配置时保持 legacy；只配置部分、值非法或加载失败时拒绝启动。当前支持 manual 和固定文件 watch；watch 使用 Registry 的 startWatchingFile，由统一重载路径验证后替换快照。此处不声称多进程同时生效。
 
 上述 C3 能力不自动提供 DNS/SSRF、redirect 每跳复验、业务 Header allowlist 或整条跳转链固定版本。
 
@@ -75,43 +75,100 @@ Gateway 适配器每次 resolve 捕获一个快照，用 source asset、目标 U
 
 Webhook 目的地策略不能替代业务路径的证据，其政策不能直接作为业务默认值。
 
-## 3. D1 业务 allowlist 兼容提案
+## 3. D1 Header 政策 v1（已定稿，待实施）
 
-本节都是待实现契约，所述模式不是现有可加载配置或已经定义的 Schema。
+本节是项目选择，不声称当前代码具备这些能力。范围为 Gateway 请求与响应；共享名称/值校验可供 Parser 复用，Parser 的实际生产接入和逐跳网络授权仍分别属于 E1/F3。不得用纯函数测试替代 Gateway 真正出站及返回客户端的证明。
 
-### 3.1 业务清单
+### 3.1 配置、继承和激活
 
-建议使用“有版本的基础业务集合 + Site/Endpoint 精确扩展集合”。编译时规范化名称，禁止 *、x-* 等通配符。Endpoint 未声明扩展则继承 Site；显式扩展替换 Site 扩展；空扩展表示仅基础集合。未知头在新策略启用后剥离，认证头永远不能靠业务清单恢复。
+- 策略对象采用 `{ version: 1, requestHeaders?: string[], responseHeaders?: string[] }`，仅含名称，禁止 Header 值、通配符、正则和未知键；名称转小写后去重。扩展最多每方向 64 名。请求和响应分别继承，不能混为一张表。
+- Registry 路径在 Site 上保存 `headerPolicy`，Endpoint override 可保存同名策略。Endpoint 某方向缺失表示继承 Site；显式空数组表示只有该方向基础集合；非空数组替换 Site 的同方向扩展。Site 某方向缺失即无扩展。只接受 version=1，不猜测未来版本。
+- 未使用 Registry 的 Gateway 路由在现有 `upstreamConfig.headerPolicy` 保存完整 v1 策略，没有 Site 继承；基础集合相同。Registry 管理的路由同时提供内联 Header 策略应拒绝激活，避免两份来源的覆盖歧义。上述字段目前尚未加入执行 Schema。
+- 编译产物固定策略版本、有效集合及来源标识，随对应路由/Registry 快照原子发布；编译失败保留旧有效快照，首次启动没有有效快照则拒绝该配置。不得只忽略非法字段后继续。
+- 请求级固定有效策略；缓存键必须包含有效 Header 策略版本/内容标识，更新快照同时清空旧缓存。Registry 版本与路由版本不可隐式混搭。
 
-| 类别 | 建议兼容策略 | 前置条件 |
+### 3.2 请求字段决定
+
+| 字段/类别 | v1 决定 | 约束 |
 | --- | --- | --- |
-| accept、accept-language、content-type、content-encoding | 建议基础允许，保持值与真实正文编码一致 | 不推导网关存在正文转换能力 |
-| accept-encoding | 建议基础允许 | 流式透传与缓存命中均需证明压缩语义一致 |
-| if-match、if-none-match、if-modified-since、if-unmodified-since、if-range、range | 建议基础允许，保留条件请求和分段下载 | 缓存正确区分语义，或相关请求 bypass；未经验证不算兼容完成 |
-| cache-control、pragma | 建议基础允许 | 透传不证明 Gateway 缓存遵循这些指令 |
-| idempotency-key、prefer、x-business、版本/租户/业务关联头 | Site/Endpoint 精确声明后允许 | 不允许所有 x-；租户头不替代 Principal；幂等键不授权自动重放 |
-| origin、referer、user-agent | 按上游兼容需求显式声明 | 不作可信身份；避免无需求传播来源信息 |
-| traceparent、tracestate、baggage | 独立追踪规则，初版不自动加入基础集合 | 限长、脱敏，外部关联与内部身份分离，尤其不默认传播 baggage |
-| authorization、proxy-authorization、x-api-key、cookie、托管认证名 | 入站禁止，业务配置冲突则拒绝激活 | 仅 Resolver 受控输出可注入上游凭据，无消费者回退 |
-| 标准逐跳字段及 Connection 声明字段 | 剥离优先于业务清单 | 即使 connection: accept，也剥离入站 Accept；可信凭据注入独立执行 |
-| host、x-forwarded-*、forwarded、x-request-id | 保留给代理生成器，禁止作为普通扩展 | 明确可信代理来源，不能复制任意客户端链后称为可信 |
-| content-length、transfer-encoding、expect、Trailer/Upgrade | 传输层单独处理，不作为业务扩展 | 明确长度、流、取消及 100-continue，不能只删长度而保留错误 framing |
+| accept、accept-language、accept-encoding、content-type、content-encoding | 基础允许 | 正文字节不转换、不解压；压缩请求和响应须验证真实字节 |
+| if-match、if-none-match、if-modified-since、if-unmodified-since、if-range、range | 基础允许 | 含任一字段的请求绕过缓存读取和写入 |
+| cache-control、pragma | 基础允许 | 含任一字段的请求绕过缓存读取和写入，不自行解释后放宽 |
+| idempotency-key、prefer、x-business、版本/租户/业务关联头 | 仅精确扩展允许 | 幂等键不授权重放；租户头不构成认证身份 |
+| origin、referer、user-agent | 仅精确扩展允许 | 外部自述信息，不作为可信身份；CORS 不从本策略自动生成 |
+| traceparent、tracestate、baggage | v1 禁止普通扩展并剥离 | 后续专门追踪策略再开放，不能把追踪内容默认送上游 |
+| authorization、proxy-authorization、x-api-key、cookie、当前消费者鉴权配置指定的自定义 Header 名 | 始终剥离入站值，禁止业务扩展 | 消费者凭据 Passthrough 没有例外 |
+| 所有当前候选托管认证名，以及已登记的历史认证名 | 始终剥离入站值，禁止业务扩展 | 不因 Endpoint None 或删除凭据而恢复；迁移清单须记录历史名，旧认证名不得改名为业务扩展规避 |
+| connection、keep-alive、proxy-authenticate、te、trailer、trailers、transfer-encoding、upgrade | 逐跳剥离，禁止扩展 | 所有 Connection 值提名的字段同样剥离，即使它在基础清单内 |
+| host、forwarded、x-forwarded-*、x-real-ip、x-request-id、x-apinova-* | 保留字段，禁止扩展 | 不接受客户端指定目标、身份、请求 ID 或内部状态 |
+| content-length、expect | 由第 3.5 节传输规则处理 | 不是业务扩展；拒绝 framing 歧义 |
+| 其余名称 | 默认剥离 | 只有合法精确扩展才能放行，不存在 allow-all 模式 |
 
-### 3.2 迁移与执行优先级
+未知历史认证名默认因未入 allowlist 被删除；无法从任意名称推断用途，不宣称已经识别所有秘密。扩展发布审阅必须确认该名称不是认证/会话令牌，不得自动从流量学习后放行。
 
-1. 使用已授权离线夹具或脱敏证据统计 Header 名，生成每个 Site/Endpoint 的差异清单，只记录名称/数量，不记录值，也不自动将观察到的未知名加入白名单。
-2. 审核扩展、缓存和传输兼容后显式启用新策略版本，通过原子快照发布；失败保留旧快照。迁移须保持未启用新策略的既有路由行为。
-3. 新版本按 allowlist 执行，缺失或非法配置拒绝激活；旧版本保留及退役时间另行确定。迁移未完成不能标 D1 完成；旧业务兼容不等于授权消费者凭据 Passthrough。
+### 3.3 响应字段决定
 
-执行顺序提案：
+响应同样执行独立 allowlist，并先删除逐跳字段、所有响应 Connection 提名字段及保留字段。源响应的字段不会因请求扩展而获准。
 
-1. 名称统一小写，校验 token、数量、大小和 CR/LF；拒绝大小写重复的凭据/framing 歧义；仅对明确允许逗号列表的字段合并多值，其余逐字段定义。
-2. 剥离消费者认证、候选托管认证名、逐跳字段，再与业务 allowlist 取交集。历史或未知认证名因不在清单而删除；禁止未审阅就将历史认证名复用为业务扩展。
-3. 重建代理元数据与正确 framing。XFF 可信前缀只来自明确可信代理；改变当前追加行为需单独兼容决定。
-4. 目标网络授权成功后应用 Resolver 凭据；拒绝凭据输出占用 Host、framing、逐跳或代理保留字段。None 不恢复消费者值。业务头不能覆盖凭据，凭据不能改变连接目标。
-5. 向审计提供敏感 Header 名、安全原因和版本，禁止把凭据值写入日志、异常或快照。
+| 字段/类别 | v1 决定 | 约束 |
+| --- | --- | --- |
+| content-type、content-encoding、content-language、content-disposition、etag、last-modified、cache-control、expires、vary、accept-ranges、content-range、location、retry-after、date、age | 基础允许 | 不跟随 Location；值校验不宣称已解决 F3 URL/SSRF |
+| 自定义业务响应头、link、allow、CORS access-control-* | 仅精确扩展允许 | 不自动开放整组前缀，不自动改变控制面或 Gateway 自身 CORS 政策 |
+| authorization、proxy-authorization、proxy-authenticate、x-api-key、cookie、set-cookie、www-authenticate、所有托管认证名 | 剥离并禁止扩展 | v1 不承载上游浏览器会话或上游认证挑战；需要这些能力的旧路由必须显式迁移，不静默放行 |
+| server、x-powered-by、forwarded、x-forwarded-*、x-real-ip、x-request-id、x-apinova-*、traceparent、tracestate、baggage | 剥离并禁止扩展 | Gateway 只生成自己的请求 ID/缓存状态，不复用上游值 |
+| content-length、transfer-encoding、trailer、trailers、upgrade 及其他逐跳字段 | 交由传输层处理或剥离 | 不原样复制上游分块/连接控制信息 |
+| 其余字段 | 默认剥离 | 精确扩展不得覆盖上述禁止名 |
 
-值校验、多值规范、可信代理及输出冲突拒绝不是当前 buildForwardHeaders 已实现能力。旧 Env 可注入 Cookie 等差异应在迁移时明确报错，不能静默改变旧配置含义。
+Set-Cookie 即使被输出过滤，原始上游出现它仍禁止存缓存；不得通过先删除字段把原来不安全的响应变成可缓存。响应扩展只能使用单值语义，v1 不提供 Cookie 列表例外。
+
+### 3.4 名称、值和多值
+
+1. 名称必须为合法 HTTP token。v1 应用层每方向原始字段最多 100 个，名称和值合计 UTF-8 字节不超过 16 KiB，单值不超过 8 KiB；运行时更严格的原生上限仍有效。非法名称、NUL、CR/LF 和其他不允许的控制字符拒绝，不截断后发送。水平制表符仅在字段值允许，首尾 OWS 归一化；不得对凭据秘密自行 trim 后改变含义。
+2. 必须从原始字段列表识别重复（Gateway 入站/上游响应使用 rawHeaders）；只检查 Node 已合并的 headers 不足。大小写别名算同名。原始字段缺失的内部适配路径必须提供等效列表，不能默认为没有重复。
+3. 允许按原出现顺序用逗号合并的请求字段仅为 accept、accept-language、accept-encoding、cache-control、pragma、if-match、if-none-match、prefer；响应仅为 cache-control、vary、accept-ranges、link、allow。字段仍须已获基础/扩展授权。
+4. 其他获准字段都是单值；重复单值即拒绝，不以 first/last wins 或数组 join 掩盖。重复消费者认证字段/凭据字段和 content-length，即使值相同也拒绝。Connection 的多个值仅用于累计剥离集合，不向外复制。已经禁止且非认证/framing 字段可直接剥离，不因重复而重新放行。
+5. 入站非法值/重复单值返回 400，超过应用层大小/数量上限返回 431；上游非法响应在客户端 Header 写出前返回固定 502。流开始后的长度/中断错误销毁连接并审计，不拼接第二个 JSON 错误。原因只包含安全代码和字段名，不包含值。
+
+### 3.5 Framing、代理字段和凭据输出
+
+- 同时出现 Content-Length 与 Transfer-Encoding、重复 Content-Length、非十进制非负安全整数长度，入站 400；上游等价歧义 502。原生 HTTP parser 若更早拒绝，仍须用真实 socket 用例证明没有出站发送；应用代码不能以解析器已经处理为由跳过内部适配路径验证。
+- 入站 Transfer-Encoding 只接受单一 chunked，其他编码/列表拒绝；解分块后的实体流按字节转发，出站分块由 Node 生成，不复制客户端 Transfer-Encoding。声明了合法单一 Content-Length 且正文完全不变时可使用校验后的长度，并累计实际字节；不匹配立即中止，不补空正文、不自动重试。
+- 未知长度流不伪造 Content-Length；由传输层选择 framing。空体、HEAD、204、304 的禁止正文/元数据长度语义须分别处理，不能一律设零。上游合法长度只能在无转换且状态允许时转出，并检查字节；缓存实体长度从实际缓存字节生成。禁止为了校验长度而无界缓冲。
+- v1 不支持 Expect/100-continue 代理、Upgrade 或 trailers 业务传递：出现 Expect 在上游连接前返回 417，升级请求拒绝；必须验证服务器 checkContinue/checkExpectation 路径，不得先回 100 再进入拒绝逻辑。声明 trailers 的业务请求拒绝；未声明的末尾 trailers 不转发，并审计丢弃。响应逐跳升级/非最终响应不得作为普通成功响应转出；合法上游 trailers 丢弃。
+- 保留现有取消传播并验收中途断开；仅已有明确许可的空体重试适用，不由 Header 政策扩展重放范围。
+- v1 采用单一、不信任转发链的代理规则：X-Forwarded-For 只取当前 socket peer；X-Forwarded-Proto 只取实际入站 TLS 状态；X-Forwarded-Host 取已校验的唯一入站 Host（缺失/非法拒绝），不能影响目标 Host。剥离客户端 Forwarded/所有 X-Forwarded-* 和 X-Real-IP。v1 不开放 trusted-proxy 例外，未来独立版本再加入；这些字段不作为 Principal。
+- Host 来自已解析的上游 URL。请求 ID 由 Gateway 新生成或复用本次入口已生成的内部 ID，不能复用未经验证的客户端值；响应返回同一 ID。
+- 执行顺序固定为：原始字段/传输校验 → 认证/逐跳/保留字段剥离 → 业务 allowlist → framing 和代理元数据重建 → 校验并最后注入 Resolver 凭据。发送前可判定的校验失败不得连接上游；流中才能发现的长度/取消失败按本节立即中止。F3 加入后网络授权也必须在发送前完成。
+- Resolver 输出仅允许认证用途的 Authorization、X-API-Key 或合法自定义认证名；不得占用基础业务名、已声明业务扩展、Cookie、Set-Cookie、Proxy-Authorization、Host、framing、逐跳、追踪、代理及内部保留名。名称/单值约束同样校验。冲突在激活时拒绝，动态输出再次防守并固定 503，禁止回退 Env 或消费者值。None 输出空凭据；可信凭据不因消费者的 Connection 提名而被取消。
+
+### 3.6 缓存闭合规则
+
+安全 v1 初版优先绕过未经证明的缓存语义，不为了命中率扩大 Header 放行：
+
+- Range、任何 If-*、Cache-Control、Pragma 请求同时 bypass 读/写；只缓存无正文 GET，其他方法 bypass。
+- Accept-Encoding、Accept、Accept-Language 和所有有效业务扩展的规范化值自动进入缓存键（允许名单中未出现的值也须区分缺失）。键内还包含有效策略标识及已有验证身份，不能由用户配置删除这些必需维度。不得把凭据值放入键或日志。
+- 响应 Cache-Control 含 private/no-store/no-cache、Pragma、Vary=*、无法解析的缓存指令，或 Vary 提到未覆盖的请求字段时不存缓存。响应 206、SSE、原始 Set-Cookie、正文不完整/超捕获上限同样不存；现有 TTL 不替代这些拒绝条件。
+- 缓存保存过滤后的业务响应头和原始实体字节；压缩实体不解压，命中时重建 framing/请求 ID，禁止重放逐跳/上游认证字段。需以真实 HTTP 的 miss/hit/不同编码及分段/条件请求验证。
+
+### 3.7 迁移、禁用与例外
+
+1. v1 是 D1-02 完成后所有新建 Gateway 路由的默认政策，缺省扩展为空；显式 version 非法一律失败。已有路由未配置时仅在迁移阶段维持 legacy，必须可列出数量和路由 ID；不能把 legacy 当作 v1 的宽松选项。
+2. 迁移差异报告只记录字段名、方向、次数及配置引用，不记录值；列出 Cookie 会话、上游挑战、历史自定义认证名、代理链、Expect/trailers、缓存兼容差异。已观察到的字段不得自动入清单。
+3. 每条 legacy 例外必须有路由 ID、责任人、原因、UTC expiresAt 和回退依据；v1 上线后最长 30 天，过期拒绝激活或运行（固定 503），不能自动续期。不允许以全局 env、关闭校验或通配符掩盖例外。legacy 也不新增消费者凭据 Passthrough。
+4. v1 激活后不能通过删除 headerPolicy、null、未知版本、删除 Registry 或关闭 Provider 降级成 legacy。配置变更需要保留已迁移状态并拒绝这类降级；显式回滚只能回到先前验证通过的 v1 快照。尚未迁移的 legacy 快照验证失败可保留原快照，但例外截止时间仍执行。
+5. D1-02 实施可保留有期限的迁移入口并验证上述行为；SEC-D1 父包闭合还要求交付默认配置无未处理 legacy 路由，以及任何实际部署例外清单/期限有证据。不得以测试夹具中全部 v1 推断生产迁移完成。
+
+### 3.8 D1-02 可直接执行的实施边界
+
+| 工作 | 已有基础 | D1-02 必须补齐 |
+| --- | --- | --- |
+| 编译与配置 | Registry 原子快照、Gateway upstream raw 配置 | v1 Schema、双方向继承/替换、两来源冲突、保留名和凭据输出校验、迁移状态防降级 |
+| 请求 | 认证/Connection/候选名剥离与 Resolver 注入 | 真正 allowlist、rawHeaders 多值/限额、当前消费者自定义认证名剥离、历史名迁移、可信代理生成规则 |
+| 响应 | 值转字符串/数组 | 独立 allowlist、逐跳/认证剥离、异常拒绝、缓存前保留禁止存储信号 |
+| 传输与缓存 | PassThrough/取消传播、身份隔离、可配置 vary | §3.5、§3.6 的真实字节、framing、Expect、miss/hit 拒绝与隔离验证 |
+| 迁移与证据 | 旧行为回归夹具 | 默认开启、legacy 有期限例外、不能删除配置降级、H01–H12 逐项报告 |
+
+SEC-D1-01 的完成证据是本节定稿与逐项选择；不是 H01–H12 已全部通过。当前生产代码仍存在未知业务头透传、普通数组一律逗号合并、入站 XFF 前缀保留、响应无同等过滤等缺口。D1-02 不依赖 F3 DNS/redirect 实现才能推进，也不得把完成 Header 策略说成已完成 SSRF 防护。
 
 ## 4. F3 每跳网络与凭据提案
 
@@ -155,7 +212,7 @@ Gateway 保持不自动跟随 Location。Parser 当前最多五次跳转作为�
 
 ## 5. 可执行验收矩阵
 
-本矩阵定义验收要求，不声明 30 项均已通过。“已有用例”表示存在相应断言；“缺口”指所列代码路径未实现该防护；“提案”待实现后作为退出条件。实际执行结果统一见[执行台账第 18 节](E:/CodexDev/api-nova/docs/guides/security-development-execution-status.md)。
+本矩阵定义 30 项验收要求，不声明均已通过。H01–H12 按第 3 节冻结的 D1 v1 执行；N01–N17 保留 F3 提案状态；L01 跨两者验收。“已有用例”表示存在相应断言；“缺口”指所列代码路径未实现该防护。实际执行结果统一见[执行台账第 18 节](E:/CodexDev/api-nova/docs/guides/security-development-execution-status.md)。
 
 离线夹具：Site A 为 https://a.example/api，属于 asset A；Endpoint P 使用 synthetic-a，Endpoint N 显式 None；Site B 为 https://b.example/api，使用 synthetic-b。URL 仅作内存输入；mock Resolver、DNS、HTTP(S) request、Agent/socket 和 Axios adapter，不访问真实 DNS/网络或真实 Env 秘密。记录 resolveCalls、lookupCalls、connectCalls、writeCalls、发送 Header、正文摘要及审计事件。使用可注入时钟和流桩模拟超时、取消、部分发送与跳转。
 
@@ -163,15 +220,15 @@ Gateway 保持不自动跟随 Location。Parser 当前最多五次跳转作为�
 | --- | --- | --- | --- |
 | H01 | 大小写混合 Authorization/X-API-Key/Cookie/Proxy-Authorization | 消费者值不出站，有绑定时只出现当前合成凭据 | 已有用例；结果见执行台账 |
 | H02 | Connection 字符串/数组/重复名/空项，声明业务和认证头 | 入站声明字段全剥离；可信凭据仍可注入；trailer/trailers 分别断言 | 现有逻辑，部分已有用例 |
-| H03 | x-business 未在 allowlist | 当前基线保留，新策略启用后剥离；两种夹具分开 | 基线已有用例；提案 |
-| H04 | Endpoint 扩展缺失/空/替换 Site | 分别继承/仅基础/基础加 Endpoint 扩展；拒绝通配符和非法名 | 提案 |
-| H05 | allowlist 含凭据/逐跳/代理保留名 | 拒绝激活，旧快照有效，无网络调用 | 提案 |
+| H03 | x-business 未在 allowlist | 当前基线保留，新策略启用后剥离；两种夹具分开 | 基线已有用例；政策已定，待实现 |
+| H04 | Endpoint 扩展缺失/空/替换 Site | 分别继承/仅基础/基础加 Endpoint 扩展；拒绝通配符和非法名 | 政策已定，待实现 |
+| H05 | allowlist 含凭据/逐跳/代理保留名 | 请求/响应策略与凭据输出冲突均拒绝激活；旧快照有效，无网络调用 | 政策已定，待实现 |
 | H06 | None 且携带其他候选的认证名 | 候选托管名剥离，不注入凭据 | 已有用例；结果见执行台账 |
-| H07 | 轮换后删除旧自定义认证名 | 新策略剥离未允许的旧名；基线显式暴露当前剥离清单局限 | 缺口/提案 |
-| H08 | 大小写重复/重复单值/CR-LF/多值 Accept | 按字段规则拒绝或合并，无重复凭据和 framing 歧义 | 提案；当前统一逗号合并 |
-| H09 | 伪造 XFF/Forwarded/request-id，可信代理启停 | 当前 XFF 保留前缀作基线；新政策只用授权来源构造链，身份不采用伪造值 | 现状+提案 |
-| H10 | 固定长度/分块/空体/Expect/取消 | framing 和实际字节一致，无双 framing、二次消费或空体重放 | 待传输契约 |
-| H11 | Range/If-*/Accept-Encoding 不同而路径相同，随后缓存命中 | 状态/Header/正文与直连语义一致；缓存隔离或 bypass 有证据 | 提案，依赖 D2 |
+| H07 | 轮换后删除旧自定义认证名 | 新策略剥离未允许的旧名；基线显式暴露当前剥离清单局限 | 缺口/政策已定，待实现 |
+| H08 | 大小写重复/重复单值/CR-LF/多值 Accept | 按 §3.4 原始字段规则拒绝或合并，无重复凭据和 framing 歧义 | 政策已定，待实现；当前统一逗号合并 |
+| H09 | 伪造 XFF/Forwarded/request-id，v1 peer-only 与 legacy 迁移 | 当前 XFF 保留前缀作基线；v1 只用 socket peer 构造链，身份不采用伪造值 | 现状+政策已定，待实现 |
+| H10 | 固定长度/分块/空体/Expect/取消 | framing 和实际字节一致，无双 framing、二次消费或空体重放 | §3.5 已定，待实现 |
+| H11 | Range/If-*/Accept-Encoding 不同而路径相同，随后缓存命中 | 状态/Header/正文与直连语义一致；按 §3.6 强制隔离或 bypass 有证据 | 政策已定，待实现，依赖 D2 |
 | H12 | Resolver 错误/None/旧 Env/非法 Env | Resolver 错误固定 503 且 connectCalls=0；旧 Env 分支独立断言，不错误套用固定 503 | 部分已有用例；联网前断言待补 |
 | N01 | Gateway 收到 302/307 与 Location | 仅一次 request，返回状态/Location，hop=0，无下一跳 | 代码基线待执行 |
 | N02 | Parser 第五和第六次跳转 | 锁定 maxRedirects=5；第六次跟随失败；有无 context 跳转行为一致 | 配置已有，用例待执行 |
@@ -202,14 +259,14 @@ Gateway 保持不自动跟随 Location。Parser 当前最多五次跳转作为�
 | --- | --- | --- |
 | C3 稳定读取和显式配置激活（已实现） | 以 reloadFile 和启动工厂作为接入基线，不作为缺失能力阻塞 D1/F3 | 实现与操作见稳定文件读取、Gateway 凭据 Provider 和运行手册；验证见[执行台账第 18 节](E:/CodexDev/api-nova/docs/guides/security-development-execution-status.md) |
 | C4 适配/配置校验 | 托管名、保留字段冲突、目标 Endpoint 身份、整链版本和撤销语义 | 共享 Resolver/适配接口；纯 Resolver 保持无网络 I/O |
-| D1 编译 Schema 与迁移决定 | allowlist 配置来源、版本、继承/替换、非法拒绝和兼容差异 | 后续 D1 实现；本文不是可执行配置 |
+| D1 编译 Schema 与迁移实施 | 第 3 节已冻结来源、版本、继承/替换、非法拒绝、兼容差异和有限例外 | SEC-D1-01 政策完成；SEC-D1-02 实施与真实传输验收仍待完成 |
 | D2 缓存与传输 | 条件/范围/压缩头、framing、可信代理和重放规则闭合 | Gateway 数据面集成 |
 | E1 MCP 接入 | Parser 每跳使用共享安全能力，无 context 同样受控 | MCP Adapter/Parser，不直接复用 Gateway 入站 Filter |
 | F3 目的地政策 | 公网限制、内网例外、代理、降级、跨 asset 授权明确 | 产品/部署政策；禁止实现时静默选择新默认 |
 | F3 请求层能力 | 异步每跳授权、DNS 全集分类、地址固定、peer/TLS/代理一致性 | 仅加 beforeRedirect 或观测计数不足 |
 | F3/F4 证据 | 矩阵执行、拒绝前无连接/写出、泄漏扫描及 Windows/Linux 集成 | 后续授权验证；C2 Linux 文件权限为独立证据轨 |
 
-D1 allowlist 与 F3 网络防护仍为提案，完成条件由本契约的矩阵与剩余依赖共同定义。C3/Gateway 的显式配置激活不替代这些退出条件。F3 全包还包含本文以外的生命周期审计、CLI/Process Info 防护和完整 Secret Scan。验证结果与任务状态以[执行台账第 18 节](E:/CodexDev/api-nova/docs/guides/security-development-execution-status.md)为准。
+D1 allowlist 政策已经定稿，执行代码与 H01–H12 验收尚待完成；F3 网络防护仍为提案。两者完成条件分别由本契约对应矩阵与依赖定义。C3/Gateway 的显式配置激活不替代这些退出条件。F3 全包还包含本文以外的生命周期审计、CLI/Process Info 防护和完整 Secret Scan。验证结果与任务状态以[执行台账第 18 节](E:/CodexDev/api-nova/docs/guides/security-development-execution-status.md)为准。
 
 ## 显式MCP单跳模式增量
 

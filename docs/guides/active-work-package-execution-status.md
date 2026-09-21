@@ -1,5 +1,5 @@
 ---
-doc-version: 1.53.0
+doc-version: 1.54.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,10 +14,10 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 71 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 18 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
-| WAIT_DEP | 23 | 等待列明子任务/条件 |
+| DONE | 72 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 16 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 2 | SEC-B3-02、SEC-F2-01 |
+| WAIT_DEP | 22 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -49,7 +49,7 @@ doc-updated: 2026-09-21
 | SEC-B1-02 | DONE | 轮换族、窗口与事务审计；真实Gateway/MCP同PID逐请求DB验证截止/撤销/自然到期，见在线轮换证据 |
 | SEC-B2-01 | DONE | 共享algorithms/requiredClaims/skew保存与执行；真实SQLite重开/CLI/Gateway一致、运行中修改须先停止、SSE有效截止17项，见JWT参数证据 |
 | SEC-B3-01 | DONE | 真实Streamable/SSE长连接2/2：scope收窄、持久撤销、旧session/新连接/重连拒绝、SQLite重开及同PID有效Key对照；见会话撤销证据 |
-| SEC-B3-02 | READY | 不是升级SDK任务 |
+| SEC-B3-02 | IN_PROGRESS | 固定锁定SDK dispatcher/Session身份/scope通知边界，真实双传输矩阵 |
 | SEC-C1-01 | READY | header API Key/Bearer已有 |
 | SEC-C1-02 | WAIT_DEP | 类型很多时逐类型再拆后执行 |
 | SEC-C2-01 | NEED_ENV | Env/File本机实现已有 |
@@ -58,8 +58,8 @@ doc-updated: 2026-09-21
 | SEC-C3-02 | DONE | Gateway启动/manual/watch激活均强制真实DB Source/Endpoint归属校验，未知/跨源/查询失败保旧；Parser46/46、Gateway46/46；见2026-09-21-registry-db-ownership |
 | SEC-C3-03 | WAIT_DEP | 复核发现实验handoff只启动时captureSnapshot且generation恒从1起；完整产品跨进程协调依赖E1-02C1，不能用实验cohort原语冒充交付 |
 | SEC-C4-01 | WAIT_DEP | 纯Resolver不重写 |
-| SEC-D1-01 | READY | 现有30项草案不是实现 |
-| SEC-D1-02 | WAIT_DEP | Connection修复转维护 |
+| SEC-D1-01 | DONE | Header政策1.0.0定稿：双向精确allowlist、多值/framing、保留字段、缓存和限时迁移；H01–H12待实现，N01–N17仍F3提案 |
+| SEC-D1-02 | READY | D1-01已定稿；按编译快照、双向传输、缓存隔离、防降级四个实施阶段落实H01–H12 |
 | SEC-D2-01 | DONE | 真实HTTP独立IP/Anonymous桶、peer可信边界、缓存命中仍限流；Gateway全套201/201、主任务联合复验42/42；见2026-09-21-independent-rate-limits证据 |
 | SEC-D2-02 | DONE | 六层真实HTTP组合19项、四套73/73；共享窗口冲突503且到期恢复、24并发精确7准入；见六层限流组合证据 |
 | SEC-E0-01 | READY | 不升级无状态协议 |
@@ -76,7 +76,7 @@ doc-updated: 2026-09-21
 | SEC-E2-02 | NEED_ENV | 需核实环境 |
 | SEC-F1-01 | READY | 不回塞到C1造成循环 |
 | SEC-F1-02 | WAIT_DEP | 未完成 |
-| SEC-F2-01 | READY | 缺策略文案已完成 |
+| SEC-F2-01 | IN_PROGRESS | Consumer/Upstream分区与binding revision、当前API进程Registry generation/reload恢复 |
 | SEC-F2-02 | DONE | Gateway/MCP临时匿名原因/到期/生产风险和actor回显，保存重开及拒绝反馈；UI构建、表单/真实模板26/26，浏览器点击未验，见UI证据 |
 | SEC-F3-01 | READY | 不将零redirect称SSRF完成 |
 | SEC-F3-02 | WAIT_DEP | 未完成 |
@@ -205,3 +205,7 @@ B3-01真实双传输通过，见[会话证据](../audits/2026-09-21-persistent-s
 B2-01完成，见[JWT参数证据](../audits/2026-09-21-jwt-policy-lifecycle.md)，安全父包B2原出口闭合。F2-02界面收尾继续。
 
 F2-02已完成，见[匿名界面证据](../audits/2026-09-21-temporary-anonymous-ui.md)。本批DONE 68→71，132总量不变；B3与B2已分别推送c044ca2、30f6a71，本UI随本报告单独提交推送。当前无遗留IN_PROGRESS叶子，剩余18 READY、23 WAIT_DEP、17 NEED_ENV、1 SCOPE_REVIEW、2 DEFERRED按原条件继续。
+
+## SDK/管理分区/Header批次（2026-09-21）
+
+D1-01已定稿，D1-02转READY；这1项是DOC完成，不计为Header功能实现。B3-02与F2-01独立验收中。

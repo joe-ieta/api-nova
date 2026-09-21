@@ -1,5 +1,5 @@
 ---
-doc-version: 1.37.0
+doc-version: 1.38.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -34,7 +34,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-C2 | SEC-C02；C1 | IN_PROGRESS | Env/File Provider 已用于 Registry，Gateway 显式配置激活链已贯通；本机契约历史 53 项通过，真实 Linux 权限 30 场景待补证，Windows Secret File ACL已完成C2-02原生验收，Linux环境出口待验 |
 | TP-C3 | SEC-C03；C2 | IN_PROGRESS | Stable Read、manual及Watch/debounce、受权Reload/状态和代次冲突已验证；C3-01 Watch与C3-02 DB归属完成，C3-03多进程待验 |
 | TP-C4 | SEC-C04；C3 | IN_PROGRESS | Gateway与显式MCP single-hop Resolver已验证；SEC-C4-01验收真实受管child执行及Unresolved门禁，依赖E1/F1；网络政策主归F3，不在C4复制实现 |
-| TP-D1 | SEC-D01；C4 | IN_PROGRESS | 消费者/逐跳/托管Header清理及共享Resolver已用于Gateway；Connection大小写联合提名、代理生成字段去别名和XFF不重引入已补；业务Header Allowlist、缓存/传输兼容和保留字段统一策略仍未完成，30 项 D1/F3 矩阵为 draft |
+| TP-D1 | SEC-D01；C4 | IN_PROGRESS | 基础剥离与Resolver已有；D1-01双向allowlist、多值/framing、缓存及迁移政策已定稿，D1-02执行实现与H01–H12仍待完成；F3网络政策独立 |
 | TP-D2 | SEC-D02；B1/B2/D1 | IN_PROGRESS | 身份化缓存、六层限流与匿名独立桶功能出口已通过D2-01/02；原父依赖B2/D1整体验收待闭合，不额外添加多节点验收门槛 |
 | TP-E0 | MCP Adapter；A0 | IN_PROGRESS | HTTP/Session/SSE/stdio 和 Discovery 禁用已有；完整版本/错误边界待验收 |
 | TP-E1 | SEC-E01；B3/C4/E0 | IN_PROGRESS | 可信映射、管理侧装配/发布读取、跨源校验及旧候选guard已验；SEC-E1-01~04负责技术方案、真实child接线、argv秘密移除、端到端与运行中撤销；管理侧继续微修不替代出口 |
@@ -689,3 +689,7 @@ D2-02完成，见[组合证据](../audits/2026-09-21-layered-rate-limit-composit
 ## 临时匿名界面（2026-09-21）
 
 [F2-02证据](../audits/2026-09-21-temporary-anonymous-ui.md)闭合匿名表单与反馈，SSR/表单26项及构建通过；浏览器点击不据此签收。F2其他出口保持独立。
+
+## Header政策冻结（2026-09-21）
+
+[D1合同1.0.0](./security-header-network-boundary-contract.md)完成D1-01 DOC出口，D1-02转READY。四个实施阶段为编译快照、双向流传输、缓存隔离及迁移防降级；沿用既有叶子，不增加文档任务充数。F3网络矩阵仍为提案，不把政策定稿计为代码完成。
