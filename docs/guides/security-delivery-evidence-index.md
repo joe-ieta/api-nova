@@ -1,5 +1,5 @@
 ---
-doc-version: 1.16.0
+doc-version: 1.17.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -53,7 +53,7 @@ doc-updated: 2026-09-21
 | 叶子出口 | 已有入口/版本与环境 | 当前证据和未闭合项 |
 | --- | --- | --- |
 | SEC-D1-01 | [Header合同1.0.0](./security-header-network-boundary-contract.md) | **政策定稿/DONE（DOC）**：双向allowlist、多值/framing、保留字段/缓存/迁移已选择；H01–H12执行待D1-02，F3网络仍提案。 |
-| SEC-D1-02 | [Header 边界脚本](../../packages/api-nova-api/scripts/test-gateway-header-boundary.cjs)、[代理测试](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-proxy-engine.credential.spec.ts) | **限定执行/待验收**：Connection/消费者头清理已有；业务 allowlist 与缓存、正文长度、响应字段及迁移兼容未完成。 |
+| SEC-D1-02A/B/C/D（原02） | [02A编译证据](../audits/2026-09-21-header-policy-compilation.md) | **准备实现/部分完成**：A DONE，B READY，C/D WAIT_DEP；完整Header流/缓存/迁移未交付，产品激活明确拒绝。 |
 | SEC-D2-01 | [独立限流证据](../audits/2026-09-21-independent-rate-limits.md) | **限定执行/DONE**：真实HTTP覆盖IP/匿名独立桶、暖缓存和伪造转发头；Gateway全套201/201。进程内计数，完整层级及多节点不在此叶。 |
 | SEC-D2-02 | [真实HTTP组合证据](../audits/2026-09-21-layered-rate-limit-composition.md) | **限定执行/DONE**：六层组合、缓存计量、同主体轮换、冲突窗口与精确并发准入；单进程既有范围。 |
 | SEC-E0-01 | [安全 smoke](../../packages/api-nova-server/scripts/runtime-security-audit-smoke.js)、[HTTP delivery](../../packages/api-nova-server/scripts/test-mcp-http-delivery.cjs)；SDK 1.29.0 | **历史执行/准备**：现行 Session/stdio/HTTP 基线有局部用例；Method、Header、错误与所有入口的当前锁定版本矩阵待验。 |

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.57.0
+doc-version: 1.58.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,10 +14,10 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 75 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 13 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 2 | SEC-D1-02A、SEC-E0-01 |
-| WAIT_DEP | 25 | 等待列明子任务/条件 |
+| DONE | 76 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 14 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 1 | SEC-E0-01 |
+| WAIT_DEP | 24 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -59,8 +59,8 @@ doc-updated: 2026-09-21
 | SEC-C3-03 | WAIT_DEP | 复核发现实验handoff只启动时captureSnapshot且generation恒从1起；完整产品跨进程协调依赖E1-02C1，不能用实验cohort原语冒充交付 |
 | SEC-C4-01 | WAIT_DEP | 纯Resolver不重写 |
 | SEC-D1-01 | DONE | Header政策1.0.0定稿：双向精确allowlist、多值/framing、保留字段、缓存和限时迁移；H01–H12待实现，N01–N17仍F3提案 |
-| SEC-D1-02A | IN_PROGRESS | 共享v1编译/Registry不可变快照准备，Gateway来源冲突和未就绪激活拒绝 |
-| SEC-D1-02B | WAIT_DEP | 待02A；双向原始头/流执行与H01–H08 |
+| SEC-D1-02A | DONE | Parser v1编译/不可变快照/继承/摘要/冲突294项；Gateway双源及未就绪激活拒绝、真实固定文件保旧/SQL.js冷恢复拒绝；仅准备 |
+| SEC-D1-02B | READY | 02A已完成；下一步双向allowlist/rawHeaders/framing/代理字段/Resolver最后注入与H01–H08真实传输 |
 | SEC-D1-02C | WAIT_DEP | 待02B；Header维度缓存隔离与真实miss/hit |
 | SEC-D1-02D | WAIT_DEP | 待02C；默认迁移、防降级与H01–H12联合验收 |
 | SEC-D2-01 | DONE | 真实HTTP独立IP/Anonymous桶、peer可信边界、缓存命中仍限流；Gateway全套201/201、主任务联合复验42/42；见2026-09-21-independent-rate-limits证据 |
@@ -220,3 +220,5 @@ F2-01完成，见[真实管理面板证据](../audits/2026-09-21-upstream-creden
 ## Header拆分、Adapter与对账批次（2026-09-21）
 
 原D1-02替换为02A/B/C/D四叶，总量132→135不是新增完成。F1-01[四态合同](./upstream-security-reconciliation-contract.md)已定稿，实际门禁F1-02仍等待C1-02。
+
+D1-02A编译准备完成，02B转READY，见[证据](../audits/2026-09-21-header-policy-compilation.md)。不将未接过滤执行器的候选元数据计为Header保护上线。

@@ -170,3 +170,5 @@ export * from './audit/runtime-access-credential';
 export * from './audit/temporary-anonymous-policy';
 
 export * from './audit/runtime-jwt-policy';
+
+export * from './headers/header-policy';

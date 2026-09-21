@@ -239,4 +239,17 @@ describe('Gateway configured credential activation', () => {
       [keys.file]: file, [keys.format]: 'json', [keys.environment]: 'test',
     }))).rejects.toThrow('gateway_upstream_credential_configuration_failed');
   });
+
+  test('production startup and reload reject Header v1 until its transport consumer exists, preserving the old revision', async () => {
+    const values = config({ [keys.file]: file, [keys.format]: 'json', [keys.environment]: 'test' });
+    const next: any = document('v1-pending');next.sites[0].headerPolicy={version:1,requestHeaders:['x-business']};
+    await fs.writeFile(file,JSON.stringify(next));
+    await expect(createConfiguredGatewayCredentialRegistry(values,database)).rejects.toThrow('gateway_upstream_credential_configuration_failed');
+    await fs.writeFile(file,JSON.stringify(document('old')));
+    const registry=await createConfiguredGatewayCredentialRegistry(values,database);
+    const old=registry!.captureSnapshot();
+    await fs.writeFile(file,JSON.stringify(next));
+    await expect(registry!.reloadFile(file,'json')).rejects.toThrow();
+    expect(registry!.captureSnapshot()).toBe(old);expect(registry!.getStatus().revision).toBe('old');
+  });
 });

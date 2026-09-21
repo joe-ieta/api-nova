@@ -1,3 +1,4 @@
+import type { HeaderPolicyV1 } from '../headers/header-policy';
 /** TP-C1 structural candidate only. No provider resolution, asset verification or activation. */
 export type UpstreamCredentialSelection =
   | { readonly mode: 'inherit' }
@@ -13,6 +14,7 @@ export type UpstreamCredentialDescription =
   | { readonly type: 'bearer'; readonly secretRef: string };
 
 export type UpstreamEndpointCredentialOverride = {
+  readonly headerPolicy?: HeaderPolicyV1;
   readonly credential: UpstreamCredentialSelection;
 } & (
   | { readonly endpointDefinitionId: string }
@@ -20,6 +22,7 @@ export type UpstreamEndpointCredentialOverride = {
 );
 
 export interface UpstreamCredentialSite {
+  readonly headerPolicy?: HeaderPolicyV1;
   readonly id: string;
   readonly sourceServiceAssetId: string;
   readonly match: {

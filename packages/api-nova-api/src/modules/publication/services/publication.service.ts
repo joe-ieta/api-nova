@@ -495,6 +495,9 @@ export class PublicationService {
     dto: ConfigureGatewayRouteBindingDto,
     actorId?: string,
   ) {
+    if (dto.upstreamConfig?.headerPolicy !== undefined) {
+      throw new BadRequestException({ code: 'GATEWAY_HEADER_POLICY_NOT_READY' });
+    }
     if (dto.upstreamConfig?.jwtPolicy !== undefined) {
       try { dto = { ...dto, upstreamConfig: { ...dto.upstreamConfig,
         jwtPolicy: normalizeRuntimeJwtPolicy(dto.upstreamConfig.jwtPolicy) } }; }
@@ -528,6 +531,9 @@ export class PublicationService {
     );
 
     let binding = await this.findGatewayRouteBinding(membershipId);
+    if (binding?.upstreamConfig?.headerPolicy !== undefined) {
+      throw new BadRequestException({ code: 'GATEWAY_HEADER_POLICY_NOT_READY' });
+    }
     if (binding?.upstreamConfig?.jwtPolicy !== undefined && dto.upstreamConfig !== undefined && dto.upstreamConfig?.jwtPolicy === undefined) {
       dto = { ...dto, upstreamConfig: { ...dto.upstreamConfig, jwtPolicy: binding.upstreamConfig.jwtPolicy } };
     }

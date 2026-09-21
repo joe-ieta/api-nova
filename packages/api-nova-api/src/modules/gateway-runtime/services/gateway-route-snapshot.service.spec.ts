@@ -518,7 +518,7 @@ describe('GatewayRouteSnapshotService', () => {
     expect(service.resolve('localhost:9001', 'GET', '/orders/pets/special')).toBeNull();
   });
 
-  it('rejects a bad active fingerprint after real SQL.js export and cold restart', async () => {
+  it.each(['fingerprint', 'pending-header'])('rejects %s after real SQL.js export and cold restart', async corruption => {
     const entities = [GatewayRouteSnapshotEntity, RuntimeAssetEntity];
     let db = await new DataSource({
       type: 'sqljs', entities, synchronize: true,
@@ -564,9 +564,10 @@ describe('GatewayRouteSnapshotService', () => {
         activatedAt: new Date(),
       });
       await expect(createRestorer().onModuleInit()).resolves.toBeUndefined();
-      const invalid = '0'.repeat(64);
+      if (corruption === 'pending-header') (routeBinding as any).upstreamConfig = { headerPolicy: { version: 1 } };
+      const invalid = corruption === 'pending-header' ? (createRestorer() as any).fingerprintEntries(entries) : '0'.repeat(64);
       await db.getRepository(GatewayRouteSnapshotEntity).update(snapshot.id, {
-        fingerprint: invalid,
+        fingerprint: invalid, payload: JSON.parse(JSON.stringify(entries)),
       });
       await db.getRepository(RuntimeAssetEntity).update(runtimeAssetId, {
         metadata: {

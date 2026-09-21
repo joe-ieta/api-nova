@@ -2,6 +2,7 @@ import {
   resolveUpstreamCredential,
   type UpstreamCredentialRegistrySnapshot,
 } from 'api-nova-parser';
+import { assertGatewayRegistryHeaderPolicyReady, compileGatewayHeaderPolicy } from './gateway-header-policy';
 import type { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
 
 export const GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER =
@@ -36,6 +37,8 @@ export function createGatewayUpstreamCredentialResolver(
       targetUrl: string,
     ): Promise<GatewayUpstreamCredentialHeaders> {
       const snapshot = captureSnapshot();
+      compileGatewayHeaderPolicy({ routeId: route.routeBinding?.id || 'unknown', inlinePolicy: route.routeBinding?.upstreamConfig?.headerPolicy, registryConfigured: true });
+      assertGatewayRegistryHeaderPolicyReady(snapshot.candidate);
       const resolution = await resolveUpstreamCredential(snapshot, {
         sourceServiceAssetId: route.sourceServiceAsset.id,
         url: targetUrl,

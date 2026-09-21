@@ -1,3 +1,4 @@
+import { compileHeaderPolicyV1, type CompiledHeaderPolicyV1 } from '../headers/header-policy';
 import { watch, type FSWatcher } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { validateUpstreamCredentialBindings } from './schema';
@@ -39,7 +40,11 @@ export interface UpstreamCredentialRegistryOptions {
   readonly validateCandidateOwnership?: (candidate: UpstreamCredentialBindingsCandidate) => Promise<void>;
 }
 
+export type UpstreamHeaderPolicyEndpoint = { readonly endpointDefinitionId: string } | { readonly method: string; readonly path: string };
+
 export interface UpstreamCredentialRegistrySnapshot {
+  /** Compiled preparation only: host transport must explicitly support v1 before activation. */
+  getHeaderPolicy?(siteId: string, endpoint?: UpstreamHeaderPolicyEndpoint): CompiledHeaderPolicyV1 | undefined;
   readonly generation: number;
   readonly candidate: UpstreamCredentialBindingsCandidate;
   /**
@@ -134,6 +139,7 @@ export class UpstreamCredentialRegistry {
   private readonly validateCandidateOwnership?: UpstreamCredentialRegistryOptions['validateCandidateOwnership'];
   private active: UpstreamCredentialRegistrySnapshot | undefined;
   private reloading = false;
+  private historicalAuthenticationHeaderNames = new Set<string>();
   private watchState?: RegistryWatchState;
   private lastReloadError: UpstreamCredentialRegistryErrorCode | undefined;
 
@@ -304,6 +310,20 @@ export class UpstreamCredentialRegistry {
       return reject('REVISION_ALREADY_ACTIVE');
     }
 
+    const credentialHeaderNames = Object.values(candidate.credentials).map(credential => credential.type === 'bearer' ? 'authorization' : credential.placement.name);
+    const historicalNames = new Set([...this.historicalAuthenticationHeaderNames, ...credentialHeaderNames]);
+    const compiled = new Map<string, CompiledHeaderPolicyV1>();
+    const policyKey = (siteId: string, endpoint?: UpstreamHeaderPolicyEndpoint): string => JSON.stringify([siteId, endpoint === undefined ? null : 'endpointDefinitionId' in endpoint ? ['id', endpoint.endpointDefinitionId] : ['route', endpoint.method.toUpperCase(), endpoint.path]]);
+    try {
+      for (const site of candidate.sites) {
+        const baseSource = JSON.stringify(['registry', candidate.metadata.environment, candidate.metadata.revision, site.id]);
+        if (site.headerPolicy) compiled.set(policyKey(site.id), compileHeaderPolicyV1({ policy: site.headerPolicy, sourceId: baseSource, credentialHeaderNames, historicalAuthenticationHeaderNames: [...historicalNames] }));
+        for (const endpoint of site.endpoints) {
+          if (site.headerPolicy || endpoint.headerPolicy) compiled.set(policyKey(site.id, endpoint), compileHeaderPolicyV1({ policy: endpoint.headerPolicy, inheritedPolicy: site.headerPolicy, sourceId: JSON.stringify([baseSource, policyKey(site.id, endpoint)]), credentialHeaderNames, historicalAuthenticationHeaderNames: [...historicalNames] }));
+        }
+      }
+    } catch { return reject('CANDIDATE_REJECTED'); }
+
     const providers = new Map<string, UpstreamSecretProvider>();
     for (const [id, description] of Object.entries(candidate.secretProviders)) {
       const provider = this.providerFactory(description);
@@ -335,6 +355,15 @@ export class UpstreamCredentialRegistry {
     const snapshot: UpstreamCredentialRegistrySnapshot = Object.freeze({
       generation: (this.active?.generation ?? 0) + 1,
       candidate,
+      getHeaderPolicy: (siteId: string, endpoint?: UpstreamHeaderPolicyEndpoint): CompiledHeaderPolicyV1 | undefined => {
+        if (!candidate.sites.some(site => site.id === siteId)) return reject('CANDIDATE_REJECTED');
+        if (endpoint !== undefined) {
+          if (!endpoint || typeof endpoint !== 'object' || Array.isArray(endpoint)) return reject('CANDIDATE_REJECTED');
+          const keys = Object.keys(endpoint);
+          if ('endpointDefinitionId' in endpoint ? keys.length !== 1 || typeof endpoint.endpointDefinitionId !== 'string' : keys.length !== 2 || typeof endpoint.method !== 'string' || typeof endpoint.path !== 'string') return reject('CANDIDATE_REJECTED');
+        }
+        return compiled.get(policyKey(siteId, endpoint)) ?? compiled.get(policyKey(siteId));
+      },
       resolveSecret: async (credentialId: string): Promise<string> => {
         if (typeof credentialId !== 'string') return reject('UNKNOWN_CREDENTIAL');
         const binding = bindings.get(credentialId);
@@ -344,6 +373,7 @@ export class UpstreamCredentialRegistry {
     });
     // The only commit point; no await occurs after completed validation and before the swap.
     if (commitAllowed && !commitAllowed()) return reject('WATCH_STOPPED');
+    this.historicalAuthenticationHeaderNames = historicalNames;
     this.active = snapshot;
     this.lastReloadError = undefined;
     return snapshot;

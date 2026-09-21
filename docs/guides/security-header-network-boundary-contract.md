@@ -1,5 +1,5 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -83,7 +83,7 @@ Webhook 目的地策略不能替代业务路径的证据，其政策不能直接
 
 - 策略对象采用 `{ version: 1, requestHeaders?: string[], responseHeaders?: string[] }`，仅含名称，禁止 Header 值、通配符、正则和未知键；名称转小写后去重。扩展最多每方向 64 名。请求和响应分别继承，不能混为一张表。
 - Registry 路径在 Site 上保存 `headerPolicy`，Endpoint override 可保存同名策略。Endpoint 某方向缺失表示继承 Site；显式空数组表示只有该方向基础集合；非空数组替换 Site 的同方向扩展。Site 某方向缺失即无扩展。只接受 version=1，不猜测未来版本。
-- 未使用 Registry 的 Gateway 路由在现有 `upstreamConfig.headerPolicy` 保存完整 v1 策略，没有 Site 继承；基础集合相同。Registry 管理的路由同时提供内联 Header 策略应拒绝激活，避免两份来源的覆盖歧义。上述字段目前尚未加入执行 Schema。
+- 未使用 Registry 的 Gateway 路由在现有 `upstreamConfig.headerPolicy` 保存完整 v1 策略，没有 Site 继承；基础集合相同。Registry 管理的路由同时提供内联 Header 策略应拒绝激活，避免两份来源的覆盖歧义。上述字段现已加入Parser编译Schema和不可变候选快照（D1-02A）；Gateway在02B/C执行器就绪前明确拒绝该策略保存/激活，不表示已有过滤能力。
 - 编译产物固定策略版本、有效集合及来源标识，随对应路由/Registry 快照原子发布；编译失败保留旧有效快照，首次启动没有有效快照则拒绝该配置。不得只忽略非法字段后继续。
 - 请求级固定有效策略；缓存键必须包含有效 Header 策略版本/内容标识，更新快照同时清空旧缓存。Registry 版本与路由版本不可隐式混搭。
 
@@ -273,3 +273,7 @@ D1 allowlist 政策已经定稿，执行代码与 H01–H12 验收尚待完成�
 标准Parser/Server进程内入口可选single-hop共享Resolver，必须带可信操作映射；每调用捕获一次Registry快照，按Endpoint ID及Source Asset/URL解析。剥离消费者及全部候选托管头，None无旧env/authManager回退；私有Axios实例隔离全局interceptor/认证默认值。新模式不允许自定义handler绕过。
 
 该模式固定maxRedirects=0并返回3xx，故没有自动下一跳秘密/正文转发；未启用模式的legacy路径仍保留原跳转行为。本增量不提供DNS/SSRF、自动逐跳复验、任意宿主adapter防护或完整业务allowlist。生产托管链接入及DB归属仍未完成，详见[单跳接入契约](./mcp-trusted-operation-bindings.md)。
+
+## D1-02A编译准备（2026-09-21）
+
+[编译与安全接线证据](../audits/2026-09-21-header-policy-compilation.md)已交付schema/继承/identity和候选保旧；产品激活有未就绪门禁。双向传输、缓存和迁移依次归02B/C/D，不能删除门禁后即宣称全包完成。

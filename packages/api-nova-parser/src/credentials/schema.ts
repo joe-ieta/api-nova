@@ -1,3 +1,4 @@
+import { normalizeHeaderPolicyV1 } from '../headers/header-policy';
 import { isIP } from 'node:net';
 import type {
   UpstreamCredentialBindingsCandidate, UpstreamCredentialDescription, UpstreamCredentialSelection,
@@ -208,7 +209,7 @@ function validate(input: unknown): UpstreamCredentialBindingsCandidate {
   const siteIds = new Set<string>(), siteSelectors = new Set<string>();
   let endpointCount = 0;
   for (const raw of list(root.sites, UPSTREAM_CREDENTIAL_LIMITS.maxSites)) {
-    const site = shape(raw, ['id', 'sourceServiceAssetId', 'match', 'credential', 'allowedHosts', 'endpoints'],
+    const site = shape(raw, ['id', 'sourceServiceAssetId', 'match', 'credential', 'allowedHosts', 'endpoints', 'headerPolicy'],
       ['id', 'sourceServiceAssetId', 'match', 'allowedHosts']);
     const id = identifier(site.id), sourceServiceAssetId = identifier(site.sourceServiceAssetId);
     const match = shape(site.match, ['scheme', 'host', 'port', 'basePath']);
@@ -224,26 +225,28 @@ function validate(input: unknown): UpstreamCredentialBindingsCandidate {
     const selectors = new Set<string>();
     for (const endpointRaw of own(site, 'endpoints') ? list(site.endpoints, UPSTREAM_CREDENTIAL_LIMITS.maxEndpointsPerSite) : []) {
       if (++endpointCount > UPSTREAM_CREDENTIAL_LIMITS.maxEndpoints) fail('INPUT_LIMIT_EXCEEDED');
-      const endpoint = shape(endpointRaw, ['endpointDefinitionId', 'method', 'path', 'credential'], []);
+      const endpoint = shape(endpointRaw, ['endpointDefinitionId', 'method', 'path', 'credential', 'headerPolicy'], []);
+      const policy = own(endpoint, 'headerPolicy') ? { headerPolicy: normalizeHeaderPolicyV1(endpoint.headerPolicy) } : {};
       const credential = selection(endpoint.credential, own(endpoint, 'credential'), credentials);
       let endpointSelector: string;
       if (own(endpoint, 'endpointDefinitionId')) {
         if (own(endpoint, 'method') || own(endpoint, 'path')) fail('INVALID_VALUE');
         const endpointDefinitionId = identifier(endpoint.endpointDefinitionId);
         endpointSelector = JSON.stringify(['id', endpointDefinitionId]);
-        endpoints.push({ endpointDefinitionId, credential });
+        endpoints.push({ endpointDefinitionId, credential, ...policy });
       } else {
         if (!own(endpoint, 'method') || !own(endpoint, 'path')) fail('MISSING_FIELD');
         const method = text(endpoint.method, 16).toUpperCase();
         if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) fail('INVALID_VALUE');
         const path = routePath(endpoint.path);
         endpointSelector = JSON.stringify(['route', method, path]);
-        endpoints.push({ method, path, credential });
+        endpoints.push({ method, path, credential, ...policy });
       }
       if (selectors.has(endpointSelector)) fail('DUPLICATE_SELECTOR');
       selectors.add(endpointSelector);
     }
     sites.push({ id, sourceServiceAssetId, match: normalizedMatch,
+      ...(own(site, 'headerPolicy') ? { headerPolicy: normalizeHeaderPolicyV1(site.headerPolicy) } : {}),
       credential: selection(site.credential, own(site, 'credential'), credentials), allowedHosts, endpoints });
   }
   return freeze({ apiVersion: 'security.apinova.io/v1', kind: 'UpstreamCredentialBindings', metadata: { revision, environment },

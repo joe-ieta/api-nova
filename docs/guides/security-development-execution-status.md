@@ -1,5 +1,5 @@
 ---
-doc-version: 1.41.0
+doc-version: 1.42.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -34,7 +34,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-C2 | SEC-C02；C1 | IN_PROGRESS | Env/File Provider 已用于 Registry，Gateway 显式配置激活链已贯通；本机契约历史 53 项通过，真实 Linux 权限 30 场景待补证，Windows Secret File ACL已完成C2-02原生验收，Linux环境出口待验 |
 | TP-C3 | SEC-C03；C2 | IN_PROGRESS | Stable Read、manual及Watch/debounce、受权Reload/状态和代次冲突已验证；C3-01 Watch与C3-02 DB归属完成，C3-03多进程待验 |
 | TP-C4 | SEC-C04；C3 | IN_PROGRESS | Gateway与显式MCP single-hop Resolver已验证；SEC-C4-01验收真实受管child执行及Unresolved门禁，依赖E1/F1；网络政策主归F3，不在C4复制实现 |
-| TP-D1 | SEC-D01；C4 | IN_PROGRESS | 基础剥离与Resolver已有；D1-01双向allowlist、多值/framing、缓存及迁移政策已定稿，D1-02执行实现与H01–H12仍待完成；F3网络政策独立 |
+| TP-D1 | SEC-D01；C4 | IN_PROGRESS | D1-01政策与D1-02A编译快照准备完成；02B双向流/02C缓存/02D迁移验收尚缺，生产v1激活明确拒绝；非Header保护上线 |
 | TP-D2 | SEC-D02；B1/B2/D1 | IN_PROGRESS | 身份化缓存、六层限流与匿名独立桶功能出口已通过D2-01/02；原父依赖B2/D1整体验收待闭合，不额外添加多节点验收门槛 |
 | TP-E0 | MCP Adapter；A0 | IN_PROGRESS | HTTP/Session/SSE/stdio 和 Discovery 禁用已有；完整版本/错误边界待验收 |
 | TP-E1 | SEC-E01；B3/C4/E0 | IN_PROGRESS | 可信映射、管理侧装配/发布读取、跨源校验及旧候选guard已验；SEC-E1-01~04负责技术方案、真实child接线、argv秘密移除、端到端与运行中撤销；管理侧继续微修不替代出口 |
@@ -705,3 +705,7 @@ D2-02完成，见[组合证据](../audits/2026-09-21-layered-rate-limit-composit
 ## 四态安全对账合同（2026-09-21）
 
 [F1-01合同](./upstream-security-reconciliation-contract.md)冻结声明、Binding和验证证据的转移/失效规则，已核对OpenAPI3.0.3官方继承与OR/AND语义。相同Binding Revision不保证Provider内容未变，需可信版本关联或发布前重验；门禁代码仍归F1-02。
+
+## Header编译准备（2026-09-21）
+
+[02A证据](../audits/2026-09-21-header-policy-compilation.md)关闭编译准备，02B就绪。父包D1仍未完成，含v1策略不能绕过未就绪门禁进入旧数据面。

@@ -1,3 +1,4 @@
+import { assertGatewayHeaderPolicyReady } from './gateway-header-policy';
 import { normalizeTemporaryAnonymousPolicy } from 'api-nova-parser';
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { GatewayRouteBindingEntity } from '../../../database/entities/gateway-route-binding.entity';
@@ -9,6 +10,8 @@ import {
 @Injectable()
 export class GatewayPolicyService {
   compileForRoute(routeBinding: GatewayRouteBindingEntity): GatewayCompiledPolicyBundle {
+    try { assertGatewayHeaderPolicyReady(routeBinding.upstreamConfig?.headerPolicy, routeBinding.id); }
+    catch { throw new ServiceUnavailableException('GATEWAY_HEADER_POLICY_NOT_READY'); }
     const configuredMode = this.resolveAuthMode(routeBinding.authPolicyRef);
     const visibility = String(routeBinding.routeVisibility || 'internal').trim().toLowerCase();
     const mode = configuredMode === 'anonymous' && visibility !== 'external'

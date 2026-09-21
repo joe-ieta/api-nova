@@ -1,4 +1,5 @@
 import { DataSource } from 'typeorm';
+import { assertGatewayRegistryHeaderPolicyReady } from './gateway-header-policy';
 import { validateGatewayCredentialOwnership } from './gateway-upstream-credential-ownership';
 import type { FactoryProvider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -41,7 +42,10 @@ export async function createConfiguredGatewayCredentialRegistry(
     }
     if (!dataSource?.isInitialized) throw new Error('asset store unavailable');
     const registry = new UpstreamCredentialRegistry({ environment,
-      validateCandidateOwnership: candidate => validateGatewayCredentialOwnership(dataSource, candidate),
+      validateCandidateOwnership: candidate => {
+        assertGatewayRegistryHeaderPolicyReady(candidate);
+        return validateGatewayCredentialOwnership(dataSource, candidate);
+      },
     });
     if (reloadMode === 'watch') await registry.startWatchingFile(file, format);
     else await registry.reloadFile(file, format);
