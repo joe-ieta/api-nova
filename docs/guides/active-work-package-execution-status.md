@@ -1,5 +1,5 @@
 ---
-doc-version: 1.40.0
+doc-version: 1.41.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -16,7 +16,7 @@ doc-updated: 2026-09-21
 | --- | --- | --- |
 | DONE | 58 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 25 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | OBS-14-05C3 |
+| IN_PROGRESS | 1 | SEC-A4-02 |
 | WAIT_DEP | 28 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -44,7 +44,7 @@ doc-updated: 2026-09-21
 | SEC-A2-01B | DONE | 实际部署保存入口拒缺失/未知/非法模式且无候选/保存副作用；自动恢复真实preflight拒绝、显式匿名可追溯；ProcessManager重启先校验再stop且spawn前重验；父任务12套88/88，CLI HTTP3/3、实验child14/14，API构建 |
 | SEC-A3-01 | WAIT_DEP | 未实现闭环 |
 | SEC-A4-01 | DONE | 当前版本隔离SQLite空库与同文件重开：69实体/69业务表、空库迁移3、重启迁移0、schema漂移0；create与smoke均通过；不代表PostgreSQL或历史升级 |
-| SEC-A4-02 | NEED_ENV | 当前缺少明确隔离的PostgreSQL目标库；默认generate postgres因可能连接/修改未知库被自动审批拒绝，待受控环境验收 |
+| SEC-A4-02 | IN_PROGRESS | 已发现本机PostgreSQL16工具，可新建独立loopback集群；正用显式隔离目标补全69实体空库/重启/持久化/API启动验收，未连接默认或生产库 |
 | SEC-B1-01 | READY | 现有Gateway凭证不等于统一模型 |
 | SEC-B1-02 | WAIT_DEP | 未完成 |
 | SEC-B2-01 | READY | 固定子集已有 |
@@ -115,7 +115,7 @@ doc-updated: 2026-09-21
 | OBS-14-05C2C2C2A | DONE | 同一inventory围栏内完整扫描、final digest/长度与temp缺失只读证明，返回file_proof_uncommitted；SQL.js 8/8、相关回归，不结算 |
 | OBS-14-05C2C2C2B | DONE | 同inventory围栏最终事务复核意图/receipt/元数据/预留和完整扫描、精确文件字节后安全结算；专项10/10、相邻55/55；不确定保守持有、quotaEnforced=false |
 | OBS-14-05C2C3 | DONE | 实际ingest/发布故障、关闭并重建SQL.js连接、缺receipt/元数据回滚/残留temp、重复恢复与重放5/5；每次确认reserved+committed覆盖实际路径字节；仅Windows隔离验收 |
-| OBS-14-05C3 | IN_PROGRESS | C2C3已完成；下一批崩溃重启、多写者与各失败点验收，真实平台环境另核实 |
+| OBS-14-05C3 | NEED_ENV | Windows PostgreSQL16.10真实9/9：四进程预算/幂等、四个实际ingest中断窗口、完整文件链并发和PG重启重放守恒；本机出口完成，Linux无就绪环境，整包不标DONE；PG掉电/长期压力未验 |
 | OBS-14-05D | WAIT_DEP | 状态/故障联调等待05C3 |
 | OBS-14-06A | READY | 生命周期合同已冻结；审计清理尚未实施 |
 | OBS-14-06T | READY | 生命周期合同已冻结；暂存恢复尚未实施 |

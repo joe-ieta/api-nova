@@ -1,5 +1,5 @@
 ---
-doc-version: 1.9.0
+doc-version: 1.10.0
 doc-status: active
 doc-updated: 2026-09-21
 implementation-status: partial
@@ -150,3 +150,9 @@ B1新增独立发布意图实体及SQLite/PostgreSQL前向迁移，旧reservatio
 OBS-14-05C2C3新增真实ingest/文件发布后的5条隔离故障链：延后结算后完整恢复；外部元数据事务回滚后保留已计费对象并重放修复；延后结算且缺receipt跨重启拒绝释放；真实final发布但temp清理失败保留峰值；显式temp故障注入阻断、仅测试夹具修复后安全结算。每次重启先export并关闭旧SQL.js连接，再以同文件根重建连接/服务；每次账本断言统计真实.body/.tmp路径字节，reserved+committed不得低于实物。无直接改写账本制造成功状态。
 
 新专项5/5、相邻关联/文件证明/结算23/23、整合API构建通过。仅Windows本地SQL.js和临时目录证据，不是杀进程、PG/Linux、多写者或生产配额验收；quotaEnforced仍false。下一项05C3已就绪，05D继续等待。完整证据见[恢复故障验收](../audits/2026-09-21-payload-recovery-acceptance.md)。
+
+## 16. C3 Windows PostgreSQL本机矩阵（2026-09-21）
+
+新增Windows PostgreSQL16.10隔离多进程9项验收：四写者竞争预算不超卖、同operation仅收费一次、预留提交前/后杀进程、真实ingest写入中/最终发布后/temp删除后/元数据事务中四窗口中断，以及四个实际ingest进程共享数据库和文件根并发，PG重启后跨进程重放不重复计费。拒绝采集正文仍保留全部业务调用元数据；残留按峰值保守计费。父任务独立复跑9/9，全部新建集群已停止删除。
+
+不连接默认目标：专用用户、随机IPv4回环端口、独立临时目录、fsync和synchronous_commit开启。Linux核查仅有docker-desktop WSL发行版，Docker Linux Engine管道不可用；C3本机出口完成但整包仍NEED_ENV，05D不解锁。PG自身异常崩溃/掉电、长期物理磁盘压力和生产根未验。命令和故障矩阵见[PG多写者证据](../audits/2026-09-21-pg-quota-multiwriter-evidence.md)。

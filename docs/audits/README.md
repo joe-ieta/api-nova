@@ -3,7 +3,7 @@
 > 2026-09-08: 数据库与持久化清理、43 表 PG/SQLite 空库及完整回归结果见 [本轮清理审查记录](./2026-09-08-persistence-cleanup.md)。旧报告中的 38/40 表与环境阻塞结论保留为历史证据。
 
 ---
-doc-version: 1.24.0
+doc-version: 1.25.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -20,6 +20,8 @@ doc-updated: 2026-09-21
 本批证据：[SEC-A1-02B4鉴权模式界面交付](./2026-09-21-mcp-mode-ui-evidence.md)。
 
 本批证据：[SEC-A2-01B三入口拒绝矩阵](./2026-09-21-mcp-rejection-matrix.md)。
+
+本批证据：[OBS-14-05C3 Windows PostgreSQL多写者验收](./2026-09-21-pg-quota-multiwriter-evidence.md)。
 
 ## Purpose
 
