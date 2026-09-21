@@ -1,5 +1,5 @@
 ---
-doc-version: 1.20.0
+doc-version: 1.21.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -53,7 +53,7 @@ doc-updated: 2026-09-21
 | 叶子出口 | 已有入口/版本与环境 | 当前证据和未闭合项 |
 | --- | --- | --- |
 | SEC-D1-01 | [Header合同1.0.0](./security-header-network-boundary-contract.md) | **政策定稿/DONE（DOC）**：双向allowlist、多值/framing、保留字段/缓存/迁移已选择；H01–H12执行待D1-02，F3网络政策亦已定稿，执行未完成。 |
-| SEC-D1-02A/B/C/D（原02） | [02A编译证据](../audits/2026-09-21-header-policy-compilation.md) | **准备实现/部分完成**：A DONE，B IN_PROGRESS，C/D WAIT_DEP；完整Header流/缓存/迁移未交付，产品激活明确拒绝。 |
+| SEC-D1-02A/B/C/D（原02） | [02A编译证据](../audits/2026-09-21-header-policy-compilation.md)、[02B双向流证据](../audits/2026-09-21-header-wire-execution.md) | **分阶段执行/部分完成**：A/B DONE，C READY，D WAIT_DEP；B仅显式compiled路径，生产激活仍拒绝，入口实际安装/元数据接线及迁移归D，缓存归C。 |
 | SEC-D2-01 | [独立限流证据](../audits/2026-09-21-independent-rate-limits.md) | **限定执行/DONE**：真实HTTP覆盖IP/匿名独立桶、暖缓存和伪造转发头；Gateway全套201/201。进程内计数，完整层级及多节点不在此叶。 |
 | SEC-D2-02 | [真实HTTP组合证据](../audits/2026-09-21-layered-rate-limit-composition.md) | **限定执行/DONE**：六层组合、缓存计量、同主体轮换、冲突窗口与精确并发准入；单进程既有范围。 |
 | SEC-E0-01 | [Adapter当前矩阵](../audits/2026-09-21-mcp-adapter-contract.md) | **限定执行/DONE**：原始HTTP、锁定SDK会话及真实stdio60/60；方法405修复，不升级协议或替代E2完整安全验收。 |

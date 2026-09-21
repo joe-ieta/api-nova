@@ -58,6 +58,8 @@ export class GatewayRuntimeService {
     startedAt = Date.now(),
     options: { bypassCache?: boolean } = {},
   ): Promise<void> {
+    // Policy-aware cache identity is a later D1-02C integration.
+    const bypassCache = options.bypassCache || !!target.policies?.upstream?.compiledHeaderPolicy;
     const requestId = this.resolveRequestId(req, res);
     const audit = beginGatewayRequestAudit(req, res, requestId, target);
     return audit.run(async () => {
@@ -68,7 +70,7 @@ export class GatewayRuntimeService {
       try {
         const requestId = this.resolveRequestId(req, res);
         const correlationId = this.resolveCorrelationId(req);
-        const cacheLookup = options.bypassCache
+        const cacheLookup = bypassCache
           ? null
           : this.gatewayCacheService.resolve(target, req, authContext);
 
@@ -113,7 +115,7 @@ export class GatewayRuntimeService {
         }
 
         const upstreamResponse = await this.forwardWithRetry(target, req, res);
-        if (!options.bypassCache) {
+        if (!bypassCache) {
           this.gatewayCacheService.store(target, req, authContext, upstreamResponse);
         }
         const latencyMs = Date.now() - startedAt;
@@ -234,7 +236,7 @@ export class GatewayRuntimeService {
         const result = await this.gatewayProxyEngineService.forward(target, req, res, {
           attemptIndex: attempt,
           upstreamOperationId,
-          captureResponseBodyMaxBytes: target.policies.cache.enabled
+          captureResponseBodyMaxBytes: target.policies.cache.enabled && !target.policies.upstream?.compiledHeaderPolicy
             ? target.policies.cache.maxBodyBytes
             : undefined,
         });
@@ -265,6 +267,7 @@ export class GatewayRuntimeService {
     req: Request,
     error: Error,
   ) {
+    if (target.policies.upstream?.compiledHeaderPolicy && error.message.startsWith('gateway_header_')) return false;
     // A consumed request body cannot be replayed by piping IncomingMessage again.
     if (req.headers['transfer-encoding'] || Number(req.headers['content-length'] || 0) > 0) return false;
     const code = this.resolveStatusCode(error);

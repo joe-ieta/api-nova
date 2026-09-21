@@ -1,4 +1,4 @@
-import type { TemporaryAnonymousPolicy } from 'api-nova-parser';
+import type { TemporaryAnonymousPolicy, CompiledHeaderPolicyV1 } from 'api-nova-parser';
 export type GatewayAuthMode = 'anonymous' | 'jwt' | 'api_key';
 
 export type GatewayLoggingCaptureMode =
@@ -40,6 +40,10 @@ export type GatewayResolvedCachePolicy = {
 };
 
 export type GatewayResolvedUpstreamPolicy = {
+  /** Internal executor preparation only; public activation remains gated. */
+  compiledHeaderPolicy?: CompiledHeaderPolicyV1;
+  consumerAuthenticationHeaderNames?: readonly string[];
+  historicalAuthenticationHeaderNames?: readonly string[];
   raw?: Record<string, unknown>;
 };
 

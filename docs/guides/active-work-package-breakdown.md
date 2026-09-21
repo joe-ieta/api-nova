@@ -1,5 +1,5 @@
 ---
-doc-version: 1.42.0
+doc-version: 1.43.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -88,7 +88,7 @@ SEC父包：A0/A1/A2/A3/B1/B2/B3/E0 DONE；A4/C1/C2/C3/C4/D1/D2/E1/E2/F2/F3/F3a�
 | SEC-C4-01 | SEC-C4 | VALIDATION | 两运行时Resolver执行验收 | Gateway与受管MCP继承/覆盖/None/Unresolved的联网前拒绝一致 | SEC-E1-03;SEC-F1-02 |
 | SEC-D1-01 | SEC-D1 | DOC | Header业务政策定稿 | 请求/响应、多值/framing、保留字段、迁移例外逐项选择并记录 | — |
 | SEC-D1-02A | SEC-D1 | CODE | Header策略编译与快照准备 | v1 schema/继承/摘要/认证名冲突与候选保旧；Gateway两源冲突及未就绪激活拒绝 | SEC-D1-01 |
-| SEC-D1-02B | SEC-D1 | CODE | 双向Header与真实流执行 | allowlist/rawHeaders/framing/代理字段/Resolver最后注入、Expect及真实字节H01–H08 | SEC-D1-02A |
+| SEC-D1-02B | SEC-D1 | CODE | 双向Header与真实流执行 | 显式compiled路径allowlist/rawHeaders/framing/可信注入、Expect边界及真实流；生产启用归02D | SEC-D1-02A |
 | SEC-D1-02C | SEC-D1 | CODE | Header缓存隔离 | 必需vary/策略identity、条件和范围bypass、原始响应禁存信号及真实miss/hit | SEC-D1-02B |
 | SEC-D1-02D | SEC-D1 | VALIDATION | 迁移防降级与联合验收 | 默认开启、限时具名例外、防删除降级与H01–H12整合；不推断生产迁移 | SEC-D1-02C |
 | SEC-D2-01 | SEC-D2 | CODE | IP与Anonymous独立限流层 | 真实请求分别触发IP、匿名bucket，鉴权缓存不能绕过 | — |
@@ -284,3 +284,5 @@ D1-01政策出口完成，D1-02解除依赖。D1-02按编译/快照、双向传�
 沿用135个叶子，并行02B真实双向Header流、C1-01类型合同与F3-01网络政策。C1-01按[合同](./upstream-credential-types-contract.md)完成DOC，C1-02转READY，其四个实施切片暂不新增编号。02B保留生产未就绪门禁，缓存与迁移仍由02C/D验收。
 
 F3-01[网络政策](./security-header-network-boundary-contract.md)已完成DOC；F3-02保持D1-02D硬依赖。后续代码并行面为D1-02B和已解锁C1-02，不再为已有Loader增加准备任务。
+
+02B按[受控真实流证据](../audits/2026-09-21-header-wire-execution.md)完成，02C转READY。02D还须真实Registry/路由元数据到执行器接线与main入口安装，再做默认迁移/例外/防降级；不得删除门禁直接启用。当前80DONE/135叶，本批实际为2DOC和1CODE执行切片，D1父包保持IN_PROGRESS；下一并行主线02C缓存与C1-02类型实现。

@@ -3,16 +3,19 @@ import {
   GatewayTimeoutException,
   Inject,
   Injectable,
+  HttpException,
   Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import * as http from 'node:http';
 import * as https from 'node:https';
-import { PassThrough } from 'node:stream';
+import { PassThrough, Transform } from 'node:stream';
 import { URL } from 'node:url';
 import { resolveRuntimeCredentialRefHeaders, runRuntimeUpstreamAttempt } from 'api-nova-parser';
+import { filterGatewayRequestHeadersV1, filterGatewayResponseHeadersV1, GatewayHeaderWireError } from './gateway-header-wire-policy';
 import { ensureGatewayRequestId, gatewayAuditContext } from './gateway-audit-context';
+import { GatewayRuntimeMetricsService } from './gateway-runtime-metrics.service';
 import { GatewayRequestCaptureService } from './gateway-request-capture.service';
 import { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
 import { GatewayProxyResult } from '../types/gateway-proxy.types';
@@ -29,6 +32,7 @@ export class GatewayProxyEngineService {
     @Optional()
     @Inject(GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER)
     private readonly upstreamCredentialResolver?: GatewayUpstreamCredentialResolver,
+    @Optional() private readonly gatewayRuntimeMetricsService?: GatewayRuntimeMetricsService,
   ) {}
 
   async forward(
@@ -42,11 +46,24 @@ export class GatewayProxyEngineService {
     const credentials = await this.resolveCredentialHeaders(resolvedRoute, url);
     const transport = url.protocol === 'https:' ? https : http;
     const timeoutMs = resolvedRoute.policies?.traffic?.timeoutMs ?? resolvedRoute.routeBinding.timeoutMs ?? 30000;
-    const headers = this.buildForwardHeaders(req.headers, url, req, credentials.headers, credentials.managedHeaderNames);
+    const policy = resolvedRoute.policies?.upstream?.compiledHeaderPolicy;
+    let requestPolicy: ReturnType<typeof filterGatewayRequestHeadersV1> | undefined;
+    try {
+      if (policy) requestPolicy = filterGatewayRequestHeadersV1({
+        policy, rawHeaders: req.rawHeaders, headers: req.headers, targetUrl: url,
+        peerAddress: req.socket?.remoteAddress, tls: (req.socket as any)?.encrypted === true,
+        requestId: this.ensureRequestId(req), managedHeaderNames: credentials.managedHeaderNames,
+        credentialHeaders: { ...credentials.headers },
+        consumerAuthenticationHeaderNames: resolvedRoute.policies.upstream.consumerAuthenticationHeaderNames,
+        historicalAuthenticationHeaderNames: resolvedRoute.policies.upstream.historicalAuthenticationHeaderNames,
+      });
+    } catch (error) { throw this.mapWireError(error); }
+    const headers = requestPolicy?.headers ?? this.buildForwardHeaders(req.headers, url, req, credentials.headers, credentials.managedHeaderNames);
     const requestCapture = this.gatewayRequestCaptureService.createTracker(req.headers['content-type']);
     let upstreamReq: http.ClientRequest | undefined;
     let upstreamRes: http.IncomingMessage | undefined;
-    let requestTap: PassThrough | undefined;
+    let requestTap: Transform | undefined;
+    let responseTap: Transform | undefined;
     let rejectAttempt: ((error: Error) => void) | undefined;
     let rejectClient: (error: Error) => void = () => undefined;
     let clientFinished: () => void = () => undefined;
@@ -58,6 +75,7 @@ export class GatewayProxyEngineService {
       upstreamReq?.destroy();
       upstreamRes?.destroy();
       requestTap?.destroy();
+      responseTap?.destroy();
     };
     const onClientClose = () => { if (!res.writableFinished) onCancelled(); };
     const clientCompletion = new Promise<void>((resolve, reject) => {
@@ -78,20 +96,41 @@ export class GatewayProxyEngineService {
       credentialHeaderNames: [...credentials.credentialHeaderNames],
     }, observer => new Promise<GatewayProxyResult & { targetUrl: string }>((resolve, reject) => {
       let settled = false;
+      let requestFinished = false;
       const fail = (error: Error) => {
         if (settled) return;
         settled = true;
-        reject(error);
+        reject(this.mapWireError(error));
       };
       rejectAttempt = fail;
       if (req.aborted || res.destroyed) { fail(cancellation()); return; }
       upstreamReq = transport.request({
+        // A v1 exchange owns its connection; unread parser suffixes must not reach a later request.
+        ...(policy ? { agent: false as const } : {}),
         protocol: url.protocol, hostname: url.hostname, port: url.port,
         method: resolvedRoute.routeBinding.upstreamMethod, path: url.pathname + url.search, headers,
       }, response => {
+        if (settled) { response.destroy(); return; }
+        if (policy && !requestFinished) {
+          fail(new GatewayHeaderWireError(502, 'gateway_header_early_response')); response.destroy(); return;
+        }
         upstreamRes = response;
         const responseCapture = this.gatewayRequestCaptureService.createTracker(response.headers['content-type']);
-        const normalizedHeaders = this.normalizeResponseHeaders(response.headers);
+        let responsePolicy: ReturnType<typeof filterGatewayResponseHeadersV1> | undefined;
+        try {
+          if (policy) responsePolicy = filterGatewayResponseHeadersV1({
+            policy, rawHeaders: response.rawHeaders, headers: response.headers,
+            statusCode: response.statusCode || 502, requestMethod: resolvedRoute.routeBinding.upstreamMethod,
+            managedHeaderNames: credentials.managedHeaderNames,
+            consumerAuthenticationHeaderNames: resolvedRoute.policies.upstream.consumerAuthenticationHeaderNames,
+            historicalAuthenticationHeaderNames: resolvedRoute.policies.upstream.historicalAuthenticationHeaderNames,
+          });
+        } catch (error) { fail(error as Error); response.destroy(); return; }
+        const normalizedHeaders = responsePolicy?.headers ?? this.normalizeResponseHeaders(response.headers);
+        responseTap = responsePolicy
+          ? this.checkedBodyStream(responsePolicy.bodyAllowed ? responsePolicy.contentLength : undefined, 502, !responsePolicy.bodyAllowed)
+          : new PassThrough();
+        responseTap.once('error', fail);
         const responseBodyChunks: Buffer[] = [];
         let responseBodyBytes = 0, overflow = false;
         observer.responseStarted(response.statusCode || 502, normalizedHeaders, String(response.headers['content-type'] || ''));
@@ -100,7 +139,7 @@ export class GatewayProxyEngineService {
           { code: (error as NodeJS.ErrnoException).code || 'ECONNRESET' })));
         response.once('aborted', interrupted);
         response.once('close', () => { if (!response.complete) interrupted(); });
-        response.on('data', chunk => {
+        responseTap.on('data', chunk => {
           observer.responseChunk(chunk);
           responseCapture.observeChunk(chunk);
           if (overflow || !options?.captureResponseBodyMaxBytes || options.captureResponseBodyMaxBytes <= 0) return;
@@ -113,7 +152,8 @@ export class GatewayProxyEngineService {
           responseBodyChunks.push(buffer);
           responseBodyBytes += buffer.length;
         });
-        response.once('end', () => {
+        responseTap.once('end', () => {
+          if (policy && response.rawTrailers.length) this.auditDiscardedTrailers(resolvedRoute, req, 'response');
           observer.responseComplete();
           if (settled) return;
           settled = true;
@@ -132,29 +172,40 @@ export class GatewayProxyEngineService {
           }
           res.setHeader('x-request-id', this.ensureRequestId(req, res));
           res.flushHeaders?.();
-          response.pipe(res);
+          response.pipe(responseTap).pipe(res);
         } catch (error) { fail(error as Error); }
       });
+      if (policy) {
+        upstreamReq.on('information', () => fail(new GatewayHeaderWireError(502, 'gateway_header_response_status')));
+        upstreamReq.on('upgrade', (_response, socket) => {
+          socket.destroy(); fail(new GatewayHeaderWireError(502, 'gateway_header_upgrade_unsupported'));
+        });
+      }
       upstreamReq.setTimeout(timeoutMs, () => {
         upstreamReq?.destroy(new GatewayTimeoutException('Gateway upstream timeout'));
       });
-      upstreamReq.once('finish', () => observer.requestComplete());
+      upstreamReq.once('finish', () => { requestFinished = true; observer.requestComplete(); });
       upstreamReq.on('error', error => {
         if (error instanceof GatewayTimeoutException) { fail(error); return; }
         const code = (error as NodeJS.ErrnoException).code;
+        if (policy && code?.startsWith('HPE_')) { fail(new GatewayHeaderWireError(502, 'gateway_header_upstream_parse')); return; }
         if (code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'EHOSTUNREACH' || code === 'ECONNRESET') {
           fail(Object.assign(new BadGatewayException('Gateway upstream connection failed'), { code }));
         } else fail(error);
       });
-      requestTap = new PassThrough();
+      requestTap = requestPolicy ? this.checkedBodyStream(requestPolicy.contentLength, 400) : new PassThrough();
       requestTap.on('data', chunk => {
         requestCapture.observeChunk(chunk);
         observer.requestChunk(chunk);
       });
       requestTap.once('error', fail);
+      if (policy) requestTap.once('end', () => {
+        if (req.rawTrailers?.length) this.auditDiscardedTrailers(resolvedRoute, req, 'request');
+      });
       // Only empty-body retries are permitted by the runtime service.
-      if (req.readableEnded) upstreamReq.end();
-      else req.pipe(requestTap).pipe(upstreamReq);
+      requestTap.pipe(upstreamReq);
+      if (req.readableEnded) requestTap.end();
+      else req.pipe(requestTap);
     }));
     try {
       // An upstream completion and a successful client send are separate facts.
@@ -164,8 +215,9 @@ export class GatewayProxyEngineService {
       upstreamReq?.destroy();
       upstreamRes?.destroy();
       requestTap?.destroy();
+      responseTap?.destroy();
       if (res.headersSent && !res.writableFinished && !res.destroyed) res.destroy();
-      throw error;
+      throw this.mapWireError(error);
     } finally {
       res.removeListener('finish', clientFinished);
       res.removeListener('close', onClientClose);
@@ -174,6 +226,38 @@ export class GatewayProxyEngineService {
       req.removeListener('error', onCancelled);
       if (requestTap) req.unpipe(requestTap);
     }
+  }
+
+  private auditDiscardedTrailers(route: GatewayResolvedRoute, req: Request, direction: 'request' | 'response'): void {
+    void this.gatewayRuntimeMetricsService?.recordPolicyObservabilityEvent({
+      runtimeAssetId: route.runtimeAsset.id, runtimeMembershipId: route.membership.id,
+      routePath: route.routeBinding.routePath, routeMethod: route.routeBinding.routeMethod,
+      requestId: this.ensureRequestId(req), policyName: 'gateway.header_trailers_discarded',
+      errorMessage: direction + '_trailers_discarded',
+    }).catch(() => undefined);
+  }
+
+  private mapWireError(error: unknown): Error {
+    return error instanceof GatewayHeaderWireError
+      ? new HttpException(error.code, error.statusCode)
+      : error as Error;
+  }
+
+  private checkedBodyStream(expected: number | undefined, status: number, forbidBody = false): Transform {
+    let bytes = 0;
+    return new Transform({
+      transform(chunk, _encoding, callback) {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        bytes += buffer.length;
+        if ((forbidBody && bytes > 0) || (expected !== undefined && bytes > expected)) {
+          callback(new GatewayHeaderWireError(status, 'gateway_header_body_length'));
+        } else callback(null, buffer);
+      },
+      flush(callback) {
+        callback(expected !== undefined && bytes !== expected
+          ? new GatewayHeaderWireError(status, 'gateway_header_body_length') : undefined);
+      },
+    });
   }
 
   private async resolveCredentialHeaders(

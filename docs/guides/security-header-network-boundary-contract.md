@@ -1,5 +1,5 @@
 ---
-doc-version: 1.2.0
+doc-version: 1.3.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -40,7 +40,7 @@ doc-updated: 2026-09-21
 
 ## 2. 已实现的行为和限制
 
-### 2.1 Gateway Header
+### 2.1 Gateway Header（当前生产legacy路径）
 
 `buildForwardHeaders` 当前是剥离清单，不是业务 allowlist：
 
@@ -75,9 +75,9 @@ Gateway 适配器每次 resolve 捕获一个快照，用 source asset、目标 U
 
 Webhook 目的地策略不能替代业务路径的证据，其政策不能直接作为业务默认值。
 
-## 3. D1 Header 政策 v1（已定稿，待实施）
+## 3. D1 Header 政策 v1（已定稿，分阶段实施）
 
-本节是项目选择，不声称当前代码具备这些能力。范围为 Gateway 请求与响应；共享名称/值校验可供 Parser 复用，Parser 的实际生产接入和逐跳网络授权仍分别属于 E1/F3。不得用纯函数测试替代 Gateway 真正出站及返回客户端的证明。
+本节是项目选择；02A编译和02B显式策略执行已交付，生产启用仍等02C/D，不能声称全部能力已上线。范围为 Gateway 请求与响应；共享名称/值校验可供 Parser 复用，Parser 的实际生产接入和逐跳网络授权仍分别属于 E1/F3。不得用纯函数测试替代 Gateway 真正出站及返回客户端的证明。
 
 ### 3.1 配置、继承和激活
 
@@ -253,18 +253,18 @@ SEC-F3-01 到本节政策定稿完成；SEC-F3-02 必须同时完成受信任配
 
 | ID | 输入/操作 | 必须断言 | 状态 |
 | --- | --- | --- | --- |
-| H01 | 大小写混合 Authorization/X-API-Key/Cookie/Proxy-Authorization | 消费者值不出站，有绑定时只出现当前合成凭据 | 已有用例；结果见执行台账 |
-| H02 | Connection 字符串/数组/重复名/空项，声明业务和认证头 | 入站声明字段全剥离；可信凭据仍可注入；trailer/trailers 分别断言 | 现有逻辑，部分已有用例 |
-| H03 | x-business 未在 allowlist | 当前基线保留，新策略启用后剥离；两种夹具分开 | 基线已有用例；政策已定，待实现 |
-| H04 | Endpoint 扩展缺失/空/替换 Site | 分别继承/仅基础/基础加 Endpoint 扩展；拒绝通配符和非法名 | 政策已定，待实现 |
-| H05 | allowlist 含凭据/逐跳/代理保留名 | 请求/响应策略与凭据输出冲突均拒绝激活；旧快照有效，无网络调用 | 政策已定，待实现 |
-| H06 | None 且携带其他候选的认证名 | 候选托管名剥离，不注入凭据 | 已有用例；结果见执行台账 |
-| H07 | 轮换后删除旧自定义认证名 | 新策略剥离未允许的旧名；基线显式暴露当前剥离清单局限 | 缺口/政策已定，待实现 |
-| H08 | 大小写重复/重复单值/CR-LF/多值 Accept | 按 §3.4 原始字段规则拒绝或合并，无重复凭据和 framing 歧义 | 政策已定，待实现；当前统一逗号合并 |
-| H09 | 伪造 XFF/Forwarded/request-id，v1 peer-only 与 legacy 迁移 | 当前 XFF 保留前缀作基线；v1 只用 socket peer 构造链，身份不采用伪造值 | 现状+政策已定，待实现 |
-| H10 | 固定长度/分块/空体/Expect/取消 | framing 和实际字节一致，无双 framing、二次消费或空体重放 | §3.5 已定，待实现 |
-| H11 | Range/If-*/Accept-Encoding 不同而路径相同，随后缓存命中 | 状态/Header/正文与直连语义一致；按 §3.6 强制隔离或 bypass 有证据 | 政策已定，待实现，依赖 D2 |
-| H12 | Resolver 错误/None/旧 Env/非法 Env | Resolver 错误固定 503 且 connectCalls=0；旧 Env 分支独立断言，不错误套用固定 503 | 部分已有用例；联网前断言待补 |
+| H01 | 大小写混合 Authorization/X-API-Key/Cookie/Proxy-Authorization | 消费者值不出站，有绑定时只出现当前合成凭据 | 02B真实HTTP通过；生产仍门禁 |
+| H02 | Connection 字符串/数组/重复名/空项，声明业务和认证头 | 入站声明字段全剥离；可信凭据仍可注入；trailer/trailers 分别断言 | 02B纯函数与真实Connection提名通过 |
+| H03 | x-business 未在 allowlist | 当前基线保留，新策略启用后剥离；两种夹具分开 | 02B显式v1真实过滤通过；legacy基线保留 |
+| H04 | Endpoint 扩展缺失/空/替换 Site | 分别继承/仅基础/基础加 Endpoint 扩展；拒绝通配符和非法名 | 02A编译/Registry通过；02D生产接线待验 |
+| H05 | allowlist 含凭据/逐跳/代理保留名 | 请求/响应策略与凭据输出冲突均拒绝激活；旧快照有效，无网络调用 | 02A编译保旧与02B输出拒绝通过；生产仍拒绝激活 |
+| H06 | None 且携带其他候选的认证名 | 候选托管名剥离，不注入凭据 | 02B None真实HTTP通过 |
+| H07 | 轮换后删除旧自定义认证名 | 新策略剥离未允许的旧名；基线显式暴露当前剥离清单局限 | 02A历史名快照与02B显式元数据通过；持久迁移待02D |
+| H08 | 大小写重复/重复单值/CR-LF/多值 Accept | 按 §3.4 原始字段规则拒绝或合并，无重复凭据和 framing 歧义 | 02B纯函数与真实重复/framing通过 |
+| H09 | 伪造 XFF/Forwarded/request-id，v1 peer-only 与 legacy 迁移 | 当前 XFF 保留前缀作基线；v1 只用 socket peer 构造链，身份不采用伪造值 | 02B真实HTTP peer字段通过；完整迁移待02D |
+| H10 | 固定长度/分块/空体/Expect/取消 | framing 和实际字节一致，无双 framing、二次消费或空体重放 | 02B真实流与独立Expect入口通过；生产入口安装待02D |
+| H11 | Range/If-*/Accept-Encoding 不同而路径相同，随后缓存命中 | 状态/Header/正文与直连语义一致；按 §3.6 强制隔离或 bypass 有证据 | 02C待实现；当前v1全部绕过缓存 |
+| H12 | Resolver 错误/None/旧 Env/非法 Env | Resolver 错误固定 503 且 connectCalls=0；旧 Env 分支独立断言，不错误套用固定 503 | 02B真实Resolver503零命中及旧专项通过；完整生产接线待02D |
 | N01 | Gateway 收到 302/307 与 Location | 仅一次 request，返回状态/Location，hop=0，无下一跳 | 代码基线待执行 |
 | N02 | Parser legacy与safe-read第五/第六次跳转 | 分别验证既有legacy基线和显式safe-read的5次边界；默认不跟随；有无context一致 | 政策已定，待实现 |
 | N03 | 初始 scheme/host/port/base path/asset 不匹配 | C4 联网前拒绝，allowedHosts 不能单独放行 | Resolver 逻辑待执行 |
@@ -312,3 +312,9 @@ D1 allowlist 政策已经定稿，执行代码与 H01–H12 验收尚待完成�
 ## D1-02A编译准备（2026-09-21）
 
 [编译与安全接线证据](../audits/2026-09-21-header-policy-compilation.md)已交付schema/继承/identity和候选保旧；产品激活有未就绪门禁。双向传输、缓存和迁移依次归02B/C/D，不能删除门禁后即宣称全包完成。
+
+## D1-02B受控执行（2026-09-21）
+
+[双向真实流证据](../audits/2026-09-21-header-wire-execution.md)交付显式compiled路径的rawHeaders校验、双向过滤、framing与真实字节流；入口helper已验Expect但未挂生产main。v1运行路径暂时全部绕过缓存且出站不复用连接，旧路径不因此改为allowlist。
+
+请求尚未完整发送而上游提前给最终响应时，v1保守502中止；此兼容差异归02D迁移评估。原生HTTP解析器隐藏的超长尾部不能由应用计数器全面识别，不能据此宣称请求走私全部解决。未就绪门禁保持到02C缓存及02D真实接线/默认迁移/防降级验收闭合。

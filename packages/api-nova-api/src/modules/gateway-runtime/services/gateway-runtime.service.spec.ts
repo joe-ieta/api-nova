@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus, UnauthorizedException } from '@nestjs/common';
+import { compileHeaderPolicyV1 } from 'api-nova-parser';
 import { GatewayRuntimeService } from './gateway-runtime.service';
 
 // This suite tests orchestration with a mocked proxy and non-stream requests.
@@ -492,6 +493,34 @@ describe('GatewayRuntimeService', () => {
       expect.objectContaining({ message: 'temporary upstream error' }),
     );
   });
+
+  it.each([undefined, 'gateway_header_framing', 'gateway_header_early_response'])(
+    'bypasses legacy cache and never retries v1 header rejection: %s', async failure => {
+      const deps = createDeps();
+      const target = createResolvedRoute({ policies: {
+        auth: { mode: 'anonymous' }, traffic: { retryPolicy: { attempts: 3 } },
+        cache: { enabled: true, methods: ['GET'], maxBodyBytes: 4096 },
+        upstream: { compiledHeaderPolicy: compileHeaderPolicyV1({ sourceId: 'cache-test', policy: { version: 1 } }) },
+      } });
+      deps.gatewayRouteSnapshotService.resolve.mockReturnValue(target);
+      deps.gatewaySecurityService.authorize.mockResolvedValue({ mode: 'anonymous' });
+      deps.gatewayTrafficControlService.admit.mockResolvedValue({ release: jest.fn() });
+      deps.gatewayCacheService.resolve.mockReturnValue({ hit: true, key: 'legacy-result' });
+      if (failure) deps.gatewayProxyEngineService.forward.mockRejectedValue(new HttpException(failure, 502));
+      else deps.gatewayProxyEngineService.forward.mockResolvedValue({ statusCode: 200, headers: {}, targetUrl: 'https://api.example.com/orders' });
+      const action = deps.service.forwardRequest('/orders', {
+        method: 'GET', originalUrl: '/api/v1/gateway/orders', headers: { host: 'localhost' },
+      } as any, { setHeader: jest.fn() } as any);
+      if (failure) await expect(action).rejects.toThrow(failure); else await action;
+      expect(deps.gatewaySecurityService.authorize).toHaveBeenCalledTimes(1);
+      expect(deps.gatewayCacheService.resolve).not.toHaveBeenCalled();
+      expect(deps.gatewayCacheService.writeHit).not.toHaveBeenCalled();
+      expect(deps.gatewayCacheService.store).not.toHaveBeenCalled();
+      expect(deps.gatewayProxyEngineService.forward).toHaveBeenCalledTimes(1);
+      expect(deps.gatewayProxyEngineService.forward.mock.calls[0][3].captureResponseBodyMaxBytes).toBeUndefined();
+      expect(deps.gatewayTrafficControlService.recordRetryAttempt).not.toHaveBeenCalled();
+    },
+  );
 
   it('serves cache hits without calling upstream proxy', async () => {
     const deps = createDeps();

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.16.0
+doc-version: 1.17.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -294,7 +294,7 @@ Parser 全量 18 套 342/342、Gateway 完整专项 15 套 123/123（detectOpenH
 | C1 -> C2 -> C3 -> Gateway C4 | 安全文本、Provider、稳定文件源、原子 Registry 与 Gateway 显式配置激活已贯通 | 已验证切片；不新增整包 DONE |
 | C4/E1 MCP | E1 依赖 B3/C4/E0；管理侧可信映射、单查询装配、跨源/候选guard已验证；实际受管child启动仍未消费可信绑定/Resolver | 下一关键节点，复用 Registry/Resolver，绑定与身份信息必须来自可信宿主 |
 | F3 跳转/网络 | F3 依赖 C4/D1/E1；Gateway及显式single-hop不跟随跳转，Parser legacy保留最多5次；两者保证不能混用 | 与 MCP 集成设计并行；逐跳目标/凭据重建、DNS 与连接授权不得被初始 Site 匹配替代 |
-| D1 Header Allowlist | 依赖 C4；当前已做消费者/逐跳/托管 Header 清理及 Resolver 注入，业务 allowlist 尚缺 | 按已冻结契约落实版本化清单、迁移和缓存/传输兼容 |
+| D1 Header Allowlist | 依赖 C4；显式compiled策略双向allowlist与真实流已完成；生产仍门禁，缓存和迁移未交付 | 推进02C缓存，再由02D接入生产入口/Registry、迁移及防降级 |
 | C3 管理/Watch/审计 | 启动装载、受权Reload/状态和意图/结果审计已完成；余项为Watch、Registry配置DB归属及多进程 | 独立切片推进；明确失败保旧快照、关闭清理与多进程语义 |
 | C2/F4 Linux 证据 | 不阻塞本机纯逻辑开发 | 按隔离测试说明补真实权限结果，不能用 Windows 文件源测试替代 |
 
@@ -305,3 +305,5 @@ D1/F3 的 30 项矩阵见[请求头与网络边界契约](./security-header-netw
 B2参数保存/执行与拒绝矩阵已验收，见[本批证据](../audits/2026-09-21-jwt-policy-lifecycle.md)。父包原条件闭合；运行中MCP策略变化须停止后部署。
 
 E0/B3原出口经[Adapter矩阵](../audits/2026-09-21-mcp-adapter-contract.md)及已完成会话撤销/SDK证据复核闭合；Header02B/C/D和F1门禁继续独立推进。
+
+02B受控真实流已完成，详见[验收证据](../audits/2026-09-21-header-wire-execution.md)。后续并行推进02C与C1-02，生产Header保护上线须待02D，F3-02继续依赖02D。

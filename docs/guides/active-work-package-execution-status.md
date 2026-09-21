@@ -1,5 +1,5 @@
 ---
-doc-version: 1.61.0
+doc-version: 1.62.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,10 +14,10 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 79 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 12 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | SEC-D1-02B |
-| WAIT_DEP | 23 | 等待列明子任务/条件 |
+| DONE | 80 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 13 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
+| WAIT_DEP | 22 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -60,8 +60,8 @@ doc-updated: 2026-09-21
 | SEC-C4-01 | WAIT_DEP | 纯Resolver不重写 |
 | SEC-D1-01 | DONE | Header政策1.0.0定稿：双向精确allowlist、多值/framing、保留字段、缓存和限时迁移；H01–H12待实现，N01–N17仍F3提案 |
 | SEC-D1-02A | DONE | Parser v1编译/不可变快照/继承/摘要/冲突294项；Gateway双源及未就绪激活拒绝、真实固定文件保旧/SQL.js冷恢复拒绝；仅准备 |
-| SEC-D1-02B | IN_PROGRESS | 并行实现纯双向过滤、真实proxy流与Expect入口；生产激活门禁保持至02D |
-| SEC-D1-02C | WAIT_DEP | 待02B；Header维度缓存隔离与真实miss/hit |
+| SEC-D1-02B | DONE | [双向真实流证据](../audits/2026-09-21-header-wire-execution.md)：纯字段60、入口TCP15、proxy真实21及联合353通过；仅显式compiled路径，生产门禁保持 |
+| SEC-D1-02C | READY | 02B完成；实现策略identity/vary、原始响应veto及真实miss/hit；当前v1全量绕过缓存 |
 | SEC-D1-02D | WAIT_DEP | 待02C；默认迁移、防降级与H01–H12联合验收 |
 | SEC-D2-01 | DONE | 真实HTTP独立IP/Anonymous桶、peer可信边界、缓存命中仍限流；Gateway全套201/201、主任务联合复验42/42；见2026-09-21-independent-rate-limits证据 |
 | SEC-D2-02 | DONE | 六层真实HTTP组合19项、四套73/73；共享窗口冲突503且到期恢复、24并发精确7准入；见六层限流组合证据 |
@@ -230,3 +230,5 @@ E0-01完成，见[Adapter证据](../audits/2026-09-21-mcp-adapter-contract.md)�
 C1-01已完成[合同](./upstream-credential-types-contract.md)与源码静态对照；新增Basic/CustomHeader、生命周期/Scope尚待C1-02执行。DOC不计作新代码或测试，父包C1继续IN_PROGRESS。02B与F3-01并行推进中。
 
 F3-01合同及矩阵同步完成，C1-01/F3-01两项DOC已关闭；当前79DONE、12READY、1IN_PROGRESS、23WAIT_DEP、17NEED_ENV、1SCOPE_REVIEW、2DEFERRED，总量135。02B真实流继续推进，所有父包状态不变。
+
+02B完成，[证据](../audits/2026-09-21-header-wire-execution.md)含双向过滤、真实压缩/分块/取消/重复framing、提前响应/103、Expect入口和连接隔离；生产NOT_READY全部保留，02C READY。最终80DONE、13READY、22WAIT_DEP、17NEED_ENV、1SCOPE_REVIEW、2DEFERRED、0IN_PROGRESS，总量135。两个DOC已分别推送f592deb/e3dd364；本代码包随本记录提交推送。
