@@ -1,5 +1,5 @@
 ---
-doc-version: 1.37.0
+doc-version: 1.38.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,18 +14,18 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 55 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 26 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | OBS-14-05C2C3 |
-| WAIT_DEP | 30 | 等待列明子任务/条件 |
+| DONE | 56 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 27 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 0 | 本批两项已收尾；后续READY未开工 |
+| WAIT_DEP | 29 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
-近期已完成C2B1/B2/B3、C2C1、B2B1/B2/C、B3A/C、SEC-A1-01跨层矩阵及当前版本SQLite空库验证A4-01的限定出口。C2C1证实旧预留无法在崩溃后唯一反查文件，原C2C2已进一步拆为保守降级A、持久发布意图B和可证明结算C；A已完成，B再细分为双方言模型B1、写入接线B2和崩溃验收B3；B1/B2/B3已完成限定出口，C已完成关联、文件证明与安全结算原语，综合故障验收C2C3仍待执行。B3B已限定完成；无sample行的staged墓碑再细分为互斥E1、整理E2和故障验收E3，E1/E2/E3已完成限定出口，B3D本地限定验收已完成，真实环境仍归04C。READY不表示已开工。SEC-E1-02C1仍等待明确生产生命周期授权；事件物理删除E2B仍等待明确永久删除授权。
+近期已完成C2B1/B2/B3、C2C1、B2B1/B2/C、B3A/C、SEC-A1-01跨层矩阵及当前版本SQLite空库验证A4-01的限定出口。C2C1证实旧预留无法在崩溃后唯一反查文件，原C2C2已进一步拆为保守降级A、持久发布意图B和可证明结算C；A已完成，B再细分为双方言模型B1、写入接线B2和崩溃验收B3；B1/B2/B3已完成限定出口，C已完成关联、文件证明与安全结算原语，C2C3本地恢复故障验收亦已完成，05C3多写者/平台出口仍待执行。B3B已限定完成；无sample行的staged墓碑再细分为互斥E1、整理E2和故障验收E3，E1/E2/E3已完成限定出口，B3D本地限定验收已完成，真实环境仍归04C。READY不表示已开工。SEC-E1-02C1仍等待明确生产生命周期授权；事件物理删除E2B仍等待明确永久删除授权。
 
 最新收尾见[额度中断恢复审计](../audits/2026-09-17-interruption-recovery-evidence.md)。本次修复迁移测试滞后、关联结果类型缺项及台账计数不一致，并完成三个在执行切片。
 
-2026-09-21后续交付：[受管鉴权模式一致性](../audits/2026-09-21-managed-inbound-mode-evidence.md)。
+2026-09-21后续交付：[受管鉴权模式一致性](../audits/2026-09-21-managed-inbound-mode-evidence.md)及[配额恢复故障验收](../audits/2026-09-21-payload-recovery-acceptance.md)。
 
 ## 2. 子任务状态与证据
 
@@ -114,8 +114,8 @@ doc-updated: 2026-09-21
 | OBS-14-05C2C2C1 | DONE | inventory围栏内只读关联意图/预留/receipt/当前及历史引用，结果仅linked_unverified；缺失/冲突blocked、写者busy；SQL.js 5/5、类型检查，不改账本/文件 |
 | OBS-14-05C2C2C2A | DONE | 同一inventory围栏内完整扫描、final digest/长度与temp缺失只读证明，返回file_proof_uncommitted；SQL.js 8/8、相关回归，不结算 |
 | OBS-14-05C2C2C2B | DONE | 同inventory围栏最终事务复核意图/receipt/元数据/预留和完整扫描、精确文件字节后安全结算；专项10/10、相邻55/55；不确定保守持有、quotaEnforced=false |
-| OBS-14-05C2C3 | IN_PROGRESS | C2C2C2B已完成；下一批执行恢复对账综合故障验收，不能以原语专项替代 |
-| OBS-14-05C3 | WAIT_DEP | 崩溃重启、多写者与各失败点验收等待C2C3 |
+| OBS-14-05C2C3 | DONE | 实际ingest/发布故障、关闭并重建SQL.js连接、缺receipt/元数据回滚/残留temp、重复恢复与重放5/5；每次确认reserved+committed覆盖实际路径字节；仅Windows隔离验收 |
+| OBS-14-05C3 | READY | C2C3已完成；下一批崩溃重启、多写者与各失败点验收，真实平台环境另核实 |
 | OBS-14-05D | WAIT_DEP | 状态/故障联调等待05C3 |
 | OBS-14-06A | READY | 生命周期合同已冻结；审计清理尚未实施 |
 | OBS-14-06T | READY | 生命周期合同已冻结；暂存恢复尚未实施 |

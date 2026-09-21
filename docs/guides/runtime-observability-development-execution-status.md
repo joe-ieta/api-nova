@@ -1,7 +1,7 @@
 ---
-doc-version: 2.15.1
+doc-version: 2.16.0
 doc-status: active
-doc-updated: 2026-09-16
+doc-updated: 2026-09-21
 ---
 # 可观测性开发执行与验收状态
 
@@ -176,3 +176,12 @@ OBS-14-03E1新增持久非连续事件缺口记录，授权历史查询在命中
 
 OBS-14-05A提供隔离的正文预算ledger与reservation原语，校验epoch、并发CAS、幂等预留/结算、高低水位、未知占用和回滚；配额/缺口/预览联合18/18通过。OBS-14-05B已把默认关闭的门禁接入可选正文prepare/publish，启用但账本不可用/额度不足时先于临时文件写入省略正文，专项11/11、旧六脚本81/81及API类型检查/构建通过。发布后外围元数据事务失败可能留下已计费孤儿对象。OBS-14-05C1已完成只读有界正文盘点和跨会话完整shard前缀复核，专项6/6、旧GC/容量27/27及API typecheck通过；结果始终要求writerFenceRequired=true且baselineReady=false，不改账本、schema或文件。05C2A已交付持久但未验证的完整shard前缀及owner/epoch/generation CAS，专项5/5、C1 6/6、quota 8/8和API typecheck通过；它不持跨批围栏、不确认baseline、不改ledger。05C2B跨批writer/GC围栏与原子baseline已解锁，05C2C未结算预留/孤儿占用恢复、05C3崩溃重启/多写者验收及05D全局状态/策略仍未完成。quotaEnforced仍为false，不将盘点证据或局部门禁说成完整配额已启用。所有结果均为本地SQL.js/合成夹具和代码测试，不是当前版本PostgreSQL/Linux、多进程容量或生产清理证据。任务状态以[统一子任务台账](./active-work-package-execution-status.md)为准。
 本轮收口复验：C2A checkpoint 5/5、B2A真实loopback 27/27，最终API构建通过。隔离SQLite database-tool.cjs smoke通过，68张表、schemaDrift=0、persistence/apiStartup=true，使用随机测试密钥。这是当前本地空库与API启动证据；未运行PostgreSQL实库、历史业务库原地迁移或生产部署，也未关闭05C2B/C及父OBS14。
+## 最新限定进展：恢复链故障验收（2026-09-21）
+
+此前跨批围栏/原子baseline、持久发布意图及可证明结算原语已完成限定出口，见[9月17日审计](../audits/2026-09-17-interruption-recovery-evidence.md)；旧节保留当时进度。
+
+OBS-14-05C2C3新增真实ingest/文件发布后的5条隔离故障链：延后结算后完整恢复；外部元数据事务回滚后保留已计费对象并重放修复；延后结算且缺receipt跨重启拒绝释放；真实final发布但temp清理失败保留峰值；显式temp故障注入阻断、仅测试夹具修复后安全结算。每次重启先export并关闭旧SQL.js连接，再以同文件根重建连接/服务；每次账本断言统计真实.body/.tmp路径字节，reserved+committed不得低于实物。无直接改写账本制造成功状态。
+
+新专项5/5、相邻关联/文件证明/结算23/23、整合API构建通过。仅Windows本地SQL.js和临时目录证据，不是杀进程、PG/Linux、多写者或生产配额验收；quotaEnforced仍false。下一项05C3已就绪，05D继续等待。完整证据见[恢复故障验收](../audits/2026-09-21-payload-recovery-acceptance.md)。
+
+OBS-TP-14父包保持IN_PROGRESS，父包数量不变；当前状态以[统一台账](./active-work-package-execution-status.md)为准。

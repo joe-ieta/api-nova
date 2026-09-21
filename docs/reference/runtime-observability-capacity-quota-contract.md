@@ -1,7 +1,7 @@
 ---
-doc-version: 1.8.0
+doc-version: 1.9.0
 doc-status: active
-doc-updated: 2026-09-17
+doc-updated: 2026-09-21
 implementation-status: partial
 ---
 # 可观测性容量计量、配额与降级合同
@@ -144,3 +144,9 @@ B1新增独立发布意图实体及SQLite/PostgreSQL前向迁移，旧reservatio
 05C2C2C1在inventory围栏内关联持久意图/预留/receipt/元数据，仅产生linked_unverified；C2A完整有界扫描并核对最终文件摘要/长度和临时文件缺失，仅产生file_proof_uncommitted。C2B在同一活跃围栏的最终事务重核owner/epoch/generation、意图/receipt/元数据/ledger/reservation版本与金额，再次完整扫描并在结算前后核对精确文件证明，才允许reserved峰值转为实际committed金额。失败回滚、证据缺失保守持有；旧无意图记录不推测释放。
 
 三专项分别5/5、8/8、10/10，相邻回归55/55。该原语尚不代表C2C3综合故障矩阵、C3跨平台多写者或05D完成；quotaEnforced保持false，未接生产恢复调度。外部直接改盘不具有SQL与文件系统原子保证。当前SQLite迁移总数已随入站模式迁移变为3，历史第13节的2次迁移保留为当时证据。详见[恢复审计](../audits/2026-09-17-interruption-recovery-evidence.md)。
+
+## 15. C2C3本地完整恢复链验收（2026-09-21）
+
+OBS-14-05C2C3新增真实ingest/文件发布后的5条隔离故障链：延后结算后完整恢复；外部元数据事务回滚后保留已计费对象并重放修复；延后结算且缺receipt跨重启拒绝释放；真实final发布但temp清理失败保留峰值；显式temp故障注入阻断、仅测试夹具修复后安全结算。每次重启先export并关闭旧SQL.js连接，再以同文件根重建连接/服务；每次账本断言统计真实.body/.tmp路径字节，reserved+committed不得低于实物。无直接改写账本制造成功状态。
+
+新专项5/5、相邻关联/文件证明/结算23/23、整合API构建通过。仅Windows本地SQL.js和临时目录证据，不是杀进程、PG/Linux、多写者或生产配额验收；quotaEnforced仍false。下一项05C3已就绪，05D继续等待。完整证据见[恢复故障验收](../audits/2026-09-21-payload-recovery-acceptance.md)。
