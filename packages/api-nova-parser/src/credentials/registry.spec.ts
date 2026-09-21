@@ -269,4 +269,37 @@ describe('UpstreamCredentialRegistry atomic in-memory contract', () => {
     expect(registry.getStatus()).toMatchObject({ generation: 1, revision: 'r1', reloading: false });
     expectMetadataOnly(registry.getStatus());
   });
+
+  test('host ownership validation runs after secret dry-run, holds reload lock, and cannot publish a rejected candidate', async () => {
+    const ownership = deferred<void>();
+    const order: string[] = [];
+    let rejectOwnership = false;
+    const registry = new UpstreamCredentialRegistry({ environment: 'production',
+      providerFactory: factoryFor(async () => { order.push('secret'); return 'test-only-token'; }),
+      validateCandidateOwnership: async value => {
+        order.push(value.metadata.revision);
+        if (value.metadata.revision === 'r2') await ownership.promise;
+        if (rejectOwnership) throw new Error(privateMarker);
+      },
+    });
+    const before = await registry.reload(candidate());
+    const pending = registry.reload(candidate('r2'));
+    await new Promise(done => setTimeout(done, 0));
+    expect(order).toEqual(['secret', 'r1', 'secret', 'r2']);
+    expect(registry.captureSnapshot()).toBe(before);
+    await fails(registry.reload(candidate('r3')), 'RELOAD_IN_PROGRESS');
+    rejectOwnership = true; ownership.resolve();
+    await fails(pending, 'ASSET_OWNERSHIP_REJECTED');
+    expect(registry.captureSnapshot()).toBe(before);
+    rejectOwnership = false;
+    expect((await registry.reload(candidate('r3'))).generation).toBe(2);
+  });
+
+  test('ownership validator accessors are rejected without invoking them', () => {
+    const getter = jest.fn();
+    const options = { environment: 'production' };
+    Object.defineProperty(options, 'validateCandidateOwnership', { get: getter });
+    expect(() => new UpstreamCredentialRegistry(options)).toThrow('INVALID_REGISTRY_CONFIGURATION');
+    expect(getter).not.toHaveBeenCalled();
+  });
 });

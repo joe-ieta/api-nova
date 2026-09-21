@@ -1,3 +1,5 @@
+import { DataSource } from 'typeorm';
+import { validateGatewayCredentialOwnership } from './gateway-upstream-credential-ownership';
 import type { FactoryProvider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UpstreamCredentialRegistry } from 'api-nova-parser';
@@ -23,6 +25,7 @@ export const GATEWAY_UPSTREAM_CREDENTIAL_CONFIG = Object.freeze({
  */
 export async function createConfiguredGatewayCredentialRegistry(
   config: Pick<ConfigService, 'get'>,
+  dataSource?: DataSource,
 ): Promise<UpstreamCredentialRegistry | null> {
   try {
     const file = config.get<unknown>(GATEWAY_UPSTREAM_CREDENTIAL_CONFIG.file);
@@ -36,7 +39,10 @@ export async function createConfiguredGatewayCredentialRegistry(
         typeof environment !== 'string' || !environment) {
       throw new Error('invalid configuration');
     }
-    const registry = new UpstreamCredentialRegistry({ environment });
+    if (!dataSource?.isInitialized) throw new Error('asset store unavailable');
+    const registry = new UpstreamCredentialRegistry({ environment,
+      validateCandidateOwnership: candidate => validateGatewayCredentialOwnership(dataSource, candidate),
+    });
     if (reloadMode === 'watch') await registry.startWatchingFile(file, format);
     else await registry.reloadFile(file, format);
     return registry;
@@ -49,7 +55,7 @@ export async function createConfiguredGatewayCredentialRegistry(
 export const gatewayUpstreamCredentialRegistryProvider:
 FactoryProvider<UpstreamCredentialRegistry | null> = {
   provide: GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY,
-  inject: [ConfigService],
+  inject: [ConfigService, DataSource],
   useFactory: createConfiguredGatewayCredentialRegistry,
 };
 

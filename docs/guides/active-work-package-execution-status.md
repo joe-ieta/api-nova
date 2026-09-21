@@ -1,5 +1,5 @@
 ---
-doc-version: 1.45.0
+doc-version: 1.46.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,10 +14,10 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 62 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 22 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
-| WAIT_DEP | 28 | 等待列明子任务/条件 |
+| DONE | 63 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 20 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 2 | SEC-B1-01、SEC-C2-02 |
+| WAIT_DEP | 27 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -45,7 +45,7 @@ doc-updated: 2026-09-21
 | SEC-A3-01 | WAIT_DEP | 未实现闭环 |
 | SEC-A4-01 | DONE | 当前版本隔离SQLite空库与同文件重开：69实体/69业务表、空库迁移3、重启迁移0、schema漂移0；create与smoke均通过；不代表PostgreSQL或历史升级 |
 | SEC-A4-02 | DONE | Windows PostgreSQL16.10全新loopback隔离集群：69实体/69业务表、3迁移，空库/连接重建漂移0、重连迁移0、持久化与真实API启动/管理401；父任务独立复跑；非历史升级/Linux/PG进程故障恢复 |
-| SEC-B1-01 | READY | 现有Gateway凭证不等于统一模型 |
+| SEC-B1-01 | IN_PROGRESS | 核对统一消费者模型和Gateway/MCP解释，避免新增第二套凭证存储；轮换传播仍归B1-02 |
 | SEC-B1-02 | WAIT_DEP | 未完成 |
 | SEC-B2-01 | READY | 固定子集已有 |
 | SEC-B3-01 | WAIT_DEP | 列表过滤/执行二次授权已有 |
@@ -53,10 +53,10 @@ doc-updated: 2026-09-21
 | SEC-C1-01 | READY | header API Key/Bearer已有 |
 | SEC-C1-02 | WAIT_DEP | 类型很多时逐类型再拆后执行 |
 | SEC-C2-01 | NEED_ENV | Env/File本机实现已有 |
-| SEC-C2-02 | READY | 适配未完成 |
+| SEC-C2-02 | IN_PROGRESS | 实现Windows受限ACL真实检查与隔离文件拒绝验收，不修改现有秘密权限 |
 | SEC-C3-01 | DONE | 固定文件Watch/debounce、坏文件保旧、admin锁内代次检查和Nest关闭已通过；Windows真实监听8/8、Parser252/252、Gateway31/31；见2026-09-21-registry-watch证据 |
-| SEC-C3-02 | READY | 管理装配查询不等于Registry校验 |
-| SEC-C3-03 | WAIT_DEP | 需先有真实child链 |
+| SEC-C3-02 | DONE | Gateway启动/manual/watch激活均强制真实DB Source/Endpoint归属校验，未知/跨源/查询失败保旧；Parser46/46、Gateway46/46；见2026-09-21-registry-db-ownership |
+| SEC-C3-03 | READY | E1-02B2与C3-02已完成；下一步真实多进程generation/失败状态与混版本隔离，尚未实施 |
 | SEC-C4-01 | WAIT_DEP | 纯Resolver不重写 |
 | SEC-D1-01 | READY | 现有30项草案不是实现 |
 | SEC-D1-02 | WAIT_DEP | Connection修复转维护 |

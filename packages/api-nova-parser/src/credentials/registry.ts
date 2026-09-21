@@ -16,7 +16,7 @@ import type {
 export type UpstreamCredentialRegistryErrorCode =
   | 'INVALID_REGISTRY_CONFIGURATION' | 'REGISTRY_NOT_READY'
   | 'RELOAD_IN_PROGRESS' | 'CANDIDATE_REJECTED' | 'ENVIRONMENT_MISMATCH'
-  | 'REVISION_ALREADY_ACTIVE' | 'SECRET_RESOLUTION_FAILED' | 'UNKNOWN_CREDENTIAL'
+  | 'ASSET_OWNERSHIP_REJECTED' | 'REVISION_ALREADY_ACTIVE' | 'SECRET_RESOLUTION_FAILED' | 'UNKNOWN_CREDENTIAL'
   | 'CONFIGURATION_READ_FAILED' | 'CONFIGURATION_UNSTABLE' | 'UNSUPPORTED_RELOAD_MODE'
   | 'WATCH_STOPPED' | 'WATCH_ALREADY_STARTED' | 'WATCH_SOURCE_MISMATCH' | 'GENERATION_CONFLICT';
 
@@ -35,6 +35,8 @@ export interface UpstreamCredentialRegistryOptions {
   readonly environment: string;
   /** Trusted host adapter only. Never accept executable adapters from configuration text. */
   readonly providerFactory?: UpstreamSecretProviderFactory;
+  /** Host-owned validation against the authoritative asset store; never config supplied. */
+  readonly validateCandidateOwnership?: (candidate: UpstreamCredentialBindingsCandidate) => Promise<void>;
 }
 
 export interface UpstreamCredentialRegistrySnapshot {
@@ -72,6 +74,7 @@ function reject(code: UpstreamCredentialRegistryErrorCode): never {
 function checkedOptions(input: UpstreamCredentialRegistryOptions): {
   environment: string;
   providerFactory: UpstreamSecretProviderFactory;
+  validateCandidateOwnership?: UpstreamCredentialRegistryOptions['validateCandidateOwnership'];
 } {
   try {
     if (!input || typeof input !== 'object' || Array.isArray(input)) {
@@ -81,13 +84,15 @@ function checkedOptions(input: UpstreamCredentialRegistryOptions): {
     if (prototype !== Object.prototype && prototype !== null) {
       return reject('INVALID_REGISTRY_CONFIGURATION');
     }
-    if (Reflect.ownKeys(input).some(key => key !== 'environment' && key !== 'providerFactory')) {
+    if (Reflect.ownKeys(input).some(key => key !== 'environment' && key !== 'providerFactory' && key !== 'validateCandidateOwnership')) {
       return reject('INVALID_REGISTRY_CONFIGURATION');
     }
     const environmentProperty = Object.getOwnPropertyDescriptor(input, 'environment');
     const factoryProperty = Object.getOwnPropertyDescriptor(input, 'providerFactory');
+    const ownershipProperty = Object.getOwnPropertyDescriptor(input, 'validateCandidateOwnership');
     if (!environmentProperty || !('value' in environmentProperty) ||
-        (factoryProperty && !('value' in factoryProperty))) {
+        (factoryProperty && !('value' in factoryProperty)) ||
+        (ownershipProperty && (!('value' in ownershipProperty) || (ownershipProperty.value !== undefined && typeof ownershipProperty.value !== 'function')))) {
       return reject('INVALID_REGISTRY_CONFIGURATION');
     }
     const environment = environmentProperty.value;
@@ -98,7 +103,7 @@ function checkedOptions(input: UpstreamCredentialRegistryOptions): {
         /[\u0000-\u001f\u007f]/u.test(environment) || typeof providerFactory !== 'function') {
       return reject('INVALID_REGISTRY_CONFIGURATION');
     }
-    return { environment, providerFactory };
+    return { environment, providerFactory, validateCandidateOwnership: ownershipProperty?.value };
   } catch {
     return reject('INVALID_REGISTRY_CONFIGURATION');
   }
@@ -126,6 +131,7 @@ async function resolveBinding(binding: SecretBinding): Promise<string> {
 export class UpstreamCredentialRegistry {
   private readonly environment: string;
   private readonly providerFactory: UpstreamSecretProviderFactory;
+  private readonly validateCandidateOwnership?: UpstreamCredentialRegistryOptions['validateCandidateOwnership'];
   private active: UpstreamCredentialRegistrySnapshot | undefined;
   private reloading = false;
   private watchState?: RegistryWatchState;
@@ -135,6 +141,7 @@ export class UpstreamCredentialRegistry {
     const checked = checkedOptions(options);
     this.environment = checked.environment;
     this.providerFactory = checked.providerFactory;
+    this.validateCandidateOwnership = checked.validateCandidateOwnership;
   }
 
   getStatus(): UpstreamCredentialRegistryStatus {
@@ -318,6 +325,12 @@ export class UpstreamCredentialRegistry {
 
     // Resolve all credentials, including currently unused entries, without retaining values.
     for (const binding of bindings.values()) await resolveBinding(binding);
+
+    // Run after asynchronous secret checks, so database changes during dry-run are observed.
+    if (this.validateCandidateOwnership) {
+      try { await this.validateCandidateOwnership(candidate); }
+      catch { return reject('ASSET_OWNERSHIP_REJECTED'); }
+    }
 
     const snapshot: UpstreamCredentialRegistrySnapshot = Object.freeze({
       generation: (this.active?.generation ?? 0) + 1,

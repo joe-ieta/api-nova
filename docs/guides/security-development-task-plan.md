@@ -1,5 +1,5 @@
 ---
-doc-version: 1.10.0
+doc-version: 1.11.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -282,7 +282,7 @@ C3 Stable Read 与 Gateway 显式配置激活已实现：Registry 新增 reloadF
 
 Parser 全量 18 套 342/342、Gateway 完整专项 15 套 123/123（detectOpenHandles）、Parser/Server/API 构建均通过。Gateway 配置激活与 Resolver 独立专项 19/19。扩大回归初次发现的 4 个旧夹具失败已修复，原失败证据保留，最终结果见[执行台账第 18 节](./security-development-execution-status.md)。Parser 全量仍有 4 条既有审计写入告警，Linux Provider 30 个真实文件场景仍未补证。
 
-23 个任务包为 DONE 2、IN_PROGRESS 17、BACKLOG 3、DEFERRED 1。A1三模式保存/发布/重启/请求和stdio身份原退出条件已闭合，证据见[本轮闭环](../audits/2026-09-21-auth-publication-loop.md)。稳定文件读取/配置激活已是已验证切片，不能继续列为缺失；固定源受权Reload/状态API及意图/结果审计已在台账第20节验证，不再列为待开发。现行CLI真实MCP发布启动已验；生产IPC生命周期、Registry配置DB归属、多进程、完整凭据/网络政策仍按各自子任务出口完成。
+23 个任务包为 DONE 2、IN_PROGRESS 17、BACKLOG 3、DEFERRED 1。A1三模式保存/发布/重启/请求和stdio身份原退出条件已闭合，证据见[本轮闭环](../audits/2026-09-21-auth-publication-loop.md)。稳定文件读取/配置激活已是已验证切片，不能继续列为缺失；固定源受权Reload/状态API及意图/结果审计已在台账第20节验证，不再列为待开发。现行CLI真实MCP发布启动已验；生产IPC生命周期、Registry配置DB归属现已通过C3-02，剩余多进程、完整凭据/网络政策仍按各自子任务出口完成。
 
 ## 12. 当前关键路径与并行面
 

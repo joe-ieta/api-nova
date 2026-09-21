@@ -1,5 +1,5 @@
 ---
-doc-version: 1.4.0
+doc-version: 1.5.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -44,7 +44,7 @@ doc-updated: 2026-09-21
 | SEC-C2-01 | [Linux 隔离操作说明](../testing/upstream-secret-provider-linux.md)、[Provider 脚本](../../packages/api-nova-parser/scripts/test-upstream-secret-provider.cjs) | **准备/待验收（环境）**：Windows 本机 53 项通过；30 个真实 Linux 文件权限场景尚未执行。说明中 82 通过只是预期值。 |
 | SEC-C2-02 | [Provider 实现](../../packages/api-nova-parser/src/credentials/secret-provider.ts) | **待验收**：Windows Secret File ACL 适配及合法/越权文件拒绝无当前完整执行证据。 |
 | SEC-C3-01 | [Watch交付证据](../audits/2026-09-21-registry-watch.md) | **限定执行/DONE**：Windows真实固定文件监听8/8、Parser凭据252/252、Gateway接线31/31；含坏文件保旧、并发管理员CAS、Nest关闭。DB归属、多进程及Linux不在此叶。 |
-| SEC-C3-02 | [可信映射测试](../../packages/api-nova-api/src/modules/runtime-assets/services/mcp-trusted-operation-bindings.spec.ts)、[Registry 测试](../../packages/api-nova-parser/src/credentials/registry.spec.ts) | **限定执行/待验收**：管理装配查询和候选核验不等于 Registry 配置 Source/Endpoint 的可信 DB 归属校验。 |
+| SEC-C3-02 | [真实DB归属证据](../audits/2026-09-21-registry-db-ownership.md) | **限定执行/DONE**：Source/Endpoint未知或跨源拒绝，manual/watch/启动同校验，失败保旧；不代表激活后的自动DB撤销。 |
 | SEC-C3-03 | 无当前跨进程 Registry 协调脚本 | **待验收**：需真实受管 child 链与跨进程 generation、失败/激活可观测证据。 |
 | SEC-C4-01 | [Resolver 测试](../../packages/api-nova-parser/src/credentials/resolver.spec.ts)、[受管 child 测试](../../packages/api-nova-api/scripts/test-managed-mcp-handoff-preparation.cjs) | **限定执行/待验收**：纯 Resolver 与独立 child B1/B2 有结果；产品受管生命周期尚未接线，Gateway/MCP 继承/覆盖/None/Unresolved 联合门禁未验。 |
 

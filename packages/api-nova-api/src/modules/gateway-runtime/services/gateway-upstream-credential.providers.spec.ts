@@ -1,3 +1,6 @@
+import { DataSource } from 'typeorm';
+import { SourceServiceAssetEntity } from '../../../database/entities/source-service-asset.entity';
+import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
 import 'reflect-metadata';
 import { MODULE_METADATA } from '@nestjs/common/constants';
 import { ConfigService } from '@nestjs/config';
@@ -40,16 +43,21 @@ function config(values: Record<string, unknown>): ConfigService {
 }
 
 describe('Gateway configured credential activation', () => {
+  let database: DataSource;
   let directory: string;
   let file: string;
   let previous: string | undefined;
   beforeEach(async () => {
+    database = await new DataSource({ type: 'sqljs', entities: [SourceServiceAssetEntity, EndpointDefinitionEntity], synchronize: true }).initialize();
+    await database.getRepository(SourceServiceAssetEntity).save({ id: 'asset', sourceKey: 'asset' });
+    await database.getRepository(EndpointDefinitionEntity).save({ id: 'endpoint', sourceServiceAssetId: 'asset', method: 'GET', path: '/items' });
     directory = await fs.realpath(await fs.mkdtemp(join(tmpdir(), 'api-nova-gateway-config-')));
     file = join(directory, 'bindings');
     previous = process.env[secretName];
     process.env[secretName] = 'synthetic-gateway-secret';
   });
   afterEach(async () => {
+    await database.destroy();
     if (previous === undefined) delete process.env[secretName];
     else process.env[secretName] = previous;
     await fs.rm(directory, { recursive: true, force: true });
@@ -75,6 +83,7 @@ describe('Gateway configured credential activation', () => {
         { provide: ConfigService, useValue: config({
           [keys.file]: file, [keys.format]: format, [keys.environment]: 'test',
         }) },
+        { provide: DataSource, useValue: database },
         gatewayUpstreamCredentialRegistryProvider,
         gatewayUpstreamCredentialResolverProvider,
       ],
@@ -112,6 +121,7 @@ describe('Gateway configured credential activation', () => {
         { provide: ConfigService, useValue: config({
           [keys.file]: file, [keys.format]: 'json', [keys.environment]: 'test',
         }) },
+        { provide: DataSource, useValue: database },
         gatewayUpstreamCredentialRegistryProvider,
         gatewayUpstreamCredentialResolverProvider,
       ],
@@ -126,7 +136,7 @@ describe('Gateway configured credential activation', () => {
     await fs.writeFile(file, failure === 'syntax' ? '{"sensitive":"synthetic-gateway-secret"' : JSON.stringify(value));
     const error = await createConfiguredGatewayCredentialRegistry(config({
       [keys.file]: file, [keys.format]: 'json', [keys.environment]: 'test',
-    })).catch(error => error);
+    }), database).catch(error => error);
     expect(error.message).toBe('gateway_upstream_credential_configuration_failed');
     expect(String(error)).not.toContain(file);
     expect(String(error)).not.toContain(secretName);
@@ -139,7 +149,7 @@ describe('Gateway configured credential activation', () => {
     const module = await Test.createTestingModule({ providers: [
       { provide: ConfigService, useValue: config({
         [keys.file]: file, [keys.format]: 'json', [keys.environment]: 'test', [keys.reloadMode]: 'watch',
-      }) }, gatewayUpstreamCredentialRegistryProvider, gatewayUpstreamCredentialResolverProvider,
+      }) }, { provide: DataSource, useValue: database }, gatewayUpstreamCredentialRegistryProvider, gatewayUpstreamCredentialResolverProvider,
     ] }).compile();
     const registry = module.get<UpstreamCredentialRegistry>(GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY);
     try {
@@ -147,6 +157,14 @@ describe('Gateway configured credential activation', () => {
       const route: any = { sourceServiceAsset: { id: 'asset' }, endpointDefinition: { id: 'endpoint' } };
       expect((await resolver.resolve(route, 'https://api.example.com/items')).headers)
         .toEqual({ authorization: 'Bearer synthetic-gateway-secret' });
+      const invalid = document('invalid'); invalid.reload.mode = 'watch';
+      invalid.sites[0].endpoints[0].endpointDefinitionId = 'unknown';
+      await fs.writeFile(file, JSON.stringify(invalid));
+      const rejectionDeadline = Date.now() + 4000;
+      while (registry.getStatus().lastReloadError !== 'ASSET_OWNERSHIP_REJECTED' && Date.now() < rejectionDeadline) {
+        await new Promise(done => setTimeout(done, 20));
+      }
+      expect(registry.getStatus()).toMatchObject({ generation: 1, revision: 'r1', lastReloadError: 'ASSET_OWNERSHIP_REJECTED' });
       const replacement = document('r2'); replacement.reload.mode = 'watch';
       replacement.sites[0].endpoints[0].credential = 'none';
       await fs.writeFile(file, JSON.stringify(replacement));
@@ -171,4 +189,54 @@ describe('Gateway configured credential activation', () => {
     }))).rejects.toThrow('gateway_upstream_credential_configuration_failed');
   });
 
+
+  test.each(['unknown-source', 'unknown-endpoint', 'cross-source', 'unknown-route', 'cross-source-route'] as const)
+  ('rejects %s against real DB, retains old generation, and recovers', async failure => {
+    await database.getRepository(SourceServiceAssetEntity).save({ id: 'other', sourceKey: 'other' });
+    await database.getRepository(EndpointDefinitionEntity).save({ id: 'other-endpoint', sourceServiceAssetId: 'other', method: 'POST', path: '/private' });
+    await fs.writeFile(file, JSON.stringify(document()));
+    const registry = (await createConfiguredGatewayCredentialRegistry(config({
+      [keys.file]: file, [keys.format]: 'json', [keys.environment]: 'test',
+    }), database))!;
+    const before = registry.captureSnapshot();
+    const candidate: any = document('r2');
+    if (failure === 'unknown-source') candidate.sites[0].sourceServiceAssetId = 'missing';
+    if (failure === 'unknown-endpoint') candidate.sites[0].endpoints[0].endpointDefinitionId = 'missing';
+    if (failure === 'cross-source') candidate.sites[0].endpoints[0].endpointDefinitionId = 'other-endpoint';
+    if (failure === 'unknown-route') candidate.sites[0].endpoints = [{ method: 'GET', path: '/absent', credential: 'none' }];
+    if (failure === 'cross-source-route') candidate.sites[0].endpoints = [{ method: 'POST', path: '/private', credential: 'none' }];
+    await fs.writeFile(file, JSON.stringify(candidate));
+    await expect(registry.reloadFile(file, 'json')).rejects.toMatchObject({ code: 'ASSET_OWNERSHIP_REJECTED' });
+    expect(registry.captureSnapshot()).toBe(before);
+    expect(registry.getStatus()).toMatchObject({ generation: 1, lastReloadError: 'ASSET_OWNERSHIP_REJECTED' });
+    const valid: any = document('r3');
+    valid.sites[0].endpoints = [{ method: 'GET', path: '/items', credential: 'none' }];
+    await fs.writeFile(file, JSON.stringify(valid));
+    await registry.reloadFile(file, 'json');
+    expect(registry.getStatus()).toMatchObject({ generation: 2, revision: 'r3' });
+  });
+
+  test('rechecks database removals on each reload and hides database failures', async () => {
+    await fs.writeFile(file, JSON.stringify(document()));
+    const registry = (await createConfiguredGatewayCredentialRegistry(config({
+      [keys.file]: file, [keys.format]: 'json', [keys.environment]: 'test',
+    }), database))!;
+    const before = registry.captureSnapshot();
+    await database.getRepository(EndpointDefinitionEntity).delete('endpoint');
+    await fs.writeFile(file, JSON.stringify(document('r2')));
+    await expect(registry.reloadFile(file, 'json')).rejects.toMatchObject({ code: 'ASSET_OWNERSHIP_REJECTED' });
+    await database.query('DROP TABLE source_service_assets');
+    const error = await registry.reloadFile(file, 'json').catch(error => error);
+    expect(error.code).toBe('ASSET_OWNERSHIP_REJECTED');
+    expect(error.cause).toBeUndefined();
+    expect(String(error)).not.toContain('source_service_assets');
+    expect(registry.captureSnapshot()).toBe(before);
+  });
+
+  test('configured registry refuses startup without authoritative database', async () => {
+    await fs.writeFile(file, JSON.stringify(document()));
+    await expect(createConfiguredGatewayCredentialRegistry(config({
+      [keys.file]: file, [keys.format]: 'json', [keys.environment]: 'test',
+    }))).rejects.toThrow('gateway_upstream_credential_configuration_failed');
+  });
 });

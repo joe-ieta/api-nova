@@ -1,5 +1,5 @@
 ---
-doc-version: 1.29.0
+doc-version: 1.30.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -32,7 +32,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-B3 | SEC-B03；B1/B2/E0 | IN_PROGRESS | tools/list 请求级 scope 过滤 34/34，tools/call 二次检查及会话绑定已有；SDK 内部桥接、持久撤销与权限通知未闭环 |
 | TP-C1 | SEC-C01；A0 | IN_PROGRESS | 纯对象与 JSON/YAML loader 已实现，并经 C3 稳定文件读取激活到 Gateway；完整凭据类型、安全对账与全链路验收仍待完成 |
 | TP-C2 | SEC-C02；C1 | IN_PROGRESS | Env/File Provider 已用于 Registry，Gateway 显式配置激活链已贯通；本机契约历史 53 项通过，真实 Linux 权限 30 场景待补证，Windows Secret File ACL 未适配 |
-| TP-C3 | SEC-C03；C2 | IN_PROGRESS | Stable Read、manual及Watch/debounce、受权Reload/状态和代次冲突已验证；C3-01完成，C3-02 DB归属与C3-03多进程待验 |
+| TP-C3 | SEC-C03；C2 | IN_PROGRESS | Stable Read、manual及Watch/debounce、受权Reload/状态和代次冲突已验证；C3-01 Watch与C3-02 DB归属完成，C3-03多进程待验 |
 | TP-C4 | SEC-C04；C3 | IN_PROGRESS | Gateway与显式MCP single-hop Resolver已验证；SEC-C4-01验收真实受管child执行及Unresolved门禁，依赖E1/F1；网络政策主归F3，不在C4复制实现 |
 | TP-D1 | SEC-D01；C4 | IN_PROGRESS | 消费者/逐跳/托管Header清理及共享Resolver已用于Gateway；Connection大小写联合提名、代理生成字段去别名和XFF不重引入已补；业务Header Allowlist、缓存/传输兼容和保留字段统一策略仍未完成，30 项 D1/F3 矩阵为 draft |
 | TP-D2 | SEC-D02；B1/B2/D1 | IN_PROGRESS | 认证先于缓存，身份隔离及独立IP/Anonymous Bucket已通过真实HTTP；D2-01完成，完整Global/Runtime/Route/Credential/IP组合及多节点验收未完成 |
@@ -655,3 +655,7 @@ SEC-D2-01按原定义DONE。真实HTTP证明暖缓存仍计数、伪造转发头
 [真实闭环验收](../audits/2026-09-21-auth-publication-loop.md)补齐A1-02D。Gateway实际策略编译、候选回放、事务激活与冷恢复后18项HTTP通过；MCP真实RuntimeAssets发布、失败不激活/保留旧版、磁盘重开、6次实际CLI与tools/call通过；stdio12/12复验local_process。两个启动缺陷由真实链发现并修复。
 
 对照归档TP-A1原退出条件与当前SEC-A01：Gateway/MCP三模式已收敛，stdio明确local_process；旧OAuth/非法模式不转为可调用策略，现有UI禁用占位不属于可提交模式。结合A/B1-B4/C先前证据，A1父包DONE。MCP管理摘要effective仍为unknown，测试中的真实鉴权结果不被写成生产探测状态。管理HTTP规范下载鉴权、浏览器自动化、Linux与生产部署分别未据此验收。
+
+## Registry配置归属验证（2026-09-21）
+
+C3-02完成。Gateway每次配置激活在可信DB一致读事务中核验Source存在、Endpoint ID或method/path属于该Source；数据库错误和跨源配置失败保旧并输出固定错误。Parser宿主回调不能由配置文件注入。详见[归属验收](../audits/2026-09-21-registry-db-ownership.md)。C3-03转READY，父包C3仍IN_PROGRESS。
