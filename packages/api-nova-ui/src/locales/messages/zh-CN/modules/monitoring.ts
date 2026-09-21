@@ -1,6 +1,17 @@
 export default {
   monitoring: {
     mcpPublication: {
+      "anonymousRisk": "任何能访问此端点的人都可在授权范围内调用。到期后请求会被拒绝；已有临时授权不能清空为永久匿名。",
+      "temporary": "使用临时匿名授权",
+      "reason": "申请原因",
+      "expiry": "到期时间（本地时间，提交时含时区）",
+      "productionPermit": "允许此授权用于生产环境",
+      "productionHint": "生产环境还需管理员在服务端启用许可；勾选不会单独开放生产访问。",
+      "grantedBy": "已保存授权人",
+      "permanentHint": "当前为显式永久匿名，没有自动到期限制。建议启用临时授权。",
+      "anonymousReasonError": "请填写 1 至 500 字的申请原因。",
+      "anonymousExpiryError": "请设置有效的未来到期时间；过期授权不会退回永久匿名。",
+      "anonymousRejectedError": "服务端拒绝了临时匿名授权：请检查期限及生产许可。草稿已保留。",
       "draftAuthMode": "部署草稿鉴权模式",
       "authMode": "已配置的入站鉴权模式",
       "private_jwt": "私有 JWT",

@@ -2,8 +2,24 @@ export type McpInboundAuthMode = 'private_jwt' | 'private_api_key' | 'anonymous'
 export function configuredMcpMode(value: unknown): McpInboundAuthMode | undefined {
   return value === 'private_jwt' || value === 'private_api_key' || value === 'anonymous' ? value : undefined;
 }
+export const temporaryAnonymousDraft = (saved?: any) => ({ enabled: saved !== undefined, locked: saved !== undefined, reason: typeof saved?.reason === 'string' ? saved.reason : '', expiresAt: typeof saved?.expiresAt === 'string' ? saved.expiresAt : '', allowProduction: saved?.allowProduction === true, actor: typeof saved?.actor === 'string' ? saved.actor : '' });
+export function temporaryAnonymousError(draft: ReturnType<typeof temporaryAnonymousDraft>): 'anonymousReason' | 'anonymousExpiry' | null {
+  if (!draft.enabled && !draft.locked) return null;
+  if (!draft.reason.trim() || draft.reason.trim().length > 500) return 'anonymousReason';
+  if (typeof draft.expiresAt !== 'string' || !/(Z|[+-]\d{2}:\d{2})$/i.test(draft.expiresAt) || !Number.isFinite(Date.parse(draft.expiresAt)) || Date.parse(draft.expiresAt) <= Date.now()) return 'anonymousExpiry';
+  return null;
+}
+export function temporaryAnonymousInput(draft: ReturnType<typeof temporaryAnonymousDraft>) {
+  return draft.enabled || draft.locked ? { reason: draft.reason.trim(), expiresAt: new Date(draft.expiresAt).toISOString(), allowProduction: draft.allowProduction } : undefined;
+}
+export function gatewayTemporaryAnonymousConfig(form: { routeVisibility: string; authPolicyRef: string; upstreamConfig: Record<string, unknown>; temporaryAnonymous: ReturnType<typeof temporaryAnonymousDraft> }) {
+  if (form.routeVisibility !== 'external' || !/^anonymous(?:[-_:].+)?$/i.test(form.authPolicyRef.trim())) return {};
+  const error = temporaryAnonymousError(form.temporaryAnonymous); if (error) throw new Error(error);
+  const grant = temporaryAnonymousInput(form.temporaryAnonymous);
+  return grant ? { upstreamConfig: { ...form.upstreamConfig, temporaryAnonymous: grant } } : {};
+}
 export type McpTransport = 'streamable' | 'sse';
-export interface McpDeploymentInput { targetServerId?: string; inboundAuthMode?: McpInboundAuthMode; transport?: McpTransport; port?: number; endpointPath?: string; missingSmokeWaiverReason?: string; autoStart?: boolean; name?: string; description?: string; }
+export interface McpDeploymentInput { temporaryAnonymous?: { reason: string; expiresAt: string; allowProduction: boolean }; targetServerId?: string; inboundAuthMode?: McpInboundAuthMode; transport?: McpTransport; port?: number; endpointPath?: string; missingSmokeWaiverReason?: string; autoStart?: boolean; name?: string; description?: string; }
 export interface McpEndpointPreview { inboundAuthMode: McpInboundAuthMode | 'unknown'; effectiveInboundAuthMode: 'unknown'; transport: McpTransport; port: number | null; endpointPath: string; portMode: 'automatic' | 'existing' | 'explicit'; consumerUrl: string | null; messagesUrl: string | null; addressScope: 'loopback'; availability: 'not_checked'; }
 export async function mcpPublicationRequest(id: string, operation: 'detail' | 'preview' | 'deploy' | 'redeploy', token: string, signal: AbortSignal, input?: McpDeploymentInput) {
   const suffix = operation === 'detail' ? '' : operation === 'preview' ? '/mcp-endpoint-preview' : operation === 'redeploy' ? '/redeploy' : '/deploy-mcp';
@@ -15,12 +31,13 @@ export async function mcpPublicationRequest(id: string, operation: 'detail' | 'p
   const body = await response.json();
   if (!response.ok) {
     const code = body?.code ?? body?.message?.code;
+    if (typeof body?.message === 'string' && /temporary[ _]anonymous/i.test(body.message)) throw new Error('TEMPORARY_ANONYMOUS_REJECTED');
     throw new Error(['MCP_INBOUND_AUTH_MODE_REQUIRED', 'MCP_INBOUND_AUTH_MODE_CHANGE_REQUIRES_STOP'].includes(code) ? code : 'MCP_PUBLICATION_FAILED');
   }
   return body;
 }
 export const mcpPublicationState = () => ({ visible: false, loading: false, previewLoading: false, saving: false,
-  error: null as 'load' | 'preview' | 'deploy' | 'authRequired' | 'authStop' | null, id: '', transport: 'streamable' as McpTransport,
+  temporaryAnonymous: temporaryAnonymousDraft(), error: null as 'load' | 'preview' | 'deploy' | 'authRequired' | 'authStop' | 'anonymousReason' | 'anonymousExpiry' | 'anonymousRejected' | null, id: '', transport: 'streamable' as McpTransport,
   inboundAuthMode: undefined as McpInboundAuthMode | undefined, savedInboundAuthMode: undefined as McpInboundAuthMode | undefined,
   port: undefined as number | undefined, endpointPath: '/mcp', targetServerId: undefined as string | undefined,
   actualEndpoint: null as string | null, actualStatus: null as string | null, preview: null as McpEndpointPreview | null });
@@ -41,11 +58,12 @@ export class McpPublicationForm {
   private begin() { this.controller?.abort(); const controller = new AbortController(); this.controller = controller;
     const generation = ++this.generation; const deadline = setTimeout(() => controller.abort(), 10000);
     return { controller, generation, finish: () => clearTimeout(deadline) }; }
-  private input(): McpDeploymentInput { return { targetServerId: this.state.targetServerId, inboundAuthMode: this.state.inboundAuthMode, transport: this.state.transport,
+  private input(): McpDeploymentInput { return { ...(this.state.inboundAuthMode === 'anonymous' && !temporaryAnonymousError(this.state.temporaryAnonymous) ? { temporaryAnonymous: temporaryAnonymousInput(this.state.temporaryAnonymous) } : {}), targetServerId: this.state.targetServerId, inboundAuthMode: this.state.inboundAuthMode, transport: this.state.transport,
     ...(this.state.port === undefined ? {} : { port: this.state.port }), endpointPath: this.state.endpointPath,
     ...(this.waiver ? { missingSmokeWaiverReason: this.waiver } : {}) }; }
-  authBlock(): 'authRequired' | 'authStop' | null {
+  authBlock(): 'authRequired' | 'authStop' | 'anonymousReason' | 'anonymousExpiry' | null {
     if (!configuredMcpMode(this.state.inboundAuthMode)) return 'authRequired';
+    if (this.state.inboundAuthMode === 'anonymous' && temporaryAnonymousError(this.state.temporaryAnonymous)) return temporaryAnonymousError(this.state.temporaryAnonymous);
     return this.state.actualStatus === 'running' && this.state.inboundAuthMode !== this.state.savedInboundAuthMode ? 'authStop' : null;
   }
   async load() {
@@ -57,6 +75,7 @@ export class McpPublicationForm {
       if (detail?.asset?.type !== 'mcp_server') throw new Error('INVALID_DETAIL');
       const server = detail.managedServer;
       if (server && (!['streamable', 'sse'].includes(server.transport) || !Number.isInteger(server.port))) throw new Error('INVALID_DETAIL');
+      this.state.temporaryAnonymous = temporaryAnonymousDraft(server?.temporaryAnonymous);
       this.state.savedInboundAuthMode = configuredMcpMode(server?.inboundAuthMode);
       this.state.inboundAuthMode = this.state.savedInboundAuthMode;
       this.state.transport = server?.transport ?? 'streamable'; this.state.port = server?.port;
@@ -90,7 +109,7 @@ export class McpPublicationForm {
       if (this.valid(task.generation)) this.close(true);
     } catch (error) { if (this.valid(task.generation)) {
       this.state.error = error instanceof Error && error.message === 'MCP_INBOUND_AUTH_MODE_REQUIRED' ? 'authRequired'
-        : error instanceof Error && error.message === 'MCP_INBOUND_AUTH_MODE_CHANGE_REQUIRES_STOP' ? 'authStop' : 'deploy';
+        : error instanceof Error && error.message === 'MCP_INBOUND_AUTH_MODE_CHANGE_REQUIRES_STOP' ? 'authStop' : error instanceof Error && error.message === 'TEMPORARY_ANONYMOUS_REJECTED' ? 'anonymousRejected' : 'deploy';
       this.state.preview = null;
     } }
     finally { task.finish(); if (this.valid(task.generation)) this.state.saving = false; }

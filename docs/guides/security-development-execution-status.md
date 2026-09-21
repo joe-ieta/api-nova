@@ -1,5 +1,5 @@
 ---
-doc-version: 1.36.0
+doc-version: 1.37.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -40,7 +40,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-E1 | SEC-E01；B3/C4/E0 | IN_PROGRESS | 可信映射、管理侧装配/发布读取、跨源校验及旧候选guard已验；SEC-E1-01~04负责技术方案、真实child接线、argv秘密移除、端到端与运行中撤销；管理侧继续微修不替代出口 |
 | TP-E2 | SEC-E02；E1 | IN_PROGRESS | 安全 smoke/跨进程/传输专项有历史证据；当前完整安全矩阵、撤销/取消/重连和平台组合未完成 |
 | TP-F1 | SEC-F01；C4 | BACKLOG | OpenAPI security 提取已有；四态安全对账、Binding 兼容和 OR/AND 不弱化未闭环 |
-| TP-F2 | SEC-F02；A3/B1/C3/F1 | IN_PROGRESS | 凭证管理与模式展示已有；本轮纠正缺策略显示匿名，完整分区、匿名风险和 Reload 状态待完成 |
+| TP-F2 | SEC-F02；A3/B1/C3/F1 | IN_PROGRESS | F2-02临时匿名申请/风险/到期与拒绝反馈已验；F2-01完整分区与Reload状态展示仍待完成，非全界面验收 |
 | TP-F3 | SEC-F03；C4/D1/E1 | IN_PROGRESS | 拒绝审计/脱敏/发送边界已有；业务上游 SSRF、CLI 秘密、生命周期审计和完整 Secret Scan 未完成 |
 | TP-F3a | 供应链治理；独立 | IN_PROGRESS | 旧依赖审计只是历史快照；当前可达性、补丁兼容和风险需重审，不自动 audit fix/重大升级 |
 | TP-F4 | 全量验收；D2/E2/F1/F2/F3/F3a | BACKLOG | 完整安全矩阵、依赖审计、Linux/Windows 和对外交付门禁未满足 |
@@ -685,3 +685,7 @@ D2-02完成，见[组合证据](../audits/2026-09-21-layered-rate-limit-composit
 ## JWT参数闭环（2026-09-21）
 
 [实际生命周期证据](../audits/2026-09-21-jwt-policy-lifecycle.md)关闭B2-01与TP-B2。Gateway和MCP共享参数，MCP运行中改变策略必须先停止；固定信任源未改为令牌驱动。
+
+## 临时匿名界面（2026-09-21）
+
+[F2-02证据](../audits/2026-09-21-temporary-anonymous-ui.md)闭合匿名表单与反馈，SSR/表单26项及构建通过；浏览器点击不据此签收。F2其他出口保持独立。

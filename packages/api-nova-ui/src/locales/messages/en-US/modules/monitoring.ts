@@ -1,6 +1,17 @@
 export default {
   monitoring: {
     mcpPublication: {
+      "anonymousRisk": "Anyone who can reach this endpoint may invoke allowed operations. Requests are denied after expiry. Existing temporary grants cannot be cleared into permanent access.",
+      "temporary": "Use temporary anonymous access",
+      "reason": "Reason",
+      "expiry": "Expires at (local time; submitted with timezone)",
+      "productionPermit": "Allow this grant in production",
+      "productionHint": "Production also requires host administrator approval. This checkbox alone does not enable production access.",
+      "grantedBy": "Saved actor",
+      "permanentHint": "Explicit permanent anonymous access has no automatic expiry. Consider a temporary grant.",
+      "anonymousReasonError": "Enter a reason between 1 and 500 characters.",
+      "anonymousExpiryError": "Choose a valid future expiry. Expired grants never fall back to permanent access.",
+      "anonymousRejectedError": "The server rejected the temporary grant. Check expiry and production permission. Your draft is preserved.",
       "draftAuthMode": "Deployment draft authentication mode",
       "authMode": "Saved inbound authentication mode",
       "private_jwt": "Private JWT",

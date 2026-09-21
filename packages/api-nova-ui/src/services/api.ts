@@ -960,6 +960,7 @@ export const serverAPI = {
       upstreamMethod?: string;
       routeVisibility?: string;
       authPolicyRef?: string;
+      upstreamConfig?: Record<string, unknown>;
       trafficPolicyRef?: string;
       timeoutMs?: number;
     },

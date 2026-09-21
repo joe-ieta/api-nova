@@ -1,5 +1,5 @@
 ---
-doc-version: 1.11.0
+doc-version: 1.12.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -76,7 +76,7 @@ doc-updated: 2026-09-21
 | SEC-F1-01 | [安全规划](./security-development-task-plan.md) | **准备**：Unsecured/Declared/Configured/Verified 与 OR/AND/Binding 转移表尚未定稿。 |
 | SEC-F1-02 | [OpenAPI 提取测试](../../packages/api-nova-parser/tests/unit/security-extractor.test.ts)、[发布测试](../../packages/api-nova-api/src/modules/publication/services/publication.service.spec.ts) | **历史执行/待验收**：提取与发布各有局部覆盖；受保护未配置/未验证阻止发布、OR/AND 不弱化仍无当前执行证据。 |
 | SEC-F2-01 | [安全台账 §10/14](./security-development-execution-status.md)、[UI 工作区](../../packages/api-nova-ui/src/modules/runtime-assets/RuntimeAssetDetail.vue) | **限定执行/待验收**：缺策略不误显示匿名已修；Consumer/Upstream 分区、Binding revision 与真实 Reload generation/恢复界面未闭合。 |
-| SEC-F2-02 | 无申请/到期全链 UI 当前脚本 | **待验收**：匿名风险、原因、到期与服务端拒绝一致性依赖 A3。 |
+| SEC-F2-02 | [匿名UI证据](../audits/2026-09-21-temporary-anonymous-ui.md) | **限定执行/DONE**：Gateway/MCP申请、到期/生产风险与拒绝显示，26/26和构建；无真实浏览器点击验收。 |
 | SEC-F3-01 | [请求头与网络边界合同](./security-header-network-boundary-contract.md) | **准备**：DNS、连接、redirect、代理与内网例外政策仍是提案；单跳/零自动 redirect 不是 SSRF 完成。 |
 | SEC-F3-02 | 同上；无完整网络拒绝执行脚本 | **待验收**：DNS 全集分类、地址绑定/peer、逐跳凭据重建与代理边界均未形成可执行防线和矩阵。 |
 | SEC-F3-03 | [安全用例](../testing/runtime-security-audit-cases.md)、[受管通道脚本](../../packages/api-nova-api/scripts/test-managed-mcp-channel.cjs) | **限定执行/待验收**：局部脱敏与 IPC 无 argv Secret 有证据；完整 argv/log/错误/快照 Secret Scan、创建/更新/撤销审计可检索依赖产品 E1。 |

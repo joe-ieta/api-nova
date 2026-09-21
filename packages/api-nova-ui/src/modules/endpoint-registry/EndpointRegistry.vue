@@ -1781,6 +1781,7 @@
           <el-form-item :label="t('endpointRegistry.form.authPolicyRef')">
             <el-input v-model="publicationForm.authPolicyRef" clearable />
           </el-form-item>
+          <TemporaryAnonymousEditor v-if="publicationForm.routeVisibility === 'external' && /^anonymous(?:[-_:].+)?$/i.test(publicationForm.authPolicyRef.trim())" :draft="publicationForm.temporaryAnonymous" />
           <el-form-item :label="t('endpointRegistry.form.trafficPolicyRef')">
             <el-input v-model="publicationForm.trafficPolicyRef" clearable />
           </el-form-item>
@@ -1937,6 +1938,8 @@ import OperationTimeline from "@/shared/components/ui/OperationTimeline.vue";
 import SourceServiceInstancesDialog from "./SourceServiceInstancesDialog.vue";
 import EndpointTestSamplesDialog from "./EndpointTestSamplesDialog.vue";
 import RuntimeUpstreamBindingDialog from "./RuntimeUpstreamBindingDialog.vue";
+import TemporaryAnonymousEditor from '@/modules/runtime-assets/TemporaryAnonymousEditor.vue';
+import { temporaryAnonymousDraft, temporaryAnonymousError, gatewayTemporaryAnonymousConfig } from '@/services/mcp-publication';
 import { gatewayAuthFieldsForSave, gatewayVisibilityForForm } from "./gateway-route-auth";
 
 const { t } = useI18n();
@@ -2278,6 +2281,8 @@ const publicationForm = ref({
   upstreamMethod: "GET",
   routeVisibility: "internal",
   authPolicyRef: "",
+  upstreamConfig: {} as Record<string, any>,
+  temporaryAnonymous: temporaryAnonymousDraft(),
   trafficPolicyRef: "",
   timeoutMs: undefined as number | undefined,
 });
@@ -3837,6 +3842,8 @@ const resetPublicationForm = () => {
     upstreamMethod: "GET",
     routeVisibility: "internal",
     authPolicyRef: "",
+    upstreamConfig: {} as Record<string, any>,
+    temporaryAnonymous: temporaryAnonymousDraft(),
     trafficPolicyRef: "",
     timeoutMs: undefined,
   };
@@ -4511,6 +4518,8 @@ const openPublicationEditDialog = async (row: EndpointRow) => {
     upstreamMethod: routeBinding.upstreamMethod || "GET",
     routeVisibility: gatewayVisibilityForForm(routeBinding.routeVisibility),
     authPolicyRef: routeBinding.authPolicyRef || "",
+    upstreamConfig: routeBinding.upstreamConfig || {},
+    temporaryAnonymous: temporaryAnonymousDraft(routeBinding.upstreamConfig?.temporaryAnonymous),
     trafficPolicyRef: routeBinding.trafficPolicyRef || "",
     timeoutMs:
       typeof routeBinding.timeoutMs === "number" ? routeBinding.timeoutMs : undefined,
@@ -4521,6 +4530,9 @@ const openPublicationEditDialog = async (row: EndpointRow) => {
 const submitPublicationForm = async () => {
   if (!publicationMembershipId.value) return;
   try {
+    const anonymous = publicationRuntimeType.value === "gateway_service" && publicationForm.value.routeVisibility === "external" && /^anonymous(?:[-_:].+)?$/i.test(publicationForm.value.authPolicyRef.trim());
+    const grantError = anonymous ? temporaryAnonymousError(publicationForm.value.temporaryAnonymous) : null;
+    if (grantError) { ElMessage.error(t("monitoring.mcpPublication." + grantError + "Error")); return; }
     publicationSaving.value = true;
     await serverAPI.updatePublicationRuntimeMembershipProfile(
       publicationMembershipId.value,
@@ -4542,6 +4554,7 @@ const submitPublicationForm = async () => {
           routeMethod: publicationForm.value.routeMethod || undefined,
           upstreamMethod: publicationForm.value.upstreamMethod || undefined,
           ...gatewayAuthFieldsForSave(publicationForm.value),
+          ...gatewayTemporaryAnonymousConfig(publicationForm.value),
           trafficPolicyRef: publicationForm.value.trafficPolicyRef.trim() || undefined,
           timeoutMs: publicationForm.value.timeoutMs,
         },
@@ -4552,7 +4565,7 @@ const submitPublicationForm = async () => {
     showPublicationDialog.value = false;
     await loadOverview();
   } catch (error: any) {
-    ElMessage.error(error?.message || t("endpointRegistry.messages.publicationConfigUpdateFailed"));
+    ElMessage.error(/temporary[ _]anonymous/i.test(String(error?.response?.data?.message || error?.message)) ? t("monitoring.mcpPublication.anonymousRejectedError") : error?.message || t("endpointRegistry.messages.publicationConfigUpdateFailed"));
   } finally {
     publicationSaving.value = false;
   }

@@ -154,7 +154,7 @@ test("actual dialog template renders unknown effective mode and disabled unknown
   const f = fixture(t); f.form.open("asset"); await tick();
   async function render() {
     const app = createSSRApp(defineComponent({ setup: () => ({ state: f.state, form: f.form, t: key => key.split(".").pop() }), ssrRender: templateModule.exports.ssrRender }));
-    for (const name of ["ElDialog", "ElForm", "ElFormItem", "ElSelect", "ElOption", "ElInputNumber", "ElInput", "ElAlert", "ElButton"]) {
+    for (const name of ["TemporaryAnonymousEditor", "ElDialog", "ElForm", "ElFormItem", "ElSelect", "ElOption", "ElInputNumber", "ElInput", "ElAlert", "ElButton"]) {
       app.component(name, defineComponent({ inheritAttrs: false, setup: (_, { slots, attrs }) => () =>
         h(name === "ElButton" ? "button" : "section", { disabled: attrs.disabled || undefined, title: attrs.title }, [slots.default?.(), slots.footer?.()]) }));
     }
@@ -199,3 +199,44 @@ test("actual runtime detail summary handles undeployed MCP and excludes auth lab
     } else { assert.doesNotMatch(html, /authMode|effectiveAuth/); }
   }
 });
+
+test("temporary grant saves and refills exact policy without submitting actor", async t => {
+  let stored = { ...detail.managedServer, inboundAuthMode: "anonymous", temporaryAnonymous: { reason: "review", expiresAt: new Date(Date.now()+3600000).toISOString(), allowProduction: false, actor: "operator-original" } };
+  const f=fixture(t, async (_id,op,_token,_signal,input) => { if(op==='detail') return {asset:detail.asset,managedServer:stored}; if(op==='deploy'){ assert.equal(input.temporaryAnonymous.actor,undefined); stored={...stored,temporaryAnonymous:{...input.temporaryAnonymous,actor:'operator-current'}};return {}; }return preview(input); });
+  f.form.open('asset');await tick();assert.equal(f.state.temporaryAnonymous.locked,true);assert.equal(f.state.temporaryAnonymous.actor,'operator-original');
+  f.state.temporaryAnonymous.reason='renewed';await f.form.save();f.form.open('asset');await tick();assert.equal(f.state.temporaryAnonymous.reason,'renewed');assert.equal(f.state.temporaryAnonymous.actor,'operator-current');
+});
+test("expired, cleared, unzoned and missing reason grants block before deployment", async t => {
+  const f=fixture(t);f.form.open('asset');await tick();f.state.inboundAuthMode='anonymous';f.state.temporaryAnonymous=api.temporaryAnonymousDraft({reason:'review',expiresAt:new Date(Date.now()-1000).toISOString()});await f.form.refresh();
+  await f.form.save();assert.equal(f.state.error,'anonymousExpiry');assert.equal(f.calls.filter(x=>x[1]==='deploy').length,0);
+  for(const expiry of [null,'','2035-01-01T12:00:00']) {f.state.temporaryAnonymous.expiresAt=expiry;assert.equal(f.form.authBlock(),'anonymousExpiry');}
+  f.state.temporaryAnonymous.expiresAt=new Date(Date.now()+60000).toISOString();f.state.temporaryAnonymous.reason=' ';assert.equal(f.form.authBlock(),'anonymousReason');
+  f.state.temporaryAnonymous.enabled=false;assert.equal(f.form.authBlock(),'anonymousReason');
+});
+test("temporary production rejection preserves editable draft and requires new preview", async t => {
+  const f=fixture(t,async (_id,op,_token,_signal,input)=> {if(op==='deploy')throw new Error('TEMPORARY_ANONYMOUS_REJECTED');return op==='detail'?detail:preview(input)});
+  f.form.open('asset');await tick();f.state.inboundAuthMode='anonymous';f.state.temporaryAnonymous=api.temporaryAnonymousDraft({reason:'production check',expiresAt:new Date(Date.now()+60000).toISOString(),allowProduction:true});await f.form.refresh();await f.form.save();assert.equal(f.state.error,'anonymousRejected');assert.equal(f.state.temporaryAnonymous.allowProduction,true);assert.equal(f.state.visible,true);assert.equal(f.state.preview,null);
+});
+test("HTTP adapter maps temporary grant refusal without exposing raw server error",async t=>{const original=global.fetch;t.after(()=>global.fetch=original);global.fetch=async()=>({ok:false,json:async()=>({message:'Temporary anonymous grant is invalid, expired or not allowed'})});await assert.rejects(api.mcpPublicationRequest('a','deploy','token',new AbortController().signal,{}),/TEMPORARY_ANONYMOUS_REJECTED/);});
+test("Gateway grant merge preserves upstream settings and permanent/protected semantics",()=>{
+ const form={routeVisibility:'external',authPolicyRef:'anonymous-team',upstreamConfig:{timeout:10},temporaryAnonymous:api.temporaryAnonymousDraft({reason:'review',expiresAt:new Date(Date.now()+60000).toISOString(),actor:'trusted'})};
+ const saved=api.gatewayTemporaryAnonymousConfig(form);assert.equal(saved.upstreamConfig.timeout,10);assert.equal(saved.upstreamConfig.temporaryAnonymous.actor,undefined);
+ const reopened=api.temporaryAnonymousDraft({...saved.upstreamConfig.temporaryAnonymous,actor:'server-actor'});assert.equal(reopened.reason,'review');assert.equal(reopened.locked,true);
+ assert.deepEqual(api.gatewayTemporaryAnonymousConfig({...form,routeVisibility:'internal'}),{});assert.deepEqual(api.gatewayTemporaryAnonymousConfig({...form,authPolicyRef:'jwt'}),{});assert.deepEqual(api.gatewayTemporaryAnonymousConfig({...form,temporaryAnonymous:api.temporaryAnonymousDraft()}),{});
+ assert.throws(()=>api.gatewayTemporaryAnonymousConfig({...form,temporaryAnonymous:{...reopened,expiresAt:'2000-01-01T00:00:00Z'}}),/anonymousExpiry/);
+});
+
+test("actual anonymous editor renders saved actor, expiry errors and production warning",async()=>{
+ const {parse,compileTemplate}=require('@vue/compiler-sfc'),{createSSRApp,defineComponent,h}=require('vue'),{renderToString}=require('@vue/server-renderer');
+ const source=fs.readFileSync(path.resolve(__dirname,'../src/modules/runtime-assets/TemporaryAnonymousEditor.vue'),'utf8');
+ const compiled=compileTemplate({source:parse(source).descriptor.template.content,filename:'TemporaryAnonymousEditor.vue',id:'grant-editor-test',ssr:true,ssrCssVars:[]});assert.deepEqual(compiled.errors,[]);
+ const templateModule=new Module(filename+'.grant-template',module);templateModule.paths=loaded.paths;templateModule._compile(ts.transpileModule(compiled.code,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,filename+'.grant-template');
+ for(const enabled of [true,false]) {
+  const draft=enabled?api.temporaryAnonymousDraft({reason:'test',expiresAt:'2000-01-01T00:00:00Z',actor:'saved-operator'}):api.temporaryAnonymousDraft();
+  const app=createSSRApp(defineComponent({setup:()=>({draft,temporaryAnonymousError:api.temporaryAnonymousError,t:key=>key.split('.').pop()}),ssrRender:templateModule.exports.ssrRender}));
+  for(const name of ['ElAlert','ElCheckbox','ElFormItem','ElInput','ElDatePicker'])app.component(name,defineComponent({inheritAttrs:false,setup:(_, {slots,attrs})=>()=>h('section',{title:attrs.title,disabled:attrs.disabled||undefined},slots.default?.())}));
+  const html=await renderToString(app);assert.match(html,/anonymousRisk/);if(enabled){assert.match(html,/anonymousExpiryError/);assert.match(html,/productionHint/);assert.match(html,/saved-operator/);assert.match(html,/disabled/);}else assert.match(html,/permanentHint/);
+ }
+});
+
+test('temporary refusal adapter accepts textual and structured-code formats',async t=>{const original=global.fetch;t.after(()=>global.fetch=original);for(const message of ['Temporary anonymous grant is invalid, expired or not allowed','temporary_anonymous_expired','temporary_anonymous_production_forbidden']){global.fetch=async()=>({ok:false,json:async()=>({message})});await assert.rejects(api.mcpPublicationRequest('a','deploy','token',new AbortController().signal,{}),/TEMPORARY_ANONYMOUS_REJECTED/);}});

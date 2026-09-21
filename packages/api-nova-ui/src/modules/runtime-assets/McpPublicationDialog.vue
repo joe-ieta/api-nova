@@ -8,6 +8,7 @@
       </el-form-item>
       <el-alert v-if="form.authBlock()" :title="t('monitoring.mcpPublication.' + form.authBlock() + 'Error')" type="warning" :closable="false" />
       <p v-if="state.inboundAuthMode === 'anonymous'">{{ t('monitoring.mcpPublication.anonymousHint') }}</p>
+      <TemporaryAnonymousEditor v-if="state.inboundAuthMode === 'anonymous'" :draft="state.temporaryAnonymous" />
       <el-form-item :label="t('monitoring.mcpPublication.transport')"><el-select v-model="state.transport"><el-option label="Streamable HTTP" value="streamable" /><el-option label="SSE" value="sse" /></el-select></el-form-item>
       <el-form-item :label="t('monitoring.mcpPublication.port')"><el-input-number v-model="state.port" :min="1024" :max="65535" :precision="0" /></el-form-item>
       <p>{{ t('monitoring.mcpPublication.automatic') }}</p>
@@ -31,6 +32,7 @@
   </el-dialog>
 </template>
 <script setup lang="ts">
+import TemporaryAnonymousEditor from '@/modules/runtime-assets/TemporaryAnonymousEditor.vue';
 import { reactive, watch, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -39,6 +41,7 @@ import { McpPublicationForm, mcpPublicationState } from '@/services/mcp-publicat
 const { t } = useI18n(); const auth = useAuthStore(); const state = reactive(mcpPublicationState());
 const form = new McpPublicationForm(state, () => auth.accessToken && auth.currentUser?.id ?
   { key: JSON.stringify([auth.currentUser.id, auth.accessToken]), token: auth.accessToken } : null);
+watch(() => state.inboundAuthMode, mode => { if (mode === 'anonymous' && state.savedInboundAuthMode !== 'anonymous') state.temporaryAnonymous.enabled = true; });
 watch([() => state.inboundAuthMode, () => state.transport, () => state.port, () => state.endpointPath], () => { void form.refresh(); }, { flush: 'sync' });
 watch([() => auth.accessToken, () => auth.currentUser?.id], () => form.close(), { flush: 'sync' });
 const route = useRoute();

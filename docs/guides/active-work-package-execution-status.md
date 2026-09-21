@@ -1,5 +1,5 @@
 ---
-doc-version: 1.52.0
+doc-version: 1.53.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,9 +14,9 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 70 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 71 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 18 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | SEC-F2-02 |
+| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
 | WAIT_DEP | 23 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -77,7 +77,7 @@ doc-updated: 2026-09-21
 | SEC-F1-01 | READY | 不回塞到C1造成循环 |
 | SEC-F1-02 | WAIT_DEP | 未完成 |
 | SEC-F2-01 | READY | 缺策略文案已完成 |
-| SEC-F2-02 | IN_PROGRESS | Gateway/MCP匿名申请、原因/到期与生产风险显示接通既有服务端策略 |
+| SEC-F2-02 | DONE | Gateway/MCP临时匿名原因/到期/生产风险和actor回显，保存重开及拒绝反馈；UI构建、表单/真实模板26/26，浏览器点击未验，见UI证据 |
 | SEC-F3-01 | READY | 不将零redirect称SSRF完成 |
 | SEC-F3-02 | WAIT_DEP | 未完成 |
 | SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
@@ -203,3 +203,5 @@ B1-02、A3-01完成，见[真实闭环证据](../audits/2026-09-21-live-rotation
 B3-01真实双传输通过，见[会话证据](../audits/2026-09-21-persistent-session-revocation.md)。B2-01/F2-02并行实现和集成继续；不重复增加验证子任务。
 
 B2-01完成，见[JWT参数证据](../audits/2026-09-21-jwt-policy-lifecycle.md)，安全父包B2原出口闭合。F2-02界面收尾继续。
+
+F2-02已完成，见[匿名界面证据](../audits/2026-09-21-temporary-anonymous-ui.md)。本批DONE 68→71，132总量不变；B3与B2已分别推送c044ca2、30f6a71，本UI随本报告单独提交推送。当前无遗留IN_PROGRESS叶子，剩余18 READY、23 WAIT_DEP、17 NEED_ENV、1 SCOPE_REVIEW、2 DEFERRED按原条件继续。
