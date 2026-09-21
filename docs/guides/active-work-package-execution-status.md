@@ -1,5 +1,5 @@
 ---
-doc-version: 1.46.0
+doc-version: 1.47.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,9 +14,9 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 63 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 64 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 20 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 2 | SEC-B1-01、SEC-C2-02 |
+| IN_PROGRESS | 1 | SEC-B1-01 |
 | WAIT_DEP | 27 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -53,7 +53,7 @@ doc-updated: 2026-09-21
 | SEC-C1-01 | READY | header API Key/Bearer已有 |
 | SEC-C1-02 | WAIT_DEP | 类型很多时逐类型再拆后执行 |
 | SEC-C2-01 | NEED_ENV | Env/File本机实现已有 |
-| SEC-C2-02 | IN_PROGRESS | 实现Windows受限ACL真实检查与隔离文件拒绝验收，不修改现有秘密权限 |
+| SEC-C2-02 | DONE | Windows原生句柄ACL验证；真实NTFS28/28主任务独立复跑，越权/链接/替换/并发写入均通过；依赖系统PowerShell与Add-Type，Linux另验 |
 | SEC-C3-01 | DONE | 固定文件Watch/debounce、坏文件保旧、admin锁内代次检查和Nest关闭已通过；Windows真实监听8/8、Parser252/252、Gateway31/31；见2026-09-21-registry-watch证据 |
 | SEC-C3-02 | DONE | Gateway启动/manual/watch激活均强制真实DB Source/Endpoint归属校验，未知/跨源/查询失败保旧；Parser46/46、Gateway46/46；见2026-09-21-registry-db-ownership |
 | SEC-C3-03 | READY | E1-02B2与C3-02已完成；下一步真实多进程generation/失败状态与混版本隔离，尚未实施 |

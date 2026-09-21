@@ -158,7 +158,7 @@ test('exported limits are immutable', () => {
 });
 
 test('unsupported platforms reject file reads before filesystem access', {
-  skip: process.platform === 'linux' ? 'Linux uses the real-file cases below' : false,
+  skip: ['linux', 'win32'].includes(process.platform) ? 'Supported platforms use dedicated real-file cases' : false,
 }, async t => {
   let calls = 0;
   for (const name of ['open', 'lstat', 'readFile']) {

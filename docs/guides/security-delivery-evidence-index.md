@@ -1,5 +1,5 @@
 ---
-doc-version: 1.5.0
+doc-version: 1.6.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -42,7 +42,7 @@ doc-updated: 2026-09-21
 | SEC-C1-01 | [Loader/Schema 测试](../../packages/api-nova-parser/src/credentials/loader.spec.ts)、[配置规划](./security-development-task-plan.md) | **限定执行/准备**：header API Key/Bearer 及拒绝型 loader 有本机结果；批准凭据类型的逐项支持/拒绝、生命周期和作用域合同未定稿。 |
 | SEC-C1-02 | 无覆盖全部批准类型的当前脚本 | **待验收**：须先按 C1-01 逐类型实现解析、注入、脱敏和拒绝；OAuth2 不属于本轮。 |
 | SEC-C2-01 | [Linux 隔离操作说明](../testing/upstream-secret-provider-linux.md)、[Provider 脚本](../../packages/api-nova-parser/scripts/test-upstream-secret-provider.cjs) | **准备/待验收（环境）**：Windows 本机 53 项通过；30 个真实 Linux 文件权限场景尚未执行。说明中 82 通过只是预期值。 |
-| SEC-C2-02 | [Provider 实现](../../packages/api-nova-parser/src/credentials/secret-provider.ts) | **待验收**：Windows Secret File ACL 适配及合法/越权文件拒绝无当前完整执行证据。 |
+| SEC-C2-02 | [Windows ACL证据](../audits/2026-09-21-windows-secret-acl.md) | **限定执行/DONE**：真实NTFS28/28、主任务复跑通过；仅本地驱动器，需要系统PowerShell/Add-Type，未替代Linux验收。 |
 | SEC-C3-01 | [Watch交付证据](../audits/2026-09-21-registry-watch.md) | **限定执行/DONE**：Windows真实固定文件监听8/8、Parser凭据252/252、Gateway接线31/31；含坏文件保旧、并发管理员CAS、Nest关闭。DB归属、多进程及Linux不在此叶。 |
 | SEC-C3-02 | [真实DB归属证据](../audits/2026-09-21-registry-db-ownership.md) | **限定执行/DONE**：Source/Endpoint未知或跨源拒绝，manual/watch/启动同校验，失败保旧；不代表激活后的自动DB撤销。 |
 | SEC-C3-03 | 无当前跨进程 Registry 协调脚本 | **待验收**：需真实受管 child 链与跨进程 generation、失败/激活可观测证据。 |

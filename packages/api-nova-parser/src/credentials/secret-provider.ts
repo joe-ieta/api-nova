@@ -1,6 +1,7 @@
 import { constants, promises as fs, type Stats } from 'node:fs';
 import * as path from 'node:path';
 import { TextDecoder } from 'node:util';
+import { readWindowsPrivateSecret } from './windows-secret-file';
 import type { UpstreamSecretProviderDescription } from './types';
 
 export const UPSTREAM_SECRET_PROVIDER_LIMITS = Object.freeze({
@@ -111,10 +112,9 @@ async function snapshotDirectories(root: string, target: string, uid: number): P
 }
 
 async function readPrivateFile(root: string, key: string): Promise<string> {
-  // Windows ACLs and other filesystem permission models need a dedicated adapter.
-  // Never interpret absent POSIX checks as successful permission verification.
-  if (process.platform !== 'linux' || typeof process.geteuid !== 'function' ||
-      typeof constants.O_NOFOLLOW !== 'number' || typeof constants.O_NONBLOCK !== 'number') {
+  // Each supported platform verifies its native permission model.
+  if (process.platform !== 'win32' && (process.platform !== 'linux' || typeof process.geteuid !== 'function' ||
+      typeof constants.O_NOFOLLOW !== 'number' || typeof constants.O_NONBLOCK !== 'number')) {
     fail('UNSUPPORTED_PLATFORM');
   }
   validateKey(key);
@@ -126,7 +126,23 @@ async function readPrivateFile(root: string, key: string): Promise<string> {
   const target = path.resolve(root, ...segments);
   if (target === root || !within(root, target)) fail('INVALID_SECRET_KEY');
 
-  const uid = process.geteuid();
+  if (process.platform === 'win32') {
+    if (segments.some(segment => segment.endsWith('.') || /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/i.test(segment))) fail('INVALID_SECRET_KEY');
+    let bytes: Buffer | undefined;
+    try {
+      bytes = await readWindowsPrivateSecret(root, key);
+      let value: string;
+      try { value = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes); }
+      catch { return fail('SECRET_VALUE_INVALID'); }
+      return validateValue(value);
+    } catch (error) {
+      if (error instanceof UpstreamSecretProviderError) throw error;
+      const codes: UpstreamSecretProviderErrorCode[] = ['SECRET_FILE_UNSAFE', 'SECRET_READ_FAILED', 'SECRET_NOT_FOUND', 'SECRET_LIMIT_EXCEEDED', 'SECRET_CHANGED_DURING_READ'];
+      const code = error instanceof Error ? error.message as UpstreamSecretProviderErrorCode : 'SECRET_READ_FAILED';
+      return fail(codes.includes(code) ? code : 'SECRET_READ_FAILED');
+    } finally { bytes?.fill(0); }
+  }
+  const uid = process.geteuid!();
   let handle: Awaited<ReturnType<typeof fs.open>> | undefined;
   let buffer: Buffer | undefined;
   try {
