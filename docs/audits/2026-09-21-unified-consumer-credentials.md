@@ -1,5 +1,5 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.0.1
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -10,8 +10,8 @@ doc-updated: 2026-09-21
 ## 模型和管理入口
 
 沿用gateway_consumer_credentials，新增nullable accessPolicy JSON列保存version=1、subject、protocols、toolScopes、scopes、expiresAt、可信actorId。外层id/keyId/secretHash/status/runtimeAssetId/routeBindingId不得由JSON覆盖。旧NULL行只保留原Gateway语义，不自动取得MCP授权或进入统一导出。
-`POST /api/runtime-assets/:id/runtime-access-credentials`创建，`GET`同路径列摘要，`POST .../:credentialId/revoke`撤销，均沿用既有受权管理策略；旧gateway-consumer-credentials路径作为别名保留。新增字段由API/Swagger管理，未新增UI字段表单。Subject缺省为Key ID，Protocols缺省当前资产类型，toolScopes和scopes缺省空，expiresAt缺省30天（Unix秒）；Actor仅来自已鉴权管理上下文。
-完整keyId.secret仅创建返回一次；只持久SHA256(secret)，普通列表不返回摘要。`GET /api/runtime-assets/:id/runtime-access-credentials/configuration`要求server:manage，导出version/runtimeAssetId/credentials的摘要配置，不导出完整Key。
+`POST /api/v1/runtime-assets/:id/runtime-access-credentials`创建，`GET`同路径列摘要，`POST .../:credentialId/revoke`撤销，均沿用既有受权管理策略；旧gateway-consumer-credentials路径作为别名保留。新增字段由API/Swagger管理，未新增UI字段表单。Subject缺省为Key ID，Protocols缺省当前资产类型，toolScopes和scopes缺省空，expiresAt缺省30天（Unix秒）；Actor仅来自已鉴权管理上下文。
+完整keyId.secret仅创建返回一次；只持久SHA256(secret)，普通列表不返回摘要。`GET /api/v1/runtime-assets/:id/runtime-access-credentials/configuration`要求server:manage，导出version/runtimeAssetId/credentials的摘要配置，不导出完整Key。
 
 ## 两入口执行
 

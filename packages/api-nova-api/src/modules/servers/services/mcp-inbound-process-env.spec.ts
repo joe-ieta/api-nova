@@ -99,3 +99,11 @@ describe('unified credentials bind managed process ownership', () => {
     expect(mcpInboundSpawnEnv('api_key', unifiedEnv()).API_NOVA_RUNTIME_ACCESS_CREDENTIALS).toBeDefined();
   });
 });
+
+it('refuses a static envelope whose only key passed its rotation cutoff', () => {
+  const env = unifiedEnv();
+  const envelope = JSON.parse(env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS!);
+  envelope.credentials[0].validUntil = Math.floor(Date.now() / 1000) - 1;
+  env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS = JSON.stringify(envelope);
+  expect(() => mcpInboundSpawnEnv('api_key', env, 'runtime-1')).toThrow('unified MCP');
+});

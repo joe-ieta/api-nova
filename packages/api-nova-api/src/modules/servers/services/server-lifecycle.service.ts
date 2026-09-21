@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -8,6 +8,8 @@ import { dirname, join } from 'path';
 import { firstValueFrom } from 'rxjs';
 
 import { MCPServerEntity, TransportType } from '../../../database/entities/mcp-server.entity';
+import { assertTemporaryAnonymousPolicy } from 'api-nova-parser';
+import { RuntimeCredentialResolverService } from './runtime-credential-resolver.service';
 import { persistedMcpInboundMode } from './mcp-inbound-process-env';
 import { ServerInstance } from './server-manager.service';
 import { ProcessManagerService } from './process-manager.service';
@@ -64,6 +66,7 @@ export class ServerLifecycleService {
     // private readonly mcpService: MCPService, // TODO: 实现 MCP 服务
     private readonly parserService: ParserService,
     private readonly validatorService: ValidatorService,
+    @Optional() private readonly credentialResolver?: RuntimeCredentialResolverService,
   ) {}
 
   /**
@@ -90,14 +93,21 @@ export class ServerLifecycleService {
    * 启动MCP服务器（使用CLI spawn方式实现进程隔离）
    */
   preflightInboundAuth(serverEntity: MCPServerEntity) {
-    return persistedMcpInboundMode(serverEntity);
+    const mode = persistedMcpInboundMode(serverEntity);
+    if (mode === 'anonymous' && serverEntity.config?.temporaryAnonymous !== undefined)
+      assertTemporaryAnonymousPolicy(serverEntity.config.temporaryAnonymous);
+    if (mode === 'api_key' && process.env.API_NOVA_RUNTIME_CREDENTIAL_SOURCE === 'database') {
+      if (!this.credentialResolver) throw new Error('Runtime credential resolver unavailable');
+      return this.credentialResolver.validateForRuntime(serverEntity.config.runtimeAssetId).then(() => mode);
+    }
+    return mode;
   }
 
   async startServer(serverEntity: MCPServerEntity): Promise<ServerStartResult> {
     this.logger.log(`Starting server '${serverEntity.name}' on port ${serverEntity.port} using CLI spawn`);
 
     try {
-      const inboundAuthMode = this.preflightInboundAuth(serverEntity);
+      const inboundAuthMode = await this.preflightInboundAuth(serverEntity);
       // 验证OpenAPI数据
       await this.validateOpenApiData(serverEntity.openApiData);
 
@@ -137,6 +147,7 @@ export class ServerLifecycleService {
         mcpConfig: {
           transport: serverEntity.transport.toLowerCase() as 'sse' | 'streamable',
           inboundAuthMode,
+          temporaryAnonymous: serverEntity.config?.temporaryAnonymous,
           runtimeAssetId: typeof serverEntity.config?.runtimeAssetId === 'string' ? serverEntity.config.runtimeAssetId : undefined,
           port: serverEntity.port,
           endpoint:

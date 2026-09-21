@@ -1,3 +1,4 @@
+import { normalizeTemporaryAnonymousPolicy } from 'api-nova-parser';
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { GatewayRouteBindingEntity } from '../../../database/entities/gateway-route-binding.entity';
 import {
@@ -16,6 +17,7 @@ export class GatewayPolicyService {
       auth: {
         ref: routeBinding.authPolicyRef,
         mode,
+        ...(routeBinding.upstreamConfig?.temporaryAnonymous !== undefined ? { temporaryAnonymous: normalizeTemporaryAnonymousPolicy(routeBinding.upstreamConfig.temporaryAnonymous) } : {}),
         apiKeyQueryParamName: this.resolveApiKeyQueryParamName(routeBinding.upstreamConfig),
       },
       traffic: {

@@ -1,3 +1,4 @@
+import { normalizeTemporaryAnonymousPolicy, assertTemporaryAnonymousPolicy, RuntimeAuthError } from 'api-nova-parser';
 import {
   BadRequestException,
   Injectable,
@@ -494,6 +495,17 @@ export class PublicationService {
     dto: ConfigureGatewayRouteBindingDto,
     actorId?: string,
   ) {
+    if (dto.upstreamConfig?.temporaryAnonymous !== undefined) {
+      if (!actorId) throw new BadRequestException('Trusted actor is required for temporary anonymous access');
+      try {
+        dto = { ...dto, upstreamConfig: { ...dto.upstreamConfig,
+          temporaryAnonymous: normalizeTemporaryAnonymousPolicy(dto.upstreamConfig.temporaryAnonymous, actorId) } };
+        assertTemporaryAnonymousPolicy(dto.upstreamConfig.temporaryAnonymous);
+      } catch (error) {
+        if (error instanceof RuntimeAuthError) throw new BadRequestException(error.code);
+        throw error;
+      }
+    }
     const context = await this.resolveMembershipPublicationContext(membershipId);
     if (context.runtimeAsset.type !== RuntimeAssetType.GATEWAY_SERVICE) {
       throw new BadRequestException(
@@ -511,6 +523,10 @@ export class PublicationService {
     );
 
     let binding = await this.findGatewayRouteBinding(membershipId);
+    if (binding?.upstreamConfig?.temporaryAnonymous !== undefined && dto.upstreamConfig !== undefined &&
+        dto.upstreamConfig?.temporaryAnonymous === undefined) {
+      dto = { ...dto, upstreamConfig: { ...dto.upstreamConfig, temporaryAnonymous: binding.upstreamConfig.temporaryAnonymous } };
+    }
     if (!binding) {
       binding = this.routeBindingRepository.create({
         endpointDefinitionId: context.endpointDefinition.id,

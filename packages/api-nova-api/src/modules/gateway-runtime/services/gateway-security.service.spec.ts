@@ -11,6 +11,7 @@ describe('GatewaySecurityService', () => {
     const credentialRepository = {
       findOne: jest.fn(),
       save: jest.fn().mockImplementation(async value => value),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
 
     return {
@@ -102,9 +103,8 @@ describe('GatewaySecurityService', () => {
       consumerId: 'consumer-1',
       keyId: 'key-live',
     });
-    expect(credentialRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 'consumer-1',
+    expect(credentialRepository.update).toHaveBeenCalledWith(
+      'consumer-1', expect.objectContaining({
         lastUsedAt: expect.any(Date),
       }),
     );

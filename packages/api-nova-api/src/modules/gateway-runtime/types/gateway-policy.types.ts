@@ -1,3 +1,4 @@
+import type { TemporaryAnonymousPolicy } from 'api-nova-parser';
 export type GatewayAuthMode = 'anonymous' | 'jwt' | 'api_key';
 
 export type GatewayLoggingCaptureMode =
@@ -10,6 +11,7 @@ export type GatewayResolvedAuthPolicy = {
   ref?: string;
   mode: GatewayAuthMode;
   apiKeyQueryParamName?: string;
+  temporaryAnonymous?: TemporaryAnonymousPolicy;
 };
 
 export type GatewayResolvedTrafficPolicy = {

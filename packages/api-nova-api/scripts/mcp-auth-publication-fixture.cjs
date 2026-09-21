@@ -11,7 +11,7 @@ const { RuntimeResponseAssertionService } = require('../src/modules/runtime-veri
 const { RuntimeUpstreamBindingsService } = require('../src/modules/runtime-upstream-bindings/services/runtime-upstream-bindings.service.ts');
 const { RuntimeGovernanceInvalidationService } = require('../src/modules/runtime-governance/services/runtime-governance-invalidation.service.ts');
 exports.entities = Object.values(E);
-exports.publish = async function(db, port, upstreamPort, mode, setUpstreamStatus) {
+exports.publish = async function(db, port, upstreamPort, mode, setUpstreamStatus, options = {}) {
  const assert=require('node:assert/strict');
  const repo=n=>db.getRepository(E[n]);
  const source=await repo('SourceServiceAsset').save({sourceKey:'auth-loop-source'});
@@ -28,13 +28,13 @@ exports.publish = async function(db, port, upstreamPort, mode, setUpstreamStatus
  await new Promise(resolve=>setTimeout(resolve,1050));
  const verify=new RuntimeVerificationService(repo('RuntimeAsset'),repo('RuntimeAssetEndpointBinding'),repo('EndpointTestSample'),repo('RuntimeVerificationRun'),repo('RuntimeVerificationResult'),bindings,{}, {},new McpCandidateReplayService(),new RuntimeResponseAssertionService());
  const service=new RuntimeAssetsService({}, {emit:()=>{}},repo('RuntimeAsset'),db.getRepository(MCPServerEntity),repo('RuntimeAssetEndpointBinding'),repo('EndpointDefinition'),repo('SourceServiceAsset'),repo('PublicationProfile'),repo('EndpointPublishBinding'),repo('GatewayRouteBinding'),repo('GatewayConsumerCredential'),{}, {}, {},{recordRuntimeControlEvent:async()=>{}},{log:async()=>{}},bindings,verify);
- const dto={port,transport:'streamable',endpointPath:'/mcp',inboundAuthMode:mode,autoStart:false};
+ const dto={port,transport:'streamable',endpointPath:'/mcp',inboundAuthMode:mode,autoStart:false,...(options.temporaryAnonymous ? {temporaryAnonymous:options.temporaryAnonymous} : {})};
  setUpstreamStatus(500);
- await assert.rejects(()=>service.deployMcpRuntimeAsset(asset.id,dto),error=>error.getResponse?.().code==='RUNTIME_VERIFICATION_FAILED');
+ await assert.rejects(()=>service.deployMcpRuntimeAsset(asset.id,dto,{actorId:options.actorId}),error=>error.getResponse?.().code==='RUNTIME_VERIFICATION_FAILED');
  assert.equal(await db.getRepository(MCPServerEntity).count(),0);
  assert.equal((await repo('RuntimeAsset').findOneByOrFail({id:asset.id})).metadata?.activeRevision,undefined);
  setUpstreamStatus(200);
- const deployed=await service.deployMcpRuntimeAsset(asset.id,dto);
+ const deployed=await service.deployMcpRuntimeAsset(asset.id,dto,{actorId:options.actorId});
  assert.equal(deployed.verification.run.status,'passed');
  const persisted=await repo('RuntimeAsset').findOneByOrFail({id:asset.id});
  assert.equal(persisted.metadata.activeRevision,deployed.verification.run.candidateRevision);
@@ -44,7 +44,7 @@ exports.publish = async function(db, port, upstreamPort, mode, setUpstreamStatus
  assert.equal(saved.config.verifiedCandidateRevision,persisted.metadata.activeRevision);
  const active=persisted.metadata.activeRevision;
  setUpstreamStatus(500);
- await assert.rejects(()=>service.deployMcpRuntimeAsset(asset.id,dto),error=>error.getResponse?.().code==='RUNTIME_VERIFICATION_FAILED');
+ await assert.rejects(()=>service.deployMcpRuntimeAsset(asset.id,dto,{actorId:options.actorId}),error=>error.getResponse?.().code==='RUNTIME_VERIFICATION_FAILED');
  assert.equal((await repo('RuntimeAsset').findOneByOrFail({id:asset.id})).metadata.activeRevision,active);
  assert.equal((await db.getRepository(MCPServerEntity).findOneByOrFail({id:saved.id})).config.verifiedCandidateRevision,active);
  setUpstreamStatus(200);

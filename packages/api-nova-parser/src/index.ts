@@ -167,3 +167,4 @@ export * from './credentials/trusted-operation-bindings';
 export * from './credentials/single-hop-execution';
 
 export * from './audit/runtime-access-credential';
+export * from './audit/temporary-anonymous-policy';

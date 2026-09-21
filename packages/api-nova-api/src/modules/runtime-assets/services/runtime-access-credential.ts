@@ -39,6 +39,9 @@ export function toRuntimeAccessCredential(entity: GatewayConsumerCredentialEntit
   const policy = entity.accessPolicy || {};
   return { version: policy.version, subject: policy.subject, protocols: policy.protocols,
     toolScopes: policy.toolScopes, scopes: policy.scopes, expiresAt: policy.expiresAt,
+    ...(policy.rotationFamilyId !== undefined ? { rotationFamilyId: policy.rotationFamilyId } : {}),
+    ...(policy.rotationSuccessorId !== undefined ? { rotationSuccessorId: policy.rotationSuccessorId } : {}),
+    ...(policy.validUntil !== undefined ? { validUntil: policy.validUntil } : {}),
     ...(policy.actorId !== undefined ? { actorId: policy.actorId } : {}), id: entity.id, keyId: entity.keyId, secretHash: entity.secretHash,
     status: entity.status, runtimeAssetId: entity.runtimeAssetId,
     ...(entity.routeBindingId ? { routeBindingId: entity.routeBindingId } : {}) } as RuntimeAccessCredential;

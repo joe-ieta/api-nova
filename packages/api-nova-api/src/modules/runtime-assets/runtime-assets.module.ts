@@ -1,3 +1,5 @@
+import { RuntimeCredentialRotationService } from './services/runtime-credential-rotation.service';
+import { RuntimeCredentialRotationController } from './runtime-credential-rotation.controller';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EndpointDefinitionEntity } from '../../database/entities/endpoint-definition.entity';
@@ -36,8 +38,8 @@ import { RuntimeVerificationModule } from '../runtime-verification/runtime-verif
     RuntimeObservabilityModule,
     SecurityModule,
   ],
-  controllers: [RuntimeAssetsController],
-  providers: [RuntimeAssetsService],
+  controllers: [RuntimeAssetsController, RuntimeCredentialRotationController],
+  providers: [RuntimeAssetsService, RuntimeCredentialRotationService],
   exports: [RuntimeAssetsService],
 })
 export class RuntimeAssetsModule {}

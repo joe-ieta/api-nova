@@ -20,7 +20,7 @@ import {
 import { AuditService } from '../../security/services/audit.service';
 import { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
 import { GatewayRequestAuthContext } from '../types/gateway-security.types';
-import { authenticateRuntimeRequest, RuntimeAuthError, verifyRuntimeAccessCredential, requireRuntimeScopes, requiredRuntimeScopes } from 'api-nova-parser';
+import { assertTemporaryAnonymousPolicy, authenticateRuntimeRequest, RuntimeAuthError, verifyRuntimeAccessCredential, requireRuntimeScopes, requiredRuntimeScopes } from 'api-nova-parser';
 import { toRuntimeAccessCredential } from '../../runtime-assets/services/runtime-access-credential';
 
 @Injectable()
@@ -56,6 +56,18 @@ export class GatewaySecurityService {
       }
     }
     if (mode === 'anonymous') {
+      if (resolvedRoute.policies.auth.temporaryAnonymous !== undefined) {
+        try { assertTemporaryAnonymousPolicy(resolvedRoute.policies.auth.temporaryAnonymous); }
+        catch (error) {
+          if (!(error instanceof RuntimeAuthError)) throw error;
+          try { await this.auditService.log({ action: AuditAction.API_CALLED, level: AuditLevel.WARNING,
+            status: AuditStatus.FAILED, resource: 'temporary_anonymous', resourceId: resolvedRoute.routeBinding.id,
+            metadata: { runtimeAssetId: resolvedRoute.runtimeAsset.id, reason: error.code,
+              actor: resolvedRoute.policies.auth.temporaryAnonymous.actor,
+              expiresAt: resolvedRoute.policies.auth.temporaryAnonymous.expiresAt } }); } catch { /* Preserve rejection. */ }
+          throw new HttpException(error.code, error.status);
+        }
+      }
       const context: GatewayRequestAuthContext = { mode };
       this.attachAuthContext(req, context);
       return context;
@@ -111,7 +123,7 @@ export class GatewaySecurityService {
     }
 
     credential.lastUsedAt = new Date();
-    await this.credentialRepository.save(credential);
+    await this.credentialRepository.update(credential.id, { lastUsedAt: credential.lastUsedAt });
     void this.recordApiKeyUsageAudit(credential, resolvedRoute, req);
 
     return context;

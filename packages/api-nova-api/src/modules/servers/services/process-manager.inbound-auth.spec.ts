@@ -175,3 +175,40 @@ describe('managed unified credential runtime ownership at start and restart', ()
     expect(service.stopProcess).toHaveBeenCalledTimes(1); expect(mockedSpawn).not.toHaveBeenCalled();
   });
 });
+
+describe('resolver capabilities follow the actual child lifetime', () => {
+  function listeners() {
+    const { service } = fixture();
+    service.resourceMonitor.stopMonitoring = jest.fn();
+    service.logMonitor.stopLogMonitoring = jest.fn();
+    service.credentialResolver = { releaseServer: jest.fn() };
+    service.cleanupProcess = jest.fn(async () => {});
+    const child = new EventEmitter();
+    service.processes.set('server-1', child);
+    (ProcessManagerService.prototype as any).setupProcessListeners.call(service, 'server-1', child, config('api_key'));
+    return { service, child };
+  }
+  it.each(['exit', 'error'])('releases current child capability on %s', async event => {
+    const { service, child } = listeners();
+    const callback = child.listeners(event)[0] as any;
+    await callback(event === 'exit' ? 0 : new Error('fixture failure'));
+    expect(service.credentialResolver.releaseServer).toHaveBeenCalledTimes(1);
+    expect(service.credentialResolver.releaseServer).toHaveBeenCalledWith('server-1');
+  });
+  it.each(['exit', 'error'])('ignores an old child %s after replacement', async event => {
+    const { service, child } = listeners();
+    service.processes.set('server-1', new EventEmitter());
+    await (child.listeners(event)[0] as any)(event === 'exit' ? 0 : new Error('fixture failure'));
+    expect(service.credentialResolver.releaseServer).not.toHaveBeenCalled();
+    expect(service.cleanupProcess).not.toHaveBeenCalled();
+    expect(service.updateProcessStatus).not.toHaveBeenCalled();
+  });
+  it('does not clean up a replacement installed while an old exit is awaiting its log', async () => {
+    const { service, child } = listeners();
+    service.logProcess = jest.fn(async () => { service.processes.set('server-1', new EventEmitter()); });
+    await (child.listeners('exit')[0] as any)(0);
+    expect(service.credentialResolver.releaseServer).toHaveBeenCalledTimes(1);
+    expect(service.cleanupProcess).not.toHaveBeenCalled();
+    expect(service.resourceMonitor.stopMonitoring).not.toHaveBeenCalled();
+  });
+});

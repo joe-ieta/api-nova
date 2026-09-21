@@ -1,4 +1,4 @@
-import { authenticateRuntimeRequest, auditDigest, beginRuntimeCall, captureAuditBody, getRuntimeCallContext, RuntimeAuthError,
+import { assertTemporaryAnonymousPolicy, readTemporaryAnonymousEnvironment, authenticateRuntimeRequest, auditDigest, beginRuntimeCall, captureAuditBody, getRuntimeCallContext, RuntimeAuthError,
   RuntimeCallContext, runtimeChallenge } from 'api-nova-parser';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -7,6 +7,10 @@ import type { ListToolsRequest, ListToolsResult } from '@modelcontextprotocol/sd
 
 export async function authenticateMcpRequest(req: IncomingMessage, requestId: string): Promise<RuntimeCallContext & { expiresAt?: number }> {
   const principal = await authenticateRuntimeRequest(req.headers, 'mcp');
+  if (principal.identitySource === 'anonymous') {
+    const temporaryPolicy = readTemporaryAnonymousEnvironment();
+    if (temporaryPolicy !== undefined) assertTemporaryAnonymousPolicy(temporaryPolicy);
+  }
   const session = req.headers['mcp-session-id'] || new URL(req.url || '/', 'http://localhost').searchParams.get('sessionId');
   return { transport: 'mcp', requestId, callerId: principal.callerId, callerIssuer: principal.issuer,
     callerSubject: principal.subject, credentialId: principal.credentialId, clientId: principal.clientId,
@@ -79,6 +83,12 @@ export async function assertMcpToolScopes(body: any): Promise<void> {
 
 function checkMcpToolScopes(body: any): void {
   if (body?.method !== 'tools/call') return;
+  const context = getRuntimeCallContext();
+  if (context?.identitySource === 'anonymous' && context.transport === 'mcp' &&
+      (context.protocolTransport === 'streamable' || context.protocolTransport === 'sse')) {
+    const policy = readTemporaryAnonymousEnvironment();
+    if (policy !== undefined) assertTemporaryAnonymousPolicy(policy);
+  }
   const allowedTools = getRuntimeCallContext()?.toolScopes;
   if (allowedTools !== undefined && !allowedTools.includes('*') && !allowedTools.includes(body.params?.name))
     throw new RuntimeAuthError(403, 'tool_forbidden');

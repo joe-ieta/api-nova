@@ -1,5 +1,5 @@
 ---
-doc-version: 1.31.0
+doc-version: 1.32.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -9,7 +9,7 @@ doc-updated: 2026-09-21
 
 本页是2026-09-15重排后的调度划分，继承原批准需求，不替换或缩减父包退出条件。状态唯一入口为[子任务执行状态](./active-work-package-execution-status.md)，父包证据仍在[OBS台账](./runtime-observability-development-execution-status.md)和[SEC台账](./security-development-execution-status.md)。
 
-39只等于OBS16+SEC23：12 DONE、22 IN_PROGRESS、4 BACKLOG、1 DEFERRED；不是全项目活跃总数，更不是完成百分比。IN_PROGRESS在旧父包表表示有实现，不表示22包正在同时开发。代码、设计草案、验收准备、环境执行分别登记，不能用文档子项DONE冒充功能交付。
+39只等于OBS16+SEC23：15 DONE、20 IN_PROGRESS、3 BACKLOG、1 DEFERRED；不是全项目活跃总数，更不是完成百分比。IN_PROGRESS在旧父包表表示有实现，不表示20包正在同时开发。代码、设计草案、验收准备、环境执行分别登记，不能用文档子项DONE冒充功能交付。
 
 上层[阶段计划](./staged-development-plan.md)、[WP00~90](./runtime-instance-and-regression-closure-plan.md)和[open-items](../reference/open-items.md)具有交叉范围，不叠加成49或其它“项目总包数”。本次覆盖这些当前入口；新需求必须先登记归属再进入队列。
 
@@ -18,7 +18,7 @@ doc-updated: 2026-09-21
 ### 两个专项
 
 OBS父包：01/02/03/04/05/07/08/09/11/12各为DONE；06/10/13/14/15各为IN_PROGRESS；16为BACKLOG。
-SEC父包：A0/A1 DONE；A2/A4/B1/B2/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a各IN_PROGRESS；A3/F1/F4各BACKLOG；G1 DEFERRED。
+SEC父包：A0/A1/A2/A3/B1 DONE；A4/B2/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a各IN_PROGRESS；F1/F4各BACKLOG；G1 DEFERRED。
 以下SEC-A1等子项主归属为原TP-A1；OBS-06等主归属为原OBS-TP-06。已DONE父包不为增加任务数量重新拆开发项。
 
 | 原入口 | 本次核查后的实际边界 | 唯一执行归属/关联 |
@@ -84,7 +84,7 @@ SEC父包：A0/A1 DONE；A2/A4/B1/B2/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a各I
 | SEC-C2-02 | SEC-C2 | CODE | Windows Secret File ACL | 受限ACL检查与合法/越权文件拒绝，不放宽系统权限 | — |
 | SEC-C3-01 | SEC-C3 | CODE | Watch/debounce生命周期 | 固定源变更合并、坏文件保旧、并发reload、停机释放均通过 | — |
 | SEC-C3-02 | SEC-C3 | CODE | Registry配置资产归属校验 | 配置Source/Endpoint与可信DB归属核验，未知/跨源拒绝 | — |
-| SEC-C3-03 | SEC-C3 | CODE | 多进程Registry版本协调 | 激活/失败状态与实际generation跨进程可观测且无混版本执行 | SEC-E1-02B2;SEC-C3-02 |
+| SEC-C3-03 | SEC-C3 | CODE | 多进程Registry版本协调 | 激活/失败状态与实际generation跨进程可观测且无混版本执行 | SEC-E1-02B2;SEC-C3-02;SEC-E1-02C1 |
 | SEC-C4-01 | SEC-C4 | VALIDATION | 两运行时Resolver执行验收 | Gateway与受管MCP继承/覆盖/None/Unresolved的联网前拒绝一致 | SEC-E1-03;SEC-F1-02 |
 | SEC-D1-01 | SEC-D1 | DOC | Header业务政策定稿 | 请求/响应、多值/framing、保留字段、迁移例外逐项选择并记录 | — |
 | SEC-D1-02 | SEC-D1 | CODE | Allowlist与传输兼容 | 落实D1-01并覆盖缓存、正文长度、响应字段及禁用迁移路径 | SEC-D1-01 |
@@ -245,3 +245,9 @@ C3-02已通过真实SQL.js及Nest工厂接线；C3-03依赖已满足转READY。�
 C2-02已完成Windows本地驱动器权限出口：当前用户拥有、限制允许主体、原生句柄检查与链接拒绝，真实28项通过。Linux30项环境出口C2-01保持NEED_ENV；没有将平台跳过计为成功。
 
 B1-01已完成统一持久策略、Gateway/MCP共享解释与摘要配置导出。受管CLI在启动/重启前检查导出Runtime ID与持久服务一致；动态轮换/撤销传播仍归B1-02。B1-02与A3-01转READY，本批不新增叶子。下一并行面为B1-02、C3-03、A3-01；Linux环境任务仍单列。
+
+## 13. 轮换、临时匿名和限流组合批次（2026-09-21）
+
+重新核对发现C3-03缺少产品生命周期真实接线依赖：managed/runtime只保留启动snapshot，handoff/channel尚无产品reload消费者。补E1-02C1依赖并回WAIT_DEP，不开发无消费者的实验cohort。改为并行B1-02、A3-01和D2-02组合验收；D2-02的完成仍须等待B1-02。现行CLI的消费者凭证DB查询不等于生产managed IPC接线。
+
+B1-02与A3-01真实现行CLI闭环通过，A2/B1/A3按归档原出口复核DONE。SEC-B3-01及SEC-F2-02解除依赖转READY；不新增叶子。共享生命周期改动随同一集成提交交付，D2组合独立收尾。

@@ -627,7 +627,7 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
       throw new ConflictException('Server is already starting');
     }
 
-    this.lifecycleService.preflightInboundAuth(server);
+    await this.lifecycleService.preflightInboundAuth(server);
 
     // 检查端口是否真正可用
     const isPortAvailable = await this.lifecycleService.isPortAvailable(server.port);
@@ -822,7 +822,7 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
   ): Promise<void> {
     const server = await this.getServerEntityById(id);
     this.assertVerifiedRuntimeAssetControl(server, verifiedRuntimeAsset);
-    this.lifecycleService.preflightInboundAuth(server);
+    await this.lifecycleService.preflightInboundAuth(server);
     
     if (server.status === ServerStatus.RUNNING) {
       await this.stopServer(id);

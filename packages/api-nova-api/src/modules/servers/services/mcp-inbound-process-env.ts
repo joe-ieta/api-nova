@@ -14,6 +14,9 @@ const INBOUND_CREDENTIAL_KEYS = [
   'API_NOVA_RUNTIME_JWKS_JSON',
   'API_NOVA_RUNTIME_API_KEYS',
   'API_NOVA_RUNTIME_ACCESS_CREDENTIALS',
+  'API_NOVA_RUNTIME_CREDENTIAL_RESOLVER_URL',
+  'API_NOVA_RUNTIME_CREDENTIAL_RESOLVER_TOKEN',
+  'API_NOVA_RUNTIME_CREDENTIAL_RUNTIME_ID',
 ] as const;
 
 function trustedUrl(value: string, env: NodeJS.ProcessEnv): void {
@@ -38,13 +41,18 @@ export function preflightMcpInboundCredentials(
 ): void {
   if (!['jwt', 'api_key', 'anonymous'].includes(mode)) throw new Error('Invalid MCP inbound authentication mode');
   if (mode === 'anonymous') return;
+  if (mode === 'api_key' && env.API_NOVA_RUNTIME_CREDENTIAL_SOURCE === 'database') {
+    if (!expectedRuntimeAssetId) throw new Error('Database credentials require a managed runtime asset');
+    return; // The injected resolver must validate live DB state before stopping or spawning.
+  }
   if (mode === 'api_key' && env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS !== undefined) {
     try {
       const envelope = parseRuntimeAccessCredentialEnvelope(env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS);
       if (expectedRuntimeAssetId !== undefined && (!expectedRuntimeAssetId || envelope.runtimeAssetId !== expectedRuntimeAssetId)) throw new Error();
       const required = (env.API_NOVA_RUNTIME_REQUIRED_SCOPES || '').split(/\s+/).filter(Boolean);
       if (!envelope.credentials.some(credential => credential.status === 'active' &&
-          credential.expiresAt > Date.now() / 1000 && credential.protocols.includes('mcp') &&
+          credential.expiresAt > Date.now() / 1000 &&
+          (credential.validUntil === undefined || credential.validUntil > Date.now() / 1000) && credential.protocols.includes('mcp') &&
           credential.runtimeAssetId === envelope.runtimeAssetId && !credential.routeBindingId &&
           required.every(scope => credential.scopes.includes(scope)))) throw new Error();
       return;
@@ -128,6 +136,7 @@ export function mcpInboundSpawnEnv(
       env.API_NOVA_RUNTIME_JWKS_JSON = inherited.API_NOVA_RUNTIME_JWKS_JSON;
     }
   } else if (mode === 'api_key') {
+    if (inherited.API_NOVA_RUNTIME_CREDENTIAL_SOURCE === 'database') return env;
     if (inherited.API_NOVA_RUNTIME_ACCESS_CREDENTIALS !== undefined) {
       env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS = inherited.API_NOVA_RUNTIME_ACCESS_CREDENTIALS;
     } else env.API_NOVA_RUNTIME_API_KEYS = inherited.API_NOVA_RUNTIME_API_KEYS;

@@ -62,6 +62,7 @@ describe('Gateway independent rate limits over HTTP', () => {
         id: 'consumer-1', keyId: 'valid', secretHash: createHash('sha256').update('secret').digest('hex'),
       } : null),
       save: jest.fn(async (value: any) => value),
+      update: jest.fn(async () => ({ affected: 1 })),
     };
     events = { recordRuntimeControlEvent: jest.fn().mockResolvedValue(undefined) };
     const metrics: any = Object.fromEntries(['recordPolicyEvent', 'recordCacheResult',

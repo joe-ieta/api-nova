@@ -1,3 +1,4 @@
+import { resolveRuntimeCredentials } from './runtime-credential-resolver';
 import { timingSafeEqual } from 'node:crypto';
 import { createLocalJWKSet, createRemoteJWKSet, jwtVerify, JSONWebKeySet } from 'jose';
 import { auditDigest } from './runtime-call-audit';
@@ -72,8 +73,11 @@ export async function authenticateRuntimeRequest(
   if (mode === 'api_key') {
     const key = headers['x-api-key'];
     if (typeof key !== 'string' || !key || key.length > 8192) throw new RuntimeAuthError(401, 'invalid_api_key');
-    if (process.env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS !== undefined) {
-      const envelope = parseRuntimeAccessCredentialEnvelope(process.env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS);
+    const dynamicCredentials = process.env.API_NOVA_RUNTIME_CREDENTIAL_SOURCE === 'database' ||
+      process.env.API_NOVA_RUNTIME_CREDENTIAL_RESOLVER_URL !== undefined;
+    if (dynamicCredentials || process.env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS !== undefined) {
+      const envelope = dynamicCredentials
+        ? await resolveRuntimeCredentials() : parseRuntimeAccessCredentialEnvelope(process.env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS!);
       const keyId = key.slice(0, key.indexOf('.'));
       const credential = envelope.credentials.find(item => item.keyId === keyId);
       if (!credential) throw new RuntimeAuthError(401, 'invalid_api_key');

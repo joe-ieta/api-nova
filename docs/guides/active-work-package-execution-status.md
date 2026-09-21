@@ -1,5 +1,5 @@
 ---
-doc-version: 1.48.0
+doc-version: 1.49.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -8,16 +8,16 @@ doc-updated: 2026-09-21
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
-父包专项统计仍是OBS 10/5/1、SEC 2/17/3/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计12/22/4/1。它不表示全项目完成率。
+父包专项统计仍是OBS 10/5/1、SEC 5/15/2/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计15/20/3/1。它不表示全项目完成率。
 
 本次登记132个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 65 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 22 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
-| WAIT_DEP | 25 | 等待列明子任务/条件 |
+| DONE | 67 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 21 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 1 | SEC-D2-02 |
+| WAIT_DEP | 23 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -42,13 +42,13 @@ doc-updated: 2026-09-21
 | SEC-A1-02D | DONE | Gateway三模式真实回放/激活/冷恢复18项HTTP，MCP三模式真实发布/失败保旧/磁盘重开/6次child与tools/call，stdio12/12；见2026-09-21-auth-publication-loop证据 |
 | SEC-A2-01A | DONE | Gateway缺失/空/损坏active快照拒绝，策略与指纹重核；热恢复保留旧registry，冷启动拒绝；相邻28套339/339，父任务定向28/28 |
 | SEC-A2-01B | DONE | 实际部署保存入口拒缺失/未知/非法模式且无候选/保存副作用；自动恢复真实preflight拒绝、显式匿名可追溯；ProcessManager重启先校验再stop且spawn前重验；父任务12套88/88，CLI HTTP3/3、实验child14/14，API构建 |
-| SEC-A3-01 | READY | B1-01与A2两入口出口已完成；临时匿名reason/actor/expiry/生产双许可仍未实现 |
+| SEC-A3-01 | DONE | 可信actor/reason/expiry、生产双许可、保存冷重开及真实CLI墙钟到期拒绝审计，见在线轮换与临时匿名证据 |
 | SEC-A4-01 | DONE | 当前SQLite69实体/表、4迁移；新增accessPolicy旧row NULL不授予、跨重开、down/up及完整schema零漂移；见2026-09-21-unified-consumer-credentials |
 | SEC-A4-02 | DONE | Windows PostgreSQL16.10新隔离集群复验69实体/表、4迁移，空库/重连零漂移、持久化、真实API启动；集群已关闭清理；非Linux/旧版本生产升级 |
 | SEC-B1-01 | DONE | 同一持久凭证支持Protocol/Tool Scope/Subject/Expiry/Actor，Gateway/MCP共用验证；真实DB11项、MCP HTTP40/40、真实CLI4/4、联合API277/277、双库4迁移零漂移；见统一凭证证据 |
-| SEC-B1-02 | READY | 统一模型已完成；下一步轮换族重叠窗口、撤销与更新跨受管child传播，不能把静态摘要导出当热传播 |
+| SEC-B1-02 | DONE | 轮换族、窗口与事务审计；真实Gateway/MCP同PID逐请求DB验证截止/撤销/自然到期，见在线轮换证据 |
 | SEC-B2-01 | READY | 固定子集已有 |
-| SEC-B3-01 | WAIT_DEP | 列表过滤/执行二次授权已有 |
+| SEC-B3-01 | READY | B1-02已完成；下一步验证既有长连接执行拒绝、权限传播及重连不恢复 |
 | SEC-B3-02 | READY | 不是升级SDK任务 |
 | SEC-C1-01 | READY | header API Key/Bearer已有 |
 | SEC-C1-02 | WAIT_DEP | 类型很多时逐类型再拆后执行 |
@@ -56,12 +56,12 @@ doc-updated: 2026-09-21
 | SEC-C2-02 | DONE | Windows原生句柄ACL验证；真实NTFS28/28主任务独立复跑，越权/链接/替换/并发写入均通过；依赖系统PowerShell与Add-Type，Linux另验 |
 | SEC-C3-01 | DONE | 固定文件Watch/debounce、坏文件保旧、admin锁内代次检查和Nest关闭已通过；Windows真实监听8/8、Parser252/252、Gateway31/31；见2026-09-21-registry-watch证据 |
 | SEC-C3-02 | DONE | Gateway启动/manual/watch激活均强制真实DB Source/Endpoint归属校验，未知/跨源/查询失败保旧；Parser46/46、Gateway46/46；见2026-09-21-registry-db-ownership |
-| SEC-C3-03 | READY | E1-02B2与C3-02已完成；下一步真实多进程generation/失败状态与混版本隔离，尚未实施 |
+| SEC-C3-03 | WAIT_DEP | 复核发现实验handoff只启动时captureSnapshot且generation恒从1起；完整产品跨进程协调依赖E1-02C1，不能用实验cohort原语冒充交付 |
 | SEC-C4-01 | WAIT_DEP | 纯Resolver不重写 |
 | SEC-D1-01 | READY | 现有30项草案不是实现 |
 | SEC-D1-02 | WAIT_DEP | Connection修复转维护 |
 | SEC-D2-01 | DONE | 真实HTTP独立IP/Anonymous桶、peer可信边界、缓存命中仍限流；Gateway全套201/201、主任务联合复验42/42；见2026-09-21-independent-rate-limits证据 |
-| SEC-D2-02 | WAIT_DEP | 不把限流器单测当整包验收 |
+| SEC-D2-02 | IN_PROGRESS | 已有层可并行验证Global/Runtime/Route/Credential/IP/Anonymous真实组合与拒绝归因；B1-02完成后才关闭 |
 | SEC-E0-01 | READY | 不升级无状态协议 |
 | SEC-E1-01 | DONE | managed-mcp-credential-handoff-plan.md 0.1.0 draft；无代码交付；[草案](./managed-mcp-credential-handoff-plan.md) |
 | SEC-E1-01R | DONE | [交付设计第9节](./managed-mcp-credential-handoff-plan.md)，02A通道与真实child验收冻结；仅DOC |
@@ -77,7 +77,7 @@ doc-updated: 2026-09-21
 | SEC-F1-01 | READY | 不回塞到C1造成循环 |
 | SEC-F1-02 | WAIT_DEP | 未完成 |
 | SEC-F2-01 | READY | 缺策略文案已完成 |
-| SEC-F2-02 | WAIT_DEP | 未完成 |
+| SEC-F2-02 | READY | A3-01已完成；待申请/风险/到期界面与服务端拒绝一致显示 |
 | SEC-F3-01 | READY | 不将零redirect称SSRF完成 |
 | SEC-F3-02 | WAIT_DEP | 未完成 |
 | SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
@@ -191,3 +191,7 @@ C3-01、D2-01、A1-02D三个原有叶子均完成，没有新增拆分记录。�
 ## 6. 凭证与权限批次收尾（2026-09-21）
 
 B1-01、C2-02、C3-02三个既有出口完成，DONE从62增至65。B1-02、A3-01、C3-03已满足列明依赖转READY。统一凭证只显式导出摘要配置，受管启动校验Runtime归属；没有宣称运行中的child已收到撤销或轮换。Windows原生权限28/28通过，Linux30项仍未执行。新增模型的SQLite/PostgreSQL当前基线更新为4迁移、零漂移。父包计数不因局部出口自动提升。
+
+## 在线轮换与临时匿名（2026-09-21）
+
+B1-02、A3-01完成，见[真实闭环证据](../audits/2026-09-21-live-rotation-temporary-anonymous.md)。A2历史父状态滞后已按原退出标准修正，与本批B1/A3共同闭合；B3-01、F2-02转READY。C3-03补真实生产接线依赖回WAIT_DEP，不以实验入口假充产品完成。

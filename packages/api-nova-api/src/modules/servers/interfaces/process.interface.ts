@@ -30,6 +30,7 @@ export interface ProcessConfig {
     inboundAuthMode?: 'jwt' | 'api_key' | 'anonymous';
     /** Trusted managed-runtime ownership; contains no credential material. */
     runtimeAssetId?: string;
+    temporaryAnonymous?: unknown;
     port?: number;
     endpoint?: string;
     openApiSource?: string;

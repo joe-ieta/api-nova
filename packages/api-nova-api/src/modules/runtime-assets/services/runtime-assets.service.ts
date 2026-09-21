@@ -1,3 +1,4 @@
+import { normalizeTemporaryAnonymousPolicy, assertTemporaryAnonymousPolicy } from 'api-nova-parser';
 import { createRuntimeAccessPolicy, toRuntimeAccessCredential } from './runtime-access-credential';
 import { resolveMcpEndpoint, previewMcpEndpoint, assertMcpEndpointChange } from './mcp-endpoint-config';
 import { readMcpOwnership } from './mcp-ownership-reader';
@@ -771,6 +772,17 @@ export class RuntimeAssetsService {
         message: 'A running MCP server cannot change its configured inbound authentication mode',
       });
     }
+    let temporaryAnonymous = server?.config?.temporaryAnonymous;
+    if (dto.temporaryAnonymous !== undefined) {
+      if (inboundAuthMode !== 'anonymous' || !verificationContext.actorId)
+        throw new BadRequestException('Temporary anonymous grant requires anonymous mode and a trusted actor');
+      try { temporaryAnonymous = normalizeTemporaryAnonymousPolicy(dto.temporaryAnonymous, verificationContext.actorId); }
+      catch { throw new BadRequestException('Invalid temporary anonymous grant'); }
+    }
+    if (inboundAuthMode === 'anonymous' && temporaryAnonymous !== undefined) {
+      try { assertTemporaryAnonymousPolicy(temporaryAnonymous); }
+      catch { throw new BadRequestException('Temporary anonymous grant is invalid, expired or not allowed'); }
+    }
     const endpointConfig = resolveMcpEndpoint(dto, server);
     assertMcpEndpointChange(server, endpointConfig);
     const desiredTransport = endpointConfig.transport;
@@ -847,6 +859,7 @@ export class RuntimeAssetsService {
         config: {
           endpoint: endpointConfig.endpointPath,
           runtimeAssetId,
+          temporaryAnonymous,
           managedByRuntimeAsset: true,
           verifiedCandidateRevision: verification.run.candidateRevision,
           verificationRunId: verification.run.id,
@@ -870,6 +883,7 @@ export class RuntimeAssetsService {
         ...(server.config || {}),
         endpoint: endpointConfig.endpointPath,
         runtimeAssetId,
+        temporaryAnonymous,
         managedByRuntimeAsset: true,
         verifiedCandidateRevision: verification.run.candidateRevision,
         verificationRunId: verification.run.id,

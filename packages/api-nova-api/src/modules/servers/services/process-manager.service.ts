@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -22,7 +22,8 @@ import {
 import { ProcessResourceMonitorService, ProcessResourceMetrics, SystemResourceInfo } from './process-resource-monitor.service';
 import { ProcessLogMonitorService, ProcessLogEntry } from './process-log-monitor.service';
 import { AppConfigService } from '../../../config/app-config.service';
-import { auditDirectory } from 'api-nova-parser';
+import { auditDirectory, assertTemporaryAnonymousPolicy } from 'api-nova-parser';
+import { RuntimeCredentialResolverService } from './runtime-credential-resolver.service';
 import { mcpInboundSpawnEnv } from './mcp-inbound-process-env';
 
 // MCP连接监控相关接口
@@ -80,6 +81,7 @@ export class ProcessManagerService implements OnModuleDestroy {
     private readonly appConfigService: AppConfigService,
     private readonly resourceMonitor: ProcessResourceMonitorService,
     private readonly logMonitor: ProcessLogMonitorService,
+    @Optional() private readonly credentialResolver?: RuntimeCredentialResolverService,
   ) {
     this.config = {
       ...DEFAULT_PROCESS_CONFIG,
@@ -120,19 +122,40 @@ export class ProcessManagerService implements OnModuleDestroy {
   }
 
   /** Check controlled mode and credentials without changing process state. */
-  private preflightProcessEnvironment(config: ProcessConfig): NodeJS.ProcessEnv {
+  private async preflightProcessEnvironment(config: ProcessConfig, spawning = false): Promise<NodeJS.ProcessEnv> {
     const mode = config.mcpConfig?.inboundAuthMode;
     if (config.mcpConfig?.managed && (!mode || config.env?.API_NOVA_RUNTIME_AUTH_MODE !== mode)) {
       throw new Error('Managed MCP process requires a matching inbound authentication mode');
     }
     const inheritedEnv = { ...process.env, ...config.env };
+    if (config.mcpConfig?.managed) {
+      // Deployment trust decisions belong to the host, never saved user environment.
+      for (const key of ['NODE_ENV', 'API_NOVA_ALLOW_TEMPORARY_ANONYMOUS_IN_PRODUCTION', 'API_NOVA_RUNTIME_CREDENTIAL_SOURCE']) {
+        delete inheritedEnv[key];
+        if (process.env[key] !== undefined) inheritedEnv[key] = process.env[key];
+      }
+    }
     const expectedRuntimeAssetId = config.mcpConfig?.managed ? (config.mcpConfig.runtimeAssetId || '') : undefined;
-    return mode ? mcpInboundSpawnEnv(mode, inheritedEnv, expectedRuntimeAssetId) : inheritedEnv;
+    const env = mode ? mcpInboundSpawnEnv(mode, inheritedEnv, expectedRuntimeAssetId) : inheritedEnv;
+    if (config.mcpConfig?.managed) {
+      delete env.API_NOVA_TEMPORARY_ANONYMOUS;
+      if (mode === 'anonymous' && config.mcpConfig.temporaryAnonymous !== undefined) {
+        const policy = assertTemporaryAnonymousPolicy(config.mcpConfig.temporaryAnonymous, { environment: env.NODE_ENV,
+          hostAllowsProduction: process.env.API_NOVA_ALLOW_TEMPORARY_ANONYMOUS_IN_PRODUCTION === 'true' });
+        env.API_NOVA_TEMPORARY_ANONYMOUS = JSON.stringify(policy);
+      }
+    }
+    if (mode === 'api_key' && inheritedEnv.API_NOVA_RUNTIME_CREDENTIAL_SOURCE === 'database') {
+      if (!this.credentialResolver || !expectedRuntimeAssetId) throw new Error('Runtime credential resolver unavailable');
+      await this.credentialResolver.validateForRuntime(expectedRuntimeAssetId);
+      if (spawning) Object.assign(env, await this.credentialResolver.createSpawnEnv(config.id, expectedRuntimeAssetId));
+    }
+    return env;
   }
 
   /** 启动进程（支持CLI spawn） */
   async startProcess(config: ProcessConfig): Promise<ProcessInfo> {
-    this.preflightProcessEnvironment(config);
+    await this.preflightProcessEnvironment(config);
     this.config.processTimeout = this.appConfigService.processTimeout;
     this.config.defaultMaxRetries = this.appConfigService.processMaxRetries;
     this.config.defaultRestartDelay = this.appConfigService.processRestartDelay;
@@ -156,7 +179,7 @@ export class ProcessManagerService implements OnModuleDestroy {
       
       // 创建子进程 - 支持CLI可执行文件
       // Keep inbound credentials out of ProcessConfig and ProcessInfo.
-      const childEnv = this.preflightProcessEnvironment(config);
+      const childEnv = await this.preflightProcessEnvironment(config, true);
       const childProcess = spawn(config.scriptPath, config.args, {
         cwd: config.cwd || process.cwd(),
         env: { ...childEnv, API_NOVA_AUDIT_DIR: auditDirectory(), API_NOVA_AUDIT_SERVER_ID: serverId },
@@ -236,6 +259,7 @@ export class ProcessManagerService implements OnModuleDestroy {
 
       return processInfo;
     } catch (error) {
+      this.credentialResolver?.releaseServer(serverId);
       this.logger.error(`Failed to start process for server ${serverId}:`, error);
       await this.logProcess(serverId, LogLevel.ERROR, `Failed to start process: ${error.message}`);
       await this.updateProcessStatus(serverId, ProcessStatus.ERROR, error.message);
@@ -278,6 +302,7 @@ export class ProcessManagerService implements OnModuleDestroy {
 
       // 清理资源
       await this.cleanupProcess(serverId);
+      this.credentialResolver?.releaseServer(serverId);
 
       this.logger.log(`Process stopped successfully for server ${serverId}`);
       await this.logProcess(serverId, LogLevel.INFO, 'Process stopped successfully');
@@ -388,7 +413,7 @@ export class ProcessManagerService implements OnModuleDestroy {
    */
   async restartProcess(serverId: string, config: ProcessConfig): Promise<ProcessInfo> {
     // Reject unusable recovery configuration before stopping a healthy process.
-    this.preflightProcessEnvironment(config);
+    await this.preflightProcessEnvironment(config);
     this.config.defaultRestartDelay = this.appConfigService.processRestartDelay;
     this.logger.log(`Restarting process for server ${serverId}`);
     await this.logProcess(serverId, LogLevel.INFO, 'Restarting process');
@@ -585,8 +610,11 @@ export class ProcessManagerService implements OnModuleDestroy {
   private setupProcessListeners(serverId: string, childProcess: ChildProcess, config: ProcessConfig): void {
     // 监听进程退出
     childProcess.on('exit', async (code, signal) => {
+      if (this.processes.get(serverId) !== childProcess) return;
+      this.credentialResolver?.releaseServer(serverId);
       this.logger.log(`Process ${serverId} exited with code ${code} and signal ${signal}`);
       await this.logProcess(serverId, LogLevel.INFO, `Process exited with code ${code} and signal ${signal}`);
+      if (this.processes.get(serverId) !== childProcess) return;
       this.resourceMonitor.stopMonitoring(serverId);
       this.logMonitor.stopLogMonitoring(serverId);
       
@@ -609,8 +637,11 @@ export class ProcessManagerService implements OnModuleDestroy {
 
     // 监听进程错误
     childProcess.on('error', async (error) => {
+      if (this.processes.get(serverId) !== childProcess) return;
+      this.credentialResolver?.releaseServer(serverId);
       this.logger.error(`Process ${serverId} encountered an error:`, error);
       await this.logProcess(serverId, LogLevel.ERROR, `Process error: ${error.message}`);
+      if (this.processes.get(serverId) !== childProcess) return;
       this.resourceMonitor.stopMonitoring(serverId);
       this.logMonitor.stopLogMonitoring(serverId);
       

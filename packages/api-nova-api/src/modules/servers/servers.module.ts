@@ -1,3 +1,4 @@
+import { RuntimeCredentialResolverService } from './services/runtime-credential-resolver.service';
 import { Module } from '@nestjs/common';
 import { ManagedMcpHandoffPreparationService } from './services/managed-mcp-handoff-preparation.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -70,6 +71,7 @@ import { SecurityModule } from '../security/security.module';
     ServersLifecycleController,
   ],
   providers: [
+    RuntimeCredentialResolverService,
     ManagedMcpHandoffPreparationService,
     ServerManagerService,
     ServerLifecycleService,

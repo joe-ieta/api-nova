@@ -1,5 +1,5 @@
 ---
-doc-version: 1.12.0
+doc-version: 1.13.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -117,7 +117,7 @@ Gateway 和 MCP 均允许显式 Anonymous，用于开发调试和临时安全测
 
 - 基于现有 Gateway Credential 增加 Protocol、Tool Scope、Expires At、Rotation Family、Actor。
 - 完整 Key 只展示一次，仅保存 Key ID 和摘要。
-- B1-01已实现Protocol/Tool Scope/Subject/Expires At/Actor的统一持久策略和Gateway/MCP共享验证，详见[模型证据](../audits/2026-09-21-unified-consumer-credentials.md)；Rotation Family及动态传播仍归B1-02。
+- B1-01已实现Protocol/Tool Scope/Subject/Expires At/Actor的统一持久策略和Gateway/MCP共享验证，详见[模型证据](../audits/2026-09-21-unified-consumer-credentials.md)；B1-02已完成Rotation Family、双Key窗口和主机显式database模式逐请求传播，见[在线轮换证据](../audits/2026-09-21-live-rotation-temporary-anonymous.md)。
 - 同一 Subject 支持多 Key 无停机轮换。
 
 ### SEC-B02：JWT 校验
@@ -283,7 +283,7 @@ C3 Stable Read 与 Gateway 显式配置激活已实现：Registry 新增 reloadF
 
 Parser 全量 18 套 342/342、Gateway 完整专项 15 套 123/123（detectOpenHandles）、Parser/Server/API 构建均通过。Gateway 配置激活与 Resolver 独立专项 19/19。扩大回归初次发现的 4 个旧夹具失败已修复，原失败证据保留，最终结果见[执行台账第 18 节](./security-development-execution-status.md)。Parser 全量仍有 4 条既有审计写入告警，Linux Provider 30 个真实文件场景仍未补证。
 
-23 个任务包为 DONE 2、IN_PROGRESS 17、BACKLOG 3、DEFERRED 1。A1三模式保存/发布/重启/请求和stdio身份原退出条件已闭合，证据见[本轮闭环](../audits/2026-09-21-auth-publication-loop.md)。稳定文件读取/配置激活已是已验证切片，不能继续列为缺失；固定源受权Reload/状态API及意图/结果审计已在台账第20节验证，不再列为待开发。现行CLI真实MCP发布启动已验；生产IPC生命周期、Registry配置DB归属现已通过C3-02，剩余多进程、完整凭据/网络政策仍按各自子任务出口完成。
+23 个任务包为 DONE 5、IN_PROGRESS 15、BACKLOG 2、DEFERRED 1。A1三模式保存/发布/重启/请求和stdio身份原退出条件已闭合，证据见[本轮闭环](../audits/2026-09-21-auth-publication-loop.md)。稳定文件读取/配置激活已是已验证切片，不能继续列为缺失；固定源受权Reload/状态API及意图/结果审计已在台账第20节验证，不再列为待开发。现行CLI真实MCP发布启动已验；生产IPC生命周期、Registry配置DB归属现已通过C3-02，剩余多进程、完整凭据/网络政策仍按各自子任务出口完成。
 
 ## 12. 当前关键路径与并行面
 

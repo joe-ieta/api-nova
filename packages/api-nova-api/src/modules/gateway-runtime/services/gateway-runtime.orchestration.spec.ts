@@ -129,6 +129,7 @@ describe('GatewayRuntimeService orchestration', () => {
     const credentialRepository = {
       findOne: jest.fn(),
       save: jest.fn(async value => value),
+      update: jest.fn(async () => ({ affected: 1 })),
     };
     const runtimeObservabilityService = {
       recordGatewayRequestResult: jest.fn().mockResolvedValue(undefined),

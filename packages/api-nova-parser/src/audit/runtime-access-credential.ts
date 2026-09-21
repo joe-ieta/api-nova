@@ -17,6 +17,9 @@ export interface RuntimeAccessCredential {
   scopes: string[];
   expiresAt: number;
   actorId?: string;
+  rotationFamilyId?: string;
+  rotationSuccessorId?: string;
+  validUntil?: number;
 }
 export interface RuntimeAccessCredentialEnvelope {
   version: 1;
@@ -37,7 +40,10 @@ export function validateRuntimeAccessCredential(value: unknown): asserts value i
       !strings(item.protocols) || !item.protocols.length || item.protocols.some(value => value !== 'gateway' && value !== 'mcp') ||
       !text(item.runtimeAssetId) || (item.routeBindingId !== undefined && !text(item.routeBindingId)) ||
       !strings(item.toolScopes) || !strings(item.scopes) || !Number.isSafeInteger(item.expiresAt) || item.expiresAt <= 0 ||
-      (item.actorId !== undefined && !text(item.actorId))) {
+      (item.actorId !== undefined && !text(item.actorId)) ||
+      (item.rotationFamilyId !== undefined && !text(item.rotationFamilyId)) ||
+      (item.rotationSuccessorId !== undefined && !text(item.rotationSuccessorId)) ||
+      (item.validUntil !== undefined && (!Number.isSafeInteger(item.validUntil) || item.validUntil <= 0))) {
     throw new RuntimeAuthError(503, 'runtime_auth_not_configured');
   }
 }
@@ -66,7 +72,7 @@ export function verifyRuntimeAccessCredential(
   const now = context.now ?? Date.now() / 1000;
   if (separator <= 0 || separator === presented.length - 1 || presented.length > 8192 ||
       presented.slice(0, separator) !== credential.keyId || /\s/u.test(presented) ||
-      credential.status !== 'active' || !Number.isFinite(now) || credential.expiresAt <= now ||
+      credential.status !== 'active' || !Number.isFinite(now) || credential.expiresAt <= now || (credential.validUntil !== undefined && credential.validUntil <= now) ||
       !timingSafeEqual(createHash('sha256').update(presented.slice(separator + 1)).digest(), Buffer.from(credential.secretHash, 'hex')))
     throw new RuntimeAuthError(401, 'invalid_api_key');
   if (!credential.protocols.includes(context.protocol) || credential.runtimeAssetId !== context.runtimeAssetId ||
@@ -74,6 +80,6 @@ export function verifyRuntimeAccessCredential(
     throw new RuntimeAuthError(403, 'credential_scope_forbidden');
   return { callerId: createHash('sha256').update(`api-key\0${credential.subject}`).digest('hex'),
     issuer: 'api-key', subject: credential.subject, credentialId: credential.id,
-    scopes: [...credential.scopes], toolScopes: [...credential.toolScopes], expiresAt: credential.expiresAt,
+    scopes: [...credential.scopes], toolScopes: [...credential.toolScopes], expiresAt: Math.min(credential.expiresAt, credential.validUntil ?? Infinity),
     identitySource: 'authenticated' };
 }

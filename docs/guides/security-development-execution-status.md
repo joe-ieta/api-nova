@@ -1,5 +1,5 @@
 ---
-doc-version: 1.32.0
+doc-version: 1.33.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -16,7 +16,7 @@ doc-updated: 2026-09-21
 
 DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PROGRESS 包括已有子集和本轮开发，不意味着依赖已闭合；BACKLOG 为尚未实施完整任务的部分；READY 为可开始的明确切片；DEFERRED 为本里程碑之外。
 
-当前共 23 包：DONE=2、IN_PROGRESS=17、BACKLOG=3、DEFERRED=1。本轮TP-A1经原退出条件复核新增DONE。C1-C3 文件装载到 Gateway 激活已是经验证切片；IN_PROGRESS 的具体实现、剩余退出条件和依赖以第2节状态表及最新执行节为准，历史执行段落仅用于追溯。
+当前共 23 包：DONE=5、IN_PROGRESS=15、BACKLOG=2、DEFERRED=1。A2历史状态复核及本批B1/A3原退出条件已闭合。C1-C3 文件装载到 Gateway 激活已是经验证切片；IN_PROGRESS 的具体实现、剩余退出条件和依赖以第2节状态表及最新执行节为准，历史执行段落仅用于追溯。
 
 ## 2. 阶段任务包
 
@@ -24,10 +24,10 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | --- | --- | --- | --- |
 | TP-A0 | SEC-PROTO-01；无 | DONE | 保留范围和协议冻结；不升级协议或启用 OAuth2 |
 | TP-A1 | SEC-A01；A0 | DONE | Gateway jwt/api_key/anonymous、MCP HTTP private_jwt/private_api_key/anonymous、stdio local_process；持久选择、UI标签、真实发布/失败保旧/冷恢复/真实请求均有对应证据，不迁移旧OAuth入口策略；不代表完整安全验收 |
-| TP-A2 | SEC-A02；A1 | IN_PROGRESS | 编译器已 fail closed；本轮补运行时模式白名单，非法快照/发布/启动矩阵待验证 |
-| TP-A3 | SEC-A03；A2/B1 | BACKLOG | 临时匿名 reason/expiresAt/actor、生产双重许可和到期审计未闭环 |
+| TP-A2 | SEC-A02；A1 | DONE | 缺失/未知策略拒绝和显式Anonymous可用，A2-01A/B已有证据；此次修正父状态滞后 |
+| TP-A3 | SEC-A03；A2/B1 | DONE | reason/可信actor/expiresAt保存与冷重开，生产双许可，真实Gateway/MCP到期拒绝审计；UI归F2 |
 | TP-A4 | 数据库基线；A0 | IN_PROGRESS | 当前PG/SQLite的69实体、4迁移空库/重连/零漂移已分别通过；本次关闭A4-02环境出口，父包基线/迁移管理按原退出条件核对，不从环境子项自动提升 |
-| TP-B1 | SEC-B01；A2 | IN_PROGRESS | Protocol/Tool Scope/Subject/Expiry/Actor统一持久模型与Gateway/MCP解释已完成B1-01；轮换族、下一请求撤销和受管child更新传播归B1-02 |
+| TP-B1 | SEC-B01；A2 | DONE | 统一持久模型、协议/Route/Tool Scope、同Subject多Key轮换及跨Gateway/MCP下一请求撤销；动态CLI需主机显式database来源 |
 | TP-B2 | SEC-B02；A1 | IN_PROGRESS | 共享 JWT/JWKS/issuer/audience 已有；RS256/ES256、必需 sub/exp/iat、时钟容差 0 为固定子集，完整配置化未完成 |
 | TP-B3 | SEC-B03；B1/B2/E0 | IN_PROGRESS | tools/list 请求级 scope 过滤 34/34，tools/call 二次检查及会话绑定已有；SDK 内部桥接、持久撤销与权限通知未闭环 |
 | TP-C1 | SEC-C01；A0 | IN_PROGRESS | 纯对象与 JSON/YAML loader 已实现，并经 C3 稳定文件读取激活到 Gateway；完整凭据类型、安全对账与全链路验收仍待完成 |
@@ -669,3 +669,7 @@ C2-02完成，主任务复验[NTFS矩阵](../audits/2026-09-21-windows-secret-ac
 B1-01完成，见[模型与验证证据](../audits/2026-09-21-unified-consumer-credentials.md)。现有凭证表新增版本化accessPolicy，管理API保存受信Actor、Protocol/Tool Scope/Subject/Expiry；同一keyId.secret在Gateway/MCP使用同一摘要与限制。仅创建时返回完整Key，列表不返回Key或摘要。受权摘要导出用于显式启动配置，受管CLI强制匹配Runtime ID。
 
 B1父包仍IN_PROGRESS：Rotation Family、窗口和运行中child撤销/轮换传播未完成；UI凭证表单未新增这些字段，字段管理由本轮API提供。当前数据库基线已复验4迁移，历史3迁移报告保留历史含义。
+
+## 在线凭证与临时匿名闭环（2026-09-21）
+
+[本批证据](../audits/2026-09-21-live-rotation-temporary-anonymous.md)关闭B1-02/A3-01并复核A2/B1/A3父出口。历史章节保留当时事实；当前状态以阶段表为准。C3-03补E1-02C1依赖回WAIT_DEP，旧READY结论已纠正。

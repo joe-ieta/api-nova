@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEnum,
+  IsObject,
   IsArray,
   ArrayMaxSize,
   IsIn,
@@ -38,6 +39,11 @@ export class RuntimeAssetQueryDto {
 }
 
 export class DeployRuntimeAssetMcpDto {
+  @ApiPropertyOptional({ description: 'Temporary anonymous grant; actor is supplied by the authenticated server' })
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsObject()
+  temporaryAnonymous?: { reason: string; expiresAt: string; allowProduction?: boolean };
+
   @ApiPropertyOptional({ description: 'Existing managed server id to update' })
   @IsOptional()
   @IsString()
