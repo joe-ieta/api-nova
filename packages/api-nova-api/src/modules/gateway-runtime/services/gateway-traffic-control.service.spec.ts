@@ -120,6 +120,27 @@ describe('GatewayTrafficControlService', () => {
     } finally { jest.useRealTimers(); }
   });
 
+  it.each([['globalMax', 1000, 10], ['runtimeAssetMax', 10, 1000]])(
+    'fails closed on an active shared %s bucket with conflicting windows', async (layer, firstWindow, conflictingWindow) => {
+      jest.useFakeTimers();
+      try {
+        const service = buildService();
+        const route = resolvedRoute();
+        route.policies.traffic.trafficControl = { rateLimit: { windowMs: firstWindow, [layer]: 2 } };
+        await service.admit(route, { mode: 'anonymous' });
+        jest.advanceTimersByTime(5);
+        const other = resolvedRoute();
+        other.routeBinding.id = 'route-2';
+        other.policies.traffic.trafficControl = { rateLimit: { windowMs: conflictingWindow, [layer]: 2 } };
+        await expect(service.admit(other, { mode: 'anonymous' })).rejects.toThrow('window configuration conflicts');
+        // Failed checks must neither reset nor charge the original shared bucket.
+        await expect(service.admit(route, { mode: 'anonymous' })).resolves.toBeDefined();
+        await expect(service.admit(route, { mode: 'anonymous' })).rejects.toThrow(HttpException);
+        jest.advanceTimersByTime(Number(firstWindow));
+        await expect(service.admit(other, { mode: 'anonymous' })).resolves.toBeDefined();
+      } finally { jest.useRealTimers(); }
+    },
+  );
   it('opens the breaker after repeated failures and recovers after a successful probe', async () => {
     jest.useFakeTimers();
     const runtimeObservabilityService = {

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.33.0
+doc-version: 1.34.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -35,7 +35,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-C3 | SEC-C03；C2 | IN_PROGRESS | Stable Read、manual及Watch/debounce、受权Reload/状态和代次冲突已验证；C3-01 Watch与C3-02 DB归属完成，C3-03多进程待验 |
 | TP-C4 | SEC-C04；C3 | IN_PROGRESS | Gateway与显式MCP single-hop Resolver已验证；SEC-C4-01验收真实受管child执行及Unresolved门禁，依赖E1/F1；网络政策主归F3，不在C4复制实现 |
 | TP-D1 | SEC-D01；C4 | IN_PROGRESS | 消费者/逐跳/托管Header清理及共享Resolver已用于Gateway；Connection大小写联合提名、代理生成字段去别名和XFF不重引入已补；业务Header Allowlist、缓存/传输兼容和保留字段统一策略仍未完成，30 项 D1/F3 矩阵为 draft |
-| TP-D2 | SEC-D02；B1/B2/D1 | IN_PROGRESS | 认证先于缓存，身份隔离及独立IP/Anonymous Bucket已通过真实HTTP；D2-01完成，完整Global/Runtime/Route/Credential/IP组合及多节点验收未完成 |
+| TP-D2 | SEC-D02；B1/B2/D1 | IN_PROGRESS | 身份化缓存、六层限流与匿名独立桶功能出口已通过D2-01/02；原父依赖B2/D1整体验收待闭合，不额外添加多节点验收门槛 |
 | TP-E0 | MCP Adapter；A0 | IN_PROGRESS | HTTP/Session/SSE/stdio 和 Discovery 禁用已有；完整版本/错误边界待验收 |
 | TP-E1 | SEC-E01；B3/C4/E0 | IN_PROGRESS | 可信映射、管理侧装配/发布读取、跨源校验及旧候选guard已验；SEC-E1-01~04负责技术方案、真实child接线、argv秘密移除、端到端与运行中撤销；管理侧继续微修不替代出口 |
 | TP-E2 | SEC-E02；E1 | IN_PROGRESS | 安全 smoke/跨进程/传输专项有历史证据；当前完整安全矩阵、撤销/取消/重连和平台组合未完成 |
@@ -673,3 +673,7 @@ B1父包仍IN_PROGRESS：Rotation Family、窗口和运行中child撤销/轮换�
 ## 在线凭证与临时匿名闭环（2026-09-21）
 
 [本批证据](../audits/2026-09-21-live-rotation-temporary-anonymous.md)关闭B1-02/A3-01并复核A2/B1/A3父出口。历史章节保留当时事实；当前状态以阶段表为准。C3-03补E1-02C1依赖回WAIT_DEP，旧READY结论已纠正。
+
+## 六层限流组合收尾（2026-09-21）
+
+D2-02完成，见[组合证据](../audits/2026-09-21-layered-rate-limit-composition.md)。共享窗口混配漏洞已修复；D2父包保留原依赖B2/D1，不再声称组合功能未完成或扩大为多节点任务。

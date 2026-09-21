@@ -1,5 +1,5 @@
 ---
-doc-version: 1.8.0
+doc-version: 1.9.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -55,7 +55,7 @@ doc-updated: 2026-09-21
 | SEC-D1-01 | [请求头与网络边界合同](./security-header-network-boundary-contract.md) | **准备**：30 项矩阵仍为草案；请求/响应、多值、framing、保留字段和迁移例外需定稿。 |
 | SEC-D1-02 | [Header 边界脚本](../../packages/api-nova-api/scripts/test-gateway-header-boundary.cjs)、[代理测试](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-proxy-engine.credential.spec.ts) | **限定执行/待验收**：Connection/消费者头清理已有；业务 allowlist 与缓存、正文长度、响应字段及迁移兼容未完成。 |
 | SEC-D2-01 | [独立限流证据](../audits/2026-09-21-independent-rate-limits.md) | **限定执行/DONE**：真实HTTP覆盖IP/匿名独立桶、暖缓存和伪造转发头；Gateway全套201/201。进程内计数，完整层级及多节点不在此叶。 |
-| SEC-D2-02 | 同上；无全层组合执行记录 | **待验收**：Global/Runtime/Route/Credential/IP 顺序与拒绝归因不可由单层单测推导。 |
+| SEC-D2-02 | [真实HTTP组合证据](../audits/2026-09-21-layered-rate-limit-composition.md) | **限定执行/DONE**：六层组合、缓存计量、同主体轮换、冲突窗口与精确并发准入；单进程既有范围。 |
 | SEC-E0-01 | [安全 smoke](../../packages/api-nova-server/scripts/runtime-security-audit-smoke.js)、[HTTP delivery](../../packages/api-nova-server/scripts/test-mcp-http-delivery.cjs)；SDK 1.29.0 | **历史执行/准备**：现行 Session/stdio/HTTP 基线有局部用例；Method、Header、错误与所有入口的当前锁定版本矩阵待验。 |
 | SEC-E1-01 | [受管交付草案](./managed-mcp-credential-handoff-plan.md) | **限定 DOC**：0.1.0 草案已交付，不是代码或安全启动验收。 |
 | SEC-E1-01R | [受管交付草案 §9](./managed-mcp-credential-handoff-plan.md) | **限定 DOC**：0.2.0 技术审查冻结 02A/真实 child 必选项，不是方案外生产批准。 |

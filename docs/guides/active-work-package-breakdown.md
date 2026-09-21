@@ -1,5 +1,5 @@
 ---
-doc-version: 1.32.0
+doc-version: 1.33.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -251,3 +251,5 @@ B1-01已完成统一持久策略、Gateway/MCP共享解释与摘要配置导出�
 重新核对发现C3-03缺少产品生命周期真实接线依赖：managed/runtime只保留启动snapshot，handoff/channel尚无产品reload消费者。补E1-02C1依赖并回WAIT_DEP，不开发无消费者的实验cohort。改为并行B1-02、A3-01和D2-02组合验收；D2-02的完成仍须等待B1-02。现行CLI的消费者凭证DB查询不等于生产managed IPC接线。
 
 B1-02与A3-01真实现行CLI闭环通过，A2/B1/A3按归档原出口复核DONE。SEC-B3-01及SEC-F2-02解除依赖转READY；不新增叶子。共享生命周期改动随同一集成提交交付，D2组合独立收尾。
+
+D2-02在B1-02完成后闭合：六层组合、同主体轮换计量、窗口冲突与并发上限均有真实HTTP证据。父包D2只保留原B2/D1依赖整体验收，不追加多节点门槛。本批结束132叶子中68DONE；下一队列B3-01、F2-02及既有B2-01。

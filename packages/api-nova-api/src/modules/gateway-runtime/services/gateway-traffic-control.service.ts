@@ -23,6 +23,7 @@ import { GatewayRuntimeMetricsService } from './gateway-runtime-metrics.service'
 type CounterState = {
   expiresAt: number;
   windowStartedAt: number;
+  windowMs: number;
   count: number;
 };
 
@@ -236,10 +237,30 @@ export class GatewayTrafficControlService {
     const touched: Array<{ key: string; nextState: CounterState }> = [];
     for (const check of checks) {
       const current = this.rateLimitCounters.get(check.key);
-      const activeWindow =
-        current && now - current.windowStartedAt < rateLimit.windowMs
-          ? current
-          : { windowStartedAt: now, expiresAt: now + rateLimit.windowMs, count: 0 };
+      // Shared global/runtime buckets may be reached through multiple routes.
+      // Their existing deadline belongs to the admitted policy; a different
+      // route must not reset it by supplying a shorter window.
+      const active = current && now < current.expiresAt ? current : undefined;
+      if (active && active.windowMs !== rateLimit.windowMs) {
+        void this.runtimeObservabilityService.recordRuntimeControlEvent({
+          runtimeAssetId: resolvedRoute.runtimeAsset.id,
+          runtimeMembershipId: resolvedRoute.membership.id,
+          eventFamily: RuntimeObservabilityEventFamily.RUNTIME_POLICY,
+          eventName: 'gateway.rate_limit_configuration_conflict',
+          severity: RuntimeObservabilitySeverity.WARNING,
+          status: RuntimeObservabilityStatus.FAILED,
+          summary: 'Gateway shared rate limit window configuration conflicts',
+          details: { limitKey: check.key, activeWindowMs: active.windowMs, requestedWindowMs: rateLimit.windowMs },
+          dimensions: { routePath: resolvedRoute.routeBinding.routePath, routeMethod: resolvedRoute.routeBinding.routeMethod, limitKey: check.key },
+        });
+        this.gatewayRuntimeMetricsService.recordPolicyEvent({
+          runtimeAssetId: resolvedRoute.runtimeAsset.id, runtimeMembershipId: resolvedRoute.membership.id,
+          routePath: resolvedRoute.routeBinding.routePath, routeMethod: resolvedRoute.routeBinding.routeMethod,
+          policyName: 'gateway.rate_limit_configuration_conflict',
+        });
+        throw new ServiceUnavailableException('Gateway shared rate limit window configuration conflicts');
+      }
+      const activeWindow = active || { windowStartedAt: now, expiresAt: now + rateLimit.windowMs, windowMs: rateLimit.windowMs, count: 0 };
       if (activeWindow.count + 1 > check.limit) {
         void this.runtimeObservabilityService.recordRuntimeControlEvent({
           runtimeAssetId: resolvedRoute.runtimeAsset.id,
@@ -275,6 +296,7 @@ export class GatewayTrafficControlService {
         nextState: {
           windowStartedAt: activeWindow.windowStartedAt,
           expiresAt: activeWindow.expiresAt,
+          windowMs: activeWindow.windowMs,
           count: activeWindow.count + 1,
         },
       });

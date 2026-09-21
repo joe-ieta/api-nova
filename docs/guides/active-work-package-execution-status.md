@@ -1,5 +1,5 @@
 ---
-doc-version: 1.49.0
+doc-version: 1.50.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,9 +14,9 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 67 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 68 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 21 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | SEC-D2-02 |
+| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
 | WAIT_DEP | 23 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -61,7 +61,7 @@ doc-updated: 2026-09-21
 | SEC-D1-01 | READY | 现有30项草案不是实现 |
 | SEC-D1-02 | WAIT_DEP | Connection修复转维护 |
 | SEC-D2-01 | DONE | 真实HTTP独立IP/Anonymous桶、peer可信边界、缓存命中仍限流；Gateway全套201/201、主任务联合复验42/42；见2026-09-21-independent-rate-limits证据 |
-| SEC-D2-02 | IN_PROGRESS | 已有层可并行验证Global/Runtime/Route/Credential/IP/Anonymous真实组合与拒绝归因；B1-02完成后才关闭 |
+| SEC-D2-02 | DONE | 六层真实HTTP组合19项、四套73/73；共享窗口冲突503且到期恢复、24并发精确7准入；见六层限流组合证据 |
 | SEC-E0-01 | READY | 不升级无状态协议 |
 | SEC-E1-01 | DONE | managed-mcp-credential-handoff-plan.md 0.1.0 draft；无代码交付；[草案](./managed-mcp-credential-handoff-plan.md) |
 | SEC-E1-01R | DONE | [交付设计第9节](./managed-mcp-credential-handoff-plan.md)，02A通道与真实child验收冻结；仅DOC |
@@ -195,3 +195,5 @@ B1-01、C2-02、C3-02三个既有出口完成，DONE从62增至65。B1-02、A3-0
 ## 在线轮换与临时匿名（2026-09-21）
 
 B1-02、A3-01完成，见[真实闭环证据](../audits/2026-09-21-live-rotation-temporary-anonymous.md)。A2历史父状态滞后已按原退出标准修正，与本批B1/A3共同闭合；B3-01、F2-02转READY。C3-03补真实生产接线依赖回WAIT_DEP，不以实验入口假充产品完成。
+
+六层限流组合D2-02完成，见[验收](../audits/2026-09-21-layered-rate-limit-composition.md)。本批3个功能叶子完成，DONE由65升68；132项总量不变。共享生命周期集成已推送4680316，D2随本报告提交单独推送。

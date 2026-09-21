@@ -3,7 +3,7 @@
 > 2026-09-08: 数据库与持久化清理、43 表 PG/SQLite 空库及完整回归结果见 [本轮清理审查记录](./2026-09-08-persistence-cleanup.md)。旧报告中的 38/40 表与环境阻塞结论保留为历史证据。
 
 ---
-doc-version: 1.33.0
+doc-version: 1.34.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -38,6 +38,8 @@ doc-updated: 2026-09-21
 本批证据：[SEC-B1-01 统一消费者凭证模型与双入口验收](./2026-09-21-unified-consumer-credentials.md)。
 
 本批证据：[在线凭证轮换与临时匿名闭环](./2026-09-21-live-rotation-temporary-anonymous.md)。
+
+本批证据：[六层限流组合验收](./2026-09-21-layered-rate-limit-composition.md)。
 
 ## Purpose
 
