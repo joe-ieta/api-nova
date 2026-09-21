@@ -28,7 +28,7 @@ exports.publish = async function(db, port, upstreamPort, mode, setUpstreamStatus
  await new Promise(resolve=>setTimeout(resolve,1050));
  const verify=new RuntimeVerificationService(repo('RuntimeAsset'),repo('RuntimeAssetEndpointBinding'),repo('EndpointTestSample'),repo('RuntimeVerificationRun'),repo('RuntimeVerificationResult'),bindings,{}, {},new McpCandidateReplayService(),new RuntimeResponseAssertionService());
  const service=new RuntimeAssetsService({}, {emit:()=>{}},repo('RuntimeAsset'),db.getRepository(MCPServerEntity),repo('RuntimeAssetEndpointBinding'),repo('EndpointDefinition'),repo('SourceServiceAsset'),repo('PublicationProfile'),repo('EndpointPublishBinding'),repo('GatewayRouteBinding'),repo('GatewayConsumerCredential'),{}, {}, {},{recordRuntimeControlEvent:async()=>{}},{log:async()=>{}},bindings,verify);
- const dto={port,transport:'streamable',endpointPath:'/mcp',inboundAuthMode:mode,autoStart:false,...(options.temporaryAnonymous ? {temporaryAnonymous:options.temporaryAnonymous} : {})};
+ const dto={port,transport:options.transport || 'streamable',endpointPath:'/mcp',inboundAuthMode:mode,autoStart:false,...(options.jwtPolicy !== undefined ? {jwtPolicy:options.jwtPolicy} : {}),...(options.temporaryAnonymous ? {temporaryAnonymous:options.temporaryAnonymous} : {})};
  setUpstreamStatus(500);
  await assert.rejects(()=>service.deployMcpRuntimeAsset(asset.id,dto,{actorId:options.actorId}),error=>error.getResponse?.().code==='RUNTIME_VERIFICATION_FAILED');
  assert.equal(await db.getRepository(MCPServerEntity).count(),0);

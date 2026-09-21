@@ -1,5 +1,5 @@
 ---
-doc-version: 1.50.0
+doc-version: 1.51.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,9 +14,9 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 68 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 21 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
+| DONE | 69 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 18 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 2 | SEC-B2-01、SEC-F2-02 |
 | WAIT_DEP | 23 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -47,8 +47,8 @@ doc-updated: 2026-09-21
 | SEC-A4-02 | DONE | Windows PostgreSQL16.10新隔离集群复验69实体/表、4迁移，空库/重连零漂移、持久化、真实API启动；集群已关闭清理；非Linux/旧版本生产升级 |
 | SEC-B1-01 | DONE | 同一持久凭证支持Protocol/Tool Scope/Subject/Expiry/Actor，Gateway/MCP共用验证；真实DB11项、MCP HTTP40/40、真实CLI4/4、联合API277/277、双库4迁移零漂移；见统一凭证证据 |
 | SEC-B1-02 | DONE | 轮换族、窗口与事务审计；真实Gateway/MCP同PID逐请求DB验证截止/撤销/自然到期，见在线轮换证据 |
-| SEC-B2-01 | READY | 固定子集已有 |
-| SEC-B3-01 | READY | B1-02已完成；下一步验证既有长连接执行拒绝、权限传播及重连不恢复 |
+| SEC-B2-01 | IN_PROGRESS | 允许算法/必需claims/clock skew参数保存与Gateway/MCP执行拒绝矩阵 |
+| SEC-B3-01 | DONE | 真实Streamable/SSE长连接2/2：scope收窄、持久撤销、旧session/新连接/重连拒绝、SQLite重开及同PID有效Key对照；见会话撤销证据 |
 | SEC-B3-02 | READY | 不是升级SDK任务 |
 | SEC-C1-01 | READY | header API Key/Bearer已有 |
 | SEC-C1-02 | WAIT_DEP | 类型很多时逐类型再拆后执行 |
@@ -77,7 +77,7 @@ doc-updated: 2026-09-21
 | SEC-F1-01 | READY | 不回塞到C1造成循环 |
 | SEC-F1-02 | WAIT_DEP | 未完成 |
 | SEC-F2-01 | READY | 缺策略文案已完成 |
-| SEC-F2-02 | READY | A3-01已完成；待申请/风险/到期界面与服务端拒绝一致显示 |
+| SEC-F2-02 | IN_PROGRESS | Gateway/MCP匿名申请、原因/到期与生产风险显示接通既有服务端策略 |
 | SEC-F3-01 | READY | 不将零redirect称SSRF完成 |
 | SEC-F3-02 | WAIT_DEP | 未完成 |
 | SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
@@ -197,3 +197,7 @@ B1-01、C2-02、C3-02三个既有出口完成，DONE从62增至65。B1-02、A3-0
 B1-02、A3-01完成，见[真实闭环证据](../audits/2026-09-21-live-rotation-temporary-anonymous.md)。A2历史父状态滞后已按原退出标准修正，与本批B1/A3共同闭合；B3-01、F2-02转READY。C3-03补真实生产接线依赖回WAIT_DEP，不以实验入口假充产品完成。
 
 六层限流组合D2-02完成，见[验收](../audits/2026-09-21-layered-rate-limit-composition.md)。本批3个功能叶子完成，DONE由65升68；132项总量不变。共享生命周期集成已推送4680316，D2随本报告提交单独推送。
+
+## JWT/会话/UI批次（2026-09-21）
+
+B3-01真实双传输通过，见[会话证据](../audits/2026-09-21-persistent-session-revocation.md)。B2-01/F2-02并行实现和集成继续；不重复增加验证子任务。
