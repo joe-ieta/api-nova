@@ -1,5 +1,5 @@
 ---
-doc-version: 1.13.0
+doc-version: 1.14.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -38,7 +38,7 @@ doc-updated: 2026-09-21
 | SEC-B1-02 | [真实CLI与HTTP闭环](../audits/2026-09-21-live-rotation-temporary-anonymous.md) | **限定执行/DONE**：持久策略、下一请求执行和真实生命周期已验；主机database模式/生产双许可边界见报告，不替代UI/长连接/生产交付。 |
 | SEC-B2-01 | [JWT真实生命周期](../audits/2026-09-21-jwt-policy-lifecycle.md) | **限定执行/DONE**：参数保存、固定信任源、真实冷重开CLI签名矩阵与长连接有效截止；非在线热更新/真实身份提供方部署。 |
 | SEC-B3-01 | [真实会话撤销](../audits/2026-09-21-persistent-session-revocation.md) | **限定执行/DONE**：Streamable/SSE既有长连接、scope变化、撤销/重连/DB重开拒绝2/2；非在途取消/异步权限通知。 |
-| SEC-B3-02 | [安全 smoke](../../packages/api-nova-server/scripts/runtime-security-audit-smoke.js)、[传输观测](../../packages/api-nova-server/scripts/test-mcp-transport-observability.cjs)；锁定 SDK 1.29.0 | **准备**：需以当前 SDK 固定 dispatcher、Session 身份和 scope 通知矩阵；旧 7 项跨进程用例不是该出口完整执行。 |
+| SEC-B3-02 | [SDK会话矩阵](../audits/2026-09-21-sdk-session-contract.md) | **限定执行/DONE**：11项新增、联合71/71，固定dispatcher/Session/通知边界；不升级SDK或实现权限广播。 |
 | SEC-C1-01 | [Loader/Schema 测试](../../packages/api-nova-parser/src/credentials/loader.spec.ts)、[配置规划](./security-development-task-plan.md) | **限定执行/准备**：header API Key/Bearer 及拒绝型 loader 有本机结果；批准凭据类型的逐项支持/拒绝、生命周期和作用域合同未定稿。 |
 | SEC-C1-02 | 无覆盖全部批准类型的当前脚本 | **待验收**：须先按 C1-01 逐类型实现解析、注入、脱敏和拒绝；OAuth2 不属于本轮。 |
 | SEC-C2-01 | [Linux 隔离操作说明](../testing/upstream-secret-provider-linux.md)、[Provider 脚本](../../packages/api-nova-parser/scripts/test-upstream-secret-provider.cjs) | **准备/待验收（环境）**：Windows 本机 53 项通过；30 个真实 Linux 文件权限场景尚未执行。说明中 82 通过只是预期值。 |

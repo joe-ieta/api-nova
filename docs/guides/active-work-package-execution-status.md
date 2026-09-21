@@ -1,5 +1,5 @@
 ---
-doc-version: 1.54.0
+doc-version: 1.55.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,9 +14,9 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 72 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 73 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 16 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 2 | SEC-B3-02、SEC-F2-01 |
+| IN_PROGRESS | 1 | SEC-F2-01 |
 | WAIT_DEP | 22 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -49,7 +49,7 @@ doc-updated: 2026-09-21
 | SEC-B1-02 | DONE | 轮换族、窗口与事务审计；真实Gateway/MCP同PID逐请求DB验证截止/撤销/自然到期，见在线轮换证据 |
 | SEC-B2-01 | DONE | 共享algorithms/requiredClaims/skew保存与执行；真实SQLite重开/CLI/Gateway一致、运行中修改须先停止、SSE有效截止17项，见JWT参数证据 |
 | SEC-B3-01 | DONE | 真实Streamable/SSE长连接2/2：scope收窄、持久撤销、旧session/新连接/重连拒绝、SQLite重开及同PID有效Key对照；见会话撤销证据 |
-| SEC-B3-02 | IN_PROGRESS | 固定锁定SDK dispatcher/Session身份/scope通知边界，真实双传输矩阵 |
+| SEC-B3-02 | DONE | SDK1.29.0 dispatcher/双传输Session/同主体换钥/跨主体拒绝/通知边界11项，统一入口71/71；scope不自动通知，目录变更阳性对照，见SDK证据 |
 | SEC-C1-01 | READY | header API Key/Bearer已有 |
 | SEC-C1-02 | WAIT_DEP | 类型很多时逐类型再拆后执行 |
 | SEC-C2-01 | NEED_ENV | Env/File本机实现已有 |
@@ -209,3 +209,5 @@ F2-02已完成，见[匿名界面证据](../audits/2026-09-21-temporary-anonymou
 ## SDK/管理分区/Header批次（2026-09-21）
 
 D1-01已定稿，D1-02转READY；这1项是DOC完成，不计为Header功能实现。B3-02与F2-01独立验收中。
+
+B3-02完成，见[SDK合同](../audits/2026-09-21-sdk-session-contract.md)。B3两叶出口完成但父依赖E0仍缺；不机械提升父状态。

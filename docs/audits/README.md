@@ -3,7 +3,7 @@
 > 2026-09-08: 数据库与持久化清理、43 表 PG/SQLite 空库及完整回归结果见 [本轮清理审查记录](./2026-09-08-persistence-cleanup.md)。旧报告中的 38/40 表与环境阻塞结论保留为历史证据。
 
 ---
-doc-version: 1.37.0
+doc-version: 1.38.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -46,6 +46,8 @@ doc-updated: 2026-09-21
 本批证据：[JWT参数保存与真实运行验收](./2026-09-21-jwt-policy-lifecycle.md)。
 
 本批证据：[临时匿名管理界面验收](./2026-09-21-temporary-anonymous-ui.md)。
+
+本批证据：[锁定SDK会话与通知合同验证](./2026-09-21-sdk-session-contract.md)。
 
 ## Purpose
 

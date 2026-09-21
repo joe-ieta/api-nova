@@ -1,5 +1,5 @@
 ---
-doc-version: 1.38.0
+doc-version: 1.39.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -29,7 +29,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-A4 | 数据库基线；A0 | IN_PROGRESS | 当前PG/SQLite的69实体、4迁移空库/重连/零漂移已分别通过；本次关闭A4-02环境出口，父包基线/迁移管理按原退出条件核对，不从环境子项自动提升 |
 | TP-B1 | SEC-B01；A2 | DONE | 统一持久模型、协议/Route/Tool Scope、同Subject多Key轮换及跨Gateway/MCP下一请求撤销；动态CLI需主机显式database来源 |
 | TP-B2 | SEC-B02；A1 | DONE | 固定可信JWK/JWKS与issuer/audience已有；算法/必需claims/clock skew保存、启动、签名拒绝和SSE截止现已按原出口验收 |
-| TP-B3 | SEC-B03；B1/B2/E0 | IN_PROGRESS | B3-01真实双传输既有会话持久撤销/权限收窄/重连拒绝已完成；B3-02 SDK桥接与通知矩阵、E0父依赖仍待闭合 |
+| TP-B3 | SEC-B03；B1/B2/E0 | IN_PROGRESS | B3-01持久撤销和B3-02锁定SDK dispatcher/Session/通知矩阵已完成；功能出口有证据，父依赖E0完整Adapter合同仍待闭合 |
 | TP-C1 | SEC-C01；A0 | IN_PROGRESS | 纯对象与 JSON/YAML loader 已实现，并经 C3 稳定文件读取激活到 Gateway；完整凭据类型、安全对账与全链路验收仍待完成 |
 | TP-C2 | SEC-C02；C1 | IN_PROGRESS | Env/File Provider 已用于 Registry，Gateway 显式配置激活链已贯通；本机契约历史 53 项通过，真实 Linux 权限 30 场景待补证，Windows Secret File ACL已完成C2-02原生验收，Linux环境出口待验 |
 | TP-C3 | SEC-C03；C2 | IN_PROGRESS | Stable Read、manual及Watch/debounce、受权Reload/状态和代次冲突已验证；C3-01 Watch与C3-02 DB归属完成，C3-03多进程待验 |
@@ -693,3 +693,7 @@ D2-02完成，见[组合证据](../audits/2026-09-21-layered-rate-limit-composit
 ## Header政策冻结（2026-09-21）
 
 [D1合同1.0.0](./security-header-network-boundary-contract.md)完成D1-01 DOC出口，D1-02转READY。四个实施阶段为编译快照、双向流传输、缓存隔离及迁移防降级；沿用既有叶子，不增加文档任务充数。F3网络矩阵仍为提案，不把政策定稿计为代码完成。
+
+## SDK会话合同（2026-09-21）
+
+[B3-02证据](../audits/2026-09-21-sdk-session-contract.md)固定当前SDK1.29.0矩阵。权限变更下一请求生效，但不自动发送目录通知；真实目录修改有通知阳性对照。父包B3只保留E0依赖，不继续声称SDK矩阵未完成。
