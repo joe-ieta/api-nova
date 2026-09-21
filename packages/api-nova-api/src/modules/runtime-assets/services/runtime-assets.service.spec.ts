@@ -922,6 +922,24 @@ describe('RuntimeAssetsService', () => {
     requireSpy.mockRestore();
   });
 
+  it('rejects changing JWT verification policy on a running process before persistence', async () => {
+    const asset = { id: 'runtime-jwt-policy', type: RuntimeAssetType.MCP_SERVER, name: 'jwt-mcp' };
+    const assemble = jest.spyOn(service, 'assembleMcpRuntimeAssetPayload').mockResolvedValue({
+      runtimeAsset: asset, openApiData: {}, tools: [], verificationTools: [], toolsCount: 0, includedMembershipCount: 0,
+    } as any);
+    const jwtPolicy = { algorithms: ['RS256'], requiredClaims: ['sub', 'exp', 'iat'], clockToleranceSeconds: 0 };
+    const server = { id: 'jwt-server', name: asset.name, status: ServerStatus.RUNNING,
+      inboundAuthMode: McpInboundAuthMode.PRIVATE_JWT, config: { runtimeAssetId: asset.id, jwtPolicy } };
+    mcpServerRepository.findOne.mockResolvedValue(server);
+    try {
+      await expect(service.deployMcpRuntimeAsset(asset.id, { jwtPolicy: { algorithms: ['ES256'] } }))
+        .rejects.toMatchObject({ response: expect.objectContaining({ code: 'MCP_JWT_POLICY_CHANGE_REQUIRES_STOP' }) });
+      expect(runtimeVerificationService.planCandidate).not.toHaveBeenCalled();
+      expect(mcpServerRepository.save).not.toHaveBeenCalled();
+      expect(server.config.jwtPolicy).toEqual(jwtPolicy);
+    } finally { assemble.mockRestore(); }
+  });
+
   it.each([
     ['missing mode', undefined, undefined],
     ['unknown saved mode', 'unknown', undefined],

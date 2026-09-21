@@ -24,7 +24,7 @@ import { ProcessLogMonitorService, ProcessLogEntry } from './process-log-monitor
 import { AppConfigService } from '../../../config/app-config.service';
 import { auditDirectory, assertTemporaryAnonymousPolicy } from 'api-nova-parser';
 import { RuntimeCredentialResolverService } from './runtime-credential-resolver.service';
-import { mcpInboundSpawnEnv } from './mcp-inbound-process-env';
+import { managedMcpJwtPolicyEnv, mcpInboundSpawnEnv } from './mcp-inbound-process-env';
 
 // MCP连接监控相关接口
 interface MCPConnectionEvent {
@@ -130,10 +130,13 @@ export class ProcessManagerService implements OnModuleDestroy {
     const inheritedEnv = { ...process.env, ...config.env };
     if (config.mcpConfig?.managed) {
       // Deployment trust decisions belong to the host, never saved user environment.
-      for (const key of ['NODE_ENV', 'API_NOVA_ALLOW_TEMPORARY_ANONYMOUS_IN_PRODUCTION', 'API_NOVA_RUNTIME_CREDENTIAL_SOURCE']) {
+      for (const key of ['API_NOVA_RUNTIME_JWT_POLICY', 'NODE_ENV', 'API_NOVA_ALLOW_TEMPORARY_ANONYMOUS_IN_PRODUCTION', 'API_NOVA_RUNTIME_CREDENTIAL_SOURCE']) {
         delete inheritedEnv[key];
         if (process.env[key] !== undefined) inheritedEnv[key] = process.env[key];
       }
+    }
+    if (config.mcpConfig?.managed && mode === 'jwt') {
+      inheritedEnv.API_NOVA_RUNTIME_JWT_POLICY = managedMcpJwtPolicyEnv(config.mcpConfig.jwtPolicy, process.env).API_NOVA_RUNTIME_JWT_POLICY;
     }
     const expectedRuntimeAssetId = config.mcpConfig?.managed ? (config.mcpConfig.runtimeAssetId || '') : undefined;
     const env = mode ? mcpInboundSpawnEnv(mode, inheritedEnv, expectedRuntimeAssetId) : inheritedEnv;

@@ -46,7 +46,7 @@ export class GatewaySecurityService {
       ? 'jwt' : configuredMode;
     if (mode === 'jwt') {
       try {
-        const principal = await this.authenticateJwt(req.headers);
+        const principal = await this.authenticateJwt(req.headers, resolvedRoute.routeBinding.upstreamConfig?.jwtPolicy);
         const context: GatewayRequestAuthContext = { mode, principal };
         this.attachAuthContext(req, context);
         return context;
@@ -145,8 +145,8 @@ export class GatewaySecurityService {
     return this.headerValue(raw);
   }
 
-  private authenticateJwt(headers: Request['headers']) {
-    return authenticateRuntimeRequest(headers, 'gateway', 'jwt');
+  private authenticateJwt(headers: Request['headers'], jwtPolicy?: unknown) {
+    return authenticateRuntimeRequest(headers, 'gateway', 'jwt', jwtPolicy);
   }
 
   private parseApiKey(presentedKey: string) {

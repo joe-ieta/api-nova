@@ -1,4 +1,4 @@
-import { normalizeTemporaryAnonymousPolicy, assertTemporaryAnonymousPolicy, RuntimeAuthError } from 'api-nova-parser';
+import { normalizeRuntimeJwtPolicy, normalizeTemporaryAnonymousPolicy, assertTemporaryAnonymousPolicy, RuntimeAuthError } from 'api-nova-parser';
 import {
   BadRequestException,
   Injectable,
@@ -495,6 +495,11 @@ export class PublicationService {
     dto: ConfigureGatewayRouteBindingDto,
     actorId?: string,
   ) {
+    if (dto.upstreamConfig?.jwtPolicy !== undefined) {
+      try { dto = { ...dto, upstreamConfig: { ...dto.upstreamConfig,
+        jwtPolicy: normalizeRuntimeJwtPolicy(dto.upstreamConfig.jwtPolicy) } }; }
+      catch { throw new BadRequestException('invalid_jwt_policy'); }
+    }
     if (dto.upstreamConfig?.temporaryAnonymous !== undefined) {
       if (!actorId) throw new BadRequestException('Trusted actor is required for temporary anonymous access');
       try {
@@ -523,6 +528,9 @@ export class PublicationService {
     );
 
     let binding = await this.findGatewayRouteBinding(membershipId);
+    if (binding?.upstreamConfig?.jwtPolicy !== undefined && dto.upstreamConfig !== undefined && dto.upstreamConfig?.jwtPolicy === undefined) {
+      dto = { ...dto, upstreamConfig: { ...dto.upstreamConfig, jwtPolicy: binding.upstreamConfig.jwtPolicy } };
+    }
     if (binding?.upstreamConfig?.temporaryAnonymous !== undefined && dto.upstreamConfig !== undefined &&
         dto.upstreamConfig?.temporaryAnonymous === undefined) {
       dto = { ...dto, upstreamConfig: { ...dto.upstreamConfig, temporaryAnonymous: binding.upstreamConfig.temporaryAnonymous } };

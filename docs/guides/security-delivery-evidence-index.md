@@ -1,5 +1,5 @@
 ---
-doc-version: 1.10.0
+doc-version: 1.11.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -11,7 +11,7 @@ doc-updated: 2026-09-21
 
 ## 证据口径和版本
 
-编制时远端代码基线为 `19546cf`；并行工作区仍有未提交改动，所以本页**不**把该 SHA 当成所有新专项的测试版本。任何后续验收记录都须附最终提交 SHA、锁文件摘要、平台、运行命令、退出码和原始日志。当前 `package-lock.json` 固定 MCP SDK 1.29.0，Server/Parser 包版本均为 1.7.0；这是检索基线，不是已发布部署版本。当前安全父包为 DONE 5、IN_PROGRESS 15、BACKLOG 2、DEFERRED 1；子项状态只以[叶子台账](./active-work-package-execution-status.md)为准。
+编制时远端代码基线为 `19546cf`；并行工作区仍有未提交改动，所以本页**不**把该 SHA 当成所有新专项的测试版本。任何后续验收记录都须附最终提交 SHA、锁文件摘要、平台、运行命令、退出码和原始日志。当前 `package-lock.json` 固定 MCP SDK 1.29.0，Server/Parser 包版本均为 1.7.0；这是检索基线，不是已发布部署版本。当前安全父包为 DONE 6、IN_PROGRESS 14、BACKLOG 2、DEFERRED 1；子项状态只以[叶子台账](./active-work-package-execution-status.md)为准。
 
 本页使用四种证据级别：
 
@@ -36,7 +36,7 @@ doc-updated: 2026-09-21
 | SEC-A4-02 | [隔离PG脚本](../../packages/api-nova-api/scripts/test-isolated-postgres-schema.cjs)、[本批证据](../audits/2026-09-21-isolated-postgres-schema.md) | **限定执行**：Windows PG16.10当前69实体/表、3迁移、重连0迁移/0漂移、持久化/API启动通过；非Linux/旧版本升级/PG故障恢复。 |
 | SEC-B1-01 | [统一凭证证据](../audits/2026-09-21-unified-consumer-credentials.md) | **限定执行/DONE**：真实持久模型、Gateway/MCP同Key解释、受管Runtime匹配；不包含动态轮换/撤销传播，未新增UI字段表单。 |
 | SEC-B1-02 | [真实CLI与HTTP闭环](../audits/2026-09-21-live-rotation-temporary-anonymous.md) | **限定执行/DONE**：持久策略、下一请求执行和真实生命周期已验；主机database模式/生产双许可边界见报告，不替代UI/长连接/生产交付。 |
-| SEC-B2-01 | [Parser JWT 安全测试](../../packages/api-nova-parser/src/audit/runtime-security-audit.test.ts)、[MCP 安全 smoke](../../packages/api-nova-server/scripts/runtime-security-audit-smoke.js) | **历史执行/待验收**：固定 RS256/ES256 与必需 claims 子集已有；允许算法、claims、clock skew 的保存和执行拒绝矩阵待完成。 |
+| SEC-B2-01 | [JWT真实生命周期](../audits/2026-09-21-jwt-policy-lifecycle.md) | **限定执行/DONE**：参数保存、固定信任源、真实冷重开CLI签名矩阵与长连接有效截止；非在线热更新/真实身份提供方部署。 |
 | SEC-B3-01 | [真实会话撤销](../audits/2026-09-21-persistent-session-revocation.md) | **限定执行/DONE**：Streamable/SSE既有长连接、scope变化、撤销/重连/DB重开拒绝2/2；非在途取消/异步权限通知。 |
 | SEC-B3-02 | [安全 smoke](../../packages/api-nova-server/scripts/runtime-security-audit-smoke.js)、[传输观测](../../packages/api-nova-server/scripts/test-mcp-transport-observability.cjs)；锁定 SDK 1.29.0 | **准备**：需以当前 SDK 固定 dispatcher、Session 身份和 scope 通知矩阵；旧 7 项跨进程用例不是该出口完整执行。 |
 | SEC-C1-01 | [Loader/Schema 测试](../../packages/api-nova-parser/src/credentials/loader.spec.ts)、[配置规划](./security-development-task-plan.md) | **限定执行/准备**：header API Key/Bearer 及拒绝型 loader 有本机结果；批准凭据类型的逐项支持/拒绝、生命周期和作用域合同未定稿。 |

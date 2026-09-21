@@ -148,6 +148,7 @@ export class ServerLifecycleService {
           transport: serverEntity.transport.toLowerCase() as 'sse' | 'streamable',
           inboundAuthMode,
           temporaryAnonymous: serverEntity.config?.temporaryAnonymous,
+          jwtPolicy: serverEntity.config?.jwtPolicy,
           runtimeAssetId: typeof serverEntity.config?.runtimeAssetId === 'string' ? serverEntity.config.runtimeAssetId : undefined,
           port: serverEntity.port,
           endpoint:

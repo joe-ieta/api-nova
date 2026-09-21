@@ -1,5 +1,5 @@
 ---
-doc-version: 1.51.0
+doc-version: 1.52.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -8,15 +8,15 @@ doc-updated: 2026-09-21
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
-父包专项统计仍是OBS 10/5/1、SEC 5/15/2/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计15/20/3/1。它不表示全项目完成率。
+父包专项统计仍是OBS 10/5/1、SEC 6/14/2/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计16/19/3/1。它不表示全项目完成率。
 
 本次登记132个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 69 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 70 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 18 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 2 | SEC-B2-01、SEC-F2-02 |
+| IN_PROGRESS | 1 | SEC-F2-02 |
 | WAIT_DEP | 23 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -47,7 +47,7 @@ doc-updated: 2026-09-21
 | SEC-A4-02 | DONE | Windows PostgreSQL16.10新隔离集群复验69实体/表、4迁移，空库/重连零漂移、持久化、真实API启动；集群已关闭清理；非Linux/旧版本生产升级 |
 | SEC-B1-01 | DONE | 同一持久凭证支持Protocol/Tool Scope/Subject/Expiry/Actor，Gateway/MCP共用验证；真实DB11项、MCP HTTP40/40、真实CLI4/4、联合API277/277、双库4迁移零漂移；见统一凭证证据 |
 | SEC-B1-02 | DONE | 轮换族、窗口与事务审计；真实Gateway/MCP同PID逐请求DB验证截止/撤销/自然到期，见在线轮换证据 |
-| SEC-B2-01 | IN_PROGRESS | 允许算法/必需claims/clock skew参数保存与Gateway/MCP执行拒绝矩阵 |
+| SEC-B2-01 | DONE | 共享algorithms/requiredClaims/skew保存与执行；真实SQLite重开/CLI/Gateway一致、运行中修改须先停止、SSE有效截止17项，见JWT参数证据 |
 | SEC-B3-01 | DONE | 真实Streamable/SSE长连接2/2：scope收窄、持久撤销、旧session/新连接/重连拒绝、SQLite重开及同PID有效Key对照；见会话撤销证据 |
 | SEC-B3-02 | READY | 不是升级SDK任务 |
 | SEC-C1-01 | READY | header API Key/Bearer已有 |
@@ -201,3 +201,5 @@ B1-02、A3-01完成，见[真实闭环证据](../audits/2026-09-21-live-rotation
 ## JWT/会话/UI批次（2026-09-21）
 
 B3-01真实双传输通过，见[会话证据](../audits/2026-09-21-persistent-session-revocation.md)。B2-01/F2-02并行实现和集成继续；不重复增加验证子任务。
+
+B2-01完成，见[JWT参数证据](../audits/2026-09-21-jwt-policy-lifecycle.md)，安全父包B2原出口闭合。F2-02界面收尾继续。

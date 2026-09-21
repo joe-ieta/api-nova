@@ -522,8 +522,9 @@ export function createBaseHttpServer(
       });
       admission.authenticated(context);
       let expiryTimer: ReturnType<typeof setTimeout> | undefined;
-      if (context.expiresAt) {
-        expiryTimer = setTimeout(() => { admission.cancel('MCP_AUTH_EXPIRED'); res.end(); }, Math.min(2147483647, Math.max(1, context.expiresAt * 1000 - Date.now())));
+      const authorizationExpiresAt = context.authorizationExpiresAt ?? context.expiresAt;
+      if (authorizationExpiresAt) {
+        expiryTimer = setTimeout(() => { admission.cancel('MCP_AUTH_EXPIRED'); res.end(); }, Math.min(2147483647, Math.max(1, authorizationExpiresAt * 1000 - Date.now())));
         expiryTimer.unref();
         res.once('close', () => clearTimeout(expiryTimer));
         res.once('finish', () => clearTimeout(expiryTimer));

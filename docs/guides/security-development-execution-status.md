@@ -1,5 +1,5 @@
 ---
-doc-version: 1.35.0
+doc-version: 1.36.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -16,7 +16,7 @@ doc-updated: 2026-09-21
 
 DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PROGRESS 包括已有子集和本轮开发，不意味着依赖已闭合；BACKLOG 为尚未实施完整任务的部分；READY 为可开始的明确切片；DEFERRED 为本里程碑之外。
 
-当前共 23 包：DONE=5、IN_PROGRESS=15、BACKLOG=2、DEFERRED=1。A2历史状态复核及本批B1/A3原退出条件已闭合。C1-C3 文件装载到 Gateway 激活已是经验证切片；IN_PROGRESS 的具体实现、剩余退出条件和依赖以第2节状态表及最新执行节为准，历史执行段落仅用于追溯。
+当前共 23 包：DONE=6、IN_PROGRESS=14、BACKLOG=2、DEFERRED=1。A2历史状态复核及本批B1/A3原退出条件已闭合。C1-C3 文件装载到 Gateway 激活已是经验证切片；IN_PROGRESS 的具体实现、剩余退出条件和依赖以第2节状态表及最新执行节为准，历史执行段落仅用于追溯。
 
 ## 2. 阶段任务包
 
@@ -28,7 +28,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-A3 | SEC-A03；A2/B1 | DONE | reason/可信actor/expiresAt保存与冷重开，生产双许可，真实Gateway/MCP到期拒绝审计；UI归F2 |
 | TP-A4 | 数据库基线；A0 | IN_PROGRESS | 当前PG/SQLite的69实体、4迁移空库/重连/零漂移已分别通过；本次关闭A4-02环境出口，父包基线/迁移管理按原退出条件核对，不从环境子项自动提升 |
 | TP-B1 | SEC-B01；A2 | DONE | 统一持久模型、协议/Route/Tool Scope、同Subject多Key轮换及跨Gateway/MCP下一请求撤销；动态CLI需主机显式database来源 |
-| TP-B2 | SEC-B02；A1 | IN_PROGRESS | 共享 JWT/JWKS/issuer/audience 已有；RS256/ES256、必需 sub/exp/iat、时钟容差 0 为固定子集，完整配置化未完成 |
+| TP-B2 | SEC-B02；A1 | DONE | 固定可信JWK/JWKS与issuer/audience已有；算法/必需claims/clock skew保存、启动、签名拒绝和SSE截止现已按原出口验收 |
 | TP-B3 | SEC-B03；B1/B2/E0 | IN_PROGRESS | B3-01真实双传输既有会话持久撤销/权限收窄/重连拒绝已完成；B3-02 SDK桥接与通知矩阵、E0父依赖仍待闭合 |
 | TP-C1 | SEC-C01；A0 | IN_PROGRESS | 纯对象与 JSON/YAML loader 已实现，并经 C3 稳定文件读取激活到 Gateway；完整凭据类型、安全对账与全链路验收仍待完成 |
 | TP-C2 | SEC-C02；C1 | IN_PROGRESS | Env/File Provider 已用于 Registry，Gateway 显式配置激活链已贯通；本机契约历史 53 项通过，真实 Linux 权限 30 场景待补证，Windows Secret File ACL已完成C2-02原生验收，Linux环境出口待验 |
@@ -681,3 +681,7 @@ D2-02完成，见[组合证据](../audits/2026-09-21-layered-rate-limit-composit
 ## 持久撤销与会话（2026-09-21）
 
 [真实双传输证据](../audits/2026-09-21-persistent-session-revocation.md)关闭B3-01，原实现经DB resolver逐请求验证已满足出口，没有重复开发Session缓存。已接纳的在途调用不取消，明确留给E1-04。
+
+## JWT参数闭环（2026-09-21）
+
+[实际生命周期证据](../audits/2026-09-21-jwt-policy-lifecycle.md)关闭B2-01与TP-B2。Gateway和MCP共享参数，MCP运行中改变策略必须先停止；固定信任源未改为令牌驱动。

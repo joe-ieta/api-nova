@@ -72,7 +72,7 @@ describe('GatewaySecurityService', () => {
       mode: 'jwt',
       principal,
     });
-    expect(authenticate).toHaveBeenCalledWith(req.headers);
+    expect(authenticate).toHaveBeenCalledWith(req.headers, undefined);
   });
 
   it('rejects jwt routes without a bearer token', async () => {

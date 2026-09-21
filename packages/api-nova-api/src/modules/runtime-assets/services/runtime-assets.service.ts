@@ -1,4 +1,4 @@
-import { normalizeTemporaryAnonymousPolicy, assertTemporaryAnonymousPolicy } from 'api-nova-parser';
+import { readRuntimeJwtPolicy, normalizeRuntimeJwtPolicy, normalizeTemporaryAnonymousPolicy, assertTemporaryAnonymousPolicy } from 'api-nova-parser';
 import { createRuntimeAccessPolicy, toRuntimeAccessCredential } from './runtime-access-credential';
 import { resolveMcpEndpoint, previewMcpEndpoint, assertMcpEndpointChange } from './mcp-endpoint-config';
 import { readMcpOwnership } from './mcp-ownership-reader';
@@ -772,6 +772,22 @@ export class RuntimeAssetsService {
         message: 'A running MCP server cannot change its configured inbound authentication mode',
       });
     }
+    let jwtPolicy = server?.config?.jwtPolicy;
+    if (dto.jwtPolicy !== undefined || jwtPolicy !== undefined) {
+      try { jwtPolicy = normalizeRuntimeJwtPolicy(dto.jwtPolicy === undefined ? jwtPolicy : dto.jwtPolicy); }
+      catch { throw new BadRequestException('invalid_jwt_policy'); }
+    }
+    if (server?.status === ServerStatus.RUNNING && dto.jwtPolicy !== undefined) {
+      const previous = server.config?.jwtPolicy === undefined ? readRuntimeJwtPolicy() : normalizeRuntimeJwtPolicy(server.config.jwtPolicy);
+      const comparable = (value: any) => value === undefined ? undefined : JSON.stringify({
+        algorithms: [...value.algorithms].sort(), requiredClaims: [...value.requiredClaims].sort(),
+        clockToleranceSeconds: value.clockToleranceSeconds,
+      });
+      if (comparable(previous) !== comparable(jwtPolicy)) throw new ConflictException({
+        code: 'MCP_JWT_POLICY_CHANGE_REQUIRES_STOP',
+        message: 'Stop the running MCP server before changing its JWT verification policy',
+      });
+    }
     let temporaryAnonymous = server?.config?.temporaryAnonymous;
     if (dto.temporaryAnonymous !== undefined) {
       if (inboundAuthMode !== 'anonymous' || !verificationContext.actorId)
@@ -860,6 +876,7 @@ export class RuntimeAssetsService {
           endpoint: endpointConfig.endpointPath,
           runtimeAssetId,
           temporaryAnonymous,
+          jwtPolicy,
           managedByRuntimeAsset: true,
           verifiedCandidateRevision: verification.run.candidateRevision,
           verificationRunId: verification.run.id,
@@ -884,6 +901,7 @@ export class RuntimeAssetsService {
         endpoint: endpointConfig.endpointPath,
         runtimeAssetId,
         temporaryAnonymous,
+        jwtPolicy,
         managedByRuntimeAsset: true,
         verifiedCandidateRevision: verification.run.candidateRevision,
         verificationRunId: verification.run.id,
@@ -1547,6 +1565,8 @@ export class RuntimeAssetsService {
       port: managedServer.port,
       transport: managedServer.transport,
       inboundAuthMode: configuredMcpInboundAuthMode(managedServer.inboundAuthMode) || 'unknown',
+      temporaryAnonymous: managedServer.config?.temporaryAnonymous,
+      jwtPolicy: managedServer.config?.jwtPolicy,
       effectiveInboundAuthMode: 'unknown',
       toolsCount: managedServer.toolsCount,
       lastHealthCheck: managedServer.lastHealthCheck,

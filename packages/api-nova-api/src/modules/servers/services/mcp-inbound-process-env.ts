@@ -1,5 +1,5 @@
 import { createPublicKey } from 'node:crypto';
-import { parseRuntimeAccessCredentialEnvelope } from 'api-nova-parser';
+import { parseRuntimeAccessCredentialEnvelope, normalizeRuntimeJwtPolicy, readRuntimeJwtPolicy } from 'api-nova-parser';
 import {
   configuredMcpInboundAuthMode,
   MCPServerEntity,
@@ -9,6 +9,7 @@ import {
 export type McpRuntimeAuthMode = 'jwt' | 'api_key' | 'anonymous';
 
 const INBOUND_CREDENTIAL_KEYS = [
+  'API_NOVA_RUNTIME_JWT_POLICY',
   'API_NOVA_RUNTIME_ISSUER',
   'API_NOVA_RUNTIME_JWKS_URI',
   'API_NOVA_RUNTIME_JWKS_JSON',
@@ -60,6 +61,7 @@ export function preflightMcpInboundCredentials(
   }
   const resource = runtimeResource(env);
   if (mode === 'jwt') {
+    const policy = readRuntimeJwtPolicy(env);
     const issuer = env.API_NOVA_RUNTIME_ISSUER;
     const jwksUri = env.API_NOVA_RUNTIME_JWKS_URI;
     const jwksJson = env.API_NOVA_RUNTIME_JWKS_JSON;
@@ -76,8 +78,10 @@ export function preflightMcpInboundCredentials(
       if (Array.isArray(keys)) for (const key of keys) {
         try {
           if (key && typeof key === 'object' &&
-            (key.kty === 'RSA' ? (!key.alg || key.alg === 'RS256') :
-              key.kty === 'EC' && key.crv === 'P-256' && (!key.alg || key.alg === 'ES256')) &&
+            policy.algorithms.some(algorithm => (!key.alg || key.alg === algorithm) && (
+              key.kty === 'RSA' ? /^(RS|PS)(256|384|512)$/.test(algorithm) :
+              key.kty === 'EC' ? ({ ES256: 'P-256', ES384: 'P-384', ES512: 'P-521' } as Record<string,string>)[algorithm] === key.crv :
+              key.kty === 'OKP' && algorithm === 'EdDSA' && ['Ed25519', 'Ed448'].includes(key.crv))) &&
             (!key.use || key.use === 'sig') &&
             (!key.key_ops || (Array.isArray(key.key_ops) && key.key_ops.includes('verify')))) {
             createPublicKey({ key, format: 'jwk' });
@@ -114,7 +118,7 @@ export function persistedMcpInboundMode(
   if (!configured) throw new Error('MCP inbound authentication mode is required before starting');
   const mode: McpRuntimeAuthMode = configured === McpInboundAuthMode.PRIVATE_JWT ? 'jwt'
     : configured === McpInboundAuthMode.PRIVATE_API_KEY ? 'api_key' : 'anonymous';
-  preflightMcpInboundCredentials(mode, env,
+  preflightMcpInboundCredentials(mode, mode === 'jwt' ? managedMcpJwtPolicyEnv(server.config?.jwtPolicy, env) : env,
     typeof server.config?.runtimeAssetId === 'string' ? server.config.runtimeAssetId : '');
   return mode;
 }
@@ -129,6 +133,7 @@ export function mcpInboundSpawnEnv(
   const env: NodeJS.ProcessEnv = { ...inherited, API_NOVA_RUNTIME_AUTH_MODE: mode };
   for (const key of INBOUND_CREDENTIAL_KEYS) delete env[key];
   if (mode === 'jwt') {
+    env.API_NOVA_RUNTIME_JWT_POLICY = JSON.stringify(readRuntimeJwtPolicy(inherited));
     env.API_NOVA_RUNTIME_ISSUER = inherited.API_NOVA_RUNTIME_ISSUER;
     if (inherited.API_NOVA_RUNTIME_JWKS_URI) {
       env.API_NOVA_RUNTIME_JWKS_URI = inherited.API_NOVA_RUNTIME_JWKS_URI;
@@ -142,4 +147,10 @@ export function mcpInboundSpawnEnv(
     } else env.API_NOVA_RUNTIME_API_KEYS = inherited.API_NOVA_RUNTIME_API_KEYS;
   }
   return env;
+}
+
+/** Apply persisted validation policy over host defaults; never accept a saved env override. */
+export function managedMcpJwtPolicyEnv(raw: unknown, host: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const policy = raw === undefined ? readRuntimeJwtPolicy(host) : normalizeRuntimeJwtPolicy(raw);
+  return { ...host, API_NOVA_RUNTIME_JWT_POLICY: JSON.stringify(policy) };
 }

@@ -39,6 +39,11 @@ export class RuntimeAssetQueryDto {
 }
 
 export class DeployRuntimeAssetMcpDto {
+  @ApiPropertyOptional({ description: 'Trusted JWT verification policy' })
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsObject()
+  jwtPolicy?: { algorithms?: string[]; requiredClaims?: string[]; clockToleranceSeconds?: number };
+
   @ApiPropertyOptional({ description: 'Temporary anonymous grant; actor is supplied by the authenticated server' })
   @ValidateIf((_object, value) => value !== undefined)
   @IsObject()

@@ -5,7 +5,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ErrorCode, ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
 import type { ListToolsRequest, ListToolsResult } from '@modelcontextprotocol/sdk/types.js';
 
-export async function authenticateMcpRequest(req: IncomingMessage, requestId: string): Promise<RuntimeCallContext & { expiresAt?: number }> {
+export async function authenticateMcpRequest(req: IncomingMessage, requestId: string): Promise<RuntimeCallContext & { expiresAt?: number; authorizationExpiresAt?: number }> {
   const principal = await authenticateRuntimeRequest(req.headers, 'mcp');
   if (principal.identitySource === 'anonymous') {
     const temporaryPolicy = readTemporaryAnonymousEnvironment();
@@ -14,7 +14,7 @@ export async function authenticateMcpRequest(req: IncomingMessage, requestId: st
   const session = req.headers['mcp-session-id'] || new URL(req.url || '/', 'http://localhost').searchParams.get('sessionId');
   return { transport: 'mcp', requestId, callerId: principal.callerId, callerIssuer: principal.issuer,
     callerSubject: principal.subject, credentialId: principal.credentialId, clientId: principal.clientId,
-    scopes: principal.scopes, toolScopes: principal.toolScopes, identitySource: principal.identitySource, expiresAt: principal.expiresAt,
+    scopes: principal.scopes, toolScopes: principal.toolScopes, identitySource: principal.identitySource, expiresAt: principal.expiresAt, authorizationExpiresAt: principal.authorizationExpiresAt,
     correlationId: typeof req.headers['x-correlation-id'] === 'string' ? req.headers['x-correlation-id'].slice(0, 120) : undefined,
     sessionIdHash: typeof session === 'string' ? auditDigest(session) : undefined,
     clientIp: req.socket.remoteAddress };

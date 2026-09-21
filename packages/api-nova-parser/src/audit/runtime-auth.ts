@@ -1,3 +1,4 @@
+import { normalizeRuntimeJwtPolicy, readRuntimeJwtPolicy } from './runtime-jwt-policy';
 import { resolveRuntimeCredentials } from './runtime-credential-resolver';
 import { timingSafeEqual } from 'node:crypto';
 import { createLocalJWKSet, createRemoteJWKSet, jwtVerify, JSONWebKeySet } from 'jose';
@@ -14,6 +15,7 @@ export interface RuntimePrincipal {
   scopes: string[];
   toolScopes?: string[];
   expiresAt?: number;
+  authorizationExpiresAt?: number;
   identitySource: 'authenticated' | 'anonymous';
 }
 
@@ -64,7 +66,7 @@ export function requireRuntimeScopes(principal: RuntimePrincipal, required: stri
 
 export async function authenticateRuntimeRequest(
   headers: Record<string, string | string[] | undefined>, transport: 'gateway' | 'mcp',
-  mode: RuntimeAuthMode = runtimeAuthMode(),
+  mode: RuntimeAuthMode = runtimeAuthMode(), jwtPolicy?: unknown,
 ): Promise<RuntimePrincipal> {
   if (mode === 'anonymous') return { identitySource: 'anonymous', scopes: [] };
   const authorization = headers.authorization;
@@ -107,6 +109,7 @@ export async function authenticateRuntimeRequest(
     requireRuntimeScopes(principal, requiredRuntimeScopes());
     return principal;
   }
+  const verificationPolicy = jwtPolicy === undefined ? readRuntimeJwtPolicy() : normalizeRuntimeJwtPolicy(jwtPolicy);
   if (!token || token.length > 32768) throw new RuntimeAuthError(401, 'invalid_token');
   const issuer = process.env.API_NOVA_RUNTIME_ISSUER;
   const jwksUri = process.env.API_NOVA_RUNTIME_JWKS_URI;
@@ -129,13 +132,14 @@ export async function authenticateRuntimeRequest(
   let payload;
   try {
     ({ payload } = await jwtVerify(token, keySet, { issuer, audience,
-      algorithms: ['RS256', 'ES256'], requiredClaims: ['sub', 'exp', 'iat'], clockTolerance: 0 }));
+      algorithms: verificationPolicy.algorithms, requiredClaims: verificationPolicy.requiredClaims,
+      clockTolerance: verificationPolicy.clockToleranceSeconds }));
   } catch { throw new RuntimeAuthError(401, 'invalid_token'); }
   if (typeof payload.sub !== 'string' || !payload.sub || payload.sub.length > 512) throw new RuntimeAuthError(401, 'invalid_token');
   const principal: RuntimePrincipal = { callerId: auditDigest(`${issuer}\0${payload.sub}`), issuer,
     subject: payload.sub, clientId: typeof payload.client_id === 'string' ? payload.client_id : undefined,
     scopes: typeof payload.scope === 'string' ? payload.scope.split(/\s+/).filter(Boolean) : [],
-    expiresAt: payload.exp, identitySource: 'authenticated' };
+    expiresAt: payload.exp, authorizationExpiresAt: payload.exp! + verificationPolicy.clockToleranceSeconds, identitySource: 'authenticated' };
   requireRuntimeScopes(principal, requiredRuntimeScopes());
   return principal;
 }

@@ -285,3 +285,32 @@ test('audit directory failure cannot replace an authenticated successful respons
   assert.equal(parser.getRuntimeAuditHealth().captureMemoryBytes, 0);
   assert.equal(getMcpHttpAuditHealth().instrumentationFailures, 0);
 });
+
+for (const mode of ['jwt', 'api_key']) test(mode + ' stream closes at the effective authorization deadline', {timeout:8000}, async () => {
+  process.env.API_NOVA_RUNTIME_JWT_POLICY = JSON.stringify({clockToleranceSeconds:3});
+  const expiresAt = Math.floor(Date.now()/1000) + (mode === 'jwt' ? -1 : 1);
+  let headers;
+  if(mode === 'jwt') headers = {authorization:'Bearer ' + await mint(expiresAt)};
+  else {
+    process.env.API_NOVA_RUNTIME_AUTH_MODE = 'api_key';
+    delete process.env.API_NOVA_RUNTIME_CREDENTIAL_SOURCE;
+    delete process.env.API_NOVA_RUNTIME_CREDENTIAL_RESOLVER_URL;
+    delete process.env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS;
+    process.env.API_NOVA_RUNTIME_API_KEYS = JSON.stringify([{id:'expiry-fixture',subject:'expiry-subject',secretHash:parser.auditDigest('expiry-key'),expiresAt,resources:['https://runtime.example/mcp'],scopes:['api:invoke']}]);
+    headers = {'x-api-key':'expiry-key'};
+  }
+  handler = async (_req,res) => {res.writeHead(200,{'content-type':'text/event-stream'});res.write('event: ready\ndata: {}\n\n');};
+  const deadline = (expiresAt + (mode === 'jwt' ? 3 : 0))*1000;
+  const response = await fetch('http://127.0.0.1:'+server.address().port+'/mcp',{headers,signal:AbortSignal.timeout(6000)});
+  assert.equal(response.status,200);
+  const reader=response.body.getReader();assert.equal((await reader.read()).done,false);
+  const remaining=reader.read();
+  if(mode==='jwt') {
+    const early=await Promise.race([remaining.then(()=>true),sleep(150).then(()=>false)]);
+    assert.equal(early,false,'accepted JWT must stay connected during its configured tolerance');
+  }
+  assert.equal((await remaining).done,true);
+  assert.ok(Date.now()>=deadline-50,'stream must not expire before its effective deadline');
+  assert.ok(Date.now()<deadline+1000,'API key must not inherit JWT tolerance');
+  const call=ingress(await records());assert.equal(call.errorCode,'MCP_AUTH_EXPIRED');
+});
