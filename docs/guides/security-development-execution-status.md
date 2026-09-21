@@ -1,12 +1,12 @@
 ---
-doc-version: 1.25.0
+doc-version: 1.26.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
 # ApiNova 安全开发执行与状态记录
 
 > Document status: Active execution ledger
-> Last updated: 2026-09-16
+> Last updated: 2026-09-21
 > 范围：JWT/API Key/显式 Anonymous；MCP SDK 1.29 的 2025 Session 基线。OAuth2 与后续无状态协议升级延期。
 > 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置仅支持 manual，受权管理Reload/状态API已验证；Watch/MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；可信资产快照生成与提交整理见第24节；装配接线见第25节；单语句归属读取见第26节；发布信息并入同语句见第27节；上游跨源核验见第28节；最新激活版本防护见第29节。
 
@@ -26,7 +26,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-A1 | SEC-A01；A0 | IN_PROGRESS | Gateway 三模式/MCP Private Extension 已有；DTO/UI/发布与非法配置一致性仍待验收 |
 | TP-A2 | SEC-A02；A1 | IN_PROGRESS | 编译器已 fail closed；本轮补运行时模式白名单，非法快照/发布/启动矩阵待验证 |
 | TP-A3 | SEC-A03；A2/B1 | BACKLOG | 临时匿名 reason/expiresAt/actor、生产双重许可和到期审计未闭环 |
-| TP-A4 | 数据库基线；A0 | IN_PROGRESS | 单初始化、共享实体与禁 synchronize 已有；历史双库验收解除旧 PG 凭据阻塞，不替代当前完整空库/零漂移验收 |
+| TP-A4 | 数据库基线；A0 | IN_PROGRESS | 当前PG/SQLite的69实体空库/重连/零漂移已分别通过；本次关闭A4-02环境出口，父包基线/迁移管理按原退出条件核对，不从环境子项自动提升 |
 | TP-B1 | SEC-B01；A2 | IN_PROGRESS | Gateway 摘要/范围/撤销与 Parser 配置式 Key 已有；通用 Protocol/Tool/到期/Subject/Rotation Family/Actor 模型未闭环 |
 | TP-B2 | SEC-B02；A1 | IN_PROGRESS | 共享 JWT/JWKS/issuer/audience 已有；RS256/ES256、必需 sub/exp/iat、时钟容差 0 为固定子集，完整配置化未完成 |
 | TP-B3 | SEC-B03；B1/B2/E0 | IN_PROGRESS | tools/list 请求级 scope 过滤 34/34，tools/call 二次检查及会话绑定已有；SDK 内部桥接、持久撤销与权限通知未闭环 |
@@ -635,3 +635,9 @@ B4限定出口DONE，A1-02D已就绪，TP-A1父包保持IN_PROGRESS。
 SEC-A2-01B核对RuntimeAssets部署保存、应用自动恢复和child启动三种入口。保存入口的缺失/未知/非法模式在候选生成、端口分配与持久化前拒绝；三种显式有效模式可以保存，保存不表示启动。恢复经onModuleInit→startServer调用真实凭证预检，不从开发环境全局anonymous填补未知持久模式，只有显式匿名配置可追溯通过。
 
 验收发现ProcessManager.restartProcess原先先stop再校验，已将环境/凭证预检前移到停止与状态变化前，真正spawn前仍重新校验；配置无效时保留原进程。父任务servers及runtime-assets联合12套88/88，现行CLI HTTP3/3，实验child14/14，API构建通过；见[入口矩阵证据](../audits/2026-09-21-mcp-rejection-matrix.md)。实验IPC未接生产生命周期，effective继续unknown。A2子项完成不代表父包完整签收，A3仍等待B1统一凭据模型。
+
+## 当前版本PostgreSQL空库验收（2026-09-21）
+
+SEC-A4-02此前缺明确隔离目标；现通过本机PostgreSQL16.10二进制新建专用集群解除阻塞。新wrapper只保留OS执行环境，显式设置专用身份、随机回环端口、数据库和私有日志根，JWT为内存随机值；现有database-tool创建随机空库，69实体/69业务表、3迁移、初始/连接重建零漂移、重连0迁移，持久化/约束回滚、真实API启动和管理匿名401均通过。父任务独立复跑，集群停止删除确认。
+
+这里的restart是数据库连接重建，不是PG守护进程故障恢复；不覆盖历史版本升级、Linux、生产配置或备份恢复。详见[PG空库证据](../audits/2026-09-21-isolated-postgres-schema.md)。父包状态不因单项环境证据自动升级。

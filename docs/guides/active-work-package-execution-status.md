@@ -1,5 +1,5 @@
 ---
-doc-version: 1.41.0
+doc-version: 1.42.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,9 +14,9 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 58 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 59 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 25 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | SEC-A4-02 |
+| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
 | WAIT_DEP | 28 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -44,7 +44,7 @@ doc-updated: 2026-09-21
 | SEC-A2-01B | DONE | 实际部署保存入口拒缺失/未知/非法模式且无候选/保存副作用；自动恢复真实preflight拒绝、显式匿名可追溯；ProcessManager重启先校验再stop且spawn前重验；父任务12套88/88，CLI HTTP3/3、实验child14/14，API构建 |
 | SEC-A3-01 | WAIT_DEP | 未实现闭环 |
 | SEC-A4-01 | DONE | 当前版本隔离SQLite空库与同文件重开：69实体/69业务表、空库迁移3、重启迁移0、schema漂移0；create与smoke均通过；不代表PostgreSQL或历史升级 |
-| SEC-A4-02 | IN_PROGRESS | 已发现本机PostgreSQL16工具，可新建独立loopback集群；正用显式隔离目标补全69实体空库/重启/持久化/API启动验收，未连接默认或生产库 |
+| SEC-A4-02 | DONE | Windows PostgreSQL16.10全新loopback隔离集群：69实体/69业务表、3迁移，空库/连接重建漂移0、重连迁移0、持久化与真实API启动/管理401；父任务独立复跑；非历史升级/Linux/PG进程故障恢复 |
 | SEC-B1-01 | READY | 现有Gateway凭证不等于统一模型 |
 | SEC-B1-02 | WAIT_DEP | 未完成 |
 | SEC-B2-01 | READY | 固定子集已有 |

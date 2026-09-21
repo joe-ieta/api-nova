@@ -1,13 +1,13 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
-doc-updated: 2026-09-16
+doc-updated: 2026-09-21
 ---
 # 安全交付验收证据索引（SEC-F4-01）
 
 > Document status: Active evidence index; this document is an index, not a release sign-off.
 > Contract: [安全任务规划](./security-development-task-plan.md)、[叶子任务划分](./active-work-package-breakdown.md)、[叶子状态](./active-work-package-execution-status.md)。
-> Last reconciled: 2026-09-16；索引与划分文档的 45 个 SEC 叶子 ID 一一对应。
+> Last reconciled: 2026-09-21；初版按当时45个SEC叶子编制；后续拆分ID及当前状态以统一叶子台账为准。
 
 ## 证据口径和版本
 
@@ -22,18 +22,18 @@ doc-updated: 2026-09-16
 | **准备** | 合同、脚本或操作步骤存在，但目标版本/平台/环境矩阵没有完整运行结果。 |
 | **待验收** | 无当前执行证据，或关键实现/依赖未完成。不得从相邻父包或旧日志推断通过。 |
 
-`tmp/` 日志是本地临时证据，未保证随 Git 提交或发布包交付。以下“已有入口”只说明可追溯位置；脚本存在、构建通过或文档完成，均不自动提高子项状态。外部环境、PostgreSQL、Linux、真实身份提供方、生产部署及依赖在线审计保持各自未运行状态。
+`tmp/` 日志是本地临时证据，未保证随 Git 提交或发布包交付。以下“已有入口”只说明可追溯位置；脚本存在、构建通过或文档完成，均不自动提高子项状态。外部环境、Linux、真实身份提供方、生产部署及依赖在线审计保持各自未运行状态；当前版本Windows隔离PostgreSQL已补证，见下列A4-02。
 
 ## A–C：身份、凭证和配置
 
 | 叶子出口 | 已有入口/版本与环境 | 当前证据和未闭合项 |
 | --- | --- | --- |
 | SEC-A1-01 | [安全规划](./security-development-task-plan.md)、[模式用例](../testing/runtime-security-audit-cases.md)；SDK 1.29.0 | **准备**：Gateway/MCP 局部模式有历史用例；DTO、持久策略、UI、发布、运行逐路径矩阵待验收。 |
-| SEC-A1-02 | [叶子台账](./active-work-package-execution-status.md)；无完整执行脚本 | **待验收**：Private Extension/local_process 标签与保存后运行行为仍待闭环。 |
-| SEC-A2-01 | [Gateway policy 单测](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-policy.service.spec.ts)、[运行安全用例](../testing/runtime-security-audit-cases.md) | **限定执行**：运行模式白名单、编译拒绝已有；缺失/未知/非法快照在发布、恢复、启动三个入口尚无当前联合结果。 |
+| SEC-A1-02（聚合旧ID） | [当前叶子台账](./active-work-package-execution-status.md)、[模式UI证据](../audits/2026-09-21-mcp-mode-ui-evidence.md) | **限定执行/待验收**：A/B1-B4/C已完成各自出口，D跨层闭环READY；CLI有效模式仍unknown。 |
+| SEC-A2-01（聚合旧ID） | [Gateway恢复证据](../audits/2026-09-17-interruption-recovery-evidence.md)、[MCP入口矩阵](../audits/2026-09-21-mcp-rejection-matrix.md) | **限定执行**：A/B本机拒绝矩阵已完成；不能外推生产生命周期或完整安全签收。 |
 | SEC-A3-01 | 无当前完整执行脚本 | **待验收**：reason/actor/expiry、生产双许可、到期 fail-closed 与审计未闭环。 |
-| SEC-A4-01 | [数据库工具](../../packages/api-nova-api/scripts/database-tool.cjs)、[历史双库审计](../audits/2026-09-08-persistence-cleanup.md) | **历史执行/准备**：旧 43 表空库不可复用；第二批本地 SQLite 68 表零漂移只覆盖当时合成环境，当前整合 SHA 的初始化/重启仍须同一日志证明。 |
-| SEC-A4-02 | [数据库工具](../../packages/api-nova-api/scripts/database-tool.cjs) | **待验收（环境）**：当前版本隔离 PostgreSQL 空库、重启、零漂移原始日志缺失；不得以 SQLite 或旧 43 表代替。 |
+| SEC-A4-01 | [9月17日恢复审计](../audits/2026-09-17-interruption-recovery-evidence.md) | **限定执行**：SQLite69实体/表、3迁移、重连0迁移/0漂移；不替代PG或历史升级。 |
+| SEC-A4-02 | [隔离PG脚本](../../packages/api-nova-api/scripts/test-isolated-postgres-schema.cjs)、[本批证据](../audits/2026-09-21-isolated-postgres-schema.md) | **限定执行**：Windows PG16.10当前69实体/表、3迁移、重连0迁移/0漂移、持久化/API启动通过；非Linux/旧版本升级/PG故障恢复。 |
 | SEC-B1-01 | [Gateway 凭证测试](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-security.service.spec.ts)、[MCP 安全 smoke](../../packages/api-nova-server/scripts/runtime-security-audit-smoke.js) | **历史执行/待验收**：现有摘要/范围不等于统一 Protocol、Tool scope、Subject、Expiry、Actor 模型及两运行时解释一致。 |
 | SEC-B1-02 | 无当前完整执行脚本 | **待验收**：多 Key 轮换族窗口、到期与撤销跨 Gateway/MCP 的下一请求证据缺失。 |
 | SEC-B2-01 | [Parser JWT 安全测试](../../packages/api-nova-parser/src/audit/runtime-security-audit.test.ts)、[MCP 安全 smoke](../../packages/api-nova-server/scripts/runtime-security-audit-smoke.js) | **历史执行/待验收**：固定 RS256/ES256 与必需 claims 子集已有；允许算法、claims、clock skew 的保存和执行拒绝矩阵待完成。 |
