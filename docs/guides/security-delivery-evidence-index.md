@@ -1,5 +1,5 @@
 ---
-doc-version: 1.19.0
+doc-version: 1.20.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -52,7 +52,7 @@ doc-updated: 2026-09-21
 
 | 叶子出口 | 已有入口/版本与环境 | 当前证据和未闭合项 |
 | --- | --- | --- |
-| SEC-D1-01 | [Header合同1.0.0](./security-header-network-boundary-contract.md) | **政策定稿/DONE（DOC）**：双向allowlist、多值/framing、保留字段/缓存/迁移已选择；H01–H12执行待D1-02，F3网络仍提案。 |
+| SEC-D1-01 | [Header合同1.0.0](./security-header-network-boundary-contract.md) | **政策定稿/DONE（DOC）**：双向allowlist、多值/framing、保留字段/缓存/迁移已选择；H01–H12执行待D1-02，F3网络政策亦已定稿，执行未完成。 |
 | SEC-D1-02A/B/C/D（原02） | [02A编译证据](../audits/2026-09-21-header-policy-compilation.md) | **准备实现/部分完成**：A DONE，B IN_PROGRESS，C/D WAIT_DEP；完整Header流/缓存/迁移未交付，产品激活明确拒绝。 |
 | SEC-D2-01 | [独立限流证据](../audits/2026-09-21-independent-rate-limits.md) | **限定执行/DONE**：真实HTTP覆盖IP/匿名独立桶、暖缓存和伪造转发头；Gateway全套201/201。进程内计数，完整层级及多节点不在此叶。 |
 | SEC-D2-02 | [真实HTTP组合证据](../audits/2026-09-21-layered-rate-limit-composition.md) | **限定执行/DONE**：六层组合、缓存计量、同主体轮换、冲突窗口与精确并发准入；单进程既有范围。 |
@@ -77,7 +77,7 @@ doc-updated: 2026-09-21
 | SEC-F1-02 | [OpenAPI 提取测试](../../packages/api-nova-parser/tests/unit/security-extractor.test.ts)、[发布测试](../../packages/api-nova-api/src/modules/publication/services/publication.service.spec.ts) | **历史执行/待验收**：提取与发布各有局部覆盖；受保护未配置/未验证阻止发布、OR/AND 不弱化仍无当前执行证据。 |
 | SEC-F2-01 | [分区与重载UI证据](../audits/2026-09-21-upstream-credential-management-ui.md) | **限定执行/DONE**：binding revision/进程Registry generation及失败刷新恢复，UI12+真实HTTP1+后端21；非浏览器点击或MCP完整凭证编辑。 |
 | SEC-F2-02 | [匿名UI证据](../audits/2026-09-21-temporary-anonymous-ui.md) | **限定执行/DONE**：Gateway/MCP申请、到期/生产风险与拒绝显示，26/26和构建；无真实浏览器点击验收。 |
-| SEC-F3-01 | [请求头与网络边界合同](./security-header-network-boundary-contract.md) | **准备**：DNS、连接、redirect、代理与内网例外政策仍是提案；单跳/零自动 redirect 不是 SSRF 完成。 |
+| SEC-F3-01 | [请求头与网络边界合同§4](./security-header-network-boundary-contract.md) | **政策定稿/DONE（DOC）**：public/direct、精确限期内网例外、DNS/连接/跳转/撤销已冻结；代码F3-02未实现，零redirect仍不等于SSRF防护。 |
 | SEC-F3-02 | 同上；无完整网络拒绝执行脚本 | **待验收**：DNS 全集分类、地址绑定/peer、逐跳凭据重建与代理边界均未形成可执行防线和矩阵。 |
 | SEC-F3-03 | [安全用例](../testing/runtime-security-audit-cases.md)、[受管通道脚本](../../packages/api-nova-api/scripts/test-managed-mcp-channel.cjs) | **限定执行/待验收**：局部脱敏与 IPC 无 argv Secret 有证据；完整 argv/log/错误/快照 Secret Scan、创建/更新/撤销审计可检索依赖产品 E1。 |
 | SEC-F3a-01 | [安全台账 §6](./security-development-execution-status.md)、[锁文件](../../package-lock.json) | **历史执行/待验收**：2026-09-07 漏洞数已过时；当前可达性、在线公告、补丁/风险处置与签收无当前执行证据，不自动 audit fix。 |

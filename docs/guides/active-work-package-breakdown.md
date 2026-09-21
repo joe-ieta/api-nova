@@ -1,5 +1,5 @@
 ---
-doc-version: 1.41.0
+doc-version: 1.42.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -282,3 +282,5 @@ D1-01政策出口完成，D1-02解除依赖。D1-02按编译/快照、双向传�
 ## 2026-09-21 双向流与后续政策批次
 
 沿用135个叶子，并行02B真实双向Header流、C1-01类型合同与F3-01网络政策。C1-01按[合同](./upstream-credential-types-contract.md)完成DOC，C1-02转READY，其四个实施切片暂不新增编号。02B保留生产未就绪门禁，缓存与迁移仍由02C/D验收。
+
+F3-01[网络政策](./security-header-network-boundary-contract.md)已完成DOC；F3-02保持D1-02D硬依赖。后续代码并行面为D1-02B和已解锁C1-02，不再为已有Loader增加准备任务。

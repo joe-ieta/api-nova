@@ -1,11 +1,11 @@
 ---
-doc-version: 1.1.0
+doc-version: 1.2.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
 # D1/F3 请求头与网络边界契约
 
-本文定义 D1 业务 Header allowlist 与 F3 redirect/DNS/SSRF 的兼容策略和验收边界。当前能力以实现引用为依据。2026-09-21 冻结 D1 Header 政策（第 3 节），作为 SEC-D1-02 的实施约束；政策定稿不代表代码已实现。F3 网络政策仍是独立提案，不因 D1 定稿改变默认网络策略。
+本文定义 D1 业务 Header allowlist 与 F3 redirect/DNS/SSRF 的兼容策略和验收边界。当前能力以实现引用为依据。2026-09-21 冻结 D1 Header 政策（第 3 节），作为 SEC-D1-02 的实施约束；政策定稿不代表代码已实现。F3 网络政策在第 4 节定稿；两项政策均须经实现与迁移验收才改变现有运行默认。
 
 ## 1. 范围与证据
 
@@ -170,49 +170,84 @@ Set-Cookie 即使被输出过滤，原始上游出现它仍禁止存缓存；不
 
 SEC-D1-01 的完成证据是本节定稿与逐项选择；不是 H01–H12 已全部通过。当前生产代码仍存在未知业务头透传、普通数组一律逗号合并、入站 XFF 前缀保留、响应无同等过滤等缺口。D1-02 不依赖 F3 DNS/redirect 实现才能推进，也不得把完成 Header 策略说成已完成 SSRF 防护。
 
-## 4. F3 每跳网络与凭据提案
+## 4. F3 每跳网络与凭据政策 v1（已定稿，待实施）
 
-### 4.1 策略与默认值
+本节冻结 SEC-F3-01 的允许/拒绝合同，供 SEC-F3-02 实施，不声明现有数据面已经执行。网络授权属于实际请求层，不放入无网络 I/O 的纯 Resolver；网络政策与凭据政策都通过才可发送。None、Anonymous、无观测 context 和无凭据的请求同样受控。禁止通过仅设置 `maxRedirects=0` 宣称完成 SSRF 防护，初始请求仍必须满足 DNS、连接与目的地授权。
 
-网络授权属于实际请求层，不能塞入无网络 I/O 的纯 Resolver。网络策略与凭据策略均通过，才可携凭据发送。None/Anonymous 不豁免网络检查；可访问的目的地不代表可携带任意 Site 凭据。
+### 4.1 配置范围、默认与迁移
 
-Gateway 保持不自动跟随 Location。Parser 当前最多五次跳转作为兼容基线；加入每跳守卫或关闭自动跳转均需显式政策和验收。本文不把 maxRedirects 改零，也不自动启用 Gateway 跳转。
+1. 网络策略采用 `version: 1`，绑定 source asset 与 Site 的精确 origin（scheme、规范化 host、有效 port），保留 Site/base path 和 Endpoint 授权。只支持 `public` 或 `private-exception` 两种目的地模式及 `direct` 连接模式。禁止通配 origin、正则、allow-all、任意代理、自定义传输器绕过和未知配置字段；Endpoint 只能收窄目的地，不能扩大 Site 权限。
+2. F3 执行器交付后，新建或重新发布的配置缺省为 `public + direct`。已有内网业务必须先登记第 4.2 节的例外再迁移，不将过去可达视为授权。本文定稿不修改任何当前部署、环境变量或运行配置；执行器就绪前显式 v1 激活必须拒绝，不能保存成看似受控却未执行的配置。
+3. 已有 legacy 仅在迁移清单内保留，逐项记录 runtime/route/source asset、责任人、原因、UTC 到期时间和回退依据，F3 上线后最长 30 天。到期或条目缺失拒绝激活/请求，不自动延期。legacy 状态必须显式可见，不能计入 F3 防护通过；一旦迁移 v1，不允许通过删策略、null、关闭 Provider 或环境变量退回 legacy，只能回滚到有效且未到期的 v1 快照。
+4. 网络政策编译产物包含 policy ID、revision、分类表版本、有效例外及内容标识，随不可变快照发布。非法配置保留旧有效快照，首次没有有效快照则失败关闭；旧快照仍执行其到期与撤销条件。跨进程同步不能由单进程 reload 用例代替。
+5. 仅 HTTP/HTTPS，拒绝 userinfo、fragment、控制字符、尾点主机、模糊端口及现有 Resolver 禁止的编码路径；国际化域名先规范化为同一 ASCII host 再精确匹配。首次 HTTP 仅在明确配置 HTTP Site 时允许，HTTPS 跳转到 HTTP 始终拒绝，v1 无降级例外。HTTP 本身不提供保密性，网络授权不能宣称传输加密。
 
-建议明确选择公网限制配置或有批准依据的内网例外。公网配置拒绝非公网目标；内网例外绑定 source asset、精确 origin、允许地址/CIDR、端口、用途和审阅信息。不能自动禁止所有私网而破坏本地上游，也不能因为支持内网就放开任意私网。公网默认适用范围及例外格式是落地前阻塞决策。
+### 4.2 地址分类与内网例外
 
-### 4.2 每次发送前的状态机
+| 目的地 | public | private-exception |
+| --- | --- | --- |
+| 可公网单播地址，且不属于拒绝范围 | 仍须通过 Site/origin/Endpoint 授权 | 仅在本例外精确地址清单内允许；不与 public 自动取并集 |
+| RFC1918 私网、IPv6 ULA、loopback | 拒绝 | 仅允许已登记的精确 origin、端口及地址/CIDR 交集；loopback 必须是单地址 /32 或 /128 |
+| unspecified、link-local、共享地址、组播、广播、文档/基准测试/其他保留及非公网可路由地址 | 拒绝 | 拒绝，不能通过例外放行 |
+| 部署登记的元数据服务、控制面/管理接口地址与端口 | 拒绝 | 始终拒绝，优先级高于允许清单 |
+| IPv4-mapped IPv6 | 先提取并按内嵌 IPv4 判断 | 同左，同时保留连接 peer 的规范化等价比较 |
+| zone ID、IPv6 转换/隧道表示、非标准 IPv4 整数/八进制/十六进制/缩写 | 拒绝 | 拒绝；必须在 URL 解析器自动改写前识别，不允许变成普通域名逃逸 |
 
-适用于首次请求、允许的 redirect 下一跳及 retry 新连接：
+地址判断使用有版本的完整分类表或明确锁定版本的分类组件；上表定义拒绝类别，不允许实现仅检查 `127.`/`192.168.`。新增未知类别按拒绝处理。SEC-F3-02 必须交付分类来源、版本和 IPv4/IPv6 边界用例；不能依赖 DNS 回答者宣称目标“公网”。
 
-1. 固定逻辑操作的凭据/网络策略版本，规范化目标 URL，校验 scheme、userinfo、端口和路径。Location 相对当前 URL 解析；非法 Location 拒绝，fragment 处理需与目标 URL 契约一致。字符串前缀不替代 Site/base path 授权。
-2. 对真实目标重新授权 source asset、Site、Endpoint 和网络目的地。scheme/host/port 任一变化即 origin 变化；同源跳出 base path 或进入更具体 Site 也必须复验。
-3. 取得最终地址的 A/AAAA 全集，规范化并分类每个 IP；直接 IP URL 同样处理。混合公开/禁止地址默认整次拒绝，不能只选一个公网地址。DNS 超时、空答案、非法结果失败关闭。
-4. 将允许的具体地址绑定到本次连接，保留逻辑 Host、TLS SNI 和证书 hostname 校验，禁止校验后无约束二次解析。连接复用需证明 peer 仍满足本次授权，新连接/重试重新验证。
-5. 从可信业务模板重建 Header，清除上一跳托管凭据及消费者凭据；网络授权和当前目标解析均成功后才注入目标凭据。失败不回退旧凭据、Env 或消费者值。
-6. 响应触发下一跳前检查跳转政策、跳数、总时限、循环、取消和正文重放。真实发送记录一致逻辑操作 ID 与正确 hop/attempt；拒绝记录原因/版本，不伪造已发送节点。
+内网例外是部署受信任配置，用户请求、OpenAPI 文件、Location 或工具参数不得创建例外。每项必须包含 exception ID、source asset ID、Site ID、精确 origin、非空规范化地址/CIDR 清单、用途、责任人、审批记录引用、issuedAt、UTC expiresAt；有效期最长 30 天，延期必须产生新的审阅记录和 revision。禁止 `/0`、跨允许地址类别的宽网段、自动从一次解析结果学习地址。例外与凭据授权相互独立，不自动授予 Endpoint、秘密或跨资产权限。到期即时拒绝新发送，即使长连接或快照尚未刷新。
 
-直接连接应在任何 HTTP Header/正文写出前核对 peer。不能在写出前核对的传输实现需禁止复用该连接或提供等效保证。错误输出不能包含凭据或带敏感查询的原始 URL。
+部署控制面/元数据拒绝清单不得来自消费者输入，并在启动时固定并校验；无法确定隔离边界的本机服务不能仅凭 loopback 例外上线。测试允许受控 loopback fixture，但必须标记测试配置，不能成为生产默认值或验收全部内网已安全的依据。
 
-当前 Gateway 适配每次 resolve 自行捕获快照，返回 Header 和名称，没有跨跳固定快照句柄。纯 Resolver 虽返回 revision/generation/siteId，Gateway 适配返回值未保留这些字段。因此整链固定版本需新增接口，不能把一次 resolve 的保证扩展为整链保证。紧急撤销是否打断在途链也需明确，不能隐式混用版本。
+### 4.3 每次发送前的状态机、连接与代理
 
-### 4.3 地址、代理、凭据和正文
+适用于初始请求、获准 redirect 下一跳、retry 的每次新连接；任何步骤失败均不回退旧凭据、Env、消费者值或不受控 adapter。
 
-| 边界 | 待实现规则 |
+1. 捕获逻辑操作的网络/凭据快照和撤销世代，规范化 URL，以原 source asset 和目标的真实 method/path 重新选择 Site/Endpoint。Location 相对当前 URL 解析；同源跳出 base path、进入更具体 Site、变更端口也必须复验。不得沿用初始 Endpoint ID 给下一跳授权。
+2. 解析目标 A/AAAA 最终结果全集，包括 CNAME 最终地址；域名与直接 IP 同一分类规则。任一返回地址禁止即整次拒绝，不只挑一个公网地址。空答案、非法结果、解析超时、无法取得完整受控解析结果均失败关闭。DNS 单次上限 5 秒且受本次请求剩余总时限约束，不能因多跳重新扩充超时。
+3. 将允许的具体 IP 固定到本次 socket 连接，保留逻辑 Host、TLS SNI 和证书 hostname 验证；禁止校验后让传输库再次无约束解析。v1 不跨逻辑操作复用出站 socket，不接受外部提供的 socket/Agent；每次新连接与重试重新解析和授权。IPv4/IPv6 备选尝试也仅能使用本次已批准集合。
+4. HTTP 在连接建立后、HTTPS 在握手及证书校验成功后，检查实际 `remoteAddress` 与批准 IP 相符，再允许任何 HTTP Header/正文写出。TLS 禁止 `rejectUnauthorized=false`、跳过 hostname 校验和静默降级。无法阻止提前写出的 Agent/adapter 不可用于 v1；事后发现 peer 错误并销毁连接不能作为零泄漏证据。
+5. 使用当前目标的可信业务模板按 D1 重建 Header，删除所有上一跳托管认证名和消费者凭据；网络与 Resolver 授权均成功后最后注入目标凭据。目的地与正文授权先于正文写出。失败不可把旧秘密带到新目标，也不可复用上一跳的认证输出作为模板。
+6. 发送前复核期限、取消、撤销世代及例外有效期；流中取消立即销毁上下游。审计按同一逻辑操作 ID 关联真实 hop/attempt，拒绝时记录阶段和安全原因，不伪造已发送节点。
+
+v1 只支持直连。显式配置代理或自定义 Axios adapter/transport 一律拒绝激活；隔离的传输客户端必须显式禁用 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 及小写别名、`NO_PROXY` 自动代理选择，不修改宿主环境变量。迁移报告列出受影响的旧代理依赖并要求整改后激活，不能静默经代理发送，也不能让 NO_PROXY 决定安全授权。本机 DNS 校验不能证明代理最终目标；受控代理、CONNECT 与代理端 DNS 授权留待单独政策版本，不以其缺席阻塞 v1 的明确拒绝验收。
+
+### 4.4 Redirect、正文与跨目标凭据
+
+| 场景 | v1 决定 |
 | --- | --- |
-| IPv4 | 公网配置覆盖 RFC1918、loopback、link-local、unspecified、共享地址、组播、广播及其他保留/不可路由范围；采用完整分类库或表并锁定版本，不仅检查 127./192.168. |
-| IPv6 | 覆盖 ::、::1、ULA、link-local、组播及保留范围；IPv4-mapped IPv6 按内嵌 IPv4 分类；zone ID/转换地址不得绕过 |
-| 非标准 IP | 十进制整数、八/十六进制、缩写 IPv4 等统一规范化分类或显式拒绝，不能仅当普通域名 |
-| DNS 重绑定 | 检查与连接 IP 绑定；CNAME 最终地址、A/AAAA 混合、连接池复用均需覆盖；TTL 缓存不替代连接授权 |
-| 代理环境 | 明确 HTTP(S)/ALL_PROXY、NO_PROXY 政策；本机 DNS 不能证明代理实际目标。代理支持需证明代理端目标限制和 CONNECT/origin 授权，或在显式安全模式拒绝不可验证路径；不静默改变旧环境行为 |
-| 跨 origin | 不沿用旧 Authorization/API Key/自定义凭据/Cookie；仅目标的显式绑定及授权可注入目标凭据。跨 asset 授权另定，不能从新 hostname 推断资产 |
-| 同 origin 不同路径 | 重新检查 base path/Endpoint，不能把初始 endpoint ID 套在 Location 上 |
-| HTTPS 降级 HTTP | 建议安全配置拒绝；例外需显式且审计。纯 Resolver 已能匹配 HTTP Site，当前不是全局禁用 HTTP |
-| 301/302/303 | 明确各状态的 method/body 改写规则，和 Axios 当前行为做兼容验收；跳转不等于业务重试 |
-| 307/308 | 请求体可安全重放且政策允许才重发；不可重放流拒绝跟随，禁止空正文补发。换凭据不消除向未授权目标泄露正文的风险 |
+| Gateway / 显式 MCP single-hop | 保持不跟随；合法 3xx 状态和经 Header 政策验证的 Location 返回调用方，hop=0；Location 不代表 ApiNova 已授权客户端访问目标 |
+| Parser 允许自动跟随的迁移路径 | 显式启用 `safe-read`，最多 5 次跟随（初始 hop=0，后续 1–5），第 6 次拒绝；默认不跟随，不沿用 Axios 隐式跳转器绕过状态机 |
+| 301/302/303/307/308 的无正文 GET/HEAD | 仅 safe-read、目标全授权且不循环时跟随；保持 GET/HEAD，不自动改变方法 |
+| 任何带正文请求、POST/PUT/PATCH/DELETE/其他方法 | v1 不自动跟随；返回单跳 3xx，不把 POST 改 GET，也不重放缓存正文/不可重放流；调用方重新调用需重新授权 |
+| 非法/缺失 Location、超跳数、规范化目标循环 | 要求跟随的场景拒绝下一跳；不得连接/写出。未启用跟随时不解析为新的出站目标 |
+| 同 asset 跨 origin | 仅网络政策与目标 Site/Endpoint 都明确授权才允许；重建目标凭据，禁止带前一 Site 的 Authorization、API Key、自定义认证头或 Cookie |
+| 跨 asset | v1 拒绝；不从 hostname 推断新资产，不继承原资产权限 |
+| 同 origin 的 None Endpoint | 可按网络政策访问，但不携带前一 Endpoint 凭据；Endpoint 不明或选择歧义拒绝 |
+| HTTPS → HTTP | 始终拒绝跟随；不得以目标存在 HTTP Site 放行 |
+
+自动跳转的 `safe-read` 是能力收窄，不把合法 3xx 当业务重试。总时限继承入口已生效的请求超时，不能每跳重新计时；剩余时间不足、取消或一次已发送且无法确认完成时不得隐式重试。F3 不增加业务重试资格，既有明确允许的空体重试仍须执行第 4.3 节。
+
+### 4.5 快照、撤销、缓存与拒绝语义
+
+- 普通 reload 只影响新逻辑操作，当前操作固定同一网络/凭据 revision；不在链中混用新 Site 与旧凭据。现有 Gateway adapter 只返回 Header 和名称，尚不具备整链句柄，这一接口缺口属于 F3-02，不能以一次 resolve 代替证明。
+- 凭据/例外/目的地显式撤销或安全收窄必须递增受信任撤销世代。每次发送前发现世代改变即终止当前操作，不在旧链中自动重新选新凭据继续；有在途连接时主动取消，已发出的字节不可撤回。无法读取有效撤销状态则失败关闭。一般轮换可按其已批准重叠期使用固定快照，但吊销与到期不得被重叠期绕过。多进程即时性必须有传播/确认接口和真实证据，未接入的进程不能标为完成。
+- 缓存命中也须复核当前调用权限、网络策略有效性、例外期限及撤销世代；无需为不出站的命中建立 socket，但网络政策内容标识必须参与缓存隔离，安全收窄使旧缓存不可读。未提供这一证据的网络 v1 路由关闭缓存，不能复用 legacy 缓存宣称安全。
+- 配置非法/未知版本在激活时拒绝；运行时目标/地址/跳转/撤销拒绝统一安全原因 `upstream_network_policy_denied`，Gateway 固定 502，MCP 使用等价工具错误；有效配置或撤销状态不可用为 `upstream_network_policy_unavailable`（Gateway 503）。总请求超时沿用超时响应，取消不补发错误正文。已开始回传的流故障销毁连接，禁止再拼接 JSON。
+- 对外错误不暴露内网拓扑、解析 IP、原始 Location、查询参数、URL userinfo 或凭据。审计只记录操作 ID、asset/Site/Endpoint ID、policy/revision/撤销世代、hop/attempt、拒绝阶段与安全原因；目标只使用策略内的引用或脱敏标识，不存原始 URL/Headers/正文。无 context 时安全结论不变；观测失败不能绕过任何拒绝。
+
+### 4.6 实施与验收出口
+
+SEC-F3-01 到本节政策定稿完成；SEC-F3-02 必须同时完成受信任配置/例外、DNS 全集分类与 IP 固定、HTTP/TLS 写出前 peer 复核、直连隔离、逐跳凭据重建、快照/撤销及拒绝审计。不能以纯函数、设置零跳转、一次 DNS 检查或仅 beforeRedirect hook 关闭该代码任务。
+
+第 5 节 N01–N17 按本节冻结政策执行：N02 分别验证 legacy 基线和 safe-read 的 5 次边界；N13 验证例外精确匹配、到期和始终拒绝集合；N14 验证代理配置拒绝及各大小写环境变量均不触发代理连接；N15 验证所有非空体/非 GET、HEAD 不跟随且无第二次写出；N16 验证普通 reload 固定版本、撤销中断及每次新连接重新授权。矩阵同步为“政策已定，待实现”，不能用DOC状态替代真实执行证据。
+
+真实验收必须使用受控 DNS、HTTP/HTTPS socket 和代理陷阱覆盖有/无 context、CNAME/A/AAAA 混合、重绑定、peer 不符、证书失败、取消、重定向和秘密泄漏。URL/策略/DNS 拒绝要求零目标连接；peer/TLS 拒绝可建连但零 HTTP Header/正文写出。内网测试例外不得转为生产默认。Windows/Linux 两个平台结果分别记录，缺失平台证据保留待验，不用本机模拟代替。完整 F3 父包还需要第 4 节之外的生命周期审计和 Secret Scan，网络政策完成不关闭这些剩余项。
+
 
 ## 5. 可执行验收矩阵
 
-本矩阵定义 30 项验收要求，不声明均已通过。H01–H12 按第 3 节冻结的 D1 v1 执行；N01–N17 保留 F3 提案状态；L01 跨两者验收。“已有用例”表示存在相应断言；“缺口”指所列代码路径未实现该防护。实际执行结果统一见[执行台账第 18 节](E:/CodexDev/api-nova/docs/guides/security-development-execution-status.md)。
+本矩阵定义 30 项验收要求，不声明均已通过。H01–H12 按第 3 节冻结的 D1 v1 执行；N01–N17 按第 4 节冻结的网络 v1 执行；L01 跨两者验收。“已有用例”表示存在相应断言；“缺口”指所列代码路径未实现该防护。实际执行结果统一见[执行台账第 18 节](E:/CodexDev/api-nova/docs/guides/security-development-execution-status.md)。
 
 离线夹具：Site A 为 https://a.example/api，属于 asset A；Endpoint P 使用 synthetic-a，Endpoint N 显式 None；Site B 为 https://b.example/api，使用 synthetic-b。URL 仅作内存输入；mock Resolver、DNS、HTTP(S) request、Agent/socket 和 Axios adapter，不访问真实 DNS/网络或真实 Env 秘密。记录 resolveCalls、lookupCalls、connectCalls、writeCalls、发送 Header、正文摘要及审计事件。使用可注入时钟和流桩模拟超时、取消、部分发送与跳转。
 
@@ -231,22 +266,22 @@ Gateway 保持不自动跟随 Location。Parser 当前最多五次跳转作为�
 | H11 | Range/If-*/Accept-Encoding 不同而路径相同，随后缓存命中 | 状态/Header/正文与直连语义一致；按 §3.6 强制隔离或 bypass 有证据 | 政策已定，待实现，依赖 D2 |
 | H12 | Resolver 错误/None/旧 Env/非法 Env | Resolver 错误固定 503 且 connectCalls=0；旧 Env 分支独立断言，不错误套用固定 503 | 部分已有用例；联网前断言待补 |
 | N01 | Gateway 收到 302/307 与 Location | 仅一次 request，返回状态/Location，hop=0，无下一跳 | 代码基线待执行 |
-| N02 | Parser 第五和第六次跳转 | 锁定 maxRedirects=5；第六次跟随失败；有无 context 跳转行为一致 | 配置已有，用例待执行 |
+| N02 | Parser legacy与safe-read第五/第六次跳转 | 分别验证既有legacy基线和显式safe-read的5次边界；默认不跟随；有无context一致 | 政策已定，待实现 |
 | N03 | 初始 scheme/host/port/base path/asset 不匹配 | C4 联网前拒绝，allowedHosts 不能单独放行 | Resolver 逻辑待执行 |
-| N04 | 相对 Location 到同 Site 有效 Endpoint | 每跳复验、重建 Header，仅目标凭据出站，hop 递增 | 缺口/提案 |
-| N05 | 同源跳出 /api、到 /api-evil 或 None Endpoint | 越界拒绝；有授权的 None 不携带前跳凭据；不复用初始 endpoint ID | 缺口/提案 |
-| N06 | A 到 B，或 host/port 改变；目标有/无授权 | 无授权无下一跳连接/写出；有授权仅 B 凭据，Header/正文无 A 秘密 | 缺口/提案 |
+| N04 | 相对 Location 到同 Site 有效 Endpoint | 每跳复验、重建 Header，仅目标凭据出站，hop 递增 | 政策已定，待实现 |
+| N05 | 同源跳出 /api、到 /api-evil 或 None Endpoint | 越界拒绝；有授权的 None 不携带前跳凭据；不复用初始 endpoint ID | 政策已定，待实现 |
+| N06 | 同asset的Site A到B、端口变化及跨asset目标 | 同asset全授权时仅B凭据出站；无授权或跨asset拒绝下一跳连接/写出 | 政策已定，待实现 |
 | N07 | HTTPS 降级/userinfo/非法 scheme/循环/超跳数 | 按显式政策拒绝，无下一跳写出；错误无敏感 URL | 首跳部分已校验，逐跳缺口 |
-| N08 | DNS 返回 10.0.0.1、127.0.0.1、169.254.169.254、0.0.0.0、100.64.0.1 | 公网配置逐地址拒绝，connectCalls=0 | 缺口/提案 |
-| N09 | ::、::1、fc00::1、fe80::1、::ffff:127.0.0.1、组播、zone ID | 公网配置拒绝；规范化变体不绕过 | 缺口/提案 |
-| N10 | 2130706433、0x7f000001、127.1 等 URL | 规范化后拒绝 loopback，或准入直接拒绝该表示法 | 缺口/提案 |
-| N11 | A/AAAA 混合允许与禁止地址，CNAME 最终私网 | 整次拒绝，无连接；不只检查第一地址 | 缺口/提案 |
-| N12 | DNS 先允许后私网、peer 不同、复用旧 socket | 连接绑定验证地址；peer 不符 writeCalls=0；复用不绕过授权 | 缺口/提案 |
-| N13 | 内网 origin/IP/端口例外，再改其中一项 | 仅明确范围成功；相邻地址和未授权跳转失败；不改普通部署默认 | 提案，策略阻塞 |
-| N14 | mock 代理环境/NO_PROXY/代理 DNS 变化 | 代理不绕过目标验证；显式安全模式不可证明则拒绝；无真实代理访问 | 提案，代理语义阻塞 |
-| N15 | 307/308 不可重放流；301/302/303 POST | 不可重放不二次写；按批准规则断言 method/body；拒绝目标无正文写出 | 缺口/提案 |
-| N16 | 两跳间 reload/revoke，retry/DNS 超时/取消 | 版本一致，重试复验连接，取消后无写出，撤销规则独立断言 | 提案，快照/撤销阻塞 |
-| N17 | 每种场景有/无 context | 安全结果一致，观测失败不放宽政策，被拒跳不伪造发送 | 提案 |
+| N08 | DNS 返回 10.0.0.1、127.0.0.1、169.254.169.254、0.0.0.0、100.64.0.1 | 公网配置逐地址拒绝，connectCalls=0 | 政策已定，待实现 |
+| N09 | ::、::1、fc00::1、fe80::1、::ffff:127.0.0.1、组播、zone ID | 公网配置拒绝；规范化变体不绕过 | 政策已定，待实现 |
+| N10 | 2130706433、0x7f000001、127.1等URL | 准入拒绝非规范IP字面量，规范化变体不能绕过始终拒绝集合 | 政策已定，待实现 |
+| N11 | A/AAAA 混合允许与禁止地址，CNAME 最终私网 | 整次拒绝，无连接；不只检查第一地址 | 政策已定，待实现 |
+| N12 | DNS 先允许后私网、peer 不同、复用旧 socket | 连接绑定验证地址；peer 不符 writeCalls=0；复用不绕过授权 | 政策已定，待实现 |
+| N13 | 精确内网origin/IP/端口例外、到期及始终拒绝地址 | 仅限期精确例外成功；过期/相邻地址/始终拒绝集合失败；legacy须显式迁移 | 政策已定，待实现 |
+| N14 | 显式代理、自定义transport及各大小写代理环境变量/NO_PROXY | v1配置拒绝代理/自定义transport；直连客户端不继承环境代理；代理陷阱零连接 | 政策已定，待实现 |
+| N15 | 307/308不可重放流；301/302/303 POST及空体GET/HEAD | 非空体或非GET/HEAD不跟随；仅safe-read可保持方法跟随空体GET/HEAD；无隐式重放 | 政策已定，待实现 |
+| N16 | 两跳间普通reload/撤销，retry/DNS超时/取消 | 普通reload固定版本，撤销世代变化终止；每新连接重验，取消后无写出 | 政策已定，待实现 |
+| N17 | 每种场景有/无context | 安全结果一致，观测失败不放宽政策，被拒跳不伪造发送 | 政策已定，待实现 |
 | L01 | 全矩阵使用合成消费者/A/B 秘密，收集日志/异常/审计/快照 | 消费者秘密不出站，A 秘密不进入 B，采集输出无合成秘密，含安全原因/版本 | 待执行，不替代全量 F3 Scan |
 
 网络拒绝分阶段断言：URL/策略/DNS 拒绝要求 connectCalls=0；peer 复核拒绝允许已建连但要求 writeCalls=0。不能用“最后 HTTP 报错”代替联网前或写出前证据。若 mock Agent 无法观测真实发送时点，该项仍未覆盖，不得用 mock 返回值宣布通过。
@@ -262,11 +297,11 @@ Gateway 保持不自动跟随 Location。Parser 当前最多五次跳转作为�
 | D1 编译 Schema 与迁移实施 | 第 3 节已冻结来源、版本、继承/替换、非法拒绝、兼容差异和有限例外 | SEC-D1-01 政策完成；SEC-D1-02 实施与真实传输验收仍待完成 |
 | D2 缓存与传输 | 条件/范围/压缩头、framing、可信代理和重放规则闭合 | Gateway 数据面集成 |
 | E1 MCP 接入 | Parser 每跳使用共享安全能力，无 context 同样受控 | MCP Adapter/Parser，不直接复用 Gateway 入站 Filter |
-| F3 目的地政策 | 公网限制、内网例外、代理、降级、跨 asset 授权明确 | 产品/部署政策；禁止实现时静默选择新默认 |
+| F3 目的地政策 | 公网限制、内网例外、代理、降级、跨 asset 授权明确 | 第4节政策已冻结；旧配置显式迁移，禁止静默改变默认 |
 | F3 请求层能力 | 异步每跳授权、DNS 全集分类、地址固定、peer/TLS/代理一致性 | 仅加 beforeRedirect 或观测计数不足 |
 | F3/F4 证据 | 矩阵执行、拒绝前无连接/写出、泄漏扫描及 Windows/Linux 集成 | 后续授权验证；C2 Linux 文件权限为独立证据轨 |
 
-D1 allowlist 政策已经定稿，执行代码与 H01–H12 验收尚待完成；F3 网络防护仍为提案。两者完成条件分别由本契约对应矩阵与依赖定义。C3/Gateway 的显式配置激活不替代这些退出条件。F3 全包还包含本文以外的生命周期审计、CLI/Process Info 防护和完整 Secret Scan。验证结果与任务状态以[执行台账第 18 节](E:/CodexDev/api-nova/docs/guides/security-development-execution-status.md)为准。
+D1 allowlist 政策已经定稿，执行代码与 H01–H12 验收尚待完成；F3 网络政策已定稿，DNS/连接/逐跳执行尚待实现。两者完成条件分别由本契约对应矩阵与依赖定义。C3/Gateway 的显式配置激活不替代这些退出条件。F3 全包还包含本文以外的生命周期审计、CLI/Process Info 防护和完整 Secret Scan。验证结果与任务状态以[执行台账第 18 节](E:/CodexDev/api-nova/docs/guides/security-development-execution-status.md)为准。
 
 ## 显式MCP单跳模式增量
 

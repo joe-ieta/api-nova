@@ -1,5 +1,5 @@
 ---
-doc-version: 1.44.0
+doc-version: 1.45.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -41,7 +41,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-E2 | SEC-E02；E1 | IN_PROGRESS | 安全 smoke/跨进程/传输专项有历史证据；当前完整安全矩阵、撤销/取消/重连和平台组合未完成 |
 | TP-F1 | SEC-F01；C4 | BACKLOG | F1-01四态/Binding/OR-AND合同已定稿；F1-02发布门禁尚未实现，等待C1-02类型支持，不把DOC计为功能闭合 |
 | TP-F2 | SEC-F02；A3/B1/C3/F1 | IN_PROGRESS | F2-01分区/真实generation重载恢复与F2-02临时匿名UI均完成；父依赖C3/F1未闭合，MCP完整凭证编辑/浏览器点击不在本批签收 |
-| TP-F3 | SEC-F03；C4/D1/E1 | IN_PROGRESS | 拒绝审计/脱敏/发送边界已有；业务上游 SSRF、CLI 秘密、生命周期审计和完整 Secret Scan 未完成 |
+| TP-F3 | SEC-F03；C4/D1/E1 | IN_PROGRESS | 拒绝审计/脱敏/发送边界已有；F3-01网络政策已冻结；业务上游 SSRF、CLI 秘密、生命周期审计和完整 Secret Scan 未完成 |
 | TP-F3a | 供应链治理；独立 | IN_PROGRESS | 旧依赖审计只是历史快照；当前可达性、补丁兼容和风险需重审，不自动 audit fix/重大升级 |
 | TP-F4 | 全量验收；D2/E2/F1/F2/F3/F3a | BACKLOG | 完整安全矩阵、依赖审计、Linux/Windows 和对外交付门禁未满足 |
 | TP-G1 | OAuth2 独立里程碑 | DEFERRED | 只保留不可执行占位，不获取/刷新 Token，不提供授权服务器或 OAuth Discovery |
@@ -717,3 +717,7 @@ D2-02完成，见[组合证据](../audits/2026-09-21-layered-rate-limit-composit
 ## 上游凭据类型合同（2026-09-21）
 
 [C1-01合同](./upstream-credential-types-contract.md)固定API Key Header/Bearer/Basic/单值Custom Header及明确拒绝类型，定义时间、环境、Host、Endpoint与Method约束，保持F1四态/OR-AND一致。仅静态代码及链接核对；C1-02 READY，未新增运行测试或父包DONE。
+
+## 网络边界政策（2026-09-21）
+
+[F3-01合同§4](./security-header-network-boundary-contract.md)完成DOC：公网/直连默认、精确限期内网例外、DNS全集与连接绑定、TLS/peer写出前复核、限定safe-read跳转与撤销已明确。当前默认未改变；F3-02等待D1-02D，真实网络矩阵和双平台验收未执行。

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.60.0
+doc-version: 1.61.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,9 +14,9 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 78 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 79 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 12 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 2 | SEC-D1-02B、SEC-F3-01 |
+| IN_PROGRESS | 1 | SEC-D1-02B |
 | WAIT_DEP | 23 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -81,8 +81,8 @@ doc-updated: 2026-09-21
 | SEC-F1-02 | WAIT_DEP | 未完成 |
 | SEC-F2-01 | DONE | Consumer/Upstream分区、真实binding revision/Registry generation与reload恢复；UI12/12、实际UI适配器到Nest/Registry HTTP1/1、后端21/21；进程范围明确，浏览器点击未验 |
 | SEC-F2-02 | DONE | Gateway/MCP临时匿名原因/到期/生产风险和actor回显，保存重开及拒绝反馈；UI构建、表单/真实模板26/26，浏览器点击未验，见UI证据 |
-| SEC-F3-01 | IN_PROGRESS | 网络政策已起草定稿，正在对齐合同矩阵与共享台账 |
-| SEC-F3-02 | WAIT_DEP | 未完成 |
+| SEC-F3-01 | DONE | [网络合同§4](./security-header-network-boundary-contract.md)冻结public/direct、限期例外、DNS/peer/TLS、safe-read及撤销；仅DOC |
+| SEC-F3-02 | WAIT_DEP | F3政策已冻结；仍等D1-02D，DNS/连接/逐跳/撤销及Windows/Linux真实证据未完成 |
 | SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
 | SEC-F3a-01 | READY | 需在线公告时另行验证，不复用旧漏洞数 |
 | SEC-F4-01 | DONE | 45个SEC叶子逐项索引、70个链接有效；区分历史/本地限定/未运行环境，不代表F4-02签收 |
@@ -228,3 +228,5 @@ E0-01完成，见[Adapter证据](../audits/2026-09-21-mcp-adapter-contract.md)�
 ## 2026-09-21 类型合同与双向流推进
 
 C1-01已完成[合同](./upstream-credential-types-contract.md)与源码静态对照；新增Basic/CustomHeader、生命周期/Scope尚待C1-02执行。DOC不计作新代码或测试，父包C1继续IN_PROGRESS。02B与F3-01并行推进中。
+
+F3-01合同及矩阵同步完成，C1-01/F3-01两项DOC已关闭；当前79DONE、12READY、1IN_PROGRESS、23WAIT_DEP、17NEED_ENV、1SCOPE_REVIEW、2DEFERRED，总量135。02B真实流继续推进，所有父包状态不变。
