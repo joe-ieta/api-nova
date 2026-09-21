@@ -1,6 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEnum,
+  IsArray,
+  ArrayMaxSize,
+  IsIn,
   IsBoolean,
   IsNumber,
   IsInt,
@@ -139,6 +142,39 @@ export class GatewayConsumerCredentialQueryDto {
 }
 
 export class CreateGatewayConsumerCredentialDto {
+  @ApiPropertyOptional({ description: 'Stable consumer subject; defaults to generated key id' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 512)
+  subject?: string;
+
+  @ApiPropertyOptional({ enum: ['gateway', 'mcp'], isArray: true })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(2)
+  @IsIn(['gateway', 'mcp'], { each: true })
+  protocols?: Array<'gateway' | 'mcp'>;
+
+  @ApiPropertyOptional({ description: 'Allowed MCP tools; [] denies all, ["*"] explicitly allows all' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  toolScopes?: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  scopes?: string[];
+
+  @ApiPropertyOptional({ description: 'Unix expiry seconds; defaults to 30 days' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  expiresAt?: number;
+
   @ApiPropertyOptional()
   @IsString()
   name: string;

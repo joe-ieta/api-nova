@@ -1,5 +1,5 @@
 ---
-doc-version: 1.47.0
+doc-version: 1.48.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,10 +14,10 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 64 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 20 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | SEC-B1-01 |
-| WAIT_DEP | 27 | 等待列明子任务/条件 |
+| DONE | 65 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 22 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
+| WAIT_DEP | 25 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -42,11 +42,11 @@ doc-updated: 2026-09-21
 | SEC-A1-02D | DONE | Gateway三模式真实回放/激活/冷恢复18项HTTP，MCP三模式真实发布/失败保旧/磁盘重开/6次child与tools/call，stdio12/12；见2026-09-21-auth-publication-loop证据 |
 | SEC-A2-01A | DONE | Gateway缺失/空/损坏active快照拒绝，策略与指纹重核；热恢复保留旧registry，冷启动拒绝；相邻28套339/339，父任务定向28/28 |
 | SEC-A2-01B | DONE | 实际部署保存入口拒缺失/未知/非法模式且无候选/保存副作用；自动恢复真实preflight拒绝、显式匿名可追溯；ProcessManager重启先校验再stop且spawn前重验；父任务12套88/88，CLI HTTP3/3、实验child14/14，API构建 |
-| SEC-A3-01 | WAIT_DEP | 未实现闭环 |
-| SEC-A4-01 | DONE | 当前版本隔离SQLite空库与同文件重开：69实体/69业务表、空库迁移3、重启迁移0、schema漂移0；create与smoke均通过；不代表PostgreSQL或历史升级 |
-| SEC-A4-02 | DONE | Windows PostgreSQL16.10全新loopback隔离集群：69实体/69业务表、3迁移，空库/连接重建漂移0、重连迁移0、持久化与真实API启动/管理401；父任务独立复跑；非历史升级/Linux/PG进程故障恢复 |
-| SEC-B1-01 | IN_PROGRESS | 核对统一消费者模型和Gateway/MCP解释，避免新增第二套凭证存储；轮换传播仍归B1-02 |
-| SEC-B1-02 | WAIT_DEP | 未完成 |
+| SEC-A3-01 | READY | B1-01与A2两入口出口已完成；临时匿名reason/actor/expiry/生产双许可仍未实现 |
+| SEC-A4-01 | DONE | 当前SQLite69实体/表、4迁移；新增accessPolicy旧row NULL不授予、跨重开、down/up及完整schema零漂移；见2026-09-21-unified-consumer-credentials |
+| SEC-A4-02 | DONE | Windows PostgreSQL16.10新隔离集群复验69实体/表、4迁移，空库/重连零漂移、持久化、真实API启动；集群已关闭清理；非Linux/旧版本生产升级 |
+| SEC-B1-01 | DONE | 同一持久凭证支持Protocol/Tool Scope/Subject/Expiry/Actor，Gateway/MCP共用验证；真实DB11项、MCP HTTP40/40、真实CLI4/4、联合API277/277、双库4迁移零漂移；见统一凭证证据 |
+| SEC-B1-02 | READY | 统一模型已完成；下一步轮换族重叠窗口、撤销与更新跨受管child传播，不能把静态摘要导出当热传播 |
 | SEC-B2-01 | READY | 固定子集已有 |
 | SEC-B3-01 | WAIT_DEP | 列表过滤/执行二次授权已有 |
 | SEC-B3-02 | READY | 不是升级SDK任务 |
@@ -187,3 +187,7 @@ doc-updated: 2026-09-21
 ## 5. 三路并行批次收尾（2026-09-21）
 
 C3-01、D2-01、A1-02D三个原有叶子均完成，没有新增拆分记录。经逐条对照原TP-A1“Gateway/MCP三模式、stdio local_process”及禁止旧OAuth策略迁移的退出条件，A1各叶证据已闭合，父包A1提升DONE；未把该结论外推为整套安全或生产交付。62个DONE叶子不代表项目完成百分比。下一组可并行候选为B1-01统一凭证模型、C3-02配置DB归属、C2-02 Windows秘密文件权限，先按各自既定出口实施；D2-02仍依赖B1-02。
+
+## 6. 凭证与权限批次收尾（2026-09-21）
+
+B1-01、C2-02、C3-02三个既有出口完成，DONE从62增至65。B1-02、A3-01、C3-03已满足列明依赖转READY。统一凭证只显式导出摘要配置，受管启动校验Runtime归属；没有宣称运行中的child已收到撤销或轮换。Windows原生权限28/28通过，Linux30项仍未执行。新增模型的SQLite/PostgreSQL当前基线更新为4迁移、零漂移。父包计数不因局部出口自动提升。

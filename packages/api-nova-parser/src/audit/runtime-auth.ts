@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { createLocalJWKSet, createRemoteJWKSet, jwtVerify, JSONWebKeySet } from 'jose';
 import { auditDigest } from './runtime-call-audit';
+import { parseRuntimeAccessCredentialEnvelope, verifyRuntimeAccessCredential } from './runtime-access-credential';
 
 export type RuntimeAuthMode = 'jwt' | 'api_key' | 'anonymous';
 export interface RuntimePrincipal {
@@ -10,6 +11,7 @@ export interface RuntimePrincipal {
   clientId?: string;
   credentialId?: string;
   scopes: string[];
+  toolScopes?: string[];
   expiresAt?: number;
   identitySource: 'authenticated' | 'anonymous';
 }
@@ -70,6 +72,15 @@ export async function authenticateRuntimeRequest(
   if (mode === 'api_key') {
     const key = headers['x-api-key'];
     if (typeof key !== 'string' || !key || key.length > 8192) throw new RuntimeAuthError(401, 'invalid_api_key');
+    if (process.env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS !== undefined) {
+      const envelope = parseRuntimeAccessCredentialEnvelope(process.env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS);
+      const keyId = key.slice(0, key.indexOf('.'));
+      const credential = envelope.credentials.find(item => item.keyId === keyId);
+      if (!credential) throw new RuntimeAuthError(401, 'invalid_api_key');
+      const principal = verifyRuntimeAccessCredential(key, credential, { protocol: transport, runtimeAssetId: envelope.runtimeAssetId });
+      requireRuntimeScopes(principal, requiredRuntimeScopes());
+      return principal;
+    }
     let credentials: any[];
     try {
       credentials = JSON.parse(process.env.API_NOVA_RUNTIME_API_KEYS || '[]');

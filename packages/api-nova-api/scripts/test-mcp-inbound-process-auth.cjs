@@ -64,7 +64,7 @@ async function request(port, headers = {}) {
   return { status: response.status, body };
 }
 
-async function launch(t, mode, inherited) {
+async function launch(t, mode, inherited, runtimeAssetId) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'api-nova-b2-http-'));
   const spec = path.join(root, 'openapi.json');
   await fs.writeFile(spec, JSON.stringify({
@@ -72,13 +72,13 @@ async function launch(t, mode, inherited) {
     servers: [{ url: 'http://127.0.0.1' }], paths: {},
   }));
   const port = await freePort();
-  const selected = persistedMcpInboundMode({ inboundAuthMode: mode }, inherited);
+  const selected = persistedMcpInboundMode({ inboundAuthMode: mode, config: { runtimeAssetId } }, inherited);
   const env = mcpInboundSpawnEnv(selected, {
     ...inherited,
     API_NOVA_AUDIT_DIR: root,
     API_NOVA_RUNTIME_REQUIRED_SCOPES: '',
     API_NOVA_MCP_TOOL_SCOPES: '{}',
-  });
+  }, runtimeAssetId);
   const child = spawn(process.execPath, [cli, '--transport', 'streamable',
     '--host', '127.0.0.1', '--port', String(port), '--endpoint', '/mcp',
     '--openapi', spec], { env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
@@ -152,4 +152,19 @@ test('anonymous child admits requests despite protected global mode', { timeout:
   const port = await launch(t, 'anonymous', inherited);
   const accepted = await request(port);
   assert.equal(accepted.status, 200, accepted.body);
+});
+
+test('unified key envelope reaches a real CLI child without legacy fallback', { timeout: 25000 }, async t => {
+  const runtimeAssetId = 'unified-runtime';
+  const credentials = [{ version: 1, id: 'shared-key', keyId: 'shared',
+    secretHash: createHash('sha256').update('synthetic-secret').digest('hex'), status: 'active',
+    subject: 'worker', protocols: ['mcp'], runtimeAssetId, toolScopes: [], scopes: [],
+    expiresAt: Math.floor(Date.now() / 1000) + 120 }];
+  const inherited = { ...process.env, API_NOVA_RUNTIME_API_KEYS: 'invalid-legacy-not-used',
+    API_NOVA_RUNTIME_ACCESS_CREDENTIALS: JSON.stringify({ version: 1, runtimeAssetId, credentials }) };
+  assert.throws(() => persistedMcpInboundMode({ inboundAuthMode: 'private_api_key', config: { runtimeAssetId: 'other' } }, inherited));
+  const port = await launch(t, 'private_api_key', inherited, runtimeAssetId);
+  assert.equal((await request(port)).status, 401);
+  assert.equal((await request(port, { 'x-api-key': 'shared.wrong' })).status, 401);
+  assert.equal((await request(port, { 'x-api-key': 'shared.synthetic-secret' })).status, 200);
 });

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.31.0
+doc-version: 1.32.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -26,8 +26,8 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-A1 | SEC-A01；A0 | DONE | Gateway jwt/api_key/anonymous、MCP HTTP private_jwt/private_api_key/anonymous、stdio local_process；持久选择、UI标签、真实发布/失败保旧/冷恢复/真实请求均有对应证据，不迁移旧OAuth入口策略；不代表完整安全验收 |
 | TP-A2 | SEC-A02；A1 | IN_PROGRESS | 编译器已 fail closed；本轮补运行时模式白名单，非法快照/发布/启动矩阵待验证 |
 | TP-A3 | SEC-A03；A2/B1 | BACKLOG | 临时匿名 reason/expiresAt/actor、生产双重许可和到期审计未闭环 |
-| TP-A4 | 数据库基线；A0 | IN_PROGRESS | 当前PG/SQLite的69实体空库/重连/零漂移已分别通过；本次关闭A4-02环境出口，父包基线/迁移管理按原退出条件核对，不从环境子项自动提升 |
-| TP-B1 | SEC-B01；A2 | IN_PROGRESS | Gateway 摘要/范围/撤销与 Parser 配置式 Key 已有；通用 Protocol/Tool/到期/Subject/Rotation Family/Actor 模型未闭环 |
+| TP-A4 | 数据库基线；A0 | IN_PROGRESS | 当前PG/SQLite的69实体、4迁移空库/重连/零漂移已分别通过；本次关闭A4-02环境出口，父包基线/迁移管理按原退出条件核对，不从环境子项自动提升 |
+| TP-B1 | SEC-B01；A2 | IN_PROGRESS | Protocol/Tool Scope/Subject/Expiry/Actor统一持久模型与Gateway/MCP解释已完成B1-01；轮换族、下一请求撤销和受管child更新传播归B1-02 |
 | TP-B2 | SEC-B02；A1 | IN_PROGRESS | 共享 JWT/JWKS/issuer/audience 已有；RS256/ES256、必需 sub/exp/iat、时钟容差 0 为固定子集，完整配置化未完成 |
 | TP-B3 | SEC-B03；B1/B2/E0 | IN_PROGRESS | tools/list 请求级 scope 过滤 34/34，tools/call 二次检查及会话绑定已有；SDK 内部桥接、持久撤销与权限通知未闭环 |
 | TP-C1 | SEC-C01；A0 | IN_PROGRESS | 纯对象与 JSON/YAML loader 已实现，并经 C3 稳定文件读取激活到 Gateway；完整凭据类型、安全对账与全链路验收仍待完成 |
@@ -663,3 +663,9 @@ C3-02完成。Gateway每次配置激活在可信DB一致读事务中核验Source
 ## Windows秘密文件权限验收（2026-09-21）
 
 C2-02完成，主任务复验[NTFS矩阵](../audits/2026-09-21-windows-secret-acl.md)28/28。读取合法受限文件及轮换成功；越权ACL、硬链接、重解析点和写入冲突均拒绝。Linux真实权限出口仍未执行，父包C2保持IN_PROGRESS。
+
+## 统一消费者凭证模型（2026-09-21）
+
+B1-01完成，见[模型与验证证据](../audits/2026-09-21-unified-consumer-credentials.md)。现有凭证表新增版本化accessPolicy，管理API保存受信Actor、Protocol/Tool Scope/Subject/Expiry；同一keyId.secret在Gateway/MCP使用同一摘要与限制。仅创建时返回完整Key，列表不返回Key或摘要。受权摘要导出用于显式启动配置，受管CLI强制匹配Runtime ID。
+
+B1父包仍IN_PROGRESS：Rotation Family、窗口和运行中child撤销/轮换传播未完成；UI凭证表单未新增这些字段，字段管理由本轮API提供。当前数据库基线已复验4迁移，历史3迁移报告保留历史含义。

@@ -1,4 +1,5 @@
 import { createPublicKey } from 'node:crypto';
+import { parseRuntimeAccessCredentialEnvelope } from 'api-nova-parser';
 import {
   configuredMcpInboundAuthMode,
   MCPServerEntity,
@@ -12,6 +13,7 @@ const INBOUND_CREDENTIAL_KEYS = [
   'API_NOVA_RUNTIME_JWKS_URI',
   'API_NOVA_RUNTIME_JWKS_JSON',
   'API_NOVA_RUNTIME_API_KEYS',
+  'API_NOVA_RUNTIME_ACCESS_CREDENTIALS',
 ] as const;
 
 function trustedUrl(value: string, env: NodeJS.ProcessEnv): void {
@@ -32,9 +34,22 @@ function runtimeResource(env: NodeJS.ProcessEnv): string {
 export function preflightMcpInboundCredentials(
   mode: McpRuntimeAuthMode,
   env: NodeJS.ProcessEnv = process.env,
+  expectedRuntimeAssetId?: string,
 ): void {
   if (!['jwt', 'api_key', 'anonymous'].includes(mode)) throw new Error('Invalid MCP inbound authentication mode');
   if (mode === 'anonymous') return;
+  if (mode === 'api_key' && env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS !== undefined) {
+    try {
+      const envelope = parseRuntimeAccessCredentialEnvelope(env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS);
+      if (expectedRuntimeAssetId !== undefined && (!expectedRuntimeAssetId || envelope.runtimeAssetId !== expectedRuntimeAssetId)) throw new Error();
+      const required = (env.API_NOVA_RUNTIME_REQUIRED_SCOPES || '').split(/\s+/).filter(Boolean);
+      if (!envelope.credentials.some(credential => credential.status === 'active' &&
+          credential.expiresAt > Date.now() / 1000 && credential.protocols.includes('mcp') &&
+          credential.runtimeAssetId === envelope.runtimeAssetId && !credential.routeBindingId &&
+          required.every(scope => credential.scopes.includes(scope)))) throw new Error();
+      return;
+    } catch { throw new Error('Invalid unified MCP runtime credential configuration'); }
+  }
   const resource = runtimeResource(env);
   if (mode === 'jwt') {
     const issuer = env.API_NOVA_RUNTIME_ISSUER;
@@ -91,7 +106,8 @@ export function persistedMcpInboundMode(
   if (!configured) throw new Error('MCP inbound authentication mode is required before starting');
   const mode: McpRuntimeAuthMode = configured === McpInboundAuthMode.PRIVATE_JWT ? 'jwt'
     : configured === McpInboundAuthMode.PRIVATE_API_KEY ? 'api_key' : 'anonymous';
-  preflightMcpInboundCredentials(mode, env);
+  preflightMcpInboundCredentials(mode, env,
+    typeof server.config?.runtimeAssetId === 'string' ? server.config.runtimeAssetId : '');
   return mode;
 }
 
@@ -99,8 +115,9 @@ export function persistedMcpInboundMode(
 export function mcpInboundSpawnEnv(
   mode: McpRuntimeAuthMode,
   inherited: NodeJS.ProcessEnv = process.env,
+  expectedRuntimeAssetId?: string,
 ): NodeJS.ProcessEnv {
-  preflightMcpInboundCredentials(mode, inherited);
+  preflightMcpInboundCredentials(mode, inherited, expectedRuntimeAssetId);
   const env: NodeJS.ProcessEnv = { ...inherited, API_NOVA_RUNTIME_AUTH_MODE: mode };
   for (const key of INBOUND_CREDENTIAL_KEYS) delete env[key];
   if (mode === 'jwt') {
@@ -111,7 +128,9 @@ export function mcpInboundSpawnEnv(
       env.API_NOVA_RUNTIME_JWKS_JSON = inherited.API_NOVA_RUNTIME_JWKS_JSON;
     }
   } else if (mode === 'api_key') {
-    env.API_NOVA_RUNTIME_API_KEYS = inherited.API_NOVA_RUNTIME_API_KEYS;
+    if (inherited.API_NOVA_RUNTIME_ACCESS_CREDENTIALS !== undefined) {
+      env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS = inherited.API_NOVA_RUNTIME_ACCESS_CREDENTIALS;
+    } else env.API_NOVA_RUNTIME_API_KEYS = inherited.API_NOVA_RUNTIME_API_KEYS;
   }
   return env;
 }

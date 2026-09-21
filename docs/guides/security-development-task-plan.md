@@ -1,5 +1,5 @@
 ---
-doc-version: 1.11.0
+doc-version: 1.12.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -117,6 +117,7 @@ Gateway 和 MCP 均允许显式 Anonymous，用于开发调试和临时安全测
 
 - 基于现有 Gateway Credential 增加 Protocol、Tool Scope、Expires At、Rotation Family、Actor。
 - 完整 Key 只展示一次，仅保存 Key ID 和摘要。
+- B1-01已实现Protocol/Tool Scope/Subject/Expires At/Actor的统一持久策略和Gateway/MCP共享验证，详见[模型证据](../audits/2026-09-21-unified-consumer-credentials.md)；Rotation Family及动态传播仍归B1-02。
 - 同一 Subject 支持多 Key 无停机轮换。
 
 ### SEC-B02：JWT 校验

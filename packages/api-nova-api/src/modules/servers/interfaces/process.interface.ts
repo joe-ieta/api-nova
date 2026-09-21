@@ -28,6 +28,8 @@ export interface ProcessConfig {
   mcpConfig?: {
     transport: 'stdio' | 'sse' | 'streamable';
     inboundAuthMode?: 'jwt' | 'api_key' | 'anonymous';
+    /** Trusted managed-runtime ownership; contains no credential material. */
+    runtimeAssetId?: string;
     port?: number;
     endpoint?: string;
     openApiSource?: string;

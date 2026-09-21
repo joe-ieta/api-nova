@@ -51,6 +51,10 @@ export class GatewayConsumerCredentialEntity {
   @Column({ type: 'varchar', length: 36, nullable: true })
   routeBindingId?: string;
 
+  /** Versioned shared consumer policy; NULL preserves legacy Gateway-only credentials. */
+  @Column(getJsonColumnOptions(process.env.DB_TYPE, { nullable: true }))
+  accessPolicy?: Record<string, unknown>;
+
   @Column(getJsonColumnOptions(process.env.DB_TYPE, { nullable: true }))
   metadata?: Record<string, unknown>;
 

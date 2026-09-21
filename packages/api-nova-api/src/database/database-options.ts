@@ -14,6 +14,7 @@ export function buildDatabaseOptions(): DataSourceOptions {
       join(__dirname, 'migrations', `*-Initial${dialect}Schema.${extension}`),
       join(__dirname, 'migrations', `*-PayloadPublicationIntent${dialect}.${extension}`),
       join(__dirname, 'migrations', `*-McpInboundAuthMode${dialect}.${extension}`),
+      join(__dirname, 'migrations', `*-RuntimeAccessCredential${dialect}.${extension}`),
     ],
     synchronize: false,
     logging: process.env.DB_LOGGING === 'true',

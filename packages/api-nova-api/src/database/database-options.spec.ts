@@ -22,16 +22,18 @@ describe('database options', () => {
       expect(DATABASE_ENTITIES).toEqual(expect.arrayContaining([
         ProcessInfoEntity, ProcessLogEntity, HealthCheckResultEntity,
       ]));
-      expect(options.migrations).toHaveLength(3);
+      expect(options.migrations).toHaveLength(4);
       expect(options.migrations[0]).toContain('InitialSqliteSchema');
       expect(options.migrations[1]).toContain('PayloadPublicationIntentSqlite');
       expect(options.migrations[2]).toContain('McpInboundAuthModeSqlite');
+      expect(options.migrations[3]).toContain('RuntimeAccessCredentialSqlite');
       process.env.DB_TYPE = 'postgres';
       const postgres = buildDatabaseOptions();
-      expect(postgres.migrations).toHaveLength(3);
+      expect(postgres.migrations).toHaveLength(4);
       expect(postgres.migrations[0]).toContain('InitialPostgresSchema');
       expect(postgres.migrations[1]).toContain('PayloadPublicationIntentPostgres');
       expect(postgres.migrations[2]).toContain('McpInboundAuthModePostgres');
+      expect(postgres.migrations[3]).toContain('RuntimeAccessCredentialPostgres');
     } finally {
       process.env = saved;
       rmSync(directory, { recursive: true, force: true });

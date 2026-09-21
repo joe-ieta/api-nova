@@ -27,6 +27,7 @@ describe('saved publication endpoint to lifecycle CLI and process configuration'
     expect(value('--endpoint')).toBe('/team/custom'); expect(value('--transport')).toBe(transport); expect(value('--port')).toBe('9044');
     expect(config.mcpConfig).toMatchObject({endpoint:'/team/custom',port:9044,transport});
     expect(config.mcpConfig.inboundAuthMode).toBe('anonymous');
+    expect(config.mcpConfig.runtimeAssetId).toBe('fixture');
     expect(config.env.API_NOVA_RUNTIME_AUTH_MODE).toBe('anonymous');
     expect(config.env.API_NOVA_RUNTIME_API_KEYS).toBeUndefined();
     expect(result.endpoint).toBe(previewMcpEndpoint({},server).consumerUrl);

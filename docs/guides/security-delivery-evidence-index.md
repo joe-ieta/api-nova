@@ -1,5 +1,5 @@
 ---
-doc-version: 1.6.0
+doc-version: 1.7.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -34,7 +34,7 @@ doc-updated: 2026-09-21
 | SEC-A3-01 | 无当前完整执行脚本 | **待验收**：reason/actor/expiry、生产双许可、到期 fail-closed 与审计未闭环。 |
 | SEC-A4-01 | [9月17日恢复审计](../audits/2026-09-17-interruption-recovery-evidence.md) | **限定执行**：SQLite69实体/表、3迁移、重连0迁移/0漂移；不替代PG或历史升级。 |
 | SEC-A4-02 | [隔离PG脚本](../../packages/api-nova-api/scripts/test-isolated-postgres-schema.cjs)、[本批证据](../audits/2026-09-21-isolated-postgres-schema.md) | **限定执行**：Windows PG16.10当前69实体/表、3迁移、重连0迁移/0漂移、持久化/API启动通过；非Linux/旧版本升级/PG故障恢复。 |
-| SEC-B1-01 | [Gateway 凭证测试](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-security.service.spec.ts)、[MCP 安全 smoke](../../packages/api-nova-server/scripts/runtime-security-audit-smoke.js) | **历史执行/待验收**：现有摘要/范围不等于统一 Protocol、Tool scope、Subject、Expiry、Actor 模型及两运行时解释一致。 |
+| SEC-B1-01 | [统一凭证证据](../audits/2026-09-21-unified-consumer-credentials.md) | **限定执行/DONE**：真实持久模型、Gateway/MCP同Key解释、受管Runtime匹配；不包含动态轮换/撤销传播，未新增UI字段表单。 |
 | SEC-B1-02 | 无当前完整执行脚本 | **待验收**：多 Key 轮换族窗口、到期与撤销跨 Gateway/MCP 的下一请求证据缺失。 |
 | SEC-B2-01 | [Parser JWT 安全测试](../../packages/api-nova-parser/src/audit/runtime-security-audit.test.ts)、[MCP 安全 smoke](../../packages/api-nova-server/scripts/runtime-security-audit-smoke.js) | **历史执行/待验收**：固定 RS256/ES256 与必需 claims 子集已有；允许算法、claims、clock skew 的保存和执行拒绝矩阵待完成。 |
 | SEC-B3-01 | [列表授权](../../packages/api-nova-server/scripts/test-mcp-tool-list-authorization.cjs)、[执行授权](../../packages/api-nova-server/scripts/test-mcp-tool-execution-authorization.cjs) | **限定执行/待验收**：tools/list 34/34 和 handler 前二次授权已有；持久撤销、长连接权限传播与重连仍缺。 |

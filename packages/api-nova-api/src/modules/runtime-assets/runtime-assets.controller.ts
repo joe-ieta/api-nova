@@ -99,7 +99,7 @@ export class RuntimeAssetsController {
     );
   }
 
-  @Get(':id/gateway-consumer-credentials')
+  @Get([':id/gateway-consumer-credentials', ':id/runtime-access-credentials'])
   @SkipThrottle()
   @RequirePermissions('server:read')
   @ApiOperation({ summary: 'List gateway consumer credentials for one runtime asset' })
@@ -110,7 +110,7 @@ export class RuntimeAssetsController {
     return this.runtimeAssetsService.listGatewayConsumerCredentials(id, query);
   }
 
-  @Post(':id/gateway-consumer-credentials')
+  @Post([':id/gateway-consumer-credentials', ':id/runtime-access-credentials'])
   @RequirePermissions('server:manage')
   @ApiOperation({ summary: 'Create one gateway consumer credential scoped to this runtime asset' })
   async createGatewayConsumerCredential(
@@ -126,7 +126,7 @@ export class RuntimeAssetsController {
     });
   }
 
-  @Post(':id/gateway-consumer-credentials/:credentialId/revoke')
+  @Post([':id/gateway-consumer-credentials/:credentialId/revoke', ':id/runtime-access-credentials/:credentialId/revoke'])
   @RequirePermissions('server:manage')
   @ApiOperation({ summary: 'Revoke one gateway consumer credential' })
   async revokeGatewayConsumerCredential(
@@ -141,6 +141,13 @@ export class RuntimeAssetsController {
       ipAddress: this.getClientIp(req),
       userAgent: this.getUserAgent(req),
     });
+  }
+
+  @Get(':id/runtime-access-credentials/configuration')
+  @RequirePermissions('server:manage')
+  @ApiOperation({ summary: 'Export a versioned runtime credential digest snapshot' })
+  async exportRuntimeAccessCredentials(@Param('id') id: string) {
+    return this.runtimeAssetsService.exportRuntimeAccessCredentials(id);
   }
 
   @Post(':id/mcp-endpoint-preview')

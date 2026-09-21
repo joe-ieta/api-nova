@@ -1,7 +1,8 @@
+import { createRuntimeAccessPolicy, toRuntimeAccessCredential } from './runtime-access-credential';
 import { resolveMcpEndpoint, previewMcpEndpoint, assertMcpEndpointChange } from './mcp-endpoint-config';
 import { readMcpOwnership } from './mcp-ownership-reader';
 import { createMcpTrustedOperationBindings } from './mcp-trusted-operation-bindings';
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ModuleRef } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -1248,7 +1249,7 @@ export class RuntimeAssetsService {
     query: GatewayConsumerCredentialQueryDto = {},
   ) {
     const asset = await this.requireRuntimeAsset(runtimeAssetId);
-    if (asset.type !== RuntimeAssetType.GATEWAY_SERVICE) {
+    if (![RuntimeAssetType.GATEWAY_SERVICE, RuntimeAssetType.MCP_SERVER].includes(asset.type)) {
       throw new NotFoundException(
         `Runtime asset '${runtimeAssetId}' is not a gateway runtime asset`,
       );
@@ -1279,7 +1280,7 @@ export class RuntimeAssetsService {
     auditContext: GatewayCredentialAuditContext = {},
   ) {
     const asset = await this.requireRuntimeAsset(runtimeAssetId);
-    if (asset.type !== RuntimeAssetType.GATEWAY_SERVICE) {
+    if (![RuntimeAssetType.GATEWAY_SERVICE, RuntimeAssetType.MCP_SERVER].includes(asset.type)) {
       throw new NotFoundException(
         `Runtime asset '${runtimeAssetId}' is not a gateway runtime asset`,
       );
@@ -1288,6 +1289,9 @@ export class RuntimeAssetsService {
     await this.ensureCredentialRouteScope(runtimeAssetId, dto.routeBindingId);
 
     const keyId = dto.keyId?.trim() || this.generateKeyId();
+    if (!/^[A-Za-z0-9_-]{1,120}$/.test(keyId)) throw new BadRequestException('Invalid credential key id');
+    const accessPolicy = createRuntimeAccessPolicy(dto, keyId,
+      asset.type === RuntimeAssetType.MCP_SERVER ? 'mcp' : 'gateway', auditContext.actorId);
     const existing = await this.gatewayConsumerCredentialRepository.findOne({
       where: { keyId },
     });
@@ -1305,6 +1309,7 @@ export class RuntimeAssetsService {
       runtimeAssetId,
       routeBindingId: dto.routeBindingId,
       metadata: dto.metadata,
+      accessPolicy,
     });
     const saved = await this.gatewayConsumerCredentialRepository.save(entity);
     await this.recordGatewayCredentialAudit({
@@ -1332,7 +1337,7 @@ export class RuntimeAssetsService {
     auditContext: GatewayCredentialAuditContext = {},
   ) {
     const asset = await this.requireRuntimeAsset(runtimeAssetId);
-    if (asset.type !== RuntimeAssetType.GATEWAY_SERVICE) {
+    if (![RuntimeAssetType.GATEWAY_SERVICE, RuntimeAssetType.MCP_SERVER].includes(asset.type)) {
       throw new NotFoundException(
         `Runtime asset '${runtimeAssetId}' is not a gateway runtime asset`,
       );
@@ -1371,6 +1376,15 @@ export class RuntimeAssetsService {
       },
     });
     return this.toGatewayConsumerCredentialSummary(saved);
+  }
+
+  /** Explicit, authorized snapshot export; never the full key. Live propagation is separate. */
+  async exportRuntimeAccessCredentials(runtimeAssetId: string) {
+    await this.requireRuntimeAsset(runtimeAssetId);
+    const rows = await this.gatewayConsumerCredentialRepository.find({ where: { runtimeAssetId } });
+    const credentials = rows.filter(row => row.accessPolicy !== null && row.accessPolicy !== undefined)
+      .map(toRuntimeAccessCredential);
+    return { version: 1, runtimeAssetId, credentials };
   }
 
   private emitGatewaySnapshotRefresh(payload: GatewaySnapshotRefreshPayload) {
@@ -1451,6 +1465,7 @@ export class RuntimeAssetsService {
       runtimeAssetId: entity.runtimeAssetId,
       routeBindingId: entity.routeBindingId,
       metadata: entity.metadata,
+      accessPolicy: entity.accessPolicy,
       lastUsedAt: entity.lastUsedAt,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,

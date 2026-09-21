@@ -50,6 +50,7 @@ describe('managed MCP child process inbound environment', () => {
   const saved = { ...process.env };
   beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS;
     process.env.API_NOVA_RUNTIME_AUTH_MODE = 'jwt';
     process.env.API_NOVA_MCP_RESOURCE = resource;
     process.env.API_NOVA_RUNTIME_API_KEYS = JSON.stringify([{
@@ -138,5 +139,39 @@ describe('managed MCP child process inbound environment', () => {
     expect(childEnv.API_NOVA_RUNTIME_API_KEYS).toBeUndefined();
     expect(childEnv.API_NOVA_RUNTIME_JWKS_JSON).toBeUndefined();
     expect(childEnv.API_NOVA_RUNTIME_ISSUER).toBeUndefined();
+  });
+});
+
+describe('managed unified credential runtime ownership at start and restart', () => {
+  const saved = { ...process.env };
+  function envelope(runtimeAssetId: string) {
+    return JSON.stringify({ version: 1, runtimeAssetId, credentials: [{ version: 1, id: 'unified-id', keyId: 'unified_key',
+      secretHash: 'b'.repeat(64), status: 'active', subject: 'worker', protocols: ['mcp'], runtimeAssetId,
+      toolScopes: ['*'], scopes: [], expiresAt: Math.floor(Date.now() / 1000) + 120 }] });
+  }
+  beforeEach(() => { jest.clearAllMocks(); process.env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS = envelope('runtime-1'); });
+  afterEach(() => { process.env = { ...saved }; });
+  it.each([undefined, 'runtime-2'])('rejects missing/mismatched owner %s before changing any process', async runtimeAssetId => {
+    const { service } = fixture(); const input = config('api_key'); input.mcpConfig!.runtimeAssetId = runtimeAssetId;
+    service.stopProcess = jest.fn(); service.processes.set('server-1', { pid: 123 });
+    await expect(service.startProcess(input)).rejects.toThrow('unified MCP');
+    await expect(service.restartProcess('server-1', input)).rejects.toThrow('unified MCP');
+    expect(mockedSpawn).not.toHaveBeenCalled(); expect(service.stopProcess).not.toHaveBeenCalled();
+    expect(service.updateProcessStatus).not.toHaveBeenCalled();
+  });
+  it('retains only owner identity in process state and exports credentials only to the child', async () => {
+    const { service, events } = fixture(); const input = config('api_key'); input.mcpConfig!.runtimeAssetId = 'runtime-1';
+    const result = await service.startProcess(input);
+    expect(mockedSpawn.mock.calls[0][2]!.env!.API_NOVA_RUNTIME_ACCESS_CREDENTIALS).toContain('unified-id');
+    expect(result.config.mcpConfig.runtimeAssetId).toBe('runtime-1');
+    expect(JSON.stringify(result)).not.toContain('unified-id');
+    expect(JSON.stringify(events.emit.mock.calls)).not.toContain('unified-id');
+  });
+  it('rechecks a changed inherited runtime envelope after stopping and before restart spawn', async () => {
+    const { service } = fixture(); const input = config('api_key'); input.mcpConfig!.runtimeAssetId = 'runtime-1';
+    service.processes.set('server-1', { pid: 123 });
+    service.stopProcess = jest.fn(async () => { service.processes.delete('server-1'); process.env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS = envelope('runtime-2'); });
+    await expect(service.restartProcess('server-1', input)).rejects.toThrow('unified MCP');
+    expect(service.stopProcess).toHaveBeenCalledTimes(1); expect(mockedSpawn).not.toHaveBeenCalled();
   });
 });

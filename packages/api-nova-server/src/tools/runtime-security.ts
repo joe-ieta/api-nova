@@ -10,7 +10,7 @@ export async function authenticateMcpRequest(req: IncomingMessage, requestId: st
   const session = req.headers['mcp-session-id'] || new URL(req.url || '/', 'http://localhost').searchParams.get('sessionId');
   return { transport: 'mcp', requestId, callerId: principal.callerId, callerIssuer: principal.issuer,
     callerSubject: principal.subject, credentialId: principal.credentialId, clientId: principal.clientId,
-    scopes: principal.scopes, identitySource: principal.identitySource, expiresAt: principal.expiresAt,
+    scopes: principal.scopes, toolScopes: principal.toolScopes, identitySource: principal.identitySource, expiresAt: principal.expiresAt,
     correlationId: typeof req.headers['x-correlation-id'] === 'string' ? req.headers['x-correlation-id'].slice(0, 120) : undefined,
     sessionIdHash: typeof session === 'string' ? auditDigest(session) : undefined,
     clientIp: req.socket.remoteAddress };
@@ -79,6 +79,9 @@ export async function assertMcpToolScopes(body: any): Promise<void> {
 
 function checkMcpToolScopes(body: any): void {
   if (body?.method !== 'tools/call') return;
+  const allowedTools = getRuntimeCallContext()?.toolScopes;
+  if (allowedTools !== undefined && !allowedTools.includes('*') && !allowedTools.includes(body.params?.name))
+    throw new RuntimeAuthError(403, 'tool_forbidden');
   let rules: Record<string, string[]>;
   try { rules = JSON.parse(process.env.API_NOVA_MCP_TOOL_SCOPES || '{}'); }
   catch { throw new RuntimeAuthError(503, 'invalid_tool_scope_configuration'); }

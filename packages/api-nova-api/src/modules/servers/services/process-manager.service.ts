@@ -126,7 +126,8 @@ export class ProcessManagerService implements OnModuleDestroy {
       throw new Error('Managed MCP process requires a matching inbound authentication mode');
     }
     const inheritedEnv = { ...process.env, ...config.env };
-    return mode ? mcpInboundSpawnEnv(mode, inheritedEnv) : inheritedEnv;
+    const expectedRuntimeAssetId = config.mcpConfig?.managed ? (config.mcpConfig.runtimeAssetId || '') : undefined;
+    return mode ? mcpInboundSpawnEnv(mode, inheritedEnv, expectedRuntimeAssetId) : inheritedEnv;
   }
 
   /** 启动进程（支持CLI spawn） */

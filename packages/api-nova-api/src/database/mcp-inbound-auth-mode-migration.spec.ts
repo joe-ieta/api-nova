@@ -54,7 +54,7 @@ describe('MCP inbound mode SQLite forward migration', () => {
 
       source = new DataSource(options);
       await source.initialize();
-      expect(await source.runMigrations()).toHaveLength(1);
+      expect(await source.runMigrations()).toHaveLength(migrations.length - 2);
       const repository = source.getRepository(MCPServerEntity);
       const legacy = await repository.findOneByOrFail({ id: 'legacy-server' });
       expect(legacy.inboundAuthMode).toBeNull();

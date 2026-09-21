@@ -20,7 +20,8 @@ import {
 import { AuditService } from '../../security/services/audit.service';
 import { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
 import { GatewayRequestAuthContext } from '../types/gateway-security.types';
-import { authenticateRuntimeRequest, RuntimeAuthError } from 'api-nova-parser';
+import { authenticateRuntimeRequest, RuntimeAuthError, verifyRuntimeAccessCredential, requireRuntimeScopes, requiredRuntimeScopes } from 'api-nova-parser';
+import { toRuntimeAccessCredential } from '../../runtime-assets/services/runtime-access-credential';
 
 @Injectable()
 export class GatewaySecurityService {
@@ -79,7 +80,21 @@ export class GatewaySecurityService {
       throw new UnauthorizedException('Gateway API key is invalid');
     }
 
-    const context: GatewayRequestAuthContext = { mode, consumerId: credential.id, keyId: credential.keyId };
+    let principal;
+    if (credential.accessPolicy !== undefined && credential.accessPolicy !== null) {
+      try {
+        principal = verifyRuntimeAccessCredential(presentedKey, toRuntimeAccessCredential(credential), {
+          protocol: 'gateway', runtimeAssetId: resolvedRoute.runtimeAsset.id,
+          routeBindingId: resolvedRoute.routeBinding.id,
+        });
+        requireRuntimeScopes(principal, requiredRuntimeScopes());
+      } catch (error) {
+        if (error instanceof RuntimeAuthError) throw new HttpException(error.code, error.status);
+        throw error;
+      }
+    }
+    const context: GatewayRequestAuthContext = { mode, consumerId: credential.id, keyId: credential.keyId,
+      ...(principal ? { principal } : {}) };
     this.attachAuthContext(req, context);
 
     if (

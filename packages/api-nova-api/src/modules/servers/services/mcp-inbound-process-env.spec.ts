@@ -79,3 +79,23 @@ describe('persisted MCP inbound authentication process environment', () => {
       .toThrow('resource');
   });
 });
+
+function unifiedEnv(runtimeAssetId = 'runtime-1'): NodeJS.ProcessEnv {
+  return { API_NOVA_RUNTIME_ACCESS_CREDENTIALS: JSON.stringify({ version: 1, runtimeAssetId,
+    credentials: [{ version: 1, id: 'key-1', keyId: 'key_1', secretHash: 'a'.repeat(64), status: 'active',
+      subject: 'worker', protocols: ['mcp'], runtimeAssetId, toolScopes: ['*'], scopes: [], expiresAt: Math.floor(Date.now() / 1000) + 120 }] }) };
+}
+describe('unified credentials bind managed process ownership', () => {
+  it('requires the persisted runtime owner and rejects another runtime using the same inherited envelope', () => {
+    const owned = { ...server(McpInboundAuthMode.PRIVATE_API_KEY), config: { runtimeAssetId: 'runtime-1' } } as unknown as MCPServerEntity;
+    expect(persistedMcpInboundMode(owned, unifiedEnv())).toBe('api_key');
+    expect(() => persistedMcpInboundMode({ ...owned, config: { runtimeAssetId: 'runtime-2' } } as any, unifiedEnv())).toThrow('unified MCP');
+    expect(() => persistedMcpInboundMode(server(McpInboundAuthMode.PRIVATE_API_KEY), unifiedEnv())).toThrow('unified MCP');
+  });
+  it('checks ownership again at spawn while standalone explicit host config remains usable', () => {
+    expect(mcpInboundSpawnEnv('api_key', unifiedEnv(), 'runtime-1').API_NOVA_RUNTIME_ACCESS_CREDENTIALS).toBeDefined();
+    expect(() => mcpInboundSpawnEnv('api_key', unifiedEnv(), 'runtime-2')).toThrow('unified MCP');
+    expect(() => mcpInboundSpawnEnv('api_key', unifiedEnv(), '')).toThrow('unified MCP');
+    expect(mcpInboundSpawnEnv('api_key', unifiedEnv()).API_NOVA_RUNTIME_ACCESS_CREDENTIALS).toBeDefined();
+  });
+});

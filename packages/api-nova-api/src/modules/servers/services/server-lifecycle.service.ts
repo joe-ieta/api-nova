@@ -137,6 +137,7 @@ export class ServerLifecycleService {
         mcpConfig: {
           transport: serverEntity.transport.toLowerCase() as 'sse' | 'streamable',
           inboundAuthMode,
+          runtimeAssetId: typeof serverEntity.config?.runtimeAssetId === 'string' ? serverEntity.config.runtimeAssetId : undefined,
           port: serverEntity.port,
           endpoint:
             serverEntity.config?.endpoint ||

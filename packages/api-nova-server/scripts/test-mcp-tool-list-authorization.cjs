@@ -92,6 +92,17 @@ for (const entry of ['main', 'file', 'url', 'spec']) {
       const results = await Promise.all(requests);
       results.forEach((result, i) => assert.deepEqual(names(result), i % 2 ? all : ['read_fixture']));
     });
+    await t.test('credential tool allowlist intersects host scopes, empty denies and wildcard is explicit', async () => {
+      rules({ write_fixture: ['write'] });
+      assert.deepEqual(names(await list({ ...context(['write']), toolScopes: ['read_fixture'] })), ['read_fixture']);
+      assert.deepEqual(names(await list({ ...context(['write']), toolScopes: [] })), []);
+      assert.deepEqual(names(await list({ ...context(['write']), toolScopes: ['*'] })), all);
+      assert.deepEqual(names(await list({ ...context([]), toolScopes: ['*'] })), ['read_fixture']);
+      const denied = await parser.withRuntimeCallContext({ ...context(['write']), toolScopes: ['read_fixture'] },
+        () => f.invoke('tools/call', { name: 'write_fixture', arguments: {} }));
+      assert.equal(denied.isError, true);
+      assert.equal(f.executed(), 0);
+    });
     await t.test('current rules are reread rather than cached', async () => {
       const ctx = context(['read']);
       rules({});
@@ -139,12 +150,21 @@ for (const entry of ['main', 'file', 'url', 'spec']) {
   });
 }
 
-for (const protocol of ['streamable', 'sse']) {
-  test(protocol + ': real loopback SDK sessions retain concurrent scope isolation', { timeout: 20000 }, async t => {
+for (const credentialModel of ['legacy', 'unified']) for (const protocol of ['streamable', 'sse']) {
+  test(credentialModel + ' ' + protocol + ': real loopback SDK sessions retain concurrent scope isolation', { timeout: 20000 }, async t => {
     await environment(t);
     process.env.API_NOVA_RUNTIME_AUTH_MODE = 'api_key';
     process.env.API_NOVA_MCP_RESOURCE = 'https://tool-list-fixture.invalid/mcp';
-    const keys = [randomUUID(), randomUUID()];
+    const secrets = [randomUUID(), randomUUID()];
+    const keys = secrets.map((secret, i) => credentialModel === 'unified' ? 'key_' + i + '.' + secret : secret);
+    delete process.env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS;
+    if (credentialModel === 'unified') process.env.API_NOVA_RUNTIME_ACCESS_CREDENTIALS = JSON.stringify({
+      version: 1, runtimeAssetId: 'fixture-runtime', credentials: secrets.map((secret, i) => ({
+        version: 1, id: 'key-' + i, keyId: 'key_' + i, subject: 'caller-' + i, secretHash: parser.auditDigest(secret),
+        expiresAt: Math.floor(Date.now() / 1000) + 120, status: 'active', protocols: ['mcp'], runtimeAssetId: 'fixture-runtime',
+        toolScopes: i ? ['*'] : ['read_fixture'], scopes: ['write'], actorId: 'fixture-admin',
+      })),
+    });
     process.env.API_NOVA_RUNTIME_API_KEYS = JSON.stringify(keys.map((key, i) => ({ id: 'key-' + i,
       subject: 'caller-' + i, secretHash: parser.auditDigest(key), expiresAt: Math.floor(Date.now() / 1000) + 120,
       resources: [process.env.API_NOVA_MCP_RESOURCE], scopes: i ? ['write'] : [],
