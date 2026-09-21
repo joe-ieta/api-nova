@@ -922,7 +922,43 @@ describe('RuntimeAssetsService', () => {
     requireSpy.mockRestore();
   });
 
-  it.each([9033, undefined])('binds actual allocated or explicit port %s before replay and activation', async port => {
+  it.each([
+    ['missing mode', undefined, undefined],
+    ['unknown saved mode', 'unknown', undefined],
+    ['invalid saved mode', 'public', undefined],
+    ['unknown request', 'private_api_key', 'unknown'],
+    ['invalid request', 'private_api_key', 'public'],
+    ['null request', 'private_api_key', null],
+  ])('deploy rejects %s before candidate, allocation or persistence', async (_label, persisted, requested) => {
+    const asset = { id: 'runtime-mcp-mode', type: RuntimeAssetType.MCP_SERVER, name: 'mode-mcp' };
+    const assemble = jest.spyOn(service, 'assembleMcpRuntimeAssetPayload').mockResolvedValue({
+      runtimeAsset: asset, openApiData: {}, tools: [], verificationTools: [], toolsCount: 0,
+      includedMembershipCount: 0,
+    } as any);
+    const server = { id: 'mode-server', name: asset.name, status: ServerStatus.STOPPED,
+      inboundAuthMode: persisted, config: { runtimeAssetId: asset.id } };
+    mcpServerRepository.findOne.mockResolvedValue(server);
+    const allocate = jest.spyOn(service as any, 'findAvailableManagedServerPort');
+    try {
+      await expect(service.deployMcpRuntimeAsset(asset.id, { inboundAuthMode: requested } as any))
+        .rejects.toMatchObject({ response: expect.objectContaining({ code: 'MCP_INBOUND_AUTH_MODE_REQUIRED' }) });
+      expect(allocate).not.toHaveBeenCalled();
+      expect(runtimeVerificationService.planCandidate).not.toHaveBeenCalled();
+      expect(mcpServerRepository.save).not.toHaveBeenCalled();
+      expect(runtimeAssetRepository.save).not.toHaveBeenCalled();
+      expect(server.inboundAuthMode).toBe(persisted);
+    } finally {
+      allocate.mockRestore();
+      assemble.mockRestore();
+    }
+  });
+
+  it.each([
+    [9033, McpInboundAuthMode.PRIVATE_API_KEY],
+    [undefined, McpInboundAuthMode.PRIVATE_API_KEY],
+    [undefined, McpInboundAuthMode.ANONYMOUS],
+    [undefined, McpInboundAuthMode.PRIVATE_JWT],
+  ])('binds port %s and explicit mode %s before replay and activation', async (port, inboundAuthMode) => {
     const mcpAsset = {
       id: 'runtime-mcp-verify',
       type: RuntimeAssetType.MCP_SERVER,
@@ -960,13 +996,13 @@ describe('RuntimeAssetsService', () => {
       verificationRequiredAt: '2026-09-15T00:00:01Z', operatorNote: 'latest-note',
     } });
     const allocate = jest.spyOn(service as any, 'findAvailableManagedServerPort').mockResolvedValue(9044);
-    const deployed = await service.deployMcpRuntimeAsset(mcpAsset.id, { port, endpointPath: '/custom', inboundAuthMode: McpInboundAuthMode.PRIVATE_API_KEY });
+    const deployed = await service.deployMcpRuntimeAsset(mcpAsset.id, { port, endpointPath: '/custom', inboundAuthMode });
     const expectedPort = port ?? 9044;
     expect(runtimeVerificationService.planCandidate).toHaveBeenCalledWith(mcpAsset.id, expect.anything(), expect.objectContaining({
       mcpEndpointConfig: { transport: 'streamable', port: expectedPort, endpointPath: '/custom' },
     }));
     expect(deployed.managedServer.port).toBe(expectedPort);
-    expect(deployed.managedServer.inboundAuthMode).toBe(McpInboundAuthMode.PRIVATE_API_KEY);
+    expect(deployed.managedServer.inboundAuthMode).toBe(inboundAuthMode);
     expect(deployed.managedServer.effectiveInboundAuthMode).toBe('unknown');
     expect(deployed.managedServer.endpointPath).toBe('/custom');
     if (port === undefined) expect(allocate.mock.invocationCallOrder[0]).toBeLessThan(runtimeVerificationService.planCandidate.mock.invocationCallOrder[0]);

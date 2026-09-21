@@ -119,10 +119,19 @@ export class ProcessManagerService implements OnModuleDestroy {
     await Promise.allSettled(shutdownPromises);
   }
 
-  /**
-   * 启动进程（支持CLI spawn）
-   */
+  /** Check controlled mode and credentials without changing process state. */
+  private preflightProcessEnvironment(config: ProcessConfig): NodeJS.ProcessEnv {
+    const mode = config.mcpConfig?.inboundAuthMode;
+    if (config.mcpConfig?.managed && (!mode || config.env?.API_NOVA_RUNTIME_AUTH_MODE !== mode)) {
+      throw new Error('Managed MCP process requires a matching inbound authentication mode');
+    }
+    const inheritedEnv = { ...process.env, ...config.env };
+    return mode ? mcpInboundSpawnEnv(mode, inheritedEnv) : inheritedEnv;
+  }
+
+  /** 启动进程（支持CLI spawn） */
   async startProcess(config: ProcessConfig): Promise<ProcessInfo> {
+    this.preflightProcessEnvironment(config);
     this.config.processTimeout = this.appConfigService.processTimeout;
     this.config.defaultMaxRetries = this.appConfigService.processMaxRetries;
     this.config.defaultRestartDelay = this.appConfigService.processRestartDelay;
@@ -146,12 +155,7 @@ export class ProcessManagerService implements OnModuleDestroy {
       
       // 创建子进程 - 支持CLI可执行文件
       // Keep inbound credentials out of ProcessConfig and ProcessInfo.
-      const mode = config.mcpConfig?.inboundAuthMode;
-      if (config.mcpConfig?.managed && (!mode || config.env?.API_NOVA_RUNTIME_AUTH_MODE !== mode)) {
-        throw new Error('Managed MCP process requires a matching inbound authentication mode');
-      }
-      const inheritedEnv = { ...process.env, ...config.env };
-      const childEnv = mode ? mcpInboundSpawnEnv(mode, inheritedEnv) : inheritedEnv;
+      const childEnv = this.preflightProcessEnvironment(config);
       const childProcess = spawn(config.scriptPath, config.args, {
         cwd: config.cwd || process.cwd(),
         env: { ...childEnv, API_NOVA_AUDIT_DIR: auditDirectory(), API_NOVA_AUDIT_SERVER_ID: serverId },
@@ -381,6 +385,8 @@ export class ProcessManagerService implements OnModuleDestroy {
    * 重启进程
    */
   async restartProcess(serverId: string, config: ProcessConfig): Promise<ProcessInfo> {
+    // Reject unusable recovery configuration before stopping a healthy process.
+    this.preflightProcessEnvironment(config);
     this.config.defaultRestartDelay = this.appConfigService.processRestartDelay;
     this.logger.log(`Restarting process for server ${serverId}`);
     await this.logProcess(serverId, LogLevel.INFO, 'Restarting process');

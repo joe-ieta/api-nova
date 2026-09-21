@@ -1,5 +1,5 @@
 ---
-doc-version: 1.24.0
+doc-version: 1.25.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -629,3 +629,9 @@ MCP发布/重发布弹窗必须明确选择private_jwt、private_api_key或anony
 详情对未部署/null服务安全显示未知，Gateway不显示MCP标签。19项Vue状态/真实SFC模板SSR通过，UI构建和最终类型检查通过；SSR使用组件替身，未执行真实浏览器端到端，不宣称完整后端保存到请求闭环。详见[UI交付证据](../audits/2026-09-21-mcp-mode-ui-evidence.md)。
 
 B4限定出口DONE，A1-02D已就绪，TP-A1父包保持IN_PROGRESS。
+
+## MCP三入口拒绝验收（2026-09-21）
+
+SEC-A2-01B核对RuntimeAssets部署保存、应用自动恢复和child启动三种入口。保存入口的缺失/未知/非法模式在候选生成、端口分配与持久化前拒绝；三种显式有效模式可以保存，保存不表示启动。恢复经onModuleInit→startServer调用真实凭证预检，不从开发环境全局anonymous填补未知持久模式，只有显式匿名配置可追溯通过。
+
+验收发现ProcessManager.restartProcess原先先stop再校验，已将环境/凭证预检前移到停止与状态变化前，真正spawn前仍重新校验；配置无效时保留原进程。父任务servers及runtime-assets联合12套88/88，现行CLI HTTP3/3，实验child14/14，API构建通过；见[入口矩阵证据](../audits/2026-09-21-mcp-rejection-matrix.md)。实验IPC未接生产生命周期，effective继续unknown。A2子项完成不代表父包完整签收，A3仍等待B1统一凭据模型。

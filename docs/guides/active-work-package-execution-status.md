@@ -1,5 +1,5 @@
 ---
-doc-version: 1.39.0
+doc-version: 1.40.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,9 +14,9 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 57 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 58 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 25 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 2 | SEC-A2-01B、OBS-14-05C3 |
+| IN_PROGRESS | 1 | OBS-14-05C3 |
 | WAIT_DEP | 28 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -41,7 +41,7 @@ doc-updated: 2026-09-21
 | SEC-A1-02C | DONE | 直连stdio审计标local_process/unknown、不虚构callerId；真实子进程12/12、HTTP权限20/20、Parser规范化41/41；HTTP anonymous保持原义 |
 | SEC-A1-02D | READY | A/B1-B4/C已完成；下一批按真实保存、发布、重启和请求核对跨层模式，不把UI状态夹具当完整闭环 |
 | SEC-A2-01A | DONE | Gateway缺失/空/损坏active快照拒绝，策略与指纹重核；热恢复保留旧registry，冷启动拒绝；相邻28套339/339，父任务定向28/28 |
-| SEC-A2-01B | IN_PROGRESS | B2/B3已完成；下一批整合部署、恢复、child三入口拒绝矩阵 |
+| SEC-A2-01B | DONE | 实际部署保存入口拒缺失/未知/非法模式且无候选/保存副作用；自动恢复真实preflight拒绝、显式匿名可追溯；ProcessManager重启先校验再stop且spawn前重验；父任务12套88/88，CLI HTTP3/3、实验child14/14，API构建 |
 | SEC-A3-01 | WAIT_DEP | 未实现闭环 |
 | SEC-A4-01 | DONE | 当前版本隔离SQLite空库与同文件重开：69实体/69业务表、空库迁移3、重启迁移0、schema漂移0；create与smoke均通过；不代表PostgreSQL或历史升级 |
 | SEC-A4-02 | NEED_ENV | 当前缺少明确隔离的PostgreSQL目标库；默认generate postgres因可能连接/修改未知库被自动审批拒绝，待受控环境验收 |

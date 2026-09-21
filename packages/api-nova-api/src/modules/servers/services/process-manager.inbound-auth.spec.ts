@@ -81,7 +81,42 @@ describe('managed MCP child process inbound environment', () => {
     delete missing.env!.API_NOVA_RUNTIME_AUTH_MODE;
     await expect(service.startProcess(missing)).rejects.toThrow('matching inbound authentication mode');
     expect(mockedSpawn).not.toHaveBeenCalled();
+    expect(service.updateProcessStatus).not.toHaveBeenCalled();
     await expect(service.startProcess(config('api_key', 'jwt'))).rejects.toThrow('matching inbound authentication mode');
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it.each(['missing', 'unknown', 'mismatch', 'credentials'])('rejects %s recovery before stop or state change', async defect => {
+    const { service } = fixture();
+    const input = config('api_key');
+    if (defect === 'missing') delete input.mcpConfig!.inboundAuthMode;
+    if (defect === 'unknown') {
+      input.mcpConfig!.inboundAuthMode = 'unknown' as any;
+      input.env!.API_NOVA_RUNTIME_AUTH_MODE = 'unknown';
+    }
+    if (defect === 'mismatch') input.env!.API_NOVA_RUNTIME_AUTH_MODE = 'anonymous';
+    if (defect === 'credentials') delete process.env.API_NOVA_RUNTIME_API_KEYS;
+    await expect(service.startProcess(input)).rejects.toThrow();
+    expect(service.updateProcessStatus).not.toHaveBeenCalled();
+    expect(mockedSpawn).not.toHaveBeenCalled();
+    service.processes.set('server-1', { pid: 123 });
+    service.stopProcess = jest.fn();
+    await expect(service.restartProcess('server-1', input)).rejects.toThrow();
+    expect(service.stopProcess).not.toHaveBeenCalled();
+    expect(service.updateProcessStatus).not.toHaveBeenCalled();
+    expect(mockedSpawn).not.toHaveBeenCalled();
+  });
+
+  it('rechecks credentials after restart delay before launching', async () => {
+    const { service } = fixture();
+    service.processes.set('server-1', { pid: 123 });
+    service.stopProcess = jest.fn(async () => {
+      service.processes.delete('server-1');
+      delete process.env.API_NOVA_RUNTIME_API_KEYS;
+    });
+    await expect(service.restartProcess('server-1', config('api_key'))).rejects.toThrow();
+    expect(service.stopProcess).toHaveBeenCalledTimes(1);
+    expect(service.updateProcessStatus).not.toHaveBeenCalled();
     expect(mockedSpawn).not.toHaveBeenCalled();
   });
 

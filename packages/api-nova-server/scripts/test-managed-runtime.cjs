@@ -54,7 +54,7 @@ for(const mode of ['streamable','sse'])test(mode+' real READY, authenticated MCP
  assert.equal(f.received.length,4);assert.equal(f.received[0].headers.authorization,'Bearer synthetic-parent-secret');assert.equal(f.received[1].headers['x-private'],'synthetic-override-secret');assert.equal(f.received[1].headers.authorization,undefined);assert.equal(f.received[2].headers.authorization,undefined);assert.equal(f.received[2].headers['x-private'],undefined);assert.ok(!JSON.stringify(f.received).includes('consumer-'));assert.ok(!f.received.some(r=>r.path==='/redirect-target'));
  await client.close();await handle.close();assert.deepEqual(await handle.closed,{code:'STOPPED'});assert.throws(()=>process.kill(handle.pid,0));const observed=spawned.at(-1);assert.equal(observed.output,'');assert.equal(observed.args[1].length,1);assert.ok(!JSON.stringify(observed.args[1]).includes('secret'));
 });
-for(const defect of ['secret','digest','binding','anonymous','missing-auth','jwt','revision','host','persisted-jwt','persisted-anonymous'])test('pre-listen '+defect+' failure emits fixed code and zero upstream sends',{timeout:15000},async t=>{
+for(const defect of ['secret','digest','binding','anonymous','missing-auth','unknown-auth','jwt','revision','host','persisted-jwt','persisted-anonymous'])test('pre-listen '+defect+' failure emits fixed code and zero upstream sends',{timeout:15000},async t=>{
  const f=await fixture(t);
  if(defect==='secret'){delete f.input.environmentValues.UPSTREAM_PARENT;f.input.approvedEnvironmentNames=f.input.approvedEnvironmentNames.filter(x=>x!=='UPSTREAM_PARENT');}
  if(defect==='digest')f.input.payload.registrySource.expectedContentDigest='0'.repeat(64);
@@ -62,6 +62,7 @@ for(const defect of ['secret','digest','binding','anonymous','missing-auth','jwt
  if(defect==='binding')f.input.payload.trustedOperationBindings.pop();
  if(['anonymous','jwt'].includes(defect))f.input.environmentValues.API_NOVA_RUNTIME_AUTH_MODE=defect;
  if(defect==='missing-auth'){delete f.input.environmentValues.API_NOVA_RUNTIME_AUTH_MODE;f.input.approvedEnvironmentNames=f.input.approvedEnvironmentNames.filter(x=>x!=='API_NOVA_RUNTIME_AUTH_MODE');}
+ if(defect==='unknown-auth')f.input.environmentValues.API_NOVA_RUNTIME_AUTH_MODE='unknown';
  if(defect==='persisted-jwt')f.input.payload.inboundAuthMode='private_jwt';
  if(defect==='persisted-anonymous')f.input.payload.inboundAuthMode='anonymous';
  if(defect==='host')f.input.payload.transport.host='0.0.0.0';
