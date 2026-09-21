@@ -38,7 +38,8 @@
     "cli:interactive:dev": "nodemon --exec \"npm run cli:interactive\"",
     "cli:interactive:auto": "npm run cli:interactive -- --openapi https://api.example.com/openapi.json --operation-filter-parameters 'userId,email' --transport streamable",
     "test:persistence": "npm run build && node scripts/persistence-smoke.js",
-    "test:sdk-session-contract": "npm run build && node --test scripts/test-mcp-sdk-session-contract.cjs scripts/test-mcp-tool-list-authorization.cjs scripts/test-mcp-tool-execution-authorization.cjs"
+    "test:sdk-session-contract": "npm run build && node --test scripts/test-mcp-sdk-session-contract.cjs scripts/test-mcp-tool-list-authorization.cjs scripts/test-mcp-tool-execution-authorization.cjs",
+    "test:adapter-contract": "npm run build && node --test scripts/test-mcp-adapter-contract.cjs scripts/test-mcp-sdk-session-contract.cjs scripts/test-mcp-stdio-observability.cjs"
   },
   "keywords": [
     "mcp",

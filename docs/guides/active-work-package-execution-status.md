@@ -1,5 +1,5 @@
 ---
-doc-version: 1.58.0
+doc-version: 1.59.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -8,15 +8,15 @@ doc-updated: 2026-09-21
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
-父包专项统计仍是OBS 10/5/1、SEC 6/14/2/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计16/19/3/1。它不表示全项目完成率。
+父包专项统计仍是OBS 10/5/1、SEC 8/12/2/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计18/17/3/1。它不表示全项目完成率。
 
 本次登记135个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 76 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 77 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 14 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | SEC-E0-01 |
+| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
 | WAIT_DEP | 24 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -65,7 +65,7 @@ doc-updated: 2026-09-21
 | SEC-D1-02D | WAIT_DEP | 待02C；默认迁移、防降级与H01–H12联合验收 |
 | SEC-D2-01 | DONE | 真实HTTP独立IP/Anonymous桶、peer可信边界、缓存命中仍限流；Gateway全套201/201、主任务联合复验42/42；见2026-09-21-independent-rate-limits证据 |
 | SEC-D2-02 | DONE | 六层真实HTTP组合19项、四套73/73；共享窗口冲突503且到期恢复、24并发精确7准入；见六层限流组合证据 |
-| SEC-E0-01 | IN_PROGRESS | 当前Streamable/SSE/stdio协议入口矩阵；不升级SDK协议 |
+| SEC-E0-01 | DONE | 锁SDK1.29.0原始HTTP/Session/错误及真实stdio矩阵60/60；修复已知Streamable端点不支持方法405+Allow；见Adapter证据 |
 | SEC-E1-01 | DONE | managed-mcp-credential-handoff-plan.md 0.1.0 draft；无代码交付；[草案](./managed-mcp-credential-handoff-plan.md) |
 | SEC-E1-01R | DONE | [交付设计第9节](./managed-mcp-credential-handoff-plan.md)，02A通道与真实child验收冻结；仅DOC |
 | SEC-E1-02A | DONE | 真实Node IPC、精确环境、ACK后固定拒绝、断连/超时/幂等关闭；专项11/11，ProcessManager 3/3 |
@@ -222,3 +222,5 @@ F2-01完成，见[真实管理面板证据](../audits/2026-09-21-upstream-creden
 原D1-02替换为02A/B/C/D四叶，总量132→135不是新增完成。F1-01[四态合同](./upstream-security-reconciliation-contract.md)已定稿，实际门禁F1-02仍等待C1-02。
 
 D1-02A编译准备完成，02B转READY，见[证据](../audits/2026-09-21-header-policy-compilation.md)。不将未接过滤执行器的候选元数据计为Header保护上线。
+
+E0-01完成，见[Adapter证据](../audits/2026-09-21-mcp-adapter-contract.md)，原E0/B3父包出口与依赖复核DONE。本批实际关闭3叶（DOC1/CODE准备1/VALIDATION含修复1）；当前77DONE/135叶，14READY、24WAIT_DEP、17NEED_ENV、1SCOPE_REVIEW、2DEFERRED。

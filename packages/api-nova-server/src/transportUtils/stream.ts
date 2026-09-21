@@ -401,6 +401,12 @@ export async function startStreamableMcpServer(
       return;
     }
 
+    if (reqUrl.pathname === endpoint) {
+      res.setHeader('Allow', 'GET, POST, DELETE');
+      writeJsonRpcErrorResponse(res, 405, -32000, 'Method Not Allowed');
+      return;
+    }
+
     // If we reach here, no handler matched
     writeJsonRpcErrorResponse(res, 404, -32000, "Not Found: Unsupported MCP endpoint");
   };

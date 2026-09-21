@@ -1,5 +1,5 @@
 ---
-doc-version: 1.17.0
+doc-version: 1.18.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -11,7 +11,7 @@ doc-updated: 2026-09-21
 
 ## 证据口径和版本
 
-编制时远端代码基线为 `19546cf`；并行工作区仍有未提交改动，所以本页**不**把该 SHA 当成所有新专项的测试版本。任何后续验收记录都须附最终提交 SHA、锁文件摘要、平台、运行命令、退出码和原始日志。当前 `package-lock.json` 固定 MCP SDK 1.29.0，Server/Parser 包版本均为 1.7.0；这是检索基线，不是已发布部署版本。当前安全父包为 DONE 6、IN_PROGRESS 14、BACKLOG 2、DEFERRED 1；子项状态只以[叶子台账](./active-work-package-execution-status.md)为准。
+编制时远端代码基线为 `19546cf`；并行工作区仍有未提交改动，所以本页**不**把该 SHA 当成所有新专项的测试版本。任何后续验收记录都须附最终提交 SHA、锁文件摘要、平台、运行命令、退出码和原始日志。当前 `package-lock.json` 固定 MCP SDK 1.29.0，Server/Parser 包版本均为 1.7.0；这是检索基线，不是已发布部署版本。当前安全父包为 DONE 8、IN_PROGRESS 12、BACKLOG 2、DEFERRED 1；子项状态只以[叶子台账](./active-work-package-execution-status.md)为准。
 
 本页使用四种证据级别：
 
@@ -56,7 +56,7 @@ doc-updated: 2026-09-21
 | SEC-D1-02A/B/C/D（原02） | [02A编译证据](../audits/2026-09-21-header-policy-compilation.md) | **准备实现/部分完成**：A DONE，B READY，C/D WAIT_DEP；完整Header流/缓存/迁移未交付，产品激活明确拒绝。 |
 | SEC-D2-01 | [独立限流证据](../audits/2026-09-21-independent-rate-limits.md) | **限定执行/DONE**：真实HTTP覆盖IP/匿名独立桶、暖缓存和伪造转发头；Gateway全套201/201。进程内计数，完整层级及多节点不在此叶。 |
 | SEC-D2-02 | [真实HTTP组合证据](../audits/2026-09-21-layered-rate-limit-composition.md) | **限定执行/DONE**：六层组合、缓存计量、同主体轮换、冲突窗口与精确并发准入；单进程既有范围。 |
-| SEC-E0-01 | [安全 smoke](../../packages/api-nova-server/scripts/runtime-security-audit-smoke.js)、[HTTP delivery](../../packages/api-nova-server/scripts/test-mcp-http-delivery.cjs)；SDK 1.29.0 | **历史执行/准备**：现行 Session/stdio/HTTP 基线有局部用例；Method、Header、错误与所有入口的当前锁定版本矩阵待验。 |
+| SEC-E0-01 | [Adapter当前矩阵](../audits/2026-09-21-mcp-adapter-contract.md) | **限定执行/DONE**：原始HTTP、锁定SDK会话及真实stdio60/60；方法405修复，不升级协议或替代E2完整安全验收。 |
 | SEC-E1-01 | [受管交付草案](./managed-mcp-credential-handoff-plan.md) | **限定 DOC**：0.1.0 草案已交付，不是代码或安全启动验收。 |
 | SEC-E1-01R | [受管交付草案 §9](./managed-mcp-credential-handoff-plan.md) | **限定 DOC**：0.2.0 技术审查冻结 02A/真实 child 必选项，不是方案外生产批准。 |
 | SEC-E1-02A | [通道脚本](../../packages/api-nova-api/scripts/test-managed-mcp-channel.cjs)、[第二批审计](../audits/2026-09-16-replanned-batch-2-evidence.md) | **限定执行**：Windows 本机合成真实 Node child 私有 IPC 11/11、ProcessManager 3/3；不证明产品启动状态。 |

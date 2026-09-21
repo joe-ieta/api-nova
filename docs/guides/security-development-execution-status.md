@@ -1,5 +1,5 @@
 ---
-doc-version: 1.42.0
+doc-version: 1.43.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -16,7 +16,7 @@ doc-updated: 2026-09-21
 
 DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PROGRESS 包括已有子集和本轮开发，不意味着依赖已闭合；BACKLOG 为尚未实施完整任务的部分；READY 为可开始的明确切片；DEFERRED 为本里程碑之外。
 
-当前共 23 包：DONE=6、IN_PROGRESS=14、BACKLOG=2、DEFERRED=1。A2历史状态复核及本批B1/A3原退出条件已闭合。C1-C3 文件装载到 Gateway 激活已是经验证切片；IN_PROGRESS 的具体实现、剩余退出条件和依赖以第2节状态表及最新执行节为准，历史执行段落仅用于追溯。
+当前共 23 包：DONE=8、IN_PROGRESS=12、BACKLOG=2、DEFERRED=1。A2历史状态复核及本批B1/A3原退出条件已闭合。C1-C3 文件装载到 Gateway 激活已是经验证切片；IN_PROGRESS 的具体实现、剩余退出条件和依赖以第2节状态表及最新执行节为准，历史执行段落仅用于追溯。
 
 ## 2. 阶段任务包
 
@@ -29,14 +29,14 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-A4 | 数据库基线；A0 | IN_PROGRESS | 当前PG/SQLite的69实体、4迁移空库/重连/零漂移已分别通过；本次关闭A4-02环境出口，父包基线/迁移管理按原退出条件核对，不从环境子项自动提升 |
 | TP-B1 | SEC-B01；A2 | DONE | 统一持久模型、协议/Route/Tool Scope、同Subject多Key轮换及跨Gateway/MCP下一请求撤销；动态CLI需主机显式database来源 |
 | TP-B2 | SEC-B02；A1 | DONE | 固定可信JWK/JWKS与issuer/audience已有；算法/必需claims/clock skew保存、启动、签名拒绝和SSE截止现已按原出口验收 |
-| TP-B3 | SEC-B03；B1/B2/E0 | IN_PROGRESS | B3-01持久撤销和B3-02锁定SDK dispatcher/Session/通知矩阵已完成；功能出口有证据，父依赖E0完整Adapter合同仍待闭合 |
+| TP-B3 | SEC-B03；B1/B2/E0 | DONE | 持久逐请求撤销、Session主体绑定、Tool过滤/二次授权及SDK通知边界均有证据；B1/B2/E0依赖闭合，不承诺权限广播或取消已接纳请求 |
 | TP-C1 | SEC-C01；A0 | IN_PROGRESS | 纯对象与 JSON/YAML loader 已实现，并经 C3 稳定文件读取激活到 Gateway；完整凭据类型、安全对账与全链路验收仍待完成 |
 | TP-C2 | SEC-C02；C1 | IN_PROGRESS | Env/File Provider 已用于 Registry，Gateway 显式配置激活链已贯通；本机契约历史 53 项通过，真实 Linux 权限 30 场景待补证，Windows Secret File ACL已完成C2-02原生验收，Linux环境出口待验 |
 | TP-C3 | SEC-C03；C2 | IN_PROGRESS | Stable Read、manual及Watch/debounce、受权Reload/状态和代次冲突已验证；C3-01 Watch与C3-02 DB归属完成，C3-03多进程待验 |
 | TP-C4 | SEC-C04；C3 | IN_PROGRESS | Gateway与显式MCP single-hop Resolver已验证；SEC-C4-01验收真实受管child执行及Unresolved门禁，依赖E1/F1；网络政策主归F3，不在C4复制实现 |
 | TP-D1 | SEC-D01；C4 | IN_PROGRESS | D1-01政策与D1-02A编译快照准备完成；02B双向流/02C缓存/02D迁移验收尚缺，生产v1激活明确拒绝；非Header保护上线 |
 | TP-D2 | SEC-D02；B1/B2/D1 | IN_PROGRESS | 身份化缓存、六层限流与匿名独立桶功能出口已通过D2-01/02；原父依赖B2/D1整体验收待闭合，不额外添加多节点验收门槛 |
-| TP-E0 | MCP Adapter；A0 | IN_PROGRESS | HTTP/Session/SSE/stdio 和 Discovery 禁用已有；完整版本/错误边界待验收 |
+| TP-E0 | MCP Adapter；A0 | DONE | 锁定SDK1.29.0 Streamable/SSE/stdio方法/Header/错误/版本/Session原出口验收，60/60；不改变协议或宣称完整E2安全签收 |
 | TP-E1 | SEC-E01；B3/C4/E0 | IN_PROGRESS | 可信映射、管理侧装配/发布读取、跨源校验及旧候选guard已验；SEC-E1-01~04负责技术方案、真实child接线、argv秘密移除、端到端与运行中撤销；管理侧继续微修不替代出口 |
 | TP-E2 | SEC-E02；E1 | IN_PROGRESS | 安全 smoke/跨进程/传输专项有历史证据；当前完整安全矩阵、撤销/取消/重连和平台组合未完成 |
 | TP-F1 | SEC-F01；C4 | BACKLOG | F1-01四态/Binding/OR-AND合同已定稿；F1-02发布门禁尚未实现，等待C1-02类型支持，不把DOC计为功能闭合 |
@@ -709,3 +709,7 @@ D2-02完成，见[组合证据](../audits/2026-09-21-layered-rate-limit-composit
 ## Header编译准备（2026-09-21）
 
 [02A证据](../audits/2026-09-21-header-policy-compilation.md)关闭编译准备，02B就绪。父包D1仍未完成，含v1策略不能绕过未就绪门禁进入旧数据面。
+
+## Adapter与B3父出口（2026-09-21）
+
+[当前协议矩阵](../audits/2026-09-21-mcp-adapter-contract.md)关闭E0-01/TP-E0；结合B3两叶已有证据和已闭合B1/B2/E0，TP-B3按原条件DONE。Header编译准备及F1合同仍不等于对应父包完成。
