@@ -104,6 +104,8 @@
       </el-table>
       <el-empty v-if="!loading && candidateRows.length === 0" description="该环境尚未配置运行实例" />
 
+      <UpstreamCredentialPanel />
+
       <div v-if="resolution" class="resolution-panel">
         <div class="resolution-title">
           <strong>当前解析结果</strong>
@@ -135,6 +137,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import UpstreamCredentialPanel from "../runtime-assets/UpstreamCredentialPanel.vue";
 import { serverAPI } from "@/services/api";
 
 type SourceServiceInstance = {

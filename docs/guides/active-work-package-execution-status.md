@@ -1,5 +1,5 @@
 ---
-doc-version: 1.55.0
+doc-version: 1.56.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,9 +14,9 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 73 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 74 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 16 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | SEC-F2-01 |
+| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
 | WAIT_DEP | 22 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -76,7 +76,7 @@ doc-updated: 2026-09-21
 | SEC-E2-02 | NEED_ENV | 需核实环境 |
 | SEC-F1-01 | READY | 不回塞到C1造成循环 |
 | SEC-F1-02 | WAIT_DEP | 未完成 |
-| SEC-F2-01 | IN_PROGRESS | Consumer/Upstream分区与binding revision、当前API进程Registry generation/reload恢复 |
+| SEC-F2-01 | DONE | Consumer/Upstream分区、真实binding revision/Registry generation与reload恢复；UI12/12、实际UI适配器到Nest/Registry HTTP1/1、后端21/21；进程范围明确，浏览器点击未验 |
 | SEC-F2-02 | DONE | Gateway/MCP临时匿名原因/到期/生产风险和actor回显，保存重开及拒绝反馈；UI构建、表单/真实模板26/26，浏览器点击未验，见UI证据 |
 | SEC-F3-01 | READY | 不将零redirect称SSRF完成 |
 | SEC-F3-02 | WAIT_DEP | 未完成 |
@@ -211,3 +211,5 @@ F2-02已完成，见[匿名界面证据](../audits/2026-09-21-temporary-anonymou
 D1-01已定稿，D1-02转READY；这1项是DOC完成，不计为Header功能实现。B3-02与F2-01独立验收中。
 
 B3-02完成，见[SDK合同](../audits/2026-09-21-sdk-session-contract.md)。B3两叶出口完成但父依赖E0仍缺；不机械提升父状态。
+
+F2-01完成，见[真实管理面板证据](../audits/2026-09-21-upstream-credential-management-ui.md)。本批3叶完成（CODE1/VALIDATION1/DOC1），DONE由71升74；132总量不变，剩余READY16、WAIT_DEP22、NEED_ENV17、SCOPE_REVIEW1、DEFERRED2。D1-02已解锁，Header执行缺口仍真实登记；B3/F2父包只保留原独立依赖。

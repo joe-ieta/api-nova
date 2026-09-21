@@ -303,13 +303,14 @@
       >
         <template #header>
           <div class="section-header">
-            <span>{{ t("monitoring.runtimeAssets.detail.apiKeys") }}</span>
+            <span>{{ t("monitoring.upstreamCredentials.consumer") }}</span>
             <el-button type="primary" size="small" @click="openCredentialDialog">
               {{ t("monitoring.runtimeAssets.detail.createApiKey") }}
             </el-button>
           </div>
         </template>
 
+        <p>{{ t("monitoring.upstreamCredentials.consumerHint") }}</p>
         <el-alert
           v-if="createdApiKey"
           type="success"
@@ -361,6 +362,8 @@
         </el-table>
       </el-card>
     </div>
+
+    <UpstreamCredentialPanel v-if="asset" :key="runtimeAssetId" />
 
     <el-dialog
       v-model="credentialDialogVisible"
@@ -450,6 +453,7 @@ import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { DocumentChecked, Refresh, VideoPause, VideoPlay } from "@element-plus/icons-vue";
 import { useI18n } from "vue-i18n";
+import UpstreamCredentialPanel from "./UpstreamCredentialPanel.vue";
 import { runtimeAssetsAPI } from "@/services/api";
 import { useWebSocketStore } from "@/stores/websocket";
 import RuntimeVerificationDialog from "./RuntimeVerificationDialog.vue";

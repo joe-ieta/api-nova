@@ -1,5 +1,26 @@
 export default {
   monitoring: {
+    upstreamCredentials: {
+      "title": "上游访问凭证（Upstream）",
+      "scope": "用于 ApiNova 访问上游服务。此处显示当前 API / Gateway 进程的凭证注册表；MCP 子进程的加载状态需单独验证。路由绑定修订与凭证注册表修订分别生效。",
+      "consumer": "调用方凭证（Consumer）",
+      "consumerHint": "用于调用方访问当前运行时；与访问上游服务使用的凭证分别管理。",
+      "state": "加载状态",
+      "generation": "实际加载代次（generation）",
+      "revision": "凭证注册表修订（revision）",
+      "environment": "环境",
+      "disabled": "服务端未配置上游凭证注册表，暂不可重新加载。",
+      "stale": "这里保留的是上次读取结果。请重新读取当前状态，再决定是否重试。",
+      "previousError": "最近一次加载失败。请管理员修正服务端配置，再读取状态并重新加载。",
+      "permission": "当前账号无权执行此操作，请使用具有配置读取或修改权限的账号。",
+      "conflict": "加载代次已变化或其他加载正在进行。请重新读取状态后再操作。",
+      "request": "操作未确认成功；服务端可能已生效。请先重新读取状态，不要直接重复提交。",
+      "reason": "请填写 1 至 500 字的原因，不含换行或控制字符。",
+      "reasonLabel": "重新加载原因",
+      "refresh": "读取当前状态",
+      "reload": "重新加载（Reload）",
+      "success": "重新加载成功，以下代次来自服务端返回。"
+    },
     mcpPublication: {
       "anonymousRisk": "任何能访问此端点的人都可在授权范围内调用。到期后请求会被拒绝；已有临时授权不能清空为永久匿名。",
       "temporary": "使用临时匿名授权",

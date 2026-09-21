@@ -1,0 +1,44 @@
+'use strict';
+require('reflect-metadata');
+const path=require('node:path'),fs=require('node:fs/promises'),os=require('node:os'),assert=require('node:assert/strict');
+require('ts-node').register({transpileOnly:true,project:path.resolve(__dirname,'../tsconfig.json')});
+const {test}=require('node:test'),{randomUUID}=require('node:crypto');
+const {Test}=require('@nestjs/testing'),{ConfigService}=require('@nestjs/config'),{PassportModule}=require('@nestjs/passport');
+const {sign}=require('jsonwebtoken'),{UpstreamCredentialRegistry}=require('api-nova-parser');
+const load=p=>require('../src/'+p+'.ts');
+const {GatewayUpstreamCredentialAdminController}=load('modules/gateway-runtime/gateway-upstream-credential-admin.controller');
+const {GatewayUpstreamCredentialAdminService}=load('modules/gateway-runtime/services/gateway-upstream-credential-admin.service');
+const {JwtStrategy}=load('modules/security/strategies/jwt.strategy');
+const {UserService}=load('modules/security/services/user.service'),{AuthService}=load('modules/security/services/auth.service');
+function candidate(revision){return {apiVersion:'security.apinova.io/v1',kind:'UpstreamCredentialBindings',metadata:{revision,environment:'fixture'},reload:{mode:'manual',debounceMs:0,rejectPlaintextSecrets:true},secretProviders:{memory:{type:'env'}},credentials:{token:{type:'bearer',secretRef:'memory:FIXTURE'}},sites:[{id:'site',sourceServiceAssetId:'asset',match:{scheme:'https',host:'example.invalid',port:443,basePath:'/'},allowedHosts:['example.invalid'],credential:'token',endpoints:[]}]};}
+test('credential UI reads real HTTP registry generations and recovers without guessing activation',async t=>{
+ const directory=await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(),'api-nova-ui-registry-'))),file=path.join(directory,'bindings.json');
+ let app;
+ t.after(async()=>{await app?.close();assert.equal(path.dirname(directory),await fs.realpath(os.tmpdir()));assert.ok(path.basename(directory).startsWith('api-nova-ui-registry-'));await fs.rm(directory,{recursive:true,force:true});});
+ const registry=new UpstreamCredentialRegistry({environment:'fixture',providerFactory:()=>({type:'env',resolve:async()=>'fixture-secret-never-returned'})});
+ await registry.reload(candidate('r1'));await fs.writeFile(file,JSON.stringify(candidate('r2')));
+ let failCompletion=false;const auditEntries=[];const audit={log:async entry=>{if(failCompletion&&entry.status==='success')throw new Error('isolated audit failure');auditEntries.push(entry);return {id:randomUUID()};}};
+ const secret='isolated-ui-management-secret-'.repeat(3),user={id:randomUUID(),isActive:true,isLocked:false,hasRole:()=>false},permissions=new Set(['config:read','config:update']);
+ const config=new ConfigService({JWT_SECRET:secret,API_NOVA_UPSTREAM_CREDENTIAL_FILE:file,API_NOVA_UPSTREAM_CREDENTIAL_FORMAT:'json'});
+ const admin=new GatewayUpstreamCredentialAdminService(registry,config,audit);
+ const module=await Test.createTestingModule({imports:[PassportModule],controllers:[GatewayUpstreamCredentialAdminController],providers:[JwtStrategy,{provide:GatewayUpstreamCredentialAdminService,useValue:admin},{provide:ConfigService,useValue:config},{provide:UserService,useValue:{findUserById:async id=>id===user.id?user:null}},{provide:AuthService,useValue:{checkPermission:async(_id,p)=>permissions.has(p)}}]}).compile();
+ app=module.createNestApplication();app.setGlobalPrefix('api');app.useLogger(false);await app.listen(0,'127.0.0.1');
+ const origin=await app.getUrl(),token=sign({sub:user.id},secret,{expiresIn:'5m'});
+ const Module=require('node:module'),ts=require('typescript');
+ const uiFile=path.resolve(__dirname,'../../api-nova-ui/src/services/upstream-credentials.ts'),loaded=new Module(uiFile,module);
+ loaded.filename=uiFile;loaded.paths=Module._nodeModulePaths(path.dirname(uiFile));loaded._compile(ts.transpileModule(await fs.readFile(uiFile,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,uiFile);
+ const originalFetch=global.fetch;global.fetch=(url,options)=>originalFetch(typeof url==='string'&&url.startsWith('/')?origin+url:url,options);t.after(()=>{global.fetch=originalFetch;});
+ const ui=loaded.exports,state=ui.upstreamCredentialState(),panel=new ui.UpstreamCredentialPanel(state,()=>({key:user.id,token}));
+ const request=async(method,body)=>{const response=await fetch(origin+'/api/security/upstream-credentials/'+(method==='GET'?'status':'reload'),{method,headers:{authorization:'Bearer '+token,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});return {response,body:await response.json()};};
+ await panel.refresh();assert.equal(state.status.generation,1);assert.equal(panel.canReload(),true);
+ state.reason='fixture reload';await panel.reload();assert.equal(state.status.generation,2);assert.equal(state.reloaded,true);
+ // Another operator activates a revision; the panel must not silently replay its stale request.
+ await registry.reload(candidate('concurrent-r3'));state.reason='stale';await panel.reload();assert.equal(state.error,'conflict');assert.equal(state.status.generation,2);assert.equal(state.needsRefresh,true);assert.equal(panel.canReload(),false);
+ await panel.reload();assert.equal(registry.getStatus().generation,3);await panel.refresh();assert.equal(state.status.generation,3);
+ await fs.writeFile(file,'invalid-private-source');state.reason='invalid';await panel.reload();assert.equal(state.error,'request');assert.equal(state.needsRefresh,true);assert.equal(registry.getStatus().generation,3);
+ await panel.refresh();await fs.writeFile(file,JSON.stringify(candidate('r4')));failCompletion=true;state.reason='audit result failure';await panel.reload();assert.equal(state.error,'request');assert.equal(state.status.generation,3);
+ await panel.refresh();assert.equal(state.status.generation,4);assert.equal(state.status.revision,'r4');
+ failCompletion=false;await fs.writeFile(file,JSON.stringify(candidate('r5')));state.reason='recovered';await panel.reload();assert.equal(state.status.generation,5);assert.equal(state.reloaded,true);
+ assert.ok(!JSON.stringify([state,auditEntries]).includes('fixture-secret-never-returned'));assert.ok(!JSON.stringify(state).includes(file));
+ permissions.delete('config:update');assert.equal((await request('POST',{expectedGeneration:5,reason:'permission removed'})).response.status,403);
+});

@@ -1,5 +1,26 @@
 export default {
   monitoring: {
+    upstreamCredentials: {
+      "title": "Upstream credentials",
+      "scope": "Used by ApiNova to access upstream services. This is the current API / Gateway process registry; MCP child process loading must be verified separately. Route binding and credential registry revisions apply separately.",
+      "consumer": "Consumer credentials",
+      "consumerHint": "Used by callers to access this runtime, managed separately from credentials for upstream services.",
+      "state": "Load state",
+      "generation": "Actual generation",
+      "revision": "Credential registry revision",
+      "environment": "Environment",
+      "disabled": "The server has no upstream credential registry configured. Reload is unavailable.",
+      "stale": "Showing the last read result. Read current status before deciding whether to retry.",
+      "previousError": "The last reload failed. Ask an administrator to correct the server configuration, then read status and reload.",
+      "permission": "Your account does not have permission to read or update configuration.",
+      "conflict": "The generation changed or another reload is running. Read current status before retrying.",
+      "request": "The operation was not confirmed; it may already have taken effect. Read current status before submitting again.",
+      "reason": "Enter a reason of 1–500 characters without line breaks or control characters.",
+      "reasonLabel": "Reload reason",
+      "refresh": "Read current status",
+      "reload": "Reload",
+      "success": "Reload succeeded. The displayed generation was returned by the server."
+    },
     mcpPublication: {
       "anonymousRisk": "Anyone who can reach this endpoint may invoke allowed operations. Requests are denied after expiry. Existing temporary grants cannot be cleared into permanent access.",
       "temporary": "Use temporary anonymous access",
