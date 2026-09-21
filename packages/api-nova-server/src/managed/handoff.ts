@@ -7,6 +7,7 @@ export type ManagedFailureCode = typeof MANAGED_FAILURE_CODES[number];
 export interface ManagedMcpHandoffV1 {
   version: 1; launchId: string; managedServerId: string; runtimeAssetId: string;
   candidateRevision: string; verificationRunId: string; behaviorFingerprint: string;
+  inboundAuthMode: 'private_jwt' | 'private_api_key' | 'anonymous';
   transport: { type: 'streamable' | 'sse'; host: string; port: number; endpoint: string };
   openApiData: unknown;
   trustedOperationBindings: readonly { method: string; path: string; endpointDefinitionId: string; sourceServiceAssetId: string }[];
@@ -46,9 +47,9 @@ export function captureManagedHandoff(input: unknown): ManagedMcpHandoffV1 {
     const encoded = JSON.stringify(input);
     if (Buffer.byteLength(encoded, 'utf8') > MANAGED_HANDOFF_LIMITS.bytes) throw new Error();
     const p = JSON.parse(encoded);
-    if (!exact(p, ['version', 'launchId', 'managedServerId', 'runtimeAssetId', 'candidateRevision', 'verificationRunId', 'behaviorFingerprint', 'transport', 'openApiData', 'trustedOperationBindings', 'registrySource']) || p.version !== 1) throw new Error();
+    if (!exact(p, ['version', 'launchId', 'managedServerId', 'runtimeAssetId', 'candidateRevision', 'verificationRunId', 'behaviorFingerprint', 'inboundAuthMode', 'transport', 'openApiData', 'trustedOperationBindings', 'registrySource']) || p.version !== 1) throw new Error();
     for (const name of ['launchId', 'managedServerId', 'runtimeAssetId', 'candidateRevision', 'verificationRunId']) if (!identifier(p[name])) throw new Error();
-    if (!sha256(p.behaviorFingerprint)) throw new Error();
+    if (!sha256(p.behaviorFingerprint) || !['private_jwt', 'private_api_key', 'anonymous'].includes(p.inboundAuthMode)) throw new Error();
     const t = p.transport, r = p.registrySource;
     if (!exact(t, ['type', 'host', 'port', 'endpoint']) || !['streamable', 'sse'].includes(t.type) || !text(t.host, 255) || !Number.isInteger(t.port) || t.port < 1 || t.port > 65535 || !text(t.endpoint, 1024) || !t.endpoint.startsWith('/')) throw new Error();
     if (!exact(r, ['configId', 'path', 'format', 'environment', 'expectedRevision', 'expectedContentDigest']) || !identifier(r.configId) || !text(r.path, 4096) || !isAbsolute(r.path) || !['json', 'yaml'].includes(r.format) || !identifier(r.environment) || !identifier(r.expectedRevision) || !sha256(r.expectedContentDigest)) throw new Error();

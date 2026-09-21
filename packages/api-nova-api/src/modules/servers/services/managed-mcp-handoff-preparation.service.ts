@@ -5,7 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { isAbsolute } from 'node:path';
 import { captureManagedHandoff, ManagedMcpHandoffV1 } from 'api-nova-server';
 import { parseUpstreamCredentialBindings, readStableUpstreamCredentialText } from 'api-nova-parser';
-import { MCPServerEntity } from '../../../database/entities/mcp-server.entity';
+import { MCPServerEntity, McpInboundAuthMode } from '../../../database/entities/mcp-server.entity';
 import { RuntimeVerificationRunEntity } from '../../../database/entities/runtime-verification-run.entity';
 import { RuntimeUpstreamBindingEntity } from '../../../database/entities/runtime-upstream-binding.entity';
 import { readMcpOwnership } from '../../runtime-assets/services/mcp-ownership-reader';
@@ -82,7 +82,8 @@ export class ManagedMcpHandoffPreparationService {
     return this.db.transaction(isolation, async manager => {
       const ownership = await readMcpOwnership(manager, runtimeAssetId);
       const server = await manager.getRepository(MCPServerEntity).findOne({ where: { id: serverId } });
-      if (!ownership || !server || ownership.asset.type !== 'mcp_server') return reject();
+      if (!ownership || !server || ownership.asset.type !== 'mcp_server' ||
+        server.inboundAuthMode !== McpInboundAuthMode.PRIVATE_API_KEY) return reject();
       const { asset, rows } = ownership;
       const metadata = asset.metadata || {}, config = server.config || {};
       if (metadata.managedServerId !== serverId || config.runtimeAssetId !== runtimeAssetId || config.managedByRuntimeAsset !== true ||
@@ -132,6 +133,7 @@ export class ManagedMcpHandoffPreparationService {
         environmentValues[name] = value as string;
       }
       buildManagedEnvironment(source.approvedEnvironmentNames, environmentValues);
+      if (environmentValues.API_NOVA_RUNTIME_AUTH_MODE !== 'api_key') reject();
       const first = await this.snapshot(runtimeAssetId, serverId);
       const text = await readStableUpstreamCredentialText(source.registrySource.path);
       const candidate = parseUpstreamCredentialBindings(text, source.registrySource.format);
@@ -152,6 +154,7 @@ export class ManagedMcpHandoffPreparationService {
       const second = await this.snapshot(runtimeAssetId, serverId);
       if (serialized(first) !== serialized(second) || serialized(source) !== serialized(this.source(runtimeAssetId))) reject();
       const payload = captureManagedHandoff({ version: 1, launchId: randomUUID(), managedServerId: serverId, runtimeAssetId,
+        inboundAuthMode: second.server.inboundAuthMode!,
         candidateRevision: second.run.candidateRevision, verificationRunId: second.run.id, behaviorFingerprint: second.fingerprint,
         transport: { type: second.endpoint.transport, host: '127.0.0.1', port: second.endpoint.port, endpoint: second.endpoint.endpointPath },
         openApiData: second.server.openApiData, trustedOperationBindings: second.bindings, registrySource: source.registrySource });

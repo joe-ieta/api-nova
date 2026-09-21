@@ -35,7 +35,7 @@ Module._resolveFilename = function (name, ...rest) {
 const { startManagedMcpChannel, buildManagedEnvironment } = require('../src/modules/servers/services/managed-mcp-channel.ts');
 after(() => { Module._resolveFilename = originalResolve; fs.rmSync(directory, { recursive: true, force: true }); });
 const payload = () => ({ version: 1, launchId: 'launch-fixture', managedServerId: 'server-fixture', runtimeAssetId: 'runtime-fixture',
-  candidateRevision: 'candidate-fixture', verificationRunId: 'verification-fixture', behaviorFingerprint: 'a'.repeat(64),
+  inboundAuthMode: 'private_api_key', candidateRevision: 'candidate-fixture', verificationRunId: 'verification-fixture', behaviorFingerprint: 'a'.repeat(64),
   transport: { type: 'streamable', host: '127.0.0.1', port: 9022, endpoint: '/mcp' }, openApiData: { openapi: '3.0.3', paths: {} },
   trustedOperationBindings: [], registrySource: { configId: 'fixture', path: path.join(directory, 'unread-source.json'), format: 'json', environment: 'test', expectedRevision: 'r1', expectedContentDigest: 'b'.repeat(64) } });
 const input = () => ({ launchId: 'launch-fixture', serverId: 'server-fixture', payload: payload(), approvedEnvironmentNames: [], environmentValues: {} });
@@ -77,7 +77,7 @@ test('environment rejects injection, unapproved values, case collisions, absent 
 });
 
 test('shared wire rejects unknown fields, malformed data, getters, limit overflow and child READY', () => {
-  for (const mutate of [p => p.secret = 'fixture', p => p.version = 2, p => p.openApiData = null, p => p.registrySource.path = 'relative.json',
+  for (const mutate of [p => delete p.inboundAuthMode, p => p.inboundAuthMode = 'api_key', p => p.inboundAuthMode = 'unknown', p => p.secret = 'fixture', p => p.version = 2, p => p.openApiData = null, p => p.registrySource.path = 'relative.json',
     p => p.openApiData = { text: 'x'.repeat(wire.MANAGED_HANDOFF_LIMITS.bytes) },
     p => p.trustedOperationBindings = new Array(10001).fill({ method: 'GET', path: '/', endpointDefinitionId: 'e', sourceServiceAssetId: 's' })]) {
     const p = payload(); mutate(p); assert.throws(() => wire.captureManagedHandoff(p), /INVALID_MANAGED_HANDOFF/);
@@ -194,4 +194,24 @@ test('READY must follow ACK, match captured revisions, and occur only once',asyn
 test('READY digest fields reject regex-coercible arrays rather than accepting non-string revisions',()=>{
  const message=readyMessage();message.nonSecretRevisions.behaviorFingerprint=['a'.repeat(64)];
  assert.throws(()=>wire.parseManagedChildMessage(message,'launch-fixture'),/INVALID_MANAGED_HANDOFF/);
+});
+
+test('parent rejects a valid API-key READY when captured persistent mode differs',async()=>{
+ for(const mode of ['private_jwt','anonymous']){
+  const f=sandbox(),request=input();request.payload.inboundAuthMode=mode;
+  const waiting=f.api.startManagedMcpChannel(request);
+  f.child.emit('message',{type:'handoffAccepted',launchId:'launch-fixture'});const handle=await waiting;
+  f.child.emit('message',readyMessage());f.fire(5000);
+  await assert.rejects(handle.ready,/INVALID_MANAGED_HANDOFF/);assert.equal((await handle.closed).code,'INVALID_MANAGED_HANDOFF');
+ }
+});
+
+test('real child rejects old and unknown persisted-mode envelopes before ACK',async()=>{
+ for(const mode of [undefined,'unknown','api_key']){
+  const p=payload();if(mode===undefined)delete p.inboundAuthMode;else p.inboundAuthMode=mode;
+  const result=await direct([{type:'handoff',version:1,launchId:p.launchId,payload:p}]);
+  assert.equal(result.code,1);assert.equal(result.replies[0].code,'INVALID_MANAGED_HANDOFF');
+  assert.ok(!result.replies.some(message=>message.type==='handoffAccepted'||message.type==='runtimeReady'));
+  assert.equal(result.output,'');
+ }
 });

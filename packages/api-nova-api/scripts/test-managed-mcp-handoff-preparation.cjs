@@ -49,11 +49,11 @@ beforeEach(async () => {
   await db.getRepository(Member).save({id:id(2),runtimeAssetId:id(1),endpointDefinitionId:id(3),enabled:true});
   await db.getRepository(Publish).save({id:id(8),endpointDefinitionId:id(3),runtimeAssetEndpointBindingId:id(2),publishedToMcp:true});
   await db.getRepository(Upstream).save({id:id(7),runtimeAssetEndpointBindingId:id(2),sourceServiceAssetId:id(4),environment:'test',selectionMode:'fixed_primary',status:'active',revision:1});
-  await db.getRepository(Server).save({id:id(5),name:'fixture',openApiData:spec,port:9022,transport:'streamable',config:{endpoint:'/mcp',runtimeAssetId:id(1),managedByRuntimeAsset:true,verifiedCandidateRevision:'candidate1',verificationRunId:id(6),behaviorFingerprint:fingerprint}});
+  await db.getRepository(Server).save({id:id(5),name:'fixture',inboundAuthMode:'private_api_key',openApiData:spec,port:9022,transport:'streamable',config:{endpoint:'/mcp',runtimeAssetId:id(1),managedByRuntimeAsset:true,verifiedCandidateRevision:'candidate1',verificationRunId:id(6),behaviorFingerprint:fingerprint}});
   await db.getRepository(Run).save({id:id(6),runtimeAssetId:id(1),candidateRevision:'candidate1',trigger:'deploy',status:'passed',activationStatus:'activated',metadata:{behaviorFingerprint:fingerprint,mcpEndpointConfig:{transport:'streamable',port:9022,endpointPath:'/mcp'}},upstreamBindingRevisions:[{runtimeMembershipId:id(2),bindingId:id(7),revision:1}]});
   registryPath=path.join(directory,'registry.json');
   registry={apiVersion:'security.apinova.io/v1',kind:'UpstreamCredentialBindings',metadata:{revision:'r1',environment:'test'},reload:{mode:'manual',debounceMs:0,rejectPlaintextSecrets:true},secretProviders:{env:{type:'env'}},credentials:{token:{type:'bearer',secretRef:'env:FIXTURE_TOKEN'}},sites:[{id:'fixture',sourceServiceAssetId:id(4),match:{scheme:'https',host:'fixture.invalid',port:443,basePath:'/'},credential:'none',allowedHosts:['fixture.invalid'],endpoints:[]}]};
-  config={sources:{[id(1)]:{registrySource:{configId:'fixture',path:registryPath,format:'json',environment:'test',expectedRevision:'r1',expectedContentDigest:'a'.repeat(64)},approvedEnvironmentNames:['FIXTURE_TOKEN']}}, get(key){return key==='managedMcp.handoffSources'?this.sources:key==='FIXTURE_TOKEN'?'synthetic-private-marker':undefined;}};
+  config={sources:{[id(1)]:{registrySource:{configId:'fixture',path:registryPath,format:'json',environment:'test',expectedRevision:'r1',expectedContentDigest:'a'.repeat(64)},approvedEnvironmentNames:['FIXTURE_TOKEN','API_NOVA_RUNTIME_AUTH_MODE']}}, get(key){return key==='managedMcp.handoffSources'?this.sources:key==='FIXTURE_TOKEN'?'synthetic-private-marker':key==='API_NOVA_RUNTIME_AUTH_MODE'?'api_key':undefined;}};
   await saveRegistry();
   service = new ManagedMcpHandoffPreparationService(db,config);
 });
@@ -62,6 +62,7 @@ after(()=>{Module._resolveFilename=originalResolve;fs.rmSync(directory,{recursiv
 const reject = () => assert.rejects(service.prepare(id(1),id(5)), error=>error.message===code && !String(error).includes('synthetic-private-marker'));
 test('real SQL.js produces frozen ownership envelope without environment values',async()=>{
  const payload=await service.prepare(id(1),id(5));
+ assert.equal(payload.inboundAuthMode,'private_api_key');
  assert.equal(payload.trustedOperationBindings[0].sourceServiceAssetId,id(4));
  assert.equal(payload.trustedOperationBindings[0].endpointDefinitionId,id(3));
  assert.equal(payload.registrySource.expectedContentDigest,config.sources[id(1)].registrySource.expectedContentDigest);
@@ -125,4 +126,17 @@ test('explicit source size bound and inherited configuration reject before any c
 test('duplicate revision membership and binding IDs are not treated as coverage',async()=>{
  const run=await db.getRepository(Run).findOneByOrFail({id:id(6)});
  await db.getRepository(Run).update(id(6),{upstreamBindingRevisions:[...run.upstreamBindingRevisions,...run.upstreamBindingRevisions]});await reject();
+});
+
+for(const mode of [null,'private_jwt','anonymous']) test('persisted mode '+mode+' is rejected before preparing managed child',async()=>{
+ await db.getRepository(Server).update(id(5),{inboundAuthMode:mode});await reject();
+});
+test('persisted mode drift during Registry read fails closed',async()=>{
+ const original=service.snapshot.bind(service);let reads=0;
+ service.snapshot=async(...args)=>{const result=await original(...args);if(++reads===1)await db.getRepository(Server).update(id(5),{inboundAuthMode:'anonymous'});return result;};
+ await reject();
+});
+
+for(const mode of [undefined,'jwt','anonymous','unknown']) test('approved runtime mode '+mode+' cannot disagree with persisted mode',async()=>{
+ const original=config.get.bind(config);config.get=key=>key==='API_NOVA_RUNTIME_AUTH_MODE'?mode:original(key);await reject();
 });

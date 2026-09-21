@@ -16,20 +16,21 @@
 | --- | --- | --- | --- |
 | [docs/audits/2026-09-04-manual-registration-publication.md](./audits/2026-09-04-manual-registration-publication.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/audits/2026-09-07-reviewed-merge.md](./audits/2026-09-07-reviewed-merge.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/audits/README.md](./audits/README.md) | 1.20.0 | active | 2026-09-17 |
+| [docs/audits/README.md](./audits/README.md) | 1.21.0 | active | 2026-09-21 |
 | [全范围审核与重拆](./audits/2026-09-15-work-package-replan.md) | 1.0.0 | active | 2026-09-15 |
 | [PROD-03本地发布循环](./audits/2026-09-15-prod-03-local-publication-cycle.md) | 0.1.0 | active | 2026-09-15 |
 | [重拆第二批限定证据](./audits/2026-09-16-replanned-batch-2-evidence.md) | 1.7.0 | active | 2026-09-16 |
 | [重拆第三批限定证据](./audits/2026-09-16-replanned-batch-3-evidence.md) | 1.0.0 | active | 2026-09-16 |
 | [重拆第四批限定证据](./audits/2026-09-16-replanned-batch-4-evidence.md) | 1.0.0 | active | 2026-09-16 |
+| [受管鉴权模式一致性](./audits/2026-09-21-managed-inbound-mode-evidence.md) | 1.0.0 | active | 2026-09-21 |
 | [额度中断恢复证据](./audits/2026-09-17-interruption-recovery-evidence.md) | 1.0.0 | active | 2026-09-17 |
 | [重拆第五批限定证据](./audits/2026-09-16-replanned-batch-5-evidence.md) | 1.0.0 | active | 2026-09-16 |
 | [端点测试二进制样例合同](./guides/endpoint-test-binary-sample-contract.md) | 0.8.0 | active | 2026-09-17 |
-| [活跃工作包划分](./guides/active-work-package-breakdown.md) | 1.22.0 | active | 2026-09-17 |
+| [活跃工作包划分](./guides/active-work-package-breakdown.md) | 1.23.0 | active | 2026-09-21 |
 | [安全交付验收证据索引](./guides/security-delivery-evidence-index.md) | 1.0.0 | active | 2026-09-16 |
 | [MCP发布端点合同](./guides/mcp-publication-endpoint-contract.md) | 0.1.0 | active | 2026-09-15 |
-| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.36.0 | active | 2026-09-17 |
-| [受管MCP启动交付设计](./guides/managed-mcp-credential-handoff-plan.md) | 0.3.0 | reviewed-slice | 2026-09-16 |
+| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.37.0 | active | 2026-09-21 |
+| [受管MCP启动交付设计](./guides/managed-mcp-credential-handoff-plan.md) | 0.4.0 | reviewed-slice | 2026-09-21 |
 | [候选激活与GC重试](./audits/2026-09-15-activation-gc-wave.md) | 1.0.0 | active | 2026-09-15 |
 | [上游归属交叉核验](./audits/2026-09-15-upstream-ownership-wave.md) | 1.0.0 | active | 2026-09-15 |
 | [发布读取与停机收敛](./audits/2026-09-15-publication-shutdown-wave.md) | 1.0.0 | active | 2026-09-15 |
@@ -82,7 +83,7 @@
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
 | [安全任务计划](./guides/security-development-task-plan.md) | 1.9.0 | active | 2026-09-15 |
-| [安全执行状态](./guides/security-development-execution-status.md) | 1.22.0 | active | 2026-09-16 |
+| [安全执行状态](./guides/security-development-execution-status.md) | 1.23.0 | active | 2026-09-21 |
 | [安全功能需求](./guides/security-functional-requirements.md) | 1.1.0 | active | 2026-09-15 |
 | [安全设计](./reference/security-design-and-implementation.md) | 1.2.0 | active | 2026-09-14 |
 | [Gateway 文件激活](./guides/gateway-upstream-credential-file-activation.md) | 1.1.0 | active | 2026-09-14 |

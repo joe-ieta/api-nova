@@ -1,7 +1,7 @@
 ---
-doc-version: 1.22.0
+doc-version: 1.23.0
 doc-status: active
-doc-updated: 2026-09-16
+doc-updated: 2026-09-21
 ---
 # ApiNova 安全开发执行与状态记录
 
@@ -614,3 +614,10 @@ SEC-E1-01R DONE：受管启动方案0.2.0第9节冻结02A真实Node IPC、精确
 SEC-E1-02A、02B1、02B2的限定代码出口已完成。02A由父进程直接启动真实Node child，使用私有IPC、精确环境、无shell/秘密argv，并把handoff ACK与监听后的READY区分；真实child通道专项11/11，既有ProcessManager回归3/3。02B1从受保护ConfigService来源准备固定Registry，重读资产/绑定/候选、稳定文件版本与环境后构造一次性交付，专项23/23。02B2由child再次稳定读取Registry并核对交付版本，标准MCP handler使用共享single-hop Resolver；Streamable/SSE在实际监听后才发READY，入站仅接受已配置API Key，缺失或不支持的模式在监听前拒绝。三脚本联合47/47覆盖继承、端点覆盖、None、缺Secret零发送和302零跟随，使用合成配置与回环上游。
 
 这些结果只证明通道、准备和独立child运行时的隔离实现；当前产品Server生命周期未接入已验收的显式trusted_ipc_v1启动路径。SEC-E1-02C1的未验收草稿已撤回，自动审批要求具体的生产启动/停止状态行为授权；不能把草稿、PID、ACK或单独child测试记为RUNNING闭环。02C2重启/失败/legacy和03真实产品路径执行仍待前置。旧CLI及旧托管秘密argv未自动迁移；没有Linux、真实业务Registry或部署验收。详见[受管交付设计现状](./managed-mcp-credential-handoff-plan.md)及[统一子任务台账](./active-work-package-execution-status.md)。SEC-E1父包继续IN_PROGRESS。
+## 最新限定进展：SEC-A1-02B3（2026-09-21）
+
+持久private_api_key映射实验运行时api_key；准备阶段双次数据库快照和受控环境模式一致性检查，交付包携带必填inboundAuthMode，child监听前核对，父端READY对照捕获模式。缺失/未知以及暂不支持的private_jwt、anonymous明确拒绝。未发布实验性v1严格新增字段，旧无字段包拒绝，不默认api_key。
+
+API父端/SQL.js/真实IPC46/46，真实child Streamable与SSE正例和监听前负例13/13通过；Server构建、API类型检查通过。READY证据只属于实验性handle，现行CLI effective仍unknown；不接生产生命周期、不宣称支持JWT/匿名受管运行时。详见[本批证据](../audits/2026-09-21-managed-inbound-mode-evidence.md)。
+
+TP-A1/TP-A2父包仍IN_PROGRESS；B4 UI和A2-01B综合拒绝矩阵已就绪，状态以[子任务台账](./active-work-package-execution-status.md)为准。

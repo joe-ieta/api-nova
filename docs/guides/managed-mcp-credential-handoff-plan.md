@@ -1,7 +1,7 @@
 ---
-doc-version: 0.3.0
+doc-version: 0.4.0
 doc-status: reviewed-slice
-doc-updated: 2026-09-16
+doc-updated: 2026-09-21
 ---
 # 托管 MCP 凭据交付设计与验收契约
 
@@ -241,3 +241,8 @@ wire消息按方向分离：父→child只有`handoff(version,launchId,payload)`
 首版实现仅支持可信Registry中按endpoint ID的覆盖；method/path覆盖未纳入当前02B2出口。入站MCP客户端认证在此运行时限定为已配置API Key；匿名、缺认证或JWT配置在监听前失败。上游凭据采用每次调用的单跳决议，None或缺Secret不从旧配置/消费者身份回退，302不自动跟随。该结果不覆盖F3完整网络边界。
 
 SEC-E1-02C1的本地未验收生命周期接线草稿已撤回；自动审批要求明确授权改变生产托管启动/停止状态行为后才可继续。因此现有产品Server启动流程仍未通过02B1/B2的受信handoff集成验收，不能以独立child的READY推断现有服务RUNNING安全。02C2的重启/失败/legacy和03的真实产品路径单跳验证继续等待。旧CLI与已存托管秘密argv无自动迁移；运行中撤销/版本变化留给04。没有真实业务Registry、PostgreSQL/Linux或生产部署证据。
+## 11. 持久模式与实验通道一致性（2026-09-21）
+
+持久private_api_key映射实验运行时api_key；准备阶段双次数据库快照和受控环境模式一致性检查，交付包携带必填inboundAuthMode，child监听前核对，父端READY对照捕获模式。缺失/未知以及暂不支持的private_jwt、anonymous明确拒绝。未发布实验性v1严格新增字段，旧无字段包拒绝，不默认api_key。
+
+API父端/SQL.js/真实IPC46/46，真实child Streamable与SSE正例和监听前负例13/13通过；Server构建、API类型检查通过。READY证据只属于实验性handle，现行CLI effective仍unknown；不接生产生命周期、不宣称支持JWT/匿名受管运行时。详见[本批证据](../audits/2026-09-21-managed-inbound-mode-evidence.md)。

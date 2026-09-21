@@ -15,7 +15,9 @@ function fingerprint(value: any): string {
     ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => [key, canonical(value)])) : item;
   return createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
 }
-function checkConsumerAuthentication(): void {
+function checkConsumerAuthentication(payload: ManagedMcpHandoffV1): void {
+  // This experimental runtime supports only the explicit persisted API-key mode.
+  if (payload.inboundAuthMode !== 'private_api_key') throw new Error();
   if (runtimeAuthMode() !== 'api_key') throw new Error();
   const resource = runtimeResource('mcp'), required = requiredRuntimeScopes();
   const keys = JSON.parse(process.env.API_NOVA_RUNTIME_API_KEYS || 'null');
@@ -36,7 +38,7 @@ function checkConsumerAuthentication(): void {
  * registry watcher. All credentials are resolved before binding the listener.
  * Runtime calls still use the standard Parser single-hop Resolver path. */
 export async function activateManagedRuntime(payload: ManagedMcpHandoffV1): Promise<{ close(): Promise<void>; revisions: ManagedRuntimeRevisions }> {
-  checkConsumerAuthentication();
+  checkConsumerAuthentication(payload);
   if (payload.transport.host !== '127.0.0.1' || !/^\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/.test(payload.transport.endpoint) ||
     payload.transport.endpoint === '/health' || payload.transport.endpoint.startsWith('/health/') || !payload.trustedOperationBindings.length ||
     fingerprint(payload.openApiData) !== payload.behaviorFingerprint) throw new Error();

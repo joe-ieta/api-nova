@@ -99,7 +99,7 @@ export async function startManagedMcpChannel(input: ManagedChannelInput): Promis
       if (message.type === 'runtimeReady') {
         const r = message.nonSecretRevisions;
         if (!accepted || readyState || stopping || r.candidateRevision !== payload.candidateRevision || r.verificationRunId !== payload.verificationRunId ||
-          r.behaviorFingerprint !== payload.behaviorFingerprint || r.registryRevision !== payload.registrySource.expectedRevision || r.registryContentDigest !== payload.registrySource.expectedContentDigest) { fail('INVALID_MANAGED_HANDOFF'); return; }
+          payload.inboundAuthMode !== 'private_api_key' || r.authMode !== 'api_key' || r.behaviorFingerprint !== payload.behaviorFingerprint || r.registryRevision !== payload.registrySource.expectedRevision || r.registryContentDigest !== payload.registrySource.expectedContentDigest) { fail('INVALID_MANAGED_HANDOFF'); return; }
         readyState = true; clearTimeout(handshake); resolveReady(r); return;
       }
       if (accepted || stopping || !child.pid) { fail('INVALID_MANAGED_HANDOFF'); return; }
