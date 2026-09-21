@@ -161,7 +161,8 @@ export class ProcessManagerService implements OnModuleDestroy {
         env: { ...childEnv, API_NOVA_AUDIT_DIR: auditDirectory(), API_NOVA_AUDIT_SERVER_ID: serverId },
         stdio: ['pipe', 'pipe', 'pipe'],
         detached: false,
-        shell: process.platform === 'win32', // Windows需要shell
+        shell: false, // Execute Node directly; shell concatenation breaks paths with spaces.
+        windowsHide: true,
       });
 
       if (!childProcess.pid) {

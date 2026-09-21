@@ -75,6 +75,16 @@ describe('managed MCP child process inbound environment', () => {
     expect(JSON.stringify(event)).not.toContain(secret);
   });
 
+  it('passes executable and arguments containing spaces directly without a shell', async () => {
+    const { service } = fixture();
+    const input = config('anonymous');
+    input.scriptPath = 'C:\\Program Files\\nodejs\\node.exe';
+    input.args = ['C:\\Api Nova\\cli.js', '--openapi', 'C:\\fixture specs\\openapi.json'];
+    await service.startProcess(input);
+    expect(mockedSpawn).toHaveBeenCalledWith(input.scriptPath, input.args,
+      expect.objectContaining({ shell: false, windowsHide: true }));
+  });
+
   it('rejects missing or mismatched controlled mode before spawn', async () => {
     const { service } = fixture();
     const missing = config('api_key');

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.3.0
+doc-version: 1.4.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -11,7 +11,7 @@ doc-updated: 2026-09-21
 
 ## 证据口径和版本
 
-编制时远端代码基线为 `19546cf`；并行工作区仍有未提交改动，所以本页**不**把该 SHA 当成所有新专项的测试版本。任何后续验收记录都须附最终提交 SHA、锁文件摘要、平台、运行命令、退出码和原始日志。当前 `package-lock.json` 固定 MCP SDK 1.29.0，Server/Parser 包版本均为 1.7.0；这是检索基线，不是已发布部署版本。当前安全父包仍为 DONE 1、IN_PROGRESS 18、BACKLOG 3、DEFERRED 1；子项状态只以[叶子台账](./active-work-package-execution-status.md)为准。
+编制时远端代码基线为 `19546cf`；并行工作区仍有未提交改动，所以本页**不**把该 SHA 当成所有新专项的测试版本。任何后续验收记录都须附最终提交 SHA、锁文件摘要、平台、运行命令、退出码和原始日志。当前 `package-lock.json` 固定 MCP SDK 1.29.0，Server/Parser 包版本均为 1.7.0；这是检索基线，不是已发布部署版本。当前安全父包为 DONE 2、IN_PROGRESS 17、BACKLOG 3、DEFERRED 1；子项状态只以[叶子台账](./active-work-package-execution-status.md)为准。
 
 本页使用四种证据级别：
 
@@ -29,7 +29,7 @@ doc-updated: 2026-09-21
 | 叶子出口 | 已有入口/版本与环境 | 当前证据和未闭合项 |
 | --- | --- | --- |
 | SEC-A1-01 | [安全规划](./security-development-task-plan.md)、[模式用例](../testing/runtime-security-audit-cases.md)；SDK 1.29.0 | **准备**：Gateway/MCP 局部模式有历史用例；DTO、持久策略、UI、发布、运行逐路径矩阵待验收。 |
-| SEC-A1-02（聚合旧ID） | [当前叶子台账](./active-work-package-execution-status.md)、[模式UI证据](../audits/2026-09-21-mcp-mode-ui-evidence.md) | **限定执行/待验收**：A/B1-B4/C已完成各自出口，D跨层闭环READY；CLI有效模式仍unknown。 |
+| SEC-A1-02（聚合旧ID） | [真实发布闭环](../audits/2026-09-21-auth-publication-loop.md)、[模式UI证据](../audits/2026-09-21-mcp-mode-ui-evidence.md) | **限定执行/DONE**：A/B1-B4/C/D各出口已闭合，父包A1经原条件复核DONE。CLI管理摘要effective仍unknown；真实运行结果不冒充在线探测。 |
 | SEC-A2-01（聚合旧ID） | [Gateway恢复证据](../audits/2026-09-17-interruption-recovery-evidence.md)、[MCP入口矩阵](../audits/2026-09-21-mcp-rejection-matrix.md) | **限定执行**：A/B本机拒绝矩阵已完成；不能外推生产生命周期或完整安全签收。 |
 | SEC-A3-01 | 无当前完整执行脚本 | **待验收**：reason/actor/expiry、生产双许可、到期 fail-closed 与审计未闭环。 |
 | SEC-A4-01 | [9月17日恢复审计](../audits/2026-09-17-interruption-recovery-evidence.md) | **限定执行**：SQLite69实体/表、3迁移、重连0迁移/0漂移；不替代PG或历史升级。 |

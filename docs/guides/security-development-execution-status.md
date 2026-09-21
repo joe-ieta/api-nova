@@ -1,5 +1,5 @@
 ---
-doc-version: 1.28.0
+doc-version: 1.29.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -16,14 +16,14 @@ doc-updated: 2026-09-21
 
 DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PROGRESS 包括已有子集和本轮开发，不意味着依赖已闭合；BACKLOG 为尚未实施完整任务的部分；READY 为可开始的明确切片；DEFERRED 为本里程碑之外。
 
-当前共 23 包：DONE=1、IN_PROGRESS=18、BACKLOG=3、DEFERRED=1。本轮没有新增 DONE。C1-C3 文件装载到 Gateway 激活已是经验证切片；IN_PROGRESS 的具体实现、剩余退出条件和依赖以第2节状态表及最新执行节为准，历史执行段落仅用于追溯。
+当前共 23 包：DONE=2、IN_PROGRESS=17、BACKLOG=3、DEFERRED=1。本轮TP-A1经原退出条件复核新增DONE。C1-C3 文件装载到 Gateway 激活已是经验证切片；IN_PROGRESS 的具体实现、剩余退出条件和依赖以第2节状态表及最新执行节为准，历史执行段落仅用于追溯。
 
 ## 2. 阶段任务包
 
 | 任务包 | 需求/依赖 | 当前状态 | 现有实现与剩余退出条件 |
 | --- | --- | --- | --- |
 | TP-A0 | SEC-PROTO-01；无 | DONE | 保留范围和协议冻结；不升级协议或启用 OAuth2 |
-| TP-A1 | SEC-A01；A0 | IN_PROGRESS | Gateway 三模式/MCP Private Extension 已有；DTO/UI/发布与非法配置一致性仍待验收 |
+| TP-A1 | SEC-A01；A0 | DONE | Gateway jwt/api_key/anonymous、MCP HTTP private_jwt/private_api_key/anonymous、stdio local_process；持久选择、UI标签、真实发布/失败保旧/冷恢复/真实请求均有对应证据，不迁移旧OAuth入口策略；不代表完整安全验收 |
 | TP-A2 | SEC-A02；A1 | IN_PROGRESS | 编译器已 fail closed；本轮补运行时模式白名单，非法快照/发布/启动矩阵待验证 |
 | TP-A3 | SEC-A03；A2/B1 | BACKLOG | 临时匿名 reason/expiresAt/actor、生产双重许可和到期审计未闭环 |
 | TP-A4 | 数据库基线；A0 | IN_PROGRESS | 当前PG/SQLite的69实体空库/重连/零漂移已分别通过；本次关闭A4-02环境出口，父包基线/迁移管理按原退出条件核对，不从环境子项自动提升 |
@@ -649,3 +649,9 @@ SEC-C3-01按原定义DONE。固定源主机配置显式启用Watch，失败保�
 ## IP与匿名独立限流交付（2026-09-21）
 
 SEC-D2-01按原定义DONE。真实HTTP证明暖缓存仍计数、伪造转发头不改peer桶、匿名与合法凭证桶分离、无效凭证不能读取缓存。计数为当前进程内；详见[限流证据](../audits/2026-09-21-independent-rate-limits.md)。父包D2仍IN_PROGRESS，完整层级组合依赖B1-02。
+
+## 鉴权保存到执行闭环与A1退出复核（2026-09-21）
+
+[真实闭环验收](../audits/2026-09-21-auth-publication-loop.md)补齐A1-02D。Gateway实际策略编译、候选回放、事务激活与冷恢复后18项HTTP通过；MCP真实RuntimeAssets发布、失败不激活/保留旧版、磁盘重开、6次实际CLI与tools/call通过；stdio12/12复验local_process。两个启动缺陷由真实链发现并修复。
+
+对照归档TP-A1原退出条件与当前SEC-A01：Gateway/MCP三模式已收敛，stdio明确local_process；旧OAuth/非法模式不转为可调用策略，现有UI禁用占位不属于可提交模式。结合A/B1-B4/C先前证据，A1父包DONE。MCP管理摘要effective仍为unknown，测试中的真实鉴权结果不被写成生产探测状态。管理HTTP规范下载鉴权、浏览器自动化、Linux与生产部署分别未据此验收。

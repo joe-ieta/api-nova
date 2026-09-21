@@ -1,5 +1,5 @@
 ---
-doc-version: 1.44.0
+doc-version: 1.45.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -8,20 +8,20 @@ doc-updated: 2026-09-21
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
-父包专项统计仍是OBS 10/5/1、SEC 1/18/3/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计11/23/4/1。它不表示全项目完成率。
+父包专项统计仍是OBS 10/5/1、SEC 2/17/3/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计12/22/4/1。它不表示全项目完成率。
 
 本次登记132个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 61 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 62 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 22 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | SEC-A1-02D |
+| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
 | WAIT_DEP | 28 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
-近期已完成C2B1/B2/B3、C2C1、B2B1/B2/C、B3A/C、SEC-A1-01跨层矩阵及当前版本SQLite空库验证A4-01的限定出口。C2C1证实旧预留无法在崩溃后唯一反查文件，原C2C2已进一步拆为保守降级A、持久发布意图B和可证明结算C；A已完成，B再细分为双方言模型B1、写入接线B2和崩溃验收B3；B1/B2/B3已完成限定出口，C已完成关联、文件证明与安全结算原语，C2C3本地恢复故障验收亦已完成，05C3多写者/平台出口仍待执行。B3B已限定完成；无sample行的staged墓碑再细分为互斥E1、整理E2和故障验收E3，E1/E2/E3已完成限定出口，B3D本地限定验收已完成，真实环境仍归04C。READY不表示已开工。SEC-E1-02C1仍等待明确生产生命周期授权；事件物理删除E2B仍等待明确永久删除授权。
+近期已完成C2B1/B2/B3、C2C1、B2B1/B2/C、B3A/C、SEC-A1-01跨层矩阵及当前版本SQLite空库验证A4-01的限定出口。C2C1证实旧预留无法在崩溃后唯一反查文件，原C2C2已进一步拆为保守降级A、持久发布意图B和可证明结算C；A已完成，B再细分为双方言模型B1、写入接线B2和崩溃验收B3；B1/B2/B3已完成限定出口，C已完成关联、文件证明与安全结算原语，C2C3本地恢复故障验收亦已完成，05C3的Windows隔离PG多写者/进程及PG重启出口已完成，Linux/生产验收仍独立登记。B3B已限定完成；无sample行的staged墓碑再细分为互斥E1、整理E2和故障验收E3，E1/E2/E3已完成限定出口，B3D本地限定验收已完成，真实环境仍归04C。READY不表示已开工。SEC-E1-02C1仍等待明确生产生命周期授权；事件物理删除E2B仍等待明确永久删除授权。
 
 最新收尾见[额度中断恢复审计](../audits/2026-09-17-interruption-recovery-evidence.md)。本次修复迁移测试滞后、关联结果类型缺项及台账计数不一致，并完成三个在执行切片。
 
@@ -39,7 +39,7 @@ doc-updated: 2026-09-21
 | SEC-A1-02B3 | DONE | 持久private_api_key→handoff→child api_key→READY一致性；缺失/不支持/不符拒绝，旧实验包不默认兼容；父端46/46、真实child HTTP13/13；未接生产生命周期，CLI effective仍unknown |
 | SEC-A1-02B4 | DONE | 三值明确选择、保存/重载、草稿/配置/预览/实际未知分离；旧未知与运行中改模式阻断，详情空记录及Gateway隔离；Vue状态/SFC SSR19/19、UI构建/typecheck；真实浏览器端到端未跑 |
 | SEC-A1-02C | DONE | 直连stdio审计标local_process/unknown、不虚构callerId；真实子进程12/12、HTTP权限20/20、Parser规范化41/41；HTTP anonymous保持原义 |
-| SEC-A1-02D | IN_PROGRESS | 执行保存/发布/重启/真实请求闭环，重点隔离持久化与真实child，不复用UI夹具冒充 |
+| SEC-A1-02D | DONE | Gateway三模式真实回放/激活/冷恢复18项HTTP，MCP三模式真实发布/失败保旧/磁盘重开/6次child与tools/call，stdio12/12；见2026-09-21-auth-publication-loop证据 |
 | SEC-A2-01A | DONE | Gateway缺失/空/损坏active快照拒绝，策略与指纹重核；热恢复保留旧registry，冷启动拒绝；相邻28套339/339，父任务定向28/28 |
 | SEC-A2-01B | DONE | 实际部署保存入口拒缺失/未知/非法模式且无候选/保存副作用；自动恢复真实preflight拒绝、显式匿名可追溯；ProcessManager重启先校验再stop且spawn前重验；父任务12套88/88，CLI HTTP3/3、实验child14/14，API构建 |
 | SEC-A3-01 | WAIT_DEP | 未实现闭环 |
@@ -183,3 +183,7 @@ doc-updated: 2026-09-21
 - PROD-01：冻结port/transport/endpointPath默认、严格校验、更新保留、监听和预览合同，解锁PROD-02；UI及后端实现尚未交付。
 
 验证：`npm run build --workspace api-nova-api`通过；payload-reconciliation、payloads、payload-capacity、retention-worker、pipeline五脚本联合67/67通过（Windows、隔离SQL.js/本地夹具）。日志位于`tmp/replan-batch1-api-build.log`与`tmp/replan-batch1-obs-tests.log`；无生产数据库、真实业务重放或部署。本轮新增7项恢复专项，不把回归总数当开发完成率。
+
+## 5. 三路并行批次收尾（2026-09-21）
+
+C3-01、D2-01、A1-02D三个原有叶子均完成，没有新增拆分记录。经逐条对照原TP-A1“Gateway/MCP三模式、stdio local_process”及禁止旧OAuth策略迁移的退出条件，A1各叶证据已闭合，父包A1提升DONE；未把该结论外推为整套安全或生产交付。62个DONE叶子不代表项目完成百分比。下一组可并行候选为B1-01统一凭证模型、C3-02配置DB归属、C2-02 Windows秘密文件权限，先按各自既定出口实施；D2-02仍依赖B1-02。

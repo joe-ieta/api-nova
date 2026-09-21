@@ -288,7 +288,8 @@ export class RuntimeAssetsService {
       );
       servers.set(item.sourceServiceAsset.id, {
         url: sourceUrl,
-        description: item.sourceServiceAsset.displayName,
+        ...(typeof item.sourceServiceAsset.displayName === 'string'
+          ? { description: item.sourceServiceAsset.displayName } : {}),
       });
 
       const rawOperation = {
@@ -310,7 +311,8 @@ export class RuntimeAssetsService {
         servers: [
           {
             url: sourceUrl,
-            description: item.sourceServiceAsset.displayName,
+            ...(typeof item.sourceServiceAsset.displayName === 'string'
+              ? { description: item.sourceServiceAsset.displayName } : {}),
           },
         ],
         'x-runtime-asset-id': runtimeAssetId,

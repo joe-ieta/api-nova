@@ -1,5 +1,5 @@
 ---
-doc-version: 1.27.0
+doc-version: 1.28.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -9,7 +9,7 @@ doc-updated: 2026-09-21
 
 本页是2026-09-15重排后的调度划分，继承原批准需求，不替换或缩减父包退出条件。状态唯一入口为[子任务执行状态](./active-work-package-execution-status.md)，父包证据仍在[OBS台账](./runtime-observability-development-execution-status.md)和[SEC台账](./security-development-execution-status.md)。
 
-39只等于OBS16+SEC23：11 DONE、23 IN_PROGRESS、4 BACKLOG、1 DEFERRED；不是全项目活跃总数，更不是完成百分比。IN_PROGRESS在旧父包表表示有实现，不表示23包正在同时开发。代码、设计草案、验收准备、环境执行分别登记，不能用文档子项DONE冒充功能交付。
+39只等于OBS16+SEC23：12 DONE、22 IN_PROGRESS、4 BACKLOG、1 DEFERRED；不是全项目活跃总数，更不是完成百分比。IN_PROGRESS在旧父包表表示有实现，不表示22包正在同时开发。代码、设计草案、验收准备、环境执行分别登记，不能用文档子项DONE冒充功能交付。
 
 上层[阶段计划](./staged-development-plan.md)、[WP00~90](./runtime-instance-and-regression-closure-plan.md)和[open-items](../reference/open-items.md)具有交叉范围，不叠加成49或其它“项目总包数”。本次覆盖这些当前入口；新需求必须先登记归属再进入队列。
 
@@ -18,7 +18,7 @@ doc-updated: 2026-09-21
 ### 两个专项
 
 OBS父包：01/02/03/04/05/07/08/09/11/12各为DONE；06/10/13/14/15各为IN_PROGRESS；16为BACKLOG。
-SEC父包：A0 DONE；A1/A2/A4/B1/B2/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a各IN_PROGRESS；A3/F1/F4各BACKLOG；G1 DEFERRED。
+SEC父包：A0/A1 DONE；A2/A4/B1/B2/B3/C1/C2/C3/C4/D1/D2/E0/E1/E2/F2/F3/F3a各IN_PROGRESS；A3/F1/F4各BACKLOG；G1 DEFERRED。
 以下SEC-A1等子项主归属为原TP-A1；OBS-06等主归属为原OBS-TP-06。已DONE父包不为增加任务数量重新拆开发项。
 
 | 原入口 | 本次核查后的实际边界 | 唯一执行归属/关联 |
@@ -233,3 +233,5 @@ OBS-14-02限定为同GC fence下的过期metadata缺文件整理，持久分页�
 SEC-C3-01已按原出口完成：主机明确启用watch，固定文件、并发代次检查、关闭释放均有真实文件和Nest接线证据；C3-02 DB归属与C3-03多进程仍各按依赖推进，不随此项提升。
 
 SEC-D2-01已完成route+socket peer与route共享匿名桶。按鉴权→限流→缓存执行；完整层级组合D2-02仍等待B1-02，不把局部HTTP结果当成多节点或完整Credential模型验收。
+
+SEC-A1-02D已补齐真实发布/重启/请求闭环，Windows含空格Node路径和空来源名生成非法OpenAPI两处缺陷一并修复。依据原TP-A1退出条件复核模式与历史策略边界后提升父包A1为DONE，不由子项数量机械推导。C3与D2仍有独立剩余出口，不随本批提高父包状态。后续可并行B1-01、C3-02、C2-02；沿用现有划分，不新造验证叶子。
