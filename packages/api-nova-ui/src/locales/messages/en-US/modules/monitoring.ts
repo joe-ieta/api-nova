@@ -1,6 +1,18 @@
 export default {
   monitoring: {
     mcpPublication: {
+      "draftAuthMode": "Deployment draft authentication mode",
+      "authMode": "Saved inbound authentication mode",
+      "private_jwt": "Private JWT",
+      "private_api_key": "Private API Key",
+      "anonymous": "Anonymous access",
+      "previewAuth": "Preview authentication mode",
+      "effectiveAuth": "Effective authentication mode",
+      "effectiveHint": "The running service authentication mode has not been confirmed. Saving a mode does not mean it is effective.",
+      "authRequiredError": "Choose an inbound authentication mode before deployment. Unknown legacy settings never default to anonymous.",
+      "authStopError": "Stop the running server before changing its authentication mode and redeploying.",
+      "anonymousHint": "Anonymous access accepts requests without credentials.",
+
       "title": "MCP deployment endpoint",
       "transport": "Transport",
       "port": "Port",

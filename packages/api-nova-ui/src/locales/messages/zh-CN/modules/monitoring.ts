@@ -1,6 +1,18 @@
 export default {
   monitoring: {
     mcpPublication: {
+      "draftAuthMode": "部署草稿鉴权模式",
+      "authMode": "已配置的入站鉴权模式",
+      "private_jwt": "私有 JWT",
+      "private_api_key": "私有 API Key",
+      "anonymous": "匿名访问",
+      "previewAuth": "预览鉴权模式",
+      "effectiveAuth": "实际生效鉴权模式",
+      "effectiveHint": "尚未确认运行中服务的鉴权方式；保存配置不表示该方式已经生效。",
+      "authRequiredError": "请选择入站鉴权模式后再部署；旧配置未知时不会自动使用匿名访问。",
+      "authStopError": "请先停止运行中的服务，再更改鉴权模式并重新部署。",
+      "anonymousHint": "匿名访问允许未提供凭据的请求。",
+
       "title": "MCP发布端点",
       "transport": "传输方式",
       "port": "端口",

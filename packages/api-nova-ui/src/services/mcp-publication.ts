@@ -1,6 +1,10 @@
+export type McpInboundAuthMode = 'private_jwt' | 'private_api_key' | 'anonymous';
+export function configuredMcpMode(value: unknown): McpInboundAuthMode | undefined {
+  return value === 'private_jwt' || value === 'private_api_key' || value === 'anonymous' ? value : undefined;
+}
 export type McpTransport = 'streamable' | 'sse';
-export interface McpDeploymentInput { targetServerId?: string; transport?: McpTransport; port?: number; endpointPath?: string; missingSmokeWaiverReason?: string; autoStart?: boolean; name?: string; description?: string; }
-export interface McpEndpointPreview { transport: McpTransport; port: number | null; endpointPath: string; portMode: 'automatic' | 'existing' | 'explicit'; consumerUrl: string | null; messagesUrl: string | null; addressScope: 'loopback'; availability: 'not_checked'; }
+export interface McpDeploymentInput { targetServerId?: string; inboundAuthMode?: McpInboundAuthMode; transport?: McpTransport; port?: number; endpointPath?: string; missingSmokeWaiverReason?: string; autoStart?: boolean; name?: string; description?: string; }
+export interface McpEndpointPreview { inboundAuthMode: McpInboundAuthMode | 'unknown'; effectiveInboundAuthMode: 'unknown'; transport: McpTransport; port: number | null; endpointPath: string; portMode: 'automatic' | 'existing' | 'explicit'; consumerUrl: string | null; messagesUrl: string | null; addressScope: 'loopback'; availability: 'not_checked'; }
 export async function mcpPublicationRequest(id: string, operation: 'detail' | 'preview' | 'deploy' | 'redeploy', token: string, signal: AbortSignal, input?: McpDeploymentInput) {
   const suffix = operation === 'detail' ? '' : operation === 'preview' ? '/mcp-endpoint-preview' : operation === 'redeploy' ? '/redeploy' : '/deploy-mcp';
   const response = await fetch('/api/v1/runtime-assets/' + encodeURIComponent(id) + suffix, {
@@ -9,11 +13,15 @@ export async function mcpPublicationRequest(id: string, operation: 'detail' | 'p
     ...(operation === 'detail' ? {} : { body: JSON.stringify(input) }),
   });
   const body = await response.json();
-  if (!response.ok) throw new Error('MCP_PUBLICATION_FAILED');
+  if (!response.ok) {
+    const code = body?.code ?? body?.message?.code;
+    throw new Error(['MCP_INBOUND_AUTH_MODE_REQUIRED', 'MCP_INBOUND_AUTH_MODE_CHANGE_REQUIRES_STOP'].includes(code) ? code : 'MCP_PUBLICATION_FAILED');
+  }
   return body;
 }
 export const mcpPublicationState = () => ({ visible: false, loading: false, previewLoading: false, saving: false,
-  error: null as 'load' | 'preview' | 'deploy' | null, id: '', transport: 'streamable' as McpTransport,
+  error: null as 'load' | 'preview' | 'deploy' | 'authRequired' | 'authStop' | null, id: '', transport: 'streamable' as McpTransport,
+  inboundAuthMode: undefined as McpInboundAuthMode | undefined, savedInboundAuthMode: undefined as McpInboundAuthMode | undefined,
   port: undefined as number | undefined, endpointPath: '/mcp', targetServerId: undefined as string | undefined,
   actualEndpoint: null as string | null, actualStatus: null as string | null, preview: null as McpEndpointPreview | null });
 export class McpPublicationForm {
@@ -33,9 +41,13 @@ export class McpPublicationForm {
   private begin() { this.controller?.abort(); const controller = new AbortController(); this.controller = controller;
     const generation = ++this.generation; const deadline = setTimeout(() => controller.abort(), 10000);
     return { controller, generation, finish: () => clearTimeout(deadline) }; }
-  private input(): McpDeploymentInput { return { targetServerId: this.state.targetServerId, transport: this.state.transport,
+  private input(): McpDeploymentInput { return { targetServerId: this.state.targetServerId, inboundAuthMode: this.state.inboundAuthMode, transport: this.state.transport,
     ...(this.state.port === undefined ? {} : { port: this.state.port }), endpointPath: this.state.endpointPath,
     ...(this.waiver ? { missingSmokeWaiverReason: this.waiver } : {}) }; }
+  authBlock(): 'authRequired' | 'authStop' | null {
+    if (!configuredMcpMode(this.state.inboundAuthMode)) return 'authRequired';
+    return this.state.actualStatus === 'running' && this.state.inboundAuthMode !== this.state.savedInboundAuthMode ? 'authStop' : null;
+  }
   async load() {
     const session = this.session(); if (!session || !this.state.visible) return;
     const task = this.begin(); this.state.loading = true; this.state.error = null;
@@ -45,6 +57,8 @@ export class McpPublicationForm {
       if (detail?.asset?.type !== 'mcp_server') throw new Error('INVALID_DETAIL');
       const server = detail.managedServer;
       if (server && (!['streamable', 'sse'].includes(server.transport) || !Number.isInteger(server.port))) throw new Error('INVALID_DETAIL');
+      this.state.savedInboundAuthMode = configuredMcpMode(server?.inboundAuthMode);
+      this.state.inboundAuthMode = this.state.savedInboundAuthMode;
       this.state.transport = server?.transport ?? 'streamable'; this.state.port = server?.port;
       this.state.endpointPath = server?.endpointPath ?? (this.state.transport === 'sse' ? '/sse' : '/mcp');
       this.state.targetServerId = server?.id; this.state.actualEndpoint = server?.endpoint ?? null; this.state.actualStatus = server?.status ?? null;
@@ -59,6 +73,7 @@ export class McpPublicationForm {
       const preview = await this.request(this.state.id, 'preview', session.token, task.controller.signal, this.input());
       if (!this.valid(task.generation)) return;
       if (preview?.addressScope !== 'loopback' || preview?.availability !== 'not_checked' ||
+        preview.inboundAuthMode !== (this.state.inboundAuthMode ?? 'unknown') || preview.effectiveInboundAuthMode !== 'unknown' ||
         preview.transport !== this.state.transport || preview.endpointPath !== this.state.endpointPath ||
         !(preview.port === null || Number.isInteger(preview.port))) throw new Error('INVALID_PREVIEW');
       this.state.preview = preview;
@@ -66,12 +81,18 @@ export class McpPublicationForm {
     finally { task.finish(); if (this.valid(task.generation)) this.state.previewLoading = false; }
   }
   async save() {
+    if (this.authBlock()) { this.state.error = this.authBlock(); return; }
+    if (this.state.preview?.inboundAuthMode !== this.state.inboundAuthMode) { this.state.preview = null; return; }
     if (!this.state.preview || this.state.saving || this.state.previewLoading || this.state.loading) return;
     const session = this.session(); if (!session || session.key !== this.owner) { this.close(); return; }
     const task = this.begin(); this.state.saving = true; this.state.error = null;
     try { await this.request(this.state.id, this.mode, session.token, task.controller.signal, this.input());
       if (this.valid(task.generation)) this.close(true);
-    } catch { if (this.valid(task.generation)) { this.state.error = 'deploy'; this.state.preview = null; } }
+    } catch (error) { if (this.valid(task.generation)) {
+      this.state.error = error instanceof Error && error.message === 'MCP_INBOUND_AUTH_MODE_REQUIRED' ? 'authRequired'
+        : error instanceof Error && error.message === 'MCP_INBOUND_AUTH_MODE_CHANGE_REQUIRES_STOP' ? 'authStop' : 'deploy';
+      this.state.preview = null;
+    } }
     finally { task.finish(); if (this.valid(task.generation)) this.state.saving = false; }
   }
 }

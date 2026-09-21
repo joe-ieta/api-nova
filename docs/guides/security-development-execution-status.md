@@ -1,5 +1,5 @@
 ---
-doc-version: 1.23.0
+doc-version: 1.24.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -621,3 +621,11 @@ SEC-E1-02A、02B1、02B2的限定代码出口已完成。02A由父进程直接�
 API父端/SQL.js/真实IPC46/46，真实child Streamable与SSE正例和监听前负例13/13通过；Server构建、API类型检查通过。READY证据只属于实验性handle，现行CLI effective仍unknown；不接生产生命周期、不宣称支持JWT/匿名受管运行时。详见[本批证据](../audits/2026-09-21-managed-inbound-mode-evidence.md)。
 
 TP-A1/TP-A2父包仍IN_PROGRESS；B4 UI和A2-01B综合拒绝矩阵已就绪，状态以[子任务台账](./active-work-package-execution-status.md)为准。
+
+## MCP鉴权模式界面交付（2026-09-21）
+
+MCP发布/重发布弹窗必须明确选择private_jwt、private_api_key或anonymous；新记录、旧unknown和不支持值不默认匿名。保存时提交同一模式，重开按已保存记录回填。模式改变使旧预览失效；运行中改模式本地阻断，服务端状态竞争返回的冲突保留草稿并提示先停止服务。草稿、已配置、预览及实际生效分别显示，实际模式仍unknown。
+
+详情对未部署/null服务安全显示未知，Gateway不显示MCP标签。19项Vue状态/真实SFC模板SSR通过，UI构建和最终类型检查通过；SSR使用组件替身，未执行真实浏览器端到端，不宣称完整后端保存到请求闭环。详见[UI交付证据](../audits/2026-09-21-mcp-mode-ui-evidence.md)。
+
+B4限定出口DONE，A1-02D已就绪，TP-A1父包保持IN_PROGRESS。

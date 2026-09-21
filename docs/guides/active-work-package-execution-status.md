@@ -1,5 +1,5 @@
 ---
-doc-version: 1.38.0
+doc-version: 1.39.0
 doc-status: active
 doc-updated: 2026-09-21
 ---
@@ -14,10 +14,10 @@ doc-updated: 2026-09-21
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 56 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 27 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 本批两项已收尾；后续READY未开工 |
-| WAIT_DEP | 29 | 等待列明子任务/条件 |
+| DONE | 57 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 25 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 2 | SEC-A2-01B、OBS-14-05C3 |
+| WAIT_DEP | 28 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -37,11 +37,11 @@ doc-updated: 2026-09-21
 | SEC-A1-02B1 | DONE | 独立入站模式DTO/列/摘要；旧行unknown、新部署须显式选择，运行中旧行不改停；SQLite旧库升级/空库/重启零漂移、专项37/37；PG静态核对，effective仍unknown |
 | SEC-A1-02B2 | DONE | 持久模式接入现行CLI启动/重启，停机前预检、spawn临时环境不回存新凭证；4套13/13、真实CLI HTTP三模式3/3；effective仍unknown，远端JWKS仅URL预检 |
 | SEC-A1-02B3 | DONE | 持久private_api_key→handoff→child api_key→READY一致性；缺失/不支持/不符拒绝，旧实验包不默认兼容；父端46/46、真实child HTTP13/13；未接生产生命周期，CLI effective仍unknown |
-| SEC-A1-02B4 | READY | B1/B2/B3已完成；下一批实现UI选择、回填、阻断态和有效标签 |
+| SEC-A1-02B4 | DONE | 三值明确选择、保存/重载、草稿/配置/预览/实际未知分离；旧未知与运行中改模式阻断，详情空记录及Gateway隔离；Vue状态/SFC SSR19/19、UI构建/typecheck；真实浏览器端到端未跑 |
 | SEC-A1-02C | DONE | 直连stdio审计标local_process/unknown、不虚构callerId；真实子进程12/12、HTTP权限20/20、Parser规范化41/41；HTTP anonymous保持原义 |
-| SEC-A1-02D | WAIT_DEP | 全链路保存/发布/重启/真实请求验收等待A/B1-B4/C |
+| SEC-A1-02D | READY | A/B1-B4/C已完成；下一批按真实保存、发布、重启和请求核对跨层模式，不把UI状态夹具当完整闭环 |
 | SEC-A2-01A | DONE | Gateway缺失/空/损坏active快照拒绝，策略与指纹重核；热恢复保留旧registry，冷启动拒绝；相邻28套339/339，父任务定向28/28 |
-| SEC-A2-01B | READY | B2/B3已完成；下一批整合部署、恢复、child三入口拒绝矩阵 |
+| SEC-A2-01B | IN_PROGRESS | B2/B3已完成；下一批整合部署、恢复、child三入口拒绝矩阵 |
 | SEC-A3-01 | WAIT_DEP | 未实现闭环 |
 | SEC-A4-01 | DONE | 当前版本隔离SQLite空库与同文件重开：69实体/69业务表、空库迁移3、重启迁移0、schema漂移0；create与smoke均通过；不代表PostgreSQL或历史升级 |
 | SEC-A4-02 | NEED_ENV | 当前缺少明确隔离的PostgreSQL目标库；默认generate postgres因可能连接/修改未知库被自动审批拒绝，待受控环境验收 |
@@ -115,7 +115,7 @@ doc-updated: 2026-09-21
 | OBS-14-05C2C2C2A | DONE | 同一inventory围栏内完整扫描、final digest/长度与temp缺失只读证明，返回file_proof_uncommitted；SQL.js 8/8、相关回归，不结算 |
 | OBS-14-05C2C2C2B | DONE | 同inventory围栏最终事务复核意图/receipt/元数据/预留和完整扫描、精确文件字节后安全结算；专项10/10、相邻55/55；不确定保守持有、quotaEnforced=false |
 | OBS-14-05C2C3 | DONE | 实际ingest/发布故障、关闭并重建SQL.js连接、缺receipt/元数据回滚/残留temp、重复恢复与重放5/5；每次确认reserved+committed覆盖实际路径字节；仅Windows隔离验收 |
-| OBS-14-05C3 | READY | C2C3已完成；下一批崩溃重启、多写者与各失败点验收，真实平台环境另核实 |
+| OBS-14-05C3 | IN_PROGRESS | C2C3已完成；下一批崩溃重启、多写者与各失败点验收，真实平台环境另核实 |
 | OBS-14-05D | WAIT_DEP | 状态/故障联调等待05C3 |
 | OBS-14-06A | READY | 生命周期合同已冻结；审计清理尚未实施 |
 | OBS-14-06T | READY | 生命周期合同已冻结；暂存恢复尚未实施 |

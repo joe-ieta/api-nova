@@ -101,6 +101,10 @@
               <el-descriptions-item :label="t('monitoring.runtimeAssets.detail.endpoint')">
                 {{ runtimeSummary?.endpoint || "-" }}
               </el-descriptions-item>
+              <template v-if="asset?.type === 'mcp_server'">
+                <el-descriptions-item :label="t('monitoring.mcpPublication.authMode')">{{ t('monitoring.mcpPublication.' + (configuredMcpMode(managedServer?.inboundAuthMode) || 'unknown')) }}</el-descriptions-item>
+                <el-descriptions-item :label="t('monitoring.mcpPublication.effectiveAuth')">{{ t('monitoring.mcpPublication.unknown') }}</el-descriptions-item>
+              </template>
               <el-descriptions-item :label="t('monitoring.runtimeAssets.detail.tools')">
                 {{ runtimeSummary?.toolsCount ?? 0 }}
               </el-descriptions-item>
@@ -439,6 +443,7 @@
 </template>
 
 <script setup lang="ts">
+import { configuredMcpMode } from "@/services/mcp-publication";
 import McpPublicationDialog from "@/modules/runtime-assets/McpPublicationDialog.vue";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
