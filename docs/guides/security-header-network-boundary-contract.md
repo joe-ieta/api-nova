@@ -1,7 +1,7 @@
 ---
-doc-version: 1.3.0
+doc-version: 1.4.0
 doc-status: active
-doc-updated: 2026-09-21
+doc-updated: 2026-09-22
 ---
 # D1/F3 请求头与网络边界契约
 
@@ -77,7 +77,7 @@ Webhook 目的地策略不能替代业务路径的证据，其政策不能直接
 
 ## 3. D1 Header 政策 v1（已定稿，分阶段实施）
 
-本节是项目选择；02A编译和02B显式策略执行已交付，生产启用仍等02C/D，不能声称全部能力已上线。范围为 Gateway 请求与响应；共享名称/值校验可供 Parser 复用，Parser 的实际生产接入和逐跳网络授权仍分别属于 E1/F3。不得用纯函数测试替代 Gateway 真正出站及返回客户端的证明。
+本节是项目选择；02A编译、02B显式策略执行和02C缓存已交付，生产启用仍等02D，不能声称全部能力已上线。范围为 Gateway 请求与响应；共享名称/值校验可供 Parser 复用，Parser 的实际生产接入和逐跳网络授权仍分别属于 E1/F3。不得用纯函数测试替代 Gateway 真正出站及返回客户端的证明。
 
 ### 3.1 配置、继承和激活
 
@@ -263,7 +263,7 @@ SEC-F3-01 到本节政策定稿完成；SEC-F3-02 必须同时完成受信任配
 | H08 | 大小写重复/重复单值/CR-LF/多值 Accept | 按 §3.4 原始字段规则拒绝或合并，无重复凭据和 framing 歧义 | 02B纯函数与真实重复/framing通过 |
 | H09 | 伪造 XFF/Forwarded/request-id，v1 peer-only 与 legacy 迁移 | 当前 XFF 保留前缀作基线；v1 只用 socket peer 构造链，身份不采用伪造值 | 02B真实HTTP peer字段通过；完整迁移待02D |
 | H10 | 固定长度/分块/空体/Expect/取消 | framing 和实际字节一致，无双 framing、二次消费或空体重放 | 02B真实流与独立Expect入口通过；生产入口安装待02D |
-| H11 | Range/If-*/Accept-Encoding 不同而路径相同，随后缓存命中 | 状态/Header/正文与直连语义一致；按 §3.6 强制隔离或 bypass 有证据 | 02C待实现；当前v1全部绕过缓存 |
+| H11 | Range/If-*/Accept-Encoding 不同而路径相同，随后缓存命中 | 状态/Header/正文与直连语义一致；按 §3.6 强制隔离或 bypass 有证据 | 02C受控真实miss/hit通过；生产整合待02D |
 | H12 | Resolver 错误/None/旧 Env/非法 Env | Resolver 错误固定 503 且 connectCalls=0；旧 Env 分支独立断言，不错误套用固定 503 | 02B真实Resolver503零命中及旧专项通过；完整生产接线待02D |
 | N01 | Gateway 收到 302/307 与 Location | 仅一次 request，返回状态/Location，hop=0，无下一跳 | 代码基线待执行 |
 | N02 | Parser legacy与safe-read第五/第六次跳转 | 分别验证既有legacy基线和显式safe-read的5次边界；默认不跟随；有无context一致 | 政策已定，待实现 |
@@ -318,3 +318,9 @@ D1 allowlist 政策已经定稿，执行代码与 H01–H12 验收尚待完成�
 [双向真实流证据](../audits/2026-09-21-header-wire-execution.md)交付显式compiled路径的rawHeaders校验、双向过滤、framing与真实字节流；入口helper已验Expect但未挂生产main。v1运行路径暂时全部绕过缓存且出站不复用连接，旧路径不因此改为allowlist。
 
 请求尚未完整发送而上游提前给最终响应时，v1保守502中止；此兼容差异归02D迁移评估。原生HTTP解析器隐藏的超长尾部不能由应用计数器全面识别，不能据此宣称请求走私全部解决。未就绪门禁保持到02C缓存及02D真实接线/默认迁移/防降级验收闭合。
+
+## D1-02C缓存实施（2026-09-22）
+
+[真实缓存证据](../audits/2026-09-22-header-cache-isolation.md)完成§3.6：命中前当前凭据/原始Header预检、必需vary/策略/可信身份及非敏感材料代次隔离、原始响应veto、压缩实体原样与命中framing重建。此增量替代上一02B阶段“v1暂时全部绕过缓存”的临时措施。
+
+v1还保留完整query顺序并去掉消费者认证query；不允许配置裁剪必需维度。未知或无法解析缓存指令保守禁存；max-age/s-maxage及原始Age收窄TTL。生产入口、Registry元数据接线及迁移仍归02D；原始策略门禁未删除。

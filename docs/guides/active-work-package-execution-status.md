@@ -1,5 +1,5 @@
 ---
-doc-version: 1.63.0
+doc-version: 1.64.0
 doc-status: active
 doc-updated: 2026-09-22
 ---
@@ -14,10 +14,10 @@ doc-updated: 2026-09-22
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 81 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 12 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | SEC-D1-02C |
-| WAIT_DEP | 21 | 等待列明子任务/条件 |
+| DONE | 82 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 13 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
+| WAIT_DEP | 20 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -61,8 +61,8 @@ doc-updated: 2026-09-22
 | SEC-D1-01 | DONE | Header政策1.0.0定稿：双向精确allowlist、多值/framing、保留字段、缓存和限时迁移；H01–H12待实现，N01–N17仍F3提案 |
 | SEC-D1-02A | DONE | Parser v1编译/不可变快照/继承/摘要/冲突294项；Gateway双源及未就绪激活拒绝、真实固定文件保旧/SQL.js冷恢复拒绝；仅准备 |
 | SEC-D1-02B | DONE | [双向真实流证据](../audits/2026-09-21-header-wire-execution.md)：纯字段60、入口TCP15、proxy真实21及联合353通过；仅显式compiled路径，生产门禁保持 |
-| SEC-D1-02C | IN_PROGRESS | 命中前可信凭据/原始Header预检、强制vary与原始响应禁存信号、真实miss/hit并行开发 |
-| SEC-D1-02D | WAIT_DEP | 待02C；默认迁移、防降级与H01–H12联合验收 |
+| SEC-D1-02C | DONE | [缓存隔离证据](../audits/2026-09-22-header-cache-isolation.md)：命中前预检、必需vary/策略及材料代次、原始禁存信号、真实HTTP32项；生产仍门禁 |
+| SEC-D1-02D | READY | 02C完成；仍须实际入口/Registry元数据接线、默认v1、限期具名例外、防删除降级与联合验收；不得只删除门禁 |
 | SEC-D2-01 | DONE | 真实HTTP独立IP/Anonymous桶、peer可信边界、缓存命中仍限流；Gateway全套201/201、主任务联合复验42/42；见2026-09-21-independent-rate-limits证据 |
 | SEC-D2-02 | DONE | 六层真实HTTP组合19项、四套73/73；共享窗口冲突503且到期恢复、24并发精确7准入；见六层限流组合证据 |
 | SEC-E0-01 | DONE | 锁SDK1.29.0原始HTTP/Session/错误及真实stdio矩阵60/60；修复已知Streamable端点不支持方法405+Allow；见Adapter证据 |
@@ -236,3 +236,5 @@ F3-01合同及矩阵同步完成，C1-01/F3-01两项DOC已关闭；当前79DONE�
 ## 2026-09-22 凭据类型与缓存批次
 
 C1-02及父包C1已按[原出口证据](../audits/2026-09-22-credential-types-scope.md)闭合，F1-02已READY。没有增加叶子；当前81DONE/135，02C缓存接线继续收尾。
+
+02C[缓存隔离](../audits/2026-09-22-header-cache-isolation.md)完成，02D READY；C1包已推送fec02f7，本缓存包随本记录提交推送。最终82DONE、13READY、20WAIT_DEP、17NEED_ENV、1SCOPE_REVIEW、2DEFERRED、0IN_PROGRESS，总数135；安全父包9/11/2/1，跨两专项19/16/3/1。

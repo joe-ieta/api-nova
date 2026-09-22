@@ -1,5 +1,5 @@
 ---
-doc-version: 1.44.0
+doc-version: 1.45.0
 doc-status: active
 doc-updated: 2026-09-22
 ---
@@ -90,7 +90,7 @@ SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F2/F3/F3a�
 | SEC-D1-02A | SEC-D1 | CODE | Header策略编译与快照准备 | v1 schema/继承/摘要/认证名冲突与候选保旧；Gateway两源冲突及未就绪激活拒绝 | SEC-D1-01 |
 | SEC-D1-02B | SEC-D1 | CODE | 双向Header与真实流执行 | 显式compiled路径allowlist/rawHeaders/framing/可信注入、Expect边界及真实流；生产启用归02D | SEC-D1-02A |
 | SEC-D1-02C | SEC-D1 | CODE | Header缓存隔离 | 必需vary/策略identity、条件和范围bypass、原始响应禁存信号及真实miss/hit | SEC-D1-02B |
-| SEC-D1-02D | SEC-D1 | VALIDATION | 迁移防降级与联合验收 | 默认开启、限时具名例外、防删除降级与H01–H12整合；不推断生产迁移 | SEC-D1-02C |
+| SEC-D1-02D | SEC-D1 | CODE | 生产接线与迁移防降级验收 | 实际入口/Registry元数据接线、默认v1、限时具名例外、防删除降级与H01–H12整合；不推断生产迁移 | SEC-D1-02C |
 | SEC-D2-01 | SEC-D2 | CODE | IP与Anonymous独立限流层 | 真实请求分别触发IP、匿名bucket，鉴权缓存不能绕过 | — |
 | SEC-D2-02 | SEC-D2 | VALIDATION | 完整层级限流组合 | Global/Runtime/Route/Credential/IP组合顺序与拒绝归因可验证 | SEC-D2-01;SEC-B1-02 |
 | SEC-E0-01 | SEC-E0 | VALIDATION | 锁定MCP协议边界矩阵 | Method/Header/错误/Session/stdio按当前协议逐入口验收 | — |
@@ -292,3 +292,5 @@ F3-01[网络政策](./security-header-network-boundary-contract.md)已完成DOC�
 按现有02C/C1-02两个叶子并行推进，不新增拆分计数。缓存命中前仍检查消费者权限及当前上游凭据可用性；类型核心和宿主适配分工实施。生产Header启用仍归02D，受管IPC边界不变。
 
 C1-02按[四类凭据证据](../audits/2026-09-22-credential-types-scope.md)完成；原Schema/Loader/Site/Endpoint条件及A0依赖已闭合，C1父包DONE，F1-02 READY。F1对账与受管生产E1保留独立退出条件，不以C1测试替代。02C仍在本批集成收尾。
+
+02C按[真实缓存证据](../audits/2026-09-22-header-cache-isolation.md)闭合，02D READY。纠正02D仅标VALIDATION的分类：它还包含实际生产入口和迁移代码，原范围不扩大、不新增编号。下一并行主线为02D与F1-02。135叶保持不变，本轮两项CODE闭合，82DONE；C1父包已按原退出条件DONE。

@@ -1,3 +1,4 @@
+import { compileHeaderPolicyV1 } from 'api-nova-parser';
 import { GatewayCacheService } from './gateway-cache.service';
 
 describe('GatewayCacheService', () => {
@@ -18,6 +19,38 @@ describe('GatewayCacheService', () => {
         },
       },
     } as any);
+
+  it('requires original response signals and isolates the material used by a retry', () => {
+    const service = new GatewayCacheService(), route = buildRoute();
+    route.routeBinding.upstreamMethod = 'GET';
+    route.policies.upstream = { compiledHeaderPolicy: compileHeaderPolicyV1({ sourceId: 'cache', policy: { version: 1 } }) };
+    const req = { method: 'GET', originalUrl: '/orders', headers: {} } as any;
+    const auth = { mode: 'api_key' as const, consumerId: 'c', keyId: 'k' };
+    const request = { normalizedRequestHeaders: {}, cacheBypass: false, chunked: false, credentialCacheIdentity: 'epoch-a' };
+    const result: any = { statusCode: 200, headers: {}, responseBodyBuffer: Buffer.from('ok') };
+    expect(service.resolve(route, req, auth)).toBeNull();
+    expect(service.store(route, req, auth, result, request)).toBe(false);
+    result.headerCacheSignals = { policyIdentity: route.policies.upstream.compiledHeaderPolicy.identity,
+      credentialCacheIdentity: 'epoch-b', setCookie: false, pragma: false };
+    expect(service.store(route, req, auth, result, request)).toBe(false);
+    result.headerCacheSignals.credentialCacheIdentity = 'epoch-a';
+    expect(service.store(route, req, auth, result, request)).toBe(true);
+    expect(service.resolve(route, req, auth, request)?.hit).toBe(true);
+    expect(service.resolve(route, req, auth, { ...request, credentialCacheIdentity: 'epoch-b' })?.hit).toBe(false);
+  });
+
+  it.each(['max-age=0', 'max-age=5', 'max-age=invalid', 'public, max-age=5, max-age=10'])(
+    'does not cache expired or malformed original freshness: %s', cacheControl => {
+      const service = new GatewayCacheService(), route = buildRoute();
+      route.routeBinding.upstreamMethod = 'GET';
+      route.policies.upstream = { compiledHeaderPolicy: compileHeaderPolicyV1({ sourceId: 'ttl', policy: { version: 1 } }) };
+      const request = { normalizedRequestHeaders: {}, cacheBypass: false, chunked: false };
+      expect(service.store(route, { method: 'GET', originalUrl: '/orders', headers: {} } as any,
+        { mode: 'api_key', consumerId: 'c', keyId: 'k' }, { statusCode: 200, headers: {}, responseBodyBuffer: Buffer.from('ok'),
+          headerCacheSignals: { policyIdentity: route.policies.upstream.compiledHeaderPolicy.identity,
+            setCookie: false, pragma: false, cacheControl, age: '6' } }, request)).toBe(false);
+    },
+  );
 
   it('varies cache key by selected query, header, and consumer identity', () => {
     const service = new GatewayCacheService();

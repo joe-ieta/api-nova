@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import { GatewayAccessLogService } from './gateway-access-log.service';
 import { GatewayRuntimeMetricsService } from './gateway-runtime-metrics.service';
 import { GatewayRouteSnapshotService } from './gateway-route-snapshot.service';
-import { GatewayProxyEngineService } from './gateway-proxy-engine.service';
+import { GatewayProxyEngineService, GatewayPreparedProxyRequest } from './gateway-proxy-engine.service';
 import { GatewaySecurityService } from './gateway-security.service';
 import { GatewayTrafficControlService } from './gateway-traffic-control.service';
 import { GatewayCacheService } from './gateway-cache.service';
@@ -58,8 +58,7 @@ export class GatewayRuntimeService {
     startedAt = Date.now(),
     options: { bypassCache?: boolean } = {},
   ): Promise<void> {
-    // Policy-aware cache identity is a later D1-02C integration.
-    const bypassCache = options.bypassCache || !!target.policies?.upstream?.compiledHeaderPolicy;
+    const bypassCache = options.bypassCache;
     const requestId = this.resolveRequestId(req, res);
     const audit = beginGatewayRequestAudit(req, res, requestId, target);
     return audit.run(async () => {
@@ -70,9 +69,11 @@ export class GatewayRuntimeService {
       try {
         const requestId = this.resolveRequestId(req, res);
         const correlationId = this.resolveCorrelationId(req);
+        const prepared = target.policies.upstream?.compiledHeaderPolicy
+          ? await this.gatewayProxyEngineService.prepareRequest(target, req) : undefined;
         const cacheLookup = bypassCache
           ? null
-          : this.gatewayCacheService.resolve(target, req, authContext);
+          : this.gatewayCacheService.resolve(target, req, authContext, prepared?.requestPolicy);
 
         if (cacheLookup) {
           await this.gatewayRuntimeMetricsService.recordCacheResult({
@@ -114,9 +115,9 @@ export class GatewayRuntimeService {
           return;
         }
 
-        const upstreamResponse = await this.forwardWithRetry(target, req, res);
+        const upstreamResponse = await this.forwardWithRetry(target, req, res, prepared);
         if (!bypassCache) {
-          this.gatewayCacheService.store(target, req, authContext, upstreamResponse);
+          this.gatewayCacheService.store(target, req, authContext, upstreamResponse, prepared?.requestPolicy);
         }
         const latencyMs = Date.now() - startedAt;
         await this.gatewayRuntimeMetricsService.recordForwardResult({
@@ -218,6 +219,7 @@ export class GatewayRuntimeService {
     target: GatewayResolvedRoute,
     req: Request,
     res: Response,
+    preparedRequest?: GatewayPreparedProxyRequest,
   ) {
     const attempts = this.resolveMaxAttempts(target, req);
     const upstreamOperationId = randomUUID();
@@ -236,7 +238,8 @@ export class GatewayRuntimeService {
         const result = await this.gatewayProxyEngineService.forward(target, req, res, {
           attemptIndex: attempt,
           upstreamOperationId,
-          captureResponseBodyMaxBytes: target.policies.cache.enabled && !target.policies.upstream?.compiledHeaderPolicy
+          ...(preparedRequest && attempt === 1 ? { preparedRequest } : {}),
+          captureResponseBodyMaxBytes: target.policies.cache.enabled
             ? target.policies.cache.maxBodyBytes
             : undefined,
         });

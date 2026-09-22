@@ -32,6 +32,7 @@ describe('GatewayRuntimeService', () => {
       writeHit: jest.fn(),
     };
     const gatewayProxyEngineService = {
+      prepareRequest: jest.fn(),
       forward: jest.fn(),
     };
     const gatewayAccessLogService = {
@@ -495,7 +496,7 @@ describe('GatewayRuntimeService', () => {
   });
 
   it.each([undefined, 'gateway_header_framing', 'gateway_header_early_response'])(
-    'bypasses legacy cache and never retries v1 header rejection: %s', async failure => {
+    'preflights v1 cache access and never retries header rejection: %s', async failure => {
       const deps = createDeps();
       const target = createResolvedRoute({ policies: {
         auth: { mode: 'anonymous' }, traffic: { retryPolicy: { attempts: 3 } },
@@ -505,7 +506,7 @@ describe('GatewayRuntimeService', () => {
       deps.gatewayRouteSnapshotService.resolve.mockReturnValue(target);
       deps.gatewaySecurityService.authorize.mockResolvedValue({ mode: 'anonymous' });
       deps.gatewayTrafficControlService.admit.mockResolvedValue({ release: jest.fn() });
-      deps.gatewayCacheService.resolve.mockReturnValue({ hit: true, key: 'legacy-result' });
+      deps.gatewayProxyEngineService.prepareRequest.mockResolvedValue({ requestPolicy: { cacheBypass: false, chunked: false, normalizedRequestHeaders: {} } });
       if (failure) deps.gatewayProxyEngineService.forward.mockRejectedValue(new HttpException(failure, 502));
       else deps.gatewayProxyEngineService.forward.mockResolvedValue({ statusCode: 200, headers: {}, targetUrl: 'https://api.example.com/orders' });
       const action = deps.service.forwardRequest('/orders', {
@@ -513,11 +514,12 @@ describe('GatewayRuntimeService', () => {
       } as any, { setHeader: jest.fn() } as any);
       if (failure) await expect(action).rejects.toThrow(failure); else await action;
       expect(deps.gatewaySecurityService.authorize).toHaveBeenCalledTimes(1);
-      expect(deps.gatewayCacheService.resolve).not.toHaveBeenCalled();
+      expect(deps.gatewayProxyEngineService.prepareRequest).toHaveBeenCalledTimes(1);
+      expect(deps.gatewayCacheService.resolve).toHaveBeenCalledTimes(1);
       expect(deps.gatewayCacheService.writeHit).not.toHaveBeenCalled();
-      expect(deps.gatewayCacheService.store).not.toHaveBeenCalled();
+      expect(deps.gatewayCacheService.store).toHaveBeenCalledTimes(failure ? 0 : 1);
       expect(deps.gatewayProxyEngineService.forward).toHaveBeenCalledTimes(1);
-      expect(deps.gatewayProxyEngineService.forward.mock.calls[0][3].captureResponseBodyMaxBytes).toBeUndefined();
+      expect(deps.gatewayProxyEngineService.forward.mock.calls[0][3].captureResponseBodyMaxBytes).toBe(4096);
       expect(deps.gatewayTrafficControlService.recordRetryAttempt).not.toHaveBeenCalled();
     },
   );

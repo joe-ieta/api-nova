@@ -1,5 +1,5 @@
 ---
-doc-version: 1.47.0
+doc-version: 1.48.0
 doc-status: active
 doc-updated: 2026-09-22
 ---
@@ -34,7 +34,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-C2 | SEC-C02；C1 | IN_PROGRESS | Env/File Provider 已用于 Registry，Gateway 显式配置激活链已贯通；本机契约历史 53 项通过，真实 Linux 权限 30 场景待补证，Windows Secret File ACL已完成C2-02原生验收，Linux环境出口待验 |
 | TP-C3 | SEC-C03；C2 | IN_PROGRESS | Stable Read、manual及Watch/debounce、受权Reload/状态和代次冲突已验证；C3-01 Watch与C3-02 DB归属完成，C3-03多进程待验 |
 | TP-C4 | SEC-C04；C3 | IN_PROGRESS | Gateway与显式MCP single-hop Resolver已验证；SEC-C4-01验收真实受管child执行及Unresolved门禁，依赖E1/F1；网络政策主归F3，不在C4复制实现 |
-| TP-D1 | SEC-D01；C4 | IN_PROGRESS | D1-01政策、02A编译及02B显式策略真实流完成；02C缓存/02D生产接线与迁移验收尚缺，生产v1激活明确拒绝；非Header保护上线 |
+| TP-D1 | SEC-D01；C4 | IN_PROGRESS | D1-01政策、02A编译、02B显式策略真实流及02C缓存完成；02D生产接线与迁移验收尚缺，生产v1激活明确拒绝；非Header保护上线 |
 | TP-D2 | SEC-D02；B1/B2/D1 | IN_PROGRESS | 身份化缓存、六层限流与匿名独立桶功能出口已通过D2-01/02；原父依赖B2/D1整体验收待闭合，不额外添加多节点验收门槛 |
 | TP-E0 | MCP Adapter；A0 | DONE | 锁定SDK1.29.0 Streamable/SSE/stdio方法/Header/错误/版本/Session原出口验收，60/60；不改变协议或宣称完整E2安全签收 |
 | TP-E1 | SEC-E01；B3/C4/E0 | IN_PROGRESS | 可信映射、管理侧装配/发布读取、跨源校验及旧候选guard已验；SEC-E1-01~04负责技术方案、真实child接线、argv秘密移除、端到端与运行中撤销；管理侧继续微修不替代出口 |
@@ -729,3 +729,7 @@ D2-02完成，见[组合证据](../audits/2026-09-21-layered-rate-limit-composit
 ## 四类凭据实现与C1闭合（2026-09-22）
 
 [验收证据](../audits/2026-09-22-credential-types-scope.md)关闭C1-02，原SEC-C01与A0条件复核后TP-C1 DONE。Parser27套533项、API联合30套428项、Gateway/显式single-hop真实27项及准备32项均通过；这些计数重叠，不相加。最终API/Parser/Server构建通过；构建发现旧准备器单引用假设已补Basic双引用，没有启用生产IPC。F1-02 READY，父包安全9DONE/11IN_PROGRESS/2BACKLOG/1DEFERRED。
+
+## Header缓存隔离（2026-09-22）
+
+[02C验收](../audits/2026-09-22-header-cache-isolation.md)完成必需vary/策略/材料代次、每次命中前预检、原始禁存与真实miss/hit；32项真实HTTP和联合428项通过。02D READY，生产未就绪门禁仍有效，D1/D2父包保持原依赖。
