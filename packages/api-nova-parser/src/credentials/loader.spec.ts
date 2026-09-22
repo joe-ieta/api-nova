@@ -217,8 +217,8 @@ describe('credential text loader security contract', () => {
           Object.assign(input.secretProviders, { disk: { type: 'file', root: '/not-accessed', requireOwnerOnly: true } });
           input.credentials.token.secretRef = 'disk:service/token';
           for (const format of ['json', 'yaml'] as const) {
-            expect(isolated.parseUpstreamCredentialBindings(JSON.stringify(input), format).credentials.token.secretRef)
-              .toBe('disk:service/token');
+            expect(isolated.parseUpstreamCredentialBindings(JSON.stringify(input), format).credentials.token)
+              .toMatchObject({ secretRef: 'disk:service/token' });
           }
           expect(providerFactory).not.toHaveBeenCalled();
           spies.forEach(spy => expect(spy).not.toHaveBeenCalled());

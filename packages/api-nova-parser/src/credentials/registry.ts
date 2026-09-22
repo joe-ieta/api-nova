@@ -1,3 +1,5 @@
+import { upstreamCredentialHeaderName } from './types';
+import { basicCredentialHeader, checkedSingleCredentialSecret } from './secret-material';
 import { compileHeaderPolicyV1, type CompiledHeaderPolicyV1 } from '../headers/header-policy';
 import { watch, type FSWatcher } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
@@ -47,6 +49,8 @@ export interface UpstreamCredentialRegistrySnapshot {
   getHeaderPolicy?(siteId: string, endpoint?: UpstreamHeaderPolicyEndpoint): CompiledHeaderPolicyV1 | undefined;
   readonly generation: number;
   readonly candidate: UpstreamCredentialBindingsCandidate;
+  readonly historicalAuthenticationHeaderNames?: readonly string[];
+  resolveBasicSecret?(credentialId: string): Promise<Readonly<{ username: string; password: string }>>;
   /**
    * Trusted in-process API returning secret material, not an HTTP/control-plane response.
    * Captures this revision's binding; provider contents are read fresh, never cached here.
@@ -310,7 +314,7 @@ export class UpstreamCredentialRegistry {
       return reject('REVISION_ALREADY_ACTIVE');
     }
 
-    const credentialHeaderNames = Object.values(candidate.credentials).map(credential => credential.type === 'bearer' ? 'authorization' : credential.placement.name);
+    const credentialHeaderNames = Object.values(candidate.credentials).map(upstreamCredentialHeaderName);
     const historicalNames = new Set([...this.historicalAuthenticationHeaderNames, ...credentialHeaderNames]);
     const compiled = new Map<string, CompiledHeaderPolicyV1>();
     const policyKey = (siteId: string, endpoint?: UpstreamHeaderPolicyEndpoint): string => JSON.stringify([siteId, endpoint === undefined ? null : 'endpointDefinitionId' in endpoint ? ['id', endpoint.endpointDefinitionId] : ['route', endpoint.method.toUpperCase(), endpoint.path]]);
@@ -334,17 +338,35 @@ export class UpstreamCredentialRegistry {
     }
 
     const bindings = new Map<string, SecretBinding>();
-    for (const [id, credential] of Object.entries(candidate.credentials)) {
-      const separator = credential.secretRef.indexOf(':');
-      const provider = providers.get(credential.secretRef.slice(0, separator));
+    const basicBindings = new Map<string, { username: SecretBinding; password: SecretBinding }>();
+    const bind = (reference: string): SecretBinding => {
+      const separator = reference.indexOf(':');
+      const provider = providers.get(reference.slice(0, separator));
       if (!provider) return reject('SECRET_RESOLUTION_FAILED');
-      const key = credential.secretRef.slice(separator + 1);
-      const resolve = provider.resolve.bind(provider);
-      bindings.set(id, Object.freeze({ read: () => resolve(key) }));
+      const key = reference.slice(separator + 1), resolve = provider.resolve.bind(provider);
+      return Object.freeze({ read: () => resolve(key) });
+    };
+    const readBasic = async (id: string): Promise<Readonly<{ username: string; password: string }>> => {
+      const pair = basicBindings.get(id);
+      if (!pair) return reject('UNKNOWN_CREDENTIAL');
+      const username = await resolveBinding(pair.username), password = await resolveBinding(pair.password);
+      try { basicCredentialHeader(username, password); } catch { return reject('SECRET_RESOLUTION_FAILED'); }
+      return Object.freeze({ username, password });
+    };
+    for (const [id, credential] of Object.entries(candidate.credentials)) {
+      if (credential.type === 'basic') basicBindings.set(id, { username: bind(credential.usernameRef), password: bind(credential.passwordRef) });
+      else bindings.set(id, bind(credential.secretRef));
     }
-
-    // Resolve all credentials, including currently unused entries, without retaining values.
-    for (const binding of bindings.values()) await resolveBinding(binding);
+    // Resolve every reference, even disabled/unreferenced credentials, without retaining material.
+    for (const [id, binding] of bindings) {
+      const value = await resolveBinding(binding);
+      try {
+        const credential = candidate.credentials[id];
+        if (credential.type === 'basic') throw new Error();
+        checkedSingleCredentialSecret(value, credential.type);
+      } catch { return reject('SECRET_RESOLUTION_FAILED'); }
+    }
+    for (const id of basicBindings.keys()) await readBasic(id);
 
     // Run after asynchronous secret checks, so database changes during dry-run are observed.
     if (this.validateCandidateOwnership) {
@@ -355,6 +377,8 @@ export class UpstreamCredentialRegistry {
     const snapshot: UpstreamCredentialRegistrySnapshot = Object.freeze({
       generation: (this.active?.generation ?? 0) + 1,
       candidate,
+      historicalAuthenticationHeaderNames: Object.freeze([...historicalNames]),
+      resolveBasicSecret: readBasic,
       getHeaderPolicy: (siteId: string, endpoint?: UpstreamHeaderPolicyEndpoint): CompiledHeaderPolicyV1 | undefined => {
         if (!candidate.sites.some(site => site.id === siteId)) return reject('CANDIDATE_REJECTED');
         if (endpoint !== undefined) {

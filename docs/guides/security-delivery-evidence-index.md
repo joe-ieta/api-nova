@@ -1,7 +1,7 @@
 ---
-doc-version: 1.21.0
+doc-version: 1.22.0
 doc-status: active
-doc-updated: 2026-09-21
+doc-updated: 2026-09-22
 ---
 # 安全交付验收证据索引（SEC-F4-01）
 
@@ -40,7 +40,7 @@ doc-updated: 2026-09-21
 | SEC-B3-01 | [真实会话撤销](../audits/2026-09-21-persistent-session-revocation.md) | **限定执行/DONE**：Streamable/SSE既有长连接、scope变化、撤销/重连/DB重开拒绝2/2；非在途取消/异步权限通知。 |
 | SEC-B3-02 | [SDK会话矩阵](../audits/2026-09-21-sdk-session-contract.md) | **限定执行/DONE**：11项新增、联合71/71，固定dispatcher/Session/通知边界；不升级SDK或实现权限广播。 |
 | SEC-C1-01 | [类型、生命周期与作用域合同](./upstream-credential-types-contract.md) | **政策定稿/DONE（DOC）**：四类支持目标与拒绝类型、时间/Scope、F1兼容已冻结；C1-02代码仍待实现。 |
-| SEC-C1-02 | 无覆盖全部批准类型的当前脚本 | **待验收**：按已定稿 C1-01 逐类型实现解析、注入、脱敏和拒绝；OAuth2 不属于本轮。 |
+| SEC-C1-02 | [四类型与Scope验收](../audits/2026-09-22-credential-types-scope.md) | **已实现/DONE**：四类型、生命周期/Scope、Basic双引用、秘密拒绝和真实Gateway/显式single-hop；受管生产E1/F1门禁仍独立。 |
 | SEC-C2-01 | [Linux 隔离操作说明](../testing/upstream-secret-provider-linux.md)、[Provider 脚本](../../packages/api-nova-parser/scripts/test-upstream-secret-provider.cjs) | **准备/待验收（环境）**：Windows 本机 53 项通过；30 个真实 Linux 文件权限场景尚未执行。说明中 82 通过只是预期值。 |
 | SEC-C2-02 | [Windows ACL证据](../audits/2026-09-21-windows-secret-acl.md) | **限定执行/DONE**：真实NTFS28/28、主任务复跑通过；仅本地驱动器，需要系统PowerShell/Add-Type，未替代Linux验收。 |
 | SEC-C3-01 | [Watch交付证据](../audits/2026-09-21-registry-watch.md) | **限定执行/DONE**：Windows真实固定文件监听8/8、Parser凭据252/252、Gateway接线31/31；含坏文件保旧、并发管理员CAS、Nest关闭。DB归属、多进程及Linux不在此叶。 |
@@ -73,7 +73,7 @@ doc-updated: 2026-09-21
 
 | 叶子出口 | 已有入口/版本与环境 | 当前证据和未闭合项 |
 | --- | --- | --- |
-| SEC-F1-01 | [四态与发布门禁合同](./upstream-security-reconciliation-contract.md) | **政策定稿/DONE（DOC）**：继承/OR-AND/兼容/失效表固定，非发布门禁实现；F1-02依赖C1-02。 |
+| SEC-F1-01 | [四态与发布门禁合同](./upstream-security-reconciliation-contract.md) | **政策定稿/DONE（DOC）**：继承/OR-AND/兼容/失效表固定，非发布门禁实现；C1-02已完成，F1-02 READY。 |
 | SEC-F1-02 | [OpenAPI 提取测试](../../packages/api-nova-parser/tests/unit/security-extractor.test.ts)、[发布测试](../../packages/api-nova-api/src/modules/publication/services/publication.service.spec.ts) | **历史执行/待验收**：提取与发布各有局部覆盖；受保护未配置/未验证阻止发布、OR/AND 不弱化仍无当前执行证据。 |
 | SEC-F2-01 | [分区与重载UI证据](../audits/2026-09-21-upstream-credential-management-ui.md) | **限定执行/DONE**：binding revision/进程Registry generation及失败刷新恢复，UI12+真实HTTP1+后端21；非浏览器点击或MCP完整凭证编辑。 |
 | SEC-F2-02 | [匿名UI证据](../audits/2026-09-21-temporary-anonymous-ui.md) | **限定执行/DONE**：Gateway/MCP申请、到期/生产风险与拒绝显示，26/26和构建；无真实浏览器点击验收。 |

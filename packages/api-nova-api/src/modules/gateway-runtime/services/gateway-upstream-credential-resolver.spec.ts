@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { ServiceUnavailableException } from '@nestjs/common';
 import {
   UpstreamCredentialRegistry,
@@ -64,9 +65,15 @@ describe('Gateway C4 upstream credential adapter', () => {
     expect(first.credentialHeaderNames).toEqual(['x-private']);
     expect(first.managedHeaderNames).toEqual(expect.arrayContaining(['authorization', 'x-private']));
     expect(JSON.stringify(first)).not.toContain('env:PRIVATE');
+    const unchanged = await adapter.resolve(route(), 'https://api.example.com/items');
+    expect(unchanged.cacheIdentity).toBe(first.cacheIdentity);
     value.current = 'rotated-private';
     const second = await adapter.resolve(route(), 'https://api.example.com/items');
     expect(second.headers).toEqual({ 'x-private': 'rotated-private' });
+    expect(second.cacheIdentity === first.cacheIdentity).toBe(false);
+    expect(second.cacheIdentity).not.toContain(value.current);
+    expect(second.cacheIdentity).not.toContain(createHash('sha256').update(value.current).digest('hex'));
+    expect(second.cacheIdentity).not.toContain(createHash('sha256').update(JSON.stringify(Object.entries(second.headers))).digest('hex'));
   });
 
   test('removes consumer managed headers before final resolver injection', async () => {

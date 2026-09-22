@@ -14,8 +14,9 @@
 
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
+| [四类上游凭据与生命周期作用域验收](./audits/2026-09-22-credential-types-scope.md) | 1.0.0 | active | 2026-09-22 |
 | [Header双向过滤与受控真实流执行](./audits/2026-09-21-header-wire-execution.md) | 1.0.0 | active | 2026-09-21 |
-| [上游凭据类型、生命周期与作用域合同](./guides/upstream-credential-types-contract.md) | 1.0.0 | active | 2026-09-21 |
+| [上游凭据类型、生命周期与作用域合同](./guides/upstream-credential-types-contract.md) | 1.1.0 | active | 2026-09-22 |
 | [锁定MCP Adapter协议边界验收](./audits/2026-09-21-mcp-adapter-contract.md) | 1.0.0 | active | 2026-09-21 |
 | [Header策略编译与安全接线准备](./audits/2026-09-21-header-policy-compilation.md) | 1.0.0 | active | 2026-09-21 |
 | [上游安全对账与发布门禁契约](./guides/upstream-security-reconciliation-contract.md) | 1.0.0 | active | 2026-09-21 |
@@ -38,7 +39,7 @@
 | [SEC-A1-02B4鉴权模式界面交付](./audits/2026-09-21-mcp-mode-ui-evidence.md) | 1.0.0 | active | 2026-09-21 |
 | [docs/audits/2026-09-04-manual-registration-publication.md](./audits/2026-09-04-manual-registration-publication.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/audits/2026-09-07-reviewed-merge.md](./audits/2026-09-07-reviewed-merge.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/audits/README.md](./audits/README.md) | 1.42.0 | active | 2026-09-21 |
+| [docs/audits/README.md](./audits/README.md) | 1.43.0 | active | 2026-09-22 |
 | [全范围审核与重拆](./audits/2026-09-15-work-package-replan.md) | 1.0.0 | active | 2026-09-15 |
 | [PROD-03本地发布循环](./audits/2026-09-15-prod-03-local-publication-cycle.md) | 0.1.0 | active | 2026-09-15 |
 | [重拆第二批限定证据](./audits/2026-09-16-replanned-batch-2-evidence.md) | 1.7.0 | active | 2026-09-16 |
@@ -49,10 +50,10 @@
 | [额度中断恢复证据](./audits/2026-09-17-interruption-recovery-evidence.md) | 1.0.0 | active | 2026-09-17 |
 | [重拆第五批限定证据](./audits/2026-09-16-replanned-batch-5-evidence.md) | 1.0.0 | active | 2026-09-16 |
 | [端点测试二进制样例合同](./guides/endpoint-test-binary-sample-contract.md) | 0.8.0 | active | 2026-09-17 |
-| [活跃工作包划分](./guides/active-work-package-breakdown.md) | 1.43.0 | active | 2026-09-21 |
-| [安全交付验收证据索引](./guides/security-delivery-evidence-index.md) | 1.21.0 | active | 2026-09-21 |
+| [活跃工作包划分](./guides/active-work-package-breakdown.md) | 1.44.0 | active | 2026-09-22 |
+| [安全交付验收证据索引](./guides/security-delivery-evidence-index.md) | 1.22.0 | active | 2026-09-22 |
 | [MCP发布端点合同](./guides/mcp-publication-endpoint-contract.md) | 0.2.0 | active | 2026-09-21 |
-| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.62.0 | active | 2026-09-21 |
+| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.63.0 | active | 2026-09-22 |
 | [受管MCP启动交付设计](./guides/managed-mcp-credential-handoff-plan.md) | 0.4.0 | reviewed-slice | 2026-09-21 |
 | [候选激活与GC重试](./audits/2026-09-15-activation-gc-wave.md) | 1.0.0 | active | 2026-09-15 |
 | [上游归属交叉核验](./audits/2026-09-15-upstream-ownership-wave.md) | 1.0.0 | active | 2026-09-15 |
@@ -105,8 +106,8 @@
 
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
-| [安全任务计划](./guides/security-development-task-plan.md) | 1.17.0 | active | 2026-09-21 |
-| [安全执行状态](./guides/security-development-execution-status.md) | 1.46.0 | active | 2026-09-21 |
+| [安全任务计划](./guides/security-development-task-plan.md) | 1.18.0 | active | 2026-09-22 |
+| [安全执行状态](./guides/security-development-execution-status.md) | 1.47.0 | active | 2026-09-22 |
 | [安全功能需求](./guides/security-functional-requirements.md) | 1.1.0 | active | 2026-09-15 |
 | [安全设计](./reference/security-design-and-implementation.md) | 1.2.0 | active | 2026-09-14 |
 | [Gateway 文件激活](./guides/gateway-upstream-credential-file-activation.md) | 1.1.0 | active | 2026-09-14 |

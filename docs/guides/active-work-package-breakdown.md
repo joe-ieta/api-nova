@@ -1,7 +1,7 @@
 ---
-doc-version: 1.43.0
+doc-version: 1.44.0
 doc-status: active
-doc-updated: 2026-09-21
+doc-updated: 2026-09-22
 ---
 # 活跃工作包划分与验收子任务
 
@@ -9,7 +9,7 @@ doc-updated: 2026-09-21
 
 本页是2026-09-15重排后的调度划分，继承原批准需求，不替换或缩减父包退出条件。状态唯一入口为[子任务执行状态](./active-work-package-execution-status.md)，父包证据仍在[OBS台账](./runtime-observability-development-execution-status.md)和[SEC台账](./security-development-execution-status.md)。
 
-39只等于OBS16+SEC23：18 DONE、17 IN_PROGRESS、3 BACKLOG、1 DEFERRED；不是全项目活跃总数，更不是完成百分比。IN_PROGRESS在旧父包表表示有实现，不表示17包正在同时开发。代码、设计草案、验收准备、环境执行分别登记，不能用文档子项DONE冒充功能交付。
+39只等于OBS16+SEC23：19 DONE、16 IN_PROGRESS、3 BACKLOG、1 DEFERRED；不是全项目活跃总数，更不是完成百分比。IN_PROGRESS在旧父包表表示有实现，不表示16包正在同时开发。代码、设计草案、验收准备、环境执行分别登记，不能用文档子项DONE冒充功能交付。
 
 上层[阶段计划](./staged-development-plan.md)、[WP00~90](./runtime-instance-and-regression-closure-plan.md)和[open-items](../reference/open-items.md)具有交叉范围，不叠加成49或其它“项目总包数”。本次覆盖这些当前入口；新需求必须先登记归属再进入队列。
 
@@ -18,7 +18,7 @@ doc-updated: 2026-09-21
 ### 两个专项
 
 OBS父包：01/02/03/04/05/07/08/09/11/12各为DONE；06/10/13/14/15各为IN_PROGRESS；16为BACKLOG。
-SEC父包：A0/A1/A2/A3/B1/B2/B3/E0 DONE；A4/C1/C2/C3/C4/D1/D2/E1/E2/F2/F3/F3a各IN_PROGRESS；F1/F4各BACKLOG；G1 DEFERRED。
+SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F2/F3/F3a各IN_PROGRESS；F1/F4各BACKLOG；G1 DEFERRED。
 以下SEC-A1等子项主归属为原TP-A1；OBS-06等主归属为原OBS-TP-06。已DONE父包不为增加任务数量重新拆开发项。
 
 | 原入口 | 本次核查后的实际边界 | 唯一执行归属/关联 |
@@ -286,3 +286,9 @@ D1-01政策出口完成，D1-02解除依赖。D1-02按编译/快照、双向传�
 F3-01[网络政策](./security-header-network-boundary-contract.md)已完成DOC；F3-02保持D1-02D硬依赖。后续代码并行面为D1-02B和已解锁C1-02，不再为已有Loader增加准备任务。
 
 02B按[受控真实流证据](../audits/2026-09-21-header-wire-execution.md)完成，02C转READY。02D还须真实Registry/路由元数据到执行器接线与main入口安装，再做默认迁移/例外/防降级；不得删除门禁直接启用。当前80DONE/135叶，本批实际为2DOC和1CODE执行切片，D1父包保持IN_PROGRESS；下一并行主线02C缓存与C1-02类型实现。
+
+## 2026-09-22 Header缓存与凭据类型
+
+按现有02C/C1-02两个叶子并行推进，不新增拆分计数。缓存命中前仍检查消费者权限及当前上游凭据可用性；类型核心和宿主适配分工实施。生产Header启用仍归02D，受管IPC边界不变。
+
+C1-02按[四类凭据证据](../audits/2026-09-22-credential-types-scope.md)完成；原Schema/Loader/Site/Endpoint条件及A0依赖已闭合，C1父包DONE，F1-02 READY。F1对账与受管生产E1保留独立退出条件，不以C1测试替代。02C仍在本批集成收尾。

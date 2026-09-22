@@ -23,7 +23,7 @@ type Dict = Record<string, unknown>;
 const dangerous = new Set(['__proto__', 'prototype', 'constructor']);
 const forbiddenHeaders = new Set(['connection', 'content-length', 'host', 'keep-alive',
   'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'trailers', 'transfer-encoding',
-  'upgrade', 'cookie', 'set-cookie']);
+  'upgrade', 'cookie', 'set-cookie', 'authorization', 'www-authenticate', 'forwarded', 'x-real-ip', 'x-request-id', 'expect', 'traceparent', 'tracestate', 'baggage', 'server', 'x-powered-by']);
 const own = (value: object, key: string) => Object.prototype.hasOwnProperty.call(value, key);
 function fail(code: UpstreamCredentialValidationCode): never { throw new UpstreamCredentialValidationError(code); }
 
@@ -123,7 +123,7 @@ function routePath(value: unknown, base = false): string {
 }
 function header(value: unknown): string {
   const name = text(value, 128).toLowerCase();
-  if (!/^[!#$%&'*+.^_`|~0-9a-z-]+$/.test(name) || forbiddenHeaders.has(name)) fail('INVALID_HEADER');
+  if (!/^[!#$%&'*+.^_`|~0-9a-z-]+$/.test(name) || (forbiddenHeaders.has(name) || name.startsWith('x-forwarded-') || name.startsWith('x-apinova-'))) fail('INVALID_HEADER');
   return name;
 }
 function selection(value: unknown, present: boolean, credentials: Record<string, UpstreamCredentialDescription>): UpstreamCredentialSelection {
@@ -188,23 +188,60 @@ function validate(input: unknown): UpstreamCredentialBindingsCandidate {
     identifier(id);
     if (id === 'none') fail('INVALID_VALUE');
     const entry = object(raw);
-    if (entry.type !== 'apiKey' && entry.type !== 'bearer') fail('UNSUPPORTED_CREDENTIAL_TYPE');
-    shape(entry, entry.type === 'apiKey' ? ['type', 'placement', 'secretRef'] : ['type', 'secretRef']);
-    const secretRef = text(entry.secretRef, 1024);
-    const separator = secretRef.indexOf(':');
-    if (separator < 1 || separator !== secretRef.lastIndexOf(':')) fail('INVALID_REFERENCE');
-    const providerId = secretRef.slice(0, separator), key = secretRef.slice(separator + 1);
-    if (!own(secretProviders, providerId)) fail('INVALID_REFERENCE');
-    if (secretProviders[providerId].type === 'env') {
-      if (!/^[A-Z_][A-Z0-9_]*$/.test(key)) fail('INVALID_REFERENCE');
-    } else if (!/^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/.test(key) ||
-      key.split('/').some(part => part === '.' || part === '..')) fail('INVALID_REFERENCE');
+    if (!['apiKey', 'bearer', 'basic', 'customHeader'].includes(entry.type as string)) fail('UNSUPPORTED_CREDENTIAL_TYPE');
+    const typeFields = entry.type === 'apiKey' ? ['type', 'placement', 'secretRef']
+      : entry.type === 'basic' ? ['type', 'usernameRef', 'passwordRef']
+        : entry.type === 'customHeader' ? ['type', 'name', 'secretRef'] : ['type', 'secretRef'];
+    const constraintFields = ['enabled', 'notBefore', 'expiresAt', 'environment', 'allowedHosts', 'endpointDefinitionIds', 'methods'];
+    shape(entry, [...typeFields, ...constraintFields], typeFields);
+    const reference = (raw: unknown): string => {
+      const ref = text(raw, 1024), separator = ref.indexOf(':');
+      if (separator < 1 || separator !== ref.lastIndexOf(':')) fail('INVALID_REFERENCE');
+      const providerId = ref.slice(0, separator), key = ref.slice(separator + 1);
+      if (!own(secretProviders, providerId)) fail('INVALID_REFERENCE');
+      if (secretProviders[providerId].type === 'env') {
+        if (!/^[A-Z_][A-Z0-9_]*$/.test(key)) fail('INVALID_REFERENCE');
+      } else if (!/^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/.test(key) || key.split('/').some(part => part === '.' || part === '..')) fail('INVALID_REFERENCE');
+      return ref;
+    };
+    const constraints: Record<string, any> = { enabled: true, environment };
+    if (own(entry, 'enabled')) { if (typeof entry.enabled !== 'boolean') fail('INVALID_VALUE'); constraints.enabled = entry.enabled; }
+    if (own(entry, 'environment')) {
+      constraints.environment = identifier(entry.environment).toLowerCase();
+      if (constraints.environment !== environment) fail('INVALID_VALUE');
+    }
+    for (const field of ['notBefore', 'expiresAt']) if (own(entry, field)) {
+      const value = text(entry[field], 64);
+      const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?(Z|[+-]\d{2}:\d{2})$/.exec(value);
+      if (!match || !Number.isFinite(Date.parse(value))) fail('INVALID_VALUE');
+      const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+      const days = [31, year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+      if (month < 1 || month > 12 || day < 1 || day > days[month - 1] || Number(match[4]) > 23 || Number(match[5]) > 59 || Number(match[6]) > 59) fail('INVALID_VALUE');
+      constraints[field] = new Date(value).toISOString();
+    }
+    if (constraints.notBefore && constraints.expiresAt && Date.parse(constraints.notBefore) >= Date.parse(constraints.expiresAt)) fail('INVALID_VALUE');
+    for (const field of ['allowedHosts', 'endpointDefinitionIds', 'methods']) if (own(entry, field)) {
+      const values = list(entry[field], field === 'allowedHosts' ? UPSTREAM_CREDENTIAL_LIMITS.maxAllowedHosts : 256).map(value => {
+        if (field === 'allowedHosts') return host(value);
+        if (field === 'endpointDefinitionIds') return identifier(value);
+        const method = text(value, 16).toUpperCase();
+        if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) fail('INVALID_VALUE');
+        return method;
+      });
+      if (!values.length || new Set(values).size !== values.length) fail('INVALID_VALUE');
+      constraints[field] = values;
+    }
     if (entry.type === 'apiKey') {
       const placement = shape(entry.placement, ['in', 'name']);
       if (placement.in !== 'header') fail('UNSUPPORTED_CREDENTIAL_TYPE');
-      credentials[id] = { type: 'apiKey', placement: { in: 'header', name: header(placement.name) }, secretRef };
-    } else credentials[id] = { type: 'bearer', secretRef };
+      credentials[id] = { ...constraints, type: 'apiKey', placement: { in: 'header', name: header(placement.name) }, secretRef: reference(entry.secretRef) };
+    } else if (entry.type === 'basic') {
+      credentials[id] = { ...constraints, type: 'basic', usernameRef: reference(entry.usernameRef), passwordRef: reference(entry.passwordRef) };
+    } else if (entry.type === 'customHeader') {
+      credentials[id] = { ...constraints, type: 'customHeader', name: header(entry.name), secretRef: reference(entry.secretRef) };
+    } else credentials[id] = { ...constraints, type: 'bearer', secretRef: reference(entry.secretRef) };
   }
+
   const sites: UpstreamCredentialSite[] = [];
   const siteIds = new Set<string>(), siteSelectors = new Set<string>();
   let endpointCount = 0;

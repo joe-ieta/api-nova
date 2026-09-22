@@ -1,23 +1,23 @@
 ---
-doc-version: 1.62.0
+doc-version: 1.63.0
 doc-status: active
-doc-updated: 2026-09-21
+doc-updated: 2026-09-22
 ---
 # 活跃子任务执行状态
 
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
-父包专项统计仍是OBS 10/5/1、SEC 8/12/2/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计18/17/3/1。它不表示全项目完成率。
+父包专项统计仍是OBS 10/5/1、SEC 9/11/2/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计19/16/3/1。它不表示全项目完成率。
 
 本次登记135个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 80 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 13 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
-| WAIT_DEP | 22 | 等待列明子任务/条件 |
+| DONE | 81 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 12 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 1 | SEC-D1-02C |
+| WAIT_DEP | 21 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -51,7 +51,7 @@ doc-updated: 2026-09-21
 | SEC-B3-01 | DONE | 真实Streamable/SSE长连接2/2：scope收窄、持久撤销、旧session/新连接/重连拒绝、SQLite重开及同PID有效Key对照；见会话撤销证据 |
 | SEC-B3-02 | DONE | SDK1.29.0 dispatcher/双传输Session/同主体换钥/跨主体拒绝/通知边界11项，统一入口71/71；scope不自动通知，目录变更阳性对照，见SDK证据 |
 | SEC-C1-01 | DONE | [类型合同](./upstream-credential-types-contract.md)冻结四类目标、拒绝类型、生命周期/Scope与F1兼容；DOC完成，非实现 |
-| SEC-C1-02 | READY | 按类型合同四切片补Basic/CustomHeader、生命周期/Scope及真实出站；复用现有loader/Provider |
+| SEC-C1-02 | DONE | [四类凭据证据](../audits/2026-09-22-credential-types-scope.md)：类型/双引用/生命周期/Scope、Gateway与显式single-hop真实27项、DB归属、533 Parser/428 API联合通过 |
 | SEC-C2-01 | NEED_ENV | Env/File本机实现已有 |
 | SEC-C2-02 | DONE | Windows原生句柄ACL验证；真实NTFS28/28主任务独立复跑，越权/链接/替换/并发写入均通过；依赖系统PowerShell与Add-Type，Linux另验 |
 | SEC-C3-01 | DONE | 固定文件Watch/debounce、坏文件保旧、admin锁内代次检查和Nest关闭已通过；Windows真实监听8/8、Parser252/252、Gateway31/31；见2026-09-21-registry-watch证据 |
@@ -61,7 +61,7 @@ doc-updated: 2026-09-21
 | SEC-D1-01 | DONE | Header政策1.0.0定稿：双向精确allowlist、多值/framing、保留字段、缓存和限时迁移；H01–H12待实现，N01–N17仍F3提案 |
 | SEC-D1-02A | DONE | Parser v1编译/不可变快照/继承/摘要/冲突294项；Gateway双源及未就绪激活拒绝、真实固定文件保旧/SQL.js冷恢复拒绝；仅准备 |
 | SEC-D1-02B | DONE | [双向真实流证据](../audits/2026-09-21-header-wire-execution.md)：纯字段60、入口TCP15、proxy真实21及联合353通过；仅显式compiled路径，生产门禁保持 |
-| SEC-D1-02C | READY | 02B完成；实现策略identity/vary、原始响应veto及真实miss/hit；当前v1全量绕过缓存 |
+| SEC-D1-02C | IN_PROGRESS | 命中前可信凭据/原始Header预检、强制vary与原始响应禁存信号、真实miss/hit并行开发 |
 | SEC-D1-02D | WAIT_DEP | 待02C；默认迁移、防降级与H01–H12联合验收 |
 | SEC-D2-01 | DONE | 真实HTTP独立IP/Anonymous桶、peer可信边界、缓存命中仍限流；Gateway全套201/201、主任务联合复验42/42；见2026-09-21-independent-rate-limits证据 |
 | SEC-D2-02 | DONE | 六层真实HTTP组合19项、四套73/73；共享窗口冲突503且到期恢复、24并发精确7准入；见六层限流组合证据 |
@@ -78,7 +78,7 @@ doc-updated: 2026-09-21
 | SEC-E2-01 | WAIT_DEP | 复用已有smoke |
 | SEC-E2-02 | NEED_ENV | 需核实环境 |
 | SEC-F1-01 | DONE | 四态、OpenAPI继承/OR-AND、Binding兼容及验证失效合同定稿；同revision秘密变更须重新验证；F1-02仍依赖C1-02 |
-| SEC-F1-02 | WAIT_DEP | 未完成 |
+| SEC-F1-02 | READY | C1-02完成已解锁；仍须实现声明/四态/OR-AND及发布门禁，DOC不替代代码 |
 | SEC-F2-01 | DONE | Consumer/Upstream分区、真实binding revision/Registry generation与reload恢复；UI12/12、实际UI适配器到Nest/Registry HTTP1/1、后端21/21；进程范围明确，浏览器点击未验 |
 | SEC-F2-02 | DONE | Gateway/MCP临时匿名原因/到期/生产风险和actor回显，保存重开及拒绝反馈；UI构建、表单/真实模板26/26，浏览器点击未验，见UI证据 |
 | SEC-F3-01 | DONE | [网络合同§4](./security-header-network-boundary-contract.md)冻结public/direct、限期例外、DNS/peer/TLS、safe-read及撤销；仅DOC |
@@ -232,3 +232,7 @@ C1-01已完成[合同](./upstream-credential-types-contract.md)与源码静态�
 F3-01合同及矩阵同步完成，C1-01/F3-01两项DOC已关闭；当前79DONE、12READY、1IN_PROGRESS、23WAIT_DEP、17NEED_ENV、1SCOPE_REVIEW、2DEFERRED，总量135。02B真实流继续推进，所有父包状态不变。
 
 02B完成，[证据](../audits/2026-09-21-header-wire-execution.md)含双向过滤、真实压缩/分块/取消/重复framing、提前响应/103、Expect入口和连接隔离；生产NOT_READY全部保留，02C READY。最终80DONE、13READY、22WAIT_DEP、17NEED_ENV、1SCOPE_REVIEW、2DEFERRED、0IN_PROGRESS，总量135。两个DOC已分别推送f592deb/e3dd364；本代码包随本记录提交推送。
+
+## 2026-09-22 凭据类型与缓存批次
+
+C1-02及父包C1已按[原出口证据](../audits/2026-09-22-credential-types-scope.md)闭合，F1-02已READY。没有增加叶子；当前81DONE/135，02C缓存接线继续收尾。

@@ -661,7 +661,7 @@ export class OpenAPIToMCPTransformer {
       // 1. 构建请求 URL
       const { url, queryParams } = this.buildUrlWithParams(path, args, operation);
       // Authorize before custom header providers or any HTTP transport work.
-      const upstreamCredentials = await this.upstreamCredentials?.resolve(trustedBinding, url);
+      const upstreamCredentials = await this.upstreamCredentials?.resolve(trustedBinding, url, method.toUpperCase());
 
       // 2. 准备请求头（默认头）
       const headers = { ...this.options.defaultHeaders };

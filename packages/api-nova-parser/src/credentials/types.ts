@@ -9,9 +9,30 @@ export type UpstreamSecretProviderDescription =
   | { readonly type: 'env' }
   | { readonly type: 'file'; readonly root: string; readonly requireOwnerOnly: true };
 
-export type UpstreamCredentialDescription =
+export interface UpstreamCredentialConstraints {
+  readonly enabled?: boolean;
+  readonly notBefore?: string;
+  readonly expiresAt?: string;
+  readonly environment?: string;
+  readonly allowedHosts?: readonly string[];
+  readonly endpointDefinitionIds?: readonly string[];
+  readonly methods?: readonly string[];
+}
+export type UpstreamCredentialDescription = UpstreamCredentialConstraints & (
   | { readonly type: 'apiKey'; readonly placement: { readonly in: 'header'; readonly name: string }; readonly secretRef: string }
-  | { readonly type: 'bearer'; readonly secretRef: string };
+  | { readonly type: 'bearer'; readonly secretRef: string }
+  | { readonly type: 'basic'; readonly usernameRef: string; readonly passwordRef: string }
+  | { readonly type: 'customHeader'; readonly name: string; readonly secretRef: string }
+);
+/** One authoritative managed name; unknown runtime objects never default to an API key. */
+export function upstreamCredentialHeaderName(credential: UpstreamCredentialDescription): string {
+  switch (credential.type) {
+    case 'bearer': case 'basic': return 'authorization';
+    case 'apiKey': return credential.placement.name;
+    case 'customHeader': return credential.name;
+    default: throw new Error('UNSUPPORTED_CREDENTIAL_TYPE');
+  }
+}
 
 export type UpstreamEndpointCredentialOverride = {
   readonly headerPolicy?: HeaderPolicyV1;

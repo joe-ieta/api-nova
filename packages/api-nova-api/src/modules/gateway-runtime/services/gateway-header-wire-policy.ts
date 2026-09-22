@@ -129,7 +129,7 @@ export function filterGatewayResponseHeadersV1(input: RawHeaderInput & {
   policy: CompiledHeaderPolicyV1; statusCode: number; requestMethod: string; managedHeaderNames?: readonly string[];
   consumerAuthenticationHeaderNames?: readonly string[]; historicalAuthenticationHeaderNames?: readonly string[];
 }): { headers: Record<string, string>; contentLength?: number; bodyAllowed: boolean;
-  cacheSignals: { setCookie: boolean; pragma: boolean; cacheControl?: string; vary?: string } } {
+  cacheSignals: { setCookie: boolean; pragma: boolean; cacheControl?: string; vary?: string; contentType?: string; age?: string } } {
   const fields = collect(input, 502);
   const frame = framing(fields, 502);
   if (!Number.isInteger(input.statusCode) || input.statusCode < 200 || input.statusCode > 599) fail(502, 'gateway_header_response_status');
@@ -138,5 +138,5 @@ export function filterGatewayResponseHeadersV1(input: RawHeaderInput & {
   const headers = filter(fields, input.policy.responseHeaders, responseLists, [...input.managedHeaderNames ?? [], ...input.consumerAuthenticationHeaderNames ?? [], ...input.historicalAuthenticationHeaderNames ?? []], 502);
   if (frame.contentLength !== undefined) headers['content-length'] = String(frame.contentLength);
   return { headers, contentLength: frame.contentLength, bodyAllowed: input.requestMethod.toUpperCase() !== 'HEAD' && ![204, 304].includes(input.statusCode),
-    cacheSignals: { setCookie: fields.has('set-cookie'), pragma: fields.has('pragma'), cacheControl: fields.get('cache-control')?.join(', '), vary: fields.get('vary')?.join(', ') } };
+    cacheSignals: { age: fields.get('age')?.join(', '), contentType: fields.get('content-type')?.join(', '), setCookie: fields.has('set-cookie'), pragma: fields.has('pragma'), cacheControl: fields.get('cache-control')?.join(', '), vary: fields.get('vary')?.join(', ') } };
 }

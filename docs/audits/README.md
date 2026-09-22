@@ -3,9 +3,9 @@
 > 2026-09-08: 数据库与持久化清理、43 表 PG/SQLite 空库及完整回归结果见 [本轮清理审查记录](./2026-09-08-persistence-cleanup.md)。旧报告中的 38/40 表与环境阻塞结论保留为历史证据。
 
 ---
-doc-version: 1.42.0
+doc-version: 1.43.0
 doc-status: active
-doc-updated: 2026-09-21
+doc-updated: 2026-09-22
 ---
 # ApiNova 审查报告索引
 
@@ -56,6 +56,8 @@ doc-updated: 2026-09-21
 本批证据：[锁定MCP Adapter协议边界验收](./2026-09-21-mcp-adapter-contract.md)。
 
 本批证据：[Header双向过滤与受控真实流执行](./2026-09-21-header-wire-execution.md)。
+
+本批证据：[四类上游凭据与生命周期作用域验收](./2026-09-22-credential-types-scope.md)。
 
 ## Purpose
 

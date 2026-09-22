@@ -1,15 +1,17 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
-doc-updated: 2026-09-21
+doc-updated: 2026-09-22
 ---
 # 上游凭据类型、生命周期与作用域合同
 
 本文完成 SEC-C1-01（DOC），固定 SEC-C1-02 的实施范围。依据[批准需求](./security-functional-requirements.md)、[安全设计](../reference/security-design-and-implementation.md)、[任务划分](./active-work-package-breakdown.md)，与[四态与发布门禁合同](./upstream-security-reconciliation-contract.md)及[Header 政策](./security-header-network-boundary-contract.md)共同使用。合同定稿不代表新增类型、生命周期或发布门禁已经实现；当前状态见[执行台账](./active-work-package-execution-status.md)。
 
+2026-09-22实施状态：C1-02已按[证据](../audits/2026-09-22-credential-types-scope.md)完成；下文“支持目标”保留为规范要求，第1节是实施前基线。F1/E1仍独立验收。
+
 本文只涉及服务所有者配置的上游凭据。消费者 API Key/JWT、临时匿名和 MCP Principal 不充当上游凭据；消费者认证通过后，才为该次调用解析 Secret。结构文件继续只保存引用，不新增 Secret 数据库、Provider、模板执行器或 OAuth 流程。
 
-## 1. 现有能力与缺口
+## 1. 实施前能力与缺口（2026-09-21基线）
 
 以下是 2026-09-21 对共享凭据模块的静态核对，不计为新增运行测试。
 

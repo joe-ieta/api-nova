@@ -18,12 +18,19 @@ import { ensureGatewayRequestId, gatewayAuditContext } from './gateway-audit-con
 import { GatewayRuntimeMetricsService } from './gateway-runtime-metrics.service';
 import { GatewayRequestCaptureService } from './gateway-request-capture.service';
 import { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
+import { GatewayHeaderCacheRequest } from '../types/gateway-cache.types';
 import { GatewayProxyResult } from '../types/gateway-proxy.types';
 import {
   GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER,
   type GatewayUpstreamCredentialHeaders,
   type GatewayUpstreamCredentialResolver,
 } from './gateway-upstream-credential-resolver';
+
+export type GatewayPreparedProxyRequest = {
+  url: URL;
+  credentials: GatewayUpstreamCredentialHeaders;
+  requestPolicy?: ReturnType<typeof filterGatewayRequestHeadersV1> & GatewayHeaderCacheRequest;
+};
 
 @Injectable()
 export class GatewayProxyEngineService {
@@ -37,27 +44,12 @@ export class GatewayProxyEngineService {
 
   async forward(
     resolvedRoute: GatewayResolvedRoute, req: Request, res: Response,
-    options?: { captureResponseBodyMaxBytes?: number; attemptIndex?: number; upstreamOperationId?: string },
+    options?: { captureResponseBodyMaxBytes?: number; attemptIndex?: number; upstreamOperationId?: string; preparedRequest?: GatewayPreparedProxyRequest },
   ): Promise<GatewayProxyResult & { targetUrl: string }> {
-    const url = new URL(this.buildTargetUrl(resolvedRoute.upstreamBaseUrl,
-      resolvedRoute.routeBinding.upstreamPath, req.originalUrl, resolvedRoute.params));
-    const consumerQueryKey = resolvedRoute.policies?.auth?.apiKeyQueryParamName;
-    if (consumerQueryKey) url.searchParams.delete(consumerQueryKey);
-    const credentials = await this.resolveCredentialHeaders(resolvedRoute, url);
+    const { url, credentials, requestPolicy } = options?.preparedRequest ?? await this.prepareRequest(resolvedRoute, req);
+    const policy = resolvedRoute.policies?.upstream?.compiledHeaderPolicy;
     const transport = url.protocol === 'https:' ? https : http;
     const timeoutMs = resolvedRoute.policies?.traffic?.timeoutMs ?? resolvedRoute.routeBinding.timeoutMs ?? 30000;
-    const policy = resolvedRoute.policies?.upstream?.compiledHeaderPolicy;
-    let requestPolicy: ReturnType<typeof filterGatewayRequestHeadersV1> | undefined;
-    try {
-      if (policy) requestPolicy = filterGatewayRequestHeadersV1({
-        policy, rawHeaders: req.rawHeaders, headers: req.headers, targetUrl: url,
-        peerAddress: req.socket?.remoteAddress, tls: (req.socket as any)?.encrypted === true,
-        requestId: this.ensureRequestId(req), managedHeaderNames: credentials.managedHeaderNames,
-        credentialHeaders: { ...credentials.headers },
-        consumerAuthenticationHeaderNames: resolvedRoute.policies.upstream.consumerAuthenticationHeaderNames,
-        historicalAuthenticationHeaderNames: resolvedRoute.policies.upstream.historicalAuthenticationHeaderNames,
-      });
-    } catch (error) { throw this.mapWireError(error); }
     const headers = requestPolicy?.headers ?? this.buildForwardHeaders(req.headers, url, req, credentials.headers, credentials.managedHeaderNames);
     const requestCapture = this.gatewayRequestCaptureService.createTracker(req.headers['content-type']);
     let upstreamReq: http.ClientRequest | undefined;
@@ -159,6 +151,7 @@ export class GatewayProxyEngineService {
           settled = true;
           resolve({
             statusCode: response.statusCode || 502, headers: normalizedHeaders,
+            headerCacheSignals: responsePolicy ? { ...responsePolicy.cacheSignals, policyIdentity: policy!.identity, credentialCacheIdentity: requestPolicy?.credentialCacheIdentity } : undefined,
             requestCapture: requestCapture.finalize(), responseCapture: responseCapture.finalize(),
             responseBodyBuffer: options?.captureResponseBodyMaxBytes && !overflow
               ? Buffer.concat(responseBodyChunks) : undefined,
@@ -228,6 +221,29 @@ export class GatewayProxyEngineService {
     }
   }
 
+  /** Resolve and validate before cache lookup; a miss reuses this single snapshot. */
+  async prepareRequest(resolvedRoute: GatewayResolvedRoute, req: Request): Promise<GatewayPreparedProxyRequest> {
+    const url = new URL(this.buildTargetUrl(resolvedRoute.upstreamBaseUrl,
+      resolvedRoute.routeBinding.upstreamPath, req.originalUrl, resolvedRoute.params));
+    const consumerQueryKey = resolvedRoute.policies?.auth?.apiKeyQueryParamName;
+    if (consumerQueryKey) url.searchParams.delete(consumerQueryKey);
+    const credentials = await this.resolveCredentialHeaders(resolvedRoute, url);
+    const policy = resolvedRoute.policies?.upstream?.compiledHeaderPolicy;
+    let requestPolicy: GatewayPreparedProxyRequest['requestPolicy'];
+    try {
+      if (policy) requestPolicy = filterGatewayRequestHeadersV1({
+        policy, rawHeaders: req.rawHeaders, headers: req.headers, targetUrl: url,
+        peerAddress: req.socket?.remoteAddress, tls: (req.socket as any)?.encrypted === true,
+        requestId: this.ensureRequestId(req), managedHeaderNames: credentials.managedHeaderNames,
+        credentialHeaders: { ...credentials.headers },
+        consumerAuthenticationHeaderNames: resolvedRoute.policies.upstream.consumerAuthenticationHeaderNames,
+        historicalAuthenticationHeaderNames: resolvedRoute.policies.upstream.historicalAuthenticationHeaderNames,
+      });
+    } catch (error) { throw this.mapWireError(error); }
+    if (requestPolicy) requestPolicy.credentialCacheIdentity = credentials.cacheIdentity;
+    return { url, credentials, requestPolicy };
+  }
+
   private auditDiscardedTrailers(route: GatewayResolvedRoute, req: Request, direction: 'request' | 'response'): void {
     void this.gatewayRuntimeMetricsService?.recordPolicyObservabilityEvent({
       runtimeAssetId: route.runtimeAsset.id, runtimeMembershipId: route.membership.id,
@@ -272,7 +288,7 @@ export class GatewayProxyEngineService {
       return Object.freeze({ headers, credentialHeaderNames: names, managedHeaderNames: names });
     }
     try {
-      return await this.upstreamCredentialResolver.resolve(resolvedRoute, url.toString());
+      return await this.upstreamCredentialResolver.resolve(resolvedRoute, url.toString(), resolvedRoute.routeBinding.upstreamMethod);
     } catch {
       throw new ServiceUnavailableException('gateway_upstream_credential_unavailable');
     }

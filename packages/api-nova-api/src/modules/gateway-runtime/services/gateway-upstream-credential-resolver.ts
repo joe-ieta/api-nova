@@ -1,5 +1,7 @@
+import { createHash, randomUUID } from 'node:crypto';
 import {
   resolveUpstreamCredential,
+  upstreamCredentialHeaderName,
   type UpstreamCredentialRegistrySnapshot,
 } from 'api-nova-parser';
 import { assertGatewayRegistryHeaderPolicyReady, compileGatewayHeaderPolicy } from './gateway-header-policy';
@@ -9,6 +11,7 @@ export const GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER =
   Symbol('GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER');
 
 export interface GatewayUpstreamCredentialHeaders {
+  readonly cacheIdentity?: string;
   readonly headers: Readonly<Record<string, string>>;
   readonly credentialHeaderNames: readonly string[];
   readonly managedHeaderNames: readonly string[];
@@ -18,6 +21,7 @@ export interface GatewayUpstreamCredentialResolver {
   resolve(
     route: GatewayResolvedRoute,
     targetUrl: string,
+    requestMethod?: string,
   ): Promise<GatewayUpstreamCredentialHeaders>;
 }
 
@@ -31,10 +35,13 @@ export function createGatewayUpstreamCredentialResolver(
   if (typeof captureSnapshot !== 'function') {
     throw new Error('Gateway upstream credential snapshot provider is required');
   }
+  // Digests never leave this bounded closure; public cache keys only contain random epochs.
+  const materials = new Map<string, { digest: string; epoch: string }>();
   return Object.freeze({
     async resolve(
       route: GatewayResolvedRoute,
       targetUrl: string,
+      requestMethod?: string,
     ): Promise<GatewayUpstreamCredentialHeaders> {
       const snapshot = captureSnapshot();
       compileGatewayHeaderPolicy({ routeId: route.routeBinding?.id || 'unknown', inlinePolicy: route.routeBinding?.upstreamConfig?.headerPolicy, registryConfigured: true });
@@ -42,13 +49,25 @@ export function createGatewayUpstreamCredentialResolver(
       const resolution = await resolveUpstreamCredential(snapshot, {
         sourceServiceAssetId: route.sourceServiceAsset.id,
         url: targetUrl,
+        requestMethod,
         endpointDefinitionId: route.endpointDefinition.id,
       });
-      const managed = new Set<string>(['authorization']);
+      const managed = new Set<string>(['authorization', ...snapshot.historicalAuthenticationHeaderNames ?? []]);
       for (const credential of Object.values(snapshot.candidate.credentials)) {
-        if (credential.type === 'apiKey') managed.add(credential.placement.name);
+        managed.add(upstreamCredentialHeaderName(credential));
+      }
+      const metadata = JSON.stringify([resolution.generation, resolution.revision, resolution.siteId, resolution.credentialId ?? null]);
+      let epoch: string | null = null;
+      if (resolution.mode === 'reference') {
+        const digest = createHash('sha256').update(JSON.stringify(Object.entries(resolution.headers).sort(([a], [b]) => a.localeCompare(b)))).digest('hex');
+        let material = materials.get(metadata);
+        if (!material || material.digest !== digest) material = { digest, epoch: randomUUID() };
+        materials.delete(metadata); materials.set(metadata, material);
+        if (materials.size > 256) materials.delete(materials.keys().next().value!);
+        epoch = material.epoch;
       }
       return Object.freeze({
+        cacheIdentity: JSON.stringify([metadata, epoch]),
         headers: resolution.headers,
         credentialHeaderNames: Object.freeze(Object.keys(resolution.headers)),
         managedHeaderNames: Object.freeze([...managed]),

@@ -1,7 +1,7 @@
 ---
-doc-version: 1.46.0
+doc-version: 1.47.0
 doc-status: active
-doc-updated: 2026-09-21
+doc-updated: 2026-09-22
 ---
 # ApiNova 安全开发执行与状态记录
 
@@ -16,7 +16,7 @@ doc-updated: 2026-09-21
 
 DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PROGRESS 包括已有子集和本轮开发，不意味着依赖已闭合；BACKLOG 为尚未实施完整任务的部分；READY 为可开始的明确切片；DEFERRED 为本里程碑之外。
 
-当前共 23 包：DONE=8、IN_PROGRESS=12、BACKLOG=2、DEFERRED=1。A2历史状态复核及本批B1/A3原退出条件已闭合。C1-C3 文件装载到 Gateway 激活已是经验证切片；IN_PROGRESS 的具体实现、剩余退出条件和依赖以第2节状态表及最新执行节为准，历史执行段落仅用于追溯。
+当前共 23 包：DONE=9、IN_PROGRESS=11、BACKLOG=2、DEFERRED=1。A2历史状态复核及本批B1/A3原退出条件已闭合。C1-C3 文件装载到 Gateway 激活已是经验证切片；IN_PROGRESS 的具体实现、剩余退出条件和依赖以第2节状态表及最新执行节为准，历史执行段落仅用于追溯。
 
 ## 2. 阶段任务包
 
@@ -30,7 +30,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-B1 | SEC-B01；A2 | DONE | 统一持久模型、协议/Route/Tool Scope、同Subject多Key轮换及跨Gateway/MCP下一请求撤销；动态CLI需主机显式database来源 |
 | TP-B2 | SEC-B02；A1 | DONE | 固定可信JWK/JWKS与issuer/audience已有；算法/必需claims/clock skew保存、启动、签名拒绝和SSE截止现已按原出口验收 |
 | TP-B3 | SEC-B03；B1/B2/E0 | DONE | 持久逐请求撤销、Session主体绑定、Tool过滤/二次授权及SDK通知边界均有证据；B1/B2/E0依赖闭合，不承诺权限广播或取消已接纳请求 |
-| TP-C1 | SEC-C01；A0 | IN_PROGRESS | 纯对象与 JSON/YAML loader 已实现，并经 C3 稳定文件读取激活到 Gateway；C1-01四类目标/生命周期/Scope合同已定稿，C1-02实现、安全对账与全链路验收仍待完成 |
+| TP-C1 | SEC-C01；A0 | DONE | 对象/JSON/YAML与四类型、生命周期/Scope、Site/Endpoint继承覆盖None及实际Method均已验；A0依赖闭合。F1对账及E1受管生产验收分别归原包，不倒挂为C1新增条件 |
 | TP-C2 | SEC-C02；C1 | IN_PROGRESS | Env/File Provider 已用于 Registry，Gateway 显式配置激活链已贯通；本机契约历史 53 项通过，真实 Linux 权限 30 场景待补证，Windows Secret File ACL已完成C2-02原生验收，Linux环境出口待验 |
 | TP-C3 | SEC-C03；C2 | IN_PROGRESS | Stable Read、manual及Watch/debounce、受权Reload/状态和代次冲突已验证；C3-01 Watch与C3-02 DB归属完成，C3-03多进程待验 |
 | TP-C4 | SEC-C04；C3 | IN_PROGRESS | Gateway与显式MCP single-hop Resolver已验证；SEC-C4-01验收真实受管child执行及Unresolved门禁，依赖E1/F1；网络政策主归F3，不在C4复制实现 |
@@ -39,7 +39,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-E0 | MCP Adapter；A0 | DONE | 锁定SDK1.29.0 Streamable/SSE/stdio方法/Header/错误/版本/Session原出口验收，60/60；不改变协议或宣称完整E2安全签收 |
 | TP-E1 | SEC-E01；B3/C4/E0 | IN_PROGRESS | 可信映射、管理侧装配/发布读取、跨源校验及旧候选guard已验；SEC-E1-01~04负责技术方案、真实child接线、argv秘密移除、端到端与运行中撤销；管理侧继续微修不替代出口 |
 | TP-E2 | SEC-E02；E1 | IN_PROGRESS | 安全 smoke/跨进程/传输专项有历史证据；当前完整安全矩阵、撤销/取消/重连和平台组合未完成 |
-| TP-F1 | SEC-F01；C4 | BACKLOG | F1-01四态/Binding/OR-AND合同已定稿；F1-02发布门禁尚未实现，等待C1-02类型支持，不把DOC计为功能闭合 |
+| TP-F1 | SEC-F01；C4 | BACKLOG | F1-01四态/Binding/OR-AND合同已定稿；F1-02发布门禁尚未实现，C1-02类型支持已完成，叶子F1-02 READY，不把DOC计为功能闭合 |
 | TP-F2 | SEC-F02；A3/B1/C3/F1 | IN_PROGRESS | F2-01分区/真实generation重载恢复与F2-02临时匿名UI均完成；父依赖C3/F1未闭合，MCP完整凭证编辑/浏览器点击不在本批签收 |
 | TP-F3 | SEC-F03；C4/D1/E1 | IN_PROGRESS | 拒绝审计/脱敏/发送边界已有；F3-01网络政策已冻结；业务上游 SSRF、CLI 秘密、生命周期审计和完整 Secret Scan 未完成 |
 | TP-F3a | 供应链治理；独立 | IN_PROGRESS | 旧依赖审计只是历史快照；当前可达性、补丁兼容和风险需重审，不自动 audit fix/重大升级 |
@@ -725,3 +725,7 @@ D2-02完成，见[组合证据](../audits/2026-09-21-layered-rate-limit-composit
 ## Header双向流执行（2026-09-21）
 
 [02B验收](../audits/2026-09-21-header-wire-execution.md)完成显式compiled路径真实执行：双向过滤、长度/压缩/分块、提前响应、取消及Expect入口边界。联合26套353项，追加后proxy21项与最终API构建通过；专项相互包含不相加。生产激活门禁保持、v1暂禁缓存、main尚未挂入口；02C READY，02D完成接线/迁移后方可启用。8DONE/12IN_PROGRESS/2BACKLOG/1DEFERRED父包计数不变。
+
+## 四类凭据实现与C1闭合（2026-09-22）
+
+[验收证据](../audits/2026-09-22-credential-types-scope.md)关闭C1-02，原SEC-C01与A0条件复核后TP-C1 DONE。Parser27套533项、API联合30套428项、Gateway/显式single-hop真实27项及准备32项均通过；这些计数重叠，不相加。最终API/Parser/Server构建通过；构建发现旧准备器单引用假设已补Basic双引用，没有启用生产IPC。F1-02 READY，父包安全9DONE/11IN_PROGRESS/2BACKLOG/1DEFERRED。

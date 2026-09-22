@@ -41,7 +41,7 @@ describe('TP-C1 pure upstream credential candidate', () => {
       metadata: { revision: 'orders-prod-1', environment: 'production' } });
     expect(result.sites[0].match).toEqual({ scheme: 'https', host: 'orders.example', port: 443, basePath: '/api' });
     expect(result.credentials.service).toMatchObject({ placement: { in: 'header', name: 'x-api-key' } });
-    expect(result.credentials.admin).toEqual({ type: 'bearer', secretRef: 'local:orders/admin-token' });
+    expect(result.credentials.admin).toEqual({ type: 'bearer', secretRef: 'local:orders/admin-token', enabled: true, environment: 'production' });
     frozen(result);
   });
   it('returns a fully independent candidate and works on frozen input', () => {
@@ -70,7 +70,7 @@ describe('TP-C1 pure upstream credential candidate', () => {
   it('accepts null-prototype data and does not consult provider availability', () => {
     const raw = Object.assign(Object.create(null), input());
     raw.credentials.service.secretRef = 'processEnv:NOT_READ_BY_THIS_VALIDATOR';
-    expect(validate(raw).credentials.service.secretRef).toBe('processEnv:NOT_READ_BY_THIS_VALIDATOR');
+    expect(validate(raw).credentials.service).toMatchObject({secretRef: 'processEnv:NOT_READ_BY_THIS_VALIDATOR'});
   });
   it.each([null, undefined, 1, true, [], 'apiVersion: security.apinova.io/v1', '{"apiVersion":"security.apinova.io/v1"}'])
     ('rejects non-object and unparsed text input %#', value => rejected(value));
@@ -151,11 +151,11 @@ describe('TP-C1 pure upstream credential candidate', () => {
     }
   });
   it('rejects duplicate normalized allowed hosts', () => { const raw = input(); raw.sites[0].allowedHosts.push('ORDERS.EXAMPLE.'); rejected(raw, 'DUPLICATE_SELECTOR'); });
-  it.each(['X-API-Key', 'Authorization', 'X!Vendor', 'x_vendor.token'])('accepts safe header %s', name => {
+  it.each(['X-API-Key', 'X!Vendor', 'x_vendor.token'])('accepts safe header %s', name => {
     const raw = input(); raw.credentials.service.placement.name = name;
     expect(validate(raw).credentials.service).toMatchObject({ placement: { name: name.toLowerCase() } });
   });
-  it.each(['', 'Host', 'Content-Length', 'Connection', 'Proxy-Authorization', 'Cookie', 'Set-Cookie', 'Transfer-Encoding',
+  it.each(['', 'Authorization', 'Host', 'Content-Length', 'Connection', 'Proxy-Authorization', 'Cookie', 'Set-Cookie', 'Transfer-Encoding',
     'bad header', 'X-Test\r\nInjected', 'X-Test:evil'])('rejects forbidden or malformed header %#', name => {
       const raw = input(); raw.credentials.service.placement.name = name; rejected(raw);
     });
@@ -166,7 +166,7 @@ describe('TP-C1 pure upstream credential candidate', () => {
       const inline = input(); inline.metadata.environment = environment; inline.credentials.admin[field] = 'private-marker'; rejected(inline, 'UNKNOWN_FIELD');
     }
   });
-  it.each(['basic', 'customHeader', 'query', 'oauth2', 'inline'])('rejects unsupported credential type %s', type => {
+  it.each(['digest', 'cookie', 'query', 'oauth2', 'inline'])('rejects unsupported credential type %s', type => {
     const raw = input(); raw.credentials.admin.type = type; rejected(raw, 'UNSUPPORTED_CREDENTIAL_TYPE');
   });
   it('rejects query API keys and external secret providers', () => {

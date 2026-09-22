@@ -100,7 +100,7 @@ describe('UpstreamCredentialRegistry atomic in-memory contract', () => {
     input.credentials.token.secretRef = 'memory:OTHER_TOKEN';
     input.sites[0].allowedHosts.push('other.example.invalid');
     expect(snapshot.candidate.metadata.revision).toBe('r1');
-    expect(snapshot.candidate.credentials.token.secretRef).toBe('memory:FIRST_TOKEN');
+    expect(snapshot.candidate.credentials.token).toMatchObject({ secretRef: 'memory:FIRST_TOKEN' });
     expect(snapshot.candidate.sites[0].allowedHosts).toEqual(['api.example.invalid']);
     expect(JSON.stringify(snapshot)).not.toContain(privateMarker);
     expect(() => Object.assign(snapshot.candidate.metadata, { revision: 'changed' })).toThrow();

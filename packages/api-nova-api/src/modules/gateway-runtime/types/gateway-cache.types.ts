@@ -1,4 +1,5 @@
 export type GatewayCacheEntry = {
+  headerPolicyIdentity?: string;
   key: string;
   runtimeAssetId: string;
   routeBindingId: string;
@@ -25,3 +26,12 @@ export type GatewayCacheLookupResult =
       hit: true;
       entry: GatewayCacheEntry;
     };
+
+/** Validated outbound business values, never credential values. */
+export type GatewayHeaderCacheRequest = {
+  normalizedRequestHeaders: Record<string, string>;
+  cacheBypass: boolean;
+  contentLength?: number;
+  chunked: boolean;
+  credentialCacheIdentity?: string;
+};

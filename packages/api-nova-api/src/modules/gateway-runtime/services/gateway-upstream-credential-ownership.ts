@@ -11,6 +11,22 @@ export async function validateGatewayCredentialOwnership(
     const sources = manager.getRepository(SourceServiceAssetEntity);
     const endpoints = manager.getRepository(EndpointDefinitionEntity);
     const verifiedSources = new Set<string>();
+    const credentialSources = new Map<string, Set<string>>();
+    for (const site of candidate.sites) {
+      for (const selection of [site.credential, ...site.endpoints.map(endpoint => endpoint.credential)]) {
+        if (selection.mode !== 'reference') continue;
+        const owners = credentialSources.get(selection.credentialId) ?? new Set<string>();
+        owners.add(site.sourceServiceAssetId); credentialSources.set(selection.credentialId, owners);
+      }
+    }
+    for (const [id, credential] of Object.entries(candidate.credentials)) {
+      const owners = credentialSources.get(id);
+      for (const endpointId of credential.endpointDefinitionIds ?? []) {
+        const endpoint = await endpoints.findOne({ where: { id: endpointId }, select: { id: true, sourceServiceAssetId: true } });
+        // Unreferenced presets require existing IDs; binding later establishes the source intersection.
+        if (!endpoint || (owners?.size && !owners.has(endpoint.sourceServiceAssetId))) throw new Error('asset_ownership_rejected');
+      }
+    }
     for (const site of candidate.sites) {
       if (!verifiedSources.has(site.sourceServiceAssetId)) {
         if (!await sources.exist({ where: { id: site.sourceServiceAssetId } })) {

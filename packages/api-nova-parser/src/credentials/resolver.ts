@@ -1,12 +1,13 @@
+import { basicCredentialHeader, checkedSingleCredentialSecret } from './secret-material';
 import type { UpstreamCredentialRegistrySnapshot } from './registry';
-import type { UpstreamCredentialSelection, UpstreamCredentialSite } from './types';
+import type { UpstreamCredentialDescription, UpstreamCredentialSelection, UpstreamCredentialSite } from './types';
 
 type ResolvedCredentialSelection = Exclude<UpstreamCredentialSelection, { readonly mode: 'inherit' }>;
 
 export type UpstreamCredentialResolverErrorCode =
   | 'INVALID_RESOLUTION_INPUT' | 'INVALID_TARGET_URL' | 'SITE_NOT_FOUND'
   | 'ENDPOINT_SELECTOR_AMBIGUOUS' | 'CREDENTIAL_POLICY_UNRESOLVED'
-  | 'CREDENTIAL_NOT_FOUND' | 'SECRET_RESOLUTION_FAILED';
+  | 'CREDENTIAL_NOT_FOUND' | 'SECRET_RESOLUTION_FAILED' | 'CREDENTIAL_INACTIVE' | 'SCOPE_MISMATCH' | 'UNSUPPORTED_CREDENTIAL_TYPE';
 
 export class UpstreamCredentialResolverError extends Error {
   constructor(public readonly code: UpstreamCredentialResolverErrorCode) {
@@ -21,6 +22,8 @@ export interface UpstreamCredentialResolveInput {
   readonly endpointDefinitionId?: string;
   readonly method?: string;
   readonly endpointPath?: string;
+  /** Actual outbound method, independent of fallback Endpoint selector. */
+  readonly requestMethod?: string;
 }
 
 export interface UpstreamCredentialResolution {
@@ -40,7 +43,7 @@ function readInput(input: UpstreamCredentialResolveInput): Record<string, unknow
   if (!input || typeof input !== 'object' || Array.isArray(input)) return reject('INVALID_RESOLUTION_INPUT');
   const prototype = Object.getPrototypeOf(input);
   if (prototype !== Object.prototype && prototype !== null) return reject('INVALID_RESOLUTION_INPUT');
-  const allowed = new Set(['sourceServiceAssetId', 'url', 'endpointDefinitionId', 'method', 'endpointPath']);
+  const allowed = new Set(['sourceServiceAssetId', 'url', 'endpointDefinitionId', 'method', 'endpointPath', 'requestMethod']);
   const result: Record<string, unknown> = Object.create(null);
   for (const key of Reflect.ownKeys(input)) {
     if (typeof key !== 'string' || !allowed.has(key)) return reject('INVALID_RESOLUTION_INPUT');
@@ -162,17 +165,35 @@ export async function resolveUpstreamCredential(
 
   const credential = snapshot.candidate.credentials[selection.credentialId];
   if (!credential) return reject('CREDENTIAL_NOT_FOUND');
-  let secret: string;
-  try { secret = await snapshot.resolveSecret(selection.credentialId); }
-  catch { return reject('SECRET_RESOLUTION_FAILED'); }
-  if (typeof secret !== 'string' || !secret || secret.trim() !== secret ||
-      Buffer.byteLength(secret, 'utf8') > 8192 || /[\u0000-\u001f\u007f]/u.test(secret)) {
-    return reject('SECRET_RESOLUTION_FAILED');
-  }
-
+  const checkConstraints = () => {
+    const now = Date.now();
+    if (credential.enabled === false || (credential.notBefore && now < Date.parse(credential.notBefore)) ||
+        (credential.expiresAt && now >= Date.parse(credential.expiresAt))) return reject('CREDENTIAL_INACTIVE');
+    if ((credential.environment && credential.environment !== snapshot.candidate.metadata.environment) ||
+        (credential.allowedHosts && !credential.allowedHosts.includes(requestTarget.host.replace(/^\[|\]$/g, ''))) ||
+        (credential.endpointDefinitionIds && (!input.endpointDefinitionId || !credential.endpointDefinitionIds.includes(String(input.endpointDefinitionId)))) ||
+        (credential.methods && (typeof input.requestMethod !== 'string' || !credential.methods.includes(input.requestMethod.toUpperCase())))) return reject('SCOPE_MISMATCH');
+  };
+  if (input.requestMethod !== undefined && (typeof input.requestMethod !== 'string' || !['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS', 'TRACE'].includes(input.requestMethod.toUpperCase()))) return reject('INVALID_RESOLUTION_INPUT');
+  checkConstraints();
   const headers: Record<string, string> = Object.create(null);
-  if (credential.type === 'bearer') headers.authorization = 'Bearer ' + secret;
-  else headers[credential.placement.name] = secret;
+  if (!['basic', 'bearer', 'apiKey', 'customHeader'].includes(credential.type)) return reject('UNSUPPORTED_CREDENTIAL_TYPE');
+  try {
+    if (credential.type === 'basic') {
+      if (!snapshot.resolveBasicSecret) return reject('SECRET_RESOLUTION_FAILED');
+      const pair = await snapshot.resolveBasicSecret(selection.credentialId);
+      headers.authorization = basicCredentialHeader(pair.username, pair.password);
+    } else {
+      const secret = checkedSingleCredentialSecret(await snapshot.resolveSecret(selection.credentialId), credential.type);
+      switch (credential.type) {
+        case 'bearer':
+          headers.authorization = 'Bearer ' + secret; break;
+        case 'apiKey': headers[credential.placement.name] = secret; break;
+        case 'customHeader': headers[credential.name] = secret; break;
+      }
+    }
+  } catch { return reject('SECRET_RESOLUTION_FAILED'); }
+  checkConstraints();
   return Object.freeze({
     ...metadata,
     mode: 'reference' as const,

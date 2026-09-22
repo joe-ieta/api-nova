@@ -140,3 +140,18 @@ test('persisted mode drift during Registry read fails closed',async()=>{
 for(const mode of [undefined,'jwt','anonymous','unknown']) test('approved runtime mode '+mode+' cannot disagree with persisted mode',async()=>{
  const original=config.get.bind(config);config.get=key=>key==='API_NOVA_RUNTIME_AUTH_MODE'?mode:original(key);await reject();
 });
+
+test('Basic preparation requires approval for both references without exposing either material', async () => {
+ registry.credentials.token={type:'basic',usernameRef:'env:FIXTURE_USER',passwordRef:'env:FIXTURE_PASSWORD'};
+ const get=config.get.bind(config);
+ config.get=key=>key==='FIXTURE_USER'?'synthetic-basic-user':key==='FIXTURE_PASSWORD'?'synthetic-basic-password':get(key);
+ const original=config.sources[id(1)].approvedEnvironmentNames;
+ config.sources[id(1)].approvedEnvironmentNames=[...original,'FIXTURE_USER','FIXTURE_PASSWORD'];
+ await saveRegistry();
+ const payload=await service.prepare(id(1),id(5));
+ assert.ok(!JSON.stringify(payload).includes('synthetic-basic-'));
+ for(const missing of ['FIXTURE_USER','FIXTURE_PASSWORD']) {
+  config.sources[id(1)].approvedEnvironmentNames=[...original,...['FIXTURE_USER','FIXTURE_PASSWORD'].filter(name=>name!==missing)];
+  await reject();
+ }
+});

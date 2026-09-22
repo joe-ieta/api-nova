@@ -148,8 +148,12 @@ export class ManagedMcpHandoffPreparationService {
         for (const endpoint of site.endpoints) if ('endpointDefinitionId' in endpoint && !first.bindings.some(binding => binding.endpointDefinitionId === endpoint.endpointDefinitionId && binding.sourceServiceAssetId === site.sourceServiceAssetId)) reject();
       }
       for (const credential of Object.values(candidate.credentials)) {
-        const [provider, key] = credential.secretRef.split(':');
-        if (candidate.secretProviders[provider].type === 'env' && !source.approvedEnvironmentNames.includes(key)) reject();
+        const references = credential.type === 'basic' ? [credential.usernameRef, credential.passwordRef] : [credential.secretRef];
+        for (const reference of references) {
+          const separator = reference.indexOf(':');
+          const provider = reference.slice(0, separator), key = reference.slice(separator + 1);
+          if (candidate.secretProviders[provider].type === 'env' && !source.approvedEnvironmentNames.includes(key)) reject();
+        }
       }
       const second = await this.snapshot(runtimeAssetId, serverId);
       if (serialized(first) !== serialized(second) || serialized(source) !== serialized(this.source(runtimeAssetId))) reject();
