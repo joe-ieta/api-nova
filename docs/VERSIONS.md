@@ -51,10 +51,10 @@
 | [额度中断恢复证据](./audits/2026-09-17-interruption-recovery-evidence.md) | 1.0.0 | active | 2026-09-17 |
 | [重拆第五批限定证据](./audits/2026-09-16-replanned-batch-5-evidence.md) | 1.0.0 | active | 2026-09-16 |
 | [端点测试二进制样例合同](./guides/endpoint-test-binary-sample-contract.md) | 0.8.0 | active | 2026-09-17 |
-| [活跃工作包划分](./guides/active-work-package-breakdown.md) | 1.86.0 | active | 2026-09-24 |
-| [安全交付验收证据索引](./guides/security-delivery-evidence-index.md) | 1.97.0 | active | 2026-09-24 |
+| [活跃工作包划分](./guides/active-work-package-breakdown.md) | 1.87.0 | active | 2026-09-24 |
+| [安全交付验收证据索引](./guides/security-delivery-evidence-index.md) | 1.98.0 | active | 2026-09-24 |
 | [MCP发布端点合同](./guides/mcp-publication-endpoint-contract.md) | 0.2.0 | active | 2026-09-21 |
-| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.145.0 | active | 2026-09-24 |
+| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.146.0 | active | 2026-09-24 |
 | [受管MCP启动交付设计](./guides/managed-mcp-credential-handoff-plan.md) | 0.4.0 | reviewed-slice | 2026-09-21 |
 | [候选激活与GC重试](./audits/2026-09-15-activation-gc-wave.md) | 1.0.0 | active | 2026-09-15 |
 | [上游归属交叉核验](./audits/2026-09-15-upstream-ownership-wave.md) | 1.0.0 | active | 2026-09-15 |
@@ -107,12 +107,12 @@
 
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
-| [安全任务计划](./guides/security-development-task-plan.md) | 1.92.0 | active | 2026-09-24 |
-| [安全执行状态](./guides/security-development-execution-status.md) | 1.121.0 | active | 2026-09-24 |
+| [安全任务计划](./guides/security-development-task-plan.md) | 1.93.0 | active | 2026-09-24 |
+| [安全执行状态](./guides/security-development-execution-status.md) | 1.122.0 | active | 2026-09-24 |
 | [安全功能需求](./guides/security-functional-requirements.md) | 1.1.0 | active | 2026-09-15 |
 | [安全设计](./reference/security-design-and-implementation.md) | 1.2.0 | active | 2026-09-14 |
 | [Gateway 文件激活](./guides/gateway-upstream-credential-file-activation.md) | 1.1.0 | active | 2026-09-14 |
-| [D1/F3 边界契约](./guides/security-header-network-boundary-contract.md) | 1.69.0 | active | 2026-09-24 |
+| [D1/F3 边界契约](./guides/security-header-network-boundary-contract.md) | 1.70.0 | active | 2026-09-24 |
 | [安全调用与日志审计](./guides/runtime-security-and-call-audit.md) | 1.2.0 | active | 2026-09-14 |
 | [安全验收用例](./testing/runtime-security-audit-cases.md) | 1.2.0 | active | 2026-09-14 |
 | [SEC-A1-01鉴权模式跨层矩阵](./testing/sec-a1-01-auth-mode-cross-layer-matrix.md) | 0.2.0 | validation-evidence | 2026-09-16 |

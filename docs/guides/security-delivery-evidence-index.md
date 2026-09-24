@@ -1,5 +1,5 @@
 ---
-doc-version: 1.97.0
+doc-version: 1.98.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -9,7 +9,9 @@ doc-updated: 2026-09-24
 > Contract: [安全任务规划](./security-development-task-plan.md)、[叶子任务划分](./active-work-package-breakdown.md)、[叶子状态](./active-work-package-execution-status.md)。
 > Last reconciled: 2026-09-24；索引按当前SEC叶子ID持续复核；后续拆分ID及当前状态以统一叶子台账为准。
 
-D2b3c2 限定 DONE：5份源码/测试文件完成私有品牌 host 与同一真实 issuer、固定 Snapshot/source/epoch 的一次性 consumeProof；协调器只接受 exact committed catalog、route 真对象与当前版本，逐 route 核对编译 policy 和 Registry Site 的 source/endpoint/origin。reload/removed、issuer/generation 终态先同步失效再 abort，不复用旧 proof；proof/策略到期关闭、clone/跨 source/epoch/错误 origin 拒绝。专项2 suites/20 tests、Gateway48 suites/707 tests、API build、diff-check通过；隔离PG41 warm+4 cold检查组（本叶新增27组）通过，schema零漂移且集群已停止/清理。SQL.js boot仍拒绝，仅以真实SQL.js路由负例验收；PG正向使用真实已迁移数据库，首次混用enum夹具和异步deployed等待失败均已修正为明确reload完成事件后复验。D2b3d解锁READY；生产DI/default-on、旧watch/admin、网络发送或外部目标部署未交付。
+D2b3c2 限定 DONE：5份源码/测试文件完成私有品牌 host 与同一真实 issuer、固定 Snapshot/source/epoch 的一次性 consumeProof；协调器只接受 exact committed catalog、route 真对象与当前版本，逐 route 核对编译 policy 和 Registry Site 的 source/endpoint/origin。reload/removed、issuer/generation 终态先同步失效再 abort，不复用旧 proof；proof/策略到期关闭、clone/跨 source/epoch/错误 origin 拒绝。专项2 suites/20 tests、Gateway48 suites/707 tests、API build、diff-check通过；隔离PG41 warm+4 cold检查组（本叶新增27组）通过，schema零漂移且集群已停止/清理。SQL.js boot仍拒绝，仅以真实SQL.js路由负例验收；PG正向使用真实已迁移数据库，首次混用enum夹具和异步deployed等待失败均已修正为明确reload完成事件后复验。D2b3d拆为d1限定DONE/d2 READY；生产DI/default-on、旧watch/admin、网络发送或外部目标部署未交付。
+
+D2b3d1 限定 DONE：品牌稳定facade把同bundle的Provider与私有Resolver成对原子swap，旧lease/pending固定旧pair，Proxy旧DI callback零调用；bundle/issuer撤销同步abort，proof到期必须host新proof显式重装。已保护runtimeAsset/route/scope保留有界墓碑，route+membership同时更换也不回落legacy；128保留pair超限拒绝，1024墓碑超限后本实例全局fail-closed且不驱逐，恢复需新受信host生命周期。4源码/测试文件、专项2 suites/9 tests、Gateway49 suites/711 tests、API build与diff-check通过；隔离PG53 warm+4 cold检查组（d1新增12组）通过，schema零漂移/重启/stop/cleanup完成。夹具先触发catalog容量、旧host策略拒绝与路由字典序fingerprint检查，均保留门禁并修正真实夹具后复验。未接RuntimeModule、生产DI/default-on、旧watch/admin；d2解锁READY，真实Nest/HTTP装配和外部环境另验。
 
 ## 证据口径和版本
 
@@ -134,7 +136,8 @@ D2b3c2 限定 DONE：5份源码/测试文件完成私有品牌 host 与同一真
 | SEC-F3-02C1d2b3b2 | [隔离PG启动器](../../packages/api-nova-api/scripts/test-isolated-postgres-host-credential-registry.cjs)、[实库验收worker](../../packages/api-nova-api/scripts/test-postgres-host-credential-registry.cjs) | **限定DONE**：本机原生PG16全新隔离集群完成14 warm+4 cold检查组，真实stop/restart与新进程冷开、同代多Provider/跨Provider Basic、坏配置/epoch/缺材料/伪proof拒绝、外部rollback隔离、双连接CAS/并发boot历史并集、revoke/close及schema零漂移均PASS；集群已停止/清理。首轮超时仅诊断记录。只证明本地隔离PG，外部目标部署/跨进程生产启用仍归F3D |
 | SEC-F3-02C1d2b3c1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：4个Gateway文件，新capture+catalog专项2 suites/19 tests、route snapshot 1 suite/27 tests、Gateway全量47 suites/687 tests、API typecheck/build及diff-check通过。exact current catalog对象与同次committed route引用原子关联并重核version/IDs/fingerprint；ID-only、克隆/旧snapshot拒绝，candidate/rollback零发布，stop/delete与迟到reload围栏已验。不构造网络许可、不接RuntimeModule。 |
 | SEC-F3-02C1d2b3c2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **DONE（限定）**：5份源码/测试完成exact-current route+品牌host/proof协调器，错误origin/复制/过期/重放拒绝；专项2套20项、Gateway48套707项、API build、隔离PG41 warm+4 cold检查组通过。未接生产DI/default-on，SQL.js boot仍拒绝。 |
-| SEC-F3-02C1d2b3d | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：D2b3c2已限定验收；显式default-off Nest/Gateway稳定provider装配及真实Nest/SQL.js/loopback验收待实现。外部Secret Manager、managed child、跨进程/E3b及目标环境另验。 |
+| SEC-F3-02C1d2b3d1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **DONE（限定）**：品牌facade与成对swap、旧lease固定/同步撤销及资产墓碑；专项2套9项、Gateway49套711项、API build、隔离PG53 warm+4 cold检查组通过。容量溢出实例fail-closed，无生产DI/default-on。 |
+| SEC-F3-02C1d2b3d2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：d1已限定验收，受控Nest DI/旧watch-admin冲突拒绝与真实HTTP联合验收待实现。 |
 | SEC-F3-02C1d3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off且缺providerEvidence永拒，WeakMap fixture不是生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭。 |
 | SEC-F3-02C1d4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2b3d/D3；普通reload固定、失败保旧及撤销/收窄/epoch变化/到期主动abort的本地真实联合验收；外部Secret Manager、多进程/E3b及目标环境另验。 |
 | SEC-F3-02C2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个独立Parser文件，专项30项及相邻5 suites/240 tests通过；source asset+精确method/path绑定Endpoint/target，未知、歧义、跨asset、scheme降级及非受信目标失败关闭。未接多跳状态机、真实发送或生产网络模式。 |

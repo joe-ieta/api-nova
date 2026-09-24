@@ -21,10 +21,10 @@ function candidate(name = 'X-Retired-Host', none = false) {
     credentials: none ? {} : { basic: { type: 'basic', usernameRef: 'first:USER', passwordRef: 'second:PASS' }, key: { type: 'apiKey', placement: { in: 'header', name }, secretRef: 'first:TOKEN' } },
     sites: [[sourceA, endpointA, 'a.example', 'basic'], [sourceB, endpointB, 'b.example', 'key']].map(([source, endpoint, host, credential], i) => ({ id: 'site' + i, sourceServiceAssetId: source, match: { scheme: 'https', host, port: 443, basePath: '/' }, allowedHosts: [host], credential: none ? 'none' : credential, endpoints: [{ endpointDefinitionId: endpoint }] })) };
 }
-function fixture(document = candidate(), missing = false) {
+function fixture(document = candidate(), missing = false, initial = 'old') {
   const store = createHostCredentialGenerationStore();
   const material = value => ({ providers: { first: { USER: 'user-' + value, TOKEN: 'token-' + value }, second: missing ? { OTHER: 'unused' } : { PASS: 'pass-' + value } }, expiresAt: Date.now() + 60000 });
-  const generation = store.activate(store.stage(material('old')), null), issuer = createRegistryProviderEvidence(store), controller = createGatewayHostCredentialGenerationCapability(issuer);
+  const generation = store.activate(store.stage(material(initial)), null), issuer = createRegistryProviderEvidence(store), controller = createGatewayHostCredentialGenerationCapability(issuer);
   dispose.push(() => { controller.close(); store.close(); });
   const input = { capability: controller.capability, text: JSON.stringify(document), format: 'json', environment: 'test', expectedGeneration: store.describe(generation).generationId };
   return { store, generation, issuer, controller, input, material, token: () => attest(input) };
@@ -43,6 +43,7 @@ async function main() {
       await db.getRepository('SourceServiceAssetEntity').save([{ id: sourceA, sourceKey: 'host-a' }, { id: sourceB, sourceKey: 'host-b' }]);
       await db.getRepository('EndpointDefinitionEntity').save([{ id: endpointA, sourceServiceAssetId: sourceA, method: 'GET', path: '/items' }, { id: endpointB, sourceServiceAssetId: sourceB, method: 'GET', path: '/items' }]);
       checks += await registrationChecks(db);
+      checks += await facadeChecks(db);
       const f = fixture(), module = await Test.createTestingModule({ providers: [{ provide: 'host', useFactory: () => boot(f.token(), db) }] }).compile();
       const host = module.get('host'); dispose.push(() => host.close()); const snapshot = host.captureSnapshot();
       assert.equal(host.readEpoch(sourceA), f.input.expectedGeneration); assert.equal(host.readEpoch(sourceB), f.input.expectedGeneration);
@@ -218,4 +219,110 @@ async function registrationChecks(pg) {
     }
     return count;
   } finally { service.onModuleDestroy(); }
+}
+async function facadeChecks(pg) {
+  const { createGatewayNetworkHostProviders } = require('../dist/src/modules/gateway-runtime/services/gateway-network-host.providers');
+  const { createGatewayNetworkRegistrationBundle: assemble } = require('../dist/src/modules/gateway-runtime/services/gateway-network-registration-coordinator');
+  const { assertGatewayTrustedNetworkProvider } = require('../dist/src/modules/gateway-runtime/services/gateway-trusted-network.provider');
+  const { createNetworkPolicyCompiler } = require('api-nova-parser');
+  const { GatewayRouteSnapshotEntity } = require('../dist/src/database/entities/gateway-route-snapshot.entity');
+  const { RuntimeAssetEntity, RuntimeAssetStatus, RuntimeAssetType } = require('../dist/src/database/entities/runtime-asset.entity');
+  const { GatewayRouteSnapshotService } = require('../dist/src/modules/gateway-runtime/services/gateway-route-snapshot.service');
+  const { GatewayPolicyService } = require('../dist/src/modules/gateway-runtime/services/gateway-policy.service');
+  const { GatewayRoutePathMatchMode } = require('../dist/src/database/entities/gateway-route-binding.entity');
+  let count = 0, facade;
+  const document = candidate(); document.sites.forEach(site => { site.headerPolicy = { version: 1 }; });
+  const left = fixture(document), right = fixture(document, false, 'next');
+  const host = await boot(left.token(), pg), nextHost = await boot(right.token(), pg); dispose.push(host.close, nextHost.close);
+  let policyHost = host;
+  const policies = new GatewayPolicyService({ captureSnapshot: () => policyHost.captureSnapshot() });
+  const runtimeId = '00000000-0000-0000-0000-000000000100';
+  const runtimeAsset = await pg.getRepository(RuntimeAssetEntity).save({ id: runtimeId, name: 'facade', type: RuntimeAssetType.GATEWAY_SERVICE, status: RuntimeAssetStatus.ACTIVE });
+  const service = new GatewayRouteSnapshotService(policies, {}, pg.getRepository(GatewayRouteSnapshotEntity), {}, {}, pg.getRepository(RuntimeAssetEntity), {}, {}, {});
+  const binding = { id: 'facade-route', endpointDefinitionId: endpointA, authPolicyRef: 'jwt-default', pathMatchMode: GatewayRoutePathMatchMode.EXACT, upstreamMethod: 'GET', upstreamPath: '/items', createdAt: new Date(), updatedAt: new Date(), upstreamConfig: { headerPolicyMigration: { version: 1, mode: 'v1', source: 'registry' } } };
+  const entries = [{ runtimeAsset, routeBinding: binding, membership: { id: 'facade-member', publicationRevision: 1 }, publishBinding: { id: 'facade-pub' }, sourceServiceAsset: { id: sourceA }, endpointDefinition: { id: endpointA }, sourceServiceInstance: { id: 'instance' }, normalizedRoutePath: '/facade', routeMethod: 'GET', upstreamBaseUrl: 'https://a.example', priorityScore: 1, policies: policies.compileForRoute(binding) }];
+  const fingerprint = service.fingerprintEntries(entries);
+  service.candidateSnapshots.set('facade-v1', { runtimeAssetId: runtimeId, entries, snapshotFingerprint: fingerprint, preparedAt: new Date() });
+  await pg.transaction(async manager => {
+    await service.activateCandidate('facade-v1', manager);
+    await manager.update(RuntimeAssetEntity, runtimeId, { metadata: { activeRevision: 'facade-v1', activeGatewaySnapshotFingerprint: fingerprint } });
+  });
+  // The earlier c2 fixture's independent asset is stopped in persistent state for this read model.
+  await pg.getRepository(RuntimeAssetEntity).update('00000000-0000-0000-0000-000000000099', { status: RuntimeAssetStatus.OFFLINE, metadata: {} });
+  await service.reload();
+  const route = service.resolve('localhost', 'GET', '/facade'); assert.ok(route);
+  const compiler = createNetworkPolicyCompiler({ deniedDestinations: [], loopback: 'deny' });
+  const policy = compiler.compile({ version: 1, id: 'facade-policy', revision: '1', sourceServiceAssetId: sourceA, siteId: 'site0', origin: 'https://a.example', mode: 'public', connection: 'direct' });
+  const installation = (active, ttlMs, routeService = service) => ({ compiler, servers: ['127.0.0.1:1'], bundle: assemble({ routes: routeService, capture: routeService.captureActiveRouteCatalog(routeService.readActiveRouteCatalog()), host: active, compiler, policies: [{ routeBindingId: 'facade-route', siteId: 'site0', policy }], proofs: [{ sourceServiceAssetId: sourceA, providerEpoch: active.readEpoch(sourceA), proof: active.issueProof(sourceA, ttlMs) }] }) });
+  let callbacks = 0;
+  const prepare = () => facade.provider.prepare(route, 'https://a.example/items', () => { callbacks++; throw new Error('unpaired resolver must not run'); }, { deadline: Date.now() + 5000 });
+  try {
+    assert.equal(createGatewayNetworkHostProviders(), null);
+    const first = installation(host); facade = createGatewayNetworkHostProviders(first); assertGatewayTrustedNetworkProvider(facade.provider); assert.throws(() => assertGatewayTrustedNetworkProvider({ ...facade.provider })); count++;
+    const provider = facade.provider, resolver = facade.resolver;
+    const oldPending = prepare();
+    const replacement = installation(nextHost); facade.install(replacement);
+    const old = await oldPending, fresh = await prepare();
+    assert.equal(provider, facade.provider); assert.equal(resolver, facade.resolver);
+    assert.equal(old.credentials.headers.authorization, 'Basic ' + Buffer.from('user-old:pass-old').toString('base64'));
+    assert.equal(fresh.credentials.headers.authorization, 'Basic ' + Buffer.from('user-next:pass-next').toString('base64'));
+    assert.equal(callbacks, 0); assert.throws(() => facade.install(replacement)); count++;
+    assert.throws(() => facade.install({ ...replacement, bundle: { ...replacement.bundle } }));
+    const afterBad = await prepare(); assert.equal(afterBad.credentials.headers.authorization, fresh.credentials.headers.authorization); facade.provider.close(afterBad.lease); count++;
+    host.close(); assert.equal(first.bundle.signal.aborted, true); assert.throws(() => policies.compileForRoute(binding));
+    await assert.rejects(provider.send(old.lease, {}));
+    const afterOldClose = await prepare(); assert.equal(afterOldClose.credentials.headers.authorization, fresh.credentials.headers.authorization); provider.close(afterOldClose.lease); count++;
+    right.store.revoke(right.generation); assert.equal(replacement.bundle.signal.aborted, true);
+    assert.equal(provider.requires(route), true); await assert.rejects(prepare()); await assert.rejects(provider.send(fresh.lease, {}));
+    assert.equal(provider.requires({ ...route, routeBinding: { ...route.routeBinding, id: 'new-id' } }), true); count++;
+    const recoveryFixture = fixture(document, false, 'recovered'), recovery = await boot(recoveryFixture.token(), pg); dispose.push(recovery.close); policyHost = recovery;
+    const short = installation(recovery, 30); facade.install(short);
+    await new Promise(resolve => { if (short.bundle.signal.aborted) resolve(); else short.bundle.signal.addEventListener('abort', resolve, { once: true }); });
+    assert.equal(provider.requires(route), true); await assert.rejects(prepare()); assert.throws(() => facade.install(short)); count++;
+    facade.install(installation(recovery)); const recovered = await prepare(); assert.match(recovered.credentials.headers.authorization, /^Basic /); provider.close(recovered.lease); count++;
+    let bounded; const boundedServices = [];
+    try {
+      for (let index = 0; index <= 128; index++) {
+        const boundedPolicies = new GatewayPolicyService({ captureSnapshot: () => recovery.captureSnapshot() });
+        const ownRoutes = new GatewayRouteSnapshotService(boundedPolicies, {}, pg.getRepository(GatewayRouteSnapshotEntity), {}, {}, pg.getRepository(RuntimeAssetEntity), {}, {}, {});
+        boundedServices.push(ownRoutes); await ownRoutes.reload();
+        const install = installation(recovery, undefined, ownRoutes);
+        if (index === 128) { assert.throws(() => bounded.install(install)); break; }
+        if (!bounded) bounded = createGatewayNetworkHostProviders(install); else bounded.install(install);
+        const ownRoute = ownRoutes.resolve('localhost', 'GET', '/facade');
+        const retained = await bounded.provider.prepare(ownRoute, 'https://a.example/items', () => { throw new Error('foreign callback'); }, { deadline: Date.now() + 20000 });
+        assert.ok(retained.lease);
+      }
+      assert.equal(bounded.provider.requires(route), true);
+      assert.ok((await bounded.resolver.resolve(boundedServices[127].resolve('localhost', 'GET', '/facade'), 'https://a.example/items', 'GET')).headers.authorization);
+      count++;
+    } finally { bounded?.close(); boundedServices.forEach(value => value.onModuleDestroy()); }
+    const explicit = await prepare(); provider.revoke('facade-route');
+    await assert.rejects(provider.send(explicit.lease, {})); assert.equal(provider.requires(route), true); await assert.rejects(prepare()); count++;
+    facade.install(installation(recovery));
+    // A committed catalog growth cannot evict prior protection when tombstone capacity is exceeded.
+    const grown = Array.from({ length: 1024 }, (_, index) => ({ ...entries[0], membership: { ...entries[0].membership, id: 'grown-member' }, routeBinding: { ...binding, id: 'grown-' + String(index).padStart(4, '0') }, normalizedRoutePath: '/grown-' + String(index).padStart(4, '0') }));
+    const growthFingerprint = service.fingerprintEntries(grown);
+    service.candidateSnapshots.set('facade-growth', { runtimeAssetId: runtimeId, entries: grown, snapshotFingerprint: growthFingerprint, preparedAt: new Date() });
+    await pg.transaction(async manager => {
+      await service.activateCandidate('facade-growth', manager);
+      await manager.update(RuntimeAssetEntity, runtimeId, { metadata: { activeRevision: 'facade-growth', activeGatewaySnapshotFingerprint: growthFingerprint } });
+    });
+    await service.reload();
+    const changedRoute = service.resolve('localhost', 'GET', '/grown-0000');
+    assert.ok(changedRoute); assert.notEqual(changedRoute.routeBinding.id, route.routeBinding.id); assert.notEqual(changedRoute.membership.id, route.membership.id);
+    assert.equal(provider.requires(changedRoute), true);
+    await assert.rejects(provider.prepare(changedRoute, 'https://a.example/items', () => { callbacks++; throw new Error('legacy fallback'); }, { deadline: Date.now() + 1000 }));
+    const growthBundle = assemble({ routes: service, capture: service.captureActiveRouteCatalog(service.readActiveRouteCatalog()), host: recovery, compiler,
+      policies: grown.map(value => ({ routeBindingId: value.routeBinding.id, siteId: 'site0', policy })),
+      proofs: [{ sourceServiceAssetId: sourceA, providerEpoch: recovery.readEpoch(sourceA), proof: recovery.issueProof(sourceA) }] });
+    assert.throws(() => facade.install({ compiler, servers: ['127.0.0.1:1'], bundle: growthBundle }));
+    assert.equal(provider.requires({ ...route, runtimeAsset: { ...route.runtimeAsset, id: 'unknown-after-capacity' }, routeBinding: { ...route.routeBinding, id: 'unknown' }, membership: { id: 'unknown' } }), true);
+    assert.equal(provider.requires(route), true); await assert.rejects(prepare()); count++;
+
+    service.handleSnapshotRefreshRequested({ reason: 'runtime_assets.gateway_stopped', runtimeAssetId: runtimeId });
+    assert.equal(provider.requires(route), true); await assert.rejects(prepare()); count++;
+    facade.close(); facade.close(); assert.equal(provider.requires(route), true); assert.equal(callbacks, 0); count++;
+    return count;
+  } finally { facade?.close(); service.onModuleDestroy(); }
 }

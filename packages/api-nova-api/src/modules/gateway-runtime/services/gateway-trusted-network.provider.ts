@@ -1,8 +1,9 @@
+import { inspectGatewayNetworkRegistrationBundle, type GatewayNetworkRegistrationBundle } from './gateway-network-registration-coordinator';
 import { BadGatewayException, GatewayTimeoutException, ServiceUnavailableException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { ControlledDnsError, createNetworkOperationAuthority, createNetworkPolicyCompiler, createPinnedHttpStreamTransport, type AuthorizedNetworkOperationContext, type NetworkOperationHandle, type NetworkOperationSelector, type CompiledNetworkPolicy, type UpstreamCredentialRegistrySnapshot, type PinnedHttpStreamRequest } from 'api-nova-parser';
 import type { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
-import { inspectGatewayCredentialProvenance, type GatewayUpstreamCredentialHeaders } from './gateway-upstream-credential-resolver';
+import { createGatewayUpstreamCredentialResolver, type GatewayUpstreamCredentialResolver, inspectGatewayCredentialProvenance, type GatewayUpstreamCredentialHeaders } from './gateway-upstream-credential-resolver';
 export const GATEWAY_TRUSTED_NETWORK_PROVIDER = Symbol('GATEWAY_TRUSTED_NETWORK_PROVIDER');
 export interface GatewayNetworkLease { readonly strict: true }
 type Authority = ReturnType<typeof createNetworkOperationAuthority>;
@@ -131,4 +132,112 @@ export function createGatewayTrustedNetworkProvider(input: {
     revoke(id: string) { const entry = entries.get(id); if (entry) { entry.active = false; authority.revoke(entry.route.sourceServiceAsset.id); } },
   });
   providers.add(provider); return provider;
+}
+export interface GatewayNetworkHostInstallation {
+  readonly bundle: GatewayNetworkRegistrationBundle;
+  readonly compiler: ReturnType<typeof createNetworkPolicyCompiler>;
+  readonly servers: readonly string[];
+  readonly ca?: string;
+}
+/** Stable host-owned facade. Installation is explicit and never renews a proof. */
+export function createGatewayTrustedNetworkFacade() {
+  type Pair = { provider: GatewayTrustedNetworkProvider; resolver: GatewayUpstreamCredentialResolver; check(): void; stop(): void; pending: number; leases: Set<GatewayNetworkLease>; retired: boolean };
+  let current: Pair | undefined, closed = false, quarantined = false;
+  const installed = new WeakSet<object>();
+  const pairs = new Set<Pair>(), routeIds = new Set<string>(), scopes = new Set<string>(), assetIds = new Set<string>();
+  const leases = new WeakMap<GatewayNetworkLease, { pair: Pair; inner: GatewayNetworkLease; closed: boolean; sent: boolean }>();
+  const scope = (route: GatewayResolvedRoute) => JSON.stringify([route.runtimeAsset.id, route.membership.id]);
+  const protectedRoute = (route: GatewayResolvedRoute) => quarantined || assetIds.has(route.runtimeAsset.id) || routeIds.has(route.routeBinding.id) || scopes.has(scope(route));
+  const reap = (pair: Pair) => { if (pair.retired && pair.pending === 0 && pair.leases.size === 0) { pair.stop(); pairs.delete(pair); } };
+  const closeLease = (lease: GatewayNetworkLease) => {
+    const item = leases.get(lease); if (!item || item.closed) return;
+    item.closed = true; item.pair.leases.delete(lease); item.pair.provider.close(item.inner); reap(item.pair);
+  };
+  const provider: GatewayTrustedNetworkProvider = Object.freeze({
+    requires: protectedRoute,
+    async prepare(route, url, _unpairedResolver, options) {
+      const pair = current;
+      if (closed || quarantined || !pair || !protectedRoute(route)) return unavailable();
+      pair.check(); pair.pending++;
+      try {
+        // The callback supplied by Proxy may reference another DI generation. Never use it.
+        const prepared = await pair.provider.prepare(route, url, () => pair.resolver.resolve(route, url, route.routeBinding.upstreamMethod), options);
+        try { pair.check(); } catch { pair.provider.close(prepared.lease); return unavailable(); }
+        const lease = Object.freeze({ strict: true as const });
+        leases.set(lease, { pair, inner: prepared.lease, closed: false, sent: false }); pair.leases.add(lease);
+        return { lease, credentials: prepared.credentials };
+      } finally { pair.pending--; reap(pair); }
+    },
+    async send(lease, request) {
+      const item = leases.get(lease);
+      if (!item || item.closed || item.sent) return denied(); item.sent = true;
+      try {
+        item.pair.check();
+        const response = await item.pair.provider.send(item.inner, request);
+        const completed = response.completed.finally(() => closeLease(lease)); void completed.catch(() => {});
+        return { ...response, completed };
+      } catch (error) { closeLease(lease); throw error; }
+    },
+    close: closeLease,
+    revoke(routeId) { for (const pair of [...pairs]) { pair.provider.revoke(routeId); } },
+  });
+  providers.add(provider);
+  const resolver: GatewayUpstreamCredentialResolver = Object.freeze({
+    headerPolicyEnabled: true,
+    resolve(route, url, method) {
+      const pair = current;
+      if (closed || quarantined || !pair || !protectedRoute(route)) return unavailable();
+      pair.check(); return pair.resolver.resolve(route, url, method);
+    },
+  });
+  return Object.freeze({ provider, resolver,
+    install(input: GatewayNetworkHostInstallation) {
+      if (closed || quarantined || pairs.size >= 128 || installed.has(input.bundle)) return unavailable();
+      const registrations = inspectGatewayNetworkRegistrationBundle(input.bundle);
+      const ids = new Set([...routeIds, ...registrations.map(value => value.captured.identity.routeBindingId)]);
+      const nextScopes = new Set([...scopes, ...registrations.map(value => scope({ ...value.captured.route, params: {} }))]);
+      const nextAssets = new Set([...assetIds, ...registrations.map(value => value.captured.identity.runtimeAssetId)]);
+      if (ids.size > 1024 || nextScopes.size > 1024 || nextAssets.size > 1024) {
+        // No eviction can make a previously protected or newly rejected asset fall back.
+        quarantined = true; current = undefined; for (const pair of [...pairs]) pair.stop(); return unavailable();
+      }
+      const snapshot = registrations[0]?.snapshot;
+      if (!snapshot || registrations.some(value => value.snapshot !== snapshot)) return unavailable();
+      let active = true;
+      const epoch = randomUUID(), bundle = input.bundle, compiler = input.compiler;
+      const check = () => {
+        if (!active || bundle.signal.aborted || inspectGatewayNetworkRegistrationBundle(bundle) !== registrations) return unavailable();
+      };
+      const ownResolver = createGatewayUpstreamCredentialResolver(() => { check(); return snapshot; }, { enableHeaderPolicy: true, requirePersistedV1: true });
+      const inner = createGatewayTrustedNetworkProvider({ compiler, servers: input.servers, ca: input.ca,
+        createOperationAuthority: capture => createNetworkOperationAuthority({ compiler,
+          readSecurityEpoch: source => { check(); if (!registrations.some(value => value.captured.route.sourceServiceAsset.id === source)) return unavailable(); return epoch; },
+          captureAuthorizedContext: (selector, signal) => {
+            check(); const registration = registrations.find(value => value.captured.route.sourceServiceAsset.id === selector.sourceServiceAssetId);
+            if (!registration) return unavailable(); return capture(selector, signal, registration.providerEpoch);
+          },
+        }),
+        registrations: registrations.map(value => ({ route: { ...value.captured.route, params: {} }, snapshot, siteId: value.siteId, policy: value.policy,
+          captureSnapshot: () => { check(); return snapshot; }, captureRouteBinding: () => { check(); return value.captured.route.routeBinding; } })),
+      });
+      const stop = () => {
+        if (!active) return; active = false;
+        bundle.signal.removeEventListener('abort', stop);
+        if (current === pair) current = undefined;
+        for (const value of registrations) inner.revoke(value.captured.identity.routeBindingId);
+        for (const lease of [...pair.leases]) closeLease(lease);
+        pair.retired = true; if (!pair.pending) pairs.delete(pair);
+      };
+      const pair: Pair = { provider: inner, resolver: ownResolver, check, stop, pending: 0, leases: new Set(), retired: false };
+      bundle.signal.addEventListener('abort', stop, { once: true });
+      try {
+        check(); // No await between final brand/epoch/capture check and the single pointer swap.
+        const previous = current;
+        ids.forEach(id => routeIds.add(id)); nextScopes.forEach(value => scopes.add(value)); nextAssets.forEach(id => assetIds.add(id));
+        installed.add(bundle); pairs.add(pair); current = pair;
+        if (previous) { previous.retired = true; reap(previous); }
+      } catch (error) { stop(); throw error; }
+    },
+    close() { if (closed) return; closed = true; current = undefined; for (const pair of [...pairs]) pair.stop(); },
+  });
 }

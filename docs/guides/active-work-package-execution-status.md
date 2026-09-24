@@ -1,22 +1,24 @@
 ---
-doc-version: 1.145.0
+doc-version: 1.146.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
 # 活跃子任务执行状态
 
-D2b3c2 限定 DONE：5份源码/测试文件完成私有品牌 host 与同一真实 issuer、固定 Snapshot/source/epoch 的一次性 consumeProof；协调器只接受 exact committed catalog、route 真对象与当前版本，逐 route 核对编译 policy 和 Registry Site 的 source/endpoint/origin。reload/removed、issuer/generation 终态先同步失效再 abort，不复用旧 proof；proof/策略到期关闭、clone/跨 source/epoch/错误 origin 拒绝。专项2 suites/20 tests、Gateway48 suites/707 tests、API build、diff-check通过；隔离PG41 warm+4 cold检查组（本叶新增27组）通过，schema零漂移且集群已停止/清理。SQL.js boot仍拒绝，仅以真实SQL.js路由负例验收；PG正向使用真实已迁移数据库，首次混用enum夹具和异步deployed等待失败均已修正为明确reload完成事件后复验。D2b3d解锁READY；生产DI/default-on、旧watch/admin、网络发送或外部目标部署未交付。
+D2b3c2 限定 DONE：5份源码/测试文件完成私有品牌 host 与同一真实 issuer、固定 Snapshot/source/epoch 的一次性 consumeProof；协调器只接受 exact committed catalog、route 真对象与当前版本，逐 route 核对编译 policy 和 Registry Site 的 source/endpoint/origin。reload/removed、issuer/generation 终态先同步失效再 abort，不复用旧 proof；proof/策略到期关闭、clone/跨 source/epoch/错误 origin 拒绝。专项2 suites/20 tests、Gateway48 suites/707 tests、API build、diff-check通过；隔离PG41 warm+4 cold检查组（本叶新增27组）通过，schema零漂移且集群已停止/清理。SQL.js boot仍拒绝，仅以真实SQL.js路由负例验收；PG正向使用真实已迁移数据库，首次混用enum夹具和异步deployed等待失败均已修正为明确reload完成事件后复验。D2b3d拆为d1限定DONE/d2 READY；生产DI/default-on、旧watch/admin、网络发送或外部目标部署未交付。
+
+D2b3d1 限定 DONE：品牌稳定facade把同bundle的Provider与私有Resolver成对原子swap，旧lease/pending固定旧pair，Proxy旧DI callback零调用；bundle/issuer撤销同步abort，proof到期必须host新proof显式重装。已保护runtimeAsset/route/scope保留有界墓碑，route+membership同时更换也不回落legacy；128保留pair超限拒绝，1024墓碑超限后本实例全局fail-closed且不驱逐，恢复需新受信host生命周期。4源码/测试文件、专项2 suites/9 tests、Gateway49 suites/711 tests、API build与diff-check通过；隔离PG53 warm+4 cold检查组（d1新增12组）通过，schema零漂移/重启/stop/cleanup完成。夹具先触发catalog容量、旧host策略拒绝与路由字典序fingerprint检查，均保留门禁并修正真实夹具后复验。未接RuntimeModule、生产DI/default-on、旧watch/admin；d2解锁READY，真实Nest/HTTP装配和外部环境另验。
 
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
 父包专项统计仍是OBS 11/4/1、SEC 10/12/0/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计21/16/1/1。它不表示全项目完成率。
 
-本次登记207个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
+本次登记208个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 149 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 150 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 13 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3b2本地隔离PG已限定完成，不外推生产启用 |
 | WAIT_DEP | 25 | 等待列明子任务/条件 |
@@ -137,9 +139,10 @@ D2b3c2 限定 DONE：5份源码/测试文件完成私有品牌 host 与同一真
 | SEC-F3-02C1d2b3b2 | DONE | 限定DONE：本机原生PG16全新隔离集群完成14 warm+4 cold检查组，真实stop/restart与新进程冷开、同代多Provider/跨Provider Basic、坏配置/epoch/缺材料/伪proof拒绝、外部rollback隔离、双连接CAS/并发boot历史并集、revoke/close及schema零漂移均PASS；集群已停止/清理。首轮超时仅诊断记录。只证明本地隔离PG，外部目标部署/跨进程生产启用仍归F3D |
 | SEC-F3-02C1d2b3c1 | DONE | 限定active-route原子捕获seam完成：4个Gateway文件，新capture+catalog专项2 suites/19 tests、route snapshot回归1 suite/27 tests、Gateway全量47 suites/687 tests、API typecheck/build及diff-check通过。只接受exact current catalog对象并关联同次committed route引用，重核version/IDs/fingerprint；ID-only、克隆/旧snapshot拒绝，candidate/rollback零发布，stop/delete使旧capture失效且迟到reload不复活。不构造网络许可、不接RuntimeModule |
 | SEC-F3-02C1d2b3c2 | DONE | exact committed capture + 品牌host同snapshot/source/epoch一次性proof；每route Site origin/compiled policy绑定，reload/removed/issuer终态同步abort。专项2套20项、Gateway48套707项、API build、隔离PG41 warm+4 cold检查组及零漂移通过；无生产DI/default-on |
-| SEC-F3-02C1d2b3d | READY | D2b3c2已限定验收；显式default-off Nest/Gateway稳定provider facade装配，证据全齐才原子swap并以真实Nest/SQL.js/loopback验收；外部Secret Manager、managed child、跨进程/E3b及目标环境仍未完成 |
+| SEC-F3-02C1d2b3d1 | DONE | 品牌facade/同bundle私有Resolver原子swap、旧lease固定pair与同步abort、资产级墓碑/128pair/1024墓碑超限拒绝。专项2套9项、Gateway49套711项、API build、隔离PG53 warm+4 cold检查组通过；无生产DI/default-on |
+| SEC-F3-02C1d2b3d2 | READY | d1已限定验收；受控可选Nest DI、旧env/file watch/admin冲突拒绝和真实Nest/PG/HTTP联合验收 |
 | SEC-F3-02C1d3 | DONE | 限定Parser host生命周期桥完成：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off，缺providerEvidence永拒，WeakMap fixture仅为进程内不可伪造测试能力而非生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭 |
-| SEC-F3-02C1d4 | WAIT_DEP | 等C1d2b3d/C1d3；真实本地Registry/HTTP/TLS覆盖普通reload固定、失败保旧及撤销/收窄/epoch变化/到期在DNS/连接/大流阶段主动abort，shutdown无遗留资源；外部Secret Manager、多进程/E3b及目标环境另验 |
+| SEC-F3-02C1d4 | WAIT_DEP | 等C1d2b3d2/C1d3；真实本地Registry/HTTP/TLS覆盖普通reload固定、失败保旧及撤销/收窄/epoch变化/到期在DNS/连接/大流阶段主动abort，shutdown无遗留资源；外部Secret Manager、多进程/E3b及目标环境另验 |
 | SEC-F3-02C2a | DONE | 限定纯目标目录完成：2个独立Parser文件，专项30项及相邻5 suites/240 tests通过；按source asset与精确method+path绑定Endpoint/target，未知、歧义、跨asset、scheme降级及非受信目标失败关闭。未接多跳状态机、真实发送或生产网络模式 |
 | SEC-F3-02C2b1 | DONE | 限定纯redirect chain state完成：2个network文件，专项63 tests、相邻5 suites/303 tests、统一Parser 44 suites/1077 tests、typecheck/build及diff-check通过；只接受显式safe-read空正文GET/HEAD，规范化Location/loop、最多5跳及一次性decision。纯模块不触网、不启用生产入口，默认仍single-hop |
 | SEC-F3-02C2b2a | DONE | 限定raw Location唯一证据纯模块完成：2个network文件、自身21 tests、相邻3 suites/115 tests、统一Parser 45 suites/1098 tests、typecheck/build、cleanup及diff-check通过；只读rawHeaders并拒绝零个/重复/折叠/歧义/访问器/超长值。不解析目标、不触网、不改默认single-hop |
