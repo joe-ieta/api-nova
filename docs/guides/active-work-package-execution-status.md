@@ -1,5 +1,5 @@
 ---
-doc-version: 1.107.0
+doc-version: 1.108.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -14,9 +14,9 @@ doc-updated: 2026-09-24
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 125 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 126 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 13 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | SEC-F3-02B3b Parser可信host桥正在实施 |
+| IN_PROGRESS | 0 | 当前无已登记实施中叶子；父包仍可保持IN_PROGRESS |
 | WAIT_DEP | 23 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -121,7 +121,7 @@ doc-updated: 2026-09-24
 | SEC-F3-02B1 | DONE | 限定受控DNS批准结果完成：真实UDP 26/26、Parser 31 suites/748 tests及typecheck/build通过；覆盖A/AAAA/CNAME有界全集、规范化去重、逐地址政策授权及混合/未分类/截断失败关闭。仅产出DNS批准结果，无上游socket、peer或TLS证据 |
 | SEC-F3-02B2 | DONE | 限定≤8MiB Buffer单跳transport primitive完成：31专项、Parser 32 suites/779 tests、typecheck/build通过；真实HTTP/TLS/peer/代理陷阱与Windows Node24已有证据。无Gateway/Transformer host接线、Readable/大体积流或逐跳撤销 |
 | SEC-F3-02B3a | DONE | 限定共享private verified connection与Readable stream完成：Parser 33 suites/817 tests、stream专项38、B2既有31及typecheck/build通过；真实24MiB双向、backpressure、授权前body零读取、peer/TLS/代理/取消/截断/early response/one-shot已验。首轮816/817为B1真实DNS后置复核50ms夹具负载失败，仅测试改为真实解析后受控时间，生产deadline不变；仍无Transformer/Gateway/child生产接线 |
-| SEC-F3-02B3b | IN_PROGRESS | Parser host-only可信Site/Registry与网络政策版本桥、bounded adapter已开工；默认不开生产网络模式，仅接受可信Snapshot与受限序列化输入，禁止legacy Axios/global Agent回退；父B3保持IN_PROGRESS |
+| SEC-F3-02B3b | DONE | 限定Parser host桥完成：7文件，Parser 34 suites/838 tests、专项21、typecheck/build及diff-check通过；真实Resolver绑定Site/generation/revision（含None），同Snapshot WeakMap host policy与最终序列化URL，bounded≤8MiB JSON/string/Buffer，默认网络模式off且F1零发送；Registry/DNS/HTTP/TLS及clone/reload/伪造/变异负测通过。生产Gateway/managed child、Provider撤销epoch及audit桥未接；父B3/F3保持IN_PROGRESS |
 | SEC-F3-02B3c | READY | B3a限定transport完成后解锁；下一步接Gateway可信route网络Provider/stream桥；完整网络身份与撤销闭合前禁用缓存且不启用生产路由；可与B3b并行，父B3/TP-F3保持IN_PROGRESS |
 | SEC-F3-02C | WAIT_DEP | 等B3b Parser host桥与B3c Gateway route桥；逐跳Site/Endpoint与凭据重建、整操作固定revision、safe-read、撤销/取消、缓存隔离和拒绝审计待实现，生产启用不得提前 |
 | SEC-F3-02D | WAIT_DEP | 等C；N01–N17 Gateway/Parser真实连接及Windows/Linux环境矩阵待验收 |

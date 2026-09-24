@@ -1,3 +1,4 @@
+import type { TrustedSingleHopNetworkExecution } from '../network/trusted-single-hop-network-execution';
 /**
  * Transformer type definitions
  */
@@ -244,6 +245,8 @@ export interface OperationFilter {
  * Transformer Options
  */
 export interface TransformerOptions {
+  /** Explicit host-created capability only; bounded single-hop, never inferred from OpenAPI or tool args. */
+  upstreamNetworkExecution?: TrustedSingleHopNetworkExecution;
   /** Trusted in-process identity registry; never populate this from untrusted OpenAPI x-* fields. */
   trustedOperationBindings?: readonly TrustedOperationBinding[];
   /** Standard HTTP handlers only; requires trustedOperationBindings, replaces legacy auth, returns redirects without following. */

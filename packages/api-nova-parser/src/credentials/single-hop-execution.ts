@@ -12,6 +12,7 @@ export class UpstreamCredentialExecutionError extends Error {
   constructor() { super('UPSTREAM_CREDENTIAL_UNAVAILABLE'); this.name = 'UpstreamCredentialExecutionError'; }
 }
 export interface ResolvedSingleHopCredentials {
+  readonly siteId: string; readonly generation: number; readonly revision: string;
   readonly headers: Readonly<Record<string, string>>;
   readonly managedHeaderNames: readonly string[];
 }
@@ -37,7 +38,7 @@ export function compileSingleHopUpstreamCredentials(policy: SingleHopUpstreamCre
         for (const credential of Object.values(snapshot.candidate.credentials)) {
           managed.add(upstreamCredentialHeaderName(credential));
         }
-        return Object.freeze({ headers: resolution.headers, managedHeaderNames: Object.freeze([...managed]) });
+        return Object.freeze({ siteId: resolution.siteId, generation: resolution.generation, revision: resolution.revision, headers: resolution.headers, managedHeaderNames: Object.freeze([...managed]) });
       } catch { throw new UpstreamCredentialExecutionError(); }
     },
   });

@@ -1,3 +1,6 @@
+import { assertTrustedSingleHopNetworkExecution, TrustedSingleHopNetworkExecution } from '../network/trusted-single-hop-network-execution';
+import { serializeBoundedNetworkRequest, decodeBoundedNetworkResponse } from '../network/bounded-network-serialization';
+import { ControlledDnsError } from '../network/controlled-dns';
 import { normalizeUpstreamSecurity, reconcileUpstreamSecurity } from '../security/upstream-security-reconciliation';
 import { compileSingleHopUpstreamCredentials, UpstreamCredentialExecutionError } from '../credentials/single-hop-execution';
 import { compileTrustedOperationBindings, CompiledTrustedOperationBindings, TrustedOperationBinding } from '../credentials/trusted-operation-bindings';
@@ -80,7 +83,7 @@ function createResourceLink(uri: string, name?: string, description?: string, mi
  */
 export class OpenAPIToMCPTransformer {
   private spec: OpenAPISpec;
-  private options: Required<Omit<TransformerOptions, 'authConfig' | 'customHeaders' | 'debugHeaders' | 'protectedHeaders' | 'operationFilter' | 'sourceOrigin' | 'trustedOperationBindings' | 'upstreamCredentialPolicy'>> & {
+  private options: Required<Omit<TransformerOptions, 'authConfig' | 'customHeaders' | 'debugHeaders' | 'protectedHeaders' | 'operationFilter' | 'sourceOrigin' | 'trustedOperationBindings' | 'upstreamCredentialPolicy' | 'upstreamNetworkExecution'>> & {
     authConfig?: AuthConfig;
     customHeaders?: TransformerOptions['customHeaders'];
     debugHeaders?: boolean;
@@ -90,6 +93,7 @@ export class OpenAPIToMCPTransformer {
   };
   private trustedBindings?: CompiledTrustedOperationBindings;
   private upstreamCredentials?: ReturnType<typeof compileSingleHopUpstreamCredentials>;
+  private upstreamNetworkExecution?: TrustedSingleHopNetworkExecution;
   private upstreamHttpClient?: ReturnType<typeof axios.create>;
   private annotationExtractor: SchemaAnnotationExtractor;
   private authManager?: AuthManager;
@@ -113,6 +117,10 @@ export class OpenAPIToMCPTransformer {
       delete this.upstreamHttpClient.defaults.proxy;
       delete this.upstreamHttpClient.defaults.params;
       delete this.upstreamHttpClient.defaults.baseURL;
+    }
+    if (options.upstreamNetworkExecution !== undefined) {
+      assertTrustedSingleHopNetworkExecution(options.upstreamNetworkExecution, options.upstreamCredentialPolicy);
+      this.upstreamNetworkExecution = options.upstreamNetworkExecution;
     }
     const resolvedBaseUrl = options.baseUrl || this.getDefaultBaseUrl(options.sourceOrigin);
     this.options = {
@@ -673,7 +681,10 @@ export class OpenAPIToMCPTransformer {
       // 1. 构建请求 URL
       const { url, queryParams } = this.buildUrlWithParams(path, args, operation);
       // Authorize before custom header providers or any HTTP transport work.
-      const upstreamCredentials = await this.upstreamCredentials?.resolve(trustedBinding, url, method.toUpperCase());
+      const bounded = this.upstreamNetworkExecution
+        ? serializeBoundedNetworkRequest(url, queryParams, this.buildRequestBody(args, operation)) : undefined;
+      const networkPlan = bounded ? await this.upstreamNetworkExecution!.prepare(trustedBinding, bounded, Date.now() + this.options.requestTimeout) : undefined;
+      const upstreamCredentials = networkPlan?.credentials ?? await this.upstreamCredentials?.resolve(trustedBinding, url, method.toUpperCase());
 
       // 2. 准备请求头（默认头）
       const headers = { ...this.options.defaultHeaders };
@@ -720,7 +731,7 @@ export class OpenAPIToMCPTransformer {
 
       // 5. 准备请求体
       const requestBody = this.buildRequestBody(args, operation);
-      if (context) {
+      if (context && !this.upstreamNetworkExecution) {
         headers['x-request-id'] = context.requestId;
         auditAgents = createRuntimeHttpAuditAgents({ ...context,
           runtimeAssetId: (operation as any)['x-runtime-asset-id'] || context.runtimeAssetId,
@@ -740,6 +751,14 @@ export class OpenAPIToMCPTransformer {
         parserDebugLog(`[${method.toUpperCase()} ${path}] Final headers:`, redactAuditHeaders(headers, credentialNames));
       }
       
+      // Host-only bounded branch bypasses Axios defaults, env auth and implicit redirects.
+      // Existing audit Agents cannot be injected here; lifecycle audit wiring remains a separate host task.
+      if (networkPlan) {
+        const result = await this.upstreamNetworkExecution!.send(networkPlan, headers);
+        const data = decodeBoundedNetworkResponse(result);
+        return this.formatHttpResponse({ status: result.statusCode, statusText: '', headers: result.headers, data,
+          config: { url: bounded!.url } } as AxiosResponse, method, path, operation);
+      }
       // 7. 执行 HTTP 请求
       const response = await (this.upstreamHttpClient || axios)({
         method: method.toLowerCase() as any, url, params: queryParams, data: requestBody, headers,
@@ -755,7 +774,7 @@ export class OpenAPIToMCPTransformer {
     } catch (error) {
       // 7. 错误处理
       if (this.upstreamCredentials) {
-        const code = error instanceof UpstreamCredentialExecutionError ? 'UPSTREAM_CREDENTIAL_UNAVAILABLE' : 'UPSTREAM_REQUEST_FAILED';
+        const code = error instanceof ControlledDnsError ? error.code : error instanceof UpstreamCredentialExecutionError ? 'UPSTREAM_CREDENTIAL_UNAVAILABLE' : 'UPSTREAM_REQUEST_FAILED';
         return { content: [createTextContent(code, { errorType: 'upstream_execution_error', code })], isError: true };
       }
       return this.handleRequestError(error, method, path);
