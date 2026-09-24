@@ -1,5 +1,5 @@
 ---
-doc-version: 1.95.0
+doc-version: 1.96.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -129,9 +129,9 @@ doc-updated: 2026-09-24
 | SEC-F3-02C1d2b2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：3个credentials文件、专用26 tests、相邻5 suites/99 tests、Parser 46 suites/1124 tests、typecheck/build、cleanup及diff-check全绿；仅host-owned内存generation→真实Registry Snapshot→一次性source proof。无env/file自动捕获、Gateway生产装配、managed child或跨进程传播；首次TS7006失败保留历史并已完整复验。 |
 | SEC-F3-02C1d2b3a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个独立Gateway文件；最终Parser构建之上专项1 suite/5 tests、API typecheck/build及diff-check通过。创建端以Parser私有品牌校验真实issuer，克隆/代理/结构伪造和重复wrapper均拒绝；一次性consume，close先同步失效再关闭issuer/abort，秘密不进入controller/error/JSON。缺失保持default-off，无request/config/env/file导入、RuntimeModule/Registry生产装配或生产启用。 |
 | SEC-F3-02C1d2b3b1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个独立Gateway文件，专项3 suites/44 tests、Gateway 46 suites/683 tests、API typecheck/build通过。真实复现SQL.js共享事务在CAS await期间介入并导致rollback历史误公开后，入口改为boot fail-closed；同代Snapshot/proof/epoch/readSignal与legacy隔离已验。PostgreSQL正向实库未测，不称生产持久ledger完整。 |
-| SEC-F3-02C1d2b3b2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **NEED_ENV**：真实PostgreSQL独立事务读、历史ledger CAS/rollback/reopen/并发及同generation proof待验；SQL.js fail-closed不能替代。 |
+| SEC-F3-02C1d2b3b2 | [隔离PG启动器](../../packages/api-nova-api/scripts/test-isolated-postgres-host-credential-registry.cjs)、[实库验收worker](../../packages/api-nova-api/scripts/test-postgres-host-credential-registry.cjs) | **限定DONE**：本机原生PG16全新隔离集群完成14 warm+4 cold检查组，真实stop/restart与新进程冷开、同代多Provider/跨Provider Basic、坏配置/epoch/缺材料/伪proof拒绝、外部rollback隔离、双连接CAS/并发boot历史并集、revoke/close及schema零漂移均PASS；集群已停止/清理。首轮超时仅诊断记录。只证明本地隔离PG，外部目标部署/跨进程生产启用仍归F3D |
 | SEC-F3-02C1d2b3c1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：4个Gateway文件，新capture+catalog专项2 suites/19 tests、route snapshot 1 suite/27 tests、Gateway全量47 suites/687 tests、API typecheck/build及diff-check通过。exact current catalog对象与同次committed route引用原子关联并重核version/IDs/fingerprint；ID-only、克隆/旧snapshot拒绝，candidate/rollback零发布，stop/delete与迟到reload围栏已验。不构造网络许可、不接RuntimeModule。 |
-| SEC-F3-02C1d2b3c2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖c1与D2b3b2真实PostgreSQL持久ledger验收；可信registration构造/替换及reload/removed同步撤销待实现。 |
+| SEC-F3-02C1d2b3c2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：c1与D2b3b2本地PostgreSQL持久ledger已限定验收；可信registration构造/替换及reload/removed同步撤销待实现。 |
 | SEC-F3-02C1d2b3d | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2b3c2；显式default-off Nest/Gateway稳定provider装配及真实Nest/SQL.js/loopback验收待实现。外部Secret Manager、managed child、跨进程/E3b及目标环境另验。 |
 | SEC-F3-02C1d3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off且缺providerEvidence永拒，WeakMap fixture不是生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭。 |
 | SEC-F3-02C1d4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2b3d/D3；普通reload固定、失败保旧及撤销/收窄/epoch变化/到期主动abort的本地真实联合验收；外部Secret Manager、多进程/E3b及目标环境另验。 |
