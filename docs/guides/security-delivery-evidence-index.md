@@ -1,5 +1,5 @@
 ---
-doc-version: 1.71.0
+doc-version: 1.72.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -123,10 +123,11 @@ doc-updated: 2026-09-24
 | SEC-F3-02C1a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：新2文件/专项24，host-only opaque authority覆盖epoch/revoke同步abort、总deadline及有界容量；统一Parser 37 suites/907 tests及typecheck/build通过。未接运行时、宿主epoch或Provider事件桥。 |
 | SEC-F3-02C1b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：Parser host-only路径在Resolver/body前固定同一opaque handle、Snapshot、凭据、epoch及总deadline/abort；Parser 38 suites/925 tests、最终C1a+C1b定向2 suites/42 tests、typecheck/build及diff-check通过。生产默认关闭，真实Provider撤销事件桥和多进程传播未接。 |
 | SEC-F3-02C1c | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：4源码文件，Gateway 43 suites/649 tests、真实HTTP/TLS专项62/62、API build及diff-check通过；prepare/forward共享opaque handle、冻结Snapshot/凭据/epoch并贯通总deadline/abort，cache-off/单attempt保持。生产DI/watch/原子epoch及真实Provider事件桥未接，默认生产关闭。 |
-| SEC-F3-02C1d1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：建立host-owned单调security/provider epoch与Registry提交事件合同；普通reload不终止在途，撤销/收窄/epoch不可读/到期同步abort，禁止猜测provider epoch。 |
-| SEC-F3-02C1d2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D1；Gateway默认关闭的生产DI、Registry/route/Provider事件桥和资源清理。 |
-| SEC-F3-02C1d3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D1；Parser host-only真实execution/lifecycle桥，不含managed child IPC或跨进程传播。 |
-| SEC-F3-02C1d4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2/D3；普通reload固定、失败保旧及撤销/收窄/epoch变化/到期主动abort的本地真实联合验收，多进程另验。 |
+| SEC-F3-02C1d1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：自身2 suites/16 tests、Parser 41 suites/971 tests（含C2a）、typecheck/build及diff-check通过；建立host-owned、按source单调的security epoch与Registry提交事件合同。Gateway生产装配、active-route目录及外部Provider原子revision/event未接，生产默认关闭。 |
+| SEC-F3-02C1d2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **IN_PROGRESS**：可信committed ACTIVE route目录与生命周期事件正在实施；candidate/rollback不发布，stop/delete同步撤销，迟到reload不得复活，不含外部Provider原子revision/event。 |
+| SEC-F3-02C1d2b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D1/D2a/C1c；默认关闭的Gateway Registry/route/security epoch/Provider生产装配与资源清理。 |
+| SEC-F3-02C1d3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：D1/C1b依赖已闭合；Parser host-only真实execution/lifecycle桥，不含managed child IPC或跨进程传播。 |
+| SEC-F3-02C1d4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2b/D3；普通reload固定、失败保旧及撤销/收窄/epoch变化/到期主动abort的本地真实联合验收，多进程另验。 |
 | SEC-F3-02C2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个独立Parser文件，专项30项及相邻5 suites/240 tests通过；source asset+精确method/path绑定Endpoint/target，未知、歧义、跨asset、scheme降级及非受信目标失败关闭。未接多跳状态机、真实发送或生产网络模式。 |
 | SEC-F3-02C2b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：C2a限定目录完成后解锁；Parser safe-read多跳状态机、逐跳Endpoint/DNS/peer/TLS/凭据重建与真实HTTP/TLS接线仍待实施。 |
 | SEC-F3-02C3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C1d4；Gateway固定整操作生命周期、route/membership/Registry版本与deadline，撤销后旧epoch不得继续。 |
@@ -137,7 +138,7 @@ doc-updated: 2026-09-24
 | SEC-F3-02D | [网络边界合同§4.6及N01–N17](./security-header-network-boundary-contract.md) | **待验收**：依赖C6；Gateway/Parser真实连接、生产默认启用及Windows/Linux矩阵未执行。 |
 | SEC-F3-03 | [安全用例](../testing/runtime-security-audit-cases.md)、[受管通道脚本](../../packages/api-nova-api/scripts/test-managed-mcp-channel.cjs) | **限定执行/待验收**：局部脱敏与 IPC 无 argv Secret 有证据；完整 argv/log/错误/快照 Secret Scan、创建/更新/撤销审计可检索依赖产品 E1。 |
 | SEC-F3a-01 | [安全台账 §6](./security-development-execution-status.md)、[锁文件](../../package-lock.json) | **历史执行/待验收**：2026-09-07 漏洞数已过时；当前可达性、在线公告、补丁/风险处置与签收无当前执行证据，不自动 audit fix。 |
-| SEC-F4-01 | 本索引及SEC当前叶子出口逐项映射 | **限定执行已完成/持续维护**：索引按当前99个SEC叶子或明确标注的聚合旧ID维护；ID/链接校验不改变技术父包状态，也不自动使 F4-02 READY。 |
+| SEC-F4-01 | 本索引及SEC当前叶子出口逐项映射 | **限定执行已完成/持续维护**：索引按当前103个SEC叶子或明确标注的聚合旧ID维护；ID/链接校验不改变技术父包状态，也不自动使 F4-02 READY。 |
 | SEC-F4-02 | [安全规划 §6/8](./security-development-task-plan.md)、[安全用例](../testing/runtime-security-audit-cases.md)、[发布准备清单](./release-readiness-checklist.md) | **待验收（环境）**：依赖 D2/E2/F1/F2/F3/F3a 的各自出口和目标环境授权；当前没有完整真实签收。 |
 
 ## 发布验收时必须补齐的证据包

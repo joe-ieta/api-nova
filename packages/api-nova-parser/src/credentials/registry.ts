@@ -1,3 +1,4 @@
+import { RegistrySecurityObservers, registrySecurityCommit, type RegistrySecurityCommitEvent, type RegistrySecuritySubscription } from './registry-security-events';
 import { checkedCredentialHeaderHistoryState, CREDENTIAL_HEADER_HISTORY_LIMIT, type CredentialHeaderHistoryBinding } from './credential-header-history';
 export type { CredentialHeaderHistoryStore, CredentialHeaderHistoryState, CredentialHeaderHistoryBinding } from './credential-header-history';
 import { upstreamCredentialHeaderName } from './types';
@@ -152,6 +153,11 @@ async function resolveBinding(binding: SecretBinding): Promise<string> {
  * An active snapshot stays available while a replacement undergoes dry resolution.
  */
 export class UpstreamCredentialRegistry {
+  private readonly securityObservers = new RegistrySecurityObservers();
+  /** Host-only synchronous notification after atomic activation. No initial replay. */
+  observeSecurityCommits(callback: (event: RegistrySecurityCommitEvent) => void): RegistrySecuritySubscription {
+    return this.securityObservers.subscribe(callback);
+  }
   private readonly environment: string;
   private readonly providerFactory: UpstreamSecretProviderFactory;
   private readonly validateCandidateOwnership?: UpstreamCredentialRegistryOptions['validateCandidateOwnership'];
@@ -418,6 +424,7 @@ export class UpstreamCredentialRegistry {
         return resolveBinding(binding);
       },
     });
+    const securityEvent = registrySecurityCommit(this.active, snapshot);
     // Durable CAS is the activation commit point. A watcher stopped before it
     // starts cancels; stopping during an accepted commit only stops future reloads.
     if (commitAllowed && !commitAllowed()) return reject('WATCH_STOPPED');
@@ -437,6 +444,7 @@ export class UpstreamCredentialRegistry {
     this.historicalAuthenticationHeaderNames = historicalNames;
     this.active = snapshot;
     this.lastReloadError = undefined;
+    this.securityObservers.publish(securityEvent);
     return snapshot;
   }
 }

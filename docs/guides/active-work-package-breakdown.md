@@ -1,5 +1,5 @@
 ---
-doc-version: 1.71.0
+doc-version: 1.72.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -155,9 +155,10 @@ SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F1/F2/F3/F
 | SEC-F3-02C1b | SEC-F3 | CODE | Parser操作Authority接线 | Parser host-only路径绑定C1a handle，在Resolver与body读取前冻结同一Snapshot/凭据/epoch，所有DNS/连接/流操作共享总deadline与abort；不允许body或序列化配置创建authority | SEC-F3-02C1a |
 | SEC-F3-02C1c | SEC-F3 | CODE | Gateway操作Authority接线 | Gateway可信route/Provider路径绑定C1a handle，Resolver/cache前冻结同一Snapshot/凭据/epoch与总deadline并把abort传入stream；不注册生产默认启用 | SEC-F3-02C1a |
 | SEC-F3-02C1d1 | SEC-F3 | CODE | Host安全Epoch与事件合同 | 提供host-owned、按source单调的security/provider epoch事件合同及Registry提交观察点；普通reload只影响新操作，显式撤销、安全收窄、epoch不可读与到期才同步abort；禁止从文件mtime、环境变量值或配置文本猜测可信epoch | SEC-F3-02C1b;SEC-F3-02C1c |
-| SEC-F3-02C1d2 | SEC-F3 | CODE | Gateway Registry/Route/Provider桥 | 在显式默认关闭的生产DI中，把Registry提交、route deployed/stopped/deleted与可信Provider事件映射到版本化注册和operation撤销；失败关闭并清理监听/定时器，不声称多进程传播 | SEC-F3-02C1d1;SEC-F3-02C1c |
+| SEC-F3-02C1d2a | SEC-F3 | CODE | 可信Active Route目录与生命周期事件 | 只发布已提交ACTIVE route的单调版本目录与生命周期事件；candidate/rollback不发布，stop/delete同步撤销，迟到reload不得复活；外部Provider原子revision/event另由D2b闭合 | SEC-F3-02C1c |
+| SEC-F3-02C1d2b | SEC-F3 | CODE | Gateway Registry/Route/Epoch/Provider装配 | 在显式默认关闭的生产DI中，把Registry提交、D2a active-route目录、security epoch与可信外部Provider事件装配为版本化注册和operation撤销；失败关闭并清理监听/定时器，不声称多进程传播 | SEC-F3-02C1d1;SEC-F3-02C1d2a;SEC-F3-02C1c |
 | SEC-F3-02C1d3 | SEC-F3 | CODE | Parser Host生命周期桥 | host-only装配TrustedSingleHopNetworkExecution与C1d1 lifecycle，注册可信Snapshot/policy并消费同进程reload/revoke/expiry；不接managed child IPC或跨进程传播 | SEC-F3-02C1d1;SEC-F3-02C1b |
-| SEC-F3-02C1d4 | SEC-F3 | VALIDATION | Host/Provider生命周期联合验收 | 真实本地Registry/HTTP/TLS验证普通reload在途固定旧Snapshot且新请求见新，撤销/安全收窄/provider epoch变化/到期在DNS、连接和大流阶段主动abort，失败reload保旧且shutdown无遗留监听/定时器；多进程另验 | SEC-F3-02C1d2;SEC-F3-02C1d3 |
+| SEC-F3-02C1d4 | SEC-F3 | VALIDATION | Host/Provider生命周期联合验收 | 真实本地Registry/HTTP/TLS验证普通reload在途固定旧Snapshot且新请求见新，撤销/安全收窄/provider epoch变化/到期在DNS、连接和大流阶段主动abort，失败reload保旧且shutdown无遗留监听/定时器；多进程另验 | SEC-F3-02C1d2b;SEC-F3-02C1d3 |
 | SEC-F3-02C2a | SEC-F3 | CODE | 精确受信Redirect目标目录 | 纯host-owned目录按source asset、精确method+path与Endpoint绑定目标；只接受精确路径，未知、歧义、跨asset、scheme降级和非受信目标一律拒绝，不启用生产网络模式 | SEC-F3-02C1b |
 | SEC-F3-02C2b | SEC-F3 | CODE | Parser多跳状态机与真实网络接线 | safe-read每跳用C2a精确重选Endpoint，复用同一operation/deadline/abort并重跑DNS/peer/TLS、重建该跳凭据；非safe-read/有正文不跟随，以真实HTTP/TLS验收且生产默认关闭 | SEC-F3-02C2a |
 | SEC-F3-02C3 | SEC-F3 | CODE | Gateway固定操作生命周期 | Gateway每次请求固定同一host-owned operation、route/membership/Registry版本与deadline；redirect/retry/取消共享该操作，reload/撤销后不得继续旧epoch | SEC-F3-02C1d4 |

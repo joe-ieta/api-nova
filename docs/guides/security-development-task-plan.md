@@ -1,5 +1,5 @@
 ---
-doc-version: 1.67.0
+doc-version: 1.68.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -306,7 +306,7 @@ B2参数保存/执行与拒绝矩阵已验收，见[本批证据](../audits/2026
 
 E0/B3原出口经[Adapter矩阵](../audits/2026-09-21-mcp-adapter-contract.md)及已完成会话撤销/SDK证据复核闭合；Header02B/C/D和F1门禁继续独立推进。
 
-02B受控真实流已完成，详见[验收证据](../audits/2026-09-21-header-wire-execution.md)。F3-02A、B1、B2及B3a/b/c均限定DONE。C1a共享opaque authority与C5a纯失败/审计模块限定DONE。C1b以Parser 38 suites/925 tests、最终C1a+C1b定向2 suites/42 tests、typecheck/build及diff-check限定DONE；C1c以4源码文件、Gateway 43 suites/649 tests、真实HTTP/TLS专项62/62、API build及diff-check限定DONE，完成两侧同一opaque handle、冻结Snapshot/凭据/epoch与总deadline/abort接线，但生产仍默认关闭。C1d拆为D1 host epoch/提交事件合同、D2 Gateway生产桥、D3 Parser host桥及D4本地联合验收；D1现READY，D2/D3/D4按依赖等待，多进程传播另验。C2拆为精确method+path受信目标目录C2a与多跳状态机/真实HTTP/TLS接线C2b；C2a以2个独立Parser文件、专项30项及相邻5 suites/240 tests限定DONE，未知/歧义/跨asset/降级目标失败关闭，未接多跳状态机、真实发送或生产网络模式；C2b现READY。C4已解锁READY；C3等D4，C5b等C2b/C3/C5a，C6最终汇合。真实Provider撤销事件桥、原子revision、生产默认启用、多进程传播、缓存恢复/retry及F3D环境矩阵仍未完成，父F3C/TP-F3保持IN_PROGRESS。
+02B受控真实流已完成，详见[验收证据](../audits/2026-09-21-header-wire-execution.md)。F3-02A、B1、B2及B3a/b/c均限定DONE。C1a共享opaque authority与C5a纯失败/审计模块限定DONE。C1b以Parser 38 suites/925 tests、最终C1a+C1b定向2 suites/42 tests、typecheck/build及diff-check限定DONE；C1c以4源码文件、Gateway 43 suites/649 tests、真实HTTP/TLS专项62/62、API build及diff-check限定DONE，完成两侧同一opaque handle、冻结Snapshot/凭据/epoch与总deadline/abort接线，但生产仍默认关闭。C1d的D1 host epoch/提交事件合同已以自身2 suites/16 tests、Parser 41 suites/971 tests（含C2a）、typecheck/build及diff-check限定DONE；D2进一步拆为D2a可信committed ACTIVE route目录/生命周期事件与D2b默认关闭的Gateway Registry/route/epoch/Provider装配，D2a正在实施、D2b等待，D3已READY，D4等待D2b/D3。外部Provider原子revision/event与多进程传播仍未闭合，生产默认关闭。C2拆为精确method+path受信目标目录C2a与多跳状态机/真实HTTP/TLS接线C2b；C2a以2个独立Parser文件、专项30项及相邻5 suites/240 tests限定DONE，未知/歧义/跨asset/降级目标失败关闭，未接多跳状态机、真实发送或生产网络模式；C2b现READY。C4已解锁READY；C3等D4，C5b等C2b/C3/C5a，C6最终汇合。真实Provider撤销事件桥、原子revision、生产默认启用、多进程传播、缓存恢复/retry及F3D环境矩阵仍未完成，父F3C/TP-F3保持IN_PROGRESS。
 
 C1原SEC-C01/A0退出条件现已闭合，见[四类型验收](../audits/2026-09-22-credential-types-scope.md)；C1-02完成解锁F1-02，不使F1/E1自动完成。
 

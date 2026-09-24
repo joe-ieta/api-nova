@@ -1,5 +1,5 @@
 ---
-doc-version: 1.119.0
+doc-version: 1.120.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -10,14 +10,14 @@ doc-updated: 2026-09-24
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
 父包专项统计仍是OBS 11/4/1、SEC 10/12/0/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计21/16/1/1。它不表示全项目完成率。
 
-本次登记195个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
+本次登记196个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 133 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 134 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 15 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 当前无已登记实施中叶子；D1源码验证尚未进入本轮DONE提交 |
-| WAIT_DEP | 27 | 等待列明子任务/条件 |
+| IN_PROGRESS | 1 | D2a可信active-route目录与生命周期事件正在实施；完成前不外推为生产装配 |
+| WAIT_DEP | 26 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -126,10 +126,11 @@ doc-updated: 2026-09-24
 | SEC-F3-02C1a | DONE | 限定纯authority模块完成：新2文件/专项24，host-only opaque handle固定epoch/revoke同步abort、总deadline及有界容量；统一Parser 37 suites/907 tests及typecheck/build通过。未接运行时、宿主epoch或Provider事件桥 |
 | SEC-F3-02C1b | DONE | 限定Parser接线完成：host-only路径在Resolver/body读取前固定同一opaque handle、Snapshot、凭据、epoch及总deadline/abort；Parser 38 suites/925 tests、最终C1a+C1b定向2 suites/42 tests、typecheck/build及diff-check通过。生产默认仍关闭，真实Provider撤销事件桥和多进程传播未接 |
 | SEC-F3-02C1c | DONE | 限定Gateway接线完成：4源码文件，Gateway 43 suites/649 tests、真实HTTP/TLS专项62/62、API build及diff-check通过；prepare/forward共享同一opaque handle、冻结Snapshot/凭据/epoch并贯通总deadline/abort，cache保持关闭且单attempt。生产DI/watch/原子epoch及真实Provider事件桥仍待C1d1–d4，默认生产关闭 |
-| SEC-F3-02C1d1 | READY | C1b/C1c限定接线完成后解锁；下一步建立host-owned单调security/provider epoch与Registry提交事件合同，普通reload不终止在途，撤销/安全收窄/epoch不可读/到期同步abort；不得猜测provider epoch |
-| SEC-F3-02C1d2 | WAIT_DEP | 等C1d1；Gateway显式默认关闭的生产DI桥接Registry提交、route部署/停止/删除与可信Provider事件，维护版本化注册并清理监听/定时器，不代表多进程传播 |
-| SEC-F3-02C1d3 | WAIT_DEP | 等C1d1；Parser host-only装配真实execution/lifecycle及同进程reload/revoke/expiry，不接managed child IPC或跨进程传播 |
-| SEC-F3-02C1d4 | WAIT_DEP | 等C1d2/C1d3；真实本地Registry/HTTP/TLS覆盖普通reload固定、失败保旧及撤销/收窄/epoch变化/到期在DNS/连接/大流阶段主动abort，shutdown无遗留资源；多进程另验 |
+| SEC-F3-02C1d1 | DONE | 限定host安全epoch/Registry提交事件合同完成：自身2 suites/16 tests、Parser 41 suites/971 tests（含C2a）、typecheck/build及diff-check通过；提供host-owned按source单调epoch与提交观察点。Gateway生产DI/active-route目录及外部Provider原子revision/event仍未接，生产默认关闭 |
+| SEC-F3-02C1d2a | IN_PROGRESS | 正在实现可信committed ACTIVE route目录与生命周期事件；candidate/rollback不发布，stop/delete同步撤销，迟到reload不得复活。此叶不提供外部Provider原子revision/event，不启用生产网络模式 |
+| SEC-F3-02C1d2b | WAIT_DEP | 等C1d1/D2a/C1c；默认关闭的Gateway生产装配须统一Registry、active route、security epoch与可信Provider事件，失败关闭并清理资源；多进程传播另验 |
+| SEC-F3-02C1d3 | READY | D1与C1b依赖已闭合；下一步host-only装配真实execution/lifecycle及同进程reload/revoke/expiry，不接managed child IPC或跨进程传播 |
+| SEC-F3-02C1d4 | WAIT_DEP | 等C1d2b/C1d3；真实本地Registry/HTTP/TLS覆盖普通reload固定、失败保旧及撤销/收窄/epoch变化/到期在DNS/连接/大流阶段主动abort，shutdown无遗留资源；多进程另验 |
 | SEC-F3-02C2a | DONE | 限定纯目标目录完成：2个独立Parser文件，专项30项及相邻5 suites/240 tests通过；按source asset与精确method+path绑定Endpoint/target，未知、歧义、跨asset、scheme降级及非受信目标失败关闭。未接多跳状态机、真实发送或生产网络模式 |
 | SEC-F3-02C2b | READY | C2a限定目标目录完成后解锁；下一步实现Parser safe-read多跳状态机，每跳精确重选Endpoint，复用同一operation/deadline/abort并重跑DNS/peer/TLS和凭据；真实HTTP/TLS待验 |
 | SEC-F3-02C3 | WAIT_DEP | 等C1d4；Gateway固定同一operation/route/membership/Registry版本，redirect/retry/取消共享deadline，reload/撤销后旧epoch不得继续 |
@@ -140,7 +141,7 @@ doc-updated: 2026-09-24
 | SEC-F3-02D | WAIT_DEP | 等C6；N01–N17 Gateway/Parser真实连接、生产默认启用及Windows/Linux环境矩阵待验收 |
 | SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
 | SEC-F3a-01 | READY | 需在线公告时另行验证，不复用旧漏洞数 |
-| SEC-F4-01 | DONE | 当前102个SEC叶子以逐项或明确聚合旧ID维护，134个链接有效；区分历史/本地限定/未运行环境，不代表F4-02签收 |
+| SEC-F4-01 | DONE | 当前103个SEC叶子以逐项或明确聚合旧ID维护，新增D2a/D2b依赖已登记；区分历史/本地限定/未运行环境，不代表F4-02签收 |
 | SEC-F4-02 | NEED_ENV | 目标环境与授权另核实 |
 | OBS-06-01 | READY | 不重写已有发送边界 |
 | OBS-06-02 | NEED_ENV | 真实环境待核实 |
