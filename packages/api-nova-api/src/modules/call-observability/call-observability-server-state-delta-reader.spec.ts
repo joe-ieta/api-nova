@@ -60,7 +60,7 @@ describe('server_state_v1 delta reader', () => {
   it('reads lifecycle independent of origin/window, filters members by origin and fixes the asset selection', async () => {
     await insert([{}, { runtimeAssetId: 'hidden' }, { subjectId: 'member', details: { evidenceScope: 'retained_business_in_flight', invocationId: 'member', delta: 1, revisionSequence: '1' }, dimensions: { serverType: 'mcp', origin: 'test' } },
       { subjectId: 'external', details: { evidenceScope: 'retained_business_in_flight', invocationId: 'external', delta: 1, revisionSequence: '1' }, dimensions: { serverType: 'mcp', origin: 'external' } },
-      { eventName: 'invocation.completed' }, { details: { evidenceScope: 'legacy', secret: 'private-test-secret' } }, { dimensions: { serverType: 'gateway' } }]);
+      { eventName: 'invocation.completed' }, { eventName: 'legacy.reported_state', details: { evidenceScope: 'legacy', secret: 'private-test-secret' } }, { dimensions: { serverType: 'gateway' } }]);
     const page = await reader.read(input, context);
     expect(page.items.map(item => item.subjectId)).toEqual(['a', 'member']);
     expect(page.refreshRequired).toBe(true);
@@ -118,7 +118,7 @@ describe('server_state_v1 delta reader', () => {
   });
 
   it('fails expiry closed and bounds an empty filtered scan', async () => {
-    await insert(Array.from({ length: 1001 }, () => ({ details: { evidenceScope: 'unsupported' } })));
+    await insert(Array.from({ length: 1001 }, () => ({ dimensions: { serverType: 'gateway' } })));
     const first = await reader.read(input, context);
     expect(first.items).toEqual([]); expect(first.scannedEvents).toBe(1000); expect(first.hasMore).toBe(true);
     const last = await reader.read({ ...input, after: first.nextCursor }, context);

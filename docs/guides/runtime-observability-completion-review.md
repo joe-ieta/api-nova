@@ -1,5 +1,5 @@
 ---
-doc-version: 2.21.0
+doc-version: 2.23.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -33,7 +33,7 @@ ApiNova 的主线是 API 资产导入、注册、测试、治理和发布，以�
 | TP10 | DONE | OBS-10-01/02A/B1/B2限定出口完成：managed lifecycle与有runtimeAssetId的gateway_request/mcp_tool在途成员变化已有同Store事务sequence-bound delta。B2为5 suites/28 tests及API build；storage修正后32/32，events16、invocations38、restart3分别通过。不接Realtime，legacy/asset/global多实例水位与live liveness仍unknown |
 | TP11 | DONE | 远端规范事件、授权历史、持久 Outbox 与水位闭环；本地调用快照的可选授权桥接已整合 |
 | TP12 | DONE | 远端订阅/投递 HTTP、受控测试、人工重投、签名、重试与相关管理审计已闭环；自动发送默认关闭，部署未验收 |
-| TP13 | IN_PROGRESS | 授权持久事件分页流、调用事实快照接续、每页权限复验、ACK背压与隔离模式已实现；调用事实UI已接入。OBS-13-01A、B1与B2现均限定DONE：B2新增state realtime service/spec及module/gateway接线共4文件，真实Socket.IO 3 suites/23 tests、旧Realtime脚本11/11及API build通过；两真实连接以独立room隔离，无跨协议帧、旧broadcast或initial snapshot泄漏，ACK精确、断线重放、gap、撤权和过期均有证据。过期测试只调整测试内grant.resolve受控时间，生产TTL未变；旧invocation_facts_only保持不变。C现READY，仍需更完整权限变化、重连与乱序矩阵；legacy/asset/global多实例共同水位及live liveness仍unknown，父OBS-13保持IN_PROGRESS |
+| TP13 | IN_PROGRESS | OBS-13-01聚合现限定DONE：A/B1/B2/C均闭合，C以3文件、真实Socket.IO+SQL.js 4 suites/41 tests、旧realtime+events脚本27/27及API build通过；撤权/锁定/asset缩窄、grant TTL/重启、ACK前重放/后续传、scoped gap及旧协议隔离已有证据。正版本乱序只发refreshRequired，durable重复sequence由DB唯一约束拒绝，未ACK重放为合法语义；未知evidenceScope现fail-closed为EVENT_CURSOR_EXPIRED。OBS-13-02按依赖解锁READY，仍需长期/慢客户端、持久消费者及跨平台/跨部署恢复；无UI reducer/exactly-once、多实例grant/房间或全局水位证据，因此TP13/父OBS-13保持IN_PROGRESS |
 | TP14 | IN_PROGRESS | 新建投递记录30天与事件重投资格已分离；新事件/正文策略、默认关闭有界正文GC及受权策略管理UI已验证；已补GC同扫描容量样本、扫描失败重开与停机收尾及只读诊断UI；整体保留/配额与跨组件故障恢复仍待闭合 |
 | TP15 | IN_PROGRESS | 公开/api路径已收敛，调用事实UI及Gateway日志入口已迁移到统一API/签名分页；完整身份/拒绝审计、其余消费者与部署切换未闭合 |
 | TP16 | BACKLOG | 整合后的 PostgreSQL/Linux、多进程、持续负载/容量、性能及对外交付矩阵尚未完成 |

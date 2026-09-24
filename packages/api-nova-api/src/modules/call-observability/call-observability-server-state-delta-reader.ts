@@ -92,7 +92,7 @@ export class CallObservabilityServerStateDeltaReader {
   private view(row: RuntimeObservabilityEventEntity, filter: ObservabilityFilter) {
     if (filter.serverType !== undefined && row.dimensions?.serverType !== filter.serverType) return null;
     const details = row.details ?? {}, scope = details.evidenceScope;
-    if (!['managed_server_process_lifecycle', 'retained_business_in_flight'].includes(String(scope))) return null;
+    if (!['managed_server_process_lifecycle', 'retained_business_in_flight'].includes(String(scope))) throw expired();
     if (typeof row.subjectId !== 'string' || !row.subjectId || row.subjectId.length > 240 || /[\u0000-\u001f\u007f]/.test(row.subjectId) ||
       !Number.isSafeInteger(row.subjectVersion) || row.subjectVersion < 1 || row.subjectVersion > 2147483647) throw expired();
     const common = { eventId: row.id, sequence: publicSequence(row.sequence), runtimeAssetId: row.runtimeAssetId,

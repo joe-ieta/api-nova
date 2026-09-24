@@ -1,5 +1,5 @@
 ---
-doc-version: 1.61.0
+doc-version: 1.62.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -119,7 +119,7 @@ doc-updated: 2026-09-24
 | SEC-F3-02B2 | [网络边界合同§4.3](./security-header-network-boundary-contract.md) | **限定DONE**：≤8MiB Buffer固定IP单跳transport primitive以31专项、Parser 32 suites/779 tests及typecheck/build通过；真实HTTP/TLS/peer/代理陷阱与Windows Node24已有证据。未接Gateway/Transformer host，且不支持Readable/大体积流或逐跳撤销。 |
 | SEC-F3-02B3a | [网络边界合同§4.3](./security-header-network-boundary-contract.md) | **限定DONE**：共享private verified connection与Readable stream以Parser 33 suites/817 tests、stream专项38、B2既有31及typecheck/build通过；真实24MiB双向、backpressure、授权前body零读取、peer/TLS/代理/取消/截断/early response/one-shot已验。首轮816/817仅为B1真实DNS后置复核50ms夹具负载失败，测试改为真实解析后受控时间，生产deadline不变；仍无Transformer/Gateway/child生产接线。 |
 | SEC-F3-02B3b | [网络边界合同§4.3](./security-header-network-boundary-contract.md) | **限定DONE**：7文件，Parser 34 suites/838 tests、专项21、typecheck/build及diff-check通过；真实Resolver绑定Site/generation/revision（含None），同Snapshot WeakMap host policy与最终序列化URL，bounded≤8MiB JSON/string/Buffer，默认网络模式off且F1零发送；Registry/DNS/HTTP/TLS与clone/reload/伪造/变异负测已有证据。生产Gateway/managed child、Provider撤销epoch及audit桥未接。 |
-| SEC-F3-02B3c | [网络边界合同§4.3](./security-header-network-boundary-contract.md) | **READY**：B3a限定transport完成后解锁；接Gateway可信route网络Provider/stream桥并在F3C前保持缓存关闭，不提前启用生产路由。 |
+| SEC-F3-02B3c | [网络边界合同§4.3](./security-header-network-boundary-contract.md) | **IN_PROGRESS**：Gateway可信route网络Provider/stream桥已开工；新网络模式默认off且缓存禁用，整操作版本固定、逐跳撤销和生产启用仍归F3C。 |
 | SEC-F3-02C | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **待验收**：依赖B3b与B3c两条运行时桥；逐跳凭据、safe-read、整操作固定revision、撤销/取消、缓存隔离与拒绝审计未实现，生产启用不得提前。 |
 | SEC-F3-02D | [网络边界合同§4.6及N01–N17](./security-header-network-boundary-contract.md) | **待验收**：依赖C；Gateway/Parser真实连接及Windows/Linux矩阵未执行。 |
 | SEC-F3-03 | [安全用例](../testing/runtime-security-audit-cases.md)、[受管通道脚本](../../packages/api-nova-api/scripts/test-managed-mcp-channel.cjs) | **限定执行/待验收**：局部脱敏与 IPC 无 argv Secret 有证据；完整 argv/log/错误/快照 Secret Scan、创建/更新/撤销审计可检索依赖产品 E1。 |
