@@ -1,5 +1,5 @@
 ---
-doc-version: 1.126.0
+doc-version: 1.130.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -10,13 +10,13 @@ doc-updated: 2026-09-24
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
 父包专项统计仍是OBS 11/4/1、SEC 10/12/0/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计21/16/1/1。它不表示全项目完成率。
 
-本次登记200个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
+本次登记201个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 138 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 15 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 当前无已登记实施中叶子；C2b2尚未开工 |
+| DONE | 139 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 14 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 1 | D2b2 Registry capture/proof仍在实施且缺专项测试；统一Parser门禁已恢复，但完成前不外推为生产接线 |
 | WAIT_DEP | 27 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -129,14 +129,15 @@ doc-updated: 2026-09-24
 | SEC-F3-02C1d1 | DONE | 限定host安全epoch/Registry提交事件合同完成：自身2 suites/16 tests、Parser 41 suites/971 tests（含C2a）、typecheck/build及diff-check通过；提供host-owned按source单调epoch与提交观察点。Gateway生产DI/active-route目录及外部Provider原子revision/event仍未接，生产默认关闭 |
 | SEC-F3-02C1d2a | DONE | 限定可信active-route目录完成：SQL.js/旧快照2 suites/42 tests、Gateway 44 suites/664 tests、API build及diff-check通过；真实SQL.js dirty-read复现后以同步export到独立query_only副本修复，candidate/rollback不发布且stop/delete同步撤销。PostgreSQL路径未实测，整库复制成本与原候选暂态snapshot行为保留，不构成生产装配 |
 | SEC-F3-02C1d2b1 | DONE | 限定immutable host generation store完成：2个credentials文件、自身23 tests，统一Parser 44 suites/1077 tests、typecheck/build及diff-check通过；只保存内存有界材料，CAS激活并同步撤销/到期，无env/file导入、生产issuer或Registry关联。JS string不提供物理擦除保证 |
-| SEC-F3-02C1d2b2 | READY | D2b1限定generation store完成后解锁；下一步对精确Registry capture、Provider材料与generation签发/消费一次性opaque proof，并拒绝并发变化、重放、过期、撤销及读取失败；proof不得序列化 |
+| SEC-F3-02C1d2b2 | IN_PROGRESS | Registry/evidence源码仍在途且尚无D2b2专项测试；历史首次Parser全量仅31 suites/801 tests执行、另14 suites因6处TS7006未运行且typecheck/build失败，部分dist已清理。类型阻断修复后统一Parser 45 suites/1098 tests、typecheck/build、cleanup及diff-check全绿，但不能替代D2b2专项，验收前不标DONE、不提交 |
 | SEC-F3-02C1d2b3 | WAIT_DEP | 等D2b2/D2a/D3；default-off装配Gateway/Parser、active route、Registry/security epoch与proof。外部Secret Manager、跨进程/E3b及目标环境证据归D4/F3D NEED_ENV |
 | SEC-F3-02C1d3 | DONE | 限定Parser host生命周期桥完成：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off，缺providerEvidence永拒，WeakMap fixture仅为进程内不可伪造测试能力而非生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭 |
 | SEC-F3-02C1d4 | WAIT_DEP | 等C1d2b3/C1d3；真实本地Registry/HTTP/TLS覆盖普通reload固定、失败保旧及撤销/收窄/epoch变化/到期在DNS/连接/大流阶段主动abort，shutdown无遗留资源；外部Secret Manager、多进程/E3b及目标环境另验 |
 | SEC-F3-02C2a | DONE | 限定纯目标目录完成：2个独立Parser文件，专项30项及相邻5 suites/240 tests通过；按source asset与精确method+path绑定Endpoint/target，未知、歧义、跨asset、scheme降级及非受信目标失败关闭。未接多跳状态机、真实发送或生产网络模式 |
 | SEC-F3-02C2b1 | DONE | 限定纯redirect chain state完成：2个network文件，专项63 tests、相邻5 suites/303 tests、统一Parser 44 suites/1077 tests、typecheck/build及diff-check通过；只接受显式safe-read空正文GET/HEAD，规范化Location/loop、最多5跳及一次性decision。纯模块不触网、不启用生产入口，默认仍single-hop |
-| SEC-F3-02C2b2 | READY | C2a/C2b1/C1b依赖已闭合；下一步传输保留原始Location证据，每跳消费decision并精确重选Endpoint，复用authority/deadline/Signal，重跑DNS/peer/TLS与凭据，以真实DNS/HTTP/TLS验收 |
-| SEC-F3-02C2b3 | WAIT_DEP | 等C2b2/D3；Transformer仅在显式可信host配置下接入多跳与生产入口矩阵，默认保持single-hop；缺配置、protected/F1、非safe、正文、重放/撤销均失败关闭 |
+| SEC-F3-02C2b2a | DONE | 限定raw Location唯一证据纯模块完成：2个network文件、自身21 tests、相邻3 suites/115 tests、统一Parser 45 suites/1098 tests、typecheck/build、cleanup及diff-check通过；只读rawHeaders并拒绝零个/重复/折叠/歧义/访问器/超长值。不解析目标、不触网、不改默认single-hop |
+| SEC-F3-02C2b2b | READY | C2a/C2b1/C2b2a/C1b依赖已闭合；下一步逐跳消费证据与decision、精确重选Endpoint，并在同一authority/deadline/Signal内重跑DNS/peer/TLS和目标凭据，以真实DNS/HTTP/TLS验收 |
+| SEC-F3-02C2b3 | WAIT_DEP | 等C2b2b/D3；Transformer仅在显式可信host配置下接入多跳与生产入口矩阵，默认保持single-hop；缺配置、protected/F1、非safe、正文、重放/撤销均失败关闭 |
 | SEC-F3-02C3 | WAIT_DEP | 等C1d4；Gateway固定同一operation/route/membership/Registry版本，redirect/retry/取消共享deadline，reload/撤销后旧epoch不得继续 |
 | SEC-F3-02C4 | READY | C1b/C1c限定接线已完成；下一步验证新网络模式首轮单attempt且缓存保持关闭，两侧消费同一operation handle；缓存恢复与自动retry另行登记 |
 | SEC-F3-02C5a | DONE | 限定纯失败/审计模块完成：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时 |
@@ -145,7 +146,7 @@ doc-updated: 2026-09-24
 | SEC-F3-02D | WAIT_DEP | 等C6；N01–N17 Gateway/Parser真实连接、生产默认启用及Windows/Linux环境矩阵待验收 |
 | SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
 | SEC-F3a-01 | READY | 需在线公告时另行验证，不复用旧漏洞数 |
-| SEC-F4-01 | DONE | 当前107个SEC叶子以逐项或明确聚合旧ID维护，D2b1–b3与C2b1–b3拆分依赖已登记；区分历史/本地限定/未运行环境，不代表F4-02签收 |
+| SEC-F4-01 | DONE | 当前108个SEC叶子以逐项或明确聚合旧ID维护，D2b1–b3及C2b1/b2a/b2b/b3依赖已登记；区分历史/本地限定/未运行环境，不代表F4-02签收 |
 | SEC-F4-02 | NEED_ENV | 目标环境与授权另核实 |
 | OBS-06-01 | READY | 不重写已有发送边界 |
 | OBS-06-02 | NEED_ENV | 真实环境待核实 |
