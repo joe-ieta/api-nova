@@ -2,10 +2,11 @@ import {
   Injectable,
   Logger,
   OnModuleInit,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { GatewayRouteSnapshotEntity } from '../../../database/entities/gateway-route-snapshot.entity';
 import { createHash } from 'node:crypto';
 import {
@@ -38,10 +39,11 @@ import {
 } from '../gateway-runtime.events';
 import { GatewayPolicyService } from './gateway-policy.service';
 import { RuntimeUpstreamBindingsService } from '../../runtime-upstream-bindings/services/runtime-upstream-bindings.service';
+import { GatewayActiveRouteCatalog, GatewayActiveRouteCatalogEvent } from './gateway-active-route-catalog';
 import { SourceServiceInstanceEntity } from '../../../database/entities/source-service-instance.entity';
 
 @Injectable()
-export class GatewayRouteSnapshotService implements OnModuleInit {
+export class GatewayRouteSnapshotService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(GatewayRouteSnapshotService.name);
   private snapshot: GatewaySnapshotRouteEntry[] = [];
   private snapshotInitialized = false;
@@ -57,6 +59,23 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
   private readonly rollbackSnapshots = new Map<string, GatewaySnapshotRouteEntry[]>();
   private reloadPromise: Promise<void> | null = null;
   private reloadQueued = false;
+  private readonly activeRouteCatalog = new GatewayActiveRouteCatalog();
+  private lifecycleGeneration = 0;
+  private readonly removedAssets = new Set<string>();
+  private destroyed = false;
+
+  /** Host-only evidence, never a network permission or candidate route view. */
+  readActiveRouteCatalog() { return this.activeRouteCatalog.read(); }
+
+  observeActiveRouteCatalog(listener: (event: GatewayActiveRouteCatalogEvent) => void) {
+    return this.activeRouteCatalog.subscribe(listener);
+  }
+
+  onModuleDestroy() {
+    this.destroyed = true;
+    this.lifecycleGeneration++;
+    this.activeRouteCatalog.close();
+  }
 
   constructor(
     private readonly gatewayPolicyService: GatewayPolicyService,
@@ -112,6 +131,10 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
       return;
     }
     if (reason === 'runtime_assets.gateway_deployed') {
+      if (payload?.runtimeAssetId) {
+        this.lifecycleGeneration++;
+        this.removedAssets.delete(payload.runtimeAssetId);
+      }
       void this.reload().catch(() => {
         // A hot reload failure keeps the last verified in-memory registry.
         // Startup still propagates the same validation failure to Nest.
@@ -124,20 +147,54 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
     );
   }
 
-  private async performReload() {
-    const runtimeAssets = await this.runtimeAssetRepository.find({
-      where: {
+  private async readCommittedSnapshotRows() {
+    const connection = this.persistedSnapshotRepository.manager?.connection;
+    const read = async (assets: Repository<RuntimeAssetEntity>, snapshots: Repository<GatewayRouteSnapshotEntity>) => ({
+      runtimeAssets: await assets.find({ where: {
         type: RuntimeAssetType.GATEWAY_SERVICE,
         status: In([RuntimeAssetStatus.ACTIVE, RuntimeAssetStatus.DEGRADED]),
-      },
+      } }),
+      persisted: await snapshots.find({ order: { activatedAt: 'DESC' } }),
     });
+    // Repository doubles have no connection. Production uses an isolated read view.
+    if (!connection) return read(this.runtimeAssetRepository, this.persistedSnapshotRepository);
+    const runner = connection.createQueryRunner();
+    // SQL.js returns the shared runner: a separate object is NOT isolation.
+    // Never commit, roll back, or release a transaction owned by another caller.
+    if (runner.isTransactionActive) throw new Error('GATEWAY_SNAPSHOT_TRANSACTION_PENDING');
+    if (connection.options.type === 'sqljs') {
+      // No await between the shared transaction check and synchronous export.
+      // SQL.js transactions on the live connection can otherwise nest during reads.
+      const database = (connection.driver as unknown as { export(): Uint8Array }).export();
+      const isolated = new DataSource({ type: 'sqljs', database,
+        entities: [RuntimeAssetEntity, GatewayRouteSnapshotEntity], synchronize: false,
+        logging: false, autoSave: false });
+      try {
+        await isolated.initialize();
+        await isolated.query('PRAGMA query_only = ON');
+        return await read(isolated.getRepository(RuntimeAssetEntity), isolated.getRepository(GatewayRouteSnapshotEntity));
+      } finally { if (isolated.isInitialized) await isolated.destroy(); }
+    }
+    try {
+      await runner.startTransaction('SERIALIZABLE');
+      const rows = await read(runner.manager.getRepository(RuntimeAssetEntity),
+        runner.manager.getRepository(GatewayRouteSnapshotEntity));
+      await runner.commitTransaction();
+      return rows;
+    } catch (error) {
+      if (runner.isTransactionActive) await runner.rollbackTransaction();
+      throw error;
+    } finally { await runner.release(); }
+  }
+
+  private async performReload() {
+    const generation = this.lifecycleGeneration;
+    if (this.destroyed) throw new Error('GATEWAY_ACTIVE_CATALOG_NOT_READY');
+    const { runtimeAssets, persisted } = await this.readCommittedSnapshotRows();
     const activePublishedAssets = runtimeAssets.filter(asset =>
       typeof asset.metadata?.activeRevision === 'string' &&
       Boolean(asset.metadata.activeRevision.trim()),
     );
-    const persisted = await this.persistedSnapshotRepository.find({
-      order: { activatedAt: 'DESC' },
-    });
     const runtimeAssetMap = new Map(runtimeAssets.map(item => [item.id, item]));
     const restored: GatewaySnapshotRouteEntry[] = [];
     const restoredAssets = new Set<string>();
@@ -173,8 +230,17 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
       // reconstructed; retain the last verified registry on hot reload.
       throw new Error('GATEWAY_ACTIVE_SNAPSHOT_MISSING');
     }
-    this.snapshot = this.sortSnapshot(restored);
-    this.snapshotInitialized = true;
+    if (this.destroyed || generation !== this.lifecycleGeneration) return;
+    const verified = this.sortSnapshot(restored.filter(entry => !this.removedAssets.has(entry.runtimeAsset.id)));
+    this.activeRouteCatalog.replace(verified.map(entry => ({
+      runtimeAssetId: entry.runtimeAsset.id,
+      routeBindingId: entry.routeBinding.id,
+      revision: entry.runtimeAsset.metadata.activeRevision as string,
+      fingerprint: entry.runtimeAsset.metadata.activeGatewaySnapshotFingerprint as string,
+    })), () => {
+      this.snapshot = verified;
+      this.snapshotInitialized = true;
+    });
     this.logger.log(`Loaded gateway route snapshot with ${this.snapshot.length} persisted verified routes`);
   }
 
@@ -284,7 +350,10 @@ export class GatewayRouteSnapshotService implements OnModuleInit {
   }
 
   private removeRuntimeAsset(runtimeAssetId: string) {
+    this.lifecycleGeneration++;
+    this.removedAssets.add(runtimeAssetId);
     this.snapshot = this.snapshot.filter(entry => entry.runtimeAsset.id !== runtimeAssetId);
+    this.activeRouteCatalog.remove(runtimeAssetId);
   }
 
   /** A bounded copy of this process's actual active registry; never a network/health probe. */
