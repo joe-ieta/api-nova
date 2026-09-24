@@ -1,5 +1,5 @@
 ---
-doc-version: 1.75.0
+doc-version: 1.77.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -162,12 +162,14 @@ SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F1/F2/F3/F
 | SEC-F3-02C1d3 | SEC-F3 | CODE | Parser Host生命周期桥 | host-only装配TrustedSingleHopNetworkExecution与C1d1 lifecycle，注册可信Snapshot/policy并消费同进程reload/revoke/expiry；source/default-off，providerEvidence缺失永拒，WeakMap只作进程内不可伪造夹具且不是生产issuer；不接managed child/E3b IPC或跨进程传播 | SEC-F3-02C1d1;SEC-F3-02C1b |
 | SEC-F3-02C1d4 | SEC-F3 | VALIDATION | Host/Provider生命周期联合验收 | 真实本地Registry/HTTP/TLS验证普通reload在途固定旧Snapshot且新请求见新，撤销/安全收窄/provider epoch变化/到期在DNS、连接和大流阶段主动abort，失败reload保旧且shutdown无遗留监听/定时器；外部Secret Manager、多进程/E3b及目标环境另验 | SEC-F3-02C1d2b3;SEC-F3-02C1d3 |
 | SEC-F3-02C2a | SEC-F3 | CODE | 精确受信Redirect目标目录 | 纯host-owned目录按source asset、精确method+path与Endpoint绑定目标；只接受精确路径，未知、歧义、跨asset、scheme降级和非受信目标一律拒绝，不启用生产网络模式 | SEC-F3-02C1b |
-| SEC-F3-02C2b | SEC-F3 | CODE | Parser多跳状态机与真实网络接线 | safe-read每跳用C2a精确重选Endpoint，复用同一operation/deadline/abort并重跑DNS/peer/TLS、重建该跳凭据；非safe-read/有正文不跟随，以真实HTTP/TLS验收且生产默认关闭 | SEC-F3-02C2a |
+| SEC-F3-02C2b1 | SEC-F3 | CODE | 纯Redirect Chain State | 纯模块只接受显式safe-read空正文GET/HEAD，规范化Location与loop key、最多5跳，并为每跳产生一次性decision；非safe method、正文、歧义/重复/过量跳数失败关闭，不触网也不启用生产入口 | SEC-F3-02C2a |
+| SEC-F3-02C2b2 | SEC-F3 | CODE | 逐跳Transport与原始Location证据 | 传输保留原始Location证据，每跳消费一次性decision并通过C2a精确重选Endpoint，复用同一authority/deadline/AbortSignal，重跑DNS/peer/TLS和该跳凭据；真实DNS/HTTP/TLS验收且默认single-hop | SEC-F3-02C2a;SEC-F3-02C2b1;SEC-F3-02C1b |
+| SEC-F3-02C2b3 | SEC-F3 | CODE | Transformer显式Host配置与生产入口矩阵 | Transformer仅在显式可信host配置下接入b2多跳状态机，默认保持single-hop；覆盖缺配置、protected/F1、非safe、正文、重放/撤销与生产入口矩阵，不把请求字段当授权 | SEC-F3-02C2b2;SEC-F3-02C1d3 |
 | SEC-F3-02C3 | SEC-F3 | CODE | Gateway固定操作生命周期 | Gateway每次请求固定同一host-owned operation、route/membership/Registry版本与deadline；redirect/retry/取消共享该操作，reload/撤销后不得继续旧epoch | SEC-F3-02C1d4 |
 | SEC-F3-02C4 | SEC-F3 | CODE | 首轮缓存关闭单Attempt合同 | 新网络模式首轮仅允许单attempt并强制缓存关闭，证明Parser/Gateway均消费同一operation handle；恢复缓存与自动retry另行登记，不能由本叶提前启用 | SEC-F3-02C1b;SEC-F3-02C1c |
 | SEC-F3-02C5a | SEC-F3 | CODE | 网络失败语义与脱敏审计合同 | 冻结DNS/peer/TLS/redirect/取消/到期/撤销的拒绝码、白名单决策与脱敏审计字段，以纯合同/spec验证denied与unavailable分类；可在B3c闭合后与C1并行 | SEC-F3-02B3c |
-| SEC-F3-02C5b | SEC-F3 | CODE | 双运行时失败与审计接线 | Parser/Gateway接入C5a统一失败语义和审计，真实HTTP负测确保各跳拒绝fail-closed、零秘密泄漏且不绕过operation lifecycle | SEC-F3-02C2b;SEC-F3-02C3;SEC-F3-02C5a |
-| SEC-F3-02C6 | SEC-F3 | VALIDATION | 双运行时真实联合矩阵 | 本地真实Parser/Gateway联合验证整操作epoch、逐跳重选/凭据重建、主动abort、单attempt/cache-off及拒绝审计；不代表生产默认启用或F3D Windows/Linux环境矩阵 | SEC-F3-02C2b;SEC-F3-02C3;SEC-F3-02C4;SEC-F3-02C5b |
+| SEC-F3-02C5b | SEC-F3 | CODE | 双运行时失败与审计接线 | Parser/Gateway接入C5a统一失败语义和审计，真实HTTP负测确保各跳拒绝fail-closed、零秘密泄漏且不绕过operation lifecycle | SEC-F3-02C2b3;SEC-F3-02C3;SEC-F3-02C5a |
+| SEC-F3-02C6 | SEC-F3 | VALIDATION | 双运行时真实联合矩阵 | 本地真实Parser/Gateway联合验证整操作epoch、逐跳重选/凭据重建、主动abort、单attempt/cache-off及拒绝审计；不代表生产默认启用或F3D Windows/Linux环境矩阵 | SEC-F3-02C2b3;SEC-F3-02C3;SEC-F3-02C4;SEC-F3-02C5b |
 | SEC-F3-02D | SEC-F3 | VALIDATION | N01–N17双运行时网络拒绝验收 | Gateway/Parser真实连接覆盖DNS全集、peer/TLS、代理拒绝、redirect、凭据零泄漏、reload/撤销，并记录Windows/Linux与未运行环境边界；生产默认启用仍须独立验收 | SEC-F3-02C6 |
 | SEC-F3-03 | SEC-F3 | VALIDATION | 秘密与生命周期审计矩阵 | argv/log/错误/证据无完整Secret；创建/更新/撤销审计可检索 | SEC-E1-03;SEC-C3-02 |
 | SEC-F3a-01 | SEC-F3a | VALIDATION | 当前依赖可达性审计 | 锁文件固定、生产可达性、补丁/风险处置逐项记录 | — |
