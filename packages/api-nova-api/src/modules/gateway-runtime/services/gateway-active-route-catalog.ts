@@ -35,8 +35,11 @@ export class GatewayActiveRouteCatalog {
     });
   }
 
-  replace(routes: readonly GatewayActiveRouteIdentity[], commit: () => void) {
-    if (this.controller.signal.aborted) { commit(); return; }
+  replace(
+    routes: readonly GatewayActiveRouteIdentity[],
+    commit: (snapshot: GatewayActiveRouteCatalogSnapshot) => void,
+  ) {
+    if (this.controller.signal.aborted) return;
     if (routes.length > 10000) throw new Error('GATEWAY_ACTIVE_CATALOG_TOO_LARGE');
     const keys = new Set<string>();
     const copied = routes.map(route => {
@@ -52,13 +55,19 @@ export class GatewayActiveRouteCatalog {
       return Object.freeze({ runtimeAssetId: route.runtimeAssetId, routeBindingId: route.routeBindingId,
         revision: route.revision, fingerprint: route.fingerprint });
     }).sort((a, b) => a.runtimeAssetId.localeCompare(b.runtimeAssetId) || a.routeBindingId.localeCompare(b.routeBindingId));
-    commit();
-    this.publish('reload', copied);
+    this.publish('reload', copied, commit);
   }
 
-  remove(runtimeAssetId: string) {
+  remove(
+    runtimeAssetId: string,
+    commit: (snapshot: GatewayActiveRouteCatalogSnapshot) => void,
+  ) {
     if (this.controller.signal.aborted) return;
-    this.publish('removed', (this.current?.routes || []).filter(route => route.runtimeAssetId !== runtimeAssetId));
+    this.publish(
+      'removed',
+      (this.current?.routes || []).filter(route => route.runtimeAssetId !== runtimeAssetId),
+      commit,
+    );
   }
 
   close() {
@@ -67,9 +76,18 @@ export class GatewayActiveRouteCatalog {
     this.controller.abort();
   }
 
-  private publish(kind: GatewayActiveRouteCatalogEvent['kind'], routes: readonly GatewayActiveRouteIdentity[]) {
-    this.current = Object.freeze({ version: (this.current?.version || 0) + 1, routes: Object.freeze(routes) });
-    const event = Object.freeze({ kind, snapshot: this.current });
+  private publish(
+    kind: GatewayActiveRouteCatalogEvent['kind'],
+    routes: readonly GatewayActiveRouteIdentity[],
+    commit: (snapshot: GatewayActiveRouteCatalogSnapshot) => void,
+  ) {
+    const snapshot = Object.freeze({
+      version: (this.current?.version || 0) + 1,
+      routes: Object.freeze(routes),
+    });
+    commit(snapshot);
+    this.current = snapshot;
+    const event = Object.freeze({ kind, snapshot });
     for (const listener of [...this.listeners]) {
       if (this.controller.signal.aborted || this.current !== event.snapshot) break;
       if (!this.listeners.has(listener)) continue;

@@ -39,7 +39,15 @@ import {
 } from '../gateway-runtime.events';
 import { GatewayPolicyService } from './gateway-policy.service';
 import { RuntimeUpstreamBindingsService } from '../../runtime-upstream-bindings/services/runtime-upstream-bindings.service';
-import { GatewayActiveRouteCatalog, GatewayActiveRouteCatalogEvent } from './gateway-active-route-catalog';
+import {
+  GatewayActiveRouteCatalog,
+  GatewayActiveRouteCatalogEvent,
+  type GatewayActiveRouteCatalogSnapshot,
+} from './gateway-active-route-catalog';
+import {
+  createGatewayActiveRouteCapture,
+  type GatewayActiveRouteCapture,
+} from './gateway-active-route-capture';
 import { SourceServiceInstanceEntity } from '../../../database/entities/source-service-instance.entity';
 
 @Injectable()
@@ -60,6 +68,8 @@ export class GatewayRouteSnapshotService implements OnModuleInit, OnModuleDestro
   private reloadPromise: Promise<void> | null = null;
   private reloadQueued = false;
   private readonly activeRouteCatalog = new GatewayActiveRouteCatalog();
+  private readonly activeRouteCaptures =
+    new WeakMap<GatewayActiveRouteCatalogSnapshot, readonly GatewaySnapshotRouteEntry[]>();
   private lifecycleGeneration = 0;
   private readonly removedAssets = new Set<string>();
   private destroyed = false;
@@ -69,6 +79,71 @@ export class GatewayRouteSnapshotService implements OnModuleInit, OnModuleDestro
 
   observeActiveRouteCatalog(listener: (event: GatewayActiveRouteCatalogEvent) => void) {
     return this.activeRouteCatalog.subscribe(listener);
+  }
+
+  /**
+   * Captures exact committed route object references for the current catalog object.
+   * Catalog identifiers are consistency checks and never mint this host-only token.
+   */
+  captureActiveRouteCatalog(
+    catalog: GatewayActiveRouteCatalogSnapshot,
+  ): GatewayActiveRouteCapture {
+    let current: GatewayActiveRouteCatalogSnapshot;
+    try {
+      current = this.activeRouteCatalog.read();
+    } catch {
+      throw new Error('GATEWAY_ACTIVE_ROUTE_CAPTURE_NOT_READY');
+    }
+    if (catalog !== current) throw new Error('GATEWAY_ACTIVE_ROUTE_CAPTURE_INVALID');
+    const routes = this.activeRouteCaptures.get(catalog);
+    if (!routes || routes.length !== catalog.routes.length) {
+      throw new Error('GATEWAY_ACTIVE_ROUTE_CAPTURE_INVALID');
+    }
+
+    const byKey = new Map<string, GatewaySnapshotRouteEntry>();
+    for (const route of routes) {
+      const key = `${route.runtimeAsset.id}/${route.routeBinding.id}`;
+      if (byKey.has(key)) throw new Error('GATEWAY_ACTIVE_ROUTE_CAPTURE_INVALID');
+      byKey.set(key, route);
+    }
+    const captured = catalog.routes.map(identity => {
+      const route = byKey.get(`${identity.runtimeAssetId}/${identity.routeBindingId}`);
+      if (!route ||
+          route.runtimeAsset.metadata?.activeRevision !== identity.revision ||
+          route.runtimeAsset.metadata?.activeGatewaySnapshotFingerprint !== identity.fingerprint) {
+        throw new Error('GATEWAY_ACTIVE_ROUTE_CAPTURE_INVALID');
+      }
+      return Object.freeze({ identity, route });
+    });
+    if (captured.length !== byKey.size) {
+      throw new Error('GATEWAY_ACTIVE_ROUTE_CAPTURE_INVALID');
+    }
+    const byAsset = new Map<string, GatewaySnapshotRouteEntry[]>();
+    for (const item of captured) {
+      const group = byAsset.get(item.identity.runtimeAssetId) || [];
+      group.push(item.route);
+      byAsset.set(item.identity.runtimeAssetId, group);
+    }
+    for (const [runtimeAssetId, entries] of byAsset) {
+      const expected = captured.find(item => item.identity.runtimeAssetId === runtimeAssetId)!
+        .identity.fingerprint;
+      if (this.fingerprintEntries(entries) !== expected ||
+          captured.some(item => item.identity.runtimeAssetId === runtimeAssetId &&
+            item.identity.fingerprint !== expected)) {
+        throw new Error('GATEWAY_ACTIVE_ROUTE_CAPTURE_INVALID');
+      }
+    }
+
+    return createGatewayActiveRouteCapture(
+      catalog,
+      captured,
+      expected => {
+        if (this.destroyed || this.activeRouteCatalog.read() !== expected ||
+            this.activeRouteCaptures.get(expected) !== routes) {
+          throw new Error('GATEWAY_ACTIVE_ROUTE_CAPTURE_STALE');
+        }
+      },
+    );
   }
 
   onModuleDestroy() {
@@ -237,9 +312,11 @@ export class GatewayRouteSnapshotService implements OnModuleInit, OnModuleDestro
       routeBindingId: entry.routeBinding.id,
       revision: entry.runtimeAsset.metadata.activeRevision as string,
       fingerprint: entry.runtimeAsset.metadata.activeGatewaySnapshotFingerprint as string,
-    })), () => {
+    })), catalog => {
+      const captured = Object.freeze([...verified]);
       this.snapshot = verified;
       this.snapshotInitialized = true;
+      this.activeRouteCaptures.set(catalog, captured);
     });
     this.logger.log(`Loaded gateway route snapshot with ${this.snapshot.length} persisted verified routes`);
   }
@@ -352,8 +429,12 @@ export class GatewayRouteSnapshotService implements OnModuleInit, OnModuleDestro
   private removeRuntimeAsset(runtimeAssetId: string) {
     this.lifecycleGeneration++;
     this.removedAssets.add(runtimeAssetId);
-    this.snapshot = this.snapshot.filter(entry => entry.runtimeAsset.id !== runtimeAssetId);
-    this.activeRouteCatalog.remove(runtimeAssetId);
+    const remaining = this.snapshot.filter(entry => entry.runtimeAsset.id !== runtimeAssetId);
+    this.activeRouteCatalog.remove(runtimeAssetId, catalog => {
+      const captured = Object.freeze([...remaining]);
+      this.snapshot = remaining;
+      this.activeRouteCaptures.set(catalog, captured);
+    });
   }
 
   /** A bounded copy of this process's actual active registry; never a network/health probe. */

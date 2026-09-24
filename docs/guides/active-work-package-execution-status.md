@@ -1,5 +1,5 @@
 ---
-doc-version: 1.141.0
+doc-version: 1.142.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -14,9 +14,9 @@ doc-updated: 2026-09-24
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 145 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 146 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 13 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | D2b3c1 active-route原子捕获seam正在实施；未验收前不接注册协调或生产装配 |
+| IN_PROGRESS | 0 | 当前没有已登记的实施中叶任务 |
 | WAIT_DEP | 27 | 等待列明子任务/条件 |
 | NEED_ENV | 18 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -133,7 +133,7 @@ doc-updated: 2026-09-24
 | SEC-F3-02C1d2b3a | DONE | 限定Gateway host capability端口完成：2个独立Gateway文件，最终Parser构建之上专项1 suite/5 tests、API typecheck/build及diff-check通过；创建时以Parser私有品牌校验真实issuer，仅null/undefined表示default-off，克隆/代理/结构伪造与重复wrapper拒绝，一次性consume，close先同步失效再关闭issuer/abort，controller/error/JSON均不泄露秘密。不改RuntimeModule/Registry，不从request/config/env/file导入且未启用生产路径 |
 | SEC-F3-02C1d2b3b1 | DONE | 限定Registry/evidence本地安全组合完成：2个独立Gateway文件，专项3 suites/44 tests、Gateway 46 suites/683 tests、API typecheck/build通过。真实复现SQL.js共享事务可在CAS await期间介入并导致rollback历史误公开后，入口改为boot fail-closed；Snapshot/proof/epoch/readSignal保持同代且不混用legacy providerFactory。PostgreSQL正向实库未验，不称生产持久ledger完整 |
 | SEC-F3-02C1d2b3b2 | NEED_ENV | 依赖b1；需真实PostgreSQL验证独立事务读、历史ledger CAS/rollback/reopen/并发和同generation proof。SQL.js fail-closed证据不能替代该正向环境验收 |
-| SEC-F3-02C1d2b3c1 | IN_PROGRESS | 只实现当前catalog snapshot对象→同次已提交route对象引用的host-only原子捕获seam；拒绝ID-only、克隆/旧snapshot，candidate/rollback零发布，stop/delete与迟到reload不能复活。不构造网络许可、不接RuntimeModule |
+| SEC-F3-02C1d2b3c1 | DONE | 限定active-route原子捕获seam完成：4个Gateway文件，新capture+catalog专项2 suites/19 tests、route snapshot回归1 suite/27 tests、Gateway全量47 suites/687 tests、API typecheck/build及diff-check通过。只接受exact current catalog对象并关联同次committed route引用，重核version/IDs/fingerprint；ID-only、克隆/旧snapshot拒绝，candidate/rollback零发布，stop/delete使旧capture失效且迟到reload不复活。不构造网络许可、不接RuntimeModule |
 | SEC-F3-02C1d2b3c2 | WAIT_DEP | 等c1及D2b3b2 PostgreSQL持久ledger验收；仅消费不可伪造route捕获与同代Registry证据构造/替换可信registration，reload/removed同步撤销，坏证据失败关闭，不接生产DI |
 | SEC-F3-02C1d2b3d | WAIT_DEP | 等D2b3c2；显式default-off Nest/Gateway稳定provider facade装配，证据全齐才原子swap并以真实Nest/SQL.js/loopback验收；外部Secret Manager、managed child、跨进程/E3b及目标环境仍未完成 |
 | SEC-F3-02C1d3 | DONE | 限定Parser host生命周期桥完成：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off，缺providerEvidence永拒，WeakMap fixture仅为进程内不可伪造测试能力而非生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭 |
