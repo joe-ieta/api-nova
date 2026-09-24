@@ -1,5 +1,5 @@
 ---
-doc-version: 1.142.0
+doc-version: 1.143.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -14,9 +14,9 @@ doc-updated: 2026-09-24
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 146 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 13 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 当前没有已登记的实施中叶任务 |
+| DONE | 147 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 12 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 0 | 当前无在途叶；C4已按限定出口完成，不外推生产启用、缓存恢复或自动retry |
 | WAIT_DEP | 27 | 等待列明子任务/条件 |
 | NEED_ENV | 18 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
@@ -145,7 +145,7 @@ doc-updated: 2026-09-24
 | SEC-F3-02C2b2b2 | DONE | 限定真实多跳transport完成：4个Parser network文件、专项3 suites/87 tests、Parser 47 suites/1170 tests、typecheck/build、cleanup及diff-check全绿；同一handle/signal/deadline与同generation贯穿逐跳DNS/TLS/epoch、raw Location、最多5跳及8MiB边界。默认off，不构成Transformer/Gateway生产启用 |
 | SEC-F3-02C2b3 | DONE | 限定Parser host-only safe-read接入完成：4个Parser文件、新增14 tests、Parser 48 suites/1184 tests、typecheck/build及diff-check全绿；只接受同一真实issuer与显式proof，工具/OpenAPI不能开关或提供目标模板。受信network branch缺redirect配置仍single-hop，历史Axios maxRedirects=5原样；Gateway未改、生产默认off |
 | SEC-F3-02C3 | WAIT_DEP | 等C1d4；Gateway固定同一operation/route/membership/Registry版本，redirect/retry/取消共享deadline，reload/撤销后旧epoch不得继续 |
-| SEC-F3-02C4 | READY | C1b/C1c限定接线已完成；下一步验证新网络模式首轮单attempt且缓存保持关闭，两侧消费同一operation handle；缓存恢复与自动retry另行登记 |
+| SEC-F3-02C4 | DONE | 限定DONE：仅两份既有spec新增23项真实失败验收（Parser9、Gateway14）；专项27/76项、Parser48 suites/1193 tests、Gateway47 suites/701 tests、Parser typecheck/build、API build及diff-check均PASS。reset/503 Retry-After/DNS拒绝与不可用/TLS失败均单attempt，cache read/store零调用，失败lease不可重放且沿用原operation handle/deadline/signal；旧非网络cache/retry兼容保持。无生产源码或默认开关变更，不覆盖生产配置/DI、缓存恢复、自动retry、C3/C5b/C6或D2b3b2 PostgreSQL持久ledger |
 | SEC-F3-02C5a | DONE | 限定纯失败/审计模块完成：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时 |
 | SEC-F3-02C5b | WAIT_DEP | 等C2b3/C3/C5a；双运行时接入统一失败语义和审计，以真实HTTP负测验证fail-closed与零秘密泄漏 |
 | SEC-F3-02C6 | WAIT_DEP | 等C2b3/C3/C4/C5b；本地双运行时真实联合矩阵，不代表生产默认启用或F3D Windows/Linux环境验收 |

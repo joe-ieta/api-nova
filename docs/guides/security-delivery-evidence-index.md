@@ -1,5 +1,5 @@
 ---
-doc-version: 1.94.0
+doc-version: 1.95.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -142,7 +142,7 @@ doc-updated: 2026-09-24
 | SEC-F3-02C2b2b2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：4个Parser network文件、专项3 suites/87 tests、Parser 47 suites/1170 tests、typecheck/build、cleanup及diff-check全绿；同一handle/signal/deadline与同generation贯穿逐跳DNS/TLS/epoch、raw Location、最多5跳及8MiB边界。默认off，不代表生产启用。 |
 | SEC-F3-02C2b3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：4个Parser文件、新增14 tests、Parser 48 suites/1184 tests、typecheck/build及diff-check全绿；host-only safe-read只接受同一真实issuer与显式proof，工具/OpenAPI不能开关或提供目标模板。无redirect配置的受信network branch仍single-hop，历史Axios maxRedirects=5原样；Gateway未改、生产默认off。 |
 | SEC-F3-02C3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C1d4；Gateway固定整操作生命周期、route/membership/Registry版本与deadline，撤销后旧epoch不得继续。 |
-| SEC-F3-02C4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：C1b/C1c限定接线完成后解锁；首轮只验单attempt/cache-off及共享operation handle，缓存恢复和自动retry另行登记。 |
+| SEC-F3-02C4 | [Parser操作验收](../../packages/api-nova-parser/src/network/trusted-network-operation-execution.spec.ts)、[Gateway真实流验收](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-network-stream.http.spec.ts) | **限定DONE**：仅两份既有spec新增23项真实失败验收（Parser9、Gateway14）；专项27/76项、Parser48 suites/1193 tests、Gateway47 suites/701 tests、Parser typecheck/build、API build及diff-check均PASS。reset/503 Retry-After/DNS拒绝与不可用/TLS失败均单attempt，cache read/store零调用，失败lease不可重放且沿用原operation handle/deadline/signal；旧非网络cache/retry兼容保持。无生产源码或默认开关变更，不覆盖生产配置/DI、缓存恢复、自动retry、C3/C5b/C6或D2b3b2 PostgreSQL持久ledger |
 | SEC-F3-02C5a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时。 |
 | SEC-F3-02C5b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C2b3/C3/C5a；双运行时接线与真实HTTP失败/审计负测尚未闭合。 |
 | SEC-F3-02C6 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C2b3/C3/C4/C5b；双运行时本地真实联合矩阵，不代表生产默认启用或F3D环境验收。 |

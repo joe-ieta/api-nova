@@ -160,4 +160,39 @@ describe('logical operation Parser host bridge with real Registry/DNS/HTTP/TLS',
     expect(result.isError).toBe(true); expect(JSON.stringify(result)).toContain('ETIMEDOUT'); expect(dnsQueries).toBe(0); expect(getEventListeners(callController.signal, 'abort')).toHaveLength(0); complete('late'); await delay(5); expect(requests).toBe(0);
   });
 
+  it.each([false, true])('C4 real tool reset has no automatic attempt or credential reread TLS=%s', async useTls => {
+    const f = await setup('api', useTls); handler = req => req.socket.destroy();
+    const result = await f.tool().handler({ id: '7', retry: 8, attempts: 8, cache: true });
+    expect(result.isError).toBe(true); expect(requests).toBe(1); expect(connections).toBe(1); expect(dnsQueries).toBe(2);
+    expect(f.capture).toHaveBeenCalledTimes(1); expect(f.provider).toHaveBeenCalledTimes(1); expect(getEventListeners(callController.signal, 'abort')).toHaveLength(0);
+  });
+  it.each([false, true])('C4 503 Retry-After is returned without retry or response caching TLS=%s', async useTls => {
+    const f = await setup('api', useTls); handler = (_req, res) => { res.writeHead(503, { 'retry-after': '0', 'cache-control': 'public, max-age=600' }); res.end('unavailable'); };
+    await f.tool().handler({ id: '7' }); expect(requests).toBe(1); expect(f.capture).toHaveBeenCalledTimes(1);
+    await f.tool().handler({ id: '7' }); expect(requests).toBe(2); expect(connections).toBe(2); expect(f.capture).toHaveBeenCalledTimes(2); expect(f.provider).toHaveBeenCalledTimes(2);
+  });
+  it.each([false, true])('C4 DNS refusal consumes plan; replay never resolves again TLS=%s', async useTls => {
+    const f = await setup('api', useTls), plan = await f.prepare(); dnsAddress = '169.254.169.254';
+    await expect(f.execution.send(plan, {})).rejects.toMatchObject({ code: 'upstream_network_policy_denied' });
+    const queries = dnsQueries; dnsAddress = '127.0.0.1';
+    await expect(f.execution.send(plan, {})).rejects.toThrow(); expect(dnsQueries).toBe(queries); expect(queries).toBe(2); expect(connections).toBe(0); expect(requests).toBe(0); expect(f.provider).toHaveBeenCalledTimes(1);
+  });
+  it.each([false, true])('C4 transport receives the exact operation Signal and deadline TLS=%s', async useTls => {
+    const original = createPinnedHttpTransport, sends: any[] = [];
+    jest.spyOn(require('./pinned-http-transport'), 'createPinnedHttpTransport').mockImplementation((options: any) => {
+      const transport = original(options); return { ...transport, send: (request: any) => { sends.push(request); return transport.send(request); } };
+    });
+    const f = await setup('api', useTls), deadline = Date.now() + 5000;
+    const plan = await f.execution.prepare(binding, { url: f.origin + '/api/items/7' }, deadline);
+    await f.execution.send(plan, {}); expect(sends).toHaveLength(1); expect(sends[0].signal).toBe(plan.signal); expect(sends[0].deadline).toBe(deadline);
+    await expect(f.execution.send(plan, {})).rejects.toThrow(); expect(sends).toHaveLength(1); expect(f.provider).toHaveBeenCalledTimes(1);
+  });
+
+  it('C4 rejected TLS certificate makes only one connection and consumes the plan', async () => {
+    const f = await setup('api', true), execution = createTrustedSingleHopNetworkExecution({ ...f.input, ca: undefined });
+    const plan = await execution.prepare(binding, { url: f.origin + '/api/items/7' }, Date.now() + 5000);
+    await expect(execution.send(plan, {})).rejects.toThrow(); await expect(execution.send(plan, {})).rejects.toThrow();
+    expect(connections).toBe(1); expect(requests).toBe(0); expect(dnsQueries).toBe(2); expect(f.capture).toHaveBeenCalledTimes(1); expect(f.provider).toHaveBeenCalledTimes(1);
+  });
+
 });

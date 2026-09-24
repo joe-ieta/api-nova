@@ -30,7 +30,7 @@ describe.each(['http', 'https'])('explicit host Gateway network stream through r
   afterAll(() => { if (directory && path.resolve(directory).startsWith(path.resolve(os.tmpdir()) + path.sep)) fs.rmSync(directory, { recursive: true, force: true }); });
   let app: INestApplication, upstream: http.Server, udp: dgram.Socket, port: number, upstreamPort: number, dnsPort: number;
   let route: any, activeBinding: any, candidate: any, registry: UpstreamCredentialRegistry, network: GatewayTrustedNetworkProvider, proxy: GatewayProxyEngineService;
-  let operationBegin: jest.Mock, operationClose: jest.Mock, securityEpoch: string;
+  let operationBegin: jest.Mock, operationClose: jest.Mock, operationAssert: jest.Mock, traffic: any, securityEpoch: string;
   let cache: GatewayCacheService, hits: number, connections: number, dnsQueries: number, dnsAddress: string, dnsFailure: boolean, dnsSilent: boolean, captureFailure: boolean, dnsGate: (() => void) | undefined;
   let seen: http.IncomingHttpHeaders[], handler: http.RequestListener, provider: jest.Mock;
   beforeEach(async () => {
@@ -57,12 +57,12 @@ describe.each(['http', 'https'])('explicit host Gateway network stream through r
     network = createGatewayTrustedNetworkProvider({ compiler, ca, createOperationAuthority: capture => {
       const authority = createNetworkOperationAuthority({ compiler, readSecurityEpoch: () => { if (captureFailure) throw new Error('private host detail'); return securityEpoch; },
         captureAuthorizedContext: (selector, signal) => capture(selector, signal, securityEpoch) });
-      operationBegin = jest.fn(authority.begin); operationClose = jest.fn(authority.close);
-      return { ...authority, begin: operationBegin, close: operationClose };
+      operationBegin = jest.fn(authority.begin); operationClose = jest.fn(authority.close); operationAssert = jest.fn(authority.assertCurrent);
+      return { ...authority, begin: operationBegin, close: operationClose, assertCurrent: operationAssert };
     }, servers: [`127.0.0.1:${dnsPort}`], registrations: [{ route, snapshot: registry.captureSnapshot(), siteId: 'site', policy, captureSnapshot: () => { if (captureFailure) throw new Error('private host detail'); return registry.captureSnapshot(); }, captureRouteBinding: () => activeBinding }] });
     const resolver = createGatewayUpstreamCredentialResolver(() => registry.captureSnapshot(), { enableHeaderPolicy: true });
     const metrics: any = Object.fromEntries(['recordPolicyEvent', 'recordCacheResult', 'recordForwardResult', 'recordPolicyObservabilityEvent'].map(name => [name, jest.fn().mockResolvedValue(undefined)]));
-    const traffic: any = Object.fromEntries(['beforeAttempt', 'recordAttemptSuccess', 'recordAttemptFailure', 'recordRetryAttempt'].map(name => [name, jest.fn().mockResolvedValue(undefined)])); traffic.admit = async () => ({ release() {} });
+    traffic = Object.fromEntries(['beforeAttempt', 'recordAttemptSuccess', 'recordAttemptFailure', 'recordRetryAttempt'].map(name => [name, jest.fn().mockResolvedValue(undefined)])); traffic.admit = async () => ({ release() {} });
     cache = new GatewayCacheService(); jest.spyOn(cache, 'resolve'); jest.spyOn(cache, 'store');
     proxy = new GatewayProxyEngineService(new GatewayRequestCaptureService(), resolver, metrics, undefined, network);
     const runtime = new GatewayRuntimeService({ resolve: () => route } as any, { authorize: async () => ({ mode: 'anonymous' }) } as any, traffic, cache, proxy, { recordRequest: async () => undefined } as any, metrics);
@@ -219,4 +219,55 @@ describe.each(['http', 'https'])('explicit host Gateway network stream through r
       return socket;
     });
     expect((await request()).status).toBe(502); expect(hits).toBe(0); expect(operationClose).toHaveBeenCalledTimes(1);
-  });});
+  });
+  it.each(['reset', '503', 'dns-denied', 'dns-unavailable'])('C4 %s ignores configured retry=3 and never reads or writes cache', async failure => {
+    if (failure === 'reset') handler = req => req.socket.destroy();
+    if (failure === '503') handler = (_req, res) => { res.writeHead(503, { 'retry-after': '0', 'cache-control': 'public, max-age=600' }); res.end('temporarily unavailable'); };
+    if (failure === 'dns-denied') dnsAddress = '127.0.0.2';
+    if (failure === 'dns-unavailable') dnsFailure = true;
+    const result = await request({ 'x-retry-attempts': '8', 'cache-control': 'max-age=600' });
+    expect(result.status).toBe(failure === 'dns-denied' ? 502 : 503);
+    expect(operationBegin).toHaveBeenCalledTimes(1); expect(provider).toHaveBeenCalledTimes(1);
+    expect(dnsQueries).toBe(2); expect(connections).toBe(failure.startsWith('dns-') ? 0 : 1);
+    expect(hits).toBe(failure.startsWith('dns-') ? 0 : 1);
+    expect(traffic.beforeAttempt).not.toHaveBeenCalled(); expect(traffic.recordRetryAttempt).not.toHaveBeenCalled();
+    expect(traffic.recordAttemptSuccess.mock.calls.length + traffic.recordAttemptFailure.mock.calls.length).toBe(1);
+    expect(cache.resolve).not.toHaveBeenCalled(); expect(cache.store).not.toHaveBeenCalled();
+    const handle = await operationBegin.mock.results[0].value;
+    expect(handle.deadline).toBe(operationBegin.mock.calls[0][0].deadline);
+    expect(operationAssert.mock.calls.length).toBeGreaterThan(0);
+    expect(operationAssert.mock.calls.every(([checked]) => checked === handle)).toBe(true);
+    expect(operationClose).toHaveBeenCalledTimes(1); expect(operationClose).toHaveBeenCalledWith(handle);
+  });
+  it('C4 a failed lease is consumed and cannot trigger a second connection', async () => {
+    handler = req => req.socket.destroy();
+    const req = new http.IncomingMessage(new net.Socket()) as any; req.originalUrl = '/wire'; req.headers = { host: 'consumer.test' }; req.rawHeaders = ['Host', 'consumer.test'];
+    try {
+      const prepared = await proxy.prepareRequest(route, req);
+      await expect(network.send(prepared.networkLease!, { framing: { mode: 'none' } })).rejects.toThrow();
+      await expect(network.send(prepared.networkLease!, { framing: { mode: 'none' } })).rejects.toThrow();
+      expect(connections).toBe(1); expect(hits).toBe(1); expect(provider).toHaveBeenCalledTimes(1); expect(operationBegin).toHaveBeenCalledTimes(1);
+    } finally { req.destroy(); }
+  });
+  it('C4 identical successful requests remain independent operations, not cached responses', async () => {
+    const first = await request(), second = await request(); expect(first.status).toBe(200); expect(second.status).toBe(200);
+    expect(hits).toBe(2); expect(connections).toBe(2); expect(provider).toHaveBeenCalledTimes(2); expect(operationBegin).toHaveBeenCalledTimes(2);
+    const firstHandle = await operationBegin.mock.results[0].value, secondHandle = await operationBegin.mock.results[1].value;
+    expect(firstHandle).not.toBe(secondHandle); expect(firstHandle.operationId).not.toBe(secondHandle.operationId);
+    expect(operationClose).toHaveBeenCalledTimes(2); expect(cache.resolve).not.toHaveBeenCalled(); expect(cache.store).not.toHaveBeenCalled();
+    expect(traffic.recordRetryAttempt).not.toHaveBeenCalled();
+  });
+
+  it('C4 connection or TLS validation failure before HTTP never retries', async () => {
+    if (scheme === 'https') {
+      const connect = tls.connect;
+      jest.spyOn(require('node:tls'), 'connect').mockImplementation((options: any) => connect({ ...options, ca: undefined }));
+      upstream.on('tlsClientError', () => undefined);
+    } else upstream.prependListener('connection', socket => socket.destroy());
+    const response = await request(); expect(response.status).toBe(scheme === 'https' ? 502 : 503);
+    expect(connections).toBe(1); expect(hits).toBe(0); expect(dnsQueries).toBe(2);
+    expect(operationBegin).toHaveBeenCalledTimes(1); expect(operationClose).toHaveBeenCalledTimes(1); expect(provider).toHaveBeenCalledTimes(1);
+    expect(traffic.recordAttemptFailure).toHaveBeenCalledTimes(1); expect(traffic.recordRetryAttempt).not.toHaveBeenCalled(); expect(traffic.beforeAttempt).not.toHaveBeenCalled();
+    expect(cache.resolve).not.toHaveBeenCalled(); expect(cache.store).not.toHaveBeenCalled();
+  });
+});
