@@ -1,3 +1,4 @@
+import { assertRegistryProviderEvidence, captureRegistryProviderGeneration, assertCapturedRegistryProviderGeneration, capturedRegistrySecretProvider, associateRegistryProviderGeneration, type RegistryProviderEvidence, type CapturedRegistryProviderGeneration } from './registry-provider-evidence';
 import { RegistrySecurityObservers, registrySecurityCommit, type RegistrySecurityCommitEvent, type RegistrySecuritySubscription } from './registry-security-events';
 import { checkedCredentialHeaderHistoryState, CREDENTIAL_HEADER_HISTORY_LIMIT, type CredentialHeaderHistoryBinding } from './credential-header-history';
 export type { CredentialHeaderHistoryStore, CredentialHeaderHistoryState, CredentialHeaderHistoryBinding } from './credential-header-history';
@@ -40,6 +41,8 @@ export type UpstreamSecretProviderFactory = (
 
 export interface UpstreamCredentialRegistryOptions {
   readonly environment: string;
+  /** Optional host-owned immutable generation evidence; never configuration supplied. */
+  readonly providerEvidence?: RegistryProviderEvidence;
   readonly credentialHeaderHistory?: CredentialHeaderHistoryBinding;
   /** Trusted host adapter only. Never accept executable adapters from configuration text. */
   readonly providerFactory?: UpstreamSecretProviderFactory;
@@ -87,6 +90,7 @@ function reject(code: UpstreamCredentialRegistryErrorCode): never {
 
 function checkedOptions(input: UpstreamCredentialRegistryOptions): {
   environment: string;
+  providerEvidence?: RegistryProviderEvidence;
   providerFactory: UpstreamSecretProviderFactory;
   credentialHeaderHistory?: CredentialHeaderHistoryBinding;
   validateCandidateOwnership?: UpstreamCredentialRegistryOptions['validateCandidateOwnership'];
@@ -99,11 +103,16 @@ function checkedOptions(input: UpstreamCredentialRegistryOptions): {
     if (prototype !== Object.prototype && prototype !== null) {
       return reject('INVALID_REGISTRY_CONFIGURATION');
     }
-    if (Reflect.ownKeys(input).some(key => key !== 'environment' && key !== 'providerFactory' && key !== 'validateCandidateOwnership' && key !== 'credentialHeaderHistory')) {
+    if (Reflect.ownKeys(input).some(key => key !== 'environment' && key !== 'providerEvidence' && key !== 'providerFactory' && key !== 'validateCandidateOwnership' && key !== 'credentialHeaderHistory')) {
       return reject('INVALID_REGISTRY_CONFIGURATION');
     }
+    const evidenceProperty = Object.getOwnPropertyDescriptor(input, 'providerEvidence');
+    if (evidenceProperty && !('value' in evidenceProperty)) return reject('INVALID_REGISTRY_CONFIGURATION');
+    const providerEvidence = evidenceProperty?.value as RegistryProviderEvidence | undefined;
+    if (providerEvidence !== undefined) assertRegistryProviderEvidence(providerEvidence);
     const environmentProperty = Object.getOwnPropertyDescriptor(input, 'environment');
     const factoryProperty = Object.getOwnPropertyDescriptor(input, 'providerFactory');
+    if (providerEvidence !== undefined && factoryProperty?.value !== undefined) return reject('INVALID_REGISTRY_CONFIGURATION');
     const ownershipProperty = Object.getOwnPropertyDescriptor(input, 'validateCandidateOwnership');
     if (!environmentProperty || !('value' in environmentProperty) ||
         (factoryProperty && !('value' in factoryProperty)) ||
@@ -127,7 +136,7 @@ function checkedOptions(input: UpstreamCredentialRegistryOptions): {
         /[\u0000-\u001f\u007f]/u.test(environment) || typeof providerFactory !== 'function') {
       return reject('INVALID_REGISTRY_CONFIGURATION');
     }
-    return { environment, providerFactory, credentialHeaderHistory, validateCandidateOwnership: ownershipProperty?.value };
+    return { environment, providerEvidence, providerFactory, credentialHeaderHistory, validateCandidateOwnership: ownershipProperty?.value };
   } catch {
     return reject('INVALID_REGISTRY_CONFIGURATION');
   }
@@ -156,8 +165,13 @@ export class UpstreamCredentialRegistry {
   private readonly securityObservers = new RegistrySecurityObservers();
   /** Host-only synchronous notification after atomic activation. No initial replay. */
   observeSecurityCommits(callback: (event: RegistrySecurityCommitEvent) => void): RegistrySecuritySubscription {
-    return this.securityObservers.subscribe(callback);
+    if (typeof callback !== 'function') return this.securityObservers.subscribe(callback);
+    return this.securityObservers.subscribe(event => {
+      try { const result = callback(event) as unknown; if (result !== undefined) this.providerEvidence?.close(); return result as void; }
+      catch (error) { this.providerEvidence?.close(); throw error; }
+    });
   }
+  private readonly providerEvidence?: RegistryProviderEvidence;
   private readonly environment: string;
   private readonly providerFactory: UpstreamSecretProviderFactory;
   private readonly validateCandidateOwnership?: UpstreamCredentialRegistryOptions['validateCandidateOwnership'];
@@ -171,6 +185,7 @@ export class UpstreamCredentialRegistry {
   constructor(options: UpstreamCredentialRegistryOptions) {
     const checked = checkedOptions(options);
     this.environment = checked.environment;
+    this.providerEvidence = checked.providerEvidence;
     this.credentialHeaderHistory = checked.credentialHeaderHistory;
     this.providerFactory = checked.providerFactory;
     this.validateCandidateOwnership = checked.validateCandidateOwnership;
@@ -307,6 +322,7 @@ export class UpstreamCredentialRegistry {
     if (this.reloading) return reject('RELOAD_IN_PROGRESS');
     this.reloading = true;
     try {
+      const providerCapture = this.providerEvidence ? captureRegistryProviderGeneration(this.providerEvidence) : undefined;
       let candidate: UpstreamCredentialBindingsCandidate;
       try {
         candidate = await loadCandidate();
@@ -315,7 +331,7 @@ export class UpstreamCredentialRegistry {
         if (error instanceof UpstreamCredentialRegistryError) throw error;
         return reject('CANDIDATE_REJECTED');
       }
-      return await this.activateCandidate(candidate, commitAllowed);
+      return await this.activateCandidate(candidate, commitAllowed, 0, providerCapture);
     } catch (error) {
       const safe = error instanceof UpstreamCredentialRegistryError
         ? new UpstreamCredentialRegistryError(error.code)
@@ -331,7 +347,9 @@ export class UpstreamCredentialRegistry {
     candidate: UpstreamCredentialBindingsCandidate,
     commitAllowed?: () => boolean,
     historyAttempt = 0,
+    providerCapture?: CapturedRegistryProviderGeneration,
   ): Promise<UpstreamCredentialRegistrySnapshot> {
+    if (providerCapture) assertCapturedRegistryProviderGeneration(providerCapture);
     if (candidate.metadata.environment !== this.environment) return reject('ENVIRONMENT_MISMATCH');
     if (candidate.metadata.revision === this.active?.candidate.metadata.revision) {
       return reject('REVISION_ALREADY_ACTIVE');
@@ -359,7 +377,7 @@ export class UpstreamCredentialRegistry {
 
     const providers = new Map<string, UpstreamSecretProvider>();
     for (const [id, description] of Object.entries(candidate.secretProviders)) {
-      const provider = this.providerFactory(description);
+      const provider = providerCapture ? capturedRegistrySecretProvider(providerCapture, id, description) : this.providerFactory(description);
       if (!provider || provider.type !== description.type || typeof provider.resolve !== 'function') {
         return reject('SECRET_RESOLUTION_FAILED');
       }
@@ -424,6 +442,7 @@ export class UpstreamCredentialRegistry {
         return resolveBinding(binding);
       },
     });
+    if (providerCapture) assertCapturedRegistryProviderGeneration(providerCapture);
     const securityEvent = registrySecurityCommit(this.active, snapshot);
     // Durable CAS is the activation commit point. A watcher stopped before it
     // starts cancels; stopping during an accepted commit only stops future reloads.
@@ -437,12 +456,15 @@ export class UpstreamCredentialRegistry {
         if (historyAttempt >= 2) return reject('HISTORY_CONFLICT');
         if (commitAllowed && !commitAllowed()) return reject('WATCH_STOPPED');
         // Recompile against the new union; a newly retired header may invalidate policy.
-        return this.activateCandidate(candidate, commitAllowed, historyAttempt + 1);
+        return this.activateCandidate(candidate, commitAllowed, historyAttempt + 1, providerCapture);
       }
     }
-    // No await or fallible work after successful durable commit and before swap.
+    // A revoked generation cannot activate even if the monotonic header union CAS succeeded.
+    // This final synchronous check may reject; no await is allowed before the active swap.
+    if (providerCapture) assertCapturedRegistryProviderGeneration(providerCapture);
     this.historicalAuthenticationHeaderNames = historicalNames;
     this.active = snapshot;
+    if (providerCapture) associateRegistryProviderGeneration(providerCapture, snapshot);
     this.lastReloadError = undefined;
     this.securityObservers.publish(securityEvent);
     return snapshot;

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.130.0
+doc-version: 1.131.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -14,10 +14,10 @@ doc-updated: 2026-09-24
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 139 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 14 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | D2b2 Registry capture/proof仍在实施且缺专项测试；统一Parser门禁已恢复，但完成前不外推为生产接线 |
-| WAIT_DEP | 27 | 等待列明子任务/条件 |
+| DONE | 140 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 15 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 0 | 当前无已登记实施中叶子；D2b3与C2b2b已就绪但尚未开工 |
+| WAIT_DEP | 26 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -129,8 +129,8 @@ doc-updated: 2026-09-24
 | SEC-F3-02C1d1 | DONE | 限定host安全epoch/Registry提交事件合同完成：自身2 suites/16 tests、Parser 41 suites/971 tests（含C2a）、typecheck/build及diff-check通过；提供host-owned按source单调epoch与提交观察点。Gateway生产DI/active-route目录及外部Provider原子revision/event仍未接，生产默认关闭 |
 | SEC-F3-02C1d2a | DONE | 限定可信active-route目录完成：SQL.js/旧快照2 suites/42 tests、Gateway 44 suites/664 tests、API build及diff-check通过；真实SQL.js dirty-read复现后以同步export到独立query_only副本修复，candidate/rollback不发布且stop/delete同步撤销。PostgreSQL路径未实测，整库复制成本与原候选暂态snapshot行为保留，不构成生产装配 |
 | SEC-F3-02C1d2b1 | DONE | 限定immutable host generation store完成：2个credentials文件、自身23 tests，统一Parser 44 suites/1077 tests、typecheck/build及diff-check通过；只保存内存有界材料，CAS激活并同步撤销/到期，无env/file导入、生产issuer或Registry关联。JS string不提供物理擦除保证 |
-| SEC-F3-02C1d2b2 | IN_PROGRESS | Registry/evidence源码仍在途且尚无D2b2专项测试；历史首次Parser全量仅31 suites/801 tests执行、另14 suites因6处TS7006未运行且typecheck/build失败，部分dist已清理。类型阻断修复后统一Parser 45 suites/1098 tests、typecheck/build、cleanup及diff-check全绿，但不能替代D2b2专项，验收前不标DONE、不提交 |
-| SEC-F3-02C1d2b3 | WAIT_DEP | 等D2b2/D2a/D3；default-off装配Gateway/Parser、active route、Registry/security epoch与proof。外部Secret Manager、跨进程/E3b及目标环境证据归D4/F3D NEED_ENV |
+| SEC-F3-02C1d2b2 | DONE | 限定Registry capture/opaque proof完成：3个credentials文件、专用26 tests、相邻5 suites/99 tests、Parser 46 suites/1124 tests、typecheck/build、cleanup及diff-check全绿；仅host-owned内存generation→Registry真实Snapshot→一次性source proof。无env/file自动捕获、Gateway生产装配、managed child或跨进程传播。首次31 suites/801通过、14 suites因6处TS7006未运行及构建失败保留为历史，修复后已完整复验 |
+| SEC-F3-02C1d2b3 | READY | D2b2/D2a/D3依赖已闭合；下一步default-off装配Gateway/Parser、active route、Registry/security epoch与proof。env/file自动捕获、外部Secret Manager、managed child、跨进程/E3b及目标环境证据仍未完成 |
 | SEC-F3-02C1d3 | DONE | 限定Parser host生命周期桥完成：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off，缺providerEvidence永拒，WeakMap fixture仅为进程内不可伪造测试能力而非生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭 |
 | SEC-F3-02C1d4 | WAIT_DEP | 等C1d2b3/C1d3；真实本地Registry/HTTP/TLS覆盖普通reload固定、失败保旧及撤销/收窄/epoch变化/到期在DNS/连接/大流阶段主动abort，shutdown无遗留资源；外部Secret Manager、多进程/E3b及目标环境另验 |
 | SEC-F3-02C2a | DONE | 限定纯目标目录完成：2个独立Parser文件，专项30项及相邻5 suites/240 tests通过；按source asset与精确method+path绑定Endpoint/target，未知、歧义、跨asset、scheme降级及非受信目标失败关闭。未接多跳状态机、真实发送或生产网络模式 |
