@@ -1,5 +1,5 @@
 ---
-doc-version: 1.78.0
+doc-version: 1.79.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -41,7 +41,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-E2 | SEC-E02；E1 | IN_PROGRESS | 安全 smoke/跨进程/传输专项有历史证据；当前完整安全矩阵、撤销/取消/重连和平台组合未完成 |
 | TP-F1 | SEC-F01；C4 | IN_PROGRESS | A/B/C1/C2/C3a–c/E1/E2及E3a完成；C3a–c为4 files/27 tests纯模块；C3d以独立生产表、双库CHECK/迁移/注册及16套120项限定完成，C3e以四阶段loopback/SQLite编排、10套123项及API build限定完成；C3f限定完成；C3g拆为G1–G6；G1 proof/authorization adapter以30 tests、security 11 suites/176及API build限定完成，G3单成员事务writer以2 files、1 suite/10项SQL.js及API build限定完成但未注册/未验PG；G2只读preview/readiness adapter以2 files、2 suites/43及API build限定完成，SQL仅SELECT、实体/evidence零变更、canPublish恒false且未接生产入口；G4有界executor切片以3 suites/30 tests及API build限定完成：生产G2默认false且G3零调用，future-readiness fixture仅证明部分提交/后续继续，candidate只做host-owned同步swap且无await；未接异步Registry生产链，不能宣称production batch/candidate activation完整。D READY；G5独立Gateway proof consumer guard与真实HTTP验收实施中，仅限Resolver/cache前proof拒绝，不开放Verified、不改Publication入口，共享Runtime生产接线待协调；G6 MCP/child实时许可等待；当前不接production gate，F1保护全部fail-closed，仍无生产Verified；E3a未注册/未接handoff，E3b及D/F等待 |
 | TP-F2 | SEC-F02；A3/B1/C3/F1 | IN_PROGRESS | F2-01分区/真实generation重载恢复与F2-02临时匿名UI均完成；父依赖C3/F1未闭合，MCP完整凭证编辑/浏览器点击不在本批签收 |
-| TP-F3 | SEC-F03；C4/D1/E1 | IN_PROGRESS | F3-01政策已冻结；F3-02A纯compiler完成。B1受控DNS批准结果以真实UDP 26/26、Parser 31 suites/748 tests及typecheck/build限定DONE；仅有DNS批准结果，无上游socket/peer/TLS。B2现READY，C/D仍等待；不能据A/B1宣称SSRF防线完成，CLI秘密、生命周期审计和完整Secret Scan仍未完成 |
+| TP-F3 | SEC-F03；C4/D1/E1 | IN_PROGRESS | F3-01政策已冻结；A纯compiler与B1受控DNS批准结果限定DONE。B2固定IP单跳transport现IN_PROGRESS，只含Host/SNI/证书、代理拒绝和写出前peer复核；redirect、逐跳凭据/撤销及C/D仍等待，不能提前宣称SSRF防线完成 |
 | TP-F3a | 供应链治理；独立 | IN_PROGRESS | 旧依赖审计只是历史快照；当前可达性、补丁兼容和风险需重审，不自动 audit fix/重大升级 |
 | TP-F4 | 全量验收；D2/E2/F1/F2/F3/F3a | BACKLOG | 完整安全矩阵、依赖审计、Linux/Windows 和对外交付门禁未满足 |
 | TP-G1 | OAuth2 独立里程碑 | DEFERRED | 只保留不可执行占位，不获取/刷新 Token，不提供授权服务器或 OAuth Discovery |
@@ -745,4 +745,4 @@ SEC-D1-H11B以新增真实部署验收完成RuntimeAssets assemble→plan→Gate
 SEC-F1-02C3G5仅完成独立Gateway proof消费guard与真实HTTP切片，3 suites/54 tests及API build通过。它未注册module/runtime，缺少生产host challenge/session/proof issuer、同进程authority lifecycle与request-bound capability provider，故从IN_PROGRESS转WAIT_DEP，不开放Verified；E1仍拒绝。
 ## 52. F3网络执行拆分启动（2026-09-24）
 
-原SEC-F3-02横跨配置/地址分类、受控DNS与连接固定、逐跳凭据/redirect/撤销状态机和双运行时真实网络矩阵，不能由单一纯函数关闭。A限定纯compiler现已DONE：严格v1 Schema、URL/origin、IPv4/IPv6完整分类、mapped归一与精确private-exception已实现；静态IANA表版本为`iana-2025-10-09-conservative-v1`，以后更新必须审查IANA registry差异并重跑地址边界回归。B1现限定DONE：真实UDP 26/26、Parser 31 suites/748 tests及typecheck/build通过，覆盖受信Resolver、A/AAAA/CNAME有界全集、规范化去重、逐地址授权及混合/未分类/截断拒绝；结果仅是DNS批准集合，无上游socket、peer或TLS证据。B2已READY，负责固定获批IP单跳直连、原Host/SNI/证书保留、代理/外部Agent拒绝和写出前peer复核。C/D继续等待逐跳凭据/redirect/撤销及N01–N17双运行时矩阵；TP-F3继续IN_PROGRESS。
+原SEC-F3-02横跨配置/地址分类、受控DNS与连接固定、逐跳凭据/redirect/撤销状态机和双运行时真实网络矩阵，不能由单一纯函数关闭。A限定纯compiler现已DONE：严格v1 Schema、URL/origin、IPv4/IPv6完整分类、mapped归一与精确private-exception已实现；静态IANA表版本为`iana-2025-10-09-conservative-v1`，以后更新必须审查IANA registry差异并重跑地址边界回归。B1现限定DONE：真实UDP 26/26、Parser 31 suites/748 tests及typecheck/build通过，覆盖受信Resolver、A/AAAA/CNAME有界全集、规范化去重、逐地址授权及混合/未分类/截断拒绝；结果仅是DNS批准集合，无上游socket、peer或TLS证据。B2现IN_PROGRESS，仅负责固定获批IP单跳直连、原Host/SNI/证书保留、代理/外部Agent拒绝和写出前peer复核。redirect、逐跳凭据/撤销仍归C，N01–N17双运行时矩阵仍归D；C/D保持WAIT_DEP，TP-F3继续IN_PROGRESS。

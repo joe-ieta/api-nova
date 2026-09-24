@@ -95,8 +95,12 @@ test('stores metadata, body references, receipt, version and checkpoint atomical
   const cp = checkpoint();
   const result = await f.store.ingest(row, { checkpoint: cp });
   assert.equal(result.status, 'inserted');
-  assert.equal(result.snapshotSeq, '1');
-  assert.equal(result.events.length, 0);
+  assert.equal(result.snapshotSeq, '2');
+  assert.equal(result.events.length, 1);
+  assert.equal(result.events[0].eventType, 'server.state_changed');
+  const delta = await f.repository(RuntimeObservabilityEventEntity).findOneByOrFail({ id: result.events[0].eventId });
+  assert.equal(delta.details.delta, 1);
+  assert.equal(delta.details.revisionSequence, '1');
   const current = await f.repository(entities.RuntimeInvocationEntity)
     .findOneByOrFail({ invocationId: row.invocationId });
   assert.equal(current.sourceRecordVersion, 1);
@@ -235,7 +239,8 @@ test('inferred unknown and late observed terminal use independent projection/sou
   assert.equal(current.record.completionSource, 'observed');
   assert.equal(await f.repository(entities.RuntimeInvocationEntity).count(), 1);
   const events = await f.repository(RuntimeObservabilityEventEntity).find({ order: { sequence: 'ASC' } });
-  assert.deepEqual(events.map(item => item.eventName), ['invocation.reconciled', 'invocation.reconciled']);
+  assert.deepEqual(events.map(item => item.eventName), ['server.state_changed', 'invocation.reconciled', 'server.state_changed', 'invocation.reconciled']);
+  assert.deepEqual(events.filter(item => item.eventName === 'server.state_changed').map(item => item.details.delta), [1, -1]);
 });
 
 test('stale reconciliation cannot overwrite a newer observed record', async t => {
@@ -261,7 +266,9 @@ test('checkpoint optimistic offset conflict rolls back the entire second call', 
   }), errorCode('CHECKPOINT_CONFLICT'));
   assert.equal(await f.repository(entities.RuntimeInvocationEntity).count(), 1);
   assert.equal(await f.repository(entities.RuntimeIngestReceiptEntity).count(), 1);
-  assert.equal(await f.repository(RuntimeObservabilityEventEntity).count(), 0);
+  assert.equal(await f.repository(RuntimeObservabilityEventEntity).count(), 1);
+  const survivor = await f.repository(RuntimeObservabilityEventEntity).findOneByOrFail({ eventName: 'server.state_changed' });
+  assert.equal(survivor.details.delta, 1);
   assert.equal(await f.store.watermark(), before);
 });
 

@@ -389,6 +389,7 @@ export class CallObservabilityStore {
             return this.result(tx, projection.status === 'duplicate' ? 'duplicate' : 'stale',
               projection.invocation || previous);
           }
+          await this.inFlightMembershipEvent(tx, previous, current, context.suppressEvent);
           if (record.phase === 'finished') {
             await this.invocationEvent(tx, current, revisionSequence,
               previous?.record.completionSource === 'reconciled' ? 'invocation.reconciled' : 'invocation.completed',
@@ -443,6 +444,7 @@ export class CallObservabilityStore {
       tx.suppressBucketEvents = evidence.suppressEvent === true;
       const projection = await this.saveProjection(tx, previous, current);
       if (projection.status !== 'apply') return this.result(tx, 'stale', projection.invocation || previous);
+      await this.inFlightMembershipEvent(tx, previous, current, evidence.suppressEvent);
       await this.invocationEvent(tx, current, sequence, 'invocation.reconciled', evidence.suppressEvent);
       return this.result(tx, 'updated', current);
     });
@@ -853,6 +855,19 @@ export class CallObservabilityStore {
     });
     await tx.manager.getRepository(RuntimeObservabilityEventEntity).insert(event);
     if (!suppressEvent) tx.events.push({ eventId: event.id, sequence: publicSequence(sequence), eventType });
+  }
+
+  /** Retained member transition evidence, never a claim of live producer activity or complete coverage. */
+  private async inFlightMembershipEvent(tx: ObservabilityWriteTransaction,
+    previous: RuntimeInvocationEntity | null, current: RuntimeInvocationEntity, suppressEvent = false): Promise<void> {
+    if (!current.runtimeAssetId || !['gateway_request', 'mcp_tool'].includes(current.spanKind)) return;
+    const delta = !previous && current.phase === 'started' ? 1 :
+      previous?.phase === 'started' && previous.runtimeAssetId === current.runtimeAssetId && current.phase === 'finished' ? -1 : 0;
+    if (!delta) return;
+    await this.projectionEvent(tx, 'server.state_changed', current.invocationId, current.recordVersion, {
+      evidenceScope: 'retained_business_in_flight', delta, invocationId: current.invocationId,
+      revisionSequence: publicSequence(current.updatedSequence),
+    }, { runtimeAssetId: current.runtimeAssetId, serverType: current.serverType, origin: current.origin }, suppressEvent);
   }
 
   private async invocationEvent(tx: ObservabilityWriteTransaction, current: RuntimeInvocationEntity,

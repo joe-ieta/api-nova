@@ -1,5 +1,5 @@
 ---
-doc-version: 2.14.0
+doc-version: 2.16.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -20,7 +20,7 @@ ApiNova 的主线是 API 资产导入、注册、测试、治理和发布，以�
 
 ## 2. 当前任务包状态
 
-**DONE=10，IN_PROGRESS=5，BACKLOG=1，共 16 包；READY=0。**
+**DONE=11，IN_PROGRESS=4，BACKLOG=1，共 16 包；READY=0。**
 
 `DONE` 指该任务包约定范围已闭环，不表示所有需求、平台或部署均完成；`VERIFIED` 指限定接口契约已有验收证据；`AVAILABLE` 指部署交付，不等于代码存在。文档的 `active` 仅表示仍受维护。
 
@@ -30,10 +30,10 @@ ApiNova 的主线是 API 资产导入、注册、测试、治理和发布，以�
 | TP06 | IN_PROGRESS | MCP 发送确认及错误/不完整终态修复已保留；完整传输、正文、平台矩阵及 Windows 大响应背压限制仍待收口 |
 | TP07 | DONE | 真实测试、探测和候选验证接入，origin 隔离及 telemetry 排除已完成 |
 | TP08~09 | DONE | 源身份、生命周期、调用/正文/trace/调用者查询等既定范围已闭环；根模块已接入 |
-| TP10 | IN_PROGRESS | OBS-10-01与02A已完成生命周期/限定retained读模型。B1以4 suites/21 tests及API build完成managed start/terminal同事务`server.state_changed` sequence；仅同一DataSource并发证据且不接Realtime。B2现READY，继续补in-flight started/terminal同事务状态delta |
+| TP10 | DONE | OBS-10-01/02A/B1/B2限定出口完成：managed lifecycle与有runtimeAssetId的gateway_request/mcp_tool在途成员变化已有同Store事务sequence-bound delta。B2为5 suites/28 tests及API build；storage修正后32/32，events16、invocations38、restart3分别通过。不接Realtime，legacy/asset/global多实例水位与live liveness仍unknown |
 | TP11 | DONE | 远端规范事件、授权历史、持久 Outbox 与水位闭环；本地调用快照的可选授权桥接已整合 |
 | TP12 | DONE | 远端订阅/投递 HTTP、受控测试、人工重投、签名、重试与相关管理审计已闭环；自动发送默认关闭，部署未验收 |
-| TP13 | IN_PROGRESS | 授权持久事件分页流、调用事实快照接续、每页权限复验、ACK背压与隔离模式已实现；调用事实UI已接入。OBS-13-01等待OBS-10-02B1/B2提供managed lifecycle与in-flight的sequence-bound deltas；之后才能实现state snapshot grant、乱序/撤权/gap恢复。legacy/asset/global多实例共同水位仍unknown |
+| TP13 | IN_PROGRESS | 授权持久事件分页流、调用事实快照接续、每页权限复验、ACK背压与隔离模式已实现；调用事实UI已接入。B1/B2的managed lifecycle与业务in-flight durable deltas已闭合前置依赖，OBS-13-01现READY；仍需state snapshot grant、从H续读、乱序/撤权/gap恢复。legacy/asset/global多实例共同水位仍unknown |
 | TP14 | IN_PROGRESS | 新建投递记录30天与事件重投资格已分离；新事件/正文策略、默认关闭有界正文GC及受权策略管理UI已验证；已补GC同扫描容量样本、扫描失败重开与停机收尾及只读诊断UI；整体保留/配额与跨组件故障恢复仍待闭合 |
 | TP15 | IN_PROGRESS | 公开/api路径已收敛，调用事实UI及Gateway日志入口已迁移到统一API/签名分页；完整身份/拒绝审计、其余消费者与部署切换未闭合 |
 | TP16 | BACKLOG | 整合后的 PostgreSQL/Linux、多进程、持续负载/容量、性能及对外交付矩阵尚未完成 |

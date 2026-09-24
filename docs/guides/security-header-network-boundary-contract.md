@@ -1,5 +1,5 @@
 ---
-doc-version: 1.27.0
+doc-version: 1.28.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -240,7 +240,7 @@ v1 只支持直连。显式配置代理或自定义 Axios adapter/transport 一�
 
 SEC-F3-01 到本节政策定稿完成；实施拆为F3-02A严格配置/地址分类、F3-02B1受控DNS全集授权、F3-02B2固定IP单跳直连/peer复核、F3-02C逐跳凭据/redirect/撤销状态机和F3-02D N01–N17双运行时验收。A/B1的纯原语不能替代B2–D；五项合并才覆盖受信任配置/例外、DNS全集与IP固定、HTTP/TLS写出前peer复核、直连隔离、逐跳凭据重建、快照/撤销及拒绝审计。不能以纯函数、设置零跳转、一次DNS检查或仅beforeRedirect hook关闭F3。
 
-实现快照（2026-09-24）：F3-02A限定纯compiler已完成，静态分类表版本为`iana-2025-10-09-conservative-v1`；该表更新必须审查IPv4/IPv6 IANA Special-Purpose registry差异并重跑地址边界回归。B1受控DNS批准结果以真实UDP 26/26、Parser 31 suites/748 tests及typecheck/build限定DONE，覆盖A/AAAA/CNAME有界全集与逐地址授权；只产出批准结果，无上游socket、peer或TLS证据。B2已READY，继续固定IP单跳直连、原Host/SNI/证书、代理拒绝与写出前peer复核；C/D仍按依赖等待。
+实现快照（2026-09-24）：F3-02A限定纯compiler已完成，静态分类表版本为`iana-2025-10-09-conservative-v1`；该表更新必须审查IPv4/IPv6 IANA Special-Purpose registry差异并重跑地址边界回归。B1受控DNS批准结果以真实UDP 26/26、Parser 31 suites/748 tests及typecheck/build限定DONE，覆盖A/AAAA/CNAME有界全集与逐地址授权；只产出批准结果，无上游socket、peer或TLS证据。B2现IN_PROGRESS，仅交付固定IP单跳直连、原Host/SNI/证书、代理拒绝与写出前peer复核；redirect、逐跳凭据和撤销状态机不在本叶，C/D仍按依赖等待。
 
 SEC-F3-02D按第 5 节 N01–N17 冻结矩阵执行：N02 分别验证 legacy 基线和 safe-read 的 5 次边界；N13 验证例外精确匹配、到期和始终拒绝集合；N14 验证代理配置拒绝及各大小写环境变量均不触发代理连接；N15 验证所有非空体/非 GET、HEAD 不跟随且无第二次写出；N16 验证普通 reload 固定版本、撤销中断及每次新连接重新授权。矩阵同步为“政策已定，待实现”，不能用DOC状态替代真实执行证据。
 

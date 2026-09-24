@@ -1,5 +1,5 @@
 ---
-doc-version: 2.22.0
+doc-version: 2.24.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -201,4 +201,4 @@ SQL.js CAS/坏行/重开专项4/4、真实Windows child start→taskkill stop与
 
 OBS-10-02A限定DONE：复用`RuntimeInvocationEntity`当前行、managed lifecycle投影及`CallObservabilityStore`快照水位，完成5100条保留历史有界聚合、revision水位、资产隔离、legacy坏行与SQL.js重开，专项4 suites/15 tests通过。retained unfinished=0只表示保留事实中没有未完成项，不能解释为无业务流量；coverage保持unknown，live active保持null；状态只投影最新generation，不是全历史。本切片未修改Realtime/WebSocket，统一API build由并行工作包独立执行，不在此预记结果。
 
-预研确认managed lifecycle最新行、legacy runtime state和asset目录没有共同调用事件水位，不能直接宣称跨状态snapshot或断线无丢失。OBS-10-02B1现限定DONE：managed start/terminal与最新generation投影在同一Store事务写入`server.state_changed`并分配sequence，4 suites/21 tests及API build通过；只证明同一DataSource内并发与耐久delta，不接Realtime，也不证明跨实例全局水位或实时liveness。OBS-10-02B2已READY，继续把in-flight started/terminal变化在更新调用修订的同一事务写入共用状态delta。legacy状态、asset目录、全局多实例水位及实时liveness继续为unknown。OBS-13-01保持WAIT_DEP，须同时消费B1/B2后才能实现state snapshot grant、从H续读、ACK签名cursor、乱序版本、撤权复核与gap强制resnapshot。
+预研确认managed lifecycle最新行、legacy runtime state和asset目录没有共同调用事件水位，不能直接宣称跨状态snapshot或断线无丢失。OBS-10-02B1现限定DONE：managed start/terminal与最新generation投影在同一Store事务写入`server.state_changed`并分配sequence，4 suites/21 tests及API build通过；只证明同一DataSource内并发与耐久delta，不接Realtime，也不证明跨实例全局水位或实时liveness。OBS-10-02B2现限定DONE：仅对有runtimeAssetId的gateway_request/mcp_tool，在in-flight成员变化时与调用修订同一Store事务写入sequence-bound状态delta；5 suites/28 tests及API build通过。storage旧断言因新增合法delta首轮2项失败，精确更新后storage单跑32/32；events 16、invocations 38、restart 3首轮均通过，共89项分别验证，不称一次性脚本全绿。只改Store、Event reader、新spec与旧storage脚本，不接Realtime/grant/ACK/gap恢复。legacy状态、asset目录、全局多实例水位及实时liveness继续为unknown。OBS-10父包按限定范围DONE；OBS-13-01解锁为READY，下一步消费B1/B2实现state snapshot grant、从H续读、ACK签名cursor、乱序版本、撤权复核与gap强制resnapshot。

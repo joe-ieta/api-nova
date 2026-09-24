@@ -1,5 +1,5 @@
 ---
-doc-version: 1.97.0
+doc-version: 1.99.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -8,16 +8,16 @@ doc-updated: 2026-09-24
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
-父包专项统计仍是OBS 10/5/1、SEC 10/12/0/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计20/17/1/1。它不表示全项目完成率。
+父包专项统计仍是OBS 11/4/1、SEC 10/12/0/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计21/16/1/1。它不表示全项目完成率。
 
 本次登记176个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 119 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 13 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 当前无已开工叶子；READY不表示已开工 |
-| WAIT_DEP | 24 | 等待列明子任务/条件 |
+| DONE | 120 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 12 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 1 | SEC-F3-02B2固定IP单跳transport正在实施 |
+| WAIT_DEP | 23 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -119,7 +119,7 @@ doc-updated: 2026-09-24
 | SEC-F3-01 | DONE | [网络合同§4](./security-header-network-boundary-contract.md)冻结public/direct、限期例外、DNS/peer/TLS、safe-read及撤销；仅DOC |
 | SEC-F3-02A | DONE | 限定纯compiler完成：严格v1配置/URL/origin、IPv4/IPv6完整分类、IPv4-mapped归一与精确private-exception；静态表版本iana-2025-10-09-conservative-v1，更新表时必须复核IANA差异并重跑边界回归。network专项165项、Parser 30 suites/722 tests及typecheck/build通过；不接DNS、真实发送或host续期/撤销，不关闭父F3 |
 | SEC-F3-02B1 | DONE | 限定受控DNS批准结果完成：真实UDP 26/26、Parser 31 suites/748 tests及typecheck/build通过；覆盖A/AAAA/CNAME有界全集、规范化去重、逐地址政策授权及混合/未分类/截断失败关闭。仅产出DNS批准结果，无上游socket、peer或TLS证据 |
-| SEC-F3-02B2 | READY | B1限定DNS批准结果已完成；固定获批IP的单跳直连、原Host/SNI/证书保留、代理/外部Agent拒绝及Header/正文写出前peer复核待实现 |
+| SEC-F3-02B2 | IN_PROGRESS | 固定获批IP的单跳直连、原Host/SNI/证书保留、代理/外部Agent拒绝及Header/正文写出前peer复核正在实施；只限单跳transport，不含redirect、逐跳凭据或撤销状态机，F3C继续WAIT_DEP |
 | SEC-F3-02C | WAIT_DEP | 等B2；逐跳Site/Endpoint与凭据重建、safe-read、撤销/取消、缓存隔离和拒绝审计待实现 |
 | SEC-F3-02D | WAIT_DEP | 等C；N01–N17 Gateway/Parser真实连接及Windows/Linux环境矩阵待验收 |
 | SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
@@ -131,8 +131,8 @@ doc-updated: 2026-09-24
 | OBS-10-01 | DONE | 受管业务子进程start/stop/unexpected_exit/lost已进入独立持久投影；runtimeAssetId+serverId+generation绑定，旧generation迟到终止不能覆盖新start，管理心跳不作为业务存活。SQL.js重开4/4、真实child/事件hook 3/3、状态投影1/1、ProcessManager相邻5 suites/32及API type-check/build通过 |
 | OBS-10-02A | DONE | 限定retained读模型完成：5100条保留历史有界聚合、revision水位、资产隔离、legacy坏行与SQL.js重开均覆盖，4 suites/15 tests通过。retained unfinished=0只表示保留事实中无未完成项；coverage仍为unknown，live active保持null；只投影最新generation而非全历史 |
 | OBS-10-02B1 | DONE | managed start/terminal与最新generation投影在同一Store事务写入server.state_changed并分配sequence；4 suites/21 tests及API build通过。只证明同一DataSource内并发与耐久delta，不接Realtime，不证明跨实例全局水位或实时liveness |
-| OBS-10-02B2 | READY | B1已冻结同事务server.state_changed sequence合同；待把in-flight started/terminal变化在更新调用修订的同一Store事务写入状态delta，不把保留窗口计数解释为实时存活 |
-| OBS-13-01 | WAIT_DEP | 等OBS-10-02B1/B2提供sequence-bound durable deltas；之后实现权限/筛选绑定state snapshot grant、从H续读、ACK签名cursor、乱序版本丢弃、撤权复核及gap强制resnapshot |
+| OBS-10-02B2 | DONE | 限定业务在途delta完成：有runtimeAssetId的gateway_request/mcp_tool仅在in-flight成员变化时与调用修订同事务写入sequence-bound delta；5 suites/28 tests及API build通过。storage旧断言因新增合法delta首轮2项失败，精确更新后storage 32/32；events 16、invocations 38、restart 3首轮通过，共89项分别验证，不称一次性脚本全绿；不接Realtime |
+| OBS-13-01 | READY | B1/B2已提供managed lifecycle与业务in-flight的sequence-bound durable deltas；下一步实现权限/筛选绑定state snapshot grant、从H续读、ACK签名cursor、乱序版本丢弃、撤权复核及gap强制resnapshot。legacy状态、asset目录、全局多实例水位和live liveness仍unknown |
 | OBS-13-02 | WAIT_DEP | 长期/跨平台证据未完成 |
 | OBS-14-01 | DONE | [生命周期合同](../reference/runtime-observability-lifecycle-contract.md)冻结引用、保留、墓碑与重放边界；仅DOC |
 | OBS-14-02 | DONE | 持久keyset分页、同GC fence、修复与cursor同事务；真实SQL.js连接重建恢复；新增7项专项，联合67/67 |

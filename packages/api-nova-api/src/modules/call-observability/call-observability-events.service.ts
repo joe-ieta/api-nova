@@ -198,13 +198,21 @@ export class CallObservabilityEventsService {
       if ((typeof value === 'string' && value.length <= 500 && !/[\u0000-\u001f\u007f]/.test(value)) ||
         (typeof value === 'number' && Number.isFinite(value)) || value === null) data[key] = value;
     }
+    const member = row.eventName === 'server.state_changed' && row.details?.evidenceScope === 'retained_business_in_flight';
+    if (member) {
+      if (row.details.delta === 1 || row.details.delta === -1) data.delta = row.details.delta;
+      if (row.details.invocationId === row.subjectId) data.invocationId = row.subjectId;
+      if (typeof row.details.revisionSequence === 'string' && /^(0|[1-9]\d{0,19})$/.test(row.details.revisionSequence)) {
+        data.revisionSequence = row.details.revisionSequence;
+      }
+    }
     const invocation = row.eventName.startsWith('invocation.');
     if (row.eventName === 'metrics.bucket_updated') data.refreshRequired = true;
     return { schemaVersion: '1.0', eventId: row.id, sequence: publicSequence(row.sequence!),
       eventType: row.eventName, occurredAt: row.occurredAt.toISOString(), recordedAt: row.createdAt.toISOString(),
       severity: row.severity, server: { runtimeAssetId: row.runtimeAssetId || null,
         type: ['gateway', 'mcp'].includes(String(row.dimensions?.serverType)) ? row.dimensions!.serverType : null },
-      subject: { kind: invocation ? 'invocation' : row.eventName === 'metrics.bucket_updated' ? 'bucket' :
+      subject: { kind: member ? 'in_flight_member' : invocation ? 'invocation' : row.eventName === 'metrics.bucket_updated' ? 'bucket' :
         row.eventName === 'pipeline.state_changed' ? 'pipeline' : row.eventName === 'caller.discovered' ? 'caller' : 'server',
         id: row.subjectId || null, version: row.subjectVersion ?? null },
       historical: row.dispatchState === 'suppressed', data,
