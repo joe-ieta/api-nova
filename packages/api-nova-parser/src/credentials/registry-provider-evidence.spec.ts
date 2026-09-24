@@ -164,4 +164,78 @@ describe('Registry immutable Provider generation evidence', () => {
     expect(() => new UpstreamCredentialRegistry({ environment: 'test', providerEvidence: f.evidence,
       providerFactory: d => ({ type: d.type, resolve: async () => 'untrusted' }) })).toThrow('INVALID');
   });
+  it('readSignal is stable across snapshots in the same generation and ordinary rotation preserves old signals', async () => {
+    const f = fixture(), first = await f.registry.reload(candidate());
+    const signal = f.evidence.readSignal(first, 'asset');
+    const sameGeneration = await f.registry.reload(candidate('r2'));
+    expect(f.evidence.readSignal(first, 'asset')).toBe(signal);
+    expect(f.evidence.readSignal(sameGeneration, 'asset')).toBe(signal);
+    f.store.activate(f.store.stage(material('new')), f.generation);
+    const latest = await f.registry.reload(candidate('r3'));
+    expect(f.evidence.readSignal(latest, 'asset')).not.toBe(signal);
+    expect(signal.aborted).toBe(false);
+  });
+  it.each(['revoke', 'unavailable', 'release', 'close'] as const)('signal synchronously reflects generation %s with trusted reason and detached listener', async action => {
+    const f = fixture(), snapshot = await f.registry.reload(candidate());
+    const raw = f.store.describe(f.generation).signal;
+    const remove = jest.spyOn(raw, 'removeEventListener');
+    const signal = f.evidence.readSignal(snapshot, 'asset'); let closedBeforeCallback = false;
+    signal.addEventListener('abort', () => {
+      try { f.evidence.readSignal(snapshot, 'asset'); } catch { closedBeforeCallback = true; }
+    });
+    if (action === 'close') f.store.close(); else f.store[action](f.generation);
+    expect(signal.aborted).toBe(true); expect(closedBeforeCallback).toBe(true);
+    expect(signal.reason.code).toBe(action === 'unavailable' || action === 'close' ? 'unavailable' : 'denied');
+    expect(remove).toHaveBeenCalledWith('abort', expect.any(Function)); remove.mockRestore();
+  });
+  it('generation expiry aborts composed signal despite wall clock rollback', async () => {
+    jest.useFakeTimers(); const f = fixture();
+    f.store.activate(f.store.stage(material('short', Date.now() + 100)), f.generation);
+    const snapshot = await f.registry.reload(candidate()), signal = f.evidence.readSignal(snapshot, 'asset');
+    jest.setSystemTime(Date.now() - 1000); jest.advanceTimersByTime(101);
+    expect(signal.aborted).toBe(true); expect(signal.reason.code).toBe('denied');
+  });
+  it('issuer closes state before abort and detaches without revoking another issuer or shared store', async () => {
+    const f = fixture(), snapshot = await f.registry.reload(candidate());
+    const other = createRegistryProviderEvidence(f.store); cleanup.push(() => other.close());
+    const registry = new UpstreamCredentialRegistry({ environment: 'test', providerEvidence: other });
+    const otherSnapshot = await registry.reload(candidate());
+    const shared = f.store.describe(f.generation).signal, remove = jest.spyOn(shared, 'removeEventListener');
+    const signal = f.evidence.readSignal(snapshot, 'asset'), otherSignal = other.readSignal(otherSnapshot, 'asset');
+    let alreadyClosed = false;
+    signal.addEventListener('abort', () => { try { f.evidence.issue(snapshot, 'asset'); } catch { alreadyClosed = true; } });
+    f.evidence.close(); f.evidence.close();
+    expect(alreadyClosed).toBe(true); expect(signal.aborted).toBe(true); expect(signal.reason.code).toBe('unavailable');
+    expect(otherSignal.aborted).toBe(false); expect(shared.aborted).toBe(false);
+    expect(await otherSnapshot.resolveSecret('token')).toBe('old-one');
+    expect(remove).toHaveBeenCalledTimes(1); remove.mockRestore();
+  });
+  it.each(['throw', 'async'])('Registry observer %s aborts previously issued signals immediately', async mode => {
+    const f = fixture(), snapshot = await f.registry.reload(candidate()), signal = f.evidence.readSignal(snapshot, 'asset');
+    f.registry.observeSecurityCommits(mode === 'throw' ? () => { throw Error('private'); } : async () => { throw Error('private'); });
+    await f.registry.reload(candidate('r2')); await Promise.resolve();
+    expect(signal.aborted).toBe(true); expect(signal.reason.code).toBe('unavailable');
+  });
+  it('signal lookup rejects wrong source, snapshot clone and cross-issuer associations', async () => {
+    const f = fixture(), snapshot = await f.registry.reload(candidate());
+    expect(() => f.evidence.readSignal(snapshot, 'other')).toThrow('DENIED');
+    expect(() => f.evidence.readSignal({ ...snapshot }, 'asset')).toThrow('DENIED');
+    const other = createRegistryProviderEvidence(f.store); cleanup.push(() => other.close());
+    expect(() => other.readSignal(snapshot, 'asset')).toThrow('DENIED');
+  });
+  it('bounds live generation signal cache and reclaims slots on terminal abort', async () => {
+    const store = createHostCredentialGenerationStore({ maxGenerations: 300 });
+    const evidence = createRegistryProviderEvidence(store); cleanup.push(() => { evidence.close(); store.close(); });
+    const registry = new UpstreamCredentialRegistry({ environment: 'test', providerEvidence: evidence });
+    let current = store.activate(store.stage(material()), null); const first = current;
+    for (let index = 0; index < 256; index++) {
+      const snapshot = await registry.reload(candidate('bounded-' + index)); evidence.readSignal(snapshot, 'asset');
+      current = store.activate(store.stage(material()), current);
+    }
+    const last = await registry.reload(candidate('last'));
+    expect(() => evidence.readSignal(last, 'asset')).toThrow('UNAVAILABLE');
+    store.revoke(first);
+    expect(evidence.readSignal(last, 'asset').aborted).toBe(false);
+  });
+
 });

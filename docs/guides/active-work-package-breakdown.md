@@ -1,5 +1,5 @@
 ---
-doc-version: 1.82.0
+doc-version: 1.83.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -164,8 +164,9 @@ SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F1/F2/F3/F
 | SEC-F3-02C2a | SEC-F3 | CODE | 精确受信Redirect目标目录 | 纯host-owned目录按source asset、精确method+path与Endpoint绑定目标；只接受精确路径，未知、歧义、跨asset、scheme降级和非受信目标一律拒绝，不启用生产网络模式 | SEC-F3-02C1b |
 | SEC-F3-02C2b1 | SEC-F3 | CODE | 纯Redirect Chain State | 纯模块只接受显式safe-read空正文GET/HEAD，规范化Location与loop key、最多5跳，并为每跳产生一次性decision；非safe method、正文、歧义/重复/过量跳数失败关闭，不触网也不启用生产入口 | SEC-F3-02C2a |
 | SEC-F3-02C2b2a | SEC-F3 | CODE | Raw Location唯一证据 | 纯模块只从transport rawHeaders读取唯一Location，拒绝零个/重复/折叠/歧义/访问器/超长值，并输出一次性不可伪造证据供C2b1消费；不解析目标、不触网、不改默认single-hop | SEC-F3-02C2b1 |
-| SEC-F3-02C2b2b | SEC-F3 | CODE | 同一Authority逐跳真实Transport | 每跳消费b2a证据与C2b1 decision，通过C2a精确重选Endpoint，在同一operation authority/deadline/AbortSignal内重跑DNS/peer/TLS和目标凭据；真实DNS/HTTP/TLS验收且默认single-hop | SEC-F3-02C2a;SEC-F3-02C2b1;SEC-F3-02C2b2a;SEC-F3-02C1b |
-| SEC-F3-02C2b3 | SEC-F3 | CODE | Transformer显式Host配置与生产入口矩阵 | Transformer仅在显式可信host配置下接入b2b多跳状态机，默认保持single-hop；覆盖缺配置、protected/F1、非safe、正文、重放/撤销与生产入口矩阵，不把请求字段当授权 | SEC-F3-02C2b2b;SEC-F3-02C1d3 |
+| SEC-F3-02C2b2b1 | SEC-F3 | CODE | Host-only同代readSignal | 从D2b2可信Registry proof读取同一generation并与issuer生命周期稳定合成同步AbortSignal；只提供host-owned进程内读信号，消费者仍须把可信撤销原因映射为denied/unavailable，不启用env/file或生产网络模式 | SEC-F3-02C1d2b2 |
+| SEC-F3-02C2b2b2 | SEC-F3 | CODE | 同一Authority逐跳真实Transport | 每跳消费b2a证据与C2b1 decision，通过C2a精确重选Endpoint，在D2b2同代proof及b2b1 readSignal约束的同一operation authority/deadline/AbortSignal内重跑DNS/peer/TLS和目标凭据；真实DNS/HTTP/TLS验收且默认single-hop | SEC-F3-02C2a;SEC-F3-02C2b1;SEC-F3-02C2b2a;SEC-F3-02C1d2b2;SEC-F3-02C2b2b1 |
+| SEC-F3-02C2b3 | SEC-F3 | CODE | Transformer显式Host配置与生产入口矩阵 | Transformer仅在显式可信host配置下接入b2b2多跳状态机，默认保持single-hop；覆盖缺配置、protected/F1、非safe、正文、重放/撤销与生产入口矩阵，不把请求字段当授权 | SEC-F3-02C2b2b2;SEC-F3-02C1d3 |
 | SEC-F3-02C3 | SEC-F3 | CODE | Gateway固定操作生命周期 | Gateway每次请求固定同一host-owned operation、route/membership/Registry版本与deadline；redirect/retry/取消共享该操作，reload/撤销后不得继续旧epoch | SEC-F3-02C1d4 |
 | SEC-F3-02C4 | SEC-F3 | CODE | 首轮缓存关闭单Attempt合同 | 新网络模式首轮仅允许单attempt并强制缓存关闭，证明Parser/Gateway均消费同一operation handle；恢复缓存与自动retry另行登记，不能由本叶提前启用 | SEC-F3-02C1b;SEC-F3-02C1c |
 | SEC-F3-02C5a | SEC-F3 | CODE | 网络失败语义与脱敏审计合同 | 冻结DNS/peer/TLS/redirect/取消/到期/撤销的拒绝码、白名单决策与脱敏审计字段，以纯合同/spec验证denied与unavailable分类；可在B3c闭合后与C1并行 | SEC-F3-02B3c |

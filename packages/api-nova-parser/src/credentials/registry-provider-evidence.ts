@@ -11,13 +11,16 @@ export interface RegistryProviderEvidence {
   issue(snapshot: UpstreamCredentialRegistrySnapshot, sourceServiceAssetId: string, ttlMs?: number): object;
   readEpoch(snapshot: UpstreamCredentialRegistrySnapshot, sourceServiceAssetId: string): string;
   consume(proof: unknown, context: Readonly<{ snapshot: UpstreamCredentialRegistrySnapshot; sourceServiceAssetId: string; providerEpoch: string }>): Readonly<{ expiresAt: number }> | undefined;
+  /** Stable per-generation signal; trusted consumers must map its host error reason. */
+  readSignal(snapshot: UpstreamCredentialRegistrySnapshot, sourceServiceAssetId: string): AbortSignal;
   close(): void;
 }
 export interface CapturedRegistryProviderGeneration { readonly kind: 'captured-registry-provider-generation' }
 type Store = ReturnType<typeof createHostCredentialGenerationStore>;
 type Capture = { owner: State; generation: HostCredentialGeneration };
 type Proof = { snapshot: UpstreamCredentialRegistrySnapshot; source: string; epoch: string; expiresAt: number; monotonic: number; runNonce: string; timer: ReturnType<typeof setTimeout> };
-type State = { store: Store; closed: boolean; runNonce: string; snapshots: WeakMap<object, Capture>; proofs: WeakMap<object, Proof>; liveProofs: Set<Proof> };
+type SignalEntry = { controller: AbortController; detach: () => void };
+type State = { signals: Map<HostCredentialGeneration, SignalEntry>; store: Store; closed: boolean; runNonce: string; snapshots: WeakMap<object, Capture>; proofs: WeakMap<object, Proof>; liveProofs: Set<Proof> };
 const issuers = new WeakMap<RegistryProviderEvidence, State>(), captures = new WeakMap<CapturedRegistryProviderGeneration, Capture>();
 const fail = (code: 'denied' | 'unavailable' = 'unavailable'): never => { throw new RegistryProviderEvidenceError(code); };
 function state(issuer: RegistryProviderEvidence): State { const value = issuers.get(issuer); if (!value || value.closed) return fail(); return value; }
@@ -34,7 +37,7 @@ function bound(owner: State, snapshot: UpstreamCredentialRegistrySnapshot, sourc
 export function createRegistryProviderEvidence(store: Store): RegistryProviderEvidence {
   // Host injects the store itself; subsequent option mutation cannot replace its methods.
   const pinnedStore = Object.freeze({ capture: store.capture.bind(store), describe: store.describe.bind(store), resolve: store.resolve.bind(store) });
-  const owner: State = { store: pinnedStore as Store, closed: false, runNonce: randomUUID(), snapshots: new WeakMap(), proofs: new WeakMap(), liveProofs: new Set() };
+  const owner: State = { signals: new Map(), store: pinnedStore as Store, closed: false, runNonce: randomUUID(), snapshots: new WeakMap(), proofs: new WeakMap(), liveProofs: new Set() };
   const issuer: RegistryProviderEvidence = Object.freeze({
     issue(snapshot: UpstreamCredentialRegistrySnapshot, source: string, ttlMs = 30000) {
       state(issuer); const capture = bound(owner, snapshot, source), details = describe(capture);
@@ -45,6 +48,25 @@ export function createRegistryProviderEvidence(store: Store): RegistryProviderEv
       owner.proofs.set(proof, entry); owner.liveProofs.add(entry); return proof;
     },
     readEpoch(snapshot: UpstreamCredentialRegistrySnapshot, source: string) { state(issuer); return describe(bound(owner, snapshot, source)).generationId; },
+    readSignal(snapshot: UpstreamCredentialRegistrySnapshot, source: string): AbortSignal {
+      state(issuer); const capture = bound(owner, snapshot, source), details = describe(capture);
+      const existing = owner.signals.get(capture.generation); if (existing) return existing.controller.signal;
+      if (owner.signals.size >= 256) return fail();
+      const controller = new AbortController();
+      const abort = () => {
+        owner.signals.delete(capture.generation);
+        details.signal.removeEventListener('abort', abort);
+        // The store changes terminal state before dispatching. Never expose raw secrets/errors.
+        const reason = details.signal.reason;
+        controller.abort(new HostCredentialGenerationError(
+          reason instanceof HostCredentialGenerationError && reason.code === 'unavailable' ? 'unavailable' : 'denied'));
+      };
+      const entry = { controller, detach: () => details.signal.removeEventListener('abort', abort) };
+      owner.signals.set(capture.generation, entry);
+      details.signal.addEventListener('abort', abort, { once: true });
+      if (details.signal.aborted) abort();
+      return controller.signal;
+    },
     consume(proof: unknown, context: Readonly<{ snapshot: UpstreamCredentialRegistrySnapshot; sourceServiceAssetId: string; providerEpoch: string }>) {
       if (!proof || typeof proof !== 'object') return undefined;
       const entry = owner.proofs.get(proof); if (!entry) return undefined;
@@ -58,7 +80,10 @@ export function createRegistryProviderEvidence(store: Store): RegistryProviderEv
         return Object.freeze({ expiresAt: entry.expiresAt });
       } catch { return undefined; }
     },
-    close() { if (owner.closed) return; owner.closed = true; owner.snapshots = new WeakMap(); owner.proofs = new WeakMap(); for (const proof of owner.liveProofs) clearTimeout(proof.timer); owner.liveProofs.clear(); },
+    close() { if (owner.closed) return; owner.closed = true; owner.snapshots = new WeakMap(); owner.proofs = new WeakMap(); for (const proof of owner.liveProofs) clearTimeout(proof.timer); owner.liveProofs.clear();
+      const signals = [...owner.signals.values()]; owner.signals.clear();
+      for (const entry of signals) { entry.detach(); entry.controller.abort(new HostCredentialGenerationError('unavailable')); }
+    },
   });
   issuers.set(issuer, owner); return issuer;
 }
