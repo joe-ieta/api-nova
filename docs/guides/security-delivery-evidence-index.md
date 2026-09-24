@@ -1,5 +1,5 @@
 ---
-doc-version: 1.77.0
+doc-version: 1.78.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -131,8 +131,8 @@ doc-updated: 2026-09-24
 | SEC-F3-02C1d3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off且缺providerEvidence永拒，WeakMap fixture不是生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭。 |
 | SEC-F3-02C1d4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2b3/D3；普通reload固定、失败保旧及撤销/收窄/epoch变化/到期主动abort的本地真实联合验收；外部Secret Manager、多进程/E3b及目标环境另验。 |
 | SEC-F3-02C2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个独立Parser文件，专项30项及相邻5 suites/240 tests通过；source asset+精确method/path绑定Endpoint/target，未知、歧义、跨asset、scheme降级及非受信目标失败关闭。未接多跳状态机、真实发送或生产网络模式。 |
-| SEC-F3-02C2b1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **IN_PROGRESS**：纯redirect chain state正在实施，只接受显式safe-read空正文GET/HEAD，规范化Location/loop、最多5跳及一次性decision；不触网、不启用生产入口。 |
-| SEC-F3-02C2b2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C2a/C2b1/C1b；原始Location证据、逐跳C2a/authority/deadline/Signal及真实DNS/HTTP/TLS接线待实现。 |
+| SEC-F3-02C2b1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个network文件，专项63 tests、相邻5 suites/303 tests、统一Parser 44 suites/1077 tests、typecheck/build及diff-check通过；显式safe-read空正文GET/HEAD、规范化Location/loop、最多5跳及一次性decision已验。纯模块不触网、不启用生产入口，默认仍single-hop。 |
+| SEC-F3-02C2b2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：C2a/C2b1/C1b依赖已闭合；原始Location证据、逐跳C2a/authority/deadline/Signal及真实DNS/HTTP/TLS接线待实现。 |
 | SEC-F3-02C2b3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C2b2/D3；Transformer显式可信host配置与生产入口矩阵待实现，默认仍为single-hop。 |
 | SEC-F3-02C3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C1d4；Gateway固定整操作生命周期、route/membership/Registry版本与deadline，撤销后旧epoch不得继续。 |
 | SEC-F3-02C4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：C1b/C1c限定接线完成后解锁；首轮只验单attempt/cache-off及共享operation handle，缓存恢复和自动retry另行登记。 |

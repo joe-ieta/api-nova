@@ -1,5 +1,5 @@
 ---
-doc-version: 1.125.0
+doc-version: 1.126.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -14,10 +14,10 @@ doc-updated: 2026-09-24
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 137 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 14 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | C2b1纯redirect chain state正在实施；完成前不外推为生产接线 |
-| WAIT_DEP | 28 | 等待列明子任务/条件 |
+| DONE | 138 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 15 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 0 | 当前无已登记实施中叶子；C2b2尚未开工 |
+| WAIT_DEP | 27 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -134,8 +134,8 @@ doc-updated: 2026-09-24
 | SEC-F3-02C1d3 | DONE | 限定Parser host生命周期桥完成：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off，缺providerEvidence永拒，WeakMap fixture仅为进程内不可伪造测试能力而非生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭 |
 | SEC-F3-02C1d4 | WAIT_DEP | 等C1d2b3/C1d3；真实本地Registry/HTTP/TLS覆盖普通reload固定、失败保旧及撤销/收窄/epoch变化/到期在DNS/连接/大流阶段主动abort，shutdown无遗留资源；外部Secret Manager、多进程/E3b及目标环境另验 |
 | SEC-F3-02C2a | DONE | 限定纯目标目录完成：2个独立Parser文件，专项30项及相邻5 suites/240 tests通过；按source asset与精确method+path绑定Endpoint/target，未知、歧义、跨asset、scheme降级及非受信目标失败关闭。未接多跳状态机、真实发送或生产网络模式 |
-| SEC-F3-02C2b1 | IN_PROGRESS | 纯redirect chain state已开工：只接受显式safe-read空正文GET/HEAD，规范化Location/loop、最多5跳及一次性decision；纯模块不触网，不启用生产入口，验收前不标DONE |
-| SEC-F3-02C2b2 | WAIT_DEP | 等C2a/C2b1/C1b；传输须保留原始Location证据，每跳消费decision并精确重选Endpoint，复用authority/deadline/Signal，重跑DNS/peer/TLS与凭据，以真实DNS/HTTP/TLS验收 |
+| SEC-F3-02C2b1 | DONE | 限定纯redirect chain state完成：2个network文件，专项63 tests、相邻5 suites/303 tests、统一Parser 44 suites/1077 tests、typecheck/build及diff-check通过；只接受显式safe-read空正文GET/HEAD，规范化Location/loop、最多5跳及一次性decision。纯模块不触网、不启用生产入口，默认仍single-hop |
+| SEC-F3-02C2b2 | READY | C2a/C2b1/C1b依赖已闭合；下一步传输保留原始Location证据，每跳消费decision并精确重选Endpoint，复用authority/deadline/Signal，重跑DNS/peer/TLS与凭据，以真实DNS/HTTP/TLS验收 |
 | SEC-F3-02C2b3 | WAIT_DEP | 等C2b2/D3；Transformer仅在显式可信host配置下接入多跳与生产入口矩阵，默认保持single-hop；缺配置、protected/F1、非safe、正文、重放/撤销均失败关闭 |
 | SEC-F3-02C3 | WAIT_DEP | 等C1d4；Gateway固定同一operation/route/membership/Registry版本，redirect/retry/取消共享deadline，reload/撤销后旧epoch不得继续 |
 | SEC-F3-02C4 | READY | C1b/C1c限定接线已完成；下一步验证新网络模式首轮单attempt且缓存保持关闭，两侧消费同一operation handle；缓存恢复与自动retry另行登记 |
