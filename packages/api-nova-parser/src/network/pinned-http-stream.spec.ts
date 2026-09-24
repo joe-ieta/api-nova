@@ -217,4 +217,14 @@ describe('pinned streaming single-hop transport over real isolated DNS/HTTP/TLS'
       const { transport, input } = setup({ tls: true, trust: true }), response = await transport.send(input); await consume(response.body); await response.completed; expect(requests).toBe(1); expect(proxyConnections).toBe(0);
     } finally { for (const [name, old] of saved) if (old === undefined) delete process.env[name]; else process.env[name] = old; }
   });
+  it.each([100, 103])('host strict mode rejects information %s with a fixed protocol category', async status => {
+    handler = (_req, res) => { if (status === 100) res.writeContinue(); else res.writeEarlyHints({ link: '</safe>; rel=preload' }); res.end('not-returned'); };
+    const { transport, input } = setup();
+    await expect(transport.send({ ...input, rejectInformationalResponses: true })).rejects.toMatchObject({ name: 'PinnedHttpStreamProtocolError', reason: 'informational' });
+  });
+  it('legacy stream mode continues to accept information by default', async () => {
+    handler = (_req, res) => { res.writeContinue(); res.end('ok'); };
+    const { transport, input } = setup(); const response = await transport.send(input); expect((await consume(response.body)).bytes).toBe(2); await response.completed;
+  });
+
 });

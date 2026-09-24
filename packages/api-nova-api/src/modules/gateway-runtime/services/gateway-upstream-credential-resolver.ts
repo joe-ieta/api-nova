@@ -33,6 +33,16 @@ export interface GatewayUpstreamCredentialResolver {
   ): Promise<GatewayUpstreamCredentialHeaders>;
 }
 
+const resolutionProvenance = new WeakMap<GatewayUpstreamCredentialHeaders, Readonly<{
+  snapshot: UpstreamCredentialRegistrySnapshot; routeBinding: object; source: string; endpoint: string; url: string; method?: string;
+}>>();
+/** In-process provenance only: public revision fields and copied results confer no authority. */
+export function inspectGatewayCredentialProvenance(value: GatewayUpstreamCredentialHeaders, route: GatewayResolvedRoute, url: string) {
+  const context = resolutionProvenance.get(value);
+  return context && context.routeBinding === route.routeBinding && context.source === route.sourceServiceAsset.id &&
+    context.endpoint === route.endpointDefinition.id && context.url === url && context.method === route.routeBinding.upstreamMethod ? context.snapshot : undefined;
+}
+
 /**
  * Creates an opt-in Gateway adapter. Snapshot acquisition remains the host's
  * responsibility so a request always resolves against one immutable revision.
@@ -88,7 +98,7 @@ export function createGatewayUpstreamCredentialResolver(
         if (materials.size > 256) materials.delete(materials.keys().next().value!);
         epoch = material.epoch;
       }
-      return Object.freeze({
+      const result = Object.freeze({
         cacheIdentity: JSON.stringify([metadata, epoch, compiledHeaderPolicy?.identity ?? null]),
         compiledHeaderPolicy,
         registryGeneration: resolution.generation,
@@ -99,6 +109,9 @@ export function createGatewayUpstreamCredentialResolver(
         credentialHeaderNames: Object.freeze(Object.keys(resolution.headers)),
         managedHeaderNames: Object.freeze([...managed]),
       });
+      resolutionProvenance.set(result, Object.freeze({ snapshot, routeBinding: route.routeBinding,
+        source: route.sourceServiceAsset.id, endpoint: route.endpointDefinition.id, url: targetUrl, method: requestMethod }));
+      return result;
     },
   });
 }

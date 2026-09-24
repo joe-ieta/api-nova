@@ -84,7 +84,7 @@ export class GatewayRuntimeService {
             historicalAuthenticationHeaderNames: prepared.historicalAuthenticationHeaderNames,
           } } };
         }
-        const cacheLookup = bypassCache
+        const cacheLookup = bypassCache || prepared?.networkLease
           ? null
           : this.gatewayCacheService.resolve(target, req, authContext, prepared?.requestPolicy);
 
@@ -129,7 +129,7 @@ export class GatewayRuntimeService {
         }
 
         const upstreamResponse = await this.forwardWithRetry(target, req, res, prepared, publishedTarget);
-        if (!bypassCache) {
+        if (!bypassCache && !prepared?.networkLease) {
           this.gatewayCacheService.store(target, req, authContext, upstreamResponse, prepared?.requestPolicy);
         }
         const latencyMs = Date.now() - startedAt;
@@ -235,7 +235,7 @@ export class GatewayRuntimeService {
     preparedRequest?: GatewayPreparedProxyRequest,
     publishedTarget: GatewayResolvedRoute = target,
   ) {
-    const attempts = this.resolveMaxAttempts(target, req);
+    const attempts = preparedRequest?.networkLease ? 1 : this.resolveMaxAttempts(target, req);
     const upstreamOperationId = randomUUID();
     let attempt = 0;
     let lastError: Error | null = null;

@@ -1,3 +1,5 @@
+import { GATEWAY_TRUSTED_NETWORK_PROVIDER, assertGatewayTrustedNetworkProvider, type GatewayTrustedNetworkProvider, type GatewayNetworkLease } from './gateway-trusted-network.provider';
+import { forwardGatewayNetworkStream } from './gateway-network-stream';
 import { GatewayUpstreamSecurityRuntimeGuard, assertGatewayUpstreamDeclaration } from './gateway-upstream-security-runtime.guard';
 import {
   BadGatewayException,
@@ -28,6 +30,7 @@ import {
 } from './gateway-upstream-credential-resolver';
 
 export type GatewayPreparedProxyRequest = {
+  networkLease?: GatewayNetworkLease;
   url: URL;
   credentials: GatewayUpstreamCredentialHeaders;
   compiledHeaderPolicy?: CompiledHeaderPolicyV1;
@@ -45,7 +48,8 @@ export class GatewayProxyEngineService {
     private readonly upstreamCredentialResolver?: GatewayUpstreamCredentialResolver,
     @Optional() private readonly gatewayRuntimeMetricsService?: GatewayRuntimeMetricsService,
     @Optional() private readonly upstreamSecurityGuard?: GatewayUpstreamSecurityRuntimeGuard,
-  ) {}
+    @Optional() @Inject(GATEWAY_TRUSTED_NETWORK_PROVIDER) private readonly networkProvider?: GatewayTrustedNetworkProvider,
+  ) { if (networkProvider) assertGatewayTrustedNetworkProvider(networkProvider); }
 
   async forward(
     resolvedRoute: GatewayResolvedRoute, req: Request, res: Response,
@@ -69,6 +73,10 @@ export class GatewayProxyEngineService {
       throw new ServiceUnavailableException('gateway_upstream_security_context_changed');
     }
     const { url, credentials, requestPolicy, compiledHeaderPolicy: policy, historicalAuthenticationHeaderNames } = current;
+    if (current.networkLease) return forwardGatewayNetworkStream(this.networkProvider!, current, resolvedRoute, req, res, this.gatewayRequestCaptureService, {
+      attemptIndex: options?.attemptIndex, upstreamOperationId: options?.upstreamOperationId,
+      discardedTrailers: direction => this.auditDiscardedTrailers(resolvedRoute, req, direction),
+    });
     const transport = url.protocol === 'https:' ? https : http;
     const timeoutMs = resolvedRoute.policies?.traffic?.timeoutMs ?? resolvedRoute.routeBinding.timeoutMs ?? 30000;
     // Rebuild framing from the validated exchange, never from the raw TE value.
@@ -247,7 +255,7 @@ export class GatewayProxyEngineService {
   }
 
   requiresPreparation(route: GatewayResolvedRoute): boolean {
-    return Boolean(this.upstreamSecurityGuard || route.policies?.upstream?.compiledHeaderPolicy || this.upstreamCredentialResolver?.headerPolicyEnabled);
+    return Boolean(this.networkProvider?.requires(route) || this.upstreamSecurityGuard || route.policies?.upstream?.compiledHeaderPolicy || this.upstreamCredentialResolver?.headerPolicyEnabled);
   }
 
   /** Validate current declaration and credentials before every cache lookup. */
@@ -280,7 +288,9 @@ export class GatewayProxyEngineService {
       });
     } catch (error) { throw this.mapWireError(error); }
     if (requestPolicy) requestPolicy.credentialCacheIdentity = credentials.cacheIdentity;
-    const prepared = Object.freeze({ url, credentials, requestPolicy, compiledHeaderPolicy: policy, historicalAuthenticationHeaderNames });
+    const networkLease = this.networkProvider?.requires(resolvedRoute) ? this.networkProvider.authorize(resolvedRoute, url.href, credentials) : undefined;
+    if (networkLease && requestPolicy) requestPolicy.cacheBypass = true;
+    const prepared = Object.freeze({ networkLease, url, credentials, requestPolicy, compiledHeaderPolicy: policy, historicalAuthenticationHeaderNames });
     this.preparations.set(prepared, { request: req, route: this.preparationRoute(resolvedRoute), resolver: this.upstreamCredentialResolver, used: false });
     return prepared;
   }

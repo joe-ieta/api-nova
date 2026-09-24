@@ -1,5 +1,5 @@
 ---
-doc-version: 1.58.0
+doc-version: 1.61.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -306,7 +306,7 @@ B2参数保存/执行与拒绝矩阵已验收，见[本批证据](../audits/2026
 
 E0/B3原出口经[Adapter矩阵](../audits/2026-09-21-mcp-adapter-contract.md)及已完成会话撤销/SDK证据复核闭合；Header02B/C/D和F1门禁继续独立推进。
 
-02B受控真实流已完成，详见[验收证据](../audits/2026-09-21-header-wire-execution.md)。该句保留当时推进顺序；当前D1/H11A/H11B已完成原Header出口；F3网络执行另拆F3-02A、B1、B2、B3a/B3b/B3c、C、D。A严格配置/地址分类纯compiler、B1受控DNS、B2≤8MiB Buffer单跳primitive、B3a共享private verified connection/Readable stream及B3b Parser host桥均已限定DONE。B3c现IN_PROGRESS，实施Gateway可信route网络Provider/stream桥；新网络模式默认off且缓存禁用。B3聚合与TP-F3继续IN_PROGRESS；生产managed child、Provider撤销epoch及audit桥未接，C仍等待B3c闭合并负责整操作版本固定、逐跳凭据/撤销和生产启用。
+02B受控真实流已完成，详见[验收证据](../audits/2026-09-21-header-wire-execution.md)。F3-02A、B1、B2及B3a/b/c均限定DONE，B3聚合可限定关闭。B3c最终以Provider active/denied/unavailable三态、显式撤销/身份错502、可信host回调异常与DNS SERVFAIL503、deadline504闭合；新HTTP/TLS专项46、相关6 suites/111、API build及diff-check通过，修复前Gateway全目录43 suites/627不称最终一次全绿，Parser34/841仍适用。默认off、无生产DI/Provider注册或外部配置入口。原F3C拆为C1/C2/C3/C4/C5a/C5b/C6；C1与C5a现READY并可并行，C2/C3依赖C1，C4仅依赖C1，C5b依赖C2/C3/C5a，C6依赖C2/C3/C4/C5b。整操作epoch/主动在途撤销、生产默认启用、缓存恢复/自动retry及F3D Windows/Linux环境矩阵仍未完成，父TP-F3保持IN_PROGRESS。
 
 C1原SEC-C01/A0退出条件现已闭合，见[四类型验收](../audits/2026-09-22-credential-types-scope.md)；C1-02完成解锁F1-02，不使F1/E1自动完成。
 

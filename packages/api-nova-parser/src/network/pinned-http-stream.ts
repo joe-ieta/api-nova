@@ -5,7 +5,14 @@ import { ControlledDnsError, ControlledDnsRequest } from './controlled-dns';
 import { createPinnedConnectionHost, pinnedError as error, pinnedRecord as record, pinnedHeaders, PinnedConnectionHostOptions } from './pinned-http-connection';
 
 export type PinnedStreamFraming = Readonly<{ mode: 'none' } | { mode: 'fixed'; length: number } | { mode: 'chunked' }>;
+export class PinnedHttpStreamProtocolError extends ControlledDnsError {
+  constructor(readonly reason: 'informational' | 'early_response' | 'request_length' | 'response_length' | 'upgrade' | 'parse') {
+    super('upstream_network_policy_denied'); this.name = 'PinnedHttpStreamProtocolError';
+  }
+}
 export interface PinnedHttpStreamRequest extends ControlledDnsRequest {
+  /** Host adapter only. Defaults false; strict D1 hosts reject 1xx and retain safe protocol categories. */
+  readonly rejectInformationalResponses?: boolean;
   readonly method: string; readonly headers?: Readonly<Record<string, string>>;
   readonly body?: Readable; readonly framing: PinnedStreamFraming;
 }
@@ -27,7 +34,9 @@ export function createPinnedHttpStreamTransport(hostInput: PinnedConnectionHostO
   const connections = createPinnedConnectionHost(hostInput);
   async function send(input: PinnedHttpStreamRequest): Promise<PinnedHttpStreamResponse> {
     try {
-      const value = record(input, ['policy', 'target', 'deadline', 'signal', 'method', 'headers', 'body', 'framing'], ['policy', 'target', 'deadline', 'method', 'framing']);
+      const value = record(input, ['policy', 'target', 'deadline', 'signal', 'method', 'headers', 'body', 'framing', 'rejectInformationalResponses'], ['policy', 'target', 'deadline', 'method', 'framing']);
+      if (value.rejectInformationalResponses !== undefined && typeof value.rejectInformationalResponses !== 'boolean') throw error();
+      const protocolError = (reason: PinnedHttpStreamProtocolError['reason']) => value.rejectInformationalResponses === true ? new PinnedHttpStreamProtocolError(reason) : error();
       if (typeof value.method !== 'string' || !/^[A-Z]{1,32}$/.test(value.method) || value.method === 'CONNECT' || typeof value.deadline !== 'number' || !Number.isFinite(value.deadline)) throw error();
       if (value.signal !== undefined && !(value.signal instanceof AbortSignal)) throw error();
       const framingRaw = record(value.framing, ['mode', 'length'], ['mode']);
@@ -76,9 +85,9 @@ export function createPinnedHttpStreamTransport(hostInput: PinnedConnectionHostO
           if (!body) { outgoing.end(); return; }
           requestBody = new Transform({ highWaterMark: HIGH_WATER_MARK, transform(chunk: Buffer, _encoding, callback) {
             requestBytes += chunk.length;
-            if (!Number.isSafeInteger(requestBytes) || framing.mode === 'fixed' && requestBytes > framing.length) { callback(error()); return; }
+            if (!Number.isSafeInteger(requestBytes) || framing.mode === 'fixed' && requestBytes > framing.length) { callback(protocolError('request_length')); return; }
             callback(null, chunk);
-          }, flush(callback) { callback(framing.mode === 'fixed' && requestBytes !== framing.length ? error() : undefined); } });
+          }, flush(callback) { callback(framing.mode === 'fixed' && requestBytes !== framing.length ? protocolError('request_length') : undefined); } });
           requestBody.once('error', failure => fail(failure instanceof ControlledDnsError ? failure : error()));
           // Keep private writable destinations out of the caller-owned source's pipe state.
           requestSource = Readable.from(body, { objectMode: false, highWaterMark: HIGH_WATER_MARK });
@@ -99,16 +108,16 @@ export function createPinnedHttpStreamTransport(hostInput: PinnedConnectionHostO
             headers: { ...headers, host: authority, connection: 'close', ...(framing.mode === 'fixed' ? { 'content-length': String(framing.length) } : framing.mode === 'chunked' ? { 'transfer-encoding': 'chunked' } : {}) } }, response => {
             incoming = response;
             if (finished) { response.destroy(); return; }
-            if (!requestFinished) { fail(error()); return; }
+            if (!requestFinished) { fail(protocolError('early_response')); return; }
             const declared = response.headers['content-length'];
-            if (declared && (!/^[0-9]+$/.test(declared) || !Number.isSafeInteger(Number(declared)))) { fail(error()); return; }
+            if (declared && (!/^[0-9]+$/.test(declared) || !Number.isSafeInteger(Number(declared)))) { fail(protocolError('response_length')); return; }
             const noBody = value.method === 'HEAD' || response.statusCode === 204 || response.statusCode === 304;
             const expected = noBody ? 0 : declared === undefined ? undefined : Number(declared);
             responseTap = new Transform({ highWaterMark: HIGH_WATER_MARK, transform(chunk: Buffer, _encoding, callback) {
               responseBytes += chunk.length;
-              if (!Number.isSafeInteger(responseBytes) || expected !== undefined && responseBytes > expected) { callback(error()); return; }
+              if (!Number.isSafeInteger(responseBytes) || expected !== undefined && responseBytes > expected) { callback(protocolError('response_length')); return; }
               callback(null, chunk);
-            }, flush(callback) { callback(expected !== undefined && responseBytes !== expected ? error() : undefined); } });
+            }, flush(callback) { callback(expected !== undefined && responseBytes !== expected ? protocolError('response_length') : undefined); } });
             // A direct pipe into a public Transform would expose IncomingMessage/socket in its
             // 'unpipe' event. The iterator wrapper exposes only bytes, never the private source.
             responseBody = Readable.from(responseTap, { objectMode: false, highWaterMark: HIGH_WATER_MARK });
@@ -125,8 +134,9 @@ export function createPinnedHttpStreamTransport(hostInput: PinnedConnectionHostO
             response.pipe(responseTap);
           });
           outgoing.once('finish', () => { requestFinished = true; succeed(); });
-          outgoing.once('error', () => fail(error('upstream_network_policy_unavailable')));
-          outgoing.once('upgrade', (_response, upgraded) => { upgraded.destroy(); fail(error()); });
+          outgoing.once('error', failure => fail((failure as NodeJS.ErrnoException).code?.startsWith('HPE_') ? protocolError('parse') : error('upstream_network_policy_unavailable')));
+          if (value.rejectInformationalResponses === true) outgoing.on('information', () => fail(protocolError('informational')));
+          outgoing.once('upgrade', (_response, upgraded) => { upgraded.destroy(); fail(protocolError('upgrade')); });
         } catch (failure) { fail(failure instanceof ControlledDnsError ? failure : error()); }
       }).catch(failure => fail(failure instanceof ControlledDnsError ? failure : error()));
       return await responsePromise;
