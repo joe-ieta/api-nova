@@ -1,5 +1,5 @@
 ---
-doc-version: 1.91.0
+doc-version: 1.93.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -41,7 +41,7 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-E2 | SEC-E02；E1 | IN_PROGRESS | 安全 smoke/跨进程/传输专项有历史证据；当前完整安全矩阵、撤销/取消/重连和平台组合未完成 |
 | TP-F1 | SEC-F01；C4 | IN_PROGRESS | A/B/C1/C2/C3a–c/E1/E2及E3a完成；C3a–c为4 files/27 tests纯模块；C3d以独立生产表、双库CHECK/迁移/注册及16套120项限定完成，C3e以四阶段loopback/SQLite编排、10套123项及API build限定完成；C3f限定完成；C3g拆为G1–G6；G1 proof/authorization adapter以30 tests、security 11 suites/176及API build限定完成，G3单成员事务writer以2 files、1 suite/10项SQL.js及API build限定完成但未注册/未验PG；G2只读preview/readiness adapter以2 files、2 suites/43及API build限定完成，SQL仅SELECT、实体/evidence零变更、canPublish恒false且未接生产入口；G4有界executor切片以3 suites/30 tests及API build限定完成：生产G2默认false且G3零调用，future-readiness fixture仅证明部分提交/后续继续，candidate只做host-owned同步swap且无await；未接异步Registry生产链，不能宣称production batch/candidate activation完整。D READY；G5独立Gateway proof consumer guard与真实HTTP验收实施中，仅限Resolver/cache前proof拒绝，不开放Verified、不改Publication入口，共享Runtime生产接线待协调；G6 MCP/child实时许可等待；当前不接production gate，F1保护全部fail-closed，仍无生产Verified；E3a未注册/未接handoff，E3b及D/F等待 |
 | TP-F2 | SEC-F02；A3/B1/C3/F1 | IN_PROGRESS | F2-01分区/真实generation重载恢复与F2-02临时匿名UI均完成；父依赖C3/F1未闭合，MCP完整凭证编辑/浏览器点击不在本批签收 |
-| TP-F3 | SEC-F03；C4/D1/E1 | IN_PROGRESS | A、B1、B2及B3a/b/c均限定DONE。C1a纯authority新2文件/24项与C5a纯失败审计新4文件/42项限定DONE，统一Parser37套907项及typecheck/build通过；均未接运行时。C1b/c现READY并行，C1d/C2/C3/C4/C5b/C6按依赖等待。宿主epoch/Provider事件桥、原子revision、生产启用、多进程传播、缓存恢复/retry及F3D环境矩阵未完成，父F3C/TP-F3保持IN_PROGRESS |
+| TP-F3 | SEC-F03；C4/D1/E1 | IN_PROGRESS | A、B1、B2及B3a/b/c均限定DONE。C1a纯authority新2文件/24项与C5a纯失败审计新4文件/42项限定DONE；C1b再以Parser38套925项、C1a+C1b定向2套42项、typecheck/build及diff-check限定DONE，固定同一opaque handle、Snapshot、凭据、epoch与总deadline/abort。C1c Gateway接线仍IN_PROGRESS；C2已READY，C1d继续等C1c，C3/C4/C5b/C6按依赖等待。真实Provider撤销事件桥、原子revision、生产启用、多进程传播、缓存恢复/retry及F3D环境矩阵未完成，父F3C/TP-F3保持IN_PROGRESS |
 | TP-F3a | 供应链治理；独立 | IN_PROGRESS | 旧依赖审计只是历史快照；当前可达性、补丁兼容和风险需重审，不自动 audit fix/重大升级 |
 | TP-F4 | 全量验收；D2/E2/F1/F2/F3/F3a | BACKLOG | 完整安全矩阵、依赖审计、Linux/Windows 和对外交付门禁未满足 |
 | TP-G1 | OAuth2 独立里程碑 | DEFERRED | 只保留不可执行占位，不获取/刷新 Token，不提供授权服务器或 OAuth Discovery |

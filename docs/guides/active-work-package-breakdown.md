@@ -1,5 +1,5 @@
 ---
-doc-version: 1.69.0
+doc-version: 1.70.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -152,8 +152,8 @@ SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F1/F2/F3/F
 | SEC-F3-02B3b | SEC-F3 | CODE | Parser Host可信Site/Registry版本桥 | 在host-only入口把可信Site、Registry/网络政策版本与B3a bounded adapter绑定到同一逻辑操作；禁止legacy Axios/global Agent回退，不在本叶实现逐跳凭据或撤销状态机 | SEC-F3-02B3a |
 | SEC-F3-02B3c | SEC-F3 | CODE | Gateway可信Route网络Provider与Stream桥 | 将可信route/membership/Registry来源接入Gateway网络Provider和stream桥，复用B3a verified connection；完整网络身份与撤销进入F3C前关闭缓存，不提前启用生产路由 | SEC-F3-02B3a |
 | SEC-F3-02C1a | SEC-F3 | CODE | 共享Opaque整操作Authority | 提供host-owned不可序列化operation handle，固定policy epoch、deadline与撤销/abort信号；拒绝伪造、续期、跨操作复用及客户端构造 | SEC-F3-02B3b;SEC-F3-02B3c |
-| SEC-F3-02C1b | SEC-F3 | CODE | Parser操作Authority接线 | Parser host-only路径绑定C1a handle，所有DNS/连接/流操作共享deadline与abort，不允许body或序列化配置创建authority | SEC-F3-02C1a |
-| SEC-F3-02C1c | SEC-F3 | CODE | Gateway操作Authority接线 | Gateway可信route/Provider路径绑定C1a handle，Resolver/cache前固定epoch/deadline并把abort传入stream，不注册生产默认启用 | SEC-F3-02C1a |
+| SEC-F3-02C1b | SEC-F3 | CODE | Parser操作Authority接线 | Parser host-only路径绑定C1a handle，在Resolver与body读取前冻结同一Snapshot/凭据/epoch，所有DNS/连接/流操作共享总deadline与abort；不允许body或序列化配置创建authority | SEC-F3-02C1a |
+| SEC-F3-02C1c | SEC-F3 | CODE | Gateway操作Authority接线 | Gateway可信route/Provider路径绑定C1a handle，Resolver/cache前冻结同一Snapshot/凭据/epoch与总deadline并把abort传入stream；不注册生产默认启用 | SEC-F3-02C1a |
 | SEC-F3-02C1d | SEC-F3 | CODE | 真实Host/Provider激活与撤销事件桥 | 真实host/provider激活、reload、撤销、到期事件驱动对应operation主动abort；默认生产关闭，多进程传播另验 | SEC-F3-02C1b;SEC-F3-02C1c |
 | SEC-F3-02C2 | SEC-F3 | CODE | Parser安全Redirect与精确Endpoint重选 | 每跳重新解析并按可信Site/Endpoint/target/method选择Endpoint，重跑DNS/peer/TLS并重建该跳凭据；拒绝降级、跨源继承、敏感Header泄漏和非safe-read自动跳转 | SEC-F3-02C1b |
 | SEC-F3-02C3 | SEC-F3 | CODE | Gateway固定操作生命周期 | Gateway每次请求固定同一host-owned operation、route/membership/Registry版本与deadline；redirect/retry/取消共享该操作，reload/撤销后不得继续旧epoch | SEC-F3-02C1d |

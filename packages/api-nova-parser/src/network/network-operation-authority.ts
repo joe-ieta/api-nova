@@ -13,7 +13,7 @@ export interface AuthorizedNetworkOperationContext {
 export interface NetworkOperationHandle { readonly operationId: string; readonly deadline: number; readonly signal: AbortSignal }
 const error = (code: ControlledDnsError['code'] = 'upstream_network_policy_denied') => new ControlledDnsError(code);
 function record(value: unknown, keys: readonly string[], required = keys): Record<string, unknown> {
-  if (!value || Object.getPrototypeOf(value) !== Object.prototype) throw error();
+  if (!value || typeof value !== 'object' || Object.getPrototypeOf(value) !== Object.prototype) throw error();
   const result: Record<string, unknown> = {};
   for (const key of Reflect.ownKeys(value)) { const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
     if (typeof key !== 'string' || !keys.includes(key) || !('value' in descriptor)) throw error();

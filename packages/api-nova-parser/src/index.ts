@@ -184,3 +184,7 @@ export * from './network/pinned-http-stream';
 
 export * from './network/trusted-single-hop-network-execution';
 export * from './network/bounded-network-serialization';
+
+// Host-only operation capability factory; no runtime activation is implied.
+export { createNetworkOperationAuthority } from './network/network-operation-authority';
+export type { NetworkOperationHandle, NetworkOperationSelector, AuthorizedNetworkOperationContext } from './network/network-operation-authority';

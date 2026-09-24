@@ -1,4 +1,4 @@
-import { assertTrustedSingleHopNetworkExecution, TrustedSingleHopNetworkExecution } from '../network/trusted-single-hop-network-execution';
+import { assertTrustedSingleHopNetworkExecution, TrustedSingleHopNetworkExecution, TrustedSingleHopNetworkPlan } from '../network/trusted-single-hop-network-execution';
 import { serializeBoundedNetworkRequest, decodeBoundedNetworkResponse } from '../network/bounded-network-serialization';
 import { ControlledDnsError } from '../network/controlled-dns';
 import { normalizeUpstreamSecurity, reconcileUpstreamSecurity } from '../security/upstream-security-reconciliation';
@@ -81,6 +81,16 @@ function createResourceLink(uri: string, name?: string, description?: string, mi
 /**
  * OpenAPI to MCP Tools Transformer
  */
+async function withNetworkCancellation<T>(signal: AbortSignal | undefined, work: () => Promise<T>): Promise<T> {
+  if (!signal) return work();
+  const failure = () => signal.reason instanceof ControlledDnsError ? signal.reason : new ControlledDnsError('ABORT_ERR');
+  if (signal.aborted) throw failure();
+  let detach: () => void = () => undefined;
+  const aborted = new Promise<never>((_resolve, reject) => { const stop = () => reject(failure()); signal.addEventListener('abort', stop, { once: true }); detach = () => signal.removeEventListener('abort', stop); });
+  try { if (signal.aborted) throw failure(); return await Promise.race([Promise.resolve().then(() => { if (signal.aborted) throw failure(); return work(); }), aborted]); }
+  finally { detach(); }
+}
+
 export class OpenAPIToMCPTransformer {
   private spec: OpenAPISpec;
   private options: Required<Omit<TransformerOptions, 'authConfig' | 'customHeaders' | 'debugHeaders' | 'protectedHeaders' | 'operationFilter' | 'sourceOrigin' | 'trustedOperationBindings' | 'upstreamCredentialPolicy' | 'upstreamNetworkExecution'>> & {
@@ -676,6 +686,8 @@ export class OpenAPIToMCPTransformer {
     trustedBinding?: Readonly<TrustedOperationBinding>
   ): Promise<MCPToolResponse> {
     const context = getRuntimeCallContext();
+    const networkDeadline = Date.now() + this.options.requestTimeout;
+    let networkPlan: TrustedSingleHopNetworkPlan | undefined;
     let auditAgents: ReturnType<typeof createRuntimeHttpAuditAgents> | undefined;
     try {
       // 1. 构建请求 URL
@@ -683,7 +695,7 @@ export class OpenAPIToMCPTransformer {
       // Authorize before custom header providers or any HTTP transport work.
       const bounded = this.upstreamNetworkExecution
         ? serializeBoundedNetworkRequest(url, queryParams, this.buildRequestBody(args, operation)) : undefined;
-      const networkPlan = bounded ? await this.upstreamNetworkExecution!.prepare(trustedBinding, bounded, Date.now() + this.options.requestTimeout) : undefined;
+      networkPlan = bounded ? await this.upstreamNetworkExecution!.prepare(trustedBinding, bounded, networkDeadline) : undefined;
       const upstreamCredentials = networkPlan?.credentials ?? await this.upstreamCredentials?.resolve(trustedBinding, url, method.toUpperCase());
 
       // 2. 准备请求头（默认头）
@@ -701,12 +713,12 @@ export class OpenAPIToMCPTransformer {
 
       // 3. 添加自定义头（在认证头之前，优先级较低）
       if (this.customHeadersManager) {
-        const customHeaders = await this.customHeadersManager.getHeaders({
+        const customHeaders = await withNetworkCancellation(networkPlan?.signal, () => this.customHeadersManager!.getHeaders({
           method,
           path,
           args,
           operation
-        });
+        }));
         Object.assign(headers, customHeaders);
       }
 
@@ -779,6 +791,7 @@ export class OpenAPIToMCPTransformer {
       }
       return this.handleRequestError(error, method, path);
     } finally {
+      if (networkPlan) this.upstreamNetworkExecution?.close(networkPlan);
       auditAgents?.destroy();
     }
   }

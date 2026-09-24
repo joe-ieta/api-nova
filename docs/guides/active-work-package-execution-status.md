@@ -1,5 +1,5 @@
 ---
-doc-version: 1.115.0
+doc-version: 1.117.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -14,10 +14,10 @@ doc-updated: 2026-09-24
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 130 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 14 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 当前无已登记实施中叶子；父包仍可保持IN_PROGRESS |
-| WAIT_DEP | 27 | 等待列明子任务/条件 |
+| DONE | 131 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 13 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 1 | C1c Gateway操作Authority接线仍在实施 |
+| WAIT_DEP | 26 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -124,10 +124,10 @@ doc-updated: 2026-09-24
 | SEC-F3-02B3b | DONE | 限定Parser host桥完成：7文件，Parser 34 suites/838 tests、专项21、typecheck/build及diff-check通过；真实Resolver绑定Site/generation/revision（含None），同Snapshot WeakMap host policy与最终序列化URL，bounded≤8MiB JSON/string/Buffer，默认网络模式off且F1零发送；Registry/DNS/HTTP/TLS及clone/reload/伪造/变异负测通过。生产Gateway/managed child、Provider撤销epoch及audit桥未接；父B3/F3保持IN_PROGRESS |
 | SEC-F3-02B3c | DONE | 限定Gateway route桥完成：Provider active/denied/unavailable三态；显式撤销/身份错→502，可信host回调抛错与DNS SERVFAIL→503，deadline→504。最终新HTTP/TLS专项46、相关6 suites/111 tests、API build及diff-check通过；修复前Gateway全目录43 suites/627不称最终一次全绿，Parser 34 suites/841仍适用。默认off、无生产DI/Provider注册或外部配置入口；B3a/b/c聚合限定完成 |
 | SEC-F3-02C1a | DONE | 限定纯authority模块完成：新2文件/专项24，host-only opaque handle固定epoch/revoke同步abort、总deadline及有界容量；统一Parser 37 suites/907 tests及typecheck/build通过。未接运行时、宿主epoch或Provider事件桥 |
-| SEC-F3-02C1b | READY | C1a限定模块完成后解锁；下一步接Parser host-only路径，同一handle/deadline/abort进入DNS、连接和stream，禁止序列化配置创建authority |
-| SEC-F3-02C1c | READY | C1a限定模块完成后解锁；下一步接Gateway可信route/Provider，同一handle在Resolver/cache前固定epoch/deadline，暂不注册生产默认启用 |
+| SEC-F3-02C1b | DONE | 限定Parser接线完成：host-only路径在Resolver/body读取前固定同一opaque handle、Snapshot、凭据、epoch及总deadline/abort；Parser 38 suites/925 tests、最终C1a+C1b定向2 suites/42 tests、typecheck/build及diff-check通过。生产默认仍关闭，真实Provider撤销事件桥和多进程传播未接 |
+| SEC-F3-02C1c | IN_PROGRESS | 已开工；目标是在Gateway可信route/Provider的Resolver/cache前冻结同一Snapshot/凭据/epoch与总deadline并把abort传入stream；生产默认仍关闭，真实Provider撤销事件桥归C1d且尚未接入 |
 | SEC-F3-02C1d | WAIT_DEP | 等C1b/C1c；真实host/provider激活、reload、撤销和到期事件桥驱动主动abort，多进程传播另验 |
-| SEC-F3-02C2 | WAIT_DEP | 等C1b；Parser每跳精确Site/Endpoint重选、DNS/peer/TLS重验与凭据重建，拒绝跨源继承和非safe-read自动跳转 |
+| SEC-F3-02C2 | READY | C1b限定接线完成后解锁；下一步实现Parser每跳精确Site/Endpoint重选、DNS/peer/TLS重验与凭据重建，拒绝跨源继承和非safe-read自动跳转 |
 | SEC-F3-02C3 | WAIT_DEP | 等C1d；Gateway固定同一operation/route/membership/Registry版本，redirect/retry/取消共享deadline，reload/撤销后旧epoch不得继续 |
 | SEC-F3-02C4 | WAIT_DEP | 等C1b/C1c；新网络模式首轮单attempt且缓存保持关闭，两侧消费同一operation handle；缓存恢复与自动retry另行登记 |
 | SEC-F3-02C5a | DONE | 限定纯失败/审计模块完成：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时 |

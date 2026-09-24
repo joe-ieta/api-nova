@@ -1,5 +1,5 @@
 ---
-doc-version: 1.40.0
+doc-version: 1.42.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -240,7 +240,7 @@ v1 只支持直连。显式配置代理或自定义 Axios adapter/transport 一�
 
 SEC-F3-01 到本节政策定稿完成；实施拆为F3-02A严格配置/地址分类、F3-02B1受控DNS全集授权、F3-02B2固定IP单跳直连/peer复核primitive、F3-02B3a Parser共享verified connection/Readable矩阵、B3b Parser host版本桥、B3c Gateway route Provider/stream桥、F3-02C逐跳凭据/redirect/撤销状态机和F3-02D N01–N17双运行时验收。A/B1/B2原语不能替代B3a–D；八项合并才覆盖受信任配置/例外、DNS全集与IP固定、HTTP/TLS写出前peer复核、直连隔离、逐跳凭据重建、快照/撤销及拒绝审计。不能以纯函数、设置零跳转、一次DNS检查或仅beforeRedirect hook关闭F3。
 
-实现快照（2026-09-24）：F3-02A、B1、B2及B3a/b/c均按限定出口完成。C1a共享host-owned opaque authority以新2文件/专项24完成epoch/revoke同步abort、总deadline及有界容量；C5a纯network-failure/audit模块以新4文件/专项42完成品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。两者均未接运行时或生产双运行时。C1b Parser接线与C1c Gateway接线现READY并可并行，后续C1d/C2/C3/C4/C5b/C6按依赖汇合。宿主epoch/Provider事件桥、原子revision、生产默认启用、多进程传播、缓存恢复/自动retry及F3D N01–N17环境矩阵继续等待，父TP-F3保持IN_PROGRESS。
+实现快照（2026-09-24）：F3-02A、B1、B2及B3a/b/c均按限定出口完成。C1a共享host-owned opaque authority以新2文件/专项24完成epoch/revoke同步abort、总deadline及有界容量；C5a纯network-failure/audit模块以新4文件/专项42完成品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝。C1b Parser接线再以Parser 38 suites/925 tests、最终C1a+C1b定向2 suites/42 tests、typecheck/build及diff-check限定完成，在Resolver/body前固定同一opaque handle、Snapshot、凭据、epoch及总deadline/abort；C1c Gateway接线仍在实施。C2已解锁READY，后续C1d继续等C1c，C3/C4/C5b/C6按依赖汇合。真实Provider撤销事件桥、原子revision、生产默认启用、多进程传播、缓存恢复/自动retry及F3D N01–N17环境矩阵继续等待，父TP-F3保持IN_PROGRESS。
 
 SEC-F3-02D按第 5 节 N01–N17 冻结矩阵执行：N02 分别验证 legacy 基线和 safe-read 的 5 次边界；N13 验证例外精确匹配、到期和始终拒绝集合；N14 验证代理配置拒绝及各大小写环境变量均不触发代理连接；N15 验证所有非空体/非 GET、HEAD 不跟随且无第二次写出；N16 验证普通 reload 固定版本、撤销中断及每次新连接重新授权。矩阵同步为“政策已定，待实现”，不能用DOC状态替代真实执行证据。
 
