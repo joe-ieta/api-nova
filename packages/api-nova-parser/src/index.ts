@@ -180,3 +180,4 @@ export * from './network/address-policy';
 export * from './network/network-policy';
 export * from './network/controlled-dns';
 export * from './network/pinned-http-transport';
+export * from './network/pinned-http-stream';

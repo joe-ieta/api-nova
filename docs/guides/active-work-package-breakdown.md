@@ -1,5 +1,5 @@
 ---
-doc-version: 1.65.0
+doc-version: 1.66.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -164,8 +164,9 @@ SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F1/F2/F3/F
 | OBS-10-02B1 | OBS-10 | CODE | Managed生命周期耐久Delta | managed start/terminal在更新最新generation投影的同一CallObservabilityStore事务分配sequence并写既有耐久事件表；仅交付sequence-bound durable delta，不接Realtime | OBS-10-02A |
 | OBS-10-02B2 | OBS-10 | CODE | In-flight状态耐久Delta | 仅对有runtimeAssetId的gateway_request/mcp_tool，把in-flight started/terminal成员变化在更新调用修订的同一Store事务写入共用状态delta；不把保留窗口计数写成实时存活，不接Realtime/grant/ACK/gap恢复 | OBS-10-02B1 |
 | OBS-13-01A | OBS-13 | CODE | server_state_v1 Snapshot Grant与水位 | 在servers/status同一Store.readSnapshot成功提交后签发独立server_state_v1 grant，绑定水位H、principal/fingerprint、授权asset集合及筛选；范围只含B1 managed lifecycle与B2 retained business in-flight，旧invocation_facts_only合同不变 | OBS-10-02B1;OBS-10-02B2 |
-| OBS-13-01B | OBS-13 | CODE | 状态耐久Delta追赶与ACK/Gap恢复 | 从H读取同一runtime_observability_events，仅接受B1/B2 evidenceScope；整页ACK后推进签名cursor，未ACK重连重放，过期/删除gap强制resnapshot；不建第二事件源 | OBS-13-01A |
-| OBS-13-01C | OBS-13 | VALIDATION | 权限变化、重连与乱序负测 | 覆盖读前后撤权、角色/asset缩窄、错误principal/filter/grant、TTL/重启失效、ACK前后断连、旧subjectVersion与重复sequence；legacy/asset/global多实例水位及live liveness仍unknown | OBS-13-01A;OBS-13-01B |
+| OBS-13-01B1 | OBS-13 | CODE | 状态专用Durable Delta Reader | 复用A的server_state_v1 grant、签名cursor及同一runtime_observability_events；每页读前后复核当前DB角色/资产范围，只接受managed_server_process_lifecycle与retained_business_in_flight，gap/expiry强制resnapshot。生命周期delta只返回受限字段与refreshRequired，不能单靠delta重建完整status DTO；不接WebSocket | OBS-13-01A |
+| OBS-13-01B2 | OBS-13 | CODE | 显式状态WebSocket订阅、ACK与重连 | 以新的状态订阅/确认/delta/error事件名消费B1页；整页ACK后推进签名cursor，ACK前断线重放，使用last fully processed cursor恢复，并保持既有invocation_facts_only事件名、handler与cursor不变 | OBS-13-01B1 |
+| OBS-13-01C | OBS-13 | VALIDATION | 权限变化、重连与乱序负测 | 覆盖读前后撤权、角色/asset缩窄、错误principal/filter/grant、TTL/重启失效、ACK前后断连、旧subjectVersion与重复sequence；legacy/asset/global多实例水位及live liveness仍unknown | OBS-13-01A;OBS-13-01B1;OBS-13-01B2 |
 | OBS-13-02 | OBS-13 | VALIDATION | 长期传输与慢客户端验收 | 有限缓冲/ACK/恢复/断连按状态流和调用事实流验证 | OBS-13-01C |
 | OBS-14-01 | OBS-14 | DOC | 生命周期引用/墓碑规则 | 事件/投递/receipt/元数据/正文引用和到期顺序逐类定清 | — |
 | OBS-14-02 | OBS-14 | CODE | 删除后回滚的过期元数据整理 | 有界持久进度、同fence、重启/重复运行可恢复；有效对象不变 | — |

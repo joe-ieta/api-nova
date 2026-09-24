@@ -1,5 +1,5 @@
 ---
-doc-version: 1.101.0
+doc-version: 1.105.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -10,14 +10,14 @@ doc-updated: 2026-09-24
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
 父包专项统计仍是OBS 11/4/1、SEC 10/12/0/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计21/16/1/1。它不表示全项目完成率。
 
-本次登记181个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
+本次登记182个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 122 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 13 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 当前没有登记为正在实施的叶任务 |
-| WAIT_DEP | 26 | 等待列明子任务/条件 |
+| DONE | 124 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 14 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 0 | 当前无已登记实施中叶子；父包仍可保持IN_PROGRESS |
+| WAIT_DEP | 24 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -120,9 +120,9 @@ doc-updated: 2026-09-24
 | SEC-F3-02A | DONE | 限定纯compiler完成：严格v1配置/URL/origin、IPv4/IPv6完整分类、IPv4-mapped归一与精确private-exception；静态表版本iana-2025-10-09-conservative-v1，更新表时必须复核IANA差异并重跑边界回归。network专项165项、Parser 30 suites/722 tests及typecheck/build通过；不接DNS、真实发送或host续期/撤销，不关闭父F3 |
 | SEC-F3-02B1 | DONE | 限定受控DNS批准结果完成：真实UDP 26/26、Parser 31 suites/748 tests及typecheck/build通过；覆盖A/AAAA/CNAME有界全集、规范化去重、逐地址政策授权及混合/未分类/截断失败关闭。仅产出DNS批准结果，无上游socket、peer或TLS证据 |
 | SEC-F3-02B2 | DONE | 限定≤8MiB Buffer单跳transport primitive完成：31专项、Parser 32 suites/779 tests、typecheck/build通过；真实HTTP/TLS/peer/代理陷阱与Windows Node24已有证据。无Gateway/Transformer host接线、Readable/大体积流或逐跳撤销 |
-| SEC-F3-02B3a | READY | B2 primitive完成后解锁；待抽取Parser共享verified connection，补Readable单跳、背压/取消/超时/早响应及大于8MiB真实矩阵；只做transport，不接host配置、redirect或生产启用 |
-| SEC-F3-02B3b | WAIT_DEP | 等B3a后接Parser host-only可信Site/Registry与网络政策版本桥、bounded adapter及零legacy Axios/global Agent回退；父B3保持IN_PROGRESS |
-| SEC-F3-02B3c | WAIT_DEP | 等B3a后接Gateway可信route网络Provider/stream桥；完整网络身份与撤销闭合前禁用缓存且不启用生产路由；可与B3b并行，父B3/TP-F3保持IN_PROGRESS |
+| SEC-F3-02B3a | DONE | 限定共享private verified connection与Readable stream完成：Parser 33 suites/817 tests、stream专项38、B2既有31及typecheck/build通过；真实24MiB双向、backpressure、授权前body零读取、peer/TLS/代理/取消/截断/early response/one-shot已验。首轮816/817为B1真实DNS后置复核50ms夹具负载失败，仅测试改为真实解析后受控时间，生产deadline不变；仍无Transformer/Gateway/child生产接线 |
+| SEC-F3-02B3b | READY | B3a限定transport完成后解锁；下一步接Parser host-only可信Site/Registry与网络政策版本桥、bounded adapter及零legacy Axios/global Agent回退；父B3保持IN_PROGRESS |
+| SEC-F3-02B3c | READY | B3a限定transport完成后解锁；下一步接Gateway可信route网络Provider/stream桥；完整网络身份与撤销闭合前禁用缓存且不启用生产路由；可与B3b并行，父B3/TP-F3保持IN_PROGRESS |
 | SEC-F3-02C | WAIT_DEP | 等B3b Parser host桥与B3c Gateway route桥；逐跳Site/Endpoint与凭据重建、整操作固定revision、safe-read、撤销/取消、缓存隔离和拒绝审计待实现，生产启用不得提前 |
 | SEC-F3-02D | WAIT_DEP | 等C；N01–N17 Gateway/Parser真实连接及Windows/Linux环境矩阵待验收 |
 | SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
@@ -136,8 +136,9 @@ doc-updated: 2026-09-24
 | OBS-10-02B1 | DONE | managed start/terminal与最新generation投影在同一Store事务写入server.state_changed并分配sequence；4 suites/21 tests及API build通过。只证明同一DataSource内并发与耐久delta，不接Realtime，不证明跨实例全局水位或实时liveness |
 | OBS-10-02B2 | DONE | 限定业务在途delta完成：有runtimeAssetId的gateway_request/mcp_tool仅在in-flight成员变化时与调用修订同事务写入sequence-bound delta；5 suites/28 tests及API build通过。storage旧断言因新增合法delta首轮2项失败，精确更新后storage 32/32；events 16、invocations 38、restart 3首轮通过，共89项分别验证，不称一次性脚本全绿；不接Realtime |
 | OBS-13-01A | DONE | 限定server_state_v1 snapshot grant/H完成：5 suites/31 tests及API build通过；兼容43项首轮42过，补旧EventGap夹具后overview 20/20，其余23项沿用先前通过结果，不称一次性全绿。opaque token绑定H/TTL/asset/filter/current auth/isPartial/excluded；不接Realtime或消费者，旧invocation_facts_only不变 |
-| OBS-13-01B | READY | A已提供限定grant/H；下一步从同一事件表追赶B1/B2 durable delta，完成整页ACK、未ACK重放与gap强制resnapshot，不建立第二事件源 |
-| OBS-13-01C | WAIT_DEP | 等待A/B后验收撤权、范围缩窄、TTL/重启、ACK前后重连和乱序/重复sequence；legacy状态、asset目录、全局多实例水位及live liveness仍unknown |
+| OBS-13-01B1 | DONE | 限定状态专用durable delta reader完成：新reader/spec与A authorizer小接口共3文件，6 suites/39 tests、旧events/overview/bridge/Realtime脚本39/39及API build通过。组合首轮38/39源于SQL.js TypeORM bulk fixture ID回写交换；固定UUID复现后以updateEntity(false)+ID不可变断言修夹具，最终39/39，生产reader未放宽。仍未注册module/controller/WS |
+| OBS-13-01B2 | READY | B1限定reader已完成；下一步以新事件名接显式状态WebSocket、整页ACK、ACK前重放与last fully processed cursor恢复。既有invocation_facts_only订阅、handler和cursor保持不变 |
+| OBS-13-01C | WAIT_DEP | 等待A/B1/B2后验收读中撤权、角色/asset缩窄、TTL/重启、ACK前后重连及乱序/重复subjectVersion/sequence；legacy状态、asset目录、全局多实例水位及live liveness仍unknown |
 | OBS-13-02 | WAIT_DEP | 等待OBS-13-01C后补长期传输、慢客户端及跨平台证据 |
 | OBS-14-01 | DONE | [生命周期合同](../reference/runtime-observability-lifecycle-contract.md)冻结引用、保留、墓碑与重放边界；仅DOC |
 | OBS-14-02 | DONE | 持久keyset分页、同GC fence、修复与cursor同事务；真实SQL.js连接重建恢复；新增7项专项，联合67/67 |

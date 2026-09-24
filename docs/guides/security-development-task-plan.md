@@ -1,5 +1,5 @@
 ---
-doc-version: 1.53.0
+doc-version: 1.55.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -306,7 +306,7 @@ B2参数保存/执行与拒绝矩阵已验收，见[本批证据](../audits/2026
 
 E0/B3原出口经[Adapter矩阵](../audits/2026-09-21-mcp-adapter-contract.md)及已完成会话撤销/SDK证据复核闭合；Header02B/C/D和F1门禁继续独立推进。
 
-02B受控真实流已完成，详见[验收证据](../audits/2026-09-21-header-wire-execution.md)。该句保留当时推进顺序；当前D1/H11A/H11B已完成原Header出口；F3网络执行另拆F3-02A、B1、B2、B3a/B3b/B3c、C、D。A严格配置/地址分类纯compiler已限定DONE，静态表`iana-2025-10-09-conservative-v1`的任何更新都须复核IANA差异并重跑边界回归。B1受控DNS批准结果以真实UDP 26/26、Parser 31 suites/748 tests及typecheck/build限定DONE，但无上游socket/peer/TLS；B2以31专项、Parser 32 suites/779 tests及typecheck/build完成≤8MiB Buffer固定IP单跳primitive，但未接Gateway/Transformer host，也不支持Readable/大体积流。B3a现READY，负责Parser共享verified connection、Readable/backpressure/取消和大于8MiB矩阵；B3b等待a后接Parser host-only可信Site/Registry版本桥，B3c等待a后独立接Gateway可信route Provider/stream桥并保持缓存关闭。B3聚合与TP-F3继续IN_PROGRESS；C同时依赖b/c并负责整操作版本、逐跳凭据和撤销，生产启用不得提前。
+02B受控真实流已完成，详见[验收证据](../audits/2026-09-21-header-wire-execution.md)。该句保留当时推进顺序；当前D1/H11A/H11B已完成原Header出口；F3网络执行另拆F3-02A、B1、B2、B3a/B3b/B3c、C、D。A严格配置/地址分类纯compiler已限定DONE，静态表`iana-2025-10-09-conservative-v1`的任何更新都须复核IANA差异并重跑边界回归。B1受控DNS批准结果以真实UDP 26/26、Parser 31 suites/748 tests及typecheck/build限定DONE，但无上游socket/peer/TLS；B2以31专项、Parser 32 suites/779 tests及typecheck/build完成≤8MiB Buffer固定IP单跳primitive。B3a共享private verified connection与Readable stream现以Parser 33 suites/817 tests、stream专项38、B2既有31及typecheck/build限定DONE，覆盖真实24MiB双向、backpressure、授权前body零读取、peer/TLS/代理/取消/截断/early response/one-shot；首轮816/817仅为B1真实DNS后置复核50ms夹具负载失败，测试改为真实解析后受控时间，生产deadline不变。B3b与B3c据此解锁READY，分别负责Parser host-only可信Site/Registry版本桥和Gateway可信route Provider/stream桥。B3聚合与TP-F3继续IN_PROGRESS；仍无Transformer/Gateway/child生产接线，C同时依赖b/c并负责整操作版本、逐跳凭据和撤销，生产启用不得提前。
 
 C1原SEC-C01/A0退出条件现已闭合，见[四类型验收](../audits/2026-09-22-credential-types-scope.md)；C1-02完成解锁F1-02，不使F1/E1自动完成。
 

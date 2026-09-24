@@ -102,11 +102,17 @@ describe('controlled DNS with real isolated UDP answers', () => {
     const c = compiler(), dns = adapter(c), abort = new AbortController();
     const result = await dns.resolve({ policy: policy(c), target: target(), deadline: Date.now() + 1000, signal: abort.signal });
     abort.abort(); expect(dns.revalidate(result)).toBe(false);
-    const short = await dns.resolve({ policy: policy(c), target: target(), deadline: Date.now() + 50 });
-    await new Promise(resolve => setTimeout(resolve, 60)); expect(dns.revalidate(short)).toBe(false);
+    // This assertion concerns revalidation after successful DNS, not scheduler speed during DNS.
+    // Actual short-deadline/5-second/expiry-during-DNS tests remain separate below.
+    const deadline = Date.now() + 3000;
+    const short = await dns.resolve({ policy: policy(c), target: target(), deadline });
+    const deadlineClock = jest.spyOn(Date, 'now').mockReturnValue(deadline);
+    try { expect(dns.revalidate(short)).toBe(false); } finally { deadlineClock.mockRestore(); }
     respond = (_, type) => ({ addresses: type === 1 ? ['127.0.0.1'] : [] });
-    const expiring = await dns.resolve({ policy: policy(c, ['127.0.0.1'], Date.now() + 100), target: target(), deadline: Date.now() + 1000 });
-    await new Promise(resolve => setTimeout(resolve, 110)); expect(dns.revalidate(expiring)).toBe(false);
+    const expiry = Date.now() + 3000;
+    const expiring = await dns.resolve({ policy: policy(c, ['127.0.0.1'], expiry), target: target(), deadline: expiry + 3000 });
+    const expiryClock = jest.spyOn(Date, 'now').mockReturnValue(expiry);
+    try { expect(dns.revalidate(expiring)).toBe(false); } finally { expiryClock.mockRestore(); }
   });
   it('rejects DNS rebinding on the next attempt rather than reusing an approved answer', async () => {
     const c = compiler(), dns = adapter(c), p = policy(c);

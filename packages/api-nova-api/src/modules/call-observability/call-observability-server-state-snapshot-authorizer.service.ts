@@ -50,6 +50,16 @@ export class CallObservabilityServerStateSnapshotAuthorizer {
       isPartial: true as const, historyComplete: false as const };
   }
 
+  /** Requires fresh DB authorization from the reader; never accepts a client asset selection. */
+  resolve(token: string, sequence: string, authorization: ObservabilityAuthorization, filter: ObservabilityFilter):
+    { expiresAt: number; assetIds: readonly string[] } | null {
+    if (typeof token !== 'string') return null;
+    this.prune();
+    const grant = this.grants.get(token), binding = this.binding(sequence, authorization, filter);
+    if (!grant || binding === null || grant.binding !== binding) return null;
+    return { expiresAt: grant.expiresAt, assetIds: [...grant.assetIds] };
+  }
+
   authorize(token: string, sequence: string, authorization: ObservabilityAuthorization, filter: ObservabilityFilter,
     assetIds: readonly string[]): boolean {
     if (typeof token !== 'string' || !Array.isArray(assetIds) || assetIds.some(id => typeof id !== 'string')) return false;
