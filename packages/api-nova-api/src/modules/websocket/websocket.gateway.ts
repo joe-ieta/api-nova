@@ -1,3 +1,4 @@
+import { CallObservabilityServerStateRealtimeService } from '../call-observability/call-observability-server-state-realtime.service';
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -133,6 +134,7 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
     private readonly runtimeAssetsService: RuntimeAssetsService,
     private readonly runtimeObservabilityService: RuntimeObservabilityService,
     private readonly observabilityRealtime: CallObservabilityRealtimeService,
+    private readonly stateRealtime: CallObservabilityServerStateRealtimeService,
   ) {}
 
   afterInit(server: Server) {
@@ -142,18 +144,22 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
 
   async handleConnection(client: Socket) {
     if (client.handshake.auth?.observability === true) {
+      const stateMode = client.handshake.auth?.snapshotScope === 'server_state_v1';
+      client.data ??= {};
+      client.data.observabilitySnapshotScope = stateMode ? 'server_state_v1' : 'invocation_facts_only';
+      const allowedEvents = stateMode ? ['subscribe-observability-state', 'unsubscribe-observability-state'] : ['subscribe-observability', 'unsubscribe-observability'];
       // New protocol sockets cannot enter legacy rooms or receive their unscoped initial snapshots.
       client.use(([event], next) => {
-        if (!['subscribe-observability', 'unsubscribe-observability'].includes(event)) {
+        if (!allowedEvents.includes(event)) {
           client.disconnect(true);
           return;
         }
         next();
       });
       await client.join('observability-v1');
-      try { await this.observabilityRealtime.authorize(client); }
+      try { await (stateMode ? this.stateRealtime : this.observabilityRealtime).authorize(client); }
       catch {
-        client.emit('observability-error', { code: 'UNAUTHENTICATED' });
+        client.emit(stateMode ? 'observability-state-error' : 'observability-error', { code: 'UNAUTHENTICATED' });
         client.disconnect(true);
       }
       return;
@@ -200,7 +206,7 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
   @SubscribeMessage('subscribe-observability')
   async handleSubscribeObservability(@ConnectedSocket() client: Socket,
     @MessageBody() query: Record<string, unknown>) {
-    if (client.handshake.auth?.observability !== true) {
+    if (client.handshake.auth?.observability !== true || client.data?.observabilitySnapshotScope === 'server_state_v1') {
       client.emit('observability-error', { code: 'INVALID_QUERY' });
       return;
     }
@@ -212,7 +218,19 @@ export class MonitoringGateway implements OnGatewayInit, OnGatewayConnection, On
     this.observabilityRealtime.unsubscribe(client);
   }
 
+  @SubscribeMessage('subscribe-observability-state')
+  async handleSubscribeObservabilityState(@ConnectedSocket() client: Socket, @MessageBody() query: Record<string, unknown>) {
+    if (client.handshake.auth?.observability !== true || client.data?.observabilitySnapshotScope !== 'server_state_v1') {
+      client.emit('observability-state-error', { code: 'INVALID_QUERY' }); client.disconnect(true); return;
+    }
+    await this.stateRealtime.subscribe(client, query);
+  }
+
+  @SubscribeMessage('unsubscribe-observability-state')
+  handleUnsubscribeObservabilityState(@ConnectedSocket() client: Socket) { this.stateRealtime.unsubscribe(client); }
+
   handleDisconnect(client: Socket) {
+    this.stateRealtime?.unsubscribe(client);
     this.observabilityRealtime.unsubscribe(client);
     const clientInfo = this.clients.get(client.id);
     if (clientInfo) {
