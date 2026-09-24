@@ -188,3 +188,6 @@ export * from './network/bounded-network-serialization';
 // Host-only operation capability factory; no runtime activation is implied.
 export { createNetworkOperationAuthority } from './network/network-operation-authority';
 export type { NetworkOperationHandle, NetworkOperationSelector, AuthorizedNetworkOperationContext } from './network/network-operation-authority';
+
+export { createParserHostNetworkBridge } from './network/parser-host-network-bridge';
+export type { ParserHostProviderEvidence } from './network/parser-host-network-bridge';

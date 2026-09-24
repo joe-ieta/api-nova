@@ -1,5 +1,5 @@
 ---
-doc-version: 1.72.0
+doc-version: 1.74.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -125,8 +125,8 @@ doc-updated: 2026-09-24
 | SEC-F3-02C1c | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：4源码文件，Gateway 43 suites/649 tests、真实HTTP/TLS专项62/62、API build及diff-check通过；prepare/forward共享opaque handle、冻结Snapshot/凭据/epoch并贯通总deadline/abort，cache-off/单attempt保持。生产DI/watch/原子epoch及真实Provider事件桥未接，默认生产关闭。 |
 | SEC-F3-02C1d1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：自身2 suites/16 tests、Parser 41 suites/971 tests（含C2a）、typecheck/build及diff-check通过；建立host-owned、按source单调的security epoch与Registry提交事件合同。Gateway生产装配、active-route目录及外部Provider原子revision/event未接，生产默认关闭。 |
 | SEC-F3-02C1d2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **IN_PROGRESS**：可信committed ACTIVE route目录与生命周期事件正在实施；candidate/rollback不发布，stop/delete同步撤销，迟到reload不得复活，不含外部Provider原子revision/event。 |
-| SEC-F3-02C1d2b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D1/D2a/C1c；默认关闭的Gateway Registry/route/security epoch/Provider生产装配与资源清理。 |
-| SEC-F3-02C1d3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：D1/C1b依赖已闭合；Parser host-only真实execution/lifecycle桥，不含managed child IPC或跨进程传播。 |
+| SEC-F3-02C1d2b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D1/D2a/C1c；默认关闭的Gateway Registry/route/security epoch/Provider生产装配。验收须由可信Provider提供与secret capture原子绑定的host-owned单调revision/event及revoke/expiry信号；缺失时保持default-off，目标环境/多进程证据归D4/F3D NEED_ENV。 |
+| SEC-F3-02C1d3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off且缺providerEvidence永拒，WeakMap fixture不是生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭。 |
 | SEC-F3-02C1d4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2b/D3；普通reload固定、失败保旧及撤销/收窄/epoch变化/到期主动abort的本地真实联合验收，多进程另验。 |
 | SEC-F3-02C2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个独立Parser文件，专项30项及相邻5 suites/240 tests通过；source asset+精确method/path绑定Endpoint/target，未知、歧义、跨asset、scheme降级及非受信目标失败关闭。未接多跳状态机、真实发送或生产网络模式。 |
 | SEC-F3-02C2b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：C2a限定目录完成后解锁；Parser safe-read多跳状态机、逐跳Endpoint/DNS/peer/TLS/凭据重建与真实HTTP/TLS接线仍待实施。 |

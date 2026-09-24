@@ -94,7 +94,7 @@ export function createNetworkOperationAuthority(input: {
       const handle = Object.freeze({ operationId: randomUUID(), deadline, signal: controller.signal });
       const entry: Entry = { slot, source, epoch: securityEpoch, generation: slot.generation, controller, deadline, monotonicDeadline: performance.now() + deadline - Date.now(), handle, closed: false };
       count++; slot.operations.add(entry); handles.set(handle, entry);
-      const cancelled = () => stop(entry, error('ABORT_ERR')); signal?.addEventListener('abort', cancelled, { once: true }); entry.detach = () => signal?.removeEventListener('abort', cancelled);
+      const cancelled = () => stop(entry, signal?.reason instanceof ControlledDnsError && ['upstream_network_policy_denied', 'upstream_network_policy_unavailable'].includes(signal.reason.code) ? error(signal.reason.code) : error('ABORT_ERR')); signal?.addEventListener('abort', cancelled, { once: true }); entry.detach = () => signal?.removeEventListener('abort', cancelled);
       entry.timer = setTimeout(() => stop(entry, error('ETIMEDOUT')), Math.min(2147483647, Math.max(1, deadline - Date.now()))); entry.timer.unref?.();
       let detachRace: () => void = () => undefined;
       try {

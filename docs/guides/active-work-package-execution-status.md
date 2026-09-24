@@ -1,5 +1,5 @@
 ---
-doc-version: 1.120.0
+doc-version: 1.122.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -14,8 +14,8 @@ doc-updated: 2026-09-24
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 134 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 15 | 可进入队列，当前并非全部开工 |
+| DONE | 135 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 14 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 1 | D2a可信active-route目录与生命周期事件正在实施；完成前不外推为生产装配 |
 | WAIT_DEP | 26 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
@@ -128,8 +128,8 @@ doc-updated: 2026-09-24
 | SEC-F3-02C1c | DONE | 限定Gateway接线完成：4源码文件，Gateway 43 suites/649 tests、真实HTTP/TLS专项62/62、API build及diff-check通过；prepare/forward共享同一opaque handle、冻结Snapshot/凭据/epoch并贯通总deadline/abort，cache保持关闭且单attempt。生产DI/watch/原子epoch及真实Provider事件桥仍待C1d1–d4，默认生产关闭 |
 | SEC-F3-02C1d1 | DONE | 限定host安全epoch/Registry提交事件合同完成：自身2 suites/16 tests、Parser 41 suites/971 tests（含C2a）、typecheck/build及diff-check通过；提供host-owned按source单调epoch与提交观察点。Gateway生产DI/active-route目录及外部Provider原子revision/event仍未接，生产默认关闭 |
 | SEC-F3-02C1d2a | IN_PROGRESS | 正在实现可信committed ACTIVE route目录与生命周期事件；candidate/rollback不发布，stop/delete同步撤销，迟到reload不得复活。此叶不提供外部Provider原子revision/event，不启用生产网络模式 |
-| SEC-F3-02C1d2b | WAIT_DEP | 等C1d1/D2a/C1c；默认关闭的Gateway生产装配须统一Registry、active route、security epoch与可信Provider事件，失败关闭并清理资源；多进程传播另验 |
-| SEC-F3-02C1d3 | READY | D1与C1b依赖已闭合；下一步host-only装配真实execution/lifecycle及同进程reload/revoke/expiry，不接managed child IPC或跨进程传播 |
+| SEC-F3-02C1d2b | WAIT_DEP | 等C1d1/D2a/C1c；默认关闭的Gateway生产装配须统一Registry、active route、security epoch与可信Provider事件。当前Provider epoch由host回调注入但无与secret capture原子绑定的单调revision/event来源；必须补齐revoke/expiry信号，否则保持default-off。目标环境真实Provider与多进程证据归D4/F3D NEED_ENV |
+| SEC-F3-02C1d3 | DONE | 限定Parser host生命周期桥完成：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off，缺providerEvidence永拒，WeakMap fixture仅为进程内不可伪造测试能力而非生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭 |
 | SEC-F3-02C1d4 | WAIT_DEP | 等C1d2b/C1d3；真实本地Registry/HTTP/TLS覆盖普通reload固定、失败保旧及撤销/收窄/epoch变化/到期在DNS/连接/大流阶段主动abort，shutdown无遗留资源；多进程另验 |
 | SEC-F3-02C2a | DONE | 限定纯目标目录完成：2个独立Parser文件，专项30项及相邻5 suites/240 tests通过；按source asset与精确method+path绑定Endpoint/target，未知、歧义、跨asset、scheme降级及非受信目标失败关闭。未接多跳状态机、真实发送或生产网络模式 |
 | SEC-F3-02C2b | READY | C2a限定目标目录完成后解锁；下一步实现Parser safe-read多跳状态机，每跳精确重选Endpoint，复用同一operation/deadline/abort并重跑DNS/peer/TLS和凭据；真实HTTP/TLS待验 |

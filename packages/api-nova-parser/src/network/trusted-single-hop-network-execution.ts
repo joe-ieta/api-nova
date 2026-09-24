@@ -24,6 +24,7 @@ export interface TrustedSingleHopNetworkExecution {
   send(plan: TrustedSingleHopNetworkPlan, headers: Readonly<Record<string, string>>): Promise<PinnedHttpResponse>;
 }
 const authorities = new WeakMap<TrustedSingleHopNetworkExecution, SingleHopUpstreamCredentialPolicy>();
+const trustedFailure = (failure: unknown): ControlledDnsError => failure instanceof ControlledDnsError && ['upstream_network_policy_denied', 'upstream_network_policy_unavailable'].includes(failure.code) ? new ControlledDnsError(failure.code) : new ControlledDnsError('upstream_network_policy_unavailable');
 const denied = (): never => { throw new ControlledDnsError('upstream_network_policy_denied'); };
 /** Constructor identity check, not a metadata/revision comparison. */
 export function assertTrustedSingleHopNetworkExecution(value: TrustedSingleHopNetworkExecution, policy: SingleHopUpstreamCredentialPolicy | undefined): void {
@@ -65,9 +66,9 @@ export function createTrustedSingleHopNetworkExecution(input: {
   const capture = async (value: Pending) => {
     const snapshot = captureSnapshot(); if (!registered.has(snapshot)) return denied();
     let providerEpoch = 'legacy';
-    try { if (lifecycle) providerEpoch = lifecycle.readProviderEpoch(snapshot, value.binding); } catch { throw new ControlledDnsError('upstream_network_policy_unavailable'); }
+    try { if (lifecycle) providerEpoch = lifecycle.readProviderEpoch(snapshot, value.binding); } catch (failure) { throw trustedFailure(failure); }
     const credentials = await compileSingleHopUpstreamCredentials({ mode: 'single-hop', captureSnapshot: () => snapshot }).resolve(value.binding, value.request.url, value.binding.method);
-    if (lifecycle) { let after: string; try { after = lifecycle.readProviderEpoch(snapshot, value.binding); } catch { throw new ControlledDnsError('upstream_network_policy_unavailable'); } if (after !== providerEpoch) return denied(); }
+    if (lifecycle) { let after: string; try { after = lifecycle.readProviderEpoch(snapshot, value.binding); } catch (failure) { throw trustedFailure(failure); } if (after !== providerEpoch) return denied(); }
     const registration = registered.get(snapshot)!.get(key(value.binding.sourceServiceAssetId, credentials.siteId));
     if (!registration || credentials.generation !== snapshot.generation || credentials.revision !== snapshot.candidate.metadata.revision || !compiler.authorizeTarget(registration.policy, { sourceServiceAssetId: value.binding.sourceServiceAssetId, siteId: credentials.siteId, url: value.request.url })) return denied();
     Object.assign(value, { credentials, snapshot, registration });
@@ -93,7 +94,7 @@ export function createTrustedSingleHopNetworkExecution(input: {
         let handle: NetworkOperationHandle | undefined;
         if (authority) {
           const nonce = randomUUID(); pending.set(nonce, value);
-          try { let signal: AbortSignal | undefined; try { signal = lifecycle!.captureSignal?.(); } catch { throw new ControlledDnsError('upstream_network_policy_unavailable'); }
+          try { let signal: AbortSignal | undefined; try { signal = lifecycle!.captureSignal?.(); } catch (failure) { throw trustedFailure(failure); }
             handle = await authority.begin({ sourceServiceAssetId: capturedBinding.sourceServiceAssetId, operationKey: nonce, deadline, signal }); }
           finally { pending.delete(nonce); }
         } else await capture(value);
@@ -110,7 +111,7 @@ export function createTrustedSingleHopNetworkExecution(input: {
         if (!context.handle) return undefined;
         try {
           const fixed = authority!.assertCurrent(context.handle);
-          let observed: string; try { observed = lifecycle!.readProviderEpoch(context.snapshot, context.binding); } catch { throw new ControlledDnsError('upstream_network_policy_unavailable'); }
+          let observed: string; try { observed = lifecycle!.readProviderEpoch(context.snapshot, context.binding); } catch (failure) { throw trustedFailure(failure); }
           if (observed !== fixed.providerEpoch) { authority!.revoke(context.binding.sourceServiceAssetId); return denied(); }
           return fixed;
         } catch (failure) { guardFailure = failure instanceof ControlledDnsError ? failure : new ControlledDnsError('upstream_network_policy_unavailable'); authority!.close(context.handle); throw guardFailure; }
