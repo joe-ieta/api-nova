@@ -1,5 +1,5 @@
 ---
-doc-version: 1.65.0
+doc-version: 1.66.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -306,7 +306,7 @@ B2参数保存/执行与拒绝矩阵已验收，见[本批证据](../audits/2026
 
 E0/B3原出口经[Adapter矩阵](../audits/2026-09-21-mcp-adapter-contract.md)及已完成会话撤销/SDK证据复核闭合；Header02B/C/D和F1门禁继续独立推进。
 
-02B受控真实流已完成，详见[验收证据](../audits/2026-09-21-header-wire-execution.md)。F3-02A、B1、B2及B3a/b/c均限定DONE。C1a共享opaque authority以新2文件/专项24完成host-only epoch/revoke同步abort、总deadline和容量；C5a纯失败/审计模块以新4文件/专项42完成品牌失败、502/503/504/cancel、null-prototype白名单及sink失败不改拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。两者均为纯模块，未接运行时或生产双运行时。C1b现以Parser 38 suites/925 tests、最终C1a+C1b定向2 suites/42 tests、typecheck/build及diff-check限定DONE：Parser host-only路径在Resolver/body前固定同一opaque handle、Snapshot、凭据、epoch及总deadline/abort；C1c Gateway接线仍IN_PROGRESS。C2因C1b完成转READY；C1d继续等待C1c，C3等d，C4仍等C1c，C5b等C2/C3/C5a，C6最终汇合。真实Provider撤销事件桥、原子revision、生产默认启用、多进程传播、缓存恢复/retry及F3D环境矩阵仍未完成，父F3C/TP-F3保持IN_PROGRESS。
+02B受控真实流已完成，详见[验收证据](../audits/2026-09-21-header-wire-execution.md)。F3-02A、B1、B2及B3a/b/c均限定DONE。C1a共享opaque authority与C5a纯失败/审计模块限定DONE。C1b以Parser 38 suites/925 tests、最终C1a+C1b定向2 suites/42 tests、typecheck/build及diff-check限定DONE；C1c以4源码文件、Gateway 43 suites/649 tests、真实HTTP/TLS专项62/62、API build及diff-check限定DONE，完成两侧同一opaque handle、冻结Snapshot/凭据/epoch与总deadline/abort接线，但生产仍默认关闭。C1d拆为D1 host epoch/提交事件合同、D2 Gateway生产桥、D3 Parser host桥及D4本地联合验收；D1现READY，D2/D3/D4按依赖等待，多进程传播另验。C2拆为精确method+path受信目标目录C2a与多跳状态机/真实HTTP/TLS接线C2b；C2a已开工，C2b等待，未知/歧义/跨asset/降级目标必须失败关闭。C4已解锁READY；C3等D4，C5b等C2b/C3/C5a，C6最终汇合。真实Provider撤销事件桥、原子revision、生产默认启用、多进程传播、缓存恢复/retry及F3D环境矩阵仍未完成，父F3C/TP-F3保持IN_PROGRESS。
 
 C1原SEC-C01/A0退出条件现已闭合，见[四类型验收](../audits/2026-09-22-credential-types-scope.md)；C1-02完成解锁F1-02，不使F1/E1自动完成。
 

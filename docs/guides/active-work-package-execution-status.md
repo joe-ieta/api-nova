@@ -1,5 +1,5 @@
 ---
-doc-version: 1.117.0
+doc-version: 1.118.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -10,14 +10,14 @@ doc-updated: 2026-09-24
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
 父包专项统计仍是OBS 11/4/1、SEC 10/12/0/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计21/16/1/1。它不表示全项目完成率。
 
-本次登记191个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
+本次登记195个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 131 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 13 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | C1c Gateway操作Authority接线仍在实施 |
-| WAIT_DEP | 26 | 等待列明子任务/条件 |
+| DONE | 132 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 14 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 1 | C2a精确受信Redirect目标目录已开工 |
+| WAIT_DEP | 28 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -125,14 +125,18 @@ doc-updated: 2026-09-24
 | SEC-F3-02B3c | DONE | 限定Gateway route桥完成：Provider active/denied/unavailable三态；显式撤销/身份错→502，可信host回调抛错与DNS SERVFAIL→503，deadline→504。最终新HTTP/TLS专项46、相关6 suites/111 tests、API build及diff-check通过；修复前Gateway全目录43 suites/627不称最终一次全绿，Parser 34 suites/841仍适用。默认off、无生产DI/Provider注册或外部配置入口；B3a/b/c聚合限定完成 |
 | SEC-F3-02C1a | DONE | 限定纯authority模块完成：新2文件/专项24，host-only opaque handle固定epoch/revoke同步abort、总deadline及有界容量；统一Parser 37 suites/907 tests及typecheck/build通过。未接运行时、宿主epoch或Provider事件桥 |
 | SEC-F3-02C1b | DONE | 限定Parser接线完成：host-only路径在Resolver/body读取前固定同一opaque handle、Snapshot、凭据、epoch及总deadline/abort；Parser 38 suites/925 tests、最终C1a+C1b定向2 suites/42 tests、typecheck/build及diff-check通过。生产默认仍关闭，真实Provider撤销事件桥和多进程传播未接 |
-| SEC-F3-02C1c | IN_PROGRESS | 已开工；目标是在Gateway可信route/Provider的Resolver/cache前冻结同一Snapshot/凭据/epoch与总deadline并把abort传入stream；生产默认仍关闭，真实Provider撤销事件桥归C1d且尚未接入 |
-| SEC-F3-02C1d | WAIT_DEP | 等C1b/C1c；真实host/provider激活、reload、撤销和到期事件桥驱动主动abort，多进程传播另验 |
-| SEC-F3-02C2 | READY | C1b限定接线完成后解锁；下一步实现Parser每跳精确Site/Endpoint重选、DNS/peer/TLS重验与凭据重建，拒绝跨源继承和非safe-read自动跳转 |
-| SEC-F3-02C3 | WAIT_DEP | 等C1d；Gateway固定同一operation/route/membership/Registry版本，redirect/retry/取消共享deadline，reload/撤销后旧epoch不得继续 |
-| SEC-F3-02C4 | WAIT_DEP | 等C1b/C1c；新网络模式首轮单attempt且缓存保持关闭，两侧消费同一operation handle；缓存恢复与自动retry另行登记 |
+| SEC-F3-02C1c | DONE | 限定Gateway接线完成：4源码文件，Gateway 43 suites/649 tests、真实HTTP/TLS专项62/62、API build及diff-check通过；prepare/forward共享同一opaque handle、冻结Snapshot/凭据/epoch并贯通总deadline/abort，cache保持关闭且单attempt。生产DI/watch/原子epoch及真实Provider事件桥仍待C1d1–d4，默认生产关闭 |
+| SEC-F3-02C1d1 | READY | C1b/C1c限定接线完成后解锁；下一步建立host-owned单调security/provider epoch与Registry提交事件合同，普通reload不终止在途，撤销/安全收窄/epoch不可读/到期同步abort；不得猜测provider epoch |
+| SEC-F3-02C1d2 | WAIT_DEP | 等C1d1；Gateway显式默认关闭的生产DI桥接Registry提交、route部署/停止/删除与可信Provider事件，维护版本化注册并清理监听/定时器，不代表多进程传播 |
+| SEC-F3-02C1d3 | WAIT_DEP | 等C1d1；Parser host-only装配真实execution/lifecycle及同进程reload/revoke/expiry，不接managed child IPC或跨进程传播 |
+| SEC-F3-02C1d4 | WAIT_DEP | 等C1d2/C1d3；真实本地Registry/HTTP/TLS覆盖普通reload固定、失败保旧及撤销/收窄/epoch变化/到期在DNS/连接/大流阶段主动abort，shutdown无遗留资源；多进程另验 |
+| SEC-F3-02C2a | IN_PROGRESS | 已开工；实现纯host-owned精确method+path受信Redirect目标目录，只接受精确路径并拒绝未知、歧义、跨asset、scheme降级和非受信目标；不接多跳状态机，生产网络模式仍默认关闭 |
+| SEC-F3-02C2b | WAIT_DEP | 等C2a；Parser safe-read多跳状态机每跳精确重选Endpoint，复用同一operation/deadline/abort并重跑DNS/peer/TLS和凭据；真实HTTP/TLS待验 |
+| SEC-F3-02C3 | WAIT_DEP | 等C1d4；Gateway固定同一operation/route/membership/Registry版本，redirect/retry/取消共享deadline，reload/撤销后旧epoch不得继续 |
+| SEC-F3-02C4 | READY | C1b/C1c限定接线已完成；下一步验证新网络模式首轮单attempt且缓存保持关闭，两侧消费同一operation handle；缓存恢复与自动retry另行登记 |
 | SEC-F3-02C5a | DONE | 限定纯失败/审计模块完成：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时 |
-| SEC-F3-02C5b | WAIT_DEP | 等C2/C3/C5a；双运行时接入统一失败语义和审计，以真实HTTP负测验证fail-closed与零秘密泄漏 |
-| SEC-F3-02C6 | WAIT_DEP | 等C2/C3/C4/C5b；本地双运行时真实联合矩阵，不代表生产默认启用或F3D Windows/Linux环境验收 |
+| SEC-F3-02C5b | WAIT_DEP | 等C2b/C3/C5a；双运行时接入统一失败语义和审计，以真实HTTP负测验证fail-closed与零秘密泄漏 |
+| SEC-F3-02C6 | WAIT_DEP | 等C2b/C3/C4/C5b；本地双运行时真实联合矩阵，不代表生产默认启用或F3D Windows/Linux环境验收 |
 | SEC-F3-02D | WAIT_DEP | 等C6；N01–N17 Gateway/Parser真实连接、生产默认启用及Windows/Linux环境矩阵待验收 |
 | SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
 | SEC-F3a-01 | READY | 需在线公告时另行验证，不复用旧漏洞数 |

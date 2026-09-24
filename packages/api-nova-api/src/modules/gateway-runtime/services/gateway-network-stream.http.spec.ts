@@ -10,7 +10,7 @@ import type { INestApplication } from '@nestjs/common';
 import * as http from 'node:http';
 import * as net from 'node:net';
 import * as dgram from 'node:dgram';
-import { UpstreamCredentialRegistry, createNetworkPolicyCompiler } from 'api-nova-parser';
+import { UpstreamCredentialRegistry, createNetworkOperationAuthority, createNetworkPolicyCompiler } from 'api-nova-parser';
 import { GatewayRuntimeController } from '../gateway-runtime.controller';
 import { GatewayRuntimeService } from './gateway-runtime.service';
 import { GatewayProxyEngineService } from './gateway-proxy-engine.service';
@@ -30,9 +30,11 @@ describe.each(['http', 'https'])('explicit host Gateway network stream through r
   afterAll(() => { if (directory && path.resolve(directory).startsWith(path.resolve(os.tmpdir()) + path.sep)) fs.rmSync(directory, { recursive: true, force: true }); });
   let app: INestApplication, upstream: http.Server, udp: dgram.Socket, port: number, upstreamPort: number, dnsPort: number;
   let route: any, activeBinding: any, candidate: any, registry: UpstreamCredentialRegistry, network: GatewayTrustedNetworkProvider, proxy: GatewayProxyEngineService;
+  let operationBegin: jest.Mock, operationClose: jest.Mock, securityEpoch: string;
   let cache: GatewayCacheService, hits: number, connections: number, dnsQueries: number, dnsAddress: string, dnsFailure: boolean, dnsSilent: boolean, captureFailure: boolean, dnsGate: (() => void) | undefined;
   let seen: http.IncomingHttpHeaders[], handler: http.RequestListener, provider: jest.Mock;
   beforeEach(async () => {
+    securityEpoch = 'epoch-1';
     hits = connections = dnsQueries = 0; dnsAddress = '127.0.0.1'; dnsFailure = dnsSilent = captureFailure = false; dnsGate = undefined; seen = [];
     handler = (req, res) => { req.resume(); req.on('end', () => { res.setHeader('x-safe', 'yes'); res.setHeader('x-drop', 'secret'); res.end('ok'); }); };
     const serve: http.RequestListener = (req, res) => { hits++; seen.push(req.headers); handler(req, res); }; upstream = scheme === 'https' ? https.createServer({ key, cert: ca }, serve) : http.createServer(serve); upstream.on('connection', () => connections++); upstreamPort = await listen(upstream);
@@ -52,7 +54,12 @@ describe.each(['http', 'https'])('explicit host Gateway network stream through r
     provider = jest.fn(async () => 'synthetic'); registry = new UpstreamCredentialRegistry({ environment: 'test', providerFactory: description => ({ type: description.type, resolve: provider }) }); await registry.reload(candidate); provider.mockClear();
     const compiler = createNetworkPolicyCompiler({ deniedDestinations: [], loopback: 'test-only' }), origin = route.upstreamBaseUrl;
     const policy = compiler.compile({ version: 1, id: 'p', revision: '1', sourceServiceAssetId: 'asset', siteId: 'site', origin, mode: 'private-exception', connection: 'direct', privateException: { id: 'e', revision: '1', sourceServiceAssetId: 'asset', siteId: 'site', origin, addresses: ['127.0.0.1'], purpose: 'test', owner: 'test', approvalRef: 'test', issuedAt: new Date(Date.now() - 1000).toISOString(), expiresAt: new Date(Date.now() + 60000).toISOString() } });
-    network = createGatewayTrustedNetworkProvider({ compiler, ca, servers: [`127.0.0.1:${dnsPort}`], registrations: [{ route, snapshot: registry.captureSnapshot(), siteId: 'site', policy, captureSnapshot: () => { if (captureFailure) throw new Error('private host detail'); return registry.captureSnapshot(); }, captureRouteBinding: () => activeBinding }] });
+    network = createGatewayTrustedNetworkProvider({ compiler, ca, createOperationAuthority: capture => {
+      const authority = createNetworkOperationAuthority({ compiler, readSecurityEpoch: () => { if (captureFailure) throw new Error('private host detail'); return securityEpoch; },
+        captureAuthorizedContext: (selector, signal) => capture(selector, signal, securityEpoch) });
+      operationBegin = jest.fn(authority.begin); operationClose = jest.fn(authority.close);
+      return { ...authority, begin: operationBegin, close: operationClose };
+    }, servers: [`127.0.0.1:${dnsPort}`], registrations: [{ route, snapshot: registry.captureSnapshot(), siteId: 'site', policy, captureSnapshot: () => { if (captureFailure) throw new Error('private host detail'); return registry.captureSnapshot(); }, captureRouteBinding: () => activeBinding }] });
     const resolver = createGatewayUpstreamCredentialResolver(() => registry.captureSnapshot(), { enableHeaderPolicy: true });
     const metrics: any = Object.fromEntries(['recordPolicyEvent', 'recordCacheResult', 'recordForwardResult', 'recordPolicyObservabilityEvent'].map(name => [name, jest.fn().mockResolvedValue(undefined)]));
     const traffic: any = Object.fromEntries(['beforeAttempt', 'recordAttemptSuccess', 'recordAttemptFailure', 'recordRetryAttempt'].map(name => [name, jest.fn().mockResolvedValue(undefined)])); traffic.admit = async () => ({ release() {} });
@@ -83,7 +90,7 @@ describe.each(['http', 'https'])('explicit host Gateway network stream through r
   it('revocation during DNS prevents socket handoff and all upstream bytes', async () => { dnsGate = () => network.revoke('binding'); expect((await request()).status).toBe(502); expect(connections).toBe(0); });
   it('rejects forbidden DNS answer and never retries', async () => { dnsAddress = '127.0.0.2'; expect((await request()).status).toBe(502); expect(dnsQueries).toBe(2); expect(connections).toBe(0); });
   it.each(['fixed', 'chunked'])('streams >8MiB upload/download with %s D1 framing', async mode => {
-    const body = Buffer.alloc(9 * 1024 * 1024, 65); let uploaded = 0;
+    const body = Buffer.alloc(24 * 1024 * 1024, 65); let uploaded = 0;
     handler = (req, res) => { expect(req.headers['content-length']).toBe(mode === 'fixed' ? String(body.length) : undefined); expect(req.headers['transfer-encoding']).toBe(mode === 'chunked' ? 'chunked' : undefined); req.on('data', chunk => uploaded += chunk.length); req.on('end', () => { res.setHeader('content-length', String(body.length)); res.end(body); }); };
     const result = await request(mode === 'fixed' ? { 'content-length': body.length } : { 'transfer-encoding': 'chunked' }, body); expect(result.status).toBe(200); expect(result.body.equals(body)).toBe(true); expect(uploaded).toBe(body.length);
   });
@@ -111,8 +118,8 @@ describe.each(['http', 'https'])('explicit host Gateway network stream through r
   it('old prepared request and copied Resolver fields cannot authorize after revoke', async () => {
     const req = new http.IncomingMessage(new net.Socket()) as any; req.originalUrl = '/wire'; req.headers = { host: 'consumer.test' }; req.rawHeaders = ['Host', 'consumer.test'];
     const prepared = await proxy.prepareRequest(route, req);
-    expect(() => network.authorize(route, prepared.url.href, { ...prepared.credentials })).toThrow();
-    await expect(network.send({ strict: true }, { deadline: Date.now() + 5000, framing: { mode: 'none' } })).rejects.toThrow();
+    await expect(network.prepare(route, prepared.url.href, async () => ({ ...prepared.credentials }), { deadline: Date.now() + 5000 })).rejects.toThrow();
+    await expect(network.send({ strict: true }, { framing: { mode: 'none' } })).rejects.toThrow();
     network.revoke('binding');
     await expect(proxy.forward(route, req, {} as any, { preparedRequest: prepared })).rejects.toThrow();
     expect(dnsQueries).toBe(0); expect(connections).toBe(0); req.destroy();
@@ -120,8 +127,8 @@ describe.each(['http', 'https'])('explicit host Gateway network stream through r
   it('single-use lease cannot retarget or replay', async () => {
     const req = new http.IncomingMessage(new net.Socket()) as any; req.originalUrl = '/wire'; req.headers = { host: 'consumer.test' }; req.rawHeaders = ['Host', 'consumer.test'];
     const prepared = await proxy.prepareRequest(route, req);
-    const response = await network.send(prepared.networkLease!, { deadline: Date.now() + 5000, framing: { mode: 'none' } }); response.body.resume(); await response.completed;
-    await expect(network.send(prepared.networkLease!, { deadline: Date.now() + 5000, framing: { mode: 'none' } })).rejects.toThrow(); expect(hits).toBe(1); req.destroy();
+    const response = await network.send(prepared.networkLease!, { framing: { mode: 'none' } }); response.body.resume(); await response.completed;
+    await expect(network.send(prepared.networkLease!, { framing: { mode: 'none' } })).rejects.toThrow(); expect(hits).toBe(1); req.destroy();
   });
 
   it('preserves compressed bytes and discards upstream authentication trailers', async () => {
@@ -145,4 +152,71 @@ describe.each(['http', 'https'])('explicit host Gateway network stream through r
     const result = await request(); expect(result.status).toBe(503); expect(result.body.toString()).toContain('upstream_network_policy_unavailable'); expect(result.body.toString()).not.toContain('private host detail'); expect(connections).toBe(0); expect(hits).toBe(0); expect(cache.resolve).not.toHaveBeenCalled(); expect(cache.store).not.toHaveBeenCalled();
   });
 
-});
+  it('begins once before Resolver and reuses a prepared snapshot across ordinary reload', async () => {
+    const resolve = jest.spyOn(proxy as any, 'resolveCredentialHeaders');
+    const prepare = proxy.prepareRequest.bind(proxy);
+    jest.spyOn(proxy, 'prepareRequest').mockImplementationOnce(async (...args) => {
+      const result = await prepare(...args);
+      await registry.reload({ ...candidate, metadata: { revision: 'r2', environment: 'test' } });
+      return result;
+    });
+    expect((await request()).status).toBe(200);
+    expect(resolve).toHaveBeenCalledTimes(1); expect(operationBegin).toHaveBeenCalledTimes(1);
+    expect(operationBegin.mock.invocationCallOrder[0]).toBeLessThan(resolve.mock.invocationCallOrder[0]);
+    expect(operationClose).toHaveBeenCalledTimes(1); expect(seen[0]['x-private']).toBe('synthetic');
+    // A new operation cannot use this stale host registration after reload.
+    expect((await request()).status).toBe(502); expect(hits).toBe(1);
+  });
+
+  it.each(['copy', 'retarget'])('rejects %s of a prepared operation before DNS', async mode => {
+    const prepare = proxy.prepareRequest.bind(proxy);
+    jest.spyOn(proxy, 'prepareRequest').mockImplementationOnce(async (...args) => {
+      const result = await prepare(...args);
+      if (mode === 'copy') return { ...result };
+      result.url.pathname = '/changed'; return result;
+    });
+    expect((await request()).status).toBe(503); expect(hits).toBe(0); expect(dnsQueries).toBe(0);
+    expect(operationClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('counts Resolver time against the original operation deadline', async () => {
+    route.policies.traffic.timeoutMs = 30;
+    provider.mockImplementation(async () => { await new Promise(resolve => setTimeout(resolve, 100)); return 'synthetic'; });
+    expect((await request()).status).toBe(504); expect(dnsQueries).toBe(0); expect(hits).toBe(0);
+    await new Promise(resolve => setTimeout(resolve, 120));
+    expect(hits).toBe(0);
+  });
+
+  it('revoke actively terminates a partial response without appending a second error body', async () => {
+    let closed!: () => void; const upstreamClosed = new Promise<void>(resolve => closed = resolve);
+    handler = (req, res) => { req.resume(); req.on('end', () => { res.once('close', closed); res.write('partial-only'); }); };
+    const chunks: Buffer[] = [];
+    await new Promise<void>((resolve, reject) => {
+      const req = http.get({ host: '127.0.0.1', port, path: '/v1/gateway/wire' }, res => {
+        res.on('data', chunk => { chunks.push(chunk); network.revoke('binding'); });
+        res.once('aborted', resolve); res.once('error', () => {}); res.once('end', () => reject(new Error('revoked response unexpectedly completed')));
+      }); req.on('error', reject);
+    });
+    await upstreamClosed;
+    expect(Buffer.concat(chunks).toString()).toBe('partial-only'); expect(operationClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('epoch changes during DNS fail closed without a second credential resolution', async () => {
+    const resolve = jest.spyOn(proxy as any, 'resolveCredentialHeaders'); dnsGate = () => { securityEpoch = 'epoch-2'; };
+    expect((await request()).status).toBe(502); expect(connections).toBe(0); expect(resolve).toHaveBeenCalledTimes(1);
+    expect(operationClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes the operation when post-capture D1 validation fails', async () => {
+    expect((await request({ trailer: 'forbidden', 'transfer-encoding': 'chunked' })).status).toBe(400);
+    expect(operationBegin).toHaveBeenCalledTimes(1); expect(operationClose).toHaveBeenCalledTimes(1); expect(dnsQueries).toBe(0);
+  });  it('revokes after real connection establishment but before transport handoff', async () => {
+    const original = scheme === 'https' ? tls.connect : net.createConnection;
+    const module = require(scheme === 'https' ? 'node:tls' : 'node:net');
+    jest.spyOn(module, scheme === 'https' ? 'connect' : 'createConnection').mockImplementation((...args: any[]) => {
+      const socket = (original as any)(...args);
+      if (Number(args[0]?.port) === upstreamPort) socket.prependOnceListener(scheme === 'https' ? 'secureConnect' : 'connect', () => network.revoke('binding'));
+      return socket;
+    });
+    expect((await request()).status).toBe(502); expect(hits).toBe(0); expect(operationClose).toHaveBeenCalledTimes(1);
+  });});

@@ -40,7 +40,7 @@ export type GatewayPreparedProxyRequest = {
 
 @Injectable()
 export class GatewayProxyEngineService {
-  private readonly preparations = new WeakMap<GatewayPreparedProxyRequest, { request: Request; route: string; resolver?: GatewayUpstreamCredentialResolver; used: boolean }>();
+  private readonly preparations = new WeakMap<GatewayPreparedProxyRequest, { request: Request; route: string; url: string; detach?: () => void; resolver?: GatewayUpstreamCredentialResolver; used: boolean }>();
   constructor(
     private readonly gatewayRequestCaptureService: GatewayRequestCaptureService,
     @Optional()
@@ -58,15 +58,17 @@ export class GatewayProxyEngineService {
     const prior = options?.preparedRequest;
     if (prior) {
       const ownership = this.preparations.get(prior);
-      if (!ownership || ownership.used || ownership.request !== req || ownership.route !== this.preparationRoute(resolvedRoute) || ownership.resolver !== this.upstreamCredentialResolver) {
+      ownership?.detach?.();
+      if (!ownership || ownership.used || ownership.request !== req || ownership.route !== this.preparationRoute(resolvedRoute) || ownership.resolver !== this.upstreamCredentialResolver || ownership.url !== prior.url.href) {
+        if (prior.networkLease) this.networkProvider?.close(prior.networkLease);
         throw new ServiceUnavailableException('gateway_prepared_request_reused');
       }
       ownership.used = true;
     }
-    // Resolve again at use time: a cache miss must not transmit a credential that
-    // rotated or was revoked after the initial cache-key preparation.
-    const current = await this.prepareRequest(resolvedRoute, req);
+    // Network leases already pin one authorized operation; legacy cache paths retain their fresh re-resolution.
+    const current = prior?.networkLease ? prior : await this.prepareRequest(resolvedRoute, req);
     this.preparations.get(current)!.used = true;
+    this.preparations.get(current)!.detach?.();
     if (prior && (prior.url.href !== current.url.href ||
       prior.credentials.cacheIdentity !== current.credentials.cacheIdentity ||
       JSON.stringify(prior.credentials.headers) !== JSON.stringify(current.credentials.headers))) {
@@ -260,39 +262,56 @@ export class GatewayProxyEngineService {
 
   /** Validate current declaration and credentials before every cache lookup. */
   async prepareRequest(resolvedRoute: GatewayResolvedRoute, req: Request): Promise<GatewayPreparedProxyRequest> {
+    const deadline = Date.now() + (resolvedRoute.policies?.traffic?.timeoutMs ?? resolvedRoute.routeBinding.timeoutMs ?? 30000);
     assertGatewayUpstreamDeclaration(resolvedRoute.endpointDefinition);
     await this.upstreamSecurityGuard?.assertCurrent(resolvedRoute);
     const url = new URL(this.buildTargetUrl(resolvedRoute.upstreamBaseUrl,
       resolvedRoute.routeBinding.upstreamPath, req.originalUrl, resolvedRoute.params));
     const consumerQueryKey = resolvedRoute.policies?.auth?.apiKeyQueryParamName;
     if (consumerQueryKey) url.searchParams.delete(consumerQueryKey);
-    const credentials = await this.resolveCredentialHeaders(resolvedRoute, url);
-    const routePolicy = resolvedRoute.policies?.upstream?.compiledHeaderPolicy;
-    if (routePolicy && credentials.compiledHeaderPolicy) {
-      throw new ServiceUnavailableException('gateway_header_policy_source_conflict');
-    }
-    const policy = credentials.compiledHeaderPolicy ?? routePolicy;
-    const historicalAuthenticationHeaderNames = Object.freeze([...new Set([
-      ...resolvedRoute.policies?.upstream?.historicalAuthenticationHeaderNames ?? [],
-      ...credentials.historicalAuthenticationHeaderNames ?? [],
-    ])]);
-    let requestPolicy: GatewayPreparedProxyRequest['requestPolicy'];
+    const usesNetwork = this.networkProvider?.requires(resolvedRoute) ?? false;
+    const controller = new AbortController();
+    let networkLease: GatewayNetworkLease | undefined;
+    let keepCancellation = false;
+    const detach = () => { if (!usesNetwork) return; req.removeListener('aborted', cancel); req.removeListener('error', cancel); req.res?.removeListener('close', cancel); req.res?.removeListener('finish', cancel); };
+    const cancel = () => { controller.abort(); if (networkLease) this.networkProvider?.close(networkLease); detach(); };
+    if (usesNetwork) { req.once('aborted', cancel); req.once('error', cancel); req.res?.once('close', cancel); req.res?.once('finish', cancel); }
+    if (req.aborted || req.destroyed) cancel();
     try {
-      if (policy) requestPolicy = filterGatewayRequestHeadersV1({
-        policy, rawHeaders: req.rawHeaders, headers: req.headers, targetUrl: url,
-        peerAddress: req.socket?.remoteAddress, tls: (req.socket as any)?.encrypted === true,
-        requestId: this.ensureRequestId(req), managedHeaderNames: credentials.managedHeaderNames,
-        credentialHeaders: { ...credentials.headers },
-        consumerAuthenticationHeaderNames: resolvedRoute.policies.upstream?.consumerAuthenticationHeaderNames,
-        historicalAuthenticationHeaderNames,
-      });
-    } catch (error) { throw this.mapWireError(error); }
-    if (requestPolicy) requestPolicy.credentialCacheIdentity = credentials.cacheIdentity;
-    const networkLease = this.networkProvider?.requires(resolvedRoute) ? this.networkProvider.authorize(resolvedRoute, url.href, credentials) : undefined;
-    if (networkLease && requestPolicy) requestPolicy.cacheBypass = true;
-    const prepared = Object.freeze({ networkLease, url, credentials, requestPolicy, compiledHeaderPolicy: policy, historicalAuthenticationHeaderNames });
-    this.preparations.set(prepared, { request: req, route: this.preparationRoute(resolvedRoute), resolver: this.upstreamCredentialResolver, used: false });
-    return prepared;
+      const network = usesNetwork ? await this.networkProvider!.prepare(resolvedRoute, url.href,
+        () => this.resolveCredentialHeaders(resolvedRoute, url), { deadline, signal: controller.signal }) : undefined;
+      networkLease = network?.lease;
+      const credentials = network?.credentials ?? await this.resolveCredentialHeaders(resolvedRoute, url);
+      const routePolicy = resolvedRoute.policies?.upstream?.compiledHeaderPolicy;
+      if (routePolicy && credentials.compiledHeaderPolicy) {
+        throw new ServiceUnavailableException('gateway_header_policy_source_conflict');
+      }
+      const policy = credentials.compiledHeaderPolicy ?? routePolicy;
+      const historicalAuthenticationHeaderNames = Object.freeze([...new Set([
+        ...resolvedRoute.policies?.upstream?.historicalAuthenticationHeaderNames ?? [],
+        ...credentials.historicalAuthenticationHeaderNames ?? [],
+      ])]);
+      let requestPolicy: GatewayPreparedProxyRequest['requestPolicy'];
+      try {
+        if (policy) requestPolicy = filterGatewayRequestHeadersV1({
+          policy, rawHeaders: req.rawHeaders, headers: req.headers, targetUrl: url,
+          peerAddress: req.socket?.remoteAddress, tls: (req.socket as any)?.encrypted === true,
+          requestId: this.ensureRequestId(req), managedHeaderNames: credentials.managedHeaderNames,
+          credentialHeaders: { ...credentials.headers },
+          consumerAuthenticationHeaderNames: resolvedRoute.policies.upstream?.consumerAuthenticationHeaderNames,
+          historicalAuthenticationHeaderNames,
+        });
+      } catch (error) { throw this.mapWireError(error); }
+      if (requestPolicy) requestPolicy.credentialCacheIdentity = credentials.cacheIdentity;
+
+      if (networkLease && requestPolicy) requestPolicy.cacheBypass = true;
+      if (networkLease && requestPolicy) { Object.freeze(requestPolicy.headers); Object.freeze(requestPolicy); }
+      const prepared = Object.freeze({ networkLease, url, credentials, requestPolicy, compiledHeaderPolicy: policy, historicalAuthenticationHeaderNames });
+      keepCancellation = Boolean(networkLease);
+      this.preparations.set(prepared, { detach, request: req, route: this.preparationRoute(resolvedRoute), url: url.href, resolver: this.upstreamCredentialResolver, used: false });
+      return prepared;
+    } catch (failure) { if (networkLease) this.networkProvider?.close(networkLease); throw failure; }
+    finally { if (!keepCancellation) detach(); }
   }
 
   private preparationRoute(route: GatewayResolvedRoute): string {

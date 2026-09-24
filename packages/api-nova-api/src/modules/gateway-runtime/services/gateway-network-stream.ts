@@ -32,8 +32,7 @@ export async function forwardGatewayNetworkStream(provider: GatewayTrustedNetwor
         // Creating the iterator is inert. It is consumed only after B3a verifies the socket.
         source = Readable.from((async function* () { for await (const chunk of req) { requestCapture.observeChunk(chunk); observer.requestChunk(chunk); yield chunk; } })(), { objectMode: false, highWaterMark: 65536 });
       }
-      const response = await provider.send(networkLease, { headers, framing, ...(source ? { body: source } : {}), signal: controller.signal,
-        deadline: Date.now() + (route.policies?.traffic?.timeoutMs ?? route.routeBinding.timeoutMs ?? 30000) });
+      const response = await provider.send(networkLease, { headers, framing, ...(source ? { body: source } : {}), signal: controller.signal });
       responseBody = response.body; observer.requestComplete();
       if (req.rawTrailers?.length) options?.discardedTrailers?.('request');
       const responsePolicy = filterGatewayResponseHeadersV1({ policy: compiledHeaderPolicy, rawHeaders: response.rawHeaders, headers: response.headers as any,
@@ -69,5 +68,5 @@ export async function forwardGatewayNetworkStream(provider: GatewayTrustedNetwor
       throw new ServiceUnavailableException('gateway_network_policy_unavailable');
     }
     throw failure;
-  } finally { req.removeListener('aborted', cancel); req.removeListener('error', cancel); res.removeListener('close', closed); res.removeListener('error', cancel); }
+  } finally { provider.close(networkLease); req.removeListener('aborted', cancel); req.removeListener('error', cancel); res.removeListener('close', closed); res.removeListener('error', cancel); }
 }

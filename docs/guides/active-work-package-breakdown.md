@@ -1,5 +1,5 @@
 ---
-doc-version: 1.70.0
+doc-version: 1.71.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -154,13 +154,17 @@ SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F1/F2/F3/F
 | SEC-F3-02C1a | SEC-F3 | CODE | 共享Opaque整操作Authority | 提供host-owned不可序列化operation handle，固定policy epoch、deadline与撤销/abort信号；拒绝伪造、续期、跨操作复用及客户端构造 | SEC-F3-02B3b;SEC-F3-02B3c |
 | SEC-F3-02C1b | SEC-F3 | CODE | Parser操作Authority接线 | Parser host-only路径绑定C1a handle，在Resolver与body读取前冻结同一Snapshot/凭据/epoch，所有DNS/连接/流操作共享总deadline与abort；不允许body或序列化配置创建authority | SEC-F3-02C1a |
 | SEC-F3-02C1c | SEC-F3 | CODE | Gateway操作Authority接线 | Gateway可信route/Provider路径绑定C1a handle，Resolver/cache前冻结同一Snapshot/凭据/epoch与总deadline并把abort传入stream；不注册生产默认启用 | SEC-F3-02C1a |
-| SEC-F3-02C1d | SEC-F3 | CODE | 真实Host/Provider激活与撤销事件桥 | 真实host/provider激活、reload、撤销、到期事件驱动对应operation主动abort；默认生产关闭，多进程传播另验 | SEC-F3-02C1b;SEC-F3-02C1c |
-| SEC-F3-02C2 | SEC-F3 | CODE | Parser安全Redirect与精确Endpoint重选 | 每跳重新解析并按可信Site/Endpoint/target/method选择Endpoint，重跑DNS/peer/TLS并重建该跳凭据；拒绝降级、跨源继承、敏感Header泄漏和非safe-read自动跳转 | SEC-F3-02C1b |
-| SEC-F3-02C3 | SEC-F3 | CODE | Gateway固定操作生命周期 | Gateway每次请求固定同一host-owned operation、route/membership/Registry版本与deadline；redirect/retry/取消共享该操作，reload/撤销后不得继续旧epoch | SEC-F3-02C1d |
+| SEC-F3-02C1d1 | SEC-F3 | CODE | Host安全Epoch与事件合同 | 提供host-owned、按source单调的security/provider epoch事件合同及Registry提交观察点；普通reload只影响新操作，显式撤销、安全收窄、epoch不可读与到期才同步abort；禁止从文件mtime、环境变量值或配置文本猜测可信epoch | SEC-F3-02C1b;SEC-F3-02C1c |
+| SEC-F3-02C1d2 | SEC-F3 | CODE | Gateway Registry/Route/Provider桥 | 在显式默认关闭的生产DI中，把Registry提交、route deployed/stopped/deleted与可信Provider事件映射到版本化注册和operation撤销；失败关闭并清理监听/定时器，不声称多进程传播 | SEC-F3-02C1d1;SEC-F3-02C1c |
+| SEC-F3-02C1d3 | SEC-F3 | CODE | Parser Host生命周期桥 | host-only装配TrustedSingleHopNetworkExecution与C1d1 lifecycle，注册可信Snapshot/policy并消费同进程reload/revoke/expiry；不接managed child IPC或跨进程传播 | SEC-F3-02C1d1;SEC-F3-02C1b |
+| SEC-F3-02C1d4 | SEC-F3 | VALIDATION | Host/Provider生命周期联合验收 | 真实本地Registry/HTTP/TLS验证普通reload在途固定旧Snapshot且新请求见新，撤销/安全收窄/provider epoch变化/到期在DNS、连接和大流阶段主动abort，失败reload保旧且shutdown无遗留监听/定时器；多进程另验 | SEC-F3-02C1d2;SEC-F3-02C1d3 |
+| SEC-F3-02C2a | SEC-F3 | CODE | 精确受信Redirect目标目录 | 纯host-owned目录按source asset、精确method+path与Endpoint绑定目标；只接受精确路径，未知、歧义、跨asset、scheme降级和非受信目标一律拒绝，不启用生产网络模式 | SEC-F3-02C1b |
+| SEC-F3-02C2b | SEC-F3 | CODE | Parser多跳状态机与真实网络接线 | safe-read每跳用C2a精确重选Endpoint，复用同一operation/deadline/abort并重跑DNS/peer/TLS、重建该跳凭据；非safe-read/有正文不跟随，以真实HTTP/TLS验收且生产默认关闭 | SEC-F3-02C2a |
+| SEC-F3-02C3 | SEC-F3 | CODE | Gateway固定操作生命周期 | Gateway每次请求固定同一host-owned operation、route/membership/Registry版本与deadline；redirect/retry/取消共享该操作，reload/撤销后不得继续旧epoch | SEC-F3-02C1d4 |
 | SEC-F3-02C4 | SEC-F3 | CODE | 首轮缓存关闭单Attempt合同 | 新网络模式首轮仅允许单attempt并强制缓存关闭，证明Parser/Gateway均消费同一operation handle；恢复缓存与自动retry另行登记，不能由本叶提前启用 | SEC-F3-02C1b;SEC-F3-02C1c |
 | SEC-F3-02C5a | SEC-F3 | CODE | 网络失败语义与脱敏审计合同 | 冻结DNS/peer/TLS/redirect/取消/到期/撤销的拒绝码、白名单决策与脱敏审计字段，以纯合同/spec验证denied与unavailable分类；可在B3c闭合后与C1并行 | SEC-F3-02B3c |
-| SEC-F3-02C5b | SEC-F3 | CODE | 双运行时失败与审计接线 | Parser/Gateway接入C5a统一失败语义和审计，真实HTTP负测确保各跳拒绝fail-closed、零秘密泄漏且不绕过operation lifecycle | SEC-F3-02C2;SEC-F3-02C3;SEC-F3-02C5a |
-| SEC-F3-02C6 | SEC-F3 | VALIDATION | 双运行时真实联合矩阵 | 本地真实Parser/Gateway联合验证整操作epoch、逐跳重选/凭据重建、主动abort、单attempt/cache-off及拒绝审计；不代表生产默认启用或F3D Windows/Linux环境矩阵 | SEC-F3-02C2;SEC-F3-02C3;SEC-F3-02C4;SEC-F3-02C5b |
+| SEC-F3-02C5b | SEC-F3 | CODE | 双运行时失败与审计接线 | Parser/Gateway接入C5a统一失败语义和审计，真实HTTP负测确保各跳拒绝fail-closed、零秘密泄漏且不绕过operation lifecycle | SEC-F3-02C2b;SEC-F3-02C3;SEC-F3-02C5a |
+| SEC-F3-02C6 | SEC-F3 | VALIDATION | 双运行时真实联合矩阵 | 本地真实Parser/Gateway联合验证整操作epoch、逐跳重选/凭据重建、主动abort、单attempt/cache-off及拒绝审计；不代表生产默认启用或F3D Windows/Linux环境矩阵 | SEC-F3-02C2b;SEC-F3-02C3;SEC-F3-02C4;SEC-F3-02C5b |
 | SEC-F3-02D | SEC-F3 | VALIDATION | N01–N17双运行时网络拒绝验收 | Gateway/Parser真实连接覆盖DNS全集、peer/TLS、代理拒绝、redirect、凭据零泄漏、reload/撤销，并记录Windows/Linux与未运行环境边界；生产默认启用仍须独立验收 | SEC-F3-02C6 |
 | SEC-F3-03 | SEC-F3 | VALIDATION | 秘密与生命周期审计矩阵 | argv/log/错误/证据无完整Secret；创建/更新/撤销审计可检索 | SEC-E1-03;SEC-C3-02 |
 | SEC-F3a-01 | SEC-F3a | VALIDATION | 当前依赖可达性审计 | 锁文件固定、生产可达性、补丁/风险处置逐项记录 | — |

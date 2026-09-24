@@ -1,5 +1,5 @@
 ---
-doc-version: 1.69.0
+doc-version: 1.70.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -122,14 +122,18 @@ doc-updated: 2026-09-24
 | SEC-F3-02B3c | [网络边界合同§4.3](./security-header-network-boundary-contract.md) | **限定DONE**：Provider active/denied/unavailable三态；显式撤销/身份错→502，可信host回调抛错与DNS SERVFAIL→503，deadline→504。最终新HTTP/TLS专项46、相关6 suites/111 tests、API build及diff-check通过；修复前Gateway全目录43 suites/627不称最终一次全绿，Parser 34 suites/841仍适用。默认off、无生产DI/Provider注册或外部配置入口，旧路径保留；B3聚合限定完成。 |
 | SEC-F3-02C1a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：新2文件/专项24，host-only opaque authority覆盖epoch/revoke同步abort、总deadline及有界容量；统一Parser 37 suites/907 tests及typecheck/build通过。未接运行时、宿主epoch或Provider事件桥。 |
 | SEC-F3-02C1b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：Parser host-only路径在Resolver/body前固定同一opaque handle、Snapshot、凭据、epoch及总deadline/abort；Parser 38 suites/925 tests、最终C1a+C1b定向2 suites/42 tests、typecheck/build及diff-check通过。生产默认关闭，真实Provider撤销事件桥和多进程传播未接。 |
-| SEC-F3-02C1c | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **IN_PROGRESS**：Gateway可信route/Provider接入共享handle；生产默认关闭，真实Provider撤销事件桥仍归C1d且未接。 |
-| SEC-F3-02C1d | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C1b/C1c；真实host/provider激活、撤销与到期事件桥，多进程传播另验。 |
-| SEC-F3-02C2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：C1b限定接线完成后解锁；Parser安全redirect、精确Site/Endpoint重选及逐跳DNS/peer/TLS与凭据重建仍待实施。 |
-| SEC-F3-02C3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C1d；Gateway固定整操作生命周期、route/membership/Registry版本与deadline，撤销后旧epoch不得继续。 |
-| SEC-F3-02C4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C1b/C1c；首轮只验单attempt/cache-off及共享operation handle，缓存恢复和自动retry另行登记。 |
+| SEC-F3-02C1c | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：4源码文件，Gateway 43 suites/649 tests、真实HTTP/TLS专项62/62、API build及diff-check通过；prepare/forward共享opaque handle、冻结Snapshot/凭据/epoch并贯通总deadline/abort，cache-off/单attempt保持。生产DI/watch/原子epoch及真实Provider事件桥未接，默认生产关闭。 |
+| SEC-F3-02C1d1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：建立host-owned单调security/provider epoch与Registry提交事件合同；普通reload不终止在途，撤销/收窄/epoch不可读/到期同步abort，禁止猜测provider epoch。 |
+| SEC-F3-02C1d2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D1；Gateway默认关闭的生产DI、Registry/route/Provider事件桥和资源清理。 |
+| SEC-F3-02C1d3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D1；Parser host-only真实execution/lifecycle桥，不含managed child IPC或跨进程传播。 |
+| SEC-F3-02C1d4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2/D3；普通reload固定、失败保旧及撤销/收窄/epoch变化/到期主动abort的本地真实联合验收，多进程另验。 |
+| SEC-F3-02C2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **IN_PROGRESS**：纯精确method+path受信Redirect目标目录已开工；未知、歧义、跨asset、scheme降级与非受信目标失败关闭，生产默认off。 |
+| SEC-F3-02C2b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C2a；Parser safe-read多跳状态机、逐跳Endpoint/DNS/peer/TLS/凭据重建与真实HTTP/TLS接线。 |
+| SEC-F3-02C3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C1d4；Gateway固定整操作生命周期、route/membership/Registry版本与deadline，撤销后旧epoch不得继续。 |
+| SEC-F3-02C4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：C1b/C1c限定接线完成后解锁；首轮只验单attempt/cache-off及共享operation handle，缓存恢复和自动retry另行登记。 |
 | SEC-F3-02C5a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时。 |
-| SEC-F3-02C5b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C2/C3/C5a；双运行时接线与真实HTTP失败/审计负测尚未闭合。 |
-| SEC-F3-02C6 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C2/C3/C4/C5b；双运行时本地真实联合矩阵，不代表生产默认启用或F3D环境验收。 |
+| SEC-F3-02C5b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C2b/C3/C5a；双运行时接线与真实HTTP失败/审计负测尚未闭合。 |
+| SEC-F3-02C6 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C2b/C3/C4/C5b；双运行时本地真实联合矩阵，不代表生产默认启用或F3D环境验收。 |
 | SEC-F3-02D | [网络边界合同§4.6及N01–N17](./security-header-network-boundary-contract.md) | **待验收**：依赖C6；Gateway/Parser真实连接、生产默认启用及Windows/Linux矩阵未执行。 |
 | SEC-F3-03 | [安全用例](../testing/runtime-security-audit-cases.md)、[受管通道脚本](../../packages/api-nova-api/scripts/test-managed-mcp-channel.cjs) | **限定执行/待验收**：局部脱敏与 IPC 无 argv Secret 有证据；完整 argv/log/错误/快照 Secret Scan、创建/更新/撤销审计可检索依赖产品 E1。 |
 | SEC-F3a-01 | [安全台账 §6](./security-development-execution-status.md)、[锁文件](../../package-lock.json) | **历史执行/待验收**：2026-09-07 漏洞数已过时；当前可达性、在线公告、补丁/风险处置与签收无当前执行证据，不自动 audit fix。 |
