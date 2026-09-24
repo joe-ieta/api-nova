@@ -191,3 +191,9 @@ export type { NetworkOperationHandle, NetworkOperationSelector, AuthorizedNetwor
 
 export { createParserHostNetworkBridge } from './network/parser-host-network-bridge';
 export type { ParserHostProviderEvidence } from './network/parser-host-network-bridge';
+
+// Explicit host credential capabilities. Internal Snapshot association helpers stay private.
+export { createHostCredentialGenerationStore, HostCredentialGenerationError } from './credentials/host-credential-generations';
+export type { HostCredentialGeneration, StagedHostCredentialGeneration, HostCredentialMaterial, HostCredentialGenerationEvent } from './credentials/host-credential-generations';
+export { createRegistryProviderEvidence, assertRegistryProviderEvidence, RegistryProviderEvidenceError } from './credentials/registry-provider-evidence';
+export type { RegistryProviderEvidence } from './credentials/registry-provider-evidence';

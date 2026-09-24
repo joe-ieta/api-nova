@@ -1,5 +1,5 @@
 ---
-doc-version: 1.136.0
+doc-version: 1.137.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -14,8 +14,8 @@ doc-updated: 2026-09-24
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 142 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 14 | 可进入队列，当前并非全部开工 |
+| DONE | 143 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 13 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 1 | D2b3a host capability端口正在实施；未验收前不接生产装配 |
 | WAIT_DEP | 28 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
@@ -141,7 +141,7 @@ doc-updated: 2026-09-24
 | SEC-F3-02C2b2a | DONE | 限定raw Location唯一证据纯模块完成：2个network文件、自身21 tests、相邻3 suites/115 tests、统一Parser 45 suites/1098 tests、typecheck/build、cleanup及diff-check通过；只读rawHeaders并拒绝零个/重复/折叠/歧义/访问器/超长值。不解析目标、不触网、不改默认single-hop |
 | SEC-F3-02C2b2b1 | DONE | 限定host-only readSignal完成：evidence源码/spec两文件，专项2 suites/60 tests、Parser 46 suites/1135 tests、typecheck/build、cleanup及diff-check全绿；同代generation与issuer失效合成同步AbortSignal，256有界缓存且终态detach。消费者的denied/unavailable网络映射、env/file激活和生产多跳仍待b2b2 |
 | SEC-F3-02C2b2b2 | DONE | 限定真实多跳transport完成：4个Parser network文件、专项3 suites/87 tests、Parser 47 suites/1170 tests、typecheck/build、cleanup及diff-check全绿；同一handle/signal/deadline与同generation贯穿逐跳DNS/TLS/epoch、raw Location、最多5跳及8MiB边界。默认off，不构成Transformer/Gateway生产启用 |
-| SEC-F3-02C2b3 | READY | C2b2b2/D3依赖已闭合；下一步仅在显式可信host配置下接入Transformer多跳与生产入口矩阵，默认保持single-hop；缺配置、protected/F1、非safe、正文、重放/撤销均失败关闭 |
+| SEC-F3-02C2b3 | DONE | 限定Parser host-only safe-read接入完成：4个Parser文件、新增14 tests、Parser 48 suites/1184 tests、typecheck/build及diff-check全绿；只接受同一真实issuer与显式proof，工具/OpenAPI不能开关或提供目标模板。受信network branch缺redirect配置仍single-hop，历史Axios maxRedirects=5原样；Gateway未改、生产默认off |
 | SEC-F3-02C3 | WAIT_DEP | 等C1d4；Gateway固定同一operation/route/membership/Registry版本，redirect/retry/取消共享deadline，reload/撤销后旧epoch不得继续 |
 | SEC-F3-02C4 | READY | C1b/C1c限定接线已完成；下一步验证新网络模式首轮单attempt且缓存保持关闭，两侧消费同一operation handle；缓存恢复与自动retry另行登记 |
 | SEC-F3-02C5a | DONE | 限定纯失败/审计模块完成：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时 |

@@ -1,3 +1,4 @@
+import { assertRegistryProviderEvidence, type RegistryProviderEvidence } from '../credentials/registry-provider-evidence';
 import { UpstreamCredentialRegistry, type UpstreamCredentialRegistrySnapshot } from '../credentials/registry';
 import type { SingleHopUpstreamCredentialPolicy } from '../credentials/single-hop-execution';
 import { createHostSecurityEpochAuthority, HostSecurityEpochError, type HostSecurityEpoch } from './host-security-epoch-authority';
@@ -20,11 +21,21 @@ const fail = (code: ControlledDnsError['code'] = 'upstream_network_policy_unavai
 export function createParserHostNetworkBridge(input: {
   registry: UpstreamCredentialRegistry; sourceServiceAssetId: string; compiler: ReturnType<typeof createNetworkPolicyCompiler>;
   servers: readonly string[]; ca?: string; registrations: readonly TrustedNetworkRegistration[]; providerEvidence?: ParserHostProviderEvidence;
+  redirect?: Omit<NonNullable<Parameters<typeof createTrustedSingleHopNetworkExecution>[0]['redirect']>, 'providerEvidence'>;
 }) {
-  const raw = pinnedRecord(input, ['registry', 'sourceServiceAssetId', 'compiler', 'servers', 'ca', 'registrations', 'providerEvidence'], ['registry', 'sourceServiceAssetId', 'compiler', 'servers', 'registrations']);
+  const raw = pinnedRecord(input, ['registry', 'sourceServiceAssetId', 'compiler', 'servers', 'ca', 'registrations', 'providerEvidence', 'redirect'], ['registry', 'sourceServiceAssetId', 'compiler', 'servers', 'registrations']);
   const registry = raw.registry as UpstreamCredentialRegistry, source = raw.sourceServiceAssetId as string;
   if (!(registry instanceof UpstreamCredentialRegistry) || typeof source !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$/.test(source)) return fail();
-  const evidence = raw.providerEvidence === undefined ? undefined : pinnedRecord(raw.providerEvidence, ['consume', 'readEpoch'], ['consume', 'readEpoch']) as unknown as ParserHostProviderEvidence;
+  // Only the host constructor can enable redirects. The genuine issuer is shared
+  // with Registry and execution; structural callbacks never attest a generation.
+  const redirect = raw.redirect === undefined ? undefined : pinnedRecord(raw.redirect, ['mode', 'targets'], ['mode', 'targets']);
+  let genuine: RegistryProviderEvidence | undefined;
+  if (redirect) {
+    if (redirect.mode !== 'safe-read') return fail();
+    try { assertRegistryProviderEvidence(raw.providerEvidence as RegistryProviderEvidence); } catch { return fail(); }
+    genuine = raw.providerEvidence as RegistryProviderEvidence;
+  }
+  const evidence = genuine ?? (raw.providerEvidence === undefined ? undefined : pinnedRecord(raw.providerEvidence, ['consume', 'readEpoch'], ['consume', 'readEpoch']) as unknown as ParserHostProviderEvidence);
   if (evidence && (typeof evidence.consume !== 'function' || typeof evidence.readEpoch !== 'function')) return fail();
   const consume = evidence?.consume.bind(evidence), readEvidenceEpoch = evidence?.readEpoch.bind(evidence);
   const authority = createHostSecurityEpochAuthority({ maxSources: 1 });
@@ -55,6 +66,7 @@ export function createParserHostNetworkBridge(input: {
   } });
   const execution = createTrustedSingleHopNetworkExecution({ credentialPolicy, compiler: raw.compiler as ReturnType<typeof createNetworkPolicyCompiler>, servers: raw.servers as readonly string[],
     ...(raw.ca === undefined ? {} : { ca: raw.ca as string }), registrations: initial,
+    ...(redirect ? { redirect: { mode: 'safe-read' as const, providerEvidence: genuine!, targets: redirect.targets as NonNullable<Parameters<typeof createTrustedSingleHopNetworkExecution>[0]['redirect']>['targets'] } } : {}),
     operationLifecycle: { readSecurityEpoch: requestedSource => { if (requestedSource !== source) return fail('upstream_network_policy_denied'); return readHost().securityEpoch; }, readProviderEpoch: (snapshot, binding) => { if (binding.sourceServiceAssetId !== source) return fail('upstream_network_policy_denied'); return readProvider(snapshot); }, captureSignal: () => {
       const epoch = readHost(); if (epoch !== signalEpoch) {
         detachSignal?.(); signalEpoch = epoch; const controller = new AbortController(); signalController = controller;

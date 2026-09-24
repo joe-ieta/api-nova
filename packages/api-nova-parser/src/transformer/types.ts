@@ -245,11 +245,11 @@ export interface OperationFilter {
  * Transformer Options
  */
 export interface TransformerOptions {
-  /** Explicit host-created capability only; bounded single-hop, never inferred from OpenAPI or tool args. */
+  /** Explicit host-created capability only; single-hop by default, safe-read redirects only via trusted host configuration. Never inferred from OpenAPI or tool args. */
   upstreamNetworkExecution?: TrustedSingleHopNetworkExecution;
   /** Trusted in-process identity registry; never populate this from untrusted OpenAPI x-* fields. */
   trustedOperationBindings?: readonly TrustedOperationBinding[];
-  /** Standard HTTP handlers only; requires trustedOperationBindings, replaces legacy auth, returns redirects without following. */
+  /** Standard HTTP handlers only; requires trustedOperationBindings and replaces legacy auth. Without an explicit host network safe-read capability, returns redirects without following. */
   upstreamCredentialPolicy?: SingleHopUpstreamCredentialPolicy;
   baseUrl?: string;
   sourceOrigin?: string;

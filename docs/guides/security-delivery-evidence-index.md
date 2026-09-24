@@ -1,5 +1,5 @@
 ---
-doc-version: 1.88.0
+doc-version: 1.89.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -138,7 +138,7 @@ doc-updated: 2026-09-24
 | SEC-F3-02C2b2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个network文件、自身21 tests、相邻3 suites/115 tests、统一Parser 45 suites/1098 tests、typecheck/build、cleanup及diff-check通过；rawHeaders唯一Location证据已验，不解析目标、不触网、不改默认single-hop。首次TS7006失败保留为历史。 |
 | SEC-F3-02C2b2b1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：evidence源码/spec两文件，专项2 suites/60 tests、Parser 46 suites/1135 tests、typecheck/build、cleanup及diff-check全绿；同代generation与issuer失效合成同步AbortSignal，256有界缓存且终态detach。消费者的denied/unavailable网络映射、env/file激活和生产多跳不在本叶完成。 |
 | SEC-F3-02C2b2b2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：4个Parser network文件、专项3 suites/87 tests、Parser 47 suites/1170 tests、typecheck/build、cleanup及diff-check全绿；同一handle/signal/deadline与同generation贯穿逐跳DNS/TLS/epoch、raw Location、最多5跳及8MiB边界。默认off，不代表生产启用。 |
-| SEC-F3-02C2b3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：C2b2b2/D3依赖已闭合；Transformer显式可信host配置与生产入口矩阵待实现，默认仍为single-hop。 |
+| SEC-F3-02C2b3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：4个Parser文件、新增14 tests、Parser 48 suites/1184 tests、typecheck/build及diff-check全绿；host-only safe-read只接受同一真实issuer与显式proof，工具/OpenAPI不能开关或提供目标模板。无redirect配置的受信network branch仍single-hop，历史Axios maxRedirects=5原样；Gateway未改、生产默认off。 |
 | SEC-F3-02C3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C1d4；Gateway固定整操作生命周期、route/membership/Registry版本与deadline，撤销后旧epoch不得继续。 |
 | SEC-F3-02C4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：C1b/C1c限定接线完成后解锁；首轮只验单attempt/cache-off及共享operation handle，缓存恢复和自动retry另行登记。 |
 | SEC-F3-02C5a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时。 |
