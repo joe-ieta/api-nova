@@ -1,3 +1,5 @@
+import { RuntimeObservabilityEventEntity } from '../../../database/entities/runtime-observability-event.entity';
+import { RuntimeObservabilityPolicyEntity } from '../../../database/entities/runtime-call-observability.entity';
 import { EventEmitter } from 'events';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
@@ -57,7 +59,7 @@ describe('ProcessManagerService managed lifecycle evidence', () => {
     directory = await mkdtemp(join(tmpdir(), 'api-nova-managed-process-'));
     dataSource = await new DataSource({
       type: 'sqljs',
-      entities: [RuntimePipelineStateEntity],
+      entities: [RuntimeObservabilityEventEntity, RuntimeObservabilityPolicyEntity, RuntimePipelineStateEntity],
       synchronize: true,
     }).initialize();
     const evidence = new ManagedProcessLifecycleEvidenceService(

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.61.1
+doc-version: 1.63.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -17,7 +17,7 @@ doc-updated: 2026-09-24
 
 ### 两个专项
 
-OBS父包：01/02/03/04/05/07/08/09/10/11/12各为DONE；06/13/14/15各为IN_PROGRESS；16为BACKLOG。
+OBS父包：01/02/03/04/05/07/08/09/11/12各为DONE；06/10/13/14/15各为IN_PROGRESS；16为BACKLOG。
 SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F1/F2/F3/F3a各IN_PROGRESS；F4 BACKLOG；G1 DEFERRED。
 以下SEC-A1等子项主归属为原TP-A1；OBS-06等主归属为原OBS-TP-06。已DONE父包不为增加任务数量重新拆开发项。
 
@@ -146,8 +146,9 @@ SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F1/F2/F3/F
 | SEC-F2-02 | SEC-F2 | CODE | 匿名风险与到期界面 | 申请、风险、到期和服务端拒绝一致显示 | SEC-A3-01 |
 | SEC-F3-01 | SEC-F3 | DOC | 上游网络边界政策 | DNS、连接、redirect、代理及内网例外有明确允许/拒绝合同 | — |
 | SEC-F3-02A | SEC-F3 | CODE | 网络政策Schema与地址分类原语 | 严格校验v1配置、URL/origin规范化、IPv4/IPv6完整拒绝分类、IPv4-mapped归一及private-exception精确CIDR/期限/始终拒绝集合；纯原语不接真实发送 | SEC-F3-01;SEC-D1-H11B |
-| SEC-F3-02B | SEC-F3 | CODE | 受控DNS、IP固定与写出前Peer复核 | A/AAAA/CNAME最终全集授权、每次新连接固定批准IP、保留Host/SNI/证书校验、Header/正文写出前核对peer，并拒绝代理/外部Agent绕过 | SEC-F3-02A |
-| SEC-F3-02C | SEC-F3 | CODE | 逐跳凭据、Redirect与撤销状态机 | 初始/redirect/retry每跳重选Site/Endpoint并重建凭据，safe-read边界、固定revision、撤销/到期/取消、缓存隔离及拒绝审计失败关闭 | SEC-F3-02B |
+| SEC-F3-02B1 | SEC-F3 | CODE | 受控DNS全集授权 | 受信Resolver有界解析A/AAAA/CNAME最终全集，规范化去重后逐地址套用A的编译政策；混合、未分类、截断或非法结果全部拒绝，仅返回不可变授权解析结果，不创建socket | SEC-F3-02A |
+| SEC-F3-02B2 | SEC-F3 | CODE | 固定IP单跳直连与Peer复核 | 消费B1授权解析结果，每次连接固定获批IP并保留原Host/SNI/证书校验；仅直连，拒绝代理/外部Agent，Header/正文写出前复核实际peer；本叶不实现redirect或逐跳凭据状态机 | SEC-F3-02B1 |
+| SEC-F3-02C | SEC-F3 | CODE | 逐跳凭据、Redirect与撤销状态机 | 初始/redirect/retry每跳重选Site/Endpoint并重建凭据，safe-read边界、固定revision、撤销/到期/取消、缓存隔离及拒绝审计失败关闭 | SEC-F3-02B2 |
 | SEC-F3-02D | SEC-F3 | VALIDATION | N01–N17双运行时网络拒绝验收 | Gateway/Parser真实连接覆盖DNS全集、peer/TLS、代理拒绝、redirect、凭据零泄漏、reload/撤销，并记录Windows/Linux与未运行环境边界 | SEC-F3-02C |
 | SEC-F3-03 | SEC-F3 | VALIDATION | 秘密与生命周期审计矩阵 | argv/log/错误/证据无完整Secret；创建/更新/撤销审计可检索 | SEC-E1-03;SEC-C3-02 |
 | SEC-F3a-01 | SEC-F3a | VALIDATION | 当前依赖可达性审计 | 锁文件固定、生产可达性、补丁/风险处置逐项记录 | — |
@@ -157,7 +158,9 @@ SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F1/F2/F3/F
 | OBS-06-02 | OBS-06 | ENV | MCP跨平台正文验证 | Linux与Windows同版本矩阵分别留证，限制明确 | OBS-06-01 |
 | OBS-10-01 | OBS-10 | CODE | 业务进程生命周期来源 | 至少一个实际受管进程启动/停止/失联证据进入状态，不能用管理心跳替代 | — |
 | OBS-10-02A | OBS-10 | CODE | 在途、历史与缺证据读模型 | 复用当前调用行、受管生命周期投影与同一Store快照水位，使持久当前在途、start/terminal历史和unknown/unavailable语义可查询；零值不得解释为无业务流量 | OBS-10-01 |
-| OBS-13-01 | OBS-13 | CODE | 状态快照与增量接续 | 同一事件源水位、乱序版本、撤权、断线恢复无状态丢失；须消费OBS-10-02A形成的稳定历史/水位来源，不另建事件源 | OBS-10-02A |
+| OBS-10-02B1 | OBS-10 | CODE | Managed生命周期耐久Delta | managed start/terminal在更新最新generation投影的同一CallObservabilityStore事务分配sequence并写既有耐久事件表；仅交付sequence-bound durable delta，不接Realtime | OBS-10-02A |
+| OBS-10-02B2 | OBS-10 | CODE | In-flight状态耐久Delta | in-flight started/terminal变化在更新调用修订的同一Store事务写入共用状态delta，沿用B1事件合同与水位；不把保留窗口计数写成实时存活 | OBS-10-02B1 |
+| OBS-13-01 | OBS-13 | CODE | 状态快照与增量接续 | 消费B1/B2的sequence-bound durable deltas，在权限/筛选绑定的state snapshot grant后从水位H续读，复用ACK签名cursor、乱序版本丢弃、撤权复核与gap强制resnapshot；legacy/asset/global多实例水位仍unknown | OBS-10-02B1;OBS-10-02B2 |
 | OBS-13-02 | OBS-13 | VALIDATION | 长期传输与慢客户端验收 | 有限缓冲/ACK/恢复/断连按状态流和调用事实流验证 | OBS-13-01 |
 | OBS-14-01 | OBS-14 | DOC | 生命周期引用/墓碑规则 | 事件/投递/receipt/元数据/正文引用和到期顺序逐类定清 | — |
 | OBS-14-02 | OBS-14 | CODE | 删除后回滚的过期元数据整理 | 有界持久进度、同fence、重启/重复运行可恢复；有效对象不变 | — |

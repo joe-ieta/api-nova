@@ -1,5 +1,5 @@
 ---
-doc-version: 2.12.0
+doc-version: 2.14.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -20,7 +20,7 @@ ApiNova 的主线是 API 资产导入、注册、测试、治理和发布，以�
 
 ## 2. 当前任务包状态
 
-**DONE=11，IN_PROGRESS=4，BACKLOG=1，共 16 包；READY=0。**
+**DONE=10，IN_PROGRESS=5，BACKLOG=1，共 16 包；READY=0。**
 
 `DONE` 指该任务包约定范围已闭环，不表示所有需求、平台或部署均完成；`VERIFIED` 指限定接口契约已有验收证据；`AVAILABLE` 指部署交付，不等于代码存在。文档的 `active` 仅表示仍受维护。
 
@@ -30,10 +30,10 @@ ApiNova 的主线是 API 资产导入、注册、测试、治理和发布，以�
 | TP06 | IN_PROGRESS | MCP 发送确认及错误/不完整终态修复已保留；完整传输、正文、平台矩阵及 Windows 大响应背压限制仍待收口 |
 | TP07 | DONE | 真实测试、探测和候选验证接入，origin 隔离及 telemetry 排除已完成 |
 | TP08~09 | DONE | 源身份、生命周期、调用/正文/trace/调用者查询等既定范围已闭环；根模块已接入 |
-| TP10 | DONE | 既有统计、服务器状态、管理心跳与Gateway本实例路由观测已保留；OBS-10-01新增受管child start/terminal持久证据。OBS-10-02A完成限定retained读模型：5100条保留历史有界聚合、revision水位、隔离/legacy/SQL.js重开经4 suites/15 tests验证；retained unfinished=0不等于无业务流量，coverage仍unknown、live active仍null，只投影最新generation而非全历史 |
+| TP10 | IN_PROGRESS | OBS-10-01与02A已完成生命周期/限定retained读模型。B1以4 suites/21 tests及API build完成managed start/terminal同事务`server.state_changed` sequence；仅同一DataSource并发证据且不接Realtime。B2现READY，继续补in-flight started/terminal同事务状态delta |
 | TP11 | DONE | 远端规范事件、授权历史、持久 Outbox 与水位闭环；本地调用快照的可选授权桥接已整合 |
 | TP12 | DONE | 远端订阅/投递 HTTP、受控测试、人工重投、签名、重试与相关管理审计已闭环；自动发送默认关闭，部署未验收 |
-| TP13 | IN_PROGRESS | 授权持久事件分页流、调用事实快照接续、每页权限复验、ACK背压与隔离模式已实现；调用事实UI已接入。OBS-10-02A已提供限定retained历史/revision水位来源，OBS-13-01现为READY；仍需全局状态snapshot与水位、超过5100条的全历史策略、乱序/撤权/断线恢复及长期/跨平台验收 |
+| TP13 | IN_PROGRESS | 授权持久事件分页流、调用事实快照接续、每页权限复验、ACK背压与隔离模式已实现；调用事实UI已接入。OBS-13-01等待OBS-10-02B1/B2提供managed lifecycle与in-flight的sequence-bound deltas；之后才能实现state snapshot grant、乱序/撤权/gap恢复。legacy/asset/global多实例共同水位仍unknown |
 | TP14 | IN_PROGRESS | 新建投递记录30天与事件重投资格已分离；新事件/正文策略、默认关闭有界正文GC及受权策略管理UI已验证；已补GC同扫描容量样本、扫描失败重开与停机收尾及只读诊断UI；整体保留/配额与跨组件故障恢复仍待闭合 |
 | TP15 | IN_PROGRESS | 公开/api路径已收敛，调用事实UI及Gateway日志入口已迁移到统一API/签名分页；完整身份/拒绝审计、其余消费者与部署切换未闭合 |
 | TP16 | BACKLOG | 整合后的 PostgreSQL/Linux、多进程、持续负载/容量、性能及对外交付矩阵尚未完成 |
@@ -70,7 +70,7 @@ Windows / Node v24.15.0、16 MiB Streamable 响应的原生 cork/uncork 恢复�
 | 工作流 | 继续完成的工作 | 完成判定与依赖 |
 | --- | --- | --- |
 | TP13 实时流 | 在已有调用事实快照接续、签名页流、权限复验、ACK背压和实际UI消费之上，完成全局状态快照、其余消费者与长期/跨平台矩阵 | 不引入第二套事件源；保留已有恢复、撤权和慢消费专项，补齐完整状态及跨环境验收 |
-| TP10 状态与覆盖 | 管理心跳、本实例路由、诊断UI、受管业务child生命周期投影及限定retained读模型已接入；旧generation迟到终止不覆盖新start，0/unknown/live null语义已区分 | 管理心跳不代表业务存活；只投影最新generation。全局水位、全历史及状态流接续继续由TP13完成，不把5100条保留窗口解释为全量历史 |
+| TP10 状态与覆盖 | 管理心跳、本实例路由、诊断UI、受管child最新generation投影及限定retained读模型已接入；B1/B2继续补managed lifecycle与in-flight的同事务sequence事件 | B1/B2不接Realtime；管理心跳不代表业务存活，保留窗口不是全历史。legacy状态、asset目录、全局多实例水位及live active继续unknown |
 | TP14 治理 | 在新事件/正文TTL、授权策略UI及默认关闭正文GC之上，完成配额强制、其余元数据生命周期、跨组件恢复、管理审计30天及历史记录策略 | 明确事件过期后的投递记录留存与重投资格分离；不能清除仍被活动投递引用的事件，不能直接启用破坏性清理 |
 | TP06/16 平台验收 | MCP 完整传输/正文矩阵、Windows 限制、PostgreSQL/Linux、多进程及负载/性能 | 可与实时流/治理开发并行准备环境；最终矩阵必须针对完成后的整合版本 |
 | TP15 集成收敛 | 服务身份、完整拒绝审计、旧消费者收敛和部署切换 | 根模块接入不再重复开发；最终切换依赖相应实时/治理能力和部署授权 |

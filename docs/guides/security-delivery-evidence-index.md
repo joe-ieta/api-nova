@@ -1,5 +1,5 @@
 ---
-doc-version: 1.52.0
+doc-version: 1.54.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -115,7 +115,8 @@ doc-updated: 2026-09-24
 | SEC-F2-02 | [匿名UI证据](../audits/2026-09-21-temporary-anonymous-ui.md) | **限定执行/DONE**：Gateway/MCP申请、到期/生产风险与拒绝显示，26/26和构建；无真实浏览器点击验收。 |
 | SEC-F3-01 | [请求头与网络边界合同§4](./security-header-network-boundary-contract.md) | **政策定稿/DONE（DOC）**：public/direct、精确限期内网例外、DNS/连接/跳转/撤销已冻结；代码F3-02未实现，零redirect仍不等于SSRF防护。 |
 | SEC-F3-02A | [网络边界合同§4.1–4.2](./security-header-network-boundary-contract.md) | **限定DONE**：严格v1配置/URL/origin、完整IPv4/IPv6分类、mapped归一和精确例外纯compiler完成；静态表`iana-2025-10-09-conservative-v1`，更新须复核IANA差异并重跑边界回归。network专项165项、Parser 30 suites/722 tests及typecheck/build通过；不接DNS、真实发送或host续期/撤销，不能关闭F3。 |
-| SEC-F3-02B | [网络边界合同§4.3](./security-header-network-boundary-contract.md) | **READY**：A的限定纯compiler证据已闭合；受控DNS全集、IP固定、TLS/peer写出前复核及代理/外部Agent拒绝仍未实现。 |
+| SEC-F3-02B1 | [网络边界合同§4.3](./security-header-network-boundary-contract.md) | **限定DONE**：真实UDP 26/26、Parser 31 suites/748 tests及typecheck/build通过；A/AAAA/CNAME有界全集、规范化去重、逐地址授权及混合/未分类/截断拒绝已有证据。仅产出DNS批准结果，无上游socket、peer或TLS证据。 |
+| SEC-F3-02B2 | [网络边界合同§4.3](./security-header-network-boundary-contract.md) | **READY**：B1限定DNS批准结果已闭合；固定获批IP单跳直连、原Host/SNI/证书保留、代理/外部Agent拒绝及写出前peer复核未实现；不在本叶实现redirect/逐跳凭据。 |
 | SEC-F3-02C | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **待验收**：依赖B；逐跳凭据、safe-read、固定revision、撤销/取消、缓存隔离与拒绝审计未实现。 |
 | SEC-F3-02D | [网络边界合同§4.6及N01–N17](./security-header-network-boundary-contract.md) | **待验收**：依赖C；Gateway/Parser真实连接及Windows/Linux矩阵未执行。 |
 | SEC-F3-03 | [安全用例](../testing/runtime-security-audit-cases.md)、[受管通道脚本](../../packages/api-nova-api/scripts/test-managed-mcp-channel.cjs) | **限定执行/待验收**：局部脱敏与 IPC 无 argv Secret 有证据；完整 argv/log/错误/快照 Secret Scan、创建/更新/撤销审计可检索依赖产品 E1。 |

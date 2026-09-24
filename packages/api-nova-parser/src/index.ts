@@ -178,3 +178,4 @@ export * from './security/upstream-security-reconciliation';
 // Pure network policy primitives only; no transport activation.
 export * from './network/address-policy';
 export * from './network/network-policy';
+export * from './network/controlled-dns';

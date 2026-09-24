@@ -112,6 +112,10 @@ export class ManagedProcessLifecycleEvidenceService {
         stateVersion,
       };
       await repository.save(repository.create({ id, value, updatedAt: tx.now }));
+      await this.store.projectionEvent(tx, 'server.state_changed', identity.runtimeAssetId, stateVersion, {
+        state: value.observedEvent, previousState: previous?.observedEvent ?? null,
+        evidenceScope: MANAGED_PROCESS_LIFECYCLE_SCOPE, generation: value.generation,
+      }, { runtimeAssetId: identity.runtimeAssetId, serverType: 'mcp' });
       return { status: 'applied' as const };
     });
   }
@@ -153,6 +157,10 @@ export class ManagedProcessLifecycleEvidenceService {
         stateVersion,
       };
       await repository.save(repository.create({ id, value, updatedAt: tx.now }));
+      await this.store.projectionEvent(tx, 'server.state_changed', identity.runtimeAssetId, stateVersion, {
+        state: value.observedEvent, previousState: previous?.observedEvent ?? null,
+        evidenceScope: MANAGED_PROCESS_LIFECYCLE_SCOPE, generation: value.generation,
+      }, { runtimeAssetId: identity.runtimeAssetId, serverType: 'mcp' });
       return { status: 'applied' as const };
     });
   }

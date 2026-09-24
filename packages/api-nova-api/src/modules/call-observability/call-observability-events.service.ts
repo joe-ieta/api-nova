@@ -193,7 +193,7 @@ export class CallObservabilityEventsService {
     const data: Record<string, unknown> = {};
     for (const key of ['spanKind', 'outcome', 'toolName', 'durationMs', 'completionSource',
       'bucketKind', 'bucketId', 'bucketVersion', 'bucketStart', 'bucketEnd', 'dataWatermark',
-      'state', 'previousState', 'evidenceScope', 'serverHealth', 'coverage', 'recomputeFailures']) {
+      'state', 'previousState', 'evidenceScope', 'generation', 'serverHealth', 'coverage', 'recomputeFailures']) {
       const value = row.details?.[key];
       if ((typeof value === 'string' && value.length <= 500 && !/[\u0000-\u001f\u007f]/.test(value)) ||
         (typeof value === 'number' && Number.isFinite(value)) || value === null) data[key] = value;

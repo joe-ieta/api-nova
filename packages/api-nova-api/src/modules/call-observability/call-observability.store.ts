@@ -835,7 +835,7 @@ export class CallObservabilityStore {
 
   /** Durable outbox only; callers must not publish until this transaction commits. */
   async projectionEvent(tx: ObservabilityWriteTransaction,
-    eventType: 'metrics.bucket_updated' | 'pipeline.state_changed', subjectId: string,
+    eventType: 'metrics.bucket_updated' | 'pipeline.state_changed' | 'server.state_changed', subjectId: string,
     subjectVersion: number, details: Record<string, unknown>, dimensions: Record<string, unknown>,
     suppressEvent = false): Promise<void> {
     const sequence = tx.nextSequence();
@@ -843,7 +843,7 @@ export class CallObservabilityStore {
       id: randomUUID(), sequence, schemaVersion: '1.0', eventName: eventType,
       subjectId, subjectVersion, details, dimensions,
       runtimeAssetId: dimensions.runtimeAssetId || undefined,
-      eventFamily: RuntimeObservabilityEventFamily.RUNTIME_CONTROL,
+      eventFamily: eventType === 'server.state_changed' ? RuntimeObservabilityEventFamily.RUNTIME_LIFECYCLE : RuntimeObservabilityEventFamily.RUNTIME_CONTROL,
       severity: details.state === 'degraded' ? RuntimeObservabilitySeverity.WARNING : RuntimeObservabilitySeverity.INFO,
       status: details.state === 'degraded' ? RuntimeObservabilityStatus.DEGRADED : RuntimeObservabilityStatus.SUCCESS,
       actorType: RuntimeObservabilityActorType.SYSTEM,

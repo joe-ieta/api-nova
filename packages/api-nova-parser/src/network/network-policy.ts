@@ -60,7 +60,8 @@ export interface CompiledNetworkPolicy {
   readonly origin: string; readonly mode: 'public' | 'private-exception'; readonly connection: 'direct'; readonly tableVersion: string; readonly identity: string;
   readonly exception?: Readonly<{ id: string; revision: string; addresses: readonly string[]; issuedAt: number; expiresAt: number; purpose: string; owner: string; approvalRef: string }>;
 }
-export interface NetworkDestinationInput { sourceServiceAssetId: string; siteId: string; url: string; address: string; endpointAddresses?: readonly string[] }
+export interface NetworkTargetInput { sourceServiceAssetId: string; siteId: string; url: string }
+export interface NetworkDestinationInput extends NetworkTargetInput { address: string; endpointAddresses?: readonly string[] }
 /** Host constructs this once at boot. No network, request, OpenAPI or metadata discovery occurs here.
  * Compiled objects are instance-local capabilities, not JSON-restorable enforcement claims.
  * Loopback is only enabled in explicitly marked isolated tests; production isolation needs a later host integration.
@@ -103,12 +104,22 @@ export function createNetworkPolicyCompiler(hostInput: unknown) {
     const result = Object.freeze({ ...payload, identity: createHash('sha256').update(JSON.stringify([hostDigest, payload])).digest('hex') });
     compiled.add(result); return result;
   }
+  /** Instance capability and target scope, deliberately independent of DNS/address selection. */
+  function authorizeTarget(policy: CompiledNetworkPolicy, input: NetworkTargetInput, now = Date.now()): boolean {
+    try {
+      if (!compiled.has(policy) || !Number.isFinite(now)) return false;
+      const value = record(input, ['sourceServiceAssetId', 'siteId', 'url']);
+      const target = normalizeNetworkUrl(value.url);
+      if (value.sourceServiceAssetId !== policy.sourceServiceAssetId || value.siteId !== policy.siteId || target.origin !== policy.origin) return false;
+      return policy.mode === 'public' || !!policy.exception && now >= policy.exception.issuedAt && now < policy.exception.expiresAt;
+    } catch { return false; }
+  }
   function allows(policy: CompiledNetworkPolicy, input: NetworkDestinationInput, now = Date.now()): boolean {
     try {
       if (!compiled.has(policy) || !Number.isFinite(now)) return false;
       const value = record(input, ['sourceServiceAssetId', 'siteId', 'url', 'address'], ['endpointAddresses']);
       const target = normalizeNetworkUrl(value.url), address = parseNetworkAddress(value.address), classification = classifyNetworkAddress(value.address);
-      if (value.sourceServiceAssetId !== policy.sourceServiceAssetId || value.siteId !== policy.siteId || target.origin !== policy.origin) return false;
+      if (!authorizeTarget(policy, { sourceServiceAssetId: value.sourceServiceAssetId as string, siteId: value.siteId as string, url: value.url as string }, now)) return false;
       if (isIP(target.host) && parseNetworkAddress(target.host).canonical !== address.canonical) return false;
       if (builtins.some(item => item.family === address.family && item.value === address.value) || denies.some(item => cidrContains(item.range, address) && (!item.ports || item.ports.includes(target.port)))) return false;
       if (!['public', 'private', 'loopback'].includes(classification.category)) return false;
@@ -119,5 +130,5 @@ export function createNetworkPolicyCompiler(hostInput: unknown) {
       return now >= e.issuedAt && now < e.expiresAt && e.addresses.map(parseNetworkCidr).some(range => cidrContains(range, address));
     } catch { return false; }
   }
-  return Object.freeze({ compile, allows });
+  return Object.freeze({ compile, authorizeTarget, allows });
 }

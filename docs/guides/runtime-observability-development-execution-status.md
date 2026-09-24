@@ -1,5 +1,5 @@
 ---
-doc-version: 2.20.0
+doc-version: 2.22.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -199,4 +199,6 @@ OBS-10-01限定DONE：`ProcessManagerService`只为显式`managed=true`且具备
 SQL.js CAS/坏行/重开专项4/4、真实Windows child start→taskkill stop与exit 7、注入error→lost事件hook 3/3、状态投影1/1、ProcessManager相邻认证/进程回归5 suites/32 tests、API type-check与build均通过。没有新增schema/migration，复用`RuntimePipelineStateEntity`；没有生产部署或外部环境验收。OBS-10父包已按限定范围DONE；后续OBS-10-02A读模型证据见第23节。OBS-13-01现已解锁，继续承接全局水位、全历史和状态增量。
 ## 23. OBS-10-02A限定读模型完成与OBS-13依赖校准（2026-09-24）
 
-OBS-10-02A限定DONE：复用`RuntimeInvocationEntity`当前行、managed lifecycle投影及`CallObservabilityStore`快照水位，完成5100条保留历史有界聚合、revision水位、资产隔离、legacy坏行与SQL.js重开，专项4 suites/15 tests通过。retained unfinished=0只表示保留事实中没有未完成项，不能解释为无业务流量；coverage保持unknown，live active保持null；状态只投影最新generation，不是全历史。本切片未修改Realtime/WebSocket，统一API build由并行工作包独立执行，不在此预记结果。OBS-13-01解锁为READY，须复用同一耐久事件源补全全局状态snapshot与水位、超过5100条的全历史策略、乱序版本、撤权与断线恢复。
+OBS-10-02A限定DONE：复用`RuntimeInvocationEntity`当前行、managed lifecycle投影及`CallObservabilityStore`快照水位，完成5100条保留历史有界聚合、revision水位、资产隔离、legacy坏行与SQL.js重开，专项4 suites/15 tests通过。retained unfinished=0只表示保留事实中没有未完成项，不能解释为无业务流量；coverage保持unknown，live active保持null；状态只投影最新generation，不是全历史。本切片未修改Realtime/WebSocket，统一API build由并行工作包独立执行，不在此预记结果。
+
+预研确认managed lifecycle最新行、legacy runtime state和asset目录没有共同调用事件水位，不能直接宣称跨状态snapshot或断线无丢失。OBS-10-02B1现限定DONE：managed start/terminal与最新generation投影在同一Store事务写入`server.state_changed`并分配sequence，4 suites/21 tests及API build通过；只证明同一DataSource内并发与耐久delta，不接Realtime，也不证明跨实例全局水位或实时liveness。OBS-10-02B2已READY，继续把in-flight started/terminal变化在更新调用修订的同一事务写入共用状态delta。legacy状态、asset目录、全局多实例水位及实时liveness继续为unknown。OBS-13-01保持WAIT_DEP，须同时消费B1/B2后才能实现state snapshot grant、从H续读、ACK签名cursor、乱序版本、撤权复核与gap强制resnapshot。

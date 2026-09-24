@@ -1,3 +1,5 @@
+import { RuntimeObservabilityEventEntity } from '../../database/entities/runtime-observability-event.entity';
+import { RuntimeObservabilityPolicyEntity } from '../../database/entities/runtime-call-observability.entity';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -10,7 +12,7 @@ import { CallObservabilityServerStatusService } from './call-observability-serve
 import { CallObservabilityStore } from './call-observability.store';
 import { ManagedProcessLifecycleEvidenceService, MANAGED_PROCESS_LIFECYCLE_PREFIX } from './managed-process-lifecycle-evidence.service';
 import { sequenceKey } from './call-observability-storage';
-const entities = [RuntimeAssetEntity, RuntimeObservabilityStateEntity, RuntimeInvocationEntity, RuntimeInvocationRevisionEntity, RuntimePipelineStateEntity];
+const entities = [RuntimeObservabilityEventEntity, RuntimeObservabilityPolicyEntity, RuntimeAssetEntity, RuntimeObservabilityStateEntity, RuntimeInvocationEntity, RuntimeInvocationRevisionEntity, RuntimePipelineStateEntity];
 describe('servers/status retained in-flight and latest-generation evidence', () => {
   let db: DataSource, directory: string;
   const options = () => ({ type: 'sqljs' as const, location: join(directory, 'status.sqlite'), autoSave: true, entities });

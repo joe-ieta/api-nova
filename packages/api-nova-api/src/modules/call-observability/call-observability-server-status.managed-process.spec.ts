@@ -1,3 +1,5 @@
+import { RuntimeObservabilityEventEntity } from '../../database/entities/runtime-observability-event.entity';
+import { RuntimeObservabilityPolicyEntity } from '../../database/entities/runtime-call-observability.entity';
 import { randomUUID } from 'crypto';
 import { DataSource } from 'typeorm';
 import { RuntimeAssetEntity, RuntimeAssetStatus, RuntimeAssetType } from '../../database/entities/runtime-asset.entity';
@@ -17,7 +19,7 @@ describe('CallObservabilityServerStatusService managed process projection', () =
   it('projects durable child identity without treating management heartbeat as business liveness', async () => {
     dataSource = await new DataSource({
       type: 'sqljs',
-      entities: [RuntimeAssetEntity, RuntimeObservabilityStateEntity, RuntimePipelineStateEntity],
+      entities: [RuntimeObservabilityEventEntity, RuntimeObservabilityPolicyEntity, RuntimeAssetEntity, RuntimeObservabilityStateEntity, RuntimePipelineStateEntity],
       synchronize: true,
     }).initialize();
     const runtimeAssetId = randomUUID();
