@@ -1,5 +1,5 @@
 ---
-doc-version: 1.113.0
+doc-version: 1.115.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -10,14 +10,14 @@ doc-updated: 2026-09-24
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
 父包专项统计仍是OBS 11/4/1、SEC 10/12/0/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计21/16/1/1。它不表示全项目完成率。
 
-本次登记188个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
+本次登记191个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 128 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 130 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 14 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 0 | 当前无已登记实施中叶子；父包仍可保持IN_PROGRESS |
-| WAIT_DEP | 26 | 等待列明子任务/条件 |
+| WAIT_DEP | 27 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -123,11 +123,14 @@ doc-updated: 2026-09-24
 | SEC-F3-02B3a | DONE | 限定共享private verified connection与Readable stream完成：Parser 33 suites/817 tests、stream专项38、B2既有31及typecheck/build通过；真实24MiB双向、backpressure、授权前body零读取、peer/TLS/代理/取消/截断/early response/one-shot已验。首轮816/817为B1真实DNS后置复核50ms夹具负载失败，仅测试改为真实解析后受控时间，生产deadline不变；仍无Transformer/Gateway/child生产接线 |
 | SEC-F3-02B3b | DONE | 限定Parser host桥完成：7文件，Parser 34 suites/838 tests、专项21、typecheck/build及diff-check通过；真实Resolver绑定Site/generation/revision（含None），同Snapshot WeakMap host policy与最终序列化URL，bounded≤8MiB JSON/string/Buffer，默认网络模式off且F1零发送；Registry/DNS/HTTP/TLS及clone/reload/伪造/变异负测通过。生产Gateway/managed child、Provider撤销epoch及audit桥未接；父B3/F3保持IN_PROGRESS |
 | SEC-F3-02B3c | DONE | 限定Gateway route桥完成：Provider active/denied/unavailable三态；显式撤销/身份错→502，可信host回调抛错与DNS SERVFAIL→503，deadline→504。最终新HTTP/TLS专项46、相关6 suites/111 tests、API build及diff-check通过；修复前Gateway全目录43 suites/627不称最终一次全绿，Parser 34 suites/841仍适用。默认off、无生产DI/Provider注册或外部配置入口；B3a/b/c聚合限定完成 |
-| SEC-F3-02C1 | READY | B3c限定出口闭合后解锁；实现host-owned整操作handle，固定epoch/deadline/revoke并主动abort，到期/撤销不得由序列化输入续期或跨操作复用 |
-| SEC-F3-02C2 | WAIT_DEP | 等C1；Parser每跳精确Site/Endpoint重选、DNS/peer/TLS重验与凭据重建，拒绝跨源继承和非safe-read自动跳转 |
-| SEC-F3-02C3 | WAIT_DEP | 等C1；Gateway固定同一operation/route/membership/Registry版本，redirect/retry/取消共享deadline，reload/撤销后旧epoch不得继续 |
-| SEC-F3-02C4 | WAIT_DEP | 等C1；新网络模式首轮单attempt且缓存保持关闭，Parser/Gateway均消费同一operation handle；缓存恢复与自动retry另行登记 |
-| SEC-F3-02C5a | READY | B3c限定出口闭合后解锁，可与C1并行；纯network-failure/audit合同与spec冻结denied/unavailable、白名单和脱敏字段 |
+| SEC-F3-02C1a | DONE | 限定纯authority模块完成：新2文件/专项24，host-only opaque handle固定epoch/revoke同步abort、总deadline及有界容量；统一Parser 37 suites/907 tests及typecheck/build通过。未接运行时、宿主epoch或Provider事件桥 |
+| SEC-F3-02C1b | READY | C1a限定模块完成后解锁；下一步接Parser host-only路径，同一handle/deadline/abort进入DNS、连接和stream，禁止序列化配置创建authority |
+| SEC-F3-02C1c | READY | C1a限定模块完成后解锁；下一步接Gateway可信route/Provider，同一handle在Resolver/cache前固定epoch/deadline，暂不注册生产默认启用 |
+| SEC-F3-02C1d | WAIT_DEP | 等C1b/C1c；真实host/provider激活、reload、撤销和到期事件桥驱动主动abort，多进程传播另验 |
+| SEC-F3-02C2 | WAIT_DEP | 等C1b；Parser每跳精确Site/Endpoint重选、DNS/peer/TLS重验与凭据重建，拒绝跨源继承和非safe-read自动跳转 |
+| SEC-F3-02C3 | WAIT_DEP | 等C1d；Gateway固定同一operation/route/membership/Registry版本，redirect/retry/取消共享deadline，reload/撤销后旧epoch不得继续 |
+| SEC-F3-02C4 | WAIT_DEP | 等C1b/C1c；新网络模式首轮单attempt且缓存保持关闭，两侧消费同一operation handle；缓存恢复与自动retry另行登记 |
+| SEC-F3-02C5a | DONE | 限定纯失败/审计模块完成：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时 |
 | SEC-F3-02C5b | WAIT_DEP | 等C2/C3/C5a；双运行时接入统一失败语义和审计，以真实HTTP负测验证fail-closed与零秘密泄漏 |
 | SEC-F3-02C6 | WAIT_DEP | 等C2/C3/C4/C5b；本地双运行时真实联合矩阵，不代表生产默认启用或F3D Windows/Linux环境验收 |
 | SEC-F3-02D | WAIT_DEP | 等C6；N01–N17 Gateway/Parser真实连接、生产默认启用及Windows/Linux环境矩阵待验收 |
