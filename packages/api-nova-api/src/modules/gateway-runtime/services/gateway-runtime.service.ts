@@ -69,8 +69,16 @@ export class GatewayRuntimeService {
       try {
         const requestId = this.resolveRequestId(req, res);
         const correlationId = this.resolveCorrelationId(req);
-        const prepared = target.policies.upstream?.compiledHeaderPolicy
+        const prepared = (target.policies.upstream?.compiledHeaderPolicy || this.gatewayProxyEngineService.requiresPreparation?.(target))
           ? await this.gatewayProxyEngineService.prepareRequest(target, req) : undefined;
+        if (prepared?.compiledHeaderPolicy) {
+          // Request-local view only: the Registry exchange must drive cache and
+          // retry decisions without modifying the published route snapshot.
+          target = { ...target, policies: { ...target.policies, upstream: {
+            ...target.policies.upstream, compiledHeaderPolicy: prepared.compiledHeaderPolicy,
+            historicalAuthenticationHeaderNames: prepared.historicalAuthenticationHeaderNames,
+          } } };
+        }
         const cacheLookup = bypassCache
           ? null
           : this.gatewayCacheService.resolve(target, req, authContext, prepared?.requestPolicy);

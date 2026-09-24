@@ -1,3 +1,4 @@
+import { endpointUpstreamSecurityReadiness } from '../publication/security/endpoint-upstream-security-readiness';
 import {
   EndpointDefinitionEntity,
   EndpointDefinitionStatus,
@@ -90,6 +91,8 @@ export function evaluatePublicationReadiness(
 ): PublicationReadinessEvaluation {
   const governance = evaluateEndpointGovernanceReadiness(endpointDefinition);
   const endpointReasons = [...governance.reasons];
+  const upstreamSecurity = endpointUpstreamSecurityReadiness(endpointDefinition);
+  if (!upstreamSecurity.canPublish) endpointReasons.push('upstream_security:' + upstreamSecurity.reason);
   const profileReasons: string[] = [];
   const routeReasons: string[] = [];
   const routeRequired = Boolean(options.routeRequired);

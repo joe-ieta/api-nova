@@ -1,23 +1,23 @@
 ---
-doc-version: 1.64.0
+doc-version: 1.72.0
 doc-status: active
-doc-updated: 2026-09-22
+doc-updated: 2026-09-24
 ---
 # 活跃子任务执行状态
 
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
-父包专项统计仍是OBS 10/5/1、SEC 9/11/2/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计19/16/3/1。它不表示全项目完成率。
+父包专项统计仍是OBS 10/5/1、SEC 9/13/0/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计19/18/1/1。它不表示全项目完成率。
 
-本次登记135个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
+本次登记147个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 82 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 13 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 本批已收尾；READY未开工 |
-| WAIT_DEP | 20 | 等待列明子任务/条件 |
+| DONE | 88 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 14 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 0 | 当前无在执行子项 |
+| WAIT_DEP | 25 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -62,7 +62,13 @@ doc-updated: 2026-09-22
 | SEC-D1-02A | DONE | Parser v1编译/不可变快照/继承/摘要/冲突294项；Gateway双源及未就绪激活拒绝、真实固定文件保旧/SQL.js冷恢复拒绝；仅准备 |
 | SEC-D1-02B | DONE | [双向真实流证据](../audits/2026-09-21-header-wire-execution.md)：纯字段60、入口TCP15、proxy真实21及联合353通过；仅显式compiled路径，生产门禁保持 |
 | SEC-D1-02C | DONE | [缓存隔离证据](../audits/2026-09-22-header-cache-isolation.md)：命中前预检、必需vary/策略及材料代次、原始禁存信号、真实HTTP32项；生产仍门禁 |
-| SEC-D1-02D | READY | 02C完成；仍须实际入口/Registry元数据接线、默认v1、限期具名例外、防删除降级与联合验收；不得只删除门禁 |
+| SEC-D1-02D1 | DONE | 同一Registry快照的策略/凭据/代次/历史名接入不可变Prepared Exchange；5 suites/118通过；生产v1仍等D2/D3/D4 |
+| SEC-D1-02D2A | DONE | 纯迁移契约/校验器覆盖具名legacy期限、未知字段与来源变更拒绝；3 suites/57通过；未接生产创建入口或持久化 |
+| SEC-D1-02D2B | READY | 新Binding默认写入v1并持久验证；旧Binding不静默回填 |
+| SEC-D1-02D2C | WAIT_DEP | legacy允许持久写入、最长30天和撤销等待D2B |
+| SEC-D1-02D2D | WAIT_DEP | 冷重启、坏迁移保留旧snapshot及unknown/deleted/disabled Provider验收等待D2B/D2C |
+| SEC-D1-02D3 | DONE | Nest/Socket.IO初始化后、listen前安装checkContinue/checkExpectation/upgrade；2 suites/24与API build通过 |
+| SEC-D1-02D4 | WAIT_DEP | 真实数据库重开、迁移/冷启动与H01–H12联合矩阵等待D2D；D3已完成 |
 | SEC-D2-01 | DONE | 真实HTTP独立IP/Anonymous桶、peer可信边界、缓存命中仍限流；Gateway全套201/201、主任务联合复验42/42；见2026-09-21-independent-rate-limits证据 |
 | SEC-D2-02 | DONE | 六层真实HTTP组合19项、四套73/73；共享窗口冲突503且到期恢复、24并发精确7准入；见六层限流组合证据 |
 | SEC-E0-01 | DONE | 锁SDK1.29.0原始HTTP/Session/错误及真实stdio矩阵60/60；修复已知Streamable端点不支持方法405+Allow；见Adapter证据 |
@@ -78,14 +84,20 @@ doc-updated: 2026-09-22
 | SEC-E2-01 | WAIT_DEP | 复用已有smoke |
 | SEC-E2-02 | NEED_ENV | 需核实环境 |
 | SEC-F1-01 | DONE | 四态、OpenAPI继承/OR-AND、Binding兼容及验证失效合同定稿；同revision秘密变更须重新验证；F1-02仍依赖C1-02 |
-| SEC-F1-02 | READY | C1-02完成已解锁；仍须实现声明/四态/OR-AND及发布门禁，DOC不替代代码 |
+| SEC-F1-02A | DONE | 声明保留、OR/AND显式选择、四态纯对账及发布/装配写入前拒绝；17 suites/234与API build通过；不含可信Registry/耐久验证 |
+| SEC-F1-02B | DONE | 可信Registry/Resolver Binding评估与opaque Provider epoch接入；5 suites/57与API build通过；不替代C的耐久验证ledger |
+| SEC-F1-02C1 | DONE | 独立entity/repo与挑战服务；真实挑战、磁盘SQL.js重开14/14；F1目录6 suites/71与API build通过；不含生产注册/接线 |
+| SEC-F1-02C2 | READY | 生产验证服务、双库Entity/migration注册、PostgreSQL及运行时Verified ledger接线待实现 |
+| SEC-F1-02D | WAIT_DEP | preview/单批发布/激活统一结果与事务内context复核等待C2 |
+| SEC-F1-02E | READY | B已完成；Gateway/MCP执行前声明/Binding复核与旧snapshot/撤销零联网可推进，仍须消费E1-03实际部署路径 |
+| SEC-F1-02F | WAIT_DEP | 双runtime端到端、SQL.js/PostgreSQL重开、并发迟到/同revision变化等待D/E |
 | SEC-F2-01 | DONE | Consumer/Upstream分区、真实binding revision/Registry generation与reload恢复；UI12/12、实际UI适配器到Nest/Registry HTTP1/1、后端21/21；进程范围明确，浏览器点击未验 |
 | SEC-F2-02 | DONE | Gateway/MCP临时匿名原因/到期/生产风险和actor回显，保存重开及拒绝反馈；UI构建、表单/真实模板26/26，浏览器点击未验，见UI证据 |
 | SEC-F3-01 | DONE | [网络合同§4](./security-header-network-boundary-contract.md)冻结public/direct、限期例外、DNS/peer/TLS、safe-read及撤销；仅DOC |
 | SEC-F3-02 | WAIT_DEP | F3政策已冻结；仍等D1-02D，DNS/连接/逐跳/撤销及Windows/Linux真实证据未完成 |
 | SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
 | SEC-F3a-01 | READY | 需在线公告时另行验证，不复用旧漏洞数 |
-| SEC-F4-01 | DONE | 45个SEC叶子逐项索引、70个链接有效；区分历史/本地限定/未运行环境，不代表F4-02签收 |
+| SEC-F4-01 | DONE | 当前73个SEC叶子以逐项或明确聚合旧ID维护，83个链接有效；区分历史/本地限定/未运行环境，不代表F4-02签收 |
 | SEC-F4-02 | NEED_ENV | 目标环境与授权另核实 |
 | OBS-06-01 | READY | 不重写已有发送边界 |
 | OBS-06-02 | NEED_ENV | 真实环境待核实 |
@@ -238,3 +250,9 @@ F3-01合同及矩阵同步完成，C1-01/F3-01两项DOC已关闭；当前79DONE�
 C1-02及父包C1已按[原出口证据](../audits/2026-09-22-credential-types-scope.md)闭合，F1-02已READY。没有增加叶子；当前81DONE/135，02C缓存接线继续收尾。
 
 02C[缓存隔离](../audits/2026-09-22-header-cache-isolation.md)完成，02D READY；C1包已推送fec02f7，本缓存包随本记录提交推送。最终82DONE、13READY、20WAIT_DEP、17NEED_ENV、1SCOPE_REVIEW、2DEFERRED、0IN_PROGRESS，总数135；安全父包9/11/2/1，跨两专项19/16/3/1。
+## 2026-09-24 F1-02真实交付链拆分
+
+原F1-02从纯声明对账延伸到可信Binding适配、耐久验证证据、发布/激活事务复核、两运行时执行前复核及双数据库/并发验收，不能继续作为单叶推进。现替换为A–F六叶，总量138→143。A已有声明保留、OR/AND纯对账及发布写入前拒绝，限定DONE；B READY；C/D/E/F按前置WAIT_DEP。父TP-F1保持IN_PROGRESS，A完成不代表可信验证、Gateway/MCP零联网或PostgreSQL重开已验收。
+## 2026-09-24 D1与F1首叶完成
+
+SEC-D1-02D1以5套118项完成同一Registry快照到Prepared Exchange的执行材料接线；D3再以2套24项及API构建完成listen前实际HTTP入口事件安装。D2A以3套57项完成纯迁移合同/Schema helper；D2B READY，D2C/D等待依赖，D4继续等待D2D。SEC-F1-02A以17套234项及API构建完成声明保留、OR/AND纯对账和发布/装配写入前拒绝；B以5套57项及API构建完成可信Binding评估与opaque Provider epoch接入，C1以独立entity/repo、挑战服务、真实挑战与磁盘SQL.js重开14/14完成原型，F1目录6套71项和API构建通过；C2生产双库注册、Transport/API、PostgreSQL及Verified ledger接线READY，E保持READY，D/F等待依赖。父TP-D1和TP-F1均保持IN_PROGRESS。

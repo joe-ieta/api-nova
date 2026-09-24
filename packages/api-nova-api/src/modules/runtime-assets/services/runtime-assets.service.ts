@@ -1,3 +1,4 @@
+import { endpointUpstreamSecurityReadiness } from '../../publication/security/endpoint-upstream-security-readiness';
 import { readRuntimeJwtPolicy, normalizeRuntimeJwtPolicy, normalizeTemporaryAnonymousPolicy, assertTemporaryAnonymousPolicy } from 'api-nova-parser';
 import { createRuntimeAccessPolicy, toRuntimeAccessCredential } from './runtime-access-credential';
 import { resolveMcpEndpoint, previewMcpEndpoint, assertMcpEndpointChange } from './mcp-endpoint-config';
@@ -262,6 +263,12 @@ export class RuntimeAssetsService {
     const paths: Record<string, Record<string, unknown>> = {};
 
     for (const item of includedMemberships) {
+      if (item.endpointDefinition) {
+        const security = endpointUpstreamSecurityReadiness(item.endpointDefinition);
+        if (!security.canPublish) throw new ConflictException({
+          code: 'UPSTREAM_SECURITY_BLOCKED', reason: security.reason, state: security.state,
+        });
+      }
       if (!item.endpointDefinition || !item.sourceServiceAsset) {
         throw new ConflictException('INVALID_MCP_OPERATION_OWNERSHIP');
       }
@@ -410,6 +417,12 @@ export class RuntimeAssetsService {
 
     const routes = [];
     for (const item of includedMemberships) {
+      if (item.endpointDefinition) {
+        const security = endpointUpstreamSecurityReadiness(item.endpointDefinition);
+        if (!security.canPublish) throw new ConflictException({
+          code: 'UPSTREAM_SECURITY_BLOCKED', reason: security.reason, state: security.state,
+        });
+      }
       const upstreamResolution = await this.runtimeUpstreamBindingsService.resolve(
         item.membership.id,
       );

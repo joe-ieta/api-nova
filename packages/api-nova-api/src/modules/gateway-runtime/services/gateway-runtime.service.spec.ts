@@ -32,6 +32,7 @@ describe('GatewayRuntimeService', () => {
       writeHit: jest.fn(),
     };
     const gatewayProxyEngineService = {
+      requiresPreparation: jest.fn().mockReturnValue(false),
       prepareRequest: jest.fn(),
       forward: jest.fn(),
     };
@@ -523,6 +524,27 @@ describe('GatewayRuntimeService', () => {
       expect(deps.gatewayTrafficControlService.recordRetryAttempt).not.toHaveBeenCalled();
     },
   );
+
+  it('uses request-local Registry policy for cache and retry without mutating published route', async () => {
+    const deps = createDeps();
+    const target = createResolvedRoute({ policies: { auth: { mode: 'anonymous' }, traffic: { retryPolicy: { attempts: 3 } }, cache: { enabled: true, methods: ['GET'] }, upstream: {} } });
+    deps.gatewayRouteSnapshotService.resolve.mockReturnValue(target);
+    deps.gatewaySecurityService.authorize.mockResolvedValue({ mode: 'anonymous' });
+    deps.gatewayTrafficControlService.admit.mockResolvedValue({ release: jest.fn() });
+    deps.gatewayProxyEngineService.requiresPreparation.mockReturnValue(true);
+    const policy = compileHeaderPolicyV1({ sourceId: 'registry-test', policy: { version: 1 } });
+    const prepared = { compiledHeaderPolicy: policy, historicalAuthenticationHeaderNames: ['x-old'], requestPolicy: { cacheBypass: false, normalizedRequestHeaders: {} } };
+    deps.gatewayProxyEngineService.prepareRequest.mockResolvedValue(prepared);
+    deps.gatewayProxyEngineService.forward.mockRejectedValue(new HttpException('gateway_header_framing', 502));
+    await expect(deps.service.forwardRequest('/orders', { method: 'GET', originalUrl: '/api/v1/gateway/orders', headers: { host: 'localhost' } } as any, { setHeader: jest.fn() } as any)).rejects.toThrow('gateway_header_framing');
+    expect(deps.gatewayProxyEngineService.prepareRequest).toHaveBeenCalledTimes(1);
+    const effective = deps.gatewayCacheService.resolve.mock.calls[0][0];
+    expect(effective).not.toBe(target); expect(effective.policies.upstream.compiledHeaderPolicy).toBe(policy);
+    expect((target.policies as any).upstream.compiledHeaderPolicy).toBeUndefined();
+    expect(deps.gatewayProxyEngineService.forward).toHaveBeenCalledTimes(1);
+    expect(deps.gatewayProxyEngineService.forward.mock.calls[0][3].preparedRequest).toBe(prepared);
+    expect(deps.gatewayTrafficControlService.recordRetryAttempt).not.toHaveBeenCalled();
+  });
 
   it('serves cache hits without calling upstream proxy', async () => {
     const deps = createDeps();

@@ -1,7 +1,7 @@
 ---
-doc-version: 1.48.0
+doc-version: 1.55.0
 doc-status: active
-doc-updated: 2026-09-22
+doc-updated: 2026-09-24
 ---
 # ApiNova 安全开发执行与状态记录
 
@@ -16,7 +16,7 @@ doc-updated: 2026-09-22
 
 DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PROGRESS 包括已有子集和本轮开发，不意味着依赖已闭合；BACKLOG 为尚未实施完整任务的部分；READY 为可开始的明确切片；DEFERRED 为本里程碑之外。
 
-当前共 23 包：DONE=9、IN_PROGRESS=11、BACKLOG=2、DEFERRED=1。A2历史状态复核及本批B1/A3原退出条件已闭合。C1-C3 文件装载到 Gateway 激活已是经验证切片；IN_PROGRESS 的具体实现、剩余退出条件和依赖以第2节状态表及最新执行节为准，历史执行段落仅用于追溯。
+当前共 23 包：DONE=9、IN_PROGRESS=13、BACKLOG=0、DEFERRED=1。A2历史状态复核及本批B1/A3原退出条件已闭合。C1-C3 文件装载到 Gateway 激活已是经验证切片；IN_PROGRESS 的具体实现、剩余退出条件和依赖以第2节状态表及最新执行节为准，历史执行段落仅用于追溯。
 
 ## 2. 阶段任务包
 
@@ -34,12 +34,12 @@ DONE 必须满足该包的代码、测试、文档和安全退出条件；IN_PRO
 | TP-C2 | SEC-C02；C1 | IN_PROGRESS | Env/File Provider 已用于 Registry，Gateway 显式配置激活链已贯通；本机契约历史 53 项通过，真实 Linux 权限 30 场景待补证，Windows Secret File ACL已完成C2-02原生验收，Linux环境出口待验 |
 | TP-C3 | SEC-C03；C2 | IN_PROGRESS | Stable Read、manual及Watch/debounce、受权Reload/状态和代次冲突已验证；C3-01 Watch与C3-02 DB归属完成，C3-03多进程待验 |
 | TP-C4 | SEC-C04；C3 | IN_PROGRESS | Gateway与显式MCP single-hop Resolver已验证；SEC-C4-01验收真实受管child执行及Unresolved门禁，依赖E1/F1；网络政策主归F3，不在C4复制实现 |
-| TP-D1 | SEC-D01；C4 | IN_PROGRESS | D1-01政策、02A编译、02B显式策略真实流及02C缓存完成；02D生产接线与迁移验收尚缺，生产v1激活明确拒绝；非Header保护上线 |
+| TP-D1 | SEC-D01；C4 | IN_PROGRESS | D1-01、02A/B/C、02D1 Registry接线、D3实际入口及D2A纯迁移合同完成；D2B READY，D2C/D及D4等待依赖，生产v1仍未启用 |
 | TP-D2 | SEC-D02；B1/B2/D1 | IN_PROGRESS | 身份化缓存、六层限流与匿名独立桶功能出口已通过D2-01/02；原父依赖B2/D1整体验收待闭合，不额外添加多节点验收门槛 |
 | TP-E0 | MCP Adapter；A0 | DONE | 锁定SDK1.29.0 Streamable/SSE/stdio方法/Header/错误/版本/Session原出口验收，60/60；不改变协议或宣称完整E2安全签收 |
 | TP-E1 | SEC-E01；B3/C4/E0 | IN_PROGRESS | 可信映射、管理侧装配/发布读取、跨源校验及旧候选guard已验；SEC-E1-01~04负责技术方案、真实child接线、argv秘密移除、端到端与运行中撤销；管理侧继续微修不替代出口 |
 | TP-E2 | SEC-E02；E1 | IN_PROGRESS | 安全 smoke/跨进程/传输专项有历史证据；当前完整安全矩阵、撤销/取消/重连和平台组合未完成 |
-| TP-F1 | SEC-F01；C4 | BACKLOG | F1-01四态/Binding/OR-AND合同已定稿；F1-02发布门禁尚未实现，C1-02类型支持已完成，叶子F1-02 READY，不把DOC计为功能闭合 |
+| TP-F1 | SEC-F01；C4 | IN_PROGRESS | F1-01及F1-02A/B/C1完成；C1仅为独立耐久原型，C2生产双库/运行接线READY；E READY，D等待C2、F等待D/E |
 | TP-F2 | SEC-F02；A3/B1/C3/F1 | IN_PROGRESS | F2-01分区/真实generation重载恢复与F2-02临时匿名UI均完成；父依赖C3/F1未闭合，MCP完整凭证编辑/浏览器点击不在本批签收 |
 | TP-F3 | SEC-F03；C4/D1/E1 | IN_PROGRESS | 拒绝审计/脱敏/发送边界已有；F3-01网络政策已冻结；业务上游 SSRF、CLI 秘密、生命周期审计和完整 Secret Scan 未完成 |
 | TP-F3a | 供应链治理；独立 | IN_PROGRESS | 旧依赖审计只是历史快照；当前可达性、补丁兼容和风险需重审，不自动 audit fix/重大升级 |
@@ -720,7 +720,7 @@ D2-02完成，见[组合证据](../audits/2026-09-21-layered-rate-limit-composit
 
 ## 网络边界政策（2026-09-21）
 
-[F3-01合同§4](./security-header-network-boundary-contract.md)完成DOC：公网/直连默认、精确限期内网例外、DNS全集与连接绑定、TLS/peer写出前复核、限定safe-read跳转与撤销已明确。当前默认未改变；F3-02等待D1-02D，真实网络矩阵和双平台验收未执行。
+[F3-01合同§4](./security-header-network-boundary-contract.md)完成DOC：公网/直连默认、精确限期内网例外、DNS全集与连接绑定、TLS/peer写出前复核、限定safe-read跳转与撤销已明确。当前默认未改变；F3-02等待D1-02D4，真实网络矩阵和双平台验收未执行。
 
 ## Header双向流执行（2026-09-21）
 
@@ -728,8 +728,12 @@ D2-02完成，见[组合证据](../audits/2026-09-21-layered-rate-limit-composit
 
 ## 四类凭据实现与C1闭合（2026-09-22）
 
-[验收证据](../audits/2026-09-22-credential-types-scope.md)关闭C1-02，原SEC-C01与A0条件复核后TP-C1 DONE。Parser27套533项、API联合30套428项、Gateway/显式single-hop真实27项及准备32项均通过；这些计数重叠，不相加。最终API/Parser/Server构建通过；构建发现旧准备器单引用假设已补Basic双引用，没有启用生产IPC。F1-02 READY，父包安全9DONE/11IN_PROGRESS/2BACKLOG/1DEFERRED。
+[验收证据](../audits/2026-09-22-credential-types-scope.md)关闭C1-02，原SEC-C01与A0条件复核后TP-C1 DONE。Parser27套533项、API联合30套428项、Gateway/显式single-hop真实27项及准备32项均通过；这些计数重叠，不相加。最终API/Parser/Server构建通过；构建发现旧准备器单引用假设已补Basic双引用，没有启用生产IPC。F1-02 READY，父包安全9DONE/11IN_PROGRESS/2BACKLOG/1DEFERRED。（该句记录当时快照；当前状态见第2节。）
 
 ## Header缓存隔离（2026-09-22）
 
 [02C验收](../audits/2026-09-22-header-cache-isolation.md)完成必需vary/策略/材料代次、每次命中前预检、原始禁存与真实miss/hit；32项真实HTTP和联合428项通过。02D READY，生产未就绪门禁仍有效，D1/D2父包保持原依赖。
+
+## 2026-09-24 D1-02D重拆与F1-02并行
+
+运行时/快照审查发现原02D横跨Registry同代策略+凭据接线、持久迁移防降级、实际HTTP bootstrap事件安装和冷重启矩阵四出口；旧活动snapshot还校验compiled policy fingerprint，直接默认v1会使旧快照冷启动失败。现把02D替换成D1/D2/D3/D4四个有依赖叶；D1以5套118项完成，D3以2套24项及API构建完成实际入口安装。D2进一步拆为A–D：A以3套57项完成具名legacy期限、未知字段与来源变更拒绝的纯迁移契约/校验器，且未接生产创建入口或持久化，B READY，C/D等待依赖，D4等待D2D。F1-02进一步拆为A–F：A以17套234项和API构建完成，B以5套57项和API构建完成可信Binding评估与opaque Provider epoch接入，C进一步拆为C1/C2：C1以独立entity/repo、挑战服务、真实挑战与磁盘SQL.js重开14/14完成，F1目录6套71项和API构建通过；C2生产Entity/migration、Transport/API、PostgreSQL及Verified ledger接线READY。E READY，D等待C2、F等待D/E；总量经F1拆分为143、D2拆分为146、F1-C拆分为147。两个父包继续IN_PROGRESS。

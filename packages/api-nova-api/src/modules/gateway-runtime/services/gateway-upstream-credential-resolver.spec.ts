@@ -45,7 +45,7 @@ async function registry() {
     }),
   });
   await store.reload(candidate);
-  return { store, value };
+  return { store, value, candidate };
 }
 
 function request(headers: Record<string, string>): any {
@@ -154,5 +154,77 @@ describe('Gateway C4 upstream credential adapter', () => {
       if (previous === undefined) delete process.env.GATEWAY_LEGACY_TEST;
       else process.env.GATEWAY_LEGACY_TEST = previous;
     }
+  });
+});
+
+
+describe('Gateway D1 Registry policy exchange', () => {
+  test('opt-in is required and Site/Endpoint policies stay with one authorized generation', async () => {
+    const { store, candidate } = await registry();
+    const next: any = candidate; next.metadata.revision = 'policy-1';
+    next.sites[0].headerPolicy = { version: 1, requestHeaders: ['x-site'], responseHeaders: ['x-result'] };
+    next.sites[0].endpoints[0].headerPolicy = { version: 1, requestHeaders: ['x-endpoint'] };
+    next.sites[0].endpoints.push({ method: 'GET', path: '/items', credential: 'none', headerPolicy: { version: 1, requestHeaders: ['x-wrong-selector'] } });
+    await store.reload(next);
+    await expect(createGatewayUpstreamCredentialResolver(() => store.captureSnapshot()).resolve(route(), 'https://api.example.com/items', 'GET')).rejects.toThrow('NOT_READY');
+    const capture = jest.fn(() => store.captureSnapshot());
+    const adapter = createGatewayUpstreamCredentialResolver(capture, { enableHeaderPolicy: true });
+    const result = await adapter.resolve(route(), 'https://api.example.com/items', 'GET');
+    expect(capture).toHaveBeenCalledTimes(1);
+    expect(result.registryGeneration).toBe(2);
+    expect(result.registryRevision).toBe('policy-1');
+    expect(result.registrySiteId).toBe('site');
+    expect(result.compiledHeaderPolicy?.requestExtensions).toEqual(['x-endpoint']);
+    expect(result.compiledHeaderPolicy?.responseExtensions).toEqual(['x-result']);
+    expect(result.headers).toEqual({ 'x-private': 'synthetic-private' });
+    expect(result.historicalAuthenticationHeaderNames).toContain('x-private');
+    expect(Object.isFrozen(result)).toBe(true);
+    expect(Object.isFrozen(result.historicalAuthenticationHeaderNames)).toBe(true);
+    const other = route(); other.endpointDefinition.id = 'unlisted';
+    expect((await adapter.resolve(other, 'https://api.example.com/items', 'GET')).compiledHeaderPolicy?.requestExtensions).toEqual(['x-site']);
+    await expect(adapter.resolve(route(), 'https://other.example.com/items', 'GET')).rejects.toThrow('SITE_NOT_FOUND');
+    const conflict = route(); conflict.routeBinding.upstreamConfig = { headerPolicy: { version: 1 } };
+    await expect(adapter.resolve(conflict, 'https://api.example.com/items', 'GET')).rejects.toThrow('SOURCE_CONFLICT');
+  });
+
+  test('a reload while resolving secrets cannot mix Header policy generations', async () => {
+    const { store, candidate } = await registry();
+    const first: any = candidate; first.metadata.revision = 'policy-1';
+    first.sites[0].headerPolicy = { version: 1, requestHeaders: ['x-before'] };
+    await store.reload(first);
+    const captured = store.captureSnapshot();
+    let release!: () => void;
+    let entered!: () => void;
+    const enteredPromise = new Promise<void>(resolve => { entered = resolve; });
+    const wait = new Promise<void>(resolve => { release = resolve; });
+    const snapshot = { ...captured, resolveSecret: async () => { entered(); await wait; return 'before-secret'; } };
+    const capture = jest.fn(() => snapshot);
+    const adapter = createGatewayUpstreamCredentialResolver(capture, { enableHeaderPolicy: true });
+    const pending = adapter.resolve(route(), 'https://api.example.com/items', 'GET');
+    await enteredPromise;
+    const next = JSON.parse(JSON.stringify(first)); next.metadata.revision = 'rev-2';
+    next.sites[0].headerPolicy.requestHeaders = ['x-after'];
+    await store.reload(next); release();
+    const result = await pending;
+    expect(capture).toHaveBeenCalledTimes(1);
+    expect(result.registryGeneration).toBe(2);
+    expect(result.registryRevision).toBe('policy-1');
+    expect(result.compiledHeaderPolicy?.requestExtensions).toEqual(['x-before']);
+    expect(result.headers['x-private']).toBe('before-secret');
+    expect(store.captureSnapshot().generation).toBe(3);
+  });
+
+  test('None does not remove policy or historical names and scope rejection still applies', async () => {
+    const { store, candidate } = await registry(); const next: any = candidate; next.metadata.revision = 'policy-1';
+    next.sites[0].headerPolicy = { version: 1 };
+    next.sites[0].endpoints[0].credential = 'none';
+    await store.reload(next);
+    const adapter = createGatewayUpstreamCredentialResolver(() => store.captureSnapshot(), { enableHeaderPolicy: true });
+    const result = await adapter.resolve(route(), 'https://api.example.com/items', 'GET');
+    expect(result.headers).toEqual({}); expect(result.compiledHeaderPolicy?.version).toBe(1);
+    expect(result.managedHeaderNames).toContain('x-private');
+    next.sites[0].endpoints[0].credential = 'private'; next.credentials.private.methods = ['POST']; next.metadata.revision = 'policy-2';
+    await store.reload(next);
+    await expect(adapter.resolve(route(), 'https://api.example.com/items', 'GET')).rejects.toThrow('SCOPE_MISMATCH');
   });
 });

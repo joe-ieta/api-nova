@@ -1,3 +1,4 @@
+import { endpointUpstreamSecurityReadiness } from '../security/endpoint-upstream-security-readiness';
 import { normalizeRuntimeJwtPolicy, normalizeTemporaryAnonymousPolicy, assertTemporaryAnonymousPolicy, RuntimeAuthError } from 'api-nova-parser';
 import {
   BadRequestException,
@@ -1319,6 +1320,11 @@ export class PublicationService {
   ) {
     if (!shouldPublish) {
       return this.buildMembershipPublicationState(context);
+    }
+    // Reject before ensureProfile can create a draft or auto-configuration writes a route.
+    const security = endpointUpstreamSecurityReadiness(context.endpointDefinition);
+    if (!security.canPublish) {
+      throw new BadRequestException('Publish blocked: upstream_security:' + security.reason);
     }
 
     const profile = await this.ensureProfile(

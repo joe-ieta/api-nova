@@ -1,3 +1,4 @@
+import { initializeGatewayHttpIngress } from './common/gateway-ingress-bootstrap';
 import { API_GLOBAL_PREFIX } from './common/http-api-paths';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
@@ -193,6 +194,7 @@ async function bootstrap() {
 
     // 启动应用
     const port = configService.get<number>('PORT', 9001);
+    await initializeGatewayHttpIngress(app);
     await app.listen(port, '0.0.0.0');
 
     logger.log(`🚀 Application is running on: http://localhost:${port}/api/docs`);

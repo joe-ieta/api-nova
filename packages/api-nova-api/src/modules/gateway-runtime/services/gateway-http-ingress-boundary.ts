@@ -2,6 +2,13 @@ import { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { Duplex } from 'node:stream';
 import { API_GLOBAL_PREFIX } from '../../../common/http-api-paths';
 
+/** Preserve raw path segments as Express does; never normalize .. or % escapes. */
+export function gatewayIngressPathname(target: string): string {
+  const raw = target.startsWith('/') ? target
+    : target.replace(/^[a-z][a-z0-9+.-]*:\/\/[^/?#]*/i, '');
+  return raw.split(/[?#]/, 1)[0] || '/';
+}
+
 const installed = new WeakSet<Server>();
 const ingressEvents = ['checkContinue', 'checkExpectation', 'upgrade'] as const;
 
@@ -40,7 +47,7 @@ export function installGatewayHttpIngressBoundary(
 
   function selected(request: IncomingMessage): boolean {
     let pathname: string;
-    try { pathname = new URL(request.url || '/', 'http://gateway.invalid').pathname; }
+    try { pathname = gatewayIngressPathname(request.url || '/'); }
     catch { return false; }
     if (!pathname.toLowerCase().startsWith(`/${API_GLOBAL_PREFIX}/v1/gateway/`)) return false;
     const decision: unknown = isV1GatewayRequest(request);

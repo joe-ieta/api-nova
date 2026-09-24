@@ -1,3 +1,4 @@
+import { normalizeUpstreamSecurity } from '../../publication/security/upstream-security-reconciliation';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -650,6 +651,7 @@ export class AssetCatalogService {
         metadata: {
           documentId: input.documentId,
           source: 'document-import',
+          upstreamSecurityDeclaration: normalizeUpstreamSecurity(input.spec, endpoint.rawOperation),
           testStatus: 'untested',
           qualificationState: 'registered',
         },

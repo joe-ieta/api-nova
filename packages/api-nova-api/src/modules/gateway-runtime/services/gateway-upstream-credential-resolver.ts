@@ -3,6 +3,7 @@ import {
   resolveUpstreamCredential,
   upstreamCredentialHeaderName,
   type UpstreamCredentialRegistrySnapshot,
+  type CompiledHeaderPolicyV1,
 } from 'api-nova-parser';
 import { assertGatewayRegistryHeaderPolicyReady, compileGatewayHeaderPolicy } from './gateway-header-policy';
 import type { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
@@ -12,12 +13,18 @@ export const GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER =
 
 export interface GatewayUpstreamCredentialHeaders {
   readonly cacheIdentity?: string;
+  readonly compiledHeaderPolicy?: CompiledHeaderPolicyV1;
+  readonly registryGeneration?: number;
+  readonly registryRevision?: string;
+  readonly registrySiteId?: string;
+  readonly historicalAuthenticationHeaderNames?: readonly string[];
   readonly headers: Readonly<Record<string, string>>;
   readonly credentialHeaderNames: readonly string[];
   readonly managedHeaderNames: readonly string[];
 }
 
 export interface GatewayUpstreamCredentialResolver {
+  readonly headerPolicyEnabled?: boolean;
   resolve(
     route: GatewayResolvedRoute,
     targetUrl: string,
@@ -31,13 +38,16 @@ export interface GatewayUpstreamCredentialResolver {
  */
 export function createGatewayUpstreamCredentialResolver(
   captureSnapshot: () => UpstreamCredentialRegistrySnapshot,
+  options: { readonly enableHeaderPolicy?: boolean } = {},
 ): GatewayUpstreamCredentialResolver {
   if (typeof captureSnapshot !== 'function') {
     throw new Error('Gateway upstream credential snapshot provider is required');
   }
+  const enableHeaderPolicy = options.enableHeaderPolicy === true;
   // Digests never leave this bounded closure; public cache keys only contain random epochs.
   const materials = new Map<string, { digest: string; epoch: string }>();
   return Object.freeze({
+    headerPolicyEnabled: enableHeaderPolicy,
     async resolve(
       route: GatewayResolvedRoute,
       targetUrl: string,
@@ -45,13 +55,22 @@ export function createGatewayUpstreamCredentialResolver(
     ): Promise<GatewayUpstreamCredentialHeaders> {
       const snapshot = captureSnapshot();
       compileGatewayHeaderPolicy({ routeId: route.routeBinding?.id || 'unknown', inlinePolicy: route.routeBinding?.upstreamConfig?.headerPolicy, registryConfigured: true });
-      assertGatewayRegistryHeaderPolicyReady(snapshot.candidate);
+      if (!enableHeaderPolicy) assertGatewayRegistryHeaderPolicyReady(snapshot.candidate);
       const resolution = await resolveUpstreamCredential(snapshot, {
         sourceServiceAssetId: route.sourceServiceAsset.id,
         url: targetUrl,
         requestMethod,
         endpointDefinitionId: route.endpointDefinition.id,
       });
+      // Resolve policy using exactly the Site and Endpoint selector that authorized
+      // the credential. Outbound requestMethod constrains credential scope; it is
+      // not a second Endpoint selector when an Endpoint definition ID exists.
+      const compiledHeaderPolicy = enableHeaderPolicy
+        ? snapshot.getHeaderPolicy?.(resolution.siteId, { endpointDefinitionId: route.endpointDefinition.id })
+        : undefined;
+      if (enableHeaderPolicy && !snapshot.getHeaderPolicy) {
+        throw new Error('GATEWAY_HEADER_POLICY_UNAVAILABLE');
+      }
       const managed = new Set<string>(['authorization', ...snapshot.historicalAuthenticationHeaderNames ?? []]);
       for (const credential of Object.values(snapshot.candidate.credentials)) {
         managed.add(upstreamCredentialHeaderName(credential));
@@ -67,7 +86,12 @@ export function createGatewayUpstreamCredentialResolver(
         epoch = material.epoch;
       }
       return Object.freeze({
-        cacheIdentity: JSON.stringify([metadata, epoch]),
+        cacheIdentity: JSON.stringify([metadata, epoch, compiledHeaderPolicy?.identity ?? null]),
+        compiledHeaderPolicy,
+        registryGeneration: resolution.generation,
+        registryRevision: resolution.revision,
+        registrySiteId: resolution.siteId,
+        historicalAuthenticationHeaderNames: Object.freeze([...snapshot.historicalAuthenticationHeaderNames ?? []]),
         headers: resolution.headers,
         credentialHeaderNames: Object.freeze(Object.keys(resolution.headers)),
         managedHeaderNames: Object.freeze([...managed]),

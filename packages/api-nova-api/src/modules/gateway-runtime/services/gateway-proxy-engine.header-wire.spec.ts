@@ -3,7 +3,8 @@ import * as net from 'node:net';
 import { gzipSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import express = require('express');
-import { compileHeaderPolicyV1 } from 'api-nova-parser';
+import { compileHeaderPolicyV1, UpstreamCredentialRegistry } from 'api-nova-parser';
+import { createGatewayUpstreamCredentialResolver, GatewayUpstreamCredentialResolver } from './gateway-upstream-credential-resolver';
 import { GatewayProxyEngineService } from './gateway-proxy-engine.service';
 
 const listen = (server: net.Server) => new Promise<number>(resolve => server.listen(0, '127.0.0.1', () => resolve((server.address() as net.AddressInfo).port)));
@@ -17,9 +18,9 @@ const request = (port: number, method = 'GET', headers: http.OutgoingHttpHeaders
 
 describe('Gateway explicit compiled Header v1 real wire', () => {
   let upstream: http.Server; let gateway: http.Server; let port: number;
-  let handler: http.RequestListener; let route: any; let hits: number; let errors: any[]; let trailerAudit: jest.Mock; let noCredential: boolean; let resolverFailure: boolean;
+  let handler: http.RequestListener; let route: any; let hits: number; let errors: any[]; let trailerAudit: jest.Mock; let noCredential: boolean; let resolverFailure: boolean; let actualRegistry: GatewayUpstreamCredentialResolver | undefined; let registryPolicy: any; let resolverCalls: number; let preparationRequired: boolean;
   beforeEach(async () => {
-    hits = 0; errors = []; noCredential = false; resolverFailure = false; trailerAudit = jest.fn().mockResolvedValue(undefined); handler = (_req, res) => res.end('ok');
+    hits = 0; errors = []; actualRegistry = undefined; registryPolicy = undefined; resolverCalls = 0; preparationRequired = false; noCredential = false; resolverFailure = false; trailerAudit = jest.fn().mockResolvedValue(undefined); handler = (_req, res) => res.end('ok');
     upstream = http.createServer((req, res) => { hits++; handler(req, res); });
     const upstreamPort = await listen(upstream);
     route = { upstreamBaseUrl: `http://127.0.0.1:${upstreamPort}`, params: {}, runtimeAsset: { id: 'r' }, membership: { id: 'm' },
@@ -29,9 +30,9 @@ describe('Gateway explicit compiled Header v1 real wire', () => {
         sourceId: 'test', policy: { version: 1, requestHeaders: ['x-business'], responseHeaders: ['x-result'] },
       }) } } };
     const capture = { createTracker: () => ({ observeChunk() {}, finalize: () => ({}) }) };
-    const proxy = new GatewayProxyEngineService(capture as any, { resolve: async () => { if (resolverFailure) throw new Error('sensitive-provider-detail'); return { headers: noCredential ? {} : { authorization: 'Bearer private-upstream' }, credentialHeaderNames: noCredential ? [] : ['authorization'], managedHeaderNames: ['authorization', 'x-old-key'] }; } }, { recordPolicyObservabilityEvent: trailerAudit } as any);
+    const proxy = new GatewayProxyEngineService(capture as any, { headerPolicyEnabled: true, resolve: async (resolved, target, method) => { resolverCalls++; if (actualRegistry) return actualRegistry.resolve(resolved, target, method); if (resolverFailure) throw new Error('sensitive-provider-detail'); return { compiledHeaderPolicy: registryPolicy, historicalAuthenticationHeaderNames: ['x-retired'], headers: noCredential ? {} : { authorization: 'Bearer private-upstream' }, credentialHeaderNames: noCredential ? [] : ['authorization'], managedHeaderNames: ['authorization', 'x-old-key'] }; } }, { recordPolicyObservabilityEvent: trailerAudit } as any);
     const app = express();
-    app.use((req, res) => { void proxy.forward(route, req, res).catch(error => { errors.push(error); if (!res.headersSent) res.status(error.getStatus?.() ?? 500).end(error.message); else res.destroy(); }); });
+    app.use((req, res) => { preparationRequired = proxy.requiresPreparation(route); void (async () => { const preparedRequest = preparationRequired ? await proxy.prepareRequest(route, req) : undefined; return proxy.forward(route, req, res, { preparedRequest }); })().catch(error => { errors.push(error); if (!res.headersSent) res.status(error.getStatus?.() ?? 500).end(error.message); else res.destroy(); }); });
     gateway = http.createServer(app); port = await listen(gateway);
   });
   afterEach(async () => { if (gateway) await close(gateway); if (upstream) await close(upstream); });
@@ -44,6 +45,41 @@ describe('Gateway explicit compiled Header v1 real wire', () => {
     expect(seen['x-business']).toBe('yes'); expect(seen['x-secret']).toBeUndefined(); expect(seen.cookie).toBeUndefined(); expect(seen['x-old-key']).toBeUndefined();
     expect(seen['x-forwarded-for']).toBe('127.0.0.1'); expect(seen['x-forwarded-proto']).toBe('http');
     expect(output.headers['x-result']).toBe('yes'); expect(output.headers['x-secret']).toBeUndefined(); expect(output.headers['set-cookie']).toBeUndefined(); expect(output.headers.authorization).toBeUndefined();
+  });
+  it('real Registry opt-in enforces Endpoint allowlist and injected credential on HTTP', async () => {
+    const store = new UpstreamCredentialRegistry({ environment: 'test', providerFactory: description => ({ type: description.type, resolve: async () => 'registry-secret' }) });
+    const address = new URL(route.upstreamBaseUrl);
+    await store.reload({ apiVersion: 'security.apinova.io/v1', kind: 'UpstreamCredentialBindings', metadata: { revision: 'wire-v1', environment: 'test' }, reload: { mode: 'manual', debounceMs: 0, rejectPlaintextSecrets: true }, secretProviders: { env: { type: 'env' } }, credentials: { key: { type: 'apiKey', placement: { in: 'header', name: 'x-managed' }, secretRef: 'env:FIXTURE' } }, sites: [{ id: 'site', sourceServiceAssetId: 's', match: { scheme: 'http', host: '127.0.0.1', port: Number(address.port), basePath: '/' }, allowedHosts: ['127.0.0.1'], credential: 'key', headerPolicy: { version: 1, requestHeaders: ['x-site'], responseHeaders: ['x-result'] }, endpoints: [{ endpointDefinitionId: 'e', headerPolicy: { version: 1, requestHeaders: ['x-business'] } }] }] });
+    actualRegistry = createGatewayUpstreamCredentialResolver(() => store.captureSnapshot(), { enableHeaderPolicy: true });
+    delete route.policies.upstream.compiledHeaderPolicy;
+    let seen: http.IncomingHttpHeaders = {};
+    handler = (req, res) => { seen = req.headers; res.setHeader('x-result', 'yes'); res.setHeader('x-hidden', 'no'); res.end('ok'); };
+    const output = await request(port, 'GET', { 'x-business': 'yes', 'x-site': 'no', 'x-managed': 'forged' });
+    expect(output.status).toBe(200); expect(resolverCalls).toBe(1);
+    expect(seen['x-business']).toBe('yes'); expect(seen['x-site']).toBeUndefined(); expect(seen['x-managed']).toBe('registry-secret');
+    expect(output.headers['x-result']).toBe('yes'); expect(output.headers['x-hidden']).toBeUndefined();
+  });
+  it('consumes one Registry exchange for both wire directions without mutating route', async () => {
+    registryPolicy = route.policies.upstream.compiledHeaderPolicy;
+    delete route.policies.upstream.compiledHeaderPolicy;
+    let seen: http.IncomingHttpHeaders = {};
+    handler = (req, res) => { seen = req.headers; res.setHeader('x-result', 'allowed'); res.setHeader('x-secret', 'stripped'); res.end('ok'); };
+    const output = await request(port, 'GET', { 'x-business': 'yes', 'x-secret': 'no', 'x-retired': 'never-forward' });
+    expect(output.status).toBe(200); expect(preparationRequired).toBe(true); expect(resolverCalls).toBe(1);
+    expect(seen['x-business']).toBe('yes'); expect(seen['x-secret']).toBeUndefined(); expect(seen['x-retired']).toBeUndefined();
+    expect(output.headers['x-result']).toBe('allowed'); expect(output.headers['x-secret']).toBeUndefined();
+    expect(route.policies.upstream.compiledHeaderPolicy).toBeUndefined();
+  });
+  it('rejects simultaneous Registry and route policy before an upstream connection', async () => {
+    registryPolicy = route.policies.upstream.compiledHeaderPolicy;
+    expect((await request(port)).status).toBe(503); expect(hits).toBe(0);
+    expect(errors[0].message).toBe('gateway_header_policy_source_conflict');
+  });
+  it('retired Registry authentication names cannot become extensions', async () => {
+    registryPolicy = compileHeaderPolicyV1({ sourceId: 'stale-policy', policy: { version: 1, requestHeaders: ['x-retired'] } });
+    delete route.policies.upstream.compiledHeaderPolicy;
+    let seen: http.IncomingHttpHeaders = {}; handler = (req, res) => { seen = req.headers; res.end('ok'); };
+    expect((await request(port, 'GET', { 'x-retired': 'secret' })).status).toBe(200); expect(seen['x-retired']).toBeUndefined();
   });
   it('preserves compressed request and response bytes without decoding', async () => {
     const payload = gzipSync(Buffer.from('compressed-原文'.repeat(300))); let observed = Buffer.alloc(0);

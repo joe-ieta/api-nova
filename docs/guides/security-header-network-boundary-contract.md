@@ -1,7 +1,7 @@
 ---
-doc-version: 1.4.0
+doc-version: 1.9.0
 doc-status: active
-doc-updated: 2026-09-22
+doc-updated: 2026-09-24
 ---
 # D1/F3 请求头与网络边界契约
 
@@ -77,7 +77,7 @@ Webhook 目的地策略不能替代业务路径的证据，其政策不能直接
 
 ## 3. D1 Header 政策 v1（已定稿，分阶段实施）
 
-本节是项目选择；02A编译、02B显式策略执行和02C缓存已交付，生产启用仍等02D，不能声称全部能力已上线。范围为 Gateway 请求与响应；共享名称/值校验可供 Parser 复用，Parser 的实际生产接入和逐跳网络授权仍分别属于 E1/F3。不得用纯函数测试替代 Gateway 真正出站及返回客户端的证明。
+本节是项目选择；02A编译、02B显式策略执行和02C缓存已交付。原02D已拆为D1 Registry执行接线、D2迁移防降级、D3实际入口和D4联合验收；生产启用仍须全部闭合，不能声称能力已上线。范围为 Gateway 请求与响应；共享名称/值校验可供 Parser 复用，Parser 的实际生产接入和逐跳网络授权仍分别属于 E1/F3。不得用纯函数测试替代 Gateway 真正出站及返回客户端的证明。
 
 ### 3.1 配置、继承和激活
 
@@ -256,15 +256,15 @@ SEC-F3-01 到本节政策定稿完成；SEC-F3-02 必须同时完成受信任配
 | H01 | 大小写混合 Authorization/X-API-Key/Cookie/Proxy-Authorization | 消费者值不出站，有绑定时只出现当前合成凭据 | 02B真实HTTP通过；生产仍门禁 |
 | H02 | Connection 字符串/数组/重复名/空项，声明业务和认证头 | 入站声明字段全剥离；可信凭据仍可注入；trailer/trailers 分别断言 | 02B纯函数与真实Connection提名通过 |
 | H03 | x-business 未在 allowlist | 当前基线保留，新策略启用后剥离；两种夹具分开 | 02B显式v1真实过滤通过；legacy基线保留 |
-| H04 | Endpoint 扩展缺失/空/替换 Site | 分别继承/仅基础/基础加 Endpoint 扩展；拒绝通配符和非法名 | 02A编译/Registry通过；02D生产接线待验 |
+| H04 | Endpoint 扩展缺失/空/替换 Site | 分别继承/仅基础/基础加 Endpoint 扩展；拒绝通配符和非法名 | 02A编译/Registry通过；D1生产执行接线、D4联合验收待完成 |
 | H05 | allowlist 含凭据/逐跳/代理保留名 | 请求/响应策略与凭据输出冲突均拒绝激活；旧快照有效，无网络调用 | 02A编译保旧与02B输出拒绝通过；生产仍拒绝激活 |
 | H06 | None 且携带其他候选的认证名 | 候选托管名剥离，不注入凭据 | 02B None真实HTTP通过 |
-| H07 | 轮换后删除旧自定义认证名 | 新策略剥离未允许的旧名；基线显式暴露当前剥离清单局限 | 02A历史名快照与02B显式元数据通过；持久迁移待02D |
+| H07 | 轮换后删除旧自定义认证名 | 新策略剥离未允许的旧名；基线显式暴露当前剥离清单局限 | 02A历史名快照与02B显式元数据通过；持久迁移待D2/D4 |
 | H08 | 大小写重复/重复单值/CR-LF/多值 Accept | 按 §3.4 原始字段规则拒绝或合并，无重复凭据和 framing 歧义 | 02B纯函数与真实重复/framing通过 |
-| H09 | 伪造 XFF/Forwarded/request-id，v1 peer-only 与 legacy 迁移 | 当前 XFF 保留前缀作基线；v1 只用 socket peer 构造链，身份不采用伪造值 | 02B真实HTTP peer字段通过；完整迁移待02D |
-| H10 | 固定长度/分块/空体/Expect/取消 | framing 和实际字节一致，无双 framing、二次消费或空体重放 | 02B真实流与独立Expect入口通过；生产入口安装待02D |
-| H11 | Range/If-*/Accept-Encoding 不同而路径相同，随后缓存命中 | 状态/Header/正文与直连语义一致；按 §3.6 强制隔离或 bypass 有证据 | 02C受控真实miss/hit通过；生产整合待02D |
-| H12 | Resolver 错误/None/旧 Env/非法 Env | Resolver 错误固定 503 且 connectCalls=0；旧 Env 分支独立断言，不错误套用固定 503 | 02B真实Resolver503零命中及旧专项通过；完整生产接线待02D |
+| H09 | 伪造 XFF/Forwarded/request-id，v1 peer-only 与 legacy 迁移 | 当前 XFF 保留前缀作基线；v1 只用 socket peer 构造链，身份不采用伪造值 | 02B真实HTTP peer字段通过；完整迁移待D2/D4 |
+| H10 | 固定长度/分块/空体/Expect/取消 | framing 和实际字节一致，无双 framing、二次消费或空体重放 | 02B真实流与独立Expect入口通过；生产入口安装待D3/D4 |
+| H11 | Range/If-*/Accept-Encoding 不同而路径相同，随后缓存命中 | 状态/Header/正文与直连语义一致；按 §3.6 强制隔离或 bypass 有证据 | 02C受控真实miss/hit通过；生产整合待D1/D3/D4 |
+| H12 | Resolver 错误/None/旧 Env/非法 Env | Resolver 错误固定 503 且 connectCalls=0；旧 Env 分支独立断言，不错误套用固定 503 | 02B真实Resolver503零命中及旧专项通过；完整生产接线待D1/D4 |
 | N01 | Gateway 收到 302/307 与 Location | 仅一次 request，返回状态/Location，hop=0，无下一跳 | 代码基线待执行 |
 | N02 | Parser legacy与safe-read第五/第六次跳转 | 分别验证既有legacy基线和显式safe-read的5次边界；默认不跟随；有无context一致 | 政策已定，待实现 |
 | N03 | 初始 scheme/host/port/base path/asset 不匹配 | C4 联网前拒绝，allowedHosts 不能单独放行 | Resolver 逻辑待执行 |
@@ -294,7 +294,7 @@ SEC-F3-01 到本节政策定稿完成；SEC-F3-02 必须同时完成受信任配
 | --- | --- | --- |
 | C3 稳定读取和显式配置激活（已实现） | 以 reloadFile 和启动工厂作为接入基线，不作为缺失能力阻塞 D1/F3 | 实现与操作见稳定文件读取、Gateway 凭据 Provider 和运行手册；验证见[执行台账第 18 节](E:/CodexDev/api-nova/docs/guides/security-development-execution-status.md) |
 | C4 适配/配置校验 | 托管名、保留字段冲突、目标 Endpoint 身份、整链版本和撤销语义 | 共享 Resolver/适配接口；纯 Resolver 保持无网络 I/O |
-| D1 编译 Schema 与迁移实施 | 第 3 节已冻结来源、版本、继承/替换、非法拒绝、兼容差异和有限例外 | SEC-D1-01 政策完成；SEC-D1-02 实施与真实传输验收仍待完成 |
+| D1 编译 Schema 与迁移实施 | 第 3 节已冻结来源、版本、继承/替换、非法拒绝、兼容差异和有限例外 | 02A/B/C、D1执行接线、D3入口及D2A纯迁移合同完成；D2B/C/D与D4待完成 |
 | D2 缓存与传输 | 条件/范围/压缩头、framing、可信代理和重放规则闭合 | Gateway 数据面集成 |
 | E1 MCP 接入 | Parser 每跳使用共享安全能力，无 context 同样受控 | MCP Adapter/Parser，不直接复用 Gateway 入站 Filter |
 | F3 目的地政策 | 公网限制、内网例外、代理、降级、跨 asset 授权明确 | 第4节政策已冻结；旧配置显式迁移，禁止静默改变默认 |
@@ -317,10 +317,13 @@ D1 allowlist 政策已经定稿，执行代码与 H01–H12 验收尚待完成�
 
 [双向真实流证据](../audits/2026-09-21-header-wire-execution.md)交付显式compiled路径的rawHeaders校验、双向过滤、framing与真实字节流；入口helper已验Expect但未挂生产main。v1运行路径暂时全部绕过缓存且出站不复用连接，旧路径不因此改为allowlist。
 
-请求尚未完整发送而上游提前给最终响应时，v1保守502中止；此兼容差异归02D迁移评估。原生HTTP解析器隐藏的超长尾部不能由应用计数器全面识别，不能据此宣称请求走私全部解决。未就绪门禁保持到02C缓存及02D真实接线/默认迁移/防降级验收闭合。
+请求尚未完整发送而上游提前给最终响应时，v1保守502中止；此兼容差异归02D迁移评估。原生HTTP解析器隐藏的超长尾部不能由应用计数器全面识别，不能据此宣称请求走私全部解决。未就绪门禁保持到已完成的02C缓存及D1执行接线、D2默认迁移/防降级、D3入口、D4联合验收全部闭合。
 
 ## D1-02C缓存实施（2026-09-22）
 
 [真实缓存证据](../audits/2026-09-22-header-cache-isolation.md)完成§3.6：命中前当前凭据/原始Header预检、必需vary/策略/可信身份及非敏感材料代次隔离、原始响应veto、压缩实体原样与命中framing重建。此增量替代上一02B阶段“v1暂时全部绕过缓存”的临时措施。
 
-v1还保留完整query顺序并去掉消费者认证query；不允许配置裁剪必需维度。未知或无法解析缓存指令保守禁存；max-age/s-maxage及原始Age收窄TTL。生产入口、Registry元数据接线及迁移仍归02D；原始策略门禁未删除。
+v1还保留完整query顺序并去掉消费者认证query；不允许配置裁剪必需维度。未知或无法解析缓存指令保守禁存；max-age/s-maxage及原始Age收窄TTL。生产Registry元数据/执行接线归D1，迁移归D2，入口归D3，重启与联合验收归D4；原始策略门禁未删除。
+## D1-02D有界拆分（2026-09-24）
+
+原02D不是单一验收动作，现以四个叶子执行：D1将同一Registry快照的Site/Endpoint策略、凭据、代次与历史名随不可变Prepared Exchange接入双向过滤/缓存；D2负责新路由默认v1、具名legacy最长30天、迁移状态持久和防删除/关Provider降级；D3在Nest/Socket.IO初始化后、listen前安装checkContinue/checkExpectation/upgrade；D4执行真实membership激活、数据库重开、冷启动迁移及H01–H12联合矩阵。D1以5套118项限定完成，D3以2套24项及API构建完成实际入口安装；D2进一步拆为A–D：A以3套57项完成具名legacy期限、未知字段与来源变更拒绝的纯迁移契约/校验器，且未接生产创建入口或持久化；B负责新Binding v1持久创建，C负责legacy最长30天与撤销，D负责冷重启/坏迁移/Provider拒绝降级验收。B READY，C/D等待依赖，D4等待D2D。旧活动snapshot把compiled policy fingerprint纳入校验，故不得用缺省v1字段绕过迁移使冷启动失败，也不得删除NOT_READY门禁宣称上线。
