@@ -1,5 +1,5 @@
 ---
-doc-version: 1.84.0
+doc-version: 1.86.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -159,9 +159,11 @@ SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F1/F2/F3/F
 | SEC-F3-02C1d2b1 | SEC-F3 | CODE | Immutable Host Provider Generation Store | 建立host-owned不可变generation存储，按source绑定精确Registry Snapshot与secret capture，单调发布并同步表达revoke/expiry；不从环境值、文件mtime或调用方revision推导，不接外部Secret Manager | SEC-F3-02C1d1;SEC-F3-02C1c |
 | SEC-F3-02C1d2b2 | SEC-F3 | CODE | Registry Capture与Opaque Proof | 基于b1对精确Registry capture、Provider材料与generation签发/消费一次性不可伪造proof；并发变化、重放、过期、撤销及读取失败均拒绝，不把proof序列化或交给请求方 | SEC-F3-02C1d2b1 |
 | SEC-F3-02C1d2b3a | SEC-F3 | CODE | Gateway Host generation capability端口 | 独立host-only不可伪造generation/issuer capability与可选注入边界；缺失默认off，不从request/config/env/file自动导入，重复issuer拒绝，close同步失效且秘密不序列化；不接RuntimeModule/Registry | SEC-F3-02C1d2b1 |
-| SEC-F3-02C1d2b3b | SEC-F3 | CODE | Registry/evidence生产组合 | 显式host模式把同一store的RegistryProviderEvidence注入Registry；candidate可来自受信配置但秘密仅从generation读取，Snapshot→proof/epoch/readSignal同代，坏配置/缺材料失败关闭且不混用legacy providerFactory | SEC-F3-02C1d2b3a;SEC-F3-02C1d2b2;SEC-F3-02C1d3 |
-| SEC-F3-02C1d2b3c | SEC-F3 | CODE | Active-route注册协调器 | 原子捕获GatewayRouteSnapshotService当前route对象与catalog version/IDs/fingerprint，构造可信registration；reload/removed同步撤销，candidate/rollback/迟到事件不得发布 | SEC-F3-02C1d2b3b;SEC-F3-02C1d2a;SEC-F3-02C1d1 |
-| SEC-F3-02C1d2b3d | SEC-F3 | CODE | Nest/Gateway稳定Provider装配 | GatewayRuntimeModule显式default-off注入稳定facade；host capability、Registry与catalog证据全齐才原子swap，缺失/坏证据失败关闭，shutdown清理订阅/provider；真实Nest/SQL.js/loopback验收 | SEC-F3-02C1d2b3c |
+| SEC-F3-02C1d2b3b1 | SEC-F3 | CODE | Registry/evidence本地安全组合 | 显式host capability把同一store的RegistryProviderEvidence注入Registry；Snapshot→proof/epoch/readSignal同代，坏配置/缺材料失败关闭且不混用legacy providerFactory；SQL.js共享事务交错时boot fail-closed | SEC-F3-02C1d2b3a;SEC-F3-02C1d2b2;SEC-F3-02C1d3 |
+| SEC-F3-02C1d2b3b2 | SEC-F3 | ENV | PostgreSQL持久ledger验收 | 真实PostgreSQL验证独立事务读、历史ledger CAS/rollback/reopen/并发与同generation proof；不得以SQL.js fail-closed替代生产持久账本正向证据 | SEC-F3-02C1d2b3b1 |
+| SEC-F3-02C1d2b3c1 | SEC-F3 | CODE | Active-route原子捕获seam | 只将当前GatewayActiveRouteCatalog snapshot对象原子关联到同次已提交route对象引用；拒绝ID-only、克隆/旧snapshot，candidate/rollback零发布，stop/delete与迟到reload不能复活；不构造网络许可 | SEC-F3-02C1d2a |
+| SEC-F3-02C1d2b3c2 | SEC-F3 | CODE | Active-route注册协调器 | 仅消费c1不可伪造捕获与D2b3b2已验收安全Registry组合，构造/替换可信registration；reload/removed同步撤销，坏证据保守拒绝，不接生产DI | SEC-F3-02C1d2b3c1;SEC-F3-02C1d2b3b2 |
+| SEC-F3-02C1d2b3d | SEC-F3 | CODE | Nest/Gateway稳定Provider装配 | GatewayRuntimeModule显式default-off注入稳定facade；host capability、Registry与catalog证据全齐才原子swap，缺失/坏证据失败关闭，shutdown清理订阅/provider；真实Nest/SQL.js/loopback验收 | SEC-F3-02C1d2b3c2 |
 | SEC-F3-02C1d3 | SEC-F3 | CODE | Parser Host生命周期桥 | host-only装配TrustedSingleHopNetworkExecution与C1d1 lifecycle，注册可信Snapshot/policy并消费同进程reload/revoke/expiry；source/default-off，providerEvidence缺失永拒，WeakMap只作进程内不可伪造夹具且不是生产issuer；不接managed child/E3b IPC或跨进程传播 | SEC-F3-02C1d1;SEC-F3-02C1b |
 | SEC-F3-02C1d4 | SEC-F3 | VALIDATION | Host/Provider生命周期联合验收 | 真实本地Registry/HTTP/TLS验证普通reload在途固定旧Snapshot且新请求见新，撤销/安全收窄/provider epoch变化/到期在DNS、连接和大流阶段主动abort，失败reload保旧且shutdown无遗留监听/定时器；外部Secret Manager、多进程/E3b及目标环境另验 | SEC-F3-02C1d2b3d;SEC-F3-02C1d3 |
 | SEC-F3-02C2a | SEC-F3 | CODE | 精确受信Redirect目标目录 | 纯host-owned目录按source asset、精确method+path与Endpoint绑定目标；只接受精确路径，未知、歧义、跨asset、scheme降级和非受信目标一律拒绝，不启用生产网络模式 | SEC-F3-02C1b |
