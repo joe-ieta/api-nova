@@ -11,7 +11,7 @@ describe('temporary anonymous publication governance',()=>{
  };
  it('overwrites body actor from trusted control plane identity',async()=>{
   const service=setup();await service.configureRuntimeMembershipGatewayRoute('membership',{upstreamConfig:{temporaryAnonymous:grant()}},'trusted-admin');
-  expect(service.routeBindingRepository.save).toHaveBeenCalledWith(expect.objectContaining({upstreamConfig:{temporaryAnonymous:expect.objectContaining({actor:'trusted-admin'})}}));
+  expect(service.routeBindingRepository.save).toHaveBeenCalledWith(expect.objectContaining({upstreamConfig:expect.objectContaining({temporaryAnonymous:expect.objectContaining({actor:'trusted-admin'})})}));
  });
  it('requires a trusted actor even when body has one',async()=>{
   const service=setup();await expect(service.configureRuntimeMembershipGatewayRoute('membership',{upstreamConfig:{temporaryAnonymous:grant()}})).rejects.toThrow('Trusted actor');

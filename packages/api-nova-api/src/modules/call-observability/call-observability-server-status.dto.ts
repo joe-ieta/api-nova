@@ -13,7 +13,49 @@ export class ObservabilityReportedStateDto {
   @ApiProperty({ type: String, nullable: true, format: 'date-time' }) lastSuccessAt: string | null;
   @ApiProperty({ type: String, nullable: true, format: 'date-time' }) lastFailureAt: string | null;
 }
+export class ObservabilityManagedProcessLifecycleDto {
+  @ApiProperty({ enum: ['managed_server_process_lifecycle'] }) evidenceScope: string;
+  @ApiProperty({ example: false, description: 'A durable host event observation, not a continuous business-process heartbeat.' }) businessProcessLivenessEvaluated: boolean;
+  @ApiProperty() runtimeAssetId: string;
+  @ApiProperty() serverId: string;
+  @ApiProperty({ description: 'Opaque identity for one managed child-process generation.' }) generation: string;
+  @ApiProperty() pid: number;
+  @ApiProperty({ enum: ['started', 'stopped', 'unexpected_exit', 'lost'] }) observedEvent: string;
+  @ApiProperty({ format: 'date-time' }) startedAt: string;
+  @ApiProperty({ format: 'date-time' }) observedAt: string;
+  @ApiProperty({ type: Number, nullable: true }) exitCode: number | null;
+  @ApiProperty({ type: String, nullable: true }) signal: string | null;
+  @ApiProperty({ type: String, nullable: true }) error: string | null;
+  @ApiProperty() stateVersion: number;
+}
+
+export class ObservabilityPersistedInFlightDto {
+  @ApiProperty({ enum: ['runtime_invocation_revisions'] }) source: string;
+  @ApiProperty({ enum: ['observed', 'unknown', 'unavailable'] }) status: string;
+  @ApiProperty({ type: Number, nullable: true, description: 'Retained started, unfinished business facts at snapshotSeq across all start times. Not verified live requests; zero never establishes no traffic.' }) count: number | null;
+  @ApiProperty({ type: String, nullable: true }) reason: string | null;
+  @ApiProperty() dataWatermark: string;
+  @ApiProperty() origin: string;
+  @ApiProperty({ enum: ['all_retained_starts'] }) timeScope: string;
+  @ApiProperty({ example: false }) livenessEvaluated: boolean;
+  @ApiProperty({ enum: ['unknown'] }) coverage: string;
+}
+export class ObservabilityManagedLifecycleHistoryDto {
+  @ApiProperty({ enum: ['runtime_pipeline_states'] }) source: string;
+  @ApiProperty({ enum: ['observed', 'unknown', 'unavailable'] }) status: string;
+  @ApiProperty({ enum: ['latest_generation_only'] }) scope: string;
+  @ApiProperty({ type: String, nullable: true }) reason: string | null;
+  @ApiProperty({ type: String, nullable: true, description: 'Null: managed lifecycle evidence does not share the invocation sequence.' }) dataWatermark: string | null;
+  @ApiProperty({ type: String, nullable: true }) generation: string | null;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' }) startedAt: string | null;
+  @ApiProperty({ type: String, nullable: true, format: 'date-time' }) terminalAt: string | null;
+  @ApiProperty({ type: String, nullable: true }) terminalEvent: string | null;
+  @ApiProperty({ example: false }) historyComplete: boolean;
+}
 export class ObservabilityServerStatusDto {
+  @ApiProperty({ type: ObservabilityPersistedInFlightDto }) persistedInFlight: ObservabilityPersistedInFlightDto;
+  @ApiProperty({ type: ObservabilityManagedLifecycleHistoryDto }) managedLifecycleHistory: ObservabilityManagedLifecycleHistoryDto;
+  @ApiProperty({ type: ObservabilityManagedProcessLifecycleDto, nullable: true, description: 'Last durable managed-child event for this asset; absence or started does not prove current liveness.' }) managedProcessLifecycle: ObservabilityManagedProcessLifecycleDto | null;
   @ApiProperty({ type: ObservabilityGatewayRoutingDto, nullable: true, description: 'This observer process registry only; not listener, dependency or whole-cluster health.' }) gatewayRoutingObservation: ObservabilityGatewayRoutingDto | null;
   @ApiProperty() runtimeAssetId: string;
   @ApiProperty({ enum: ['gateway', 'mcp'] }) serverType: string;

@@ -1,3 +1,4 @@
+import { GatewayUpstreamSecurityRuntimeGuard, assertGatewayUpstreamDeclaration } from './gateway-upstream-security-runtime.guard';
 import {
   BadGatewayException,
   GatewayTimeoutException,
@@ -36,22 +37,45 @@ export type GatewayPreparedProxyRequest = {
 
 @Injectable()
 export class GatewayProxyEngineService {
+  private readonly preparations = new WeakMap<GatewayPreparedProxyRequest, { request: Request; route: string; resolver?: GatewayUpstreamCredentialResolver; used: boolean }>();
   constructor(
     private readonly gatewayRequestCaptureService: GatewayRequestCaptureService,
     @Optional()
     @Inject(GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER)
     private readonly upstreamCredentialResolver?: GatewayUpstreamCredentialResolver,
     @Optional() private readonly gatewayRuntimeMetricsService?: GatewayRuntimeMetricsService,
+    @Optional() private readonly upstreamSecurityGuard?: GatewayUpstreamSecurityRuntimeGuard,
   ) {}
 
   async forward(
     resolvedRoute: GatewayResolvedRoute, req: Request, res: Response,
     options?: { captureResponseBodyMaxBytes?: number; attemptIndex?: number; upstreamOperationId?: string; preparedRequest?: GatewayPreparedProxyRequest },
   ): Promise<GatewayProxyResult & { targetUrl: string }> {
-    const { url, credentials, requestPolicy, compiledHeaderPolicy: policy, historicalAuthenticationHeaderNames } = options?.preparedRequest ?? await this.prepareRequest(resolvedRoute, req);
+    const prior = options?.preparedRequest;
+    if (prior) {
+      const ownership = this.preparations.get(prior);
+      if (!ownership || ownership.used || ownership.request !== req || ownership.route !== this.preparationRoute(resolvedRoute) || ownership.resolver !== this.upstreamCredentialResolver) {
+        throw new ServiceUnavailableException('gateway_prepared_request_reused');
+      }
+      ownership.used = true;
+    }
+    // Resolve again at use time: a cache miss must not transmit a credential that
+    // rotated or was revoked after the initial cache-key preparation.
+    const current = await this.prepareRequest(resolvedRoute, req);
+    this.preparations.get(current)!.used = true;
+    if (prior && (prior.url.href !== current.url.href ||
+      prior.credentials.cacheIdentity !== current.credentials.cacheIdentity ||
+      JSON.stringify(prior.credentials.headers) !== JSON.stringify(current.credentials.headers))) {
+      throw new ServiceUnavailableException('gateway_upstream_security_context_changed');
+    }
+    const { url, credentials, requestPolicy, compiledHeaderPolicy: policy, historicalAuthenticationHeaderNames } = current;
     const transport = url.protocol === 'https:' ? https : http;
     const timeoutMs = resolvedRoute.policies?.traffic?.timeoutMs ?? resolvedRoute.routeBinding.timeoutMs ?? 30000;
-    const headers = requestPolicy?.headers ?? this.buildForwardHeaders(req.headers, url, req, credentials.headers, credentials.managedHeaderNames);
+    // Rebuild framing from the validated exchange, never from the raw TE value.
+    // Node does not default to chunked encoding for GET/HEAD, even when piped bytes exist.
+    const headers = requestPolicy ? { ...requestPolicy.headers,
+      ...(requestPolicy.chunked ? { 'transfer-encoding': 'chunked' } : {}) }
+      : this.buildForwardHeaders(req.headers, url, req, credentials.headers, credentials.managedHeaderNames);
     const requestCapture = this.gatewayRequestCaptureService.createTracker(req.headers['content-type']);
     let upstreamReq: http.ClientRequest | undefined;
     let upstreamRes: http.IncomingMessage | undefined;
@@ -223,11 +247,13 @@ export class GatewayProxyEngineService {
   }
 
   requiresPreparation(route: GatewayResolvedRoute): boolean {
-    return Boolean(route.policies?.upstream?.compiledHeaderPolicy || this.upstreamCredentialResolver?.headerPolicyEnabled);
+    return Boolean(this.upstreamSecurityGuard || route.policies?.upstream?.compiledHeaderPolicy || this.upstreamCredentialResolver?.headerPolicyEnabled);
   }
 
-  /** Resolve and validate before cache lookup; a miss reuses this single snapshot. */
+  /** Validate current declaration and credentials before every cache lookup. */
   async prepareRequest(resolvedRoute: GatewayResolvedRoute, req: Request): Promise<GatewayPreparedProxyRequest> {
+    assertGatewayUpstreamDeclaration(resolvedRoute.endpointDefinition);
+    await this.upstreamSecurityGuard?.assertCurrent(resolvedRoute);
     const url = new URL(this.buildTargetUrl(resolvedRoute.upstreamBaseUrl,
       resolvedRoute.routeBinding.upstreamPath, req.originalUrl, resolvedRoute.params));
     const consumerQueryKey = resolvedRoute.policies?.auth?.apiKeyQueryParamName;
@@ -254,7 +280,16 @@ export class GatewayProxyEngineService {
       });
     } catch (error) { throw this.mapWireError(error); }
     if (requestPolicy) requestPolicy.credentialCacheIdentity = credentials.cacheIdentity;
-    return Object.freeze({ url, credentials, requestPolicy, compiledHeaderPolicy: policy, historicalAuthenticationHeaderNames });
+    const prepared = Object.freeze({ url, credentials, requestPolicy, compiledHeaderPolicy: policy, historicalAuthenticationHeaderNames });
+    this.preparations.set(prepared, { request: req, route: this.preparationRoute(resolvedRoute), resolver: this.upstreamCredentialResolver, used: false });
+    return prepared;
+  }
+
+  private preparationRoute(route: GatewayResolvedRoute): string {
+    return JSON.stringify([route.runtimeAsset?.id, route.runtimeAsset?.updatedAt, route.runtimeAsset?.metadata,
+      route.membership?.id, route.membership?.publicationRevision, route.membership?.updatedAt, route.endpointDefinition?.id, route.endpointDefinition?.updatedAt,
+      route.sourceServiceAsset?.id, route.sourceServiceInstance?.id, route.sourceServiceInstance?.updatedAt,
+      route.upstreamBaseUrl, route.routeBinding]);
   }
 
   private auditDiscardedTrailers(route: GatewayResolvedRoute, req: Request, direction: 'request' | 'response'): void {

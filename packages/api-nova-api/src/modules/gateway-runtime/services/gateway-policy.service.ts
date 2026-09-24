@@ -1,6 +1,9 @@
+import { UpstreamCredentialRegistry } from 'api-nova-parser';
+import { GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY } from './gateway-upstream-credential.providers';
+import { requireGatewayRegistryHeaderV1 } from './gateway-header-v1-readiness';
 import { assertGatewayHeaderPolicyReady } from './gateway-header-policy';
 import { normalizeTemporaryAnonymousPolicy } from 'api-nova-parser';
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Inject, Optional, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { GatewayRouteBindingEntity } from '../../../database/entities/gateway-route-binding.entity';
 import {
   GatewayCompiledPolicyBundle,
@@ -9,8 +12,17 @@ import {
 
 @Injectable()
 export class GatewayPolicyService {
+  constructor(@Optional() @Inject(GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY) private readonly registry?: UpstreamCredentialRegistry | null) {}
+  assertHeaderV1Ready(route: GatewayRouteBindingEntity): string {
+    const snapshot = this.registry?.captureSnapshot();
+    const policy = requireGatewayRegistryHeaderV1(route, snapshot);
+    return JSON.stringify([snapshot!.generation, snapshot!.candidate.metadata.revision, policy.identity]);
+  }
   compileForRoute(routeBinding: GatewayRouteBindingEntity): GatewayCompiledPolicyBundle {
-    try { assertGatewayHeaderPolicyReady(routeBinding.upstreamConfig?.headerPolicy, routeBinding.id); }
+    try {
+      if ((routeBinding.upstreamConfig?.headerPolicyMigration as any)?.mode !== 'legacy' && routeBinding.upstreamConfig?.headerPolicyMigration !== undefined) this.assertHeaderV1Ready(routeBinding);
+      else assertGatewayHeaderPolicyReady(routeBinding.upstreamConfig?.headerPolicy, routeBinding.id);
+    }
     catch { throw new ServiceUnavailableException('GATEWAY_HEADER_POLICY_NOT_READY'); }
     const configuredMode = this.resolveAuthMode(routeBinding.authPolicyRef);
     const visibility = String(routeBinding.routeVisibility || 'internal').trim().toLowerCase();

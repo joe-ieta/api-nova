@@ -38,7 +38,7 @@ describe('runtime access credential forward migration', () => {
       await source.destroy();
 
       source = await new DataSource(options).initialize();
-      expect(await source.runMigrations()).toHaveLength(1);
+      expect(await source.runMigrations()).toHaveLength((options.migrations as string[]).length - 3);
       const repository = source.getRepository(GatewayConsumerCredentialEntity);
       const legacy = await repository.findOneByOrFail({ id: 'legacy' });
       expect(legacy).toMatchObject({ accessPolicy: null, secretHash: 'existing-hash', status: 'active',
@@ -52,11 +52,11 @@ describe('runtime access credential forward migration', () => {
       expect(await source.runMigrations()).toHaveLength(0);
       expect((await source.getRepository(GatewayConsumerCredentialEntity).findOneByOrFail({ id: 'explicit' })).accessPolicy).toEqual(policy);
       expect((await source.getRepository(GatewayConsumerCredentialEntity).findOneByOrFail({ id: 'legacy' })).accessPolicy).toBeNull();
-      await source.undoLastMigration();
+      for (let n = 3; n < (options.migrations as string[]).length; n++) await source.undoLastMigration();
       expect((await source.query('PRAGMA table_info("gateway_consumer_credentials")')).map((column: any) => column.name)).not.toContain('accessPolicy');
       const preserved = await source.query('SELECT "keyId", "secretHash", "runtimeAssetId", "routeBindingId" FROM "gateway_consumer_credentials" WHERE "id" = ?', ['legacy']);
       expect(preserved).toEqual([{ keyId: 'legacy-key', secretHash: 'existing-hash', runtimeAssetId: 'gateway', routeBindingId: 'route' }]);
-      expect(await source.runMigrations()).toHaveLength(1);
+      expect(await source.runMigrations()).toHaveLength((options.migrations as string[]).length - 3);
       // Rollback removes policies; re-upgrade must not recreate access grants implicitly.
       expect((await source.getRepository(GatewayConsumerCredentialEntity).findOneByOrFail({ id: 'explicit' })).accessPolicy).toBeNull();
       expect((await source.driver.createSchemaBuilder().log()).upQueries).toHaveLength(0);

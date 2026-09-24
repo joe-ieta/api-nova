@@ -1,7 +1,7 @@
 ---
-doc-version: 2.17.0
+doc-version: 2.20.0
 doc-status: active
-doc-updated: 2026-09-21
+doc-updated: 2026-09-24
 ---
 # 可观测性开发执行与验收状态
 
@@ -191,3 +191,12 @@ OBS-TP-14父包保持IN_PROGRESS，父包数量不变；当前状态以[统一�
 新增Windows PostgreSQL16.10隔离多进程9项验收：四写者竞争预算不超卖、同operation仅收费一次、预留提交前/后杀进程、真实ingest写入中/最终发布后/temp删除后/元数据事务中四窗口中断，以及四个实际ingest进程共享数据库和文件根并发，PG重启后跨进程重放不重复计费。拒绝采集正文仍保留全部业务调用元数据；残留按峰值保守计费。父任务独立复跑9/9，全部新建集群已停止删除。
 
 不连接默认目标：专用用户、随机IPv4回环端口、独立临时目录、fsync和synchronous_commit开启。Linux核查仅有docker-desktop WSL发行版，Docker Linux Engine管道不可用；C3本机出口完成但整包仍NEED_ENV，05D不解锁。PG自身异常崩溃/掉电、长期物理磁盘压力和生产根未验。命令和故障矩阵见[PG多写者证据](../audits/2026-09-21-pg-quota-multiwriter-evidence.md)。
+
+## 22. OBS-10受管业务进程生命周期来源（2026-09-24）
+
+OBS-10-01限定DONE：`ProcessManagerService`只为显式`managed=true`且具备`runtimeAssetId`的真实child创建不透明generation，将start/stop/unexpected exit/lost写入`runtime_pipeline_state`独立投影，并绑定runtimeAssetId、serverId、generation与pid。新generation启动可替换旧代；旧generation迟到终止、Windows stop/exit竞态及error后exit均以事务CAS/首个terminal幂等处理，不能覆盖当前代。servers/status单列`managedProcessLifecycle`，管理心跳仍只证明管理进程存储往返，不能代表业务进程实时存活。
+
+SQL.js CAS/坏行/重开专项4/4、真实Windows child start→taskkill stop与exit 7、注入error→lost事件hook 3/3、状态投影1/1、ProcessManager相邻认证/进程回归5 suites/32 tests、API type-check与build均通过。没有新增schema/migration，复用`RuntimePipelineStateEntity`；没有生产部署或外部环境验收。OBS-10父包已按限定范围DONE；后续OBS-10-02A读模型证据见第23节。OBS-13-01现已解锁，继续承接全局水位、全历史和状态增量。
+## 23. OBS-10-02A限定读模型完成与OBS-13依赖校准（2026-09-24）
+
+OBS-10-02A限定DONE：复用`RuntimeInvocationEntity`当前行、managed lifecycle投影及`CallObservabilityStore`快照水位，完成5100条保留历史有界聚合、revision水位、资产隔离、legacy坏行与SQL.js重开，专项4 suites/15 tests通过。retained unfinished=0只表示保留事实中没有未完成项，不能解释为无业务流量；coverage保持unknown，live active保持null；状态只投影最新generation，不是全历史。本切片未修改Realtime/WebSocket，统一API build由并行工作包独立执行，不在此预记结果。OBS-13-01解锁为READY，须复用同一耐久事件源补全全局状态snapshot与水位、超过5100条的全历史策略、乱序版本、撤权与断线恢复。

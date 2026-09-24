@@ -156,6 +156,31 @@ async function persistenceSmoke() {
   assert.equal(await repository.count(), 0, 'Constraint failures must roll back the transaction');
 }
 
+// Runs only inside this command's invocation-created database, never a configured business DB.
+async function authenticationEvidenceSmoke() {
+  const entity = 'UpstreamAuthenticationEvidenceEntity';
+  const repository = dataSource.getRepository(entity);
+  const row = await repository.save({ sourceServiceAssetId: randomUUID(), endpointDefinitionId: randomUUID(),
+    contextDigest: 'a'.repeat(64), providerEpoch: randomUUID(), runNonce: randomUUID(), bindingRevision: 'isolated-test',
+    bindingGeneration: 1, actorId: 'isolated-test', result: 'passed', anonymousBeforeStatus: 401,
+    wrongCredentialStatus: 401, validCredentialStatus: 200, anonymousAfterStatus: 401 });
+  assert.equal(row.evidenceKind, 'challenge_prototype');
+  await assert.rejects(() => repository.update(row.id, { result: 'Verified' }));
+  await assert.rejects(() => repository.update(row.id, { evidenceKind: 'production_verified' }));
+  await dataSource.destroy(); await openDatabase();
+  const restored = await dataSource.getRepository(entity).findOneByOrFail({ id: row.id });
+  assert.equal(restored.runNonce, row.runNonce); assert.equal(restored.result, 'passed');
+  assert.equal(restored.evidenceKind, 'challenge_prototype');
+  assert.deepEqual((await dataSource.driver.createSchemaBuilder().log()).upQueries, []);
+  let reversed = 0;
+  const evidenceIndex = dataSource.migrations.findIndex(m => /^UpstreamAuthenticationEvidence/.test(m.name));
+  assert.ok(evidenceIndex >= 0);
+  for (let index = dataSource.migrations.length - 1; index > evidenceIndex; index--) { await dataSource.undoLastMigration(); reversed++; }
+  await dataSource.undoLastMigration();
+  assert.equal((await dataSource.runMigrations()).length, reversed + 1);
+  assert.equal(await dataSource.getRepository(entity).count(), 0);
+  assert.deepEqual((await dataSource.driver.createSchemaBuilder().log()).upQueries, []);
+}
 async function availablePort() {
   const server = net.createServer();
   await new Promise((resolve, reject) => server.once('error', reject).listen(0, '127.0.0.1', resolve));
@@ -243,6 +268,7 @@ async function main() {
     assert.equal(await verifyEmpty(), tableCount, 'Persisted table count changed on restart');
     if (command === 'smoke') {
       await persistenceSmoke();
+      await authenticationEvidenceSmoke();
       await verifyEmpty();
       await apiSmoke();
       await verifyEmpty();
@@ -251,6 +277,7 @@ async function main() {
       empty: true, schemaDrift: 0,
       restart: true, restartMigrations: restartMigrations.length, restartSchemaDrift: 0,
       persistence: command === 'smoke', apiStartup: command === 'smoke',
+      authenticationEvidenceStorage: command === 'smoke',
       database: dialect === 'postgres' ? databaseName : sqlitePath };
   }
   const report = { marker: 'DATABASE_' + command.toUpperCase() + '_OK', dialect, ...result };

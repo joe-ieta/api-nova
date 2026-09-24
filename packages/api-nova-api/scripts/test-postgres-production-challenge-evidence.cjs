@@ -1,0 +1,10 @@
+'use strict';
+const assert = require('node:assert/strict');
+assert.equal(process.env.DB_TYPE, 'postgres'); assert.equal(process.env.DB_HOST, '127.0.0.1');
+assert.equal(process.env.API_NOVA_ISOLATED_PRODUCTION_EVIDENCE, 'true');
+const { DataSource } = require('typeorm');
+const { buildDatabaseOptions } = require('../dist/src/database/database-options');
+const { createUpstreamSecurityProofAuthority } = require('../dist/src/modules/publication/security/upstream-security-proof-authority');
+const { acceptProductionEvidence } = require('./production-challenge-evidence-acceptance.cjs');
+const proof = createUpstreamSecurityProofAuthority({}, {});
+acceptProductionEvidence(DataSource, buildDatabaseOptions(), async row => !(await proof.isCurrent(row, {}))).then(report => console.log(JSON.stringify({ marker: 'POSTGRES_PRODUCTION_EVIDENCE_OK', dialect: 'postgres', ...report }))).catch(error => { console.error(error); process.exitCode = 1; });

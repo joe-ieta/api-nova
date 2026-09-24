@@ -1,3 +1,8 @@
+import { Optional } from '@nestjs/common';
+import { GatewayPolicyService } from '../../gateway-runtime/services/gateway-policy.service';
+import { PublicationMemberTransactionWriter } from './publication-member-transaction-writer';
+import { assertGatewayHeaderMigrationTransition } from '../../gateway-runtime/services/gateway-header-migration';
+import { newGatewayHeaderPolicyDraft } from '../../gateway-runtime/services/gateway-header-migration';
 import { endpointUpstreamSecurityReadiness } from '../security/endpoint-upstream-security-readiness';
 import { normalizeRuntimeJwtPolicy, normalizeTemporaryAnonymousPolicy, assertTemporaryAnonymousPolicy, RuntimeAuthError } from 'api-nova-parser';
 import {
@@ -118,6 +123,7 @@ export class PublicationService {
     private readonly runtimeAssetsService: RuntimeAssetsService,
     private readonly eventEmitter: EventEmitter2,
     private readonly runtimeUpstreamBindingsService: RuntimeUpstreamBindingsService,
+    @Optional() private readonly gatewayPolicyService?: GatewayPolicyService,
   ) {}
 
   async listPublicationCandidates(query: PublicationCandidateQueryDto = {}) {
@@ -496,9 +502,7 @@ export class PublicationService {
     dto: ConfigureGatewayRouteBindingDto,
     actorId?: string,
   ) {
-    if (dto.upstreamConfig?.headerPolicy !== undefined) {
-      throw new BadRequestException({ code: 'GATEWAY_HEADER_POLICY_NOT_READY' });
-    }
+    if (dto.upstreamConfig?.headerPolicy !== undefined) throw new BadRequestException({ code: 'GATEWAY_HEADER_POLICY_NOT_READY' });
     if (dto.upstreamConfig?.jwtPolicy !== undefined) {
       try { dto = { ...dto, upstreamConfig: { ...dto.upstreamConfig,
         jwtPolicy: normalizeRuntimeJwtPolicy(dto.upstreamConfig.jwtPolicy) } }; }
@@ -532,8 +536,13 @@ export class PublicationService {
     );
 
     let binding = await this.findGatewayRouteBinding(membershipId);
-    if (binding?.upstreamConfig?.headerPolicy !== undefined) {
-      throw new BadRequestException({ code: 'GATEWAY_HEADER_POLICY_NOT_READY' });
+    if (dto.upstreamConfig?.headerPolicy !== undefined || dto.upstreamConfig?.headerPolicyMigration !== undefined || binding?.upstreamConfig?.headerPolicyMigration !== undefined || binding?.upstreamConfig?.headerPolicy !== undefined) {
+      try {
+        const next = dto.upstreamConfig ?? binding?.upstreamConfig;
+        assertGatewayHeaderMigrationTransition(binding?.upstreamConfig, next, { routeId: binding?.id || 'new', registryConfigured: true });
+        if (!this.gatewayPolicyService) throw new Error('unavailable');
+        this.gatewayPolicyService.assertHeaderV1Ready({ id: binding?.id || 'new', endpointDefinitionId: context.endpointDefinition.id, upstreamConfig: next } as GatewayRouteBindingEntity);
+      } catch { throw new BadRequestException({ code: 'GATEWAY_HEADER_POLICY_NOT_READY' }); }
     }
     if (binding?.upstreamConfig?.jwtPolicy !== undefined && dto.upstreamConfig !== undefined && dto.upstreamConfig?.jwtPolicy === undefined) {
       dto = { ...dto, upstreamConfig: { ...dto.upstreamConfig, jwtPolicy: binding.upstreamConfig.jwtPolicy } };
@@ -561,7 +570,7 @@ export class PublicationService {
         rateLimitPolicyRef: dto.rateLimitPolicyRef,
         circuitBreakerPolicyRef: dto.circuitBreakerPolicyRef,
         timeoutMs: dto.timeoutMs,
-        upstreamConfig: dto.upstreamConfig,
+        upstreamConfig: dto.upstreamConfig?.headerPolicyMigration !== undefined ? dto.upstreamConfig : newGatewayHeaderPolicyDraft(dto.upstreamConfig),
         routeStatusReason: dto.routeStatusReason,
         status: GatewayRouteBindingStatus.DRAFT,
       });
@@ -1291,6 +1300,7 @@ export class PublicationService {
       upstreamMethod: routeMethod,
       routeVisibility: 'internal',
       authPolicyRef: 'jwt-default',
+      upstreamConfig: newGatewayHeaderPolicyDraft(),
       status: GatewayRouteBindingStatus.DRAFT,
     });
     const saved = await this.routeBindingRepository.save(binding);
@@ -1327,6 +1337,30 @@ export class PublicationService {
       throw new BadRequestException('Publish blocked: upstream_security:' + security.reason);
     }
 
+    const markedRoute = context.runtimeAsset.type === RuntimeAssetType.GATEWAY_SERVICE ? await this.findGatewayRouteBinding(context.membership.id) : null;
+    if (markedRoute && markedRoute.upstreamConfig?.headerPolicyMigration === undefined) throw new BadRequestException({ code: 'GATEWAY_HEADER_POLICY_NOT_READY' });
+    if (markedRoute?.upstreamConfig?.headerPolicyMigration !== undefined) {
+      if (!this.gatewayPolicyService) throw new BadRequestException({ code: 'GATEWAY_HEADER_POLICY_NOT_READY' });
+      const writer = new PublicationMemberTransactionWriter(this.routeBindingRepository.manager.connection, async () => { throw new Error('proof_path_disabled'); });
+      const committed = await writer.commitUnsecuredGateway(context.membership.id, (route, endpoint, currentProfile) => {
+        const version = this.gatewayPolicyService!.assertHeaderV1Ready(route);
+        const profile = currentProfile ?? this.profileRepository.create({ endpointDefinitionId: endpoint.id, runtimeAssetEndpointBindingId: context.membership.id });
+        const readiness = this.buildReadiness(endpoint, profile, route, true);
+        if (!readiness.ready) throw new BadRequestException(`Publish blocked: ${readiness.reasons.join('; ')}`);
+        return version;
+      });
+      context.membership.publicationRevision = committed.publicationRevision;
+      context.membership.status = RuntimeAssetEndpointBindingStatus.ACTIVE;
+      context.runtimeAsset.status = RuntimeAssetStatus.ACTIVE;
+      const savedProfile = await this.profileRepository.findOneByOrFail({ id: committed.profileId });
+      await this.writeHistory(savedProfile, 'profile.published');
+      await this.recordAuditEvent({ action: PublicationAuditAction.MEMBERSHIP_PUBLISHED, status: PublicationAuditStatus.SUCCESS,
+        summary: `Membership '${context.membership.id}' published`, publicationBatchRunId: auditContext.batchRunId,
+        runtimeAssetId: context.runtimeAsset.id, runtimeAssetEndpointBindingId: context.membership.id,
+        endpointDefinitionId: context.endpointDefinition.id, sourceServiceAssetId: context.sourceServiceAsset.id,
+        operatorId: auditContext.actorId, details: { publicationRevision: committed.publicationRevision, runtimeAssetType: context.runtimeAsset.type } });
+      return this.buildMembershipPublicationState(context);
+    }
     const profile = await this.ensureProfile(
       context.membership,
       context.endpointDefinition,
@@ -1346,6 +1380,9 @@ export class PublicationService {
         throw new BadRequestException(`Publish blocked: ${preliminary.reasons.join('; ')}`);
       }
       routeBinding = await this.ensureDefaultGatewayRoute(context, auditContext);
+    }
+    if (routeBinding?.upstreamConfig?.headerPolicy !== undefined || routeBinding?.upstreamConfig?.headerPolicyMigration !== undefined) {
+      throw new BadRequestException({ code: 'GATEWAY_HEADER_POLICY_NOT_READY' });
     }
     const reasons = this.buildReadiness(
       context.endpointDefinition,

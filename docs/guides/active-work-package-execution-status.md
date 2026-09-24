@@ -1,5 +1,5 @@
 ---
-doc-version: 1.72.0
+doc-version: 1.94.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -8,16 +8,16 @@ doc-updated: 2026-09-24
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
-父包专项统计仍是OBS 10/5/1、SEC 9/13/0/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计19/18/1/1。它不表示全项目完成率。
+父包专项统计仍是OBS 11/4/1、SEC 10/12/0/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计21/16/1/1。它不表示全项目完成率。
 
-本次登记147个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
+本次登记173个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 88 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 14 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 0 | 当前无在执行子项 |
-| WAIT_DEP | 25 | 等待列明子任务/条件 |
+| DONE | 117 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 13 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 0 | 当前无已开工叶子；READY不表示已开工 |
+| WAIT_DEP | 23 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -64,11 +64,19 @@ doc-updated: 2026-09-24
 | SEC-D1-02C | DONE | [缓存隔离证据](../audits/2026-09-22-header-cache-isolation.md)：命中前预检、必需vary/策略及材料代次、原始禁存信号、真实HTTP32项；生产仍门禁 |
 | SEC-D1-02D1 | DONE | 同一Registry快照的策略/凭据/代次/历史名接入不可变Prepared Exchange；5 suites/118通过；生产v1仍等D2/D3/D4 |
 | SEC-D1-02D2A | DONE | 纯迁移契约/校验器覆盖具名legacy期限、未知字段与来源变更拒绝；3 suites/57通过；未接生产创建入口或持久化 |
-| SEC-D1-02D2B | READY | 新Binding默认写入v1并持久验证；旧Binding不静默回填 |
-| SEC-D1-02D2C | WAIT_DEP | legacy允许持久写入、最长30天和撤销等待D2B |
-| SEC-D1-02D2D | WAIT_DEP | 冷重启、坏迁移保留旧snapshot及unknown/deleted/disabled Provider验收等待D2B/D2C |
+| SEC-D1-02D2B | DONE | PublicationService两新建入口持久写入v1草稿+来源，旧路由不回填；先NOT_READY再任何ACTIVE写；SQL.js重开，6 suites/65通过 |
+| SEC-D1-02D2C | DONE | 显式例外登记/校验/撤销与持久墓碑；SQL.js 3 suites/45通过；未生产注册，PG JSONB CAS未实测 |
+| SEC-D1-02D2D | DONE | SQLite联合snapshot/旧explicit grant/new v1重开与bad reload保旧；隔离PG并发CAS/重开/providerClosed/expiry/revoke并清理；4 suites/49与API build通过；运行时legacy期限守卫未注册 |
 | SEC-D1-02D3 | DONE | Nest/Socket.IO初始化后、listen前安装checkContinue/checkExpectation/upgrade；2 suites/24与API build通过 |
-| SEC-D1-02D4 | WAIT_DEP | 真实数据库重开、迁移/冷启动与H01–H12联合矩阵等待D2D；D3已完成 |
+| SEC-D1-02D4A | DONE | Legacy纯guard与局部真实HTTP矩阵，3 files/37通过；不等于生产运行时接线 |
+| SEC-D1-02D4B | DONE | 用户明确授权的生产guard接线；5 files，HTTP/SQL.js+Runtime/DI 5 suites/68通过；到期/撤销/删除/unknown/registry例外503且cache/Resolver/upstream零绕过 |
+| SEC-D1-02D4C | DONE | 限定矩阵盘点：14 suites/223及隔离PG CAS/reopen/expiry/revoke/noActivation通过；逐项H01–H12证据，acceptanceComplete:false；H07冷启动与membership正式正向未闭环 |
+| SEC-D1-02D4D1 | DONE | 可信Parser host历史Store与Registry单调CAS在sync snapshot前提交；3 files、12新增测试，Parser 29 suites/557及build通过 |
+| SEC-D1-02D4D2 | DONE | Entity/service、SQLite+PG migrations/注册/schema；CAS单调并集、4096上限与旧库冷重开，SQLite 4 suites/6、API build及全新隔离PG zero-drift通过；不接Provider |
+| SEC-D1-02D4D3 | DONE | Gateway Provider接入ledger/Parser Registry bridge与稳定DB namespace；missing/corrupt ledger仅使Gateway empty registry/HTTP503而Nest health200；SQL.js+隔离PG双进程轮换→清空→冷启动后旧header剥离，2 suites/31及API build通过 |
+| SEC-D1-02D4D4 | DONE | 真实SQL.js并发CAS、watch stop前后durable commit、迁移回滚不污染；4个API组合37项+Parser契约12项，双Node/HTTP SQLite与隔离PG H07全true并清理；H11 membership→v1仍未闭合 |
+| SEC-D1-H11A | DONE | Registry-source v1受控激活限定完成：16项真实Controller/Nest/HTTP/cache/SQL.js冷重启联合用例、strict helper 10项、Gateway+Publication 58 suites/778 tests及API build通过；F1 Verified未接线，inline/legacy/unmigrated/unknown/unsafe仍fail-closed并保留旧snapshot，无外部部署 |
+| SEC-D1-H11B | DONE | 沿RuntimeAssets.deployGatewayRuntimeAsset→plan/真实GatewayCandidateReplay→activate→Nest HTTP/cache完成33场景H01–H12验收；相关73 suites/1023 tests与API build通过。H11覆盖Range/If-*、gzip/identity、cache分区及直连/bypass；Proxy仅按已验证chunked策略重建TE。SQL.js同秒精度下以1050ms等待遵守stale gate；无真实外连 |
 | SEC-D2-01 | DONE | 真实HTTP独立IP/Anonymous桶、peer可信边界、缓存命中仍限流；Gateway全套201/201、主任务联合复验42/42；见2026-09-21-independent-rate-limits证据 |
 | SEC-D2-02 | DONE | 六层真实HTTP组合19项、四套73/73；共享窗口冲突503且到期恢复、24并发精确7准入；见六层限流组合证据 |
 | SEC-E0-01 | DONE | 锁SDK1.29.0原始HTTP/Session/错误及真实stdio矩阵60/60；修复已知Streamable端点不支持方法405+Allow；见Adapter证据 |
@@ -87,23 +95,41 @@ doc-updated: 2026-09-24
 | SEC-F1-02A | DONE | 声明保留、OR/AND显式选择、四态纯对账及发布/装配写入前拒绝；17 suites/234与API build通过；不含可信Registry/耐久验证 |
 | SEC-F1-02B | DONE | 可信Registry/Resolver Binding评估与opaque Provider epoch接入；5 suites/57与API build通过；不替代C的耐久验证ledger |
 | SEC-F1-02C1 | DONE | 独立entity/repo与挑战服务；真实挑战、磁盘SQL.js重开14/14；F1目录6 suites/71与API build通过；不含生产注册/接线 |
-| SEC-F1-02C2 | READY | 生产验证服务、双库Entity/migration注册、PostgreSQL及运行时Verified ledger接线待实现 |
-| SEC-F1-02D | WAIT_DEP | preview/单批发布/激活统一结果与事务内context复核等待C2 |
-| SEC-F1-02E | READY | B已完成；Gateway/MCP执行前声明/Binding复核与旧snapshot/撤销零联网可推进，仍须消费E1-03实际部署路径 |
-| SEC-F1-02F | WAIT_DEP | 双runtime端到端、SQL.js/PostgreSQL重开、并发迟到/同revision变化等待D/E |
+| SEC-F1-02C2 | DONE | 生产专用证据表/双数据库迁移，prototype kind隔离；SQLite+隔离PG 70表/5迁移冷启/重开/回退零漂移，12 suites/83、迁移9/9与API build通过；未接挑战/Verified |
+| SEC-F1-02C3a | DONE | 受信上下文authority纯模块完成；与C3b/c合计4 files、27 tests、API security 8 suites/105及build通过；无DB/DI/readiness/生产Verified |
+| SEC-F1-02C3b | DONE | 受限挑战transport与失败分类纯模块完成；transport不授予Verified，未接生产DI或readiness |
+| SEC-F1-02C3c | DONE | proof authority与可信上下文绑定纯模块完成；未接生产evidence kind、消费者或Verified门禁 |
+| SEC-F1-02C3d | DONE | 生产格式独立evidence表、双库CHECK/迁移/注册与prototype隔离完成；16 suites/120，SQLite 72表/7迁移及隔离PG 72/7 zero drift；proof authority拒绝prototype/DB行；不等于生产Verified |
+| SEC-F1-02C3e | DONE | 四阶段真实loopback→SQLite耐久重读→context/epoch重评→私有proof编排；新增orchestrator及测试，10 suites/123与API build通过；DB记录不能重建proof，保存/绑定变化/迟到/撤销均拒绝；未接生产意图权威/DI/controller/publication |
+| SEC-F1-02C3f | DONE | host-only challenge intent authority限定完成：2 files/24 tests，security目录10 suites/146及API build通过；所有拒绝场景0 transport/HTTP；未接DI/controller/seed/schema及实际session/tenant adapter，不代表生产Verified |
+| SEC-F1-02C3G1 | DONE | proof/authorization消费adapter限定完成：真实能力按source/endpoint/target/method/Binding消费，扩展authority/orchestrator fixtures；30 tests、security 11 suites/176及API build通过；不代表production gate已接线 |
+| SEC-F1-02C3G2 | DONE | 只读preview/readiness adapter限定完成：2 files、2 suites/43及API build通过；SQL日志仅SELECT、实体/evidence零变更且无新增loopback；canPublish恒false、未接生产入口 |
+| SEC-F1-02C3G3 | DONE | 单成员DB事务writer限定完成：2个publication-member-transaction-writer文件，1 suite/10项SQL.js及API build通过；未注册生产入口、未验PostgreSQL |
+| SEC-F1-02C3G4 | DONE | 有界executor切片限定完成：3 suites/30 tests及API build通过；生产G2默认false且验证G3零调用，仅显式future-readiness fixture证明部分提交/后续继续；candidate仅host-owned同步swap且无await，未接异步Registry生产链，不代表production batch/candidate activation完整 |
+| SEC-F1-02C3G5 | WAIT_DEP | 独立Gateway proof consumer guard与真实HTTP 3 suites/54 tests及API build通过，但未注册module/runtime；仍缺生产host challenge/session/proof issuer、同进程authority lifecycle与request-bound capability provider。只限proof消费，不开放Verified，E1继续拒绝 |
+| SEC-F1-02C3G6 | WAIT_DEP | 依赖E3b/G1；MCP/child实时许可与撤销待实现，proof不得序列化 |
+| SEC-F1-02D | READY | G2/G4显式依赖已闭合；仍须实现preview/单批发布/激活统一结果与事务内context复核，G4限定完成不代表生产激活已存在 |
+| SEC-F1-02E1 | DONE | Gateway每次调用重评guard，6 files；39 suites/556及13项真实HTTP SQL.js重校、API build通过；不声称生产Verified |
+| SEC-F1-02E2 | DONE | Parser唯一声明规则与标准HTTP transformer门禁；6 files，Parser28/545、API102/1116、三构建及扩例7/7通过；不含Verified/custom handlers/E3 managed传播 |
+| SEC-F1-02E3a | DONE | 受限ManagedChildSecurityLeaseCoordinator纯协调原语；2 files/7 tests通过；未注册、未接handoff |
+| SEC-F1-02E3b | WAIT_DEP | 运行中更新前阻断、实时授权与事件IPC等待E3a及E1-03；在线撤销零联网未验 |
+| SEC-F1-02F | WAIT_DEP | 双runtime端到端、SQL.js/PostgreSQL重开、并发迟到/同revision变化等待D/E3b/G5/G6 |
 | SEC-F2-01 | DONE | Consumer/Upstream分区、真实binding revision/Registry generation与reload恢复；UI12/12、实际UI适配器到Nest/Registry HTTP1/1、后端21/21；进程范围明确，浏览器点击未验 |
 | SEC-F2-02 | DONE | Gateway/MCP临时匿名原因/到期/生产风险和actor回显，保存重开及拒绝反馈；UI构建、表单/真实模板26/26，浏览器点击未验，见UI证据 |
 | SEC-F3-01 | DONE | [网络合同§4](./security-header-network-boundary-contract.md)冻结public/direct、限期例外、DNS/peer/TLS、safe-read及撤销；仅DOC |
-| SEC-F3-02 | WAIT_DEP | F3政策已冻结；仍等D1-02D，DNS/连接/逐跳/撤销及Windows/Linux真实证据未完成 |
+| SEC-F3-02A | DONE | 限定纯compiler完成：严格v1配置/URL/origin、IPv4/IPv6完整分类、IPv4-mapped归一与精确private-exception；静态表版本iana-2025-10-09-conservative-v1，更新表时必须复核IANA差异并重跑边界回归。network专项165项、Parser 30 suites/722 tests及typecheck/build通过；不接DNS、真实发送或host续期/撤销，不关闭父F3 |
+| SEC-F3-02B | READY | A限定纯compiler已完成；下一步实现受控DNS全集、IP固定、TLS/peer写出前复核及代理/外部Agent拒绝 |
+| SEC-F3-02C | WAIT_DEP | 等B；逐跳Site/Endpoint与凭据重建、safe-read、撤销/取消、缓存隔离和拒绝审计待实现 |
+| SEC-F3-02D | WAIT_DEP | 等C；N01–N17 Gateway/Parser真实连接及Windows/Linux环境矩阵待验收 |
 | SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
 | SEC-F3a-01 | READY | 需在线公告时另行验证，不复用旧漏洞数 |
-| SEC-F4-01 | DONE | 当前73个SEC叶子以逐项或明确聚合旧ID维护，83个链接有效；区分历史/本地限定/未运行环境，不代表F4-02签收 |
+| SEC-F4-01 | DONE | 当前99个SEC叶子以逐项或明确聚合旧ID维护，134个链接有效；区分历史/本地限定/未运行环境，不代表F4-02签收 |
 | SEC-F4-02 | NEED_ENV | 目标环境与授权另核实 |
 | OBS-06-01 | READY | 不重写已有发送边界 |
 | OBS-06-02 | NEED_ENV | 真实环境待核实 |
-| OBS-10-01 | READY | 管理心跳/路由注册已有 |
-| OBS-10-02 | WAIT_DEP | 未完成 |
-| OBS-13-01 | WAIT_DEP | 调用事实页流已完成 |
+| OBS-10-01 | DONE | 受管业务子进程start/stop/unexpected_exit/lost已进入独立持久投影；runtimeAssetId+serverId+generation绑定，旧generation迟到终止不能覆盖新start，管理心跳不作为业务存活。SQL.js重开4/4、真实child/事件hook 3/3、状态投影1/1、ProcessManager相邻5 suites/32及API type-check/build通过 |
+| OBS-10-02A | DONE | 限定retained读模型完成：5100条保留历史有界聚合、revision水位、资产隔离、legacy坏行与SQL.js重开均覆盖，4 suites/15 tests通过。retained unfinished=0只表示保留事实中无未完成项；coverage仍为unknown，live active保持null；只投影最新generation而非全历史。全局水位、全历史及状态流接续归OBS-13-01 |
+| OBS-13-01 | READY | OBS-10-02A已形成限定历史/revision水位来源；仍须复用同一耐久事件源完成全局状态snapshot与水位、超过5100条的全历史策略、乱序版本、撤权及断线恢复，不另建第二事件源 |
 | OBS-13-02 | WAIT_DEP | 长期/跨平台证据未完成 |
 | OBS-14-01 | DONE | [生命周期合同](../reference/runtime-observability-lifecycle-contract.md)冻结引用、保留、墓碑与重放边界；仅DOC |
 | OBS-14-02 | DONE | 持久keyset分页、同GC fence、修复与cursor同事务；真实SQL.js连接重建恢复；新增7项专项，联合67/67 |
@@ -255,4 +281,4 @@ C1-02及父包C1已按[原出口证据](../audits/2026-09-22-credential-types-sc
 原F1-02从纯声明对账延伸到可信Binding适配、耐久验证证据、发布/激活事务复核、两运行时执行前复核及双数据库/并发验收，不能继续作为单叶推进。现替换为A–F六叶，总量138→143。A已有声明保留、OR/AND纯对账及发布写入前拒绝，限定DONE；B READY；C/D/E/F按前置WAIT_DEP。父TP-F1保持IN_PROGRESS，A完成不代表可信验证、Gateway/MCP零联网或PostgreSQL重开已验收。
 ## 2026-09-24 D1与F1首叶完成
 
-SEC-D1-02D1以5套118项完成同一Registry快照到Prepared Exchange的执行材料接线；D3再以2套24项及API构建完成listen前实际HTTP入口事件安装。D2A以3套57项完成纯迁移合同/Schema helper；D2B READY，D2C/D等待依赖，D4继续等待D2D。SEC-F1-02A以17套234项及API构建完成声明保留、OR/AND纯对账和发布/装配写入前拒绝；B以5套57项及API构建完成可信Binding评估与opaque Provider epoch接入，C1以独立entity/repo、挑战服务、真实挑战与磁盘SQL.js重开14/14完成原型，F1目录6套71项和API构建通过；C2生产双库注册、Transport/API、PostgreSQL及Verified ledger接线READY，E保持READY，D/F等待依赖。父TP-D1和TP-F1均保持IN_PROGRESS。
+SEC-D1-02D1以5套118项完成同一Registry快照到Prepared Exchange的执行材料接线；D3再以2套24项及API构建完成listen前实际HTTP入口事件安装。D2A以3套57项完成纯迁移合同/Schema helper；D2B以6套65项完成两新建入口v1草稿/来源持久写入、旧路由不回填与NOT_READY先行，D2C以3套45项完成显式例外生命周期与持久墓碑，D2D以SQLite/隔离PG迁移冷启动、CAS、撤销及重开4套49项和API构建完成；D4拆为A/B/C：A纯guard与局部HTTP 37项DONE，B以5套68项完成生产503守卫且无cache/Resolver/upstream绕过，C以14套223项及隔离PG完成限定矩阵盘点，acceptanceComplete:false，H07冷启动与membership正式正向未闭环；D4D1与D4D2 DONE；D2以SQLite 4套6项、API build及隔离PG zero-drift完成双库Ledger但不接Provider，D4D3以2 suites/31、API build及SQL.js/隔离PG双进程冷启动路径完成，D4D4以SQL.js/隔离PG双Node真实HTTP、4个API组合37项与Parser契约12项完成H07跨启动历史验收；H11A以16项真实联合用例、strict helper 10项、Gateway+Publication 58 suites/778 tests及API build完成Registry-source v1受控激活；H11B已开工，沿RuntimeAssets deploy→plan/replay→activate→Nest HTTP/cache路径执行生产H01–H12验收；全API首轮116 suites/1293 tests中115 suites/1292 tests通过，唯一process-manager.temporary-anonymous suite超时；该suite单跑4/4在12.09s通过且未改测试，不记录为一次性全API全绿。F1 Verified未接线，inline/legacy/unknown继续fail-closed，无外部部署；父TP-D1仍IN_PROGRESS。SEC-F1-02A以17套234项及API构建完成声明保留、OR/AND纯对账和发布/装配写入前拒绝；B以5套57项及API构建完成可信Binding评估与opaque Provider epoch接入，C1以独立entity/repo、挑战服务、真实挑战与磁盘SQL.js重开14/14完成原型，F1目录6套71项和API构建通过；C2以SQLite+隔离PG 70表/5迁移冷启/重开/回退零漂移、12套83项、迁移9/9及API构建完成生产证据存储注册；C3进一步拆为a上下文authority、b挑战transport、c proof authority、d生产持久evidence kind、e挑战编排、f安全入口、g发布/运行消费者；a/b/c以4 files、27 tests、API security 8 suites/105及build限定完成，d以生产独立evidence表、双库CHECK/迁移/注册、16 suites/120及双库72表/7迁移zero drift限定完成；e以四阶段loopback/SQLite编排、10 suites/123及API build限定完成，f以2 files/24 tests、security 10 suites/146及API build限定完成；G1以30 tests、security 11 suites/176及API build完成消费adapter，G3以2 files、1 suite/10项SQL.js及API build完成单成员事务writer；G2以2 files、2 suites/43及API build完成只读adapter，SQL仅SELECT且实体/evidence零变更、canPublish恒false；G4有界executor切片以3 suites/30 tests及API build限定完成：生产G2默认false/G3零调用，future-readiness fixture仅证明部分提交/后续继续，candidate仅host-owned同步swap无await且未接异步Registry生产链；D READY、G5独立Gateway proof consumer guard实施中、G6等待，不代表production batch/candidate activation完整且全部保护fail-closed；Gateway E1以39套556项、13项真实HTTP SQL.js重校及API构建DONE但不声明生产Verified；E2以Parser28套545项、API102套1116项、三构建与扩例7/7完成唯一声明规则/标准HTTP门禁；Verified/custom handlers及E3 managed在线传播不在该出口，E3a以2 files/7 tests完成受限协调原语但未注册/未接handoff；E3b运行中阻断/实时授权/事件IPC等待，D/F保持依赖。父TP-D1和TP-F1均保持IN_PROGRESS。

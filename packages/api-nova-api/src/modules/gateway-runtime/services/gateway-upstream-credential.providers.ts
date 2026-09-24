@@ -1,9 +1,10 @@
+import { createHash } from 'node:crypto';
+import { GatewayHeaderHistoryLedgerService } from '../../../database/gateway-header-history-ledger.service';
 import { DataSource } from 'typeorm';
-import { assertGatewayRegistryHeaderPolicyReady } from './gateway-header-policy';
 import { validateGatewayCredentialOwnership } from './gateway-upstream-credential-ownership';
 import type { FactoryProvider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { UpstreamCredentialRegistry } from 'api-nova-parser';
+import { UpstreamCredentialRegistry, UpstreamCredentialRegistryError } from 'api-nova-parser';
 import {
   createGatewayUpstreamCredentialResolver,
   GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER,
@@ -20,8 +21,13 @@ export const GATEWAY_UPSTREAM_CREDENTIAL_CONFIG = Object.freeze({
   environment: 'API_NOVA_UPSTREAM_CREDENTIAL_ENVIRONMENT',
 });
 
+/** One host-owned Registry role per database. Never partition by mutable candidate or file path. */
+export const GATEWAY_HEADER_HISTORY_NAMESPACE = 'gateway:upstream-credential-registry:v1';
+export const GATEWAY_HEADER_HISTORY_PROVENANCE = createHash('sha256')
+  .update('api-nova:gateway:database-owned-upstream-credential-registry:v1').digest('hex');
+
 /**
- * Opt-in process-local activation. Nest awaits this factory before constructing
+ * Opt-in durable activation. Nest awaits this factory before constructing
  * the resolver/proxy. Explicit but invalid configuration fails bootstrap.
  */
 export async function createConfiguredGatewayCredentialRegistry(
@@ -42,13 +48,21 @@ export async function createConfiguredGatewayCredentialRegistry(
     }
     if (!dataSource?.isInitialized) throw new Error('asset store unavailable');
     const registry = new UpstreamCredentialRegistry({ environment,
+      credentialHeaderHistory: { namespace: GATEWAY_HEADER_HISTORY_NAMESPACE,
+        store: new GatewayHeaderHistoryLedgerService(dataSource).asStore(GATEWAY_HEADER_HISTORY_NAMESPACE, GATEWAY_HEADER_HISTORY_PROVENANCE) },
       validateCandidateOwnership: candidate => {
-        assertGatewayRegistryHeaderPolicyReady(candidate);
         return validateGatewayCredentialOwnership(dataSource, candidate);
       },
     });
-    if (reloadMode === 'watch') await registry.startWatchingFile(file, format);
-    else await registry.reloadFile(file, format);
+    try {
+      if (reloadMode === 'watch') await registry.startWatchingFile(file, format);
+      else await registry.reloadFile(file, format);
+    } catch (error) {
+      // Keep the configured Registry object (never the legacy null fallback). Its
+      // empty snapshot rejects Gateway requests while unrelated APIs can boot.
+      if (!(error instanceof UpstreamCredentialRegistryError)
+        || (error.code !== 'HISTORY_UNAVAILABLE' && error.code !== 'HISTORY_CONFLICT')) throw error;
+    }
     return registry;
   } catch {
     // Config values, filesystem paths and provider details must not reach logs.
@@ -68,5 +82,5 @@ FactoryProvider<GatewayUpstreamCredentialResolver | null> = {
   provide: GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER,
   inject: [GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY],
   useFactory: (registry: UpstreamCredentialRegistry | null) =>
-    registry ? createGatewayUpstreamCredentialResolver(() => registry.captureSnapshot()) : null,
+    registry ? createGatewayUpstreamCredentialResolver(() => registry.captureSnapshot(), { enableHeaderPolicy: true, requirePersistedV1: true }) : null,
 };

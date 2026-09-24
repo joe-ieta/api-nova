@@ -1,5 +1,5 @@
 ---
-doc-version: 1.49.0
+doc-version: 1.61.1
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -17,7 +17,7 @@ doc-updated: 2026-09-24
 
 ### 两个专项
 
-OBS父包：01/02/03/04/05/07/08/09/11/12各为DONE；06/10/13/14/15各为IN_PROGRESS；16为BACKLOG。
+OBS父包：01/02/03/04/05/07/08/09/10/11/12各为DONE；06/13/14/15各为IN_PROGRESS；16为BACKLOG。
 SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F1/F2/F3/F3a各IN_PROGRESS；F4 BACKLOG；G1 DEFERRED。
 以下SEC-A1等子项主归属为原TP-A1；OBS-06等主归属为原OBS-TP-06。已DONE父包不为增加任务数量重新拆开发项。
 
@@ -96,7 +96,15 @@ SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F1/F2/F3/F
 | SEC-D1-02D2C | SEC-D1 | CODE | Legacy例外生命周期 | legacy允许显式持久写入、最长30天、到期/删除/关Provider撤销 | SEC-D1-02D2B |
 | SEC-D1-02D2D | SEC-D1 | VALIDATION | 迁移冷重启与防降级验收 | 冷重启、坏迁移保留旧snapshot、unknown/deleted/disabled Provider拒绝降级 | SEC-D1-02D2B;SEC-D1-02D2C |
 | SEC-D1-02D3 | SEC-D1 | CODE | 实际HTTP入口边界安装 | 在Nest/Socket.IO初始化后、listen前安装checkContinue/checkExpectation/upgrade；受信路由状态predicate，无策略头判断 | SEC-D1-02D1 |
-| SEC-D1-02D4 | SEC-D1 | VALIDATION | 迁移/重启与联合H矩阵验收 | 真实membership激活/数据库重开/入口和Registry策略执行；legacy到期、未知/删除/Provider关闭拒绝降级；H01–H12联合证据 | SEC-D1-02D2D;SEC-D1-02D3 |
+| SEC-D1-02D4A | SEC-D1 | VALIDATION | Legacy纯Guard与局部HTTP矩阵 | 未获有效例外的旧Gateway路由拒绝，局部真实HTTP覆盖；不接生产运行时 | SEC-D1-02D2D;SEC-D1-02D3 |
+| SEC-D1-02D4B | SEC-D1 | CODE | 生产运行时Legacy守卫接线 | 将期限/撤销守卫接入生产Gateway路由，未获有效例外的旧路由返回503 | SEC-D1-02D4A |
+| SEC-D1-02D4C | SEC-D1 | VALIDATION | H01–H12矩阵盘点与缺口证据 | 逐项证据及隔离PG矩阵；acceptanceComplete:false，H07冷启动与membership正式正向转交D4D链 | SEC-D1-02D4B |
+| SEC-D1-02D4D1 | SEC-D1 | CODE | Parser Host历史Store与Registry CAS | 受信Parser host历史存储、Registry单调CAS；跨进程重开不回退历史名集合 | SEC-D1-02D4B |
+| SEC-D1-02D4D2 | SEC-D1 | CODE | Gateway历史Ledger与双库迁移 | Gateway专用Entity、SQLite/PostgreSQL ledger及前向迁移；不由请求提供历史 | SEC-D1-02D4B |
+| SEC-D1-02D4D3 | SEC-D1 | CODE | Bootstrap历史编译与原子提交 | Gateway bootstrap先读历史再编译，验证后原子CAS ledger并swap快照 | SEC-D1-02D4D1;SEC-D1-02D4D2 |
+| SEC-D1-02D4D4 | SEC-D1 | VALIDATION | H07双进程与坏迁移冷启动验收 | 双进程真实HTTP、坏迁移、并发reload、ledger故障及PostgreSQL/SQL.js冷启动验收 | SEC-D1-02D4D3 |
+| SEC-D1-H11A | SEC-D1 | CODE | 真实Membership v1原子激活 | 仅Registry-source可信membership经持久v1 marker、trusted compile与validate后，复用G3同事务writer提交ACTIVE并在afterCommit切换route-specific snapshot；失败保留旧snapshot，inline/legacy/unmigrated/非法/未知策略继续NOT_READY | SEC-D1-02D2D;SEC-D1-02D3;SEC-D1-02D4D4;SEC-F1-02C3G3 |
+| SEC-D1-H11B | SEC-D1 | VALIDATION | 生产H01–H12与缓存语义验收 | 沿RuntimeAssets.deployGatewayRuntimeAsset→plan/真实GatewayCandidateReplay→activate→Nest HTTP/cache路径重跑H01–H12，重点验证Range/If-*/Accept-Encoding在cache miss/hit下状态、Header、正文与直连一致并有隔离或bypass证据 | SEC-D1-H11A |
 | SEC-D2-01 | SEC-D2 | CODE | IP与Anonymous独立限流层 | 真实请求分别触发IP、匿名bucket，鉴权缓存不能绕过 | — |
 | SEC-D2-02 | SEC-D2 | VALIDATION | 完整层级限流组合 | Global/Runtime/Route/Credential/IP组合顺序与拒绝归因可验证 | SEC-D2-01;SEC-B1-02 |
 | SEC-E0-01 | SEC-E0 | VALIDATION | 锁定MCP协议边界矩阵 | Method/Header/错误/Session/stdio按当前协议逐入口验收 | — |
@@ -115,14 +123,32 @@ SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F1/F2/F3/F
 | SEC-F1-02A | SEC-F1 | CODE | 声明保留与纯对账门禁 | 规范化声明、OR/AND选择、四态纯对账；受保护未配置/未验证在发布写入前拒绝 | SEC-F1-01;SEC-C1-02 |
 | SEC-F1-02B | SEC-F1 | CODE | 可信Registry与Resolver适配 | 从可信DB/Registry准备Binding并关联opaque Provider epoch；不从请求或Secret值推导身份 | SEC-F1-02A |
 | SEC-F1-02C1 | SEC-F1 | CODE | 脱敏耐久证据原型 | 独立entity/repo与挑战服务；真实挑战、磁盘SQL.js重开；不注册生产Entity或接Transport/API | SEC-F1-02B |
-| SEC-F1-02C2 | SEC-F1 | CODE | 生产验证与耐久Ledger接线 | 生产验证服务、双库Entity/migration注册、PostgreSQL重开及运行时Verified ledger接线 | SEC-F1-02C1 |
-| SEC-F1-02D | SEC-F1 | CODE | 预览发布激活统一结果 | preview、单批发布和激活消费同一结果，事务内复核context与验证证据 | SEC-F1-02C2 |
-| SEC-F1-02E | SEC-F1 | CODE | 两运行时执行前复核 | Gateway与MCP执行前重核声明/Binding；旧snapshot或撤销零联网，消费E1实际部署路径 | SEC-F1-02B;SEC-E1-03 |
-| SEC-F1-02F | SEC-F1 | VALIDATION | 双运行时重开与并发验收 | Gateway/MCP端到端、SQL.js/PostgreSQL重开、并发迟到和同revision Provider变化矩阵 | SEC-F1-02D;SEC-F1-02E |
+| SEC-F1-02C2 | SEC-F1 | CODE | 生产证据存储注册 | 专用证据Entity与双数据库迁移，prototype kind隔离、冷启动/重开/回退零漂移；不接生产挑战或Verified | SEC-F1-02C1 |
+| SEC-F1-02C3a | SEC-F1 | CODE | 受信上下文Authority | 生产挑战前解析并冻结可信上下文authority，拒绝从请求或Secret内容反推身份 | SEC-F1-02C2 |
+| SEC-F1-02C3b | SEC-F1 | CODE | 受信挑战Transport | 为真实上游挑战建立受限transport与失败分类，不在transport内授予Verified | SEC-F1-02C2 |
+| SEC-F1-02C3c | SEC-F1 | CODE | Proof Authority | 对挑战proof执行可信重评与authority绑定，输出可供持久证据消费的判定 | SEC-F1-02C2 |
+| SEC-F1-02C3d | SEC-F1 | CODE | 生产持久Evidence Kind | 将生产proof结果写入专用持久evidence kind，保持prototype隔离并覆盖双数据库路径 | SEC-F1-02C3c |
+| SEC-F1-02C3e | SEC-F1 | CODE | 生产挑战编排 | 编排context、transport、proof与持久证据，失败时不产生Verified副作用 | SEC-F1-02C3a;SEC-F1-02C3b;SEC-F1-02C3c;SEC-F1-02C3d |
+| SEC-F1-02C3f | SEC-F1 | CODE | 生产安全入口 | 在受信生产入口执行挑战编排、重评与拒绝门禁，闭合Transport/API路径 | SEC-F1-02C3e |
+| SEC-F1-02C3G1 | SEC-F1 | CODE | Proof与Authorization消费Adapter | 以真实能力按source/endpoint/target/method/Binding消费proof与authorization；伪造、过期、撤销及DB行均拒绝 | SEC-F1-02C3e;SEC-F1-02C3f |
+| SEC-F1-02C3G2 | SEC-F1 | CODE | 只读Preview与Readiness | preview/readiness只读消费受信结果，不写profile、route或binding | SEC-F1-02C3e;SEC-F1-02C3f |
+| SEC-F1-02C3G3 | SEC-F1 | CODE | 单成员DB事务Writer | 单成员publication记录在同一数据库事务写入，部署副作用仅在commit后发生 | SEC-F1-02C3e;SEC-F1-02C3f |
+| SEC-F1-02C3G4 | SEC-F1 | CODE | 批量发布与Verification Candidate | 有界切片验证批量executor的每成员独立事务与partial failure语义；生产G2保持默认拒绝，测试注入readiness不得作为生产接线或激活证据 | SEC-F1-02C3G1;SEC-F1-02C3G3 |
+| SEC-F1-02C3G5 | SEC-F1 | CODE | Gateway执行Proof Guard | 独立Gateway proof consumer在Resolver/cache前拒绝缺失、过期或范围不符proof；完整接线还须同进程host challenge/session/proof issuer authority lifecycle及request-bound capability provider；不开放Verified、不改Publication入口 | SEC-F1-02C3G1;SEC-F1-02C3G3 |
+| SEC-F1-02C3G6 | SEC-F1 | CODE | MCP与Child实时许可撤销 | MCP/child每次执行复核实时许可与撤销；proof不得序列化或跨IPC传递 | SEC-F1-02E3b;SEC-F1-02C3G1 |
+| SEC-F1-02D | SEC-F1 | CODE | 预览发布激活统一结果 | preview、单批发布和激活消费同一结果，事务内复核context与验证证据 | SEC-F1-02C3G2;SEC-F1-02C3G4 |
+| SEC-F1-02E1 | SEC-F1 | CODE | Gateway每次调用重评 | Gateway运行时每次调用重评声明与Binding，旧snapshot/撤销零联网；当前不声明生产Verified | SEC-F1-02B;SEC-F1-02C1 |
+| SEC-F1-02E2 | SEC-F1 | CODE | MCP Transformer声明规则接线 | Parser共享normalizer与transformer消费同一声明规则并完成依赖审查；核心移动继续暂缓 | SEC-F1-02B;SEC-F1-02C1 |
+| SEC-F1-02E3a | SEC-F1 | CODE | 受限Managed Child安全租约协调器 | ManagedChildSecurityLeaseCoordinator纯协调原语；不注册、不接handoff或事件IPC | SEC-F1-02E2 |
+| SEC-F1-02E3b | SEC-F1 | VALIDATION | 运行中更新阻断与实时授权 | 真实child运行中更新前阻断、实时授权及事件IPC，在线声明撤销后零联网 | SEC-F1-02E3a;SEC-E1-03 |
+| SEC-F1-02F | SEC-F1 | VALIDATION | 双运行时重开与并发验收 | Gateway/MCP端到端、SQL.js/PostgreSQL重开、并发迟到和同revision Provider变化矩阵 | SEC-F1-02D;SEC-F1-02E3b;SEC-F1-02C3G5;SEC-F1-02C3G6 |
 | SEC-F2-01 | SEC-F2 | CODE | Consumer/Upstream与Reload界面 | 分区明确、binding revision与reload真实generation可查看及恢复 | — |
 | SEC-F2-02 | SEC-F2 | CODE | 匿名风险与到期界面 | 申请、风险、到期和服务端拒绝一致显示 | SEC-A3-01 |
 | SEC-F3-01 | SEC-F3 | DOC | 上游网络边界政策 | DNS、连接、redirect、代理及内网例外有明确允许/拒绝合同 | — |
-| SEC-F3-02 | SEC-F3 | CODE | 网络边界执行 | DNS解析/连接/每跳凭据重建按政策执行与拒绝型验收 | SEC-F3-01;SEC-D1-02D4 |
+| SEC-F3-02A | SEC-F3 | CODE | 网络政策Schema与地址分类原语 | 严格校验v1配置、URL/origin规范化、IPv4/IPv6完整拒绝分类、IPv4-mapped归一及private-exception精确CIDR/期限/始终拒绝集合；纯原语不接真实发送 | SEC-F3-01;SEC-D1-H11B |
+| SEC-F3-02B | SEC-F3 | CODE | 受控DNS、IP固定与写出前Peer复核 | A/AAAA/CNAME最终全集授权、每次新连接固定批准IP、保留Host/SNI/证书校验、Header/正文写出前核对peer，并拒绝代理/外部Agent绕过 | SEC-F3-02A |
+| SEC-F3-02C | SEC-F3 | CODE | 逐跳凭据、Redirect与撤销状态机 | 初始/redirect/retry每跳重选Site/Endpoint并重建凭据，safe-read边界、固定revision、撤销/到期/取消、缓存隔离及拒绝审计失败关闭 | SEC-F3-02B |
+| SEC-F3-02D | SEC-F3 | VALIDATION | N01–N17双运行时网络拒绝验收 | Gateway/Parser真实连接覆盖DNS全集、peer/TLS、代理拒绝、redirect、凭据零泄漏、reload/撤销，并记录Windows/Linux与未运行环境边界 | SEC-F3-02C |
 | SEC-F3-03 | SEC-F3 | VALIDATION | 秘密与生命周期审计矩阵 | argv/log/错误/证据无完整Secret；创建/更新/撤销审计可检索 | SEC-E1-03;SEC-C3-02 |
 | SEC-F3a-01 | SEC-F3a | VALIDATION | 当前依赖可达性审计 | 锁文件固定、生产可达性、补丁/风险处置逐项记录 | — |
 | SEC-F4-01 | SEC-F4 | VALIDATION | 安全交付证据索引 | 各验收项映射脚本/版本/环境/缺口，区分准备与执行 | — |
@@ -130,8 +156,8 @@ SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F1/F2/F3/F
 | OBS-06-01 | OBS-06 | VALIDATION | MCP正文与终态矩阵 | 支持transport的成功/超时/取消/大响应及Windows原生对照有结果 | — |
 | OBS-06-02 | OBS-06 | ENV | MCP跨平台正文验证 | Linux与Windows同版本矩阵分别留证，限制明确 | OBS-06-01 |
 | OBS-10-01 | OBS-10 | CODE | 业务进程生命周期来源 | 至少一个实际受管进程启动/停止/失联证据进入状态，不能用管理心跳替代 | — |
-| OBS-10-02 | OBS-10 | CODE | 在途与状态维度补齐 | 当前在途、历史状态及缺证据语义可查询并验证 | OBS-10-01 |
-| OBS-13-01 | OBS-13 | CODE | 状态快照与增量接续 | 同一事件源水位、乱序版本、撤权、断线恢复无状态丢失 | OBS-10-01 |
+| OBS-10-02A | OBS-10 | CODE | 在途、历史与缺证据读模型 | 复用当前调用行、受管生命周期投影与同一Store快照水位，使持久当前在途、start/terminal历史和unknown/unavailable语义可查询；零值不得解释为无业务流量 | OBS-10-01 |
+| OBS-13-01 | OBS-13 | CODE | 状态快照与增量接续 | 同一事件源水位、乱序版本、撤权、断线恢复无状态丢失；须消费OBS-10-02A形成的稳定历史/水位来源，不另建事件源 | OBS-10-02A |
 | OBS-13-02 | OBS-13 | VALIDATION | 长期传输与慢客户端验收 | 有限缓冲/ACK/恢复/断连按状态流和调用事实流验证 | OBS-13-01 |
 | OBS-14-01 | OBS-14 | DOC | 生命周期引用/墓碑规则 | 事件/投递/receipt/元数据/正文引用和到期顺序逐类定清 | — |
 | OBS-14-02 | OBS-14 | CODE | 删除后回滚的过期元数据整理 | 有界持久进度、同fence、重启/重复运行可恢复；有效对象不变 | — |
@@ -309,4 +335,4 @@ C1-02按[四类凭据证据](../audits/2026-09-22-credential-types-scope.md)完�
 
 ## 2026-09-24 D1-02D有界拆分与F1实施
 
-代码与启动路径审查证实原02D把同快照Registry策略执行接线、路由持久迁移、Nest实际入口事件安装和真实重启/矩阵验收合为一个跨层大任务，而且活动旧snapshot把compiled policies纳入fingerprint，直接给缺省值会让重启失败。为减小集成风险，将原叶替换为D1/D2/D3/D4四步：D1共享Prepared Exchange，D2新路由默认与具名legacy到期/防降级，D3实际HTTP入口，D4真实数据库重开与联合迁移矩阵。总叶子135→138只是D1拆分，完成数不增加。随后F1-02按真实交付链拆为A–F六叶，总量138→143；A/B完成，C/E READY，D/F等待依赖。D2又拆为A纯合同校验、B新Binding v1持久创建、C legacy例外生命周期、D冷重启/防降级验收，总量143→146；仅A完成，B READY，C/D等待依赖。F1-C再拆为C1脱敏耐久证据原型与C2生产验证/双库/运行接线，总量146→147；C1完成，C2 READY。F1仍要生产Verified可信证据和双运行时验收才可关闭。
+代码与启动路径审查证实原02D把同快照Registry策略执行接线、路由持久迁移、Nest实际入口事件安装和真实重启/矩阵验收合为一个跨层大任务，而且活动旧snapshot把compiled policies纳入fingerprint，直接给缺省值会让重启失败。为减小集成风险，将原叶替换为D1/D2/D3/D4四步：D1共享Prepared Exchange，D2新路由默认与具名legacy到期/防降级，D3实际HTTP入口，D4真实数据库重开与联合迁移矩阵。总叶子135→138只是D1拆分，完成数不增加。随后F1-02按真实交付链拆为A–F六叶，总量138→143；A/B完成，C/E READY，D/F等待依赖。D2又拆为A纯合同校验、B新Binding v1持久创建、C legacy例外生命周期、D冷重启/防降级验收，总量143→146；仅A完成，B READY，C/D等待依赖。F1-C先拆为C1脱敏耐久证据原型与C2生产验证/双库/运行接线，总量146→147；后续把C2收窄为生产证据存储注册并新增C3受信挑战重评/Verified门禁，总量147→148。C1/C2完成，原C3继续按生产闭环拆分；E再拆为E1 Gateway每次调用重评与E2 MCP Transformer同规则接线，总量148→149；随后增加E3 live child/在线撤销验收，总量149→150，E1/E2完成，E3后续拆分。D4再拆为A纯Guard/局部HTTP、B生产运行时接线、C完整H01–H12/历史名持久性，总量150→152。H07只读审计又新增D4D1 Parser Host历史Store、D4D2 Gateway双库Ledger、D4D3 bootstrap历史编译/CAS/swap、D4D4并发故障重启验收四叶，总量152→156；D1/D2/D3/D4已完成H07跨启动历史验收；D4C原盘点仍是acceptanceComplete:false，H11 membership→v1保持未闭环。E3再拆为E3a受限Managed Child安全租约协调器与E3b运行中更新/实时授权/事件IPC，总量156→157；E3a完成，E3b等待。最后把C3受信挑战大项替换为C3a上下文authority、C3b挑战transport、C3c proof authority、C3d生产持久evidence kind、C3e挑战编排、C3f安全入口及C3g发布/运行消费者七叶，总量157→163；a/b/c以4 files、27 tests、API security 8套105项及build限定完成；d以生产格式独立evidence表、双库CHECK/迁移/注册及原型隔离限定完成；e以四阶段loopback/SQLite编排、10套123项及API build限定完成；f以2 files/24 tests、security 10套146项及API build限定完成。D1父包审计新增H11A真实membership v1原子激活与H11B生产H01–H12缓存语义验收两叶，总量163→165；H11A以Registry-source v1受控激活专项限定完成，inline/legacy/unmigrated/unknown/unsafe仍NOT_READY并保旧；H11B已进入生产H01–H12验收实施。随后只读审计将g替换为G1 proof/authorization adapter、G2只读preview/readiness、G3单成员事务writer、G4批量/candidate、G5 Gateway guard、G6 MCP/child实时许可六叶，总量165→170；G1/G2/G3与G4有界executor切片限定完成，D READY、G5独立proof consumer guard实施中、G6等待；G4只证明fixture下的执行器语义，异步Registry生产链未接，G2生产默认拒绝且production gate保持fail-closed；父D1/F1均不提升。

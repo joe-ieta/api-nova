@@ -1,3 +1,4 @@
+import { requireGatewayRegistryHeaderV1 } from './gateway-header-v1-readiness';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   resolveUpstreamCredential,
@@ -38,12 +39,13 @@ export interface GatewayUpstreamCredentialResolver {
  */
 export function createGatewayUpstreamCredentialResolver(
   captureSnapshot: () => UpstreamCredentialRegistrySnapshot,
-  options: { readonly enableHeaderPolicy?: boolean } = {},
+  options: { readonly enableHeaderPolicy?: boolean; readonly requirePersistedV1?: boolean } = {},
 ): GatewayUpstreamCredentialResolver {
   if (typeof captureSnapshot !== 'function') {
     throw new Error('Gateway upstream credential snapshot provider is required');
   }
   const enableHeaderPolicy = options.enableHeaderPolicy === true;
+  const requirePersistedV1 = options.requirePersistedV1 === true;
   // Digests never leave this bounded closure; public cache keys only contain random epochs.
   const materials = new Map<string, { digest: string; epoch: string }>();
   return Object.freeze({
@@ -54,6 +56,7 @@ export function createGatewayUpstreamCredentialResolver(
       requestMethod?: string,
     ): Promise<GatewayUpstreamCredentialHeaders> {
       const snapshot = captureSnapshot();
+      if (requirePersistedV1) requireGatewayRegistryHeaderV1(route.routeBinding, snapshot);
       compileGatewayHeaderPolicy({ routeId: route.routeBinding?.id || 'unknown', inlinePolicy: route.routeBinding?.upstreamConfig?.headerPolicy, registryConfigured: true });
       if (!enableHeaderPolicy) assertGatewayRegistryHeaderPolicyReady(snapshot.candidate);
       const resolution = await resolveUpstreamCredential(snapshot, {

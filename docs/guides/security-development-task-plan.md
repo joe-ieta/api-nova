@@ -1,5 +1,5 @@
 ---
-doc-version: 1.27.0
+doc-version: 1.48.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -283,7 +283,7 @@ C3 Stable Read 与 Gateway 显式配置激活已实现：Registry 新增 reloadF
 
 Parser 全量 18 套 342/342、Gateway 完整专项 15 套 123/123（detectOpenHandles）、Parser/Server/API 构建均通过。Gateway 配置激活与 Resolver 独立专项 19/19。扩大回归初次发现的 4 个旧夹具失败已修复，原失败证据保留，最终结果见[执行台账第 18 节](./security-development-execution-status.md)。Parser 全量仍有 4 条既有审计写入告警，Linux Provider 30 个真实文件场景仍未补证。
 
-23 个任务包为 DONE 9、IN_PROGRESS 13、BACKLOG 0、DEFERRED 1。A1三模式保存/发布/重启/请求和stdio身份原退出条件已闭合，证据见[本轮闭环](../audits/2026-09-21-auth-publication-loop.md)。稳定文件读取/配置激活已是已验证切片，不能继续列为缺失；固定源受权Reload/状态API及意图/结果审计已在台账第20节验证，不再列为待开发。现行CLI真实MCP发布启动已验；生产IPC生命周期、Registry配置DB归属现已通过C3-02，剩余多进程、完整凭据/网络政策仍按各自子任务出口完成。
+23 个任务包为 DONE 10、IN_PROGRESS 12、BACKLOG 0、DEFERRED 1。A1三模式保存/发布/重启/请求和stdio身份原退出条件已闭合，证据见[本轮闭环](../audits/2026-09-21-auth-publication-loop.md)。稳定文件读取/配置激活已是已验证切片，不能继续列为缺失；固定源受权Reload/状态API及意图/结果审计已在台账第20节验证，不再列为待开发。现行CLI真实MCP发布启动已验；生产IPC生命周期、Registry配置DB归属现已通过C3-02，剩余多进程、完整凭据/网络政策仍按各自子任务出口完成。
 
 ## 12. 当前关键路径与并行面
 
@@ -294,7 +294,7 @@ Parser 全量 18 套 342/342、Gateway 完整专项 15 套 123/123（detectOpenH
 | C1 -> C2 -> C3 -> Gateway C4 | 安全文本、Provider、稳定文件源、原子 Registry 与 Gateway 显式配置激活已贯通 | 已验证切片；不新增整包 DONE |
 | C4/E1 MCP | E1 依赖 B3/C4/E0；管理侧可信映射、单查询装配、跨源/候选guard已验证；实际受管child启动仍未消费可信绑定/Resolver | 下一关键节点，复用 Registry/Resolver，绑定与身份信息必须来自可信宿主 |
 | F3 跳转/网络 | F3 依赖 C4/D1/E1；Gateway及显式single-hop不跟随跳转，Parser legacy保留最多5次；两者保证不能混用 | 与 MCP 集成设计并行；逐跳目标/凭据重建、DNS 与连接授权不得被初始 Site 匹配替代 |
-| D1 Header Allowlist | 依赖 C4；显式compiled策略双向allowlist、真实流、缓存、D1 Registry执行材料、D3入口及D2A纯迁移合同完成；生产仍门禁 | D2B READY，D2C/D等待依赖；D4等待D2D后执行重启/联合矩阵 |
+| D1 Header Allowlist | DONE（H11A/H11B限定证据闭合原出口） | Registry-source可信membership经持久v1 marker与trusted compile/validate后原子ACTIVE/snapshot；真实deploy→plan/replay→activate→Nest HTTP/cache 33场景闭合H01–H12，相关73 suites/1023 tests及API build通过。F1 Verified未接线，inline/legacy/unmigrated/unknown/unsafe仍NOT_READY并保旧，无外部部署 |
 | C3 管理/Watch/审计 | 启动装载、受权Reload/状态和意图/结果审计已完成；余项为Watch、Registry配置DB归属及多进程 | 独立切片推进；明确失败保旧快照、关闭清理与多进程语义 |
 | C2/F4 Linux 证据 | 不阻塞本机纯逻辑开发 | 按隔离测试说明补真实权限结果，不能用 Windows 文件源测试替代 |
 
@@ -306,12 +306,12 @@ B2参数保存/执行与拒绝矩阵已验收，见[本批证据](../audits/2026
 
 E0/B3原出口经[Adapter矩阵](../audits/2026-09-21-mcp-adapter-contract.md)及已完成会话撤销/SDK证据复核闭合；Header02B/C/D和F1门禁继续独立推进。
 
-02B受控真实流已完成，详见[验收证据](../audits/2026-09-21-header-wire-execution.md)。该句保留当时推进顺序；当前02C已完成，生产Header保护须依次完成02D1、D2/D3及D4，F3-02依赖D4。
+02B受控真实流已完成，详见[验收证据](../audits/2026-09-21-header-wire-execution.md)。该句保留当时推进顺序；当前D1/H11A/H11B已完成原Header出口；F3网络执行另拆F3-02A–D。A严格配置/地址分类纯compiler已限定DONE，静态表`iana-2025-10-09-conservative-v1`的任何更新都须复核IANA差异并重跑边界回归；A不接DNS/真实发送/host续期撤销。B已READY，C/D继续等待受控DNS/peer、逐跳凭据/撤销及真实双运行时矩阵。
 
 C1原SEC-C01/A0退出条件现已闭合，见[四类型验收](../audits/2026-09-22-credential-types-scope.md)；C1-02完成解锁F1-02，不使F1/E1自动完成。
 
 02C缓存现已完成。原02D已拆为D1 Registry同快照执行接线、D2迁移防降级、D3实际HTTP入口和D4重启/联合矩阵；D1与F1-02安全对账发布门禁并行实施，见[缓存证据](../audits/2026-09-22-header-cache-isolation.md)。
 ## 13. F1-02真实交付链（2026-09-24）
 
-原F1-02拆为六个真实叶任务：A保留规范化声明、纯四态/OR-AND对账并在发布写入前拒绝，已以17套234项和API构建限定DONE；B以5套57项和API构建完成可信DB/Registry Binding评估、Resolver适配与opaque Provider epoch；C拆为C1/C2：C1以独立entity/repo、挑战服务、真实挑战与磁盘SQL.js重开14/14完成原型，F1目录6套71项和API构建通过；C2负责生产验证服务、双库Entity/migration注册、PostgreSQL及Verified ledger接线，当前READY；D让preview、单批发布和激活消费同一结果并在事务内复核context，依赖C2；E在Gateway/MCP执行前重核声明与Binding、旧snapshot/撤销零联网，B完成后READY并须消费SEC-E1-03实际部署路径；F执行两runtime端到端、SQL.js/PostgreSQL重开、并发迟到与同revision Provider变化矩阵，依赖D/E。父TP-F1保持IN_PROGRESS，A/B完成不能替代C–F的耐久证据和真实运行验收。
-D1-02D1现以5套118项完成同一Registry快照到不可变Prepared Exchange的执行材料接线；D3再以2套24项及API构建完成main入口安装。D2进一步拆为A–D：A以3套57项完成具名legacy期限、未知字段与来源变更拒绝的纯迁移契约/校验器，且未接生产创建入口或持久化；B READY，C/D等待依赖，D4继续等待D2D。上述结果不启用生产v1，也不替代H01–H12联合验收。
+原F1-02拆为六个真实叶任务：A保留规范化声明、纯四态/OR-AND对账并在发布写入前拒绝，已以17套234项和API构建限定DONE；B以5套57项和API构建完成可信DB/Registry Binding评估、Resolver适配与opaque Provider epoch；C拆为C1/C2：C1以独立entity/repo、挑战服务、真实挑战与磁盘SQL.js重开14/14完成原型，F1目录6套71项和API构建通过；C2以双数据库专用证据存储、prototype kind隔离、70表/5迁移冷启/重开/回退零漂移及12套83项完成；C3进一步拆为C3a上下文authority、C3b挑战transport、C3c proof authority、C3d生产持久evidence kind、C3e挑战编排、C3f安全入口及C3g发布/运行消费者；a/b/c以4 files、27 tests、API security 8套105项及build限定完成，d以生产格式独立evidence表、双库CHECK/迁移/注册、16套120项及SQLite/隔离PG 72表/7迁移zero drift限定完成，e以四阶段loopback→SQLite耐久重读→context/epoch重评→私有proof、10套123项及build限定完成；f以2 files/24 tests、security 10套146项及API build限定完成；g再拆为G1 proof/authorization消费adapter、G2只读preview/readiness、G3单成员DB事务writer、G4批量/verification candidate、G5 Gateway执行proof guard、G6 MCP/child实时许可撤销。G1以30 tests、security 11 suites/176及API build限定完成，G3以2 files、1 suite/10项SQL.js及API build限定完成但未注册/未验PG；G2只读adapter以2 files、2 suites/43及API build限定完成，SQL仅SELECT、实体/evidence零变更且canPublish恒false；G4有界executor切片以3 suites/30 tests及API build限定完成：生产G2默认false/G3零调用，future-readiness fixture仅证明partial commit/continue，candidate仅host-owned同步swap无await，未接异步Registry生产链；D READY；G5独立Gateway proof consumer guard与真实HTTP切片3 suites/54 tests及API build通过，但未注册module/runtime，缺生产host challenge/session/proof issuer、同进程authority lifecycle与request-bound capability provider，故WAIT_DEP且不开放Verified；G4/G5均依赖G1/G3；G6依赖E3b/G1；当前不接production gate，全部F1保护fail-closed。D让preview、单批发布和激活消费同一结果并在事务内复核context，依赖G2/G4；E扩为E1/E2/E3：E1 Gateway每次调用重评guard已以39套556项、13项真实HTTP SQL.js重校及API构建完成，但不声明生产Verified；E2以Parser唯一声明规则与标准HTTP transformer门禁完成，覆盖Parser28套545项、API102套1116项、三构建及扩例7/7；不含Verified/custom handlers/E3 managed在线传播；E3拆为E3a/E3b：E3a受限ManagedChildSecurityLeaseCoordinator已完成但未注册/未接handoff，E3b负责运行中更新前阻断、实时授权、事件IPC及在线撤销；F执行双runtime重开/并发矩阵，依赖D/E3b/G5/G6。父TP-F1保持IN_PROGRESS，A/B完成不能替代C–F的耐久证据和真实运行验收。
+D1-02D1/D3、D2A–D及D4A–D4均已有各自限定证据；H11A再以16项真实Controller/Nest/HTTP/cache/SQL.js冷重启联合用例、strict helper 10项、Gateway+Publication 58 suites/778 tests及API build完成Registry-source v1受控激活。全API首轮116 suites/1293 tests中115 suites/1292 tests通过，唯一process-manager.temporary-anonymous suite超时，单跑4/4在12.09s通过且未改测试。F1 Verified未接线，inline/legacy/unmigrated/unknown/unsafe仍fail-closed，无外部部署；H11B以真实部署全链33场景闭合H01–H12，相关73 suites/1023 tests及API build通过，TP-D1按原出口转DONE。

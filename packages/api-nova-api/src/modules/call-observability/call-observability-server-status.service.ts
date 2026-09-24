@@ -1,8 +1,13 @@
+import { sequenceKey } from './call-observability-storage';
 import { In } from 'typeorm';
+import {
+  MANAGED_PROCESS_LIFECYCLE_PREFIX,
+  managedProcessLifecycleView,
+} from './managed-process-lifecycle-evidence.service';
 import { gatewayRoutingView, GATEWAY_ROUTING_OBSERVATION_PREFIX } from './call-observability-gateway-routing.dto';
 import { managementHeartbeatView } from './call-observability-heartbeat.dto';
 import { MANAGEMENT_HEARTBEAT_ID } from './call-observability-heartbeat.worker';
-import { RuntimePipelineStateEntity } from '../../database/entities/runtime-call-observability.entity';
+import { RuntimeInvocationEntity, RuntimeInvocationRevisionEntity, RuntimePipelineStateEntity } from '../../database/entities/runtime-call-observability.entity';
 import { Injectable } from '@nestjs/common';
 import { RuntimeAssetEntity, RuntimeAssetType, RuntimeAssetStatus } from '../../database/entities/runtime-asset.entity';
 import { RuntimeObservabilityStateEntity, RuntimeObservabilityScopeType, RuntimeCurrentStatus,
@@ -13,7 +18,7 @@ import { MAX_METRIC_OBSERVATIONS } from './call-observability-metrics';
 import { CallObservabilityStore, ObservabilityReadTransaction } from './call-observability.store';
 import { ObservabilityFilter } from './call-observability-query';
 import { overviewFilter, overviewWindow, OverviewRow, readOverviewRows } from './call-observability-overview-query';
-import { ObservabilityServerStatusesDto } from './call-observability-server-status.dto';
+import { ObservabilityPersistedInFlightDto, ObservabilityServerStatusesDto } from './call-observability-server-status.dto';
 
 export const MAX_OBSERVABILITY_STATUS_SERVERS = 200;
 export const MAX_OBSERVABILITY_STATUS_ROWS = 5000;
@@ -94,6 +99,11 @@ export class CallObservabilityServerStatusService {
         .map(asset => GATEWAY_ROUTING_OBSERVATION_PREFIX + asset.id)),
     });
     const routing = new Map(routingRows.map(row => [row.id, row]));
+    const lifecycleRows = await tx.manager.getRepository(RuntimePipelineStateEntity).findBy({
+      id: In(records.map(asset => MANAGED_PROCESS_LIFECYCLE_PREFIX + asset.id)),
+    });
+    const lifecycle = new Map(lifecycleRows.map(row => [row.id, row]));
+    const persisted = await this.readPersistedInFlight(tx, filter, records);
     result.items = records.map(asset => {
       const serverType = asset.type === RuntimeAssetType.GATEWAY_SERVICE ? 'gateway' : 'mcp';
       const business = rows.filter(row => row.runtimeAssetId === asset.id && row.serverType === serverType &&
@@ -103,12 +113,25 @@ export class CallObservabilityServerStatusService {
       const last = (outcomes: string[]) => completed.filter(row => outcomes.includes(row.outcome))
         .map(row => timestamp(row.completedAt)).filter((value): value is string => value !== null).sort().pop() || null;
       const state = latest.get(asset.id);
+      const managedProcessLifecycle = managedProcessLifecycleView(
+        lifecycle.get(MANAGED_PROCESS_LIFECYCLE_PREFIX + asset.id), asset.id);
       return { runtimeAssetId: asset.id, serverType, lifecycleStatus: status(asset.status, RuntimeAssetStatus),
+        managedProcessLifecycle,
+        persistedInFlight: persisted.get(asset.id)!,
+        managedLifecycleHistory: {
+          source: 'runtime_pipeline_states', scope: 'latest_generation_only', dataWatermark: null, historyComplete: false,
+          status: managedProcessLifecycle ? 'observed' : lifecycle.has(MANAGED_PROCESS_LIFECYCLE_PREFIX + asset.id) ? 'unavailable' : 'unknown',
+          reason: managedProcessLifecycle ? null : lifecycle.has(MANAGED_PROCESS_LIFECYCLE_PREFIX + asset.id) ? 'invalid_lifecycle_evidence' : 'lifecycle_evidence_missing',
+          generation: managedProcessLifecycle?.generation ?? null, startedAt: managedProcessLifecycle?.startedAt ?? null,
+          terminalAt: managedProcessLifecycle && managedProcessLifecycle.observedEvent !== 'started' ? managedProcessLifecycle.observedAt : null,
+          terminalEvent: managedProcessLifecycle && managedProcessLifecycle.observedEvent !== 'started' ? managedProcessLifecycle.observedEvent : null,
+        },
         lifecycleSource: 'runtime_assets', lifecycleUpdatedAt: timestamp(asset.updatedAt),
         gatewayRoutingObservation: serverType === 'gateway' ? gatewayRoutingView(
           routing.get(GATEWAY_ROUTING_OBSERVATION_PREFIX + asset.id) ?? null, asset.id, Date.parse(tx.now), tx.snapshotSeq) : null,
         healthStatus: 'unknown', dependencyHealth: 'unknown', freshnessStatus: 'unknown',
-        lastHeartbeatAt: null, processInstanceId: null, activeInvocations: null, stateVersion: null,
+        lastHeartbeatAt: null, processInstanceId: managedProcessLifecycle?.generation ?? null,
+        activeInvocations: null, stateVersion: managedProcessLifecycle ? String(managedProcessLifecycle.stateVersion) : null,
         unknownInFlight: business.filter(row => row.record.phase !== 'finished').length,
         observedBusinessRequests: business.length, businessObservationStatus: business.length ? 'observed' : 'not_observed',
         lastSuccessAt: last(['success']),
@@ -124,6 +147,59 @@ export class CallObservabilityServerStatusService {
     result.coverage.serversWithReportedState = result.items.filter(item => item.reportedState !== null).length;
     if (result.coverage.serversWithBusinessObservations < records.length) result.coverage.gaps.push('business_not_observed');
     if (result.coverage.serversWithReportedState < records.length) result.coverage.gaps.push('persisted_state_missing');
+    if (result.items.some(item => item.persistedInFlight.status !== 'observed')) result.coverage.gaps.push('in_flight_evidence_incomplete');
+    if (result.items.some(item => item.managedLifecycleHistory.status !== 'observed')) result.coverage.gaps.push('managed_lifecycle_evidence_missing');
     return result;
+  }
+
+  private async readPersistedInFlight(tx: ObservabilityReadTransaction, filter: ObservabilityFilter,
+    assets: RuntimeAssetEntity[]): Promise<Map<string, ObservabilityPersistedInFlightDto>> {
+    const output = new Map<string, ObservabilityPersistedInFlightDto>();
+    const base = { source: 'runtime_invocation_revisions', dataWatermark: tx.snapshotSeq, origin: String(filter.origin),
+      timeScope: 'all_retained_starts', livenessEvaluated: false, coverage: 'unknown' };
+    for (const asset of assets) output.set(asset.id, { ...base, status: 'unknown', count: null, reason: 'retained_business_evidence_missing' });
+    if (!tx.manager.connection.hasMetadata(RuntimeInvocationRevisionEntity)) {
+      for (const asset of assets) output.set(asset.id, { ...base, status: 'unavailable', count: null, reason: 'invocation_revision_store_unavailable' });
+      return output;
+    }
+    const snapshot = sequenceKey(tx.snapshotSeq), ids = assets.map(asset => asset.id);
+    // Aggregate in the database: finished retained history must not turn status
+    // into a 5000-row sample or make an otherwise bounded asset query fail.
+    const revisions = await tx.manager.getRepository(RuntimeInvocationRevisionEntity).createQueryBuilder('inv')
+      .select('inv.runtimeAssetId', 'runtimeAssetId').addSelect('inv.serverType', 'serverType')
+      .addSelect('COUNT(*)', 'total').addSelect('COUNT(DISTINCT inv.invocationId)', 'distinctCount')
+      .addSelect("SUM(CASE WHEN inv.phase = 'started' THEN 1 ELSE 0 END)", 'unfinished')
+      .addSelect("SUM(CASE WHEN inv.phase NOT IN ('started', 'finished') THEN 1 ELSE 0 END)", 'invalid')
+      .where('inv.runtimeAssetId IN (:...ids)', { ids })
+      .andWhere('inv.serverType IN (:...serverTypes)', { serverTypes: ['gateway', 'mcp'] })
+      .andWhere('inv.validFromSequence <= :snapshot AND (inv.validUntilSequence IS NULL OR inv.validUntilSequence > :snapshot)', { snapshot })
+      .andWhere('inv.expiresAt > :now AND inv.startedAt <= :now', { now: tx.now })
+      .andWhere('inv.origin = :origin', { origin: filter.origin })
+      .andWhere('inv.spanKind IN (:...kinds)', { kinds: ['gateway_request', 'mcp_tool'] })
+      .groupBy('inv.runtimeAssetId').addGroupBy('inv.serverType').getRawMany();
+    const missing = tx.manager.connection.hasMetadata(RuntimeInvocationEntity)
+      ? await tx.manager.getRepository(RuntimeInvocationEntity).createQueryBuilder('inv')
+        .leftJoin(RuntimeInvocationRevisionEntity, 'history',
+          'history.invocationId = inv.invocationId AND history.runtimeAssetId = inv.runtimeAssetId AND history.serverType = inv.serverType AND history.validFromSequence <= :snapshot AND (history.validUntilSequence IS NULL OR history.validUntilSequence > :snapshot) AND history.expiresAt > :now', { snapshot, now: tx.now })
+        .select('inv.runtimeAssetId', 'runtimeAssetId').addSelect('inv.serverType', 'serverType')
+        .addSelect('COUNT(*)', 'total')
+        .where('inv.runtimeAssetId IN (:...ids)', { ids })
+        .andWhere('inv.serverType IN (:...serverTypes)', { serverTypes: ['gateway', 'mcp'] })
+        .andWhere('inv.createdSequence <= :snapshot', { snapshot })
+        .andWhere('inv.expiresAt > :now AND inv.startedAt <= :now', { now: tx.now })
+        .andWhere('inv.origin = :origin', { origin: filter.origin })
+        .andWhere('inv.spanKind IN (:...kinds)', { kinds: ['gateway_request', 'mcp_tool'] })
+        .andWhere('history.id IS NULL').groupBy('inv.runtimeAssetId').addGroupBy('inv.serverType').getRawMany() : [];
+    for (const asset of assets) {
+      const serverType = asset.type === RuntimeAssetType.GATEWAY_SERVICE ? 'gateway' : 'mcp';
+      const evidence = revisions.find(row => row.runtimeAssetId === asset.id && row.serverType === serverType);
+      const missingHistory = missing.some(row => row.runtimeAssetId === asset.id && row.serverType === serverType);
+      const numbers = evidence && [evidence.total, evidence.distinctCount, evidence.unfinished, evidence.invalid].map(Number);
+      const invalid = numbers && (numbers.some(value => !Number.isSafeInteger(value) || value < 0) || numbers[0] !== numbers[1] || numbers[3] > 0);
+      if (missingHistory || invalid) {
+        output.set(asset.id, { ...base, status: 'unavailable', count: null, reason: missingHistory ? 'snapshot_revision_evidence_missing' : 'invalid_invocation_revision_evidence' });
+      } else if (evidence) output.set(asset.id, { ...base, status: 'observed', count: Number(evidence.unfinished), reason: null });
+    }
+    return output;
   }
 }

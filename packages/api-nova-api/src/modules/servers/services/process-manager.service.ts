@@ -4,6 +4,7 @@ import { LessThan, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
 import { spawn, ChildProcess, exec } from 'child_process';
+import { randomUUID } from 'crypto';
 import { promisify } from 'util';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -25,6 +26,11 @@ import { AppConfigService } from '../../../config/app-config.service';
 import { auditDirectory, assertTemporaryAnonymousPolicy } from 'api-nova-parser';
 import { RuntimeCredentialResolverService } from './runtime-credential-resolver.service';
 import { managedMcpJwtPolicyEnv, mcpInboundSpawnEnv } from './mcp-inbound-process-env';
+import {
+  ManagedProcessLifecycleEvidenceService,
+  ManagedProcessLifecycleIdentity,
+  ManagedProcessLifecycleTerminalDetails,
+} from '../../call-observability/managed-process-lifecycle-evidence.service';
 
 // MCP连接监控相关接口
 interface MCPConnectionEvent {
@@ -63,6 +69,8 @@ export class ProcessManagerService implements OnModuleDestroy {
   private readonly processLogMaxMessageLength: number;
   private readonly processLogRetentionDays: number;
   private readonly recentPersistedLogs = new Map<string, number>();
+  private managedProcessIdentities = new WeakMap<ChildProcess, ManagedProcessLifecycleIdentity>();
+  private expectedProcessStops = new WeakSet<ChildProcess>();
   
   // MCP连接统计缓存
   private readonly mcpConnectionStats = new Map<string, MCPConnectionStats>();
@@ -82,6 +90,7 @@ export class ProcessManagerService implements OnModuleDestroy {
     private readonly resourceMonitor: ProcessResourceMonitorService,
     private readonly logMonitor: ProcessLogMonitorService,
     @Optional() private readonly credentialResolver?: RuntimeCredentialResolverService,
+    @Optional() private readonly lifecycleEvidence?: ManagedProcessLifecycleEvidenceService,
   ) {
     this.config = {
       ...DEFAULT_PROCESS_CONFIG,
@@ -212,9 +221,12 @@ export class ProcessManagerService implements OnModuleDestroy {
       // 存储进程引用和信息
       this.processes.set(serverId, childProcess);
       this.processInfo.set(serverId, processInfo);
+      const lifecycleIdentity = this.createManagedProcessIdentity(config, childProcess, processInfo.startTime);
+      if (lifecycleIdentity) this.lifecycleIdentities().set(childProcess, lifecycleIdentity);
 
       // 设置进程事件监听
       this.setupProcessListeners(serverId, childProcess, config);
+      await this.recordManagedProcessStarted(childProcess);
 
       // 启动资源监控
       this.resourceMonitor.startMonitoring(
@@ -287,6 +299,7 @@ export class ProcessManagerService implements OnModuleDestroy {
     await this.logProcess(serverId, LogLevel.INFO, `Stopping process (PID: ${processInfo.pid})`);
 
     try {
+      this.expectedStops().add(childProcess);
       // 停止监控
       this.resourceMonitor.stopMonitoring(serverId);
       this.logMonitor.stopLogMonitoring(serverId);
@@ -303,6 +316,8 @@ export class ProcessManagerService implements OnModuleDestroy {
         await this.stopProcessOnUnix(serverId, childProcess, force);
       }
 
+      await this.recordManagedProcessTerminal(childProcess, 'stopped');
+
       // 清理资源
       await this.cleanupProcess(serverId);
       this.credentialResolver?.releaseServer(serverId);
@@ -310,6 +325,7 @@ export class ProcessManagerService implements OnModuleDestroy {
       this.logger.log(`Process stopped successfully for server ${serverId}`);
       await this.logProcess(serverId, LogLevel.INFO, 'Process stopped successfully');
     } catch (error) {
+      this.expectedStops().delete(childProcess);
       this.logger.error(`Failed to stop process for server ${serverId}:`, error);
       await this.logProcess(serverId, LogLevel.ERROR, `Failed to stop process: ${error.message}`);
       throw error;
@@ -607,6 +623,45 @@ export class ProcessManagerService implements OnModuleDestroy {
     }
   }
 
+  private lifecycleIdentities(): WeakMap<ChildProcess, ManagedProcessLifecycleIdentity> {
+    return this.managedProcessIdentities ??= new WeakMap<ChildProcess, ManagedProcessLifecycleIdentity>();
+  }
+
+  private expectedStops(): WeakSet<ChildProcess> {
+    return this.expectedProcessStops ??= new WeakSet<ChildProcess>();
+  }
+
+  private createManagedProcessIdentity(config: ProcessConfig, childProcess: ChildProcess, startedAt: Date): ManagedProcessLifecycleIdentity | null {
+    const runtimeAssetId = config.mcpConfig?.managed === true ? config.mcpConfig.runtimeAssetId?.trim() : undefined;
+    if (!runtimeAssetId || !childProcess.pid) return null;
+    return { runtimeAssetId, serverId: config.id, generation: randomUUID(), pid: childProcess.pid,
+      startedAt: startedAt.toISOString() };
+  }
+
+  private async recordManagedProcessStarted(childProcess: ChildProcess): Promise<void> {
+    const identity = this.lifecycleIdentities().get(childProcess);
+    if (!identity || !this.lifecycleEvidence) return;
+    try {
+      await this.lifecycleEvidence.recordStarted(identity);
+    } catch (error) {
+      this.logger.warn(`Failed to persist managed process start evidence for ${identity.serverId}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async recordManagedProcessTerminal(
+    childProcess: ChildProcess,
+    event: 'stopped' | 'unexpected_exit' | 'lost',
+    details: ManagedProcessLifecycleTerminalDetails = {},
+  ): Promise<void> {
+    const identity = this.lifecycleIdentities().get(childProcess);
+    if (!identity || !this.lifecycleEvidence) return;
+    try {
+      await this.lifecycleEvidence.recordTerminal(identity, event, details);
+    } catch (error) {
+      this.logger.warn(`Failed to persist managed process terminal evidence for ${identity.serverId}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   /**
    * 设置进程事件监听
    */
@@ -616,6 +671,11 @@ export class ProcessManagerService implements OnModuleDestroy {
       if (this.processes.get(serverId) !== childProcess) return;
       this.credentialResolver?.releaseServer(serverId);
       this.logger.log(`Process ${serverId} exited with code ${code} and signal ${signal}`);
+      const expectedStop = this.expectedStops().has(childProcess);
+      await this.recordManagedProcessTerminal(childProcess, expectedStop ? 'stopped' : 'unexpected_exit', {
+        exitCode: code,
+        signal,
+      });
       await this.logProcess(serverId, LogLevel.INFO, `Process exited with code ${code} and signal ${signal}`);
       if (this.processes.get(serverId) !== childProcess) return;
       this.resourceMonitor.stopMonitoring(serverId);
@@ -643,6 +703,7 @@ export class ProcessManagerService implements OnModuleDestroy {
       if (this.processes.get(serverId) !== childProcess) return;
       this.credentialResolver?.releaseServer(serverId);
       this.logger.error(`Process ${serverId} encountered an error:`, error);
+      await this.recordManagedProcessTerminal(childProcess, 'lost', { error: error.message });
       await this.logProcess(serverId, LogLevel.ERROR, `Process error: ${error.message}`);
       if (this.processes.get(serverId) !== childProcess) return;
       this.resourceMonitor.stopMonitoring(serverId);

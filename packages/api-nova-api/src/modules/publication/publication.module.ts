@@ -1,3 +1,4 @@
+import { GatewayRuntimeModule } from '../gateway-runtime/gateway-runtime.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EndpointDefinitionEntity } from '../../database/entities/endpoint-definition.entity';
@@ -18,6 +19,7 @@ import { RuntimeUpstreamBindingsModule } from '../runtime-upstream-bindings/runt
 
 @Module({
   imports: [
+    GatewayRuntimeModule,
     TypeOrmModule.forFeature([
       EndpointDefinitionEntity,
       RuntimeAssetEntity,

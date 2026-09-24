@@ -1,3 +1,4 @@
+import { GatewayHeaderLegacyRuntimeGuard } from './gateway-header-legacy-runtime.guard';
 import { BadGatewayException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { GatewayAccessLogService } from './gateway-access-log.service';
@@ -24,6 +25,7 @@ export class GatewayRuntimeService {
     private readonly gatewayProxyEngineService: GatewayProxyEngineService,
     private readonly gatewayAccessLogService: GatewayAccessLogService,
     private readonly gatewayRuntimeMetricsService: GatewayRuntimeMetricsService,
+    private readonly gatewayHeaderLegacyRuntimeGuard?: GatewayHeaderLegacyRuntimeGuard,
   ) {}
 
   async forwardRequest(routePath: string, req: Request, res: Response): Promise<void> {
@@ -63,12 +65,15 @@ export class GatewayRuntimeService {
     const audit = beginGatewayRequestAudit(req, res, requestId, target);
     return audit.run(async () => {
     try {
+      // Nest requires this provider. Directly constructed unit fixtures may omit it.
+      await this.gatewayHeaderLegacyRuntimeGuard?.assertAllowed(target);
       const authContext = await this.gatewaySecurityService.authorize(target, req);
       audit.authenticated();
       const admission = await this.gatewayTrafficControlService.admit(target, authContext, req);
       try {
         const requestId = this.resolveRequestId(req, res);
         const correlationId = this.resolveCorrelationId(req);
+        const publishedTarget = target;
         const prepared = (target.policies.upstream?.compiledHeaderPolicy || this.gatewayProxyEngineService.requiresPreparation?.(target))
           ? await this.gatewayProxyEngineService.prepareRequest(target, req) : undefined;
         if (prepared?.compiledHeaderPolicy) {
@@ -123,7 +128,7 @@ export class GatewayRuntimeService {
           return;
         }
 
-        const upstreamResponse = await this.forwardWithRetry(target, req, res, prepared);
+        const upstreamResponse = await this.forwardWithRetry(target, req, res, prepared, publishedTarget);
         if (!bypassCache) {
           this.gatewayCacheService.store(target, req, authContext, upstreamResponse, prepared?.requestPolicy);
         }
@@ -228,6 +233,7 @@ export class GatewayRuntimeService {
     req: Request,
     res: Response,
     preparedRequest?: GatewayPreparedProxyRequest,
+    publishedTarget: GatewayResolvedRoute = target,
   ) {
     const attempts = this.resolveMaxAttempts(target, req);
     const upstreamOperationId = randomUUID();
@@ -243,7 +249,7 @@ export class GatewayRuntimeService {
         if (attempt > 1) {
           await this.gatewayTrafficControlService.beforeAttempt(target);
         }
-        const result = await this.gatewayProxyEngineService.forward(target, req, res, {
+        const result = await this.gatewayProxyEngineService.forward(publishedTarget, req, res, {
           attemptIndex: attempt,
           upstreamOperationId,
           ...(preparedRequest && attempt === 1 ? { preparedRequest } : {}),

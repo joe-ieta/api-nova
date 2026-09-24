@@ -1,5 +1,5 @@
 ---
-doc-version: 1.9.0
+doc-version: 1.25.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -172,7 +172,7 @@ SEC-D1-01 的完成证据是本节定稿与逐项选择；不是 H01–H12 已�
 
 ## 4. F3 每跳网络与凭据政策 v1（已定稿，待实施）
 
-本节冻结 SEC-F3-01 的允许/拒绝合同，供 SEC-F3-02 实施，不声明现有数据面已经执行。网络授权属于实际请求层，不放入无网络 I/O 的纯 Resolver；网络政策与凭据政策都通过才可发送。None、Anonymous、无观测 context 和无凭据的请求同样受控。禁止通过仅设置 `maxRedirects=0` 宣称完成 SSRF 防护，初始请求仍必须满足 DNS、连接与目的地授权。
+本节冻结 SEC-F3-01 的允许/拒绝合同，供 SEC-F3-02A–D 实施，不声明现有数据面已经执行。网络授权属于实际请求层，不放入无网络 I/O 的纯 Resolver；网络政策与凭据政策都通过才可发送。None、Anonymous、无观测 context 和无凭据的请求同样受控。禁止通过仅设置 `maxRedirects=0` 宣称完成 SSRF 防护，初始请求仍必须满足 DNS、连接与目的地授权。
 
 ### 4.1 配置范围、默认与迁移
 
@@ -193,7 +193,7 @@ SEC-D1-01 的完成证据是本节定稿与逐项选择；不是 H01–H12 已�
 | IPv4-mapped IPv6 | 先提取并按内嵌 IPv4 判断 | 同左，同时保留连接 peer 的规范化等价比较 |
 | zone ID、IPv6 转换/隧道表示、非标准 IPv4 整数/八进制/十六进制/缩写 | 拒绝 | 拒绝；必须在 URL 解析器自动改写前识别，不允许变成普通域名逃逸 |
 
-地址判断使用有版本的完整分类表或明确锁定版本的分类组件；上表定义拒绝类别，不允许实现仅检查 `127.`/`192.168.`。新增未知类别按拒绝处理。SEC-F3-02 必须交付分类来源、版本和 IPv4/IPv6 边界用例；不能依赖 DNS 回答者宣称目标“公网”。
+地址判断使用有版本的完整分类表或明确锁定版本的分类组件；上表定义拒绝类别，不允许实现仅检查 `127.`/`192.168.`。新增未知类别按拒绝处理。SEC-F3-02A 必须交付分类来源、版本和 IPv4/IPv6 边界用例；不能依赖 DNS 回答者宣称目标“公网”。
 
 内网例外是部署受信任配置，用户请求、OpenAPI 文件、Location 或工具参数不得创建例外。每项必须包含 exception ID、source asset ID、Site ID、精确 origin、非空规范化地址/CIDR 清单、用途、责任人、审批记录引用、issuedAt、UTC expiresAt；有效期最长 30 天，延期必须产生新的审阅记录和 revision。禁止 `/0`、跨允许地址类别的宽网段、自动从一次解析结果学习地址。例外与凭据授权相互独立，不自动授予 Endpoint、秘密或跨资产权限。到期即时拒绝新发送，即使长连接或快照尚未刷新。
 
@@ -238,9 +238,11 @@ v1 只支持直连。显式配置代理或自定义 Axios adapter/transport 一�
 
 ### 4.6 实施与验收出口
 
-SEC-F3-01 到本节政策定稿完成；SEC-F3-02 必须同时完成受信任配置/例外、DNS 全集分类与 IP 固定、HTTP/TLS 写出前 peer 复核、直连隔离、逐跳凭据重建、快照/撤销及拒绝审计。不能以纯函数、设置零跳转、一次 DNS 检查或仅 beforeRedirect hook 关闭该代码任务。
+SEC-F3-01 到本节政策定稿完成；实施拆为F3-02A严格配置/地址分类、F3-02B受控DNS/IP固定/peer复核、F3-02C逐跳凭据/redirect/撤销状态机和F3-02D N01–N17双运行时验收。A的纯原语不能替代B–D；四项合并才覆盖受信任配置/例外、DNS全集与IP固定、HTTP/TLS写出前peer复核、直连隔离、逐跳凭据重建、快照/撤销及拒绝审计。不能以纯函数、设置零跳转、一次DNS检查或仅beforeRedirect hook关闭F3。
 
-第 5 节 N01–N17 按本节冻结政策执行：N02 分别验证 legacy 基线和 safe-read 的 5 次边界；N13 验证例外精确匹配、到期和始终拒绝集合；N14 验证代理配置拒绝及各大小写环境变量均不触发代理连接；N15 验证所有非空体/非 GET、HEAD 不跟随且无第二次写出；N16 验证普通 reload 固定版本、撤销中断及每次新连接重新授权。矩阵同步为“政策已定，待实现”，不能用DOC状态替代真实执行证据。
+实现快照（2026-09-24）：F3-02A限定纯compiler已完成，静态分类表版本为`iana-2025-10-09-conservative-v1`；该表更新必须审查IPv4/IPv6 IANA Special-Purpose registry差异并重跑地址边界回归。network专项165项、Parser 30 suites/722 tests及typecheck/build通过。此证据不含DNS解析/固定、真实发送、peer复核或host续期/撤销；B已解锁，C/D仍按依赖等待。
+
+SEC-F3-02D按第 5 节 N01–N17 冻结矩阵执行：N02 分别验证 legacy 基线和 safe-read 的 5 次边界；N13 验证例外精确匹配、到期和始终拒绝集合；N14 验证代理配置拒绝及各大小写环境变量均不触发代理连接；N15 验证所有非空体/非 GET、HEAD 不跟随且无第二次写出；N16 验证普通 reload 固定版本、撤销中断及每次新连接重新授权。矩阵同步为“政策已定，待实现”，不能用DOC状态替代真实执行证据。
 
 真实验收必须使用受控 DNS、HTTP/HTTPS socket 和代理陷阱覆盖有/无 context、CNAME/A/AAAA 混合、重绑定、peer 不符、证书失败、取消、重定向和秘密泄漏。URL/策略/DNS 拒绝要求零目标连接；peer/TLS 拒绝可建连但零 HTTP Header/正文写出。内网测试例外不得转为生产默认。Windows/Linux 两个平台结果分别记录，缺失平台证据保留待验，不用本机模拟代替。完整 F3 父包还需要第 4 节之外的生命周期审计和 Secret Scan，网络政策完成不关闭这些剩余项。
 
@@ -259,11 +261,11 @@ SEC-F3-01 到本节政策定稿完成；SEC-F3-02 必须同时完成受信任配
 | H04 | Endpoint 扩展缺失/空/替换 Site | 分别继承/仅基础/基础加 Endpoint 扩展；拒绝通配符和非法名 | 02A编译/Registry通过；D1生产执行接线、D4联合验收待完成 |
 | H05 | allowlist 含凭据/逐跳/代理保留名 | 请求/响应策略与凭据输出冲突均拒绝激活；旧快照有效，无网络调用 | 02A编译保旧与02B输出拒绝通过；生产仍拒绝激活 |
 | H06 | None 且携带其他候选的认证名 | 候选托管名剥离，不注入凭据 | 02B None真实HTTP通过 |
-| H07 | 轮换后删除旧自定义认证名 | 新策略剥离未允许的旧名；基线显式暴露当前剥离清单局限 | 02A历史名快照与02B显式元数据通过；持久迁移待D2/D4 |
+| H07 | 轮换后删除旧自定义认证名 | 新策略剥离未允许的旧名；冷启动须从受信Parser Host历史Store与Gateway双库Ledger恢复单调历史 | D4C盘点acceptanceComplete:false；D4D1/D2/D3/D4 DONE，双Node/HTTP SQLite与隔离PG H07全true并清理；H07跨启动历史闭合，H11 membership→v1仍未闭合 |
 | H08 | 大小写重复/重复单值/CR-LF/多值 Accept | 按 §3.4 原始字段规则拒绝或合并，无重复凭据和 framing 歧义 | 02B纯函数与真实重复/framing通过 |
 | H09 | 伪造 XFF/Forwarded/request-id，v1 peer-only 与 legacy 迁移 | 当前 XFF 保留前缀作基线；v1 只用 socket peer 构造链，身份不采用伪造值 | 02B真实HTTP peer字段通过；完整迁移待D2/D4 |
 | H10 | 固定长度/分块/空体/Expect/取消 | framing 和实际字节一致，无双 framing、二次消费或空体重放 | 02B真实流与独立Expect入口通过；生产入口安装待D3/D4 |
-| H11 | Range/If-*/Accept-Encoding 不同而路径相同，随后缓存命中 | 状态/Header/正文与直连语义一致；按 §3.6 强制隔离或 bypass 有证据 | 02C受控真实miss/hit通过；生产整合待D1/D3/D4 |
+| H11 | Range/If-*/Accept-Encoding 不同而路径相同，随后缓存命中 | 状态/Header/正文与直连语义一致；按 §3.6 强制隔离或 bypass 有证据 | H11A完成Registry-source route-specific membership v1激活；H11B以真实deploy→plan/replay→activate→Nest HTTP/cache 33场景闭合，覆盖Range/If-*、gzip/identity字节、cache分区与直连/bypass；相关73 suites/1023 tests及API build通过 |
 | H12 | Resolver 错误/None/旧 Env/非法 Env | Resolver 错误固定 503 且 connectCalls=0；旧 Env 分支独立断言，不错误套用固定 503 | 02B真实Resolver503零命中及旧专项通过；完整生产接线待D1/D4 |
 | N01 | Gateway 收到 302/307 与 Location | 仅一次 request，返回状态/Location，hop=0，无下一跳 | 代码基线待执行 |
 | N02 | Parser legacy与safe-read第五/第六次跳转 | 分别验证既有legacy基线和显式safe-read的5次边界；默认不跟随；有无context一致 | 政策已定，待实现 |
@@ -294,7 +296,7 @@ SEC-F3-01 到本节政策定稿完成；SEC-F3-02 必须同时完成受信任配
 | --- | --- | --- |
 | C3 稳定读取和显式配置激活（已实现） | 以 reloadFile 和启动工厂作为接入基线，不作为缺失能力阻塞 D1/F3 | 实现与操作见稳定文件读取、Gateway 凭据 Provider 和运行手册；验证见[执行台账第 18 节](E:/CodexDev/api-nova/docs/guides/security-development-execution-status.md) |
 | C4 适配/配置校验 | 托管名、保留字段冲突、目标 Endpoint 身份、整链版本和撤销语义 | 共享 Resolver/适配接口；纯 Resolver 保持无网络 I/O |
-| D1 编译 Schema 与迁移实施 | 第 3 节已冻结来源、版本、继承/替换、非法拒绝、兼容差异和有限例外 | 02A/B/C、D1执行接线、D3入口及D2A纯迁移合同完成；D2B/C/D与D4待完成 |
+| D1 编译 Schema 与迁移实施 | 第 3 节已冻结来源、版本、继承/替换、非法拒绝、兼容差异和有限例外 | H11A已限定完成Registry-source可信membership+持久v1 marker+trusted compiled/validated route的受控激活，复用G3同事务writer并在afterCommit切换snapshot；inline/legacy/unmigrated/unknown/unsafe仍fail-closed并保旧，F1 Verified未接线。H11B已以真实部署/激活/Nest HTTP/cache 33场景完成生产H01–H12验收；TP-D1按原退出条件DONE |
 | D2 缓存与传输 | 条件/范围/压缩头、framing、可信代理和重放规则闭合 | Gateway 数据面集成 |
 | E1 MCP 接入 | Parser 每跳使用共享安全能力，无 context 同样受控 | MCP Adapter/Parser，不直接复用 Gateway 入站 Filter |
 | F3 目的地政策 | 公网限制、内网例外、代理、降级、跨 asset 授权明确 | 第4节政策已冻结；旧配置显式迁移，禁止静默改变默认 |
@@ -326,4 +328,4 @@ D1 allowlist 政策已经定稿，执行代码与 H01–H12 验收尚待完成�
 v1还保留完整query顺序并去掉消费者认证query；不允许配置裁剪必需维度。未知或无法解析缓存指令保守禁存；max-age/s-maxage及原始Age收窄TTL。生产Registry元数据/执行接线归D1，迁移归D2，入口归D3，重启与联合验收归D4；原始策略门禁未删除。
 ## D1-02D有界拆分（2026-09-24）
 
-原02D不是单一验收动作，现以四个叶子执行：D1将同一Registry快照的Site/Endpoint策略、凭据、代次与历史名随不可变Prepared Exchange接入双向过滤/缓存；D2负责新路由默认v1、具名legacy最长30天、迁移状态持久和防删除/关Provider降级；D3在Nest/Socket.IO初始化后、listen前安装checkContinue/checkExpectation/upgrade；D4执行真实membership激活、数据库重开、冷启动迁移及H01–H12联合矩阵。D1以5套118项限定完成，D3以2套24项及API构建完成实际入口安装；D2进一步拆为A–D：A以3套57项完成具名legacy期限、未知字段与来源变更拒绝的纯迁移契约/校验器，且未接生产创建入口或持久化；B负责新Binding v1持久创建，C负责legacy最长30天与撤销，D负责冷重启/坏迁移/Provider拒绝降级验收。B READY，C/D等待依赖，D4等待D2D。旧活动snapshot把compiled policy fingerprint纳入校验，故不得用缺省v1字段绕过迁移使冷启动失败，也不得删除NOT_READY门禁宣称上线。
+原02D不是单一验收动作，现以四个叶子执行：D1将同一Registry快照的Site/Endpoint策略、凭据、代次与历史名随不可变Prepared Exchange接入双向过滤/缓存；D2负责新路由默认v1、具名legacy最长30天、迁移状态持久和防删除/关Provider降级；D3在Nest/Socket.IO初始化后、listen前安装checkContinue/checkExpectation/upgrade；D4执行真实membership激活、数据库重开、冷启动迁移及H01–H12联合矩阵。D1以5套118项限定完成，D3以2套24项及API构建完成实际入口安装；D2进一步拆为A–D：A以3套57项完成具名legacy期限、未知字段与来源变更拒绝的纯迁移契约/校验器，且未接生产创建入口或持久化；B负责新Binding v1持久创建，C负责legacy最长30天与撤销，D负责冷重启/坏迁移/Provider拒绝降级验收。B以6套65项完成两新建入口v1草稿/来源持久写入、旧路由不回填与NOT_READY先行；C以3套45项完成显式例外登记/校验/撤销与持久墓碑；D以SQLite与隔离PG联合迁移/冷启动/CAS/撤销/重开4套49项及API构建完成。D4拆为A/B/C：A纯guard与局部真实HTTP 37项完成；B已完成生产运行时期限/撤销守卫接线，未获有效例外的旧Gateway路由按明确授权返回503，cache/Resolver/upstream零绕过；C以14套223项及隔离PG完成H01–H12限定矩阵盘点，但acceptanceComplete:false，H07冷启动与membership正式正向未闭环。D4D1以3 Parser files、12新增测试、29套557项及build完成Host Store/Registry CAS；D4D2以Entity/service、SQLite/PG迁移、CAS并集/上限/旧库重开及隔离PG zero-drift完成，但不接Provider；D4D3完成Provider/ledger/Registry bridge；D4D4以真实SQL.js并发CAS/watch stop/迁移回滚、双Node/HTTP SQLite与隔离PG完成H07跨启动历史验收；H11A/H11B现均登记为DONE；H11A以16项真实联合用例、strict helper 10项、Gateway+Publication 58 suites/778 tests及API build限定完成Registry-source route-specific激活；全API首轮唯一process-manager.temporary-anonymous超时，单跑4/4在12.09s通过且未改测试。F1 Verified未接线，inline/legacy/unmigrated/unknown/unsafe仍NOT_READY并保旧，无外部部署；H11B沿RuntimeAssets deploy→plan/真实GatewayCandidateReplay→activate→Nest HTTP/cache以33场景闭合H01–H12，相关73 suites/1023 tests及API build通过；Range/If-*、gzip/identity、cache分区及直连/bypass有证据，Proxy仅按validated chunked策略重建TE；TP-D1按原出口DONE。旧活动snapshot把compiled policy fingerprint纳入校验，故不得用缺省v1字段绕过迁移使冷启动失败，也不得删除NOT_READY门禁宣称上线。

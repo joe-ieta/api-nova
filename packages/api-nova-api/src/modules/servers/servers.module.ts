@@ -38,6 +38,7 @@ import { AssetCatalogModule } from '../asset-catalog/asset-catalog.module';
 import { RuntimeAssetsModule } from '../runtime-assets/runtime-assets.module';
 import { RuntimeObservabilityModule } from '../runtime-observability/runtime-observability.module';
 import { SecurityModule } from '../security/security.module';
+import { CallObservabilityModule } from '../call-observability/call-observability.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { SecurityModule } from '../security/security.module';
     RuntimeAssetsModule,
     RuntimeObservabilityModule,
     SecurityModule,
+    CallObservabilityModule,
   ],
   controllers: [
     ServersObservabilityController,

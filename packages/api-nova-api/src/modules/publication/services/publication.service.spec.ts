@@ -511,9 +511,7 @@ describe('PublicationService', () => {
         rateLimitPolicyRef: 'limit-standard',
         circuitBreakerPolicyRef: 'breaker-default',
         routeStatusReason: 'phase2-seeded',
-        upstreamConfig: {
-          preserveHost: true,
-        },
+        upstreamConfig: { preserveHost: true },
       },
       'operator-1',
     );
@@ -526,9 +524,7 @@ describe('PublicationService', () => {
         rateLimitPolicyRef: 'limit-standard',
         circuitBreakerPolicyRef: 'breaker-default',
         routeStatusReason: 'phase2-seeded',
-        upstreamConfig: {
-          preserveHost: true,
-        },
+        upstreamConfig: expect.objectContaining({ preserveHost: true, headerPolicy: { version: 1 }, headerPolicyMigration: { version: 1, mode: 'v1', source: 'inline' } }),
       }),
     );
   });
@@ -666,13 +662,13 @@ describe('PublicationService', () => {
     });
   });
 
-  it('auto-configures an authenticated parameterized gateway route', async () => {
+  it('auto-configures an authenticated parameterized draft without opening the v1 activation gate', async () => {
     seedManualPublication(RuntimeAssetType.GATEWAY_SERVICE);
     endpointDefinitionRepository.findOne.mockResolvedValue({
       ...readyEndpoint, path: '/orders/{id}',
       metadata: { ...readyEndpoint.metadata, source: 'manual-registration' },
     });
-    await service.publishRuntimeMembership('membership-1', { publishToHttp: true });
+    await expect(service.publishRuntimeMembership('membership-1', { publishToHttp: true })).rejects.toMatchObject({ response: { code: 'GATEWAY_HEADER_POLICY_NOT_READY' } });
     expect(routeBindingRepository.save).toHaveBeenCalledWith(expect.objectContaining({
       routePath: '/orders/{id}', upstreamPath: '/orders/{id}',
       pathMatchMode: 'parameter', routeVisibility: 'internal', authPolicyRef: 'jwt-default',

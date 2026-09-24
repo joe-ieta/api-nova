@@ -1,3 +1,6 @@
+import { UpstreamProductionChallengeEvidenceEntity } from './entities/upstream-production-challenge-evidence.entity';
+import { GatewayHeaderHistoryLedgerEntity } from './entities/gateway-header-history-ledger.entity';
+import { UpstreamAuthenticationEvidenceEntity } from './entities/upstream-authentication-evidence.entity';
 import { EndpointTestSampleObjectEntity } from './entities/endpoint-test-sample-object.entity';
 import { ConfigOverrideEntity } from './entities/config-override.entity';
 import { ConfigBackupEntity } from './entities/config-backup.entity';
@@ -44,6 +47,9 @@ import { HealthCheckResultEntity } from '../modules/servers/entities/health-chec
 import { CALL_OBSERVABILITY_ENTITIES } from './entities/runtime-call-observability.entity';
 
 export const DATABASE_ENTITIES = [
+  UpstreamProductionChallengeEvidenceEntity,
+  GatewayHeaderHistoryLedgerEntity,
+  UpstreamAuthenticationEvidenceEntity,
   EndpointTestSampleObjectEntity,
   ...CALL_OBSERVABILITY_ENTITIES,
   ConfigOverrideEntity,

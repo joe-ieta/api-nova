@@ -66,7 +66,7 @@ describe('Header v1 cache over real runtime and HTTP streams', () => {
     expect(first.status).toBe(200); expect(hit(first)).toBe(false); expect(hit(second)).toBe(true);
     expect(second.body.toString()).toBe('none'); expect(hits).toBe(1);
     expect(security.authorize).toHaveBeenCalledTimes(2); expect(traffic.admit).toHaveBeenCalledTimes(2);
-    expect(resolver).toHaveBeenCalledTimes(2);
+    expect(resolver).toHaveBeenCalledTimes(3); // Preparation, fresh wire resolution, then cache hit.
     expect(second.headers['x-request-id']).not.toBe(first.headers['x-request-id']);
   });
 

@@ -1,0 +1,95 @@
+import * as http from 'node:http';
+import { AddressInfo } from 'node:net';
+import { DataSource } from 'typeorm';
+import { UpstreamCredentialRegistry, normalizeUpstreamSecurity } from 'api-nova-parser';
+import { UpstreamProductionChallengeEvidenceEntity as Evidence } from '../../../database/entities/upstream-production-challenge-evidence.entity';
+import { PublicationProfileEntity as Profile } from '../../../database/entities/publication-profile.entity';
+import { EndpointPublishBindingEntity as Binding } from '../../../database/entities/endpoint-publish-binding.entity';
+import { GatewayRouteBindingEntity as Route } from '../../../database/entities/gateway-route-binding.entity';
+import { RuntimeAssetEndpointBindingEntity as Membership } from '../../../database/entities/runtime-asset-endpoint-binding.entity';
+import { RuntimeAssetEntity as Runtime, RuntimeAssetType } from '../../../database/entities/runtime-asset.entity';
+import { EndpointDefinitionEntity as Endpoint } from '../../../database/entities/endpoint-definition.entity';
+import { createUpstreamSecurityContextAuthority } from '../security/upstream-security-context-authority';
+import { createUpstreamAuthenticationChallengeTransport } from '../security/upstream-authentication-challenge-transport';
+import { createUpstreamAuthenticationChallengeOrchestrator } from '../security/upstream-authentication-challenge-orchestrator';
+import { createUpstreamSecurityAuthorizationAdapter } from '../security/upstream-security-authorization-adapter';
+import { createPublicationSecurityPreviewAdapter } from './publication-security-preview-adapter';
+const selection = { runtimeAssetId: 'runtime', runtimeMembershipId: 'membership' };
+const entities = [Profile, Binding, Route, Membership, Runtime, Endpoint, Evidence];
+describe('limited read-only G2 preview using actual G1 proof and SQL.js', () => {
+  let queries: string[];
+  let db: DataSource, server: http.Server, hits: number, row: any, context: any, session: object, result: any;
+  let authority: ReturnType<typeof createUpstreamSecurityContextAuthority>, orchestrator: ReturnType<typeof createUpstreamAuthenticationChallengeOrchestrator>;
+  let authorize: ReturnType<typeof createUpstreamSecurityAuthorizationAdapter>, preview: ReturnType<typeof createPublicationSecurityPreviewAdapter>;
+  const snapshot = () => Promise.all(entities.map(entity => db.getRepository(entity as any).find({ order: { id: 'ASC' } })));
+  beforeEach(async () => {
+    queries = [];
+    db = await new DataSource({ type: 'sqljs', entities, synchronize: true, logging: ['query'], logger: { logQuery: query => { queries.push(query); }, logQueryError() {}, logQuerySlow() {}, logSchemaBuild() {}, logMigration() {}, log() {} } }).initialize(); hits = 0; session = Object.freeze({});
+    await db.getRepository(Runtime).save({ id: 'runtime', name: 'fixture', type: RuntimeAssetType.GATEWAY_SERVICE });
+    await db.getRepository(Membership).save({ id: 'membership', runtimeAssetId: 'runtime', endpointDefinitionId: 'endpoint' });
+    await db.getRepository(Endpoint).save({ id: 'endpoint', sourceServiceAssetId: 'asset', method: 'GET', path: '/target' });
+    server = http.createServer((req, res) => { hits++; res.statusCode = req.headers['x-key'] === 'synthetic-only' ? 200 : 401; res.end('{}'); });
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve)); const port = (server.address() as AddressInfo).port;
+    row = { sourceServiceAssetId: 'asset', endpointDefinitionId: 'endpoint', bindingId: 'binding', bindingRevision: 'r1', method: 'GET', target: `http://127.0.0.1:${port}/target`, declaration: normalizeUpstreamSecurity({ security: [{ Key: [] }], components: { securitySchemes: { Key: { type: 'apiKey', in: 'header', name: 'X-Key' } } } }, {}) };
+    const registry = new UpstreamCredentialRegistry({ environment: 'test', providerFactory: description => ({ type: description.type, resolve: async () => 'synthetic-only' }) });
+    await registry.reload({ apiVersion: 'security.apinova.io/v1', kind: 'UpstreamCredentialBindings', metadata: { revision: 'r1', environment: 'test' }, reload: { mode: 'manual', debounceMs: 0, rejectPlaintextSecrets: true }, secretProviders: { env: { type: 'env' } }, credentials: { key: { type: 'apiKey', placement: { in: 'header', name: 'X-Key' }, secretRef: 'env:TOKEN' } }, sites: [{ id: 'site', sourceServiceAssetId: 'asset', match: { scheme: 'http', host: '127.0.0.1', port, basePath: '/' }, allowedHosts: ['127.0.0.1'], credential: 'key', endpoints: [{ endpointDefinitionId: 'endpoint' }] }] });
+    authority = createUpstreamSecurityContextAuthority({ read: async () => row }, () => registry.captureSnapshot());
+    const transport = createUpstreamAuthenticationChallengeTransport(authority), intent = Object.freeze({});
+    orchestrator = createUpstreamAuthenticationChallengeOrchestrator({ authority, transport, repository: db.getRepository(Evidence), intents: { resolve: async token => { if (token !== intent) throw Error(); return { sourceServiceAssetId: 'asset', endpointDefinitionId: 'endpoint', actorId: 'actor', intentId: 'intent' }; } } });
+    result = await orchestrator.execute(intent);
+    const { credentialType: ignored, ...captured } = authority.inspect(await authority.issue({ sourceServiceAssetId: 'asset', endpointDefinitionId: 'endpoint' })); context = { ...captured, actorId: 'actor' };
+    authorize = createUpstreamSecurityAuthorizationAdapter(orchestrator, { read: async (input, selected) => {
+      if (input !== session) return undefined;
+      const member = await db.getRepository(Membership).findOneBy({ id: selected.runtimeMembershipId, runtimeAssetId: selected.runtimeAssetId });
+      return member?.endpointDefinitionId === context.endpointDefinitionId ? context : undefined;
+    } });
+    preview = createPublicationSecurityPreviewAdapter(db, authorize);
+  });
+  afterEach(async () => { jest.restoreAllMocks(); server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); await db.destroy(); });
+  it('readiness/list/preview never create missing records or write evidence and never rerun HTTP challenge', async () => {
+    const before = await snapshot(); queries = [];
+    const expected = { canPublish: false, proofCurrent: true, phase: 'blocked', progress: { profileExists: false, bindingExists: false, gatewayRouteExists: false } };
+    expect(await preview.readiness(session, selection, result.proof)).toMatchObject(expected);
+    expect(await preview.preview(session, selection, result.proof)).toMatchObject(expected);
+    expect(await preview.list(session, [{ selector: selection, proof: result.proof }])).toEqual([expect.objectContaining(expected)]);
+    expect(await snapshot()).toEqual(before); expect(hits).toBe(4);
+    expect(queries.length).toBeGreaterThan(0); expect(queries.every(query => /^SELECT\b/i.test(query.trim()))).toBe(true);
+  });
+  it.each(['absent', 'object', 'json', 'row', 'expired', 'revoked', 'wrong-session', 'wrong-membership', 'context'])('rejects %s without business/evidence writes or further HTTP', async kind => {
+    let proof: any = result.proof, currentSession = session, selected = selection;
+    if (kind === 'absent') proof = undefined;
+    if (kind === 'object') proof = {};
+    if (kind === 'json') proof = JSON.parse(JSON.stringify(result.proof));
+    if (kind === 'row') proof = await db.getRepository(Evidence).findOneByOrFail({ id: result.evidenceId });
+    if (kind === 'expired') jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 120000);
+    if (kind === 'revoked') await orchestrator.revoke(result);
+    if (kind === 'wrong-session') currentSession = {};
+    if (kind === 'wrong-membership') selected = { ...selection, runtimeMembershipId: 'missing' };
+    if (kind === 'context') row.bindingRevision = 'changed';
+    const before = await snapshot(); queries = []; const output = await preview.preview(currentSession, selected, proof);
+    expect(output.canPublish).toBe(false); expect(output.proofCurrent).toBe(false); expect(await snapshot()).toEqual(before); expect(hits).toBe(4);
+    expect(JSON.stringify(output)).not.toMatch(/synthetic-only|TOKEN|headers|127\.0\.0\.1|providerEpoch/);
+    expect(queries.every(query => /^SELECT\b/i.test(query.trim()))).toBe(true);
+  });
+  it('valid progress remains gated and existing Header policy remains NOT_READY', async () => {
+    await db.getRepository(Profile).save({ endpointDefinitionId: 'endpoint', runtimeAssetEndpointBindingId: 'membership', status: 'reviewed' as any });
+    await db.getRepository(Binding).save({ endpointDefinitionId: 'endpoint', runtimeAssetEndpointBindingId: 'membership' });
+    await db.getRepository(Route).save({ endpointDefinitionId: 'endpoint', runtimeAssetEndpointBindingId: 'membership', routePath: '/items', routeMethod: 'GET', upstreamPath: '/target', upstreamMethod: 'GET' });
+    const before = await snapshot(); expect(await preview.preview(session, selection, result.proof)).toMatchObject({ phase: 'preview_validated', canPublish: false, reasons: ['PUBLICATION_ACTIVATION_NOT_READY'] });
+    expect(await snapshot()).toEqual(before);
+    await db.getRepository(Route).createQueryBuilder().update().set({ upstreamConfig: { headerPolicy: { version: 1 } } }).execute();
+    const gated = await snapshot(); expect((await preview.readiness(session, selection, result.proof)).reasons).toContain('GATEWAY_HEADER_POLICY_NOT_READY'); expect(await snapshot()).toEqual(gated); expect(hits).toBe(4);
+  });
+  it('rejects snapshot drift during asynchronous proof validation without performing writes itself', async () => {
+    const original = authorize.authorize; let calls = 0;
+    const changed = createPublicationSecurityPreviewAdapter(db, { authorize: async (...args) => { const ok = await original(...args); if (++calls === 2) await db.getRepository(Membership).update('membership', { enabled: false }); return ok; } });
+    const output = await changed.preview(session, selection, result.proof); expect(output.reasons).toEqual(['PREVIEW_CONTEXT_CHANGED']);
+    expect(await db.getRepository(Profile).count()).toBe(0); expect(await db.getRepository(Binding).count()).toBe(0); expect(await db.getRepository(Route).count()).toBe(0); expect(hits).toBe(4);
+  });
+  it('rechecks proof after final select and sanitizes read failures', async () => {
+    let calls = 0; const expires = createPublicationSecurityPreviewAdapter(db, { authorize: async (...args) => ++calls === 3 ? false : authorize.authorize(...args) });
+    expect((await expires.preview(session, selection, result.proof)).reasons).toEqual(['SECURITY_PROOF_UNAVAILABLE']);
+    const failed = createPublicationSecurityPreviewAdapter({ getRepository: () => { throw Error('private-path-secret'); } }, authorize);
+    expect((await failed.preview(session, selection, result.proof)).reasons).toEqual(['PREVIEW_CONTEXT_UNAVAILABLE']); expect(hits).toBe(4);
+  });
+});

@@ -1,3 +1,4 @@
+import { normalizeUpstreamSecurity, reconcileUpstreamSecurity } from '../security/upstream-security-reconciliation';
 import { compileSingleHopUpstreamCredentials, UpstreamCredentialExecutionError } from '../credentials/single-hop-execution';
 import { compileTrustedOperationBindings, CompiledTrustedOperationBindings, TrustedOperationBinding } from '../credentials/trusted-operation-bindings';
 import { OpenAPISpec, OperationObject, ParameterObject, RequestBodyObject, SchemaObject, ReferenceObject, MediaTypeObject, ExampleObject } from '../types/index';
@@ -612,6 +613,14 @@ export class OpenAPIToMCPTransformer {
   private createHandler(method: string, path: string, operation: OperationObject) {
     // Capture a frozen identity once; caller args and later spec/registry edits cannot replace it.
     const trustedBinding = this.trustedBindings?.get(method, path);
+    // Capture a primitive decision at tool creation: later spec/args mutations
+    // cannot remove protection. No production verification authority exists yet.
+    const declarationPermitsHttp = reconcileUpstreamSecurity({
+      declaration: normalizeUpstreamSecurity(this.spec, operation),
+      context: { sourceServiceAssetId: trustedBinding?.sourceServiceAssetId || '',
+        endpointDefinitionId: trustedBinding?.endpointDefinitionId || '',
+        method: method.toUpperCase(), target: '', environment: '' },
+    }).canPublish;
     return async (args: any): Promise<MCPToolResponse> => {
       try {
         // Check for custom handler
@@ -624,6 +633,9 @@ export class OpenAPIToMCPTransformer {
           return await customHandler(args);
         }
 
+        // Reject before credential resolution, custom header providers, or transport.
+        if (!declarationPermitsHttp) return { content: [createTextContent('UPSTREAM_SECURITY_UNVERIFIED',
+          { errorType: 'upstream_security_error', code: 'UPSTREAM_SECURITY_UNVERIFIED' })], isError: true };
         // Default HTTP request handler
         return await this.executeHttpRequest(method, path, args, operation, trustedBinding);
       } catch (error) {

@@ -1,3 +1,4 @@
+import { GatewayHeaderHistoryLedgerEntity } from '../../../database/entities/gateway-header-history-ledger.entity';
 import { DataSource } from 'typeorm';
 import { SourceServiceAssetEntity } from '../../../database/entities/source-service-asset.entity';
 import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
@@ -33,7 +34,7 @@ function document(revision = 'r1') {
     sites: [{
       id: 'site', sourceServiceAssetId: 'asset',
       match: { scheme: 'https', host: 'api.example.com', port: 443, basePath: '/' },
-      allowedHosts: ['api.example.com'], credential: 'token',
+      allowedHosts: ['api.example.com'], credential: 'token', headerPolicy: { version: 1 },
       endpoints: [{ endpointDefinitionId: 'endpoint', credential: 'token' }],
     }],
   };
@@ -48,7 +49,7 @@ describe('Gateway configured credential activation', () => {
   let file: string;
   let previous: string | undefined;
   beforeEach(async () => {
-    database = await new DataSource({ type: 'sqljs', entities: [SourceServiceAssetEntity, EndpointDefinitionEntity], synchronize: true }).initialize();
+    database = await new DataSource({ type: 'sqljs', entities: [SourceServiceAssetEntity, EndpointDefinitionEntity, GatewayHeaderHistoryLedgerEntity], synchronize: true }).initialize();
     await database.getRepository(SourceServiceAssetEntity).save({ id: 'asset', sourceKey: 'asset' });
     await database.getRepository(EndpointDefinitionEntity).save({ id: 'endpoint', sourceServiceAssetId: 'asset', method: 'GET', path: '/items' });
     directory = await fs.realpath(await fs.mkdtemp(join(tmpdir(), 'api-nova-gateway-config-')));
@@ -92,7 +93,7 @@ describe('Gateway configured credential activation', () => {
       const registry = module.get<UpstreamCredentialRegistry>(GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY);
       const resolver = module.get<GatewayUpstreamCredentialResolver>(GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER);
       expect(registry.getStatus()).toMatchObject({ state: 'ready', revision: 'r1' });
-      const route: any = { sourceServiceAsset: { id: 'asset' }, endpointDefinition: { id: 'endpoint' } };
+      const route: any = { routeBinding: { id: 'route', endpointDefinitionId: 'endpoint', upstreamConfig: { headerPolicyMigration: { version: 1, mode: 'v1', source: 'registry' } } }, sourceServiceAsset: { id: 'asset' }, endpointDefinition: { id: 'endpoint' } };
       expect((await resolver.resolve(route, 'https://api.example.com/items')).headers)
         .toEqual({ authorization: 'Bearer synthetic-gateway-secret' });
       // The DI resolver captures the registry's current revision on each request.
@@ -154,7 +155,7 @@ describe('Gateway configured credential activation', () => {
     const registry = module.get<UpstreamCredentialRegistry>(GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY);
     try {
       const resolver = module.get<GatewayUpstreamCredentialResolver>(GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER);
-      const route: any = { sourceServiceAsset: { id: 'asset' }, endpointDefinition: { id: 'endpoint' } };
+      const route: any = { routeBinding: { id: 'route', endpointDefinitionId: 'endpoint', upstreamConfig: { headerPolicyMigration: { version: 1, mode: 'v1', source: 'registry' } } }, sourceServiceAsset: { id: 'asset' }, endpointDefinition: { id: 'endpoint' } };
       expect((await resolver.resolve(route, 'https://api.example.com/items')).headers)
         .toEqual({ authorization: 'Bearer synthetic-gateway-secret' });
       const invalid = document('invalid'); invalid.reload.mode = 'watch';
@@ -240,16 +241,15 @@ describe('Gateway configured credential activation', () => {
     }))).rejects.toThrow('gateway_upstream_credential_configuration_failed');
   });
 
-  test('production startup and reload reject Header v1 until its transport consumer exists, preserving the old revision', async () => {
+  test('production Registry compiles v1 but unmarked routes remain unavailable', async () => {
     const values = config({ [keys.file]: file, [keys.format]: 'json', [keys.environment]: 'test' });
-    const next: any = document('v1-pending');next.sites[0].headerPolicy={version:1,requestHeaders:['x-business']};
-    await fs.writeFile(file,JSON.stringify(next));
-    await expect(createConfiguredGatewayCredentialRegistry(values,database)).rejects.toThrow('gateway_upstream_credential_configuration_failed');
-    await fs.writeFile(file,JSON.stringify(document('old')));
-    const registry=await createConfiguredGatewayCredentialRegistry(values,database);
-    const old=registry!.captureSnapshot();
-    await fs.writeFile(file,JSON.stringify(next));
-    await expect(registry!.reloadFile(file,'json')).rejects.toThrow();
-    expect(registry!.captureSnapshot()).toBe(old);expect(registry!.getStatus().revision).toBe('old');
+    const next: any = document('v1'); next.sites[0].headerPolicy = { version: 1, requestHeaders: ['x-business'] };
+    await fs.writeFile(file, JSON.stringify(next));
+    const registry = await createConfiguredGatewayCredentialRegistry(values, database);
+    const resolver = (await gatewayUpstreamCredentialResolverProvider.useFactory(registry))!;
+    await expect(resolver.resolve({ routeBinding: { id: 'old' }, endpointDefinition: { id: 'endpoint' } } as any, 'https://api.example.com/items')).rejects.toThrow('NOT_READY');
+    const old = registry!.captureSnapshot(); next.metadata.revision = 'bad'; next.sites[0].headerPolicy.requestHeaders = ['connection'];
+    await fs.writeFile(file, JSON.stringify(next)); await expect(registry!.reloadFile(file, 'json')).rejects.toThrow();
+    expect(registry!.captureSnapshot()).toBe(old);
   });
 });

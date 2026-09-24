@@ -1,3 +1,5 @@
+import { gatewayHeaderLegacyRuntimeGuardProvider } from './services/gateway-header-legacy-runtime.providers';
+import { GatewayUpstreamSecurityRuntimeGuard } from './services/gateway-upstream-security-runtime.guard';
 import { CallObservabilityModule } from '../call-observability/call-observability.module';
 import { GatewayRoutingObservationWorker } from './services/gateway-routing-observation.worker';
 import { GatewayUpstreamCredentialAdminController } from './gateway-upstream-credential-admin.controller';
@@ -54,6 +56,8 @@ import { GatewayTrafficControlService } from './services/gateway-traffic-control
   ],
   controllers: [GatewayUpstreamCredentialAdminController, GatewayRuntimeController],
   providers: [
+    gatewayHeaderLegacyRuntimeGuardProvider,
+    GatewayUpstreamSecurityRuntimeGuard,
     GatewayRoutingObservationWorker,
     GatewayUpstreamCredentialAdminService,
     gatewayUpstreamCredentialRegistryProvider,

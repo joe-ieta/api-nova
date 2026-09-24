@@ -1,3 +1,5 @@
+import { checkedCredentialHeaderHistoryState, CREDENTIAL_HEADER_HISTORY_LIMIT, type CredentialHeaderHistoryBinding } from './credential-header-history';
+export type { CredentialHeaderHistoryStore, CredentialHeaderHistoryState, CredentialHeaderHistoryBinding } from './credential-header-history';
 import { upstreamCredentialHeaderName } from './types';
 import { basicCredentialHeader, checkedSingleCredentialSecret } from './secret-material';
 import { compileHeaderPolicyV1, type CompiledHeaderPolicyV1 } from '../headers/header-policy';
@@ -21,6 +23,7 @@ export type UpstreamCredentialRegistryErrorCode =
   | 'RELOAD_IN_PROGRESS' | 'CANDIDATE_REJECTED' | 'ENVIRONMENT_MISMATCH'
   | 'ASSET_OWNERSHIP_REJECTED' | 'REVISION_ALREADY_ACTIVE' | 'SECRET_RESOLUTION_FAILED' | 'UNKNOWN_CREDENTIAL'
   | 'CONFIGURATION_READ_FAILED' | 'CONFIGURATION_UNSTABLE' | 'UNSUPPORTED_RELOAD_MODE'
+  | 'HISTORY_UNAVAILABLE' | 'HISTORY_CONFLICT'
   | 'WATCH_STOPPED' | 'WATCH_ALREADY_STARTED' | 'WATCH_SOURCE_MISMATCH' | 'GENERATION_CONFLICT';
 
 export class UpstreamCredentialRegistryError extends Error {
@@ -36,6 +39,7 @@ export type UpstreamSecretProviderFactory = (
 
 export interface UpstreamCredentialRegistryOptions {
   readonly environment: string;
+  readonly credentialHeaderHistory?: CredentialHeaderHistoryBinding;
   /** Trusted host adapter only. Never accept executable adapters from configuration text. */
   readonly providerFactory?: UpstreamSecretProviderFactory;
   /** Host-owned validation against the authoritative asset store; never config supplied. */
@@ -83,6 +87,7 @@ function reject(code: UpstreamCredentialRegistryErrorCode): never {
 function checkedOptions(input: UpstreamCredentialRegistryOptions): {
   environment: string;
   providerFactory: UpstreamSecretProviderFactory;
+  credentialHeaderHistory?: CredentialHeaderHistoryBinding;
   validateCandidateOwnership?: UpstreamCredentialRegistryOptions['validateCandidateOwnership'];
 } {
   try {
@@ -93,7 +98,7 @@ function checkedOptions(input: UpstreamCredentialRegistryOptions): {
     if (prototype !== Object.prototype && prototype !== null) {
       return reject('INVALID_REGISTRY_CONFIGURATION');
     }
-    if (Reflect.ownKeys(input).some(key => key !== 'environment' && key !== 'providerFactory' && key !== 'validateCandidateOwnership')) {
+    if (Reflect.ownKeys(input).some(key => key !== 'environment' && key !== 'providerFactory' && key !== 'validateCandidateOwnership' && key !== 'credentialHeaderHistory')) {
       return reject('INVALID_REGISTRY_CONFIGURATION');
     }
     const environmentProperty = Object.getOwnPropertyDescriptor(input, 'environment');
@@ -104,6 +109,15 @@ function checkedOptions(input: UpstreamCredentialRegistryOptions): {
         (ownershipProperty && (!('value' in ownershipProperty) || (ownershipProperty.value !== undefined && typeof ownershipProperty.value !== 'function')))) {
       return reject('INVALID_REGISTRY_CONFIGURATION');
     }
+    const historyProperty = Object.getOwnPropertyDescriptor(input, 'credentialHeaderHistory');
+    if (historyProperty && !('value' in historyProperty)) return reject('INVALID_REGISTRY_CONFIGURATION');
+    const history = historyProperty?.value as CredentialHeaderHistoryBinding | undefined;
+    if (history !== undefined && (!history || typeof history !== 'object' ||
+      typeof history.namespace !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$/.test(history.namespace) ||
+      !history.store || typeof history.store.load !== 'function' || typeof history.store.commit !== 'function')) return reject('INVALID_REGISTRY_CONFIGURATION');
+    // Capture host adapter methods once; later option mutations cannot retarget the ledger.
+    const credentialHeaderHistory = history && Object.freeze({ namespace: history.namespace,
+      store: Object.freeze({ load: history.store.load.bind(history.store), commit: history.store.commit.bind(history.store) }) });
     const environment = environmentProperty.value;
     const providerFactory = factoryProperty?.value === undefined
       ? createUpstreamSecretProvider : factoryProperty.value;
@@ -112,7 +126,7 @@ function checkedOptions(input: UpstreamCredentialRegistryOptions): {
         /[\u0000-\u001f\u007f]/u.test(environment) || typeof providerFactory !== 'function') {
       return reject('INVALID_REGISTRY_CONFIGURATION');
     }
-    return { environment, providerFactory, validateCandidateOwnership: ownershipProperty?.value };
+    return { environment, providerFactory, credentialHeaderHistory, validateCandidateOwnership: ownershipProperty?.value };
   } catch {
     return reject('INVALID_REGISTRY_CONFIGURATION');
   }
@@ -141,6 +155,7 @@ export class UpstreamCredentialRegistry {
   private readonly environment: string;
   private readonly providerFactory: UpstreamSecretProviderFactory;
   private readonly validateCandidateOwnership?: UpstreamCredentialRegistryOptions['validateCandidateOwnership'];
+  private readonly credentialHeaderHistory?: CredentialHeaderHistoryBinding;
   private active: UpstreamCredentialRegistrySnapshot | undefined;
   private reloading = false;
   private historicalAuthenticationHeaderNames = new Set<string>();
@@ -150,6 +165,7 @@ export class UpstreamCredentialRegistry {
   constructor(options: UpstreamCredentialRegistryOptions) {
     const checked = checkedOptions(options);
     this.environment = checked.environment;
+    this.credentialHeaderHistory = checked.credentialHeaderHistory;
     this.providerFactory = checked.providerFactory;
     this.validateCandidateOwnership = checked.validateCandidateOwnership;
   }
@@ -308,6 +324,7 @@ export class UpstreamCredentialRegistry {
   private async activateCandidate(
     candidate: UpstreamCredentialBindingsCandidate,
     commitAllowed?: () => boolean,
+    historyAttempt = 0,
   ): Promise<UpstreamCredentialRegistrySnapshot> {
     if (candidate.metadata.environment !== this.environment) return reject('ENVIRONMENT_MISMATCH');
     if (candidate.metadata.revision === this.active?.candidate.metadata.revision) {
@@ -315,7 +332,13 @@ export class UpstreamCredentialRegistry {
     }
 
     const credentialHeaderNames = Object.values(candidate.credentials).map(upstreamCredentialHeaderName);
-    const historicalNames = new Set([...this.historicalAuthenticationHeaderNames, ...credentialHeaderNames]);
+    let history = { version: 0, names: [] as readonly string[] };
+    if (this.credentialHeaderHistory) {
+      try { history = checkedCredentialHeaderHistoryState(await this.credentialHeaderHistory.store.load(this.credentialHeaderHistory.namespace)); }
+      catch { return reject('HISTORY_UNAVAILABLE'); }
+    }
+    const historicalNames = new Set([...history.names, ...this.historicalAuthenticationHeaderNames, ...credentialHeaderNames]);
+    if (historicalNames.size > CREDENTIAL_HEADER_HISTORY_LIMIT) return reject('HISTORY_UNAVAILABLE');
     const compiled = new Map<string, CompiledHeaderPolicyV1>();
     const policyKey = (siteId: string, endpoint?: UpstreamHeaderPolicyEndpoint): string => JSON.stringify([siteId, endpoint === undefined ? null : 'endpointDefinitionId' in endpoint ? ['id', endpoint.endpointDefinitionId] : ['route', endpoint.method.toUpperCase(), endpoint.path]]);
     try {
@@ -395,8 +418,22 @@ export class UpstreamCredentialRegistry {
         return resolveBinding(binding);
       },
     });
-    // The only commit point; no await occurs after completed validation and before the swap.
+    // Durable CAS is the activation commit point. A watcher stopped before it
+    // starts cancels; stopping during an accepted commit only stops future reloads.
     if (commitAllowed && !commitAllowed()) return reject('WATCH_STOPPED');
+    if (this.credentialHeaderHistory) {
+      let committed: boolean;
+      try { committed = await this.credentialHeaderHistory.store.commit(this.credentialHeaderHistory.namespace, history.version, Object.freeze([...historicalNames].sort())); }
+      catch { return reject('HISTORY_UNAVAILABLE'); }
+      if (committed !== true) {
+        if (committed !== false) return reject('HISTORY_UNAVAILABLE');
+        if (historyAttempt >= 2) return reject('HISTORY_CONFLICT');
+        if (commitAllowed && !commitAllowed()) return reject('WATCH_STOPPED');
+        // Recompile against the new union; a newly retired header may invalidate policy.
+        return this.activateCandidate(candidate, commitAllowed, historyAttempt + 1);
+      }
+    }
+    // No await or fallible work after successful durable commit and before swap.
     this.historicalAuthenticationHeaderNames = historicalNames;
     this.active = snapshot;
     this.lastReloadError = undefined;

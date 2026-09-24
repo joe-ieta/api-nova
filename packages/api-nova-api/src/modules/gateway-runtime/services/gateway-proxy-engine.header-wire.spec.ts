@@ -55,17 +55,17 @@ describe('Gateway explicit compiled Header v1 real wire', () => {
     let seen: http.IncomingHttpHeaders = {};
     handler = (req, res) => { seen = req.headers; res.setHeader('x-result', 'yes'); res.setHeader('x-hidden', 'no'); res.end('ok'); };
     const output = await request(port, 'GET', { 'x-business': 'yes', 'x-site': 'no', 'x-managed': 'forged' });
-    expect(output.status).toBe(200); expect(resolverCalls).toBe(1);
+    expect(output.status).toBe(200); expect(resolverCalls).toBe(2);
     expect(seen['x-business']).toBe('yes'); expect(seen['x-site']).toBeUndefined(); expect(seen['x-managed']).toBe('registry-secret');
     expect(output.headers['x-result']).toBe('yes'); expect(output.headers['x-hidden']).toBeUndefined();
   });
-  it('consumes one Registry exchange for both wire directions without mutating route', async () => {
+  it('revalidates preparation and uses one fresh Registry exchange for both wire directions', async () => {
     registryPolicy = route.policies.upstream.compiledHeaderPolicy;
     delete route.policies.upstream.compiledHeaderPolicy;
     let seen: http.IncomingHttpHeaders = {};
     handler = (req, res) => { seen = req.headers; res.setHeader('x-result', 'allowed'); res.setHeader('x-secret', 'stripped'); res.end('ok'); };
     const output = await request(port, 'GET', { 'x-business': 'yes', 'x-secret': 'no', 'x-retired': 'never-forward' });
-    expect(output.status).toBe(200); expect(preparationRequired).toBe(true); expect(resolverCalls).toBe(1);
+    expect(output.status).toBe(200); expect(preparationRequired).toBe(true); expect(resolverCalls).toBe(2);
     expect(seen['x-business']).toBe('yes'); expect(seen['x-secret']).toBeUndefined(); expect(seen['x-retired']).toBeUndefined();
     expect(output.headers['x-result']).toBe('allowed'); expect(output.headers['x-secret']).toBeUndefined();
     expect(route.policies.upstream.compiledHeaderPolicy).toBeUndefined();
