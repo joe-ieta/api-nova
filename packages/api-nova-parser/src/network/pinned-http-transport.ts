@@ -1,3 +1,4 @@
+import { createRedirectLocationEvidenceStore } from './redirect-location-evidence';
 import * as http from 'node:http';
 import * as https from 'node:https';
 import { ControlledDnsError, ControlledDnsRequest } from './controlled-dns';
@@ -18,6 +19,7 @@ export interface PinnedHttpResponse {
  */
 export function createPinnedHttpTransport(hostInput: PinnedConnectionHostOptions) {
   const connections = createPinnedConnectionHost(hostInput);
+  const locations = createRedirectLocationEvidenceStore();
   async function send(input: PinnedHttpRequest): Promise<PinnedHttpResponse> {
     try {
       const value = record(input, ['policy', 'target', 'deadline', 'signal', 'method', 'headers', 'body'], ['policy', 'target', 'deadline', 'method']);
@@ -68,7 +70,9 @@ export function createPinnedHttpTransport(hostInput: PinnedConnectionHostOptions
             response.once('end', () => {
               const responseHeaders: Record<string, string | readonly string[]> = {};
               for (const [key, entry] of Object.entries(response.headers)) if (entry !== undefined) responseHeaders[key] = Array.isArray(entry) ? Object.freeze([...entry]) : entry;
-              finish(undefined, Object.freeze({ statusCode: response.statusCode ?? 502, headers: Object.freeze(responseHeaders), body: Buffer.concat(chunks, bytes) }));
+              const result = Object.freeze({ statusCode: response.statusCode ?? 502, headers: Object.freeze(responseHeaders), body: Buffer.concat(chunks, bytes) });
+              locations.capture(response, result);
+              finish(undefined, result);
             });
           });
           outgoing.on('error', () => finish(error('upstream_network_policy_unavailable')));
@@ -80,5 +84,5 @@ export function createPinnedHttpTransport(hostInput: PinnedConnectionHostOptions
       throw error();
     }
   }
-  return Object.freeze({ send });
+  return Object.freeze({ send, consumeRedirectLocation: locations.consume });
 }

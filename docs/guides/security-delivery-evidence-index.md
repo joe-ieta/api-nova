@@ -1,5 +1,5 @@
 ---
-doc-version: 1.85.0
+doc-version: 1.88.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -127,15 +127,18 @@ doc-updated: 2026-09-24
 | SEC-F3-02C1d2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：SQL.js/旧快照2 suites/42 tests、Gateway 44 suites/664 tests、API build及diff-check通过；真实SQL.js dirty-read以同步export到独立query_only副本修复，candidate/rollback不发布且stop/delete同步撤销。PostgreSQL未实测，整库复制成本与原候选暂态snapshot行为保留，不构成生产装配。 |
 | SEC-F3-02C1d2b1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个credentials文件、自身23 tests，统一Parser 44 suites/1077 tests、typecheck/build及diff-check通过；内存有界材料、CAS激活、同步撤销/到期已验，无env/file导入、生产issuer或Registry关联，JS string无物理擦除保证。 |
 | SEC-F3-02C1d2b2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：3个credentials文件、专用26 tests、相邻5 suites/99 tests、Parser 46 suites/1124 tests、typecheck/build、cleanup及diff-check全绿；仅host-owned内存generation→真实Registry Snapshot→一次性source proof。无env/file自动捕获、Gateway生产装配、managed child或跨进程传播；首次TS7006失败保留历史并已完整复验。 |
-| SEC-F3-02C1d2b3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：D2b2/D2a/D3依赖已闭合；default-off Gateway/Parser host装配待实现。env/file自动捕获、外部Secret Manager、managed child、跨进程/E3b及目标环境证据仍未完成。 |
+| SEC-F3-02C1d2b3a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **IN_PROGRESS/未验收**：独立Gateway host-only generation/issuer capability端口正在实现；缺失默认off，不从request/config/env/file自动导入，不改RuntimeModule/Registry且不启用生产路径。 |
+| SEC-F3-02C1d2b3b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2b3a/D2b2/D3；Registry/evidence生产组合与同代Snapshot/proof/epoch/readSignal验收待实现。 |
+| SEC-F3-02C1d2b3c | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2b3b/D2a/D1；route对象与catalog身份原子捕获、可信registration及同步撤销待实现。 |
+| SEC-F3-02C1d2b3d | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2b3c；显式default-off Nest/Gateway稳定provider装配及真实Nest/SQL.js/loopback验收待实现。外部Secret Manager、managed child、跨进程/E3b及目标环境另验。 |
 | SEC-F3-02C1d3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off且缺providerEvidence永拒，WeakMap fixture不是生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭。 |
-| SEC-F3-02C1d4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2b3/D3；普通reload固定、失败保旧及撤销/收窄/epoch变化/到期主动abort的本地真实联合验收；外部Secret Manager、多进程/E3b及目标环境另验。 |
+| SEC-F3-02C1d4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2b3d/D3；普通reload固定、失败保旧及撤销/收窄/epoch变化/到期主动abort的本地真实联合验收；外部Secret Manager、多进程/E3b及目标环境另验。 |
 | SEC-F3-02C2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个独立Parser文件，专项30项及相邻5 suites/240 tests通过；source asset+精确method/path绑定Endpoint/target，未知、歧义、跨asset、scheme降级及非受信目标失败关闭。未接多跳状态机、真实发送或生产网络模式。 |
 | SEC-F3-02C2b1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个network文件，专项63 tests、相邻5 suites/303 tests、统一Parser 44 suites/1077 tests、typecheck/build及diff-check通过；显式safe-read空正文GET/HEAD、规范化Location/loop、最多5跳及一次性decision已验。纯模块不触网、不启用生产入口，默认仍single-hop。 |
 | SEC-F3-02C2b2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个network文件、自身21 tests、相邻3 suites/115 tests、统一Parser 45 suites/1098 tests、typecheck/build、cleanup及diff-check通过；rawHeaders唯一Location证据已验，不解析目标、不触网、不改默认single-hop。首次TS7006失败保留为历史。 |
 | SEC-F3-02C2b2b1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：evidence源码/spec两文件，专项2 suites/60 tests、Parser 46 suites/1135 tests、typecheck/build、cleanup及diff-check全绿；同代generation与issuer失效合成同步AbortSignal，256有界缓存且终态detach。消费者的denied/unavailable网络映射、env/file激活和生产多跳不在本叶完成。 |
-| SEC-F3-02C2b2b2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：b2b1/C2a/C2b1/C2b2a/D2b2依赖已闭合；同一authority/deadline/Signal内的逐跳目标选择、DNS/peer/TLS、目标凭据及真实网络验收待实现，默认仍为single-hop。 |
-| SEC-F3-02C2b3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C2b2b2/D3；Transformer显式可信host配置与生产入口矩阵待实现，默认仍为single-hop。 |
+| SEC-F3-02C2b2b2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：4个Parser network文件、专项3 suites/87 tests、Parser 47 suites/1170 tests、typecheck/build、cleanup及diff-check全绿；同一handle/signal/deadline与同generation贯穿逐跳DNS/TLS/epoch、raw Location、最多5跳及8MiB边界。默认off，不代表生产启用。 |
+| SEC-F3-02C2b3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：C2b2b2/D3依赖已闭合；Transformer显式可信host配置与生产入口矩阵待实现，默认仍为single-hop。 |
 | SEC-F3-02C3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C1d4；Gateway固定整操作生命周期、route/membership/Registry版本与deadline，撤销后旧epoch不得继续。 |
 | SEC-F3-02C4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：C1b/C1c限定接线完成后解锁；首轮只验单attempt/cache-off及共享operation handle，缓存恢复和自动retry另行登记。 |
 | SEC-F3-02C5a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时。 |
@@ -144,7 +147,7 @@ doc-updated: 2026-09-24
 | SEC-F3-02D | [网络边界合同§4.6及N01–N17](./security-header-network-boundary-contract.md) | **待验收**：依赖C6；Gateway/Parser真实连接、生产默认启用及Windows/Linux矩阵未执行。 |
 | SEC-F3-03 | [安全用例](../testing/runtime-security-audit-cases.md)、[受管通道脚本](../../packages/api-nova-api/scripts/test-managed-mcp-channel.cjs) | **限定执行/待验收**：局部脱敏与 IPC 无 argv Secret 有证据；完整 argv/log/错误/快照 Secret Scan、创建/更新/撤销审计可检索依赖产品 E1。 |
 | SEC-F3a-01 | [安全台账 §6](./security-development-execution-status.md)、[锁文件](../../package-lock.json) | **历史执行/待验收**：2026-09-07 漏洞数已过时；当前可达性、在线公告、补丁/风险处置与签收无当前执行证据，不自动 audit fix。 |
-| SEC-F4-01 | 本索引及SEC当前叶子出口逐项映射 | **限定执行已完成/持续维护**：索引按当前109个SEC叶子或明确标注的聚合旧ID维护；ID/链接校验不改变技术父包状态，也不自动使 F4-02 READY。 |
+| SEC-F4-01 | 本索引及SEC当前叶子出口逐项映射 | **限定执行已完成/持续维护**：索引按当前112个SEC叶子或明确标注的聚合旧ID维护；ID/链接校验不改变技术父包状态，也不自动使 F4-02 READY。 |
 | SEC-F4-02 | [安全规划 §6/8](./security-development-task-plan.md)、[安全用例](../testing/runtime-security-audit-cases.md)、[发布准备清单](./release-readiness-checklist.md) | **待验收（环境）**：依赖 D2/E2/F1/F2/F3/F3a 的各自出口和目标环境授权；当前没有完整真实签收。 |
 
 ## 发布验收时必须补齐的证据包

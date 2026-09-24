@@ -188,4 +188,14 @@ describe('pinned single-hop transport over real isolated DNS/HTTP/TLS', () => {
       expect(process.env.NODE_USE_ENV_PROXY).toBe('1'); expect(requests).toBe(1); expect(proxyConnections).toBe(0);
     } finally { for (const [name, original] of saved) { if (original === undefined) delete process.env[name]; else process.env[name] = original; } }
   });
+  it('binds raw duplicate Location evidence even when normalized headers look unique', async () => {
+    const { transport, input } = setup();
+    handler = (_req, res) => { res.writeHead(302, ['Location', '/one', 'lOcAtIoN', '/two']); res.end('bounded'); };
+    const response = await transport.send(input);
+    expect(typeof response.headers.location).toBe('string');
+    expect(() => transport.consumeRedirectLocation({ ...response })).toThrow();
+    expect(transport.consumeRedirectLocation(response)).toEqual({ kind: 'ambiguous' });
+    expect(() => transport.consumeRedirectLocation(response)).toThrow();
+  });
+
 });
