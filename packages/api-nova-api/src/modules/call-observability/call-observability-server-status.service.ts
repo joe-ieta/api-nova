@@ -1,3 +1,4 @@
+import { CallObservabilityServerStateSnapshotAuthorizer } from './call-observability-server-state-snapshot-authorizer.service';
 import { sequenceKey } from './call-observability-storage';
 import { In } from 'typeorm';
 import {
@@ -8,7 +9,7 @@ import { gatewayRoutingView, GATEWAY_ROUTING_OBSERVATION_PREFIX } from './call-o
 import { managementHeartbeatView } from './call-observability-heartbeat.dto';
 import { MANAGEMENT_HEARTBEAT_ID } from './call-observability-heartbeat.worker';
 import { RuntimeInvocationEntity, RuntimeInvocationRevisionEntity, RuntimePipelineStateEntity } from '../../database/entities/runtime-call-observability.entity';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { RuntimeAssetEntity, RuntimeAssetType, RuntimeAssetStatus } from '../../database/entities/runtime-asset.entity';
 import { RuntimeObservabilityStateEntity, RuntimeObservabilityScopeType, RuntimeCurrentStatus,
   RuntimeHealthStatus } from '../../database/entities/runtime-observability-state.entity';
@@ -32,15 +33,19 @@ function status(value: string, allowed: object): string {
 }
 @Injectable()
 export class CallObservabilityServerStatusService {
-  constructor(private readonly store: CallObservabilityStore) {}
+  constructor(private readonly store: CallObservabilityStore,
+    @Optional() private readonly snapshots?: CallObservabilityServerStateSnapshotAuthorizer) {}
   async list(raw: Record<string, unknown>, authorization: ObservabilityAuthorization) {
     const filter = overviewFilter(raw);
-    return this.store.readSnapshot(async tx => {
+    const result = await this.store.readSnapshot(async tx => {
       const rows = await readOverviewRows(tx, filter, authorization);
       const data = await this.readInSnapshot(tx, filter, authorization, rows);
       return observabilitySuccess(data, { snapshotSeq: tx.snapshotSeq,
         lagMs: null, historyCompleteSince: null, isPartial: true });
     });
+    if (this.snapshots) result.data.serverStateSnapshot = this.snapshots.issue(result.data.invocationDataWatermark,
+      authorization, filter, result.data.items.map(item => item.runtimeAssetId));
+    return result;
   }
   async readInSnapshot(tx: ObservabilityReadTransaction, filter: ObservabilityFilter,
     authorization: ObservabilityAuthorization, rows: OverviewRow[]): Promise<ObservabilityServerStatusesDto> {
@@ -55,7 +60,7 @@ export class CallObservabilityServerStatusService {
         unattributedBusinessInvocations: 0, historyCompleteSince: null,
         gaps: ['heartbeat_unavailable', 'history_coverage_unknown'], isPartial: true },
       maxStateRows: MAX_OBSERVABILITY_STATUS_ROWS, maxQueryInvocations: MAX_METRIC_OBSERVATIONS,
-      stateBasis: 'current_database_snapshot', dataWatermark: null, invocationDataWatermark: tx.snapshotSeq,
+      serverStateSnapshot: null, stateBasis: 'current_database_snapshot', dataWatermark: null, invocationDataWatermark: tx.snapshotSeq,
       readAt: tx.now, livenessEvaluated: false, isPartial: true, restricted: authorization.runtimeAssetIds !== null,
     };
     if (assets !== null && !assets.length) return result;

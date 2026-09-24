@@ -13,7 +13,7 @@ const { ConfigService } = require('@nestjs/config');
 const { JwtService } = require('@nestjs/jwt');
 const { SwaggerModule, DocumentBuilder } = require('@nestjs/swagger');
 const { normalizeRuntimeAuditRecord } = require('../../api-nova-parser/src/audit/runtime-observability-contract.ts');
-const { RuntimeInvocationRevisionEntity: Revision, RuntimeAccessSourceEntity: Source, RuntimePipelineStateEntity: Pipeline } =
+const { RuntimeEventDeletionGapEntity: EventGap, RuntimeInvocationRevisionEntity: Revision, RuntimeAccessSourceEntity: Source, RuntimePipelineStateEntity: Pipeline } =
   require('../src/database/entities/runtime-call-observability.entity.ts');
 const { RuntimeAssetEntity: Asset } = require('../src/database/entities/runtime-asset.entity.ts');
 const { RuntimeObservabilityStateEntity: State } = require('../src/database/entities/runtime-observability-state.entity.ts');
@@ -34,7 +34,7 @@ const { UserService } = require('../src/modules/security/services/user.service.t
 const window = { from: '2026-09-09T00:00:00.000Z', to: '2026-09-09T01:00:00.000Z' };
 const authorization = ids => ({ principalId: 'reader', runtimeAssetIds: ids, requiredPermissions: ['monitoring:read'], fingerprint: require('node:crypto').createHash('sha256').update(JSON.stringify(ids)).digest('hex') });
 async function fixture(t) {
-  const db = new DataSource({ type: 'sqljs', entities: [Revision, Source, Pipeline, Asset, State, Event],
+  const db = new DataSource({ type: 'sqljs', entities: [Revision, Source, Pipeline, Asset, State, Event, EventGap],
     synchronize: true, logging: false });
   await db.initialize();
   t.after(async () => { if (db.isInitialized) await db.destroy(); });

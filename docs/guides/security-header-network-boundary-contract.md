@@ -1,5 +1,5 @@
 ---
-doc-version: 1.28.0
+doc-version: 1.30.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -238,9 +238,9 @@ v1 只支持直连。显式配置代理或自定义 Axios adapter/transport 一�
 
 ### 4.6 实施与验收出口
 
-SEC-F3-01 到本节政策定稿完成；实施拆为F3-02A严格配置/地址分类、F3-02B1受控DNS全集授权、F3-02B2固定IP单跳直连/peer复核、F3-02C逐跳凭据/redirect/撤销状态机和F3-02D N01–N17双运行时验收。A/B1的纯原语不能替代B2–D；五项合并才覆盖受信任配置/例外、DNS全集与IP固定、HTTP/TLS写出前peer复核、直连隔离、逐跳凭据重建、快照/撤销及拒绝审计。不能以纯函数、设置零跳转、一次DNS检查或仅beforeRedirect hook关闭F3。
+SEC-F3-01 到本节政策定稿完成；实施拆为F3-02A严格配置/地址分类、F3-02B1受控DNS全集授权、F3-02B2固定IP单跳直连/peer复核primitive、F3-02B3a Parser共享verified connection/Readable矩阵、B3b Parser host版本桥、B3c Gateway route Provider/stream桥、F3-02C逐跳凭据/redirect/撤销状态机和F3-02D N01–N17双运行时验收。A/B1/B2原语不能替代B3a–D；八项合并才覆盖受信任配置/例外、DNS全集与IP固定、HTTP/TLS写出前peer复核、直连隔离、逐跳凭据重建、快照/撤销及拒绝审计。不能以纯函数、设置零跳转、一次DNS检查或仅beforeRedirect hook关闭F3。
 
-实现快照（2026-09-24）：F3-02A限定纯compiler已完成，静态分类表版本为`iana-2025-10-09-conservative-v1`；该表更新必须审查IPv4/IPv6 IANA Special-Purpose registry差异并重跑地址边界回归。B1受控DNS批准结果以真实UDP 26/26、Parser 31 suites/748 tests及typecheck/build限定DONE，覆盖A/AAAA/CNAME有界全集与逐地址授权；只产出批准结果，无上游socket、peer或TLS证据。B2现IN_PROGRESS，仅交付固定IP单跳直连、原Host/SNI/证书、代理拒绝与写出前peer复核；redirect、逐跳凭据和撤销状态机不在本叶，C/D仍按依赖等待。
+实现快照（2026-09-24）：F3-02A限定纯compiler已完成，静态分类表版本为`iana-2025-10-09-conservative-v1`；该表更新必须审查IPv4/IPv6 IANA Special-Purpose registry差异并重跑地址边界回归。B1受控DNS批准结果以真实UDP 26/26、Parser 31 suites/748 tests及typecheck/build限定DONE，覆盖A/AAAA/CNAME有界全集与逐地址授权；只产出批准结果，无上游socket、peer或TLS证据。B2现以31专项、Parser 32 suites/779 tests及typecheck/build限定DONE，仅交付≤8MiB Buffer固定IP单跳transport primitive，覆盖真实HTTP/TLS/peer/代理陷阱与Windows Node24；未接Gateway/Transformer host，不支持Readable/大体积流。B3现拆为a/b/c：a READY，负责Parser共享verified connection、Readable单跳、背压/取消及大于8MiB真实矩阵；b等待a后接Parser host-only可信Site/Registry版本桥与bounded adapter；c等待a后独立接Gateway可信route网络Provider/stream桥，并在C闭合网络身份与撤销前保持缓存关闭。B3聚合与TP-F3保持IN_PROGRESS；C同时依赖b/c，redirect、逐跳凭据和撤销状态机仍归C，D继续等待，生产启用不得提前。
 
 SEC-F3-02D按第 5 节 N01–N17 冻结矩阵执行：N02 分别验证 legacy 基线和 safe-read 的 5 次边界；N13 验证例外精确匹配、到期和始终拒绝集合；N14 验证代理配置拒绝及各大小写环境变量均不触发代理连接；N15 验证所有非空体/非 GET、HEAD 不跟随且无第二次写出；N16 验证普通 reload 固定版本、撤销中断及每次新连接重新授权。矩阵同步为“政策已定，待实现”，不能用DOC状态替代真实执行证据。
 
@@ -303,7 +303,7 @@ SEC-F3-02D按第 5 节 N01–N17 冻结矩阵执行：N02 分别验证 legacy �
 | F3 请求层能力 | 异步每跳授权、DNS 全集分类、地址固定、peer/TLS/代理一致性 | 仅加 beforeRedirect 或观测计数不足 |
 | F3/F4 证据 | 矩阵执行、拒绝前无连接/写出、泄漏扫描及 Windows/Linux 集成 | 后续授权验证；C2 Linux 文件权限为独立证据轨 |
 
-D1 allowlist 政策已经定稿，执行代码与 H01–H12 验收尚待完成；F3 网络政策已定稿，DNS/连接/逐跳执行尚待实现。两者完成条件分别由本契约对应矩阵与依赖定义。C3/Gateway 的显式配置激活不替代这些退出条件。F3 全包还包含本文以外的生命周期审计、CLI/Process Info 防护和完整 Secret Scan。验证结果与任务状态以[执行台账第 18 节](E:/CodexDev/api-nova/docs/guides/security-development-execution-status.md)为准。
+D1 allowlist 政策已经定稿，执行代码与 H01–H12 验收尚待完成；F3 网络政策已定稿，DNS及有界Buffer连接原语已限定实现；host/stream接线、逐跳执行与完整验收仍待完成。两者完成条件分别由本契约对应矩阵与依赖定义。C3/Gateway 的显式配置激活不替代这些退出条件。F3 全包还包含本文以外的生命周期审计、CLI/Process Info 防护和完整 Secret Scan。验证结果与任务状态以[执行台账第 18 节](E:/CodexDev/api-nova/docs/guides/security-development-execution-status.md)为准。
 
 ## 显式MCP单跳模式增量
 

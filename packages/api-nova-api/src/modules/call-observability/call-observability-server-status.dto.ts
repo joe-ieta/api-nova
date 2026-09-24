@@ -1,3 +1,4 @@
+import type { CallObservabilityServerStateSnapshotAuthorizer } from './call-observability-server-state-snapshot-authorizer.service';
 import { ObservabilityGatewayRoutingDto } from './call-observability-gateway-routing.dto';
 import { ObservabilityManagementHeartbeatDto } from './call-observability-heartbeat.dto';
 import { ApiProperty } from '@nestjs/swagger';
@@ -88,6 +89,8 @@ export class ObservabilityServerCoverageDto {
   @ApiProperty() isPartial: boolean;
 }
 export class ObservabilityServerStatusesDto {
+  @ApiProperty({ nullable: true, type: Object, description: 'Process-local server_state_v1 read grant for durable lifecycle and retained in-flight evidence only; excludes directory, legacy state and heartbeat. Not a completeness or global liveness claim.' })
+  serverStateSnapshot: ReturnType<CallObservabilityServerStateSnapshotAuthorizer['issue']> | null;
   @ApiProperty({ type: ObservabilityManagementHeartbeatDto, nullable: true, description: 'Global-scope only; management process store roundtrip evidence, never Gateway/MCP liveness.' }) managementHeartbeat: ObservabilityManagementHeartbeatDto | null;
   @ApiProperty({ type: ObservabilityServerCoverageDto }) coverage: ObservabilityServerCoverageDto;
   @ApiProperty({ type: ObservabilityOverviewWindowDto }) window: ObservabilityOverviewWindowDto;

@@ -1,3 +1,4 @@
+import { CallObservabilityServerStateSnapshotAuthorizer } from './call-observability-server-state-snapshot-authorizer.service';
 import { CallObservabilityHeartbeatWorker } from './call-observability-heartbeat.worker';
 import { CallObservabilityRetentionWorker } from './call-observability-retention.worker';
 import { CallObservabilityPoliciesController } from './call-observability-policies.controller';
@@ -55,7 +56,7 @@ import { ManagedProcessLifecycleEvidenceService } from './managed-process-lifecy
 @Module({
   imports: [ConfigModule, SecurityModule, TypeOrmModule.forFeature([...CALL_OBSERVABILITY_ENTITIES, RuntimeObservabilityEventEntity])],
   controllers: [CallObservabilityPoliciesController, CallObservabilityOverviewController, CallObservabilityDependenciesController, CallObservabilityServerStatusController, CallObservabilityPipelineController, CallObservabilitySubscriptionsController, CallObservabilityDeliveriesController, CallObservabilityEventsController, CallObservabilityStatisticsController, CallObservabilityCapabilitiesController, CallObservabilityCallerLabelsController, CallObservabilityVisitorsController, CallObservabilityInvocationsController, CallObservabilityPayloadsController],
-  providers: [CallObservabilityHeartbeatWorker, CallObservabilityRetentionWorker, CallObservabilityPoliciesService, CallObservabilityRealtimeService, CallObservabilityOverviewSnapshotAuthorizer,
+  providers: [CallObservabilityServerStateSnapshotAuthorizer, CallObservabilityHeartbeatWorker, CallObservabilityRetentionWorker, CallObservabilityPoliciesService, CallObservabilityRealtimeService, CallObservabilityOverviewSnapshotAuthorizer,
     { provide: EVENTS_SNAPSHOT_AUTHORIZER, useExisting: CallObservabilityOverviewSnapshotAuthorizer },
     CallObservabilityOverviewService, CallObservabilityDependenciesService, CallObservabilityServerStatusService, CallObservabilityPipelineService, CallObservabilityStatisticsService, CallObservabilityCapabilitiesService, CallObservabilityCallerLabelsService, CallObservabilityVisitorsService, CallObservabilityPayloadsService, CallObservabilityInvocationsService, CallObservabilitySourceLifecycle, CallObservabilityCallersProjector, CallObservabilityWorker, CallObservabilityCollector, CallObservabilityPayloadStore, CallObservabilityStore, ManagedProcessLifecycleEvidenceService, CallObservabilityGarbageService,
     CallObservabilitySubscriptionsService, CallObservabilityDeliveriesService, CallObservabilityDeliveryWorker, CallObservabilityEventsService, CallObservabilityOutboxService, ObservabilityAccessGuard, ObservabilityApiExceptionFilter, ObservabilityCursorService, ObservabilityCommandStore],

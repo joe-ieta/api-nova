@@ -1,5 +1,5 @@
 ---
-doc-version: 2.16.0
+doc-version: 2.17.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -33,7 +33,7 @@ ApiNova 的主线是 API 资产导入、注册、测试、治理和发布，以�
 | TP10 | DONE | OBS-10-01/02A/B1/B2限定出口完成：managed lifecycle与有runtimeAssetId的gateway_request/mcp_tool在途成员变化已有同Store事务sequence-bound delta。B2为5 suites/28 tests及API build；storage修正后32/32，events16、invocations38、restart3分别通过。不接Realtime，legacy/asset/global多实例水位与live liveness仍unknown |
 | TP11 | DONE | 远端规范事件、授权历史、持久 Outbox 与水位闭环；本地调用快照的可选授权桥接已整合 |
 | TP12 | DONE | 远端订阅/投递 HTTP、受控测试、人工重投、签名、重试与相关管理审计已闭环；自动发送默认关闭，部署未验收 |
-| TP13 | IN_PROGRESS | 授权持久事件分页流、调用事实快照接续、每页权限复验、ACK背压与隔离模式已实现；调用事实UI已接入。B1/B2的managed lifecycle与业务in-flight durable deltas已闭合前置依赖，OBS-13-01现READY；仍需state snapshot grant、从H续读、乱序/撤权/gap恢复。legacy/asset/global多实例共同水位仍unknown |
+| TP13 | IN_PROGRESS | 授权持久事件分页流、调用事实快照接续、每页权限复验、ACK背压与隔离模式已实现；调用事实UI已接入。B1/B2的managed lifecycle与业务in-flight durable deltas已闭合前置依赖；OBS-13-01A以5 suites/31 tests及API build限定完成独立server_state_v1 grant/H与权限筛选，不接Realtime/消费者。B现READY，负责同表delta追赶、ACK与gap恢复；C等待B后完成权限变化、重连与乱序负测。旧invocation_facts_only保持不变；legacy/asset/global多实例共同水位及live liveness仍unknown |
 | TP14 | IN_PROGRESS | 新建投递记录30天与事件重投资格已分离；新事件/正文策略、默认关闭有界正文GC及受权策略管理UI已验证；已补GC同扫描容量样本、扫描失败重开与停机收尾及只读诊断UI；整体保留/配额与跨组件故障恢复仍待闭合 |
 | TP15 | IN_PROGRESS | 公开/api路径已收敛，调用事实UI及Gateway日志入口已迁移到统一API/签名分页；完整身份/拒绝审计、其余消费者与部署切换未闭合 |
 | TP16 | BACKLOG | 整合后的 PostgreSQL/Linux、多进程、持续负载/容量、性能及对外交付矩阵尚未完成 |
@@ -69,7 +69,7 @@ Windows / Node v24.15.0、16 MiB Streamable 响应的原生 cork/uncork 恢复�
 
 | 工作流 | 继续完成的工作 | 完成判定与依赖 |
 | --- | --- | --- |
-| TP13 实时流 | 在已有调用事实快照接续、签名页流、权限复验、ACK背压和实际UI消费之上，完成全局状态快照、其余消费者与长期/跨平台矩阵 | 不引入第二套事件源；保留已有恢复、撤权和慢消费专项，补齐完整状态及跨环境验收 |
+| TP13 实时流 | 在已有调用事实快照接续、签名页流、权限复验、ACK背压和实际UI消费之上，完成server_state_v1受限状态快照/增量、其余消费者与长期/跨平台矩阵 | 不引入第二套事件源；保留已有恢复、撤权和慢消费专项，补齐已声明状态及跨环境验收；legacy/asset/global多实例共同水位保持unknown |
 | TP10 状态与覆盖 | 管理心跳、本实例路由、诊断UI、受管child最新generation投影及限定retained读模型已接入；B1/B2继续补managed lifecycle与in-flight的同事务sequence事件 | B1/B2不接Realtime；管理心跳不代表业务存活，保留窗口不是全历史。legacy状态、asset目录、全局多实例水位及live active继续unknown |
 | TP14 治理 | 在新事件/正文TTL、授权策略UI及默认关闭正文GC之上，完成配额强制、其余元数据生命周期、跨组件恢复、管理审计30天及历史记录策略 | 明确事件过期后的投递记录留存与重投资格分离；不能清除仍被活动投递引用的事件，不能直接启用破坏性清理 |
 | TP06/16 平台验收 | MCP 完整传输/正文矩阵、Windows 限制、PostgreSQL/Linux、多进程及负载/性能 | 可与实时流/治理开发并行准备环境；最终矩阵必须针对完成后的整合版本 |
