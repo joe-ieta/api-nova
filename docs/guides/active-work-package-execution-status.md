@@ -1,5 +1,5 @@
 ---
-doc-version: 1.118.0
+doc-version: 1.119.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -14,10 +14,10 @@ doc-updated: 2026-09-24
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 132 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 14 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | C2a精确受信Redirect目标目录已开工 |
-| WAIT_DEP | 28 | 等待列明子任务/条件 |
+| DONE | 133 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 15 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 0 | 当前无已登记实施中叶子；D1源码验证尚未进入本轮DONE提交 |
+| WAIT_DEP | 27 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -130,8 +130,8 @@ doc-updated: 2026-09-24
 | SEC-F3-02C1d2 | WAIT_DEP | 等C1d1；Gateway显式默认关闭的生产DI桥接Registry提交、route部署/停止/删除与可信Provider事件，维护版本化注册并清理监听/定时器，不代表多进程传播 |
 | SEC-F3-02C1d3 | WAIT_DEP | 等C1d1；Parser host-only装配真实execution/lifecycle及同进程reload/revoke/expiry，不接managed child IPC或跨进程传播 |
 | SEC-F3-02C1d4 | WAIT_DEP | 等C1d2/C1d3；真实本地Registry/HTTP/TLS覆盖普通reload固定、失败保旧及撤销/收窄/epoch变化/到期在DNS/连接/大流阶段主动abort，shutdown无遗留资源；多进程另验 |
-| SEC-F3-02C2a | IN_PROGRESS | 已开工；实现纯host-owned精确method+path受信Redirect目标目录，只接受精确路径并拒绝未知、歧义、跨asset、scheme降级和非受信目标；不接多跳状态机，生产网络模式仍默认关闭 |
-| SEC-F3-02C2b | WAIT_DEP | 等C2a；Parser safe-read多跳状态机每跳精确重选Endpoint，复用同一operation/deadline/abort并重跑DNS/peer/TLS和凭据；真实HTTP/TLS待验 |
+| SEC-F3-02C2a | DONE | 限定纯目标目录完成：2个独立Parser文件，专项30项及相邻5 suites/240 tests通过；按source asset与精确method+path绑定Endpoint/target，未知、歧义、跨asset、scheme降级及非受信目标失败关闭。未接多跳状态机、真实发送或生产网络模式 |
+| SEC-F3-02C2b | READY | C2a限定目标目录完成后解锁；下一步实现Parser safe-read多跳状态机，每跳精确重选Endpoint，复用同一operation/deadline/abort并重跑DNS/peer/TLS和凭据；真实HTTP/TLS待验 |
 | SEC-F3-02C3 | WAIT_DEP | 等C1d4；Gateway固定同一operation/route/membership/Registry版本，redirect/retry/取消共享deadline，reload/撤销后旧epoch不得继续 |
 | SEC-F3-02C4 | READY | C1b/C1c限定接线已完成；下一步验证新网络模式首轮单attempt且缓存保持关闭，两侧消费同一operation handle；缓存恢复与自动retry另行登记 |
 | SEC-F3-02C5a | DONE | 限定纯失败/审计模块完成：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时 |
