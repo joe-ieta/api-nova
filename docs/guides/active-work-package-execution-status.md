@@ -1,5 +1,5 @@
 ---
-doc-version: 1.137.0
+doc-version: 1.138.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -14,10 +14,10 @@ doc-updated: 2026-09-24
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 143 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 13 | 可进入队列，当前并非全部开工 |
-| IN_PROGRESS | 1 | D2b3a host capability端口正在实施；未验收前不接生产装配 |
-| WAIT_DEP | 28 | 等待列明子任务/条件 |
+| DONE | 144 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 14 | 可进入队列，当前并非全部开工 |
+| IN_PROGRESS | 0 | 当前没有已登记的实施中叶任务 |
+| WAIT_DEP | 27 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -130,8 +130,8 @@ doc-updated: 2026-09-24
 | SEC-F3-02C1d2a | DONE | 限定可信active-route目录完成：SQL.js/旧快照2 suites/42 tests、Gateway 44 suites/664 tests、API build及diff-check通过；真实SQL.js dirty-read复现后以同步export到独立query_only副本修复，candidate/rollback不发布且stop/delete同步撤销。PostgreSQL路径未实测，整库复制成本与原候选暂态snapshot行为保留，不构成生产装配 |
 | SEC-F3-02C1d2b1 | DONE | 限定immutable host generation store完成：2个credentials文件、自身23 tests，统一Parser 44 suites/1077 tests、typecheck/build及diff-check通过；只保存内存有界材料，CAS激活并同步撤销/到期，无env/file导入、生产issuer或Registry关联。JS string不提供物理擦除保证 |
 | SEC-F3-02C1d2b2 | DONE | 限定Registry capture/opaque proof完成：3个credentials文件、专用26 tests、相邻5 suites/99 tests、Parser 46 suites/1124 tests、typecheck/build、cleanup及diff-check全绿；仅host-owned内存generation→Registry真实Snapshot→一次性source proof。无env/file自动捕获、Gateway生产装配、managed child或跨进程传播。首次31 suites/801通过、14 suites因6处TS7006未运行及构建失败保留为历史，修复后已完整复验 |
-| SEC-F3-02C1d2b3a | IN_PROGRESS | 正在实现独立Gateway host-only不可伪造generation/issuer capability端口与可选注入边界；缺失默认off，不从request/config/env/file自动导入，秘密不序列化；不改RuntimeModule/Registry、不启用生产路径 |
-| SEC-F3-02C1d2b3b | WAIT_DEP | 等D2b3a/D2b2/D3；显式host模式下组合RegistryProviderEvidence，验证Snapshot/proof/epoch/readSignal同代及坏配置/缺材料失败关闭，不混用legacy providerFactory |
+| SEC-F3-02C1d2b3a | DONE | 限定Gateway host capability端口完成：2个独立Gateway文件，最终Parser构建之上专项1 suite/5 tests、API typecheck/build及diff-check通过；创建时以Parser私有品牌校验真实issuer，仅null/undefined表示default-off，克隆/代理/结构伪造与重复wrapper拒绝，一次性consume，close先同步失效再关闭issuer/abort，controller/error/JSON均不泄露秘密。不改RuntimeModule/Registry，不从request/config/env/file导入且未启用生产路径 |
+| SEC-F3-02C1d2b3b | READY | D2b3a/D2b2/D3依赖已闭合；下一步在显式host模式下组合RegistryProviderEvidence，验证Snapshot/proof/epoch/readSignal同代及坏配置/缺材料失败关闭，不混用legacy providerFactory |
 | SEC-F3-02C1d2b3c | WAIT_DEP | 等D2b3b/D2a/D1；原子捕获当前route对象与catalog version/IDs/fingerprint并构造可信registration，reload/removed同步撤销，candidate/rollback/迟到事件不得发布 |
 | SEC-F3-02C1d2b3d | WAIT_DEP | 等D2b3c；显式default-off Nest/Gateway稳定provider facade装配，证据全齐才原子swap并以真实Nest/SQL.js/loopback验收；外部Secret Manager、managed child、跨进程/E3b及目标环境仍未完成 |
 | SEC-F3-02C1d3 | DONE | 限定Parser host生命周期桥完成：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off，缺providerEvidence永拒，WeakMap fixture仅为进程内不可伪造测试能力而非生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭 |

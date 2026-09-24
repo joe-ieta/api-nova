@@ -1,5 +1,5 @@
 ---
-doc-version: 1.89.0
+doc-version: 1.90.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -127,8 +127,8 @@ doc-updated: 2026-09-24
 | SEC-F3-02C1d2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：SQL.js/旧快照2 suites/42 tests、Gateway 44 suites/664 tests、API build及diff-check通过；真实SQL.js dirty-read以同步export到独立query_only副本修复，candidate/rollback不发布且stop/delete同步撤销。PostgreSQL未实测，整库复制成本与原候选暂态snapshot行为保留，不构成生产装配。 |
 | SEC-F3-02C1d2b1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个credentials文件、自身23 tests，统一Parser 44 suites/1077 tests、typecheck/build及diff-check通过；内存有界材料、CAS激活、同步撤销/到期已验，无env/file导入、生产issuer或Registry关联，JS string无物理擦除保证。 |
 | SEC-F3-02C1d2b2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：3个credentials文件、专用26 tests、相邻5 suites/99 tests、Parser 46 suites/1124 tests、typecheck/build、cleanup及diff-check全绿；仅host-owned内存generation→真实Registry Snapshot→一次性source proof。无env/file自动捕获、Gateway生产装配、managed child或跨进程传播；首次TS7006失败保留历史并已完整复验。 |
-| SEC-F3-02C1d2b3a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **IN_PROGRESS/未验收**：独立Gateway host-only generation/issuer capability端口正在实现；缺失默认off，不从request/config/env/file自动导入，不改RuntimeModule/Registry且不启用生产路径。 |
-| SEC-F3-02C1d2b3b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2b3a/D2b2/D3；Registry/evidence生产组合与同代Snapshot/proof/epoch/readSignal验收待实现。 |
+| SEC-F3-02C1d2b3a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个独立Gateway文件；最终Parser构建之上专项1 suite/5 tests、API typecheck/build及diff-check通过。创建端以Parser私有品牌校验真实issuer，克隆/代理/结构伪造和重复wrapper均拒绝；一次性consume，close先同步失效再关闭issuer/abort，秘密不进入controller/error/JSON。缺失保持default-off，无request/config/env/file导入、RuntimeModule/Registry生产装配或生产启用。 |
+| SEC-F3-02C1d2b3b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：D2b3a/D2b2/D3依赖已闭合；Registry/evidence生产组合与同代Snapshot/proof/epoch/readSignal验收待实现。 |
 | SEC-F3-02C1d2b3c | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2b3b/D2a/D1；route对象与catalog身份原子捕获、可信registration及同步撤销待实现。 |
 | SEC-F3-02C1d2b3d | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2b3c；显式default-off Nest/Gateway稳定provider装配及真实Nest/SQL.js/loopback验收待实现。外部Secret Manager、managed child、跨进程/E3b及目标环境另验。 |
 | SEC-F3-02C1d3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off且缺providerEvidence永拒，WeakMap fixture不是生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭。 |
