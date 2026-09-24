@@ -9,7 +9,7 @@ import { SourceServiceAssetEntity } from '../../../database/entities/source-serv
 import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
 import { GatewayHeaderHistoryLedgerEntity } from '../../../database/entities/gateway-header-history-ledger.entity';
 import { createGatewayHostCredentialGenerationCapability } from './gateway-host-credential-generation.capability';
-import { attestGatewayHostCredentialCandidate, createGatewayHostCredentialRegistry, validateGatewayHostCandidateOwnership } from './gateway-host-credential-registry';
+import { assertGatewayHostCredentialRegistry, attestGatewayHostCredentialCandidate, createGatewayHostCredentialRegistry, validateGatewayHostCandidateOwnership } from './gateway-host-credential-registry';
 const entities = [SourceServiceAssetEntity, EndpointDefinitionEntity, GatewayHeaderHistoryLedgerEntity];
 describe('private host Registry boot composition', () => {
   let database: DataSource;
@@ -29,6 +29,13 @@ describe('private host Registry boot composition', () => {
     const input = { capability: controller.capability, text: JSON.stringify(document), format: 'json' as const, environment: 'test', expectedGeneration: store.describe(generation).generationId };
     return { store, generation, evidence, controller, document, input, attest: () => attestGatewayHostCredentialCandidate(input) };
   }
+  it('rejects structural hosts without invoking copied methods or getters', () => {
+    const getter = jest.fn();
+    for (const value of [undefined, {}, Object.freeze({ captureSnapshot: getter }), Object.create({ captureSnapshot: getter }), Object.defineProperty({}, 'captureSnapshot', { get: getter })]) {
+      expect(() => assertGatewayHostCredentialRegistry(value)).toThrow('gateway_host_credential_registry_unavailable');
+    }
+    expect(getter).not.toHaveBeenCalled();
+  });
   it('real Nest cannot expose a SQL.js composition', async () => {
     const f = fixture();
     await expect(Test.createTestingModule({ providers: [{ provide: 'host', useFactory: () => createGatewayHostCredentialRegistry(f.attest(), database) }] }).compile()).rejects.toThrow('gateway_host_credential_registry_unavailable');

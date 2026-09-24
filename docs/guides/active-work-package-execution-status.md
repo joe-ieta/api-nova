@@ -1,9 +1,11 @@
 ---
-doc-version: 1.144.0
+doc-version: 1.145.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
 # 活跃子任务执行状态
+
+D2b3c2 限定 DONE：5份源码/测试文件完成私有品牌 host 与同一真实 issuer、固定 Snapshot/source/epoch 的一次性 consumeProof；协调器只接受 exact committed catalog、route 真对象与当前版本，逐 route 核对编译 policy 和 Registry Site 的 source/endpoint/origin。reload/removed、issuer/generation 终态先同步失效再 abort，不复用旧 proof；proof/策略到期关闭、clone/跨 source/epoch/错误 origin 拒绝。专项2 suites/20 tests、Gateway48 suites/707 tests、API build、diff-check通过；隔离PG41 warm+4 cold检查组（本叶新增27组）通过，schema零漂移且集群已停止/清理。SQL.js boot仍拒绝，仅以真实SQL.js路由负例验收；PG正向使用真实已迁移数据库，首次混用enum夹具和异步deployed等待失败均已修正为明确reload完成事件后复验。D2b3d解锁READY；生产DI/default-on、旧watch/admin、网络发送或外部目标部署未交付。
 
 ## 1. 本次重排快照
 
@@ -14,10 +16,10 @@ doc-updated: 2026-09-24
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 148 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 149 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 13 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3b2本地隔离PG已限定完成，不外推生产启用 |
-| WAIT_DEP | 26 | 等待列明子任务/条件 |
+| WAIT_DEP | 25 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -134,8 +136,8 @@ doc-updated: 2026-09-24
 | SEC-F3-02C1d2b3b1 | DONE | 限定Registry/evidence本地安全组合完成：2个独立Gateway文件，专项3 suites/44 tests、Gateway 46 suites/683 tests、API typecheck/build通过。真实复现SQL.js共享事务可在CAS await期间介入并导致rollback历史误公开后，入口改为boot fail-closed；Snapshot/proof/epoch/readSignal保持同代且不混用legacy providerFactory。PostgreSQL正向实库未验，不称生产持久ledger完整 |
 | SEC-F3-02C1d2b3b2 | DONE | 限定DONE：本机原生PG16全新隔离集群完成14 warm+4 cold检查组，真实stop/restart与新进程冷开、同代多Provider/跨Provider Basic、坏配置/epoch/缺材料/伪proof拒绝、外部rollback隔离、双连接CAS/并发boot历史并集、revoke/close及schema零漂移均PASS；集群已停止/清理。首轮超时仅诊断记录。只证明本地隔离PG，外部目标部署/跨进程生产启用仍归F3D |
 | SEC-F3-02C1d2b3c1 | DONE | 限定active-route原子捕获seam完成：4个Gateway文件，新capture+catalog专项2 suites/19 tests、route snapshot回归1 suite/27 tests、Gateway全量47 suites/687 tests、API typecheck/build及diff-check通过。只接受exact current catalog对象并关联同次committed route引用，重核version/IDs/fingerprint；ID-only、克隆/旧snapshot拒绝，candidate/rollback零发布，stop/delete使旧capture失效且迟到reload不复活。不构造网络许可、不接RuntimeModule |
-| SEC-F3-02C1d2b3c2 | READY | c1及D2b3b2本地PostgreSQL持久ledger已限定验收；仅消费不可伪造route捕获与同代Registry证据构造/替换可信registration，reload/removed同步撤销，坏证据失败关闭，不接生产DI |
-| SEC-F3-02C1d2b3d | WAIT_DEP | 等D2b3c2；显式default-off Nest/Gateway稳定provider facade装配，证据全齐才原子swap并以真实Nest/SQL.js/loopback验收；外部Secret Manager、managed child、跨进程/E3b及目标环境仍未完成 |
+| SEC-F3-02C1d2b3c2 | DONE | exact committed capture + 品牌host同snapshot/source/epoch一次性proof；每route Site origin/compiled policy绑定，reload/removed/issuer终态同步abort。专项2套20项、Gateway48套707项、API build、隔离PG41 warm+4 cold检查组及零漂移通过；无生产DI/default-on |
+| SEC-F3-02C1d2b3d | READY | D2b3c2已限定验收；显式default-off Nest/Gateway稳定provider facade装配，证据全齐才原子swap并以真实Nest/SQL.js/loopback验收；外部Secret Manager、managed child、跨进程/E3b及目标环境仍未完成 |
 | SEC-F3-02C1d3 | DONE | 限定Parser host生命周期桥完成：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off，缺providerEvidence永拒，WeakMap fixture仅为进程内不可伪造测试能力而非生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭 |
 | SEC-F3-02C1d4 | WAIT_DEP | 等C1d2b3d/C1d3；真实本地Registry/HTTP/TLS覆盖普通reload固定、失败保旧及撤销/收窄/epoch变化/到期在DNS/连接/大流阶段主动abort，shutdown无遗留资源；外部Secret Manager、多进程/E3b及目标环境另验 |
 | SEC-F3-02C2a | DONE | 限定纯目标目录完成：2个独立Parser文件，专项30项及相邻5 suites/240 tests通过；按source asset与精确method+path绑定Endpoint/target，未知、歧义、跨asset、scheme降级及非受信目标失败关闭。未接多跳状态机、真实发送或生产网络模式 |

@@ -42,6 +42,7 @@ async function main() {
     if (process.argv[2] === 'warm') {
       await db.getRepository('SourceServiceAssetEntity').save([{ id: sourceA, sourceKey: 'host-a' }, { id: sourceB, sourceKey: 'host-b' }]);
       await db.getRepository('EndpointDefinitionEntity').save([{ id: endpointA, sourceServiceAssetId: sourceA, method: 'GET', path: '/items' }, { id: endpointB, sourceServiceAssetId: sourceB, method: 'GET', path: '/items' }]);
+      checks += await registrationChecks(db);
       const f = fixture(), module = await Test.createTestingModule({ providers: [{ provide: 'host', useFactory: () => boot(f.token(), db) }] }).compile();
       const host = module.get('host'); dispose.push(() => host.close()); const snapshot = host.captureSnapshot();
       assert.equal(host.readEpoch(sourceA), f.input.expectedGeneration); assert.equal(host.readEpoch(sourceB), f.input.expectedGeneration);
@@ -89,3 +90,132 @@ async function main() {
   } finally { for (const close of dispose.reverse()) close(); await db.destroy(); }
 }
 main().catch(error => { console.error(error.stack || error); process.exitCode = 1; });
+async function registrationChecks(pg) {
+  const { assertGatewayHostCredentialRegistry: assertHost } = require('../dist/src/modules/gateway-runtime/services/gateway-host-credential-registry');
+  const { createGatewayNetworkRegistrationBundle: assemble, inspectGatewayNetworkRegistrationBundle: inspect, closeGatewayNetworkRegistrationBundle: close } = require('../dist/src/modules/gateway-runtime/services/gateway-network-registration-coordinator');
+  const { createNetworkPolicyCompiler } = require('api-nova-parser');
+  const { GatewayRouteSnapshotEntity } = require('../dist/src/database/entities/gateway-route-snapshot.entity');
+  const { RuntimeAssetEntity, RuntimeAssetStatus, RuntimeAssetType } = require('../dist/src/database/entities/runtime-asset.entity');
+  const { GatewayRouteSnapshotService } = require('../dist/src/modules/gateway-runtime/services/gateway-route-snapshot.service');
+  const { GatewayPolicyService } = require('../dist/src/modules/gateway-runtime/services/gateway-policy.service');
+  const { GatewayRoutePathMatchMode } = require('../dist/src/database/entities/gateway-route-binding.entity');
+  const routesDb = pg;
+  const assetId = '00000000-0000-0000-0000-000000000099';
+  const runtimeAsset = await routesDb.getRepository(RuntimeAssetEntity).save({ id: assetId, name: 'registration', type: RuntimeAssetType.GATEWAY_SERVICE, status: RuntimeAssetStatus.ACTIVE });
+  const service = new GatewayRouteSnapshotService(new GatewayPolicyService(), {}, routesDb.getRepository(GatewayRouteSnapshotEntity), {}, {}, routesDb.getRepository(RuntimeAssetEntity), {}, {}, {});
+  const compiler = createNetworkPolicyCompiler({ deniedDestinations: [], loopback: 'deny' });
+  const policy = compiler.compile({ version: 1, id: 'p', revision: '1', sourceServiceAssetId: sourceA, siteId: 'site0', origin: 'https://a.example', mode: 'public', connection: 'direct' });
+  let count = 0;
+  async function commit(revision, upstreamBaseUrl = 'https://a.example') {
+    const routeBinding = { id: 'route', authPolicyRef: 'jwt-default', pathMatchMode: GatewayRoutePathMatchMode.EXACT, upstreamMethod: 'GET', upstreamPath: '/items', createdAt: new Date(), updatedAt: new Date() };
+    const entries = [{ runtimeAsset: await routesDb.getRepository(RuntimeAssetEntity).findOneByOrFail({ id: assetId }), routeBinding, membership: { id: 'member', publicationRevision: 1 }, publishBinding: { id: 'pub' }, sourceServiceAsset: { id: sourceA }, endpointDefinition: { id: endpointA }, sourceServiceInstance: { id: 'instance' }, normalizedRoutePath: '/items', routeMethod: 'GET', upstreamBaseUrl, priorityScore: 1, policies: new GatewayPolicyService().compileForRoute(routeBinding) }];
+    const fingerprint = service.fingerprintEntries(entries);
+    service.candidateSnapshots.set(revision, { runtimeAssetId: assetId, entries, snapshotFingerprint: fingerprint, preparedAt: new Date() });
+    await routesDb.transaction(async manager => {
+      await service.activateCandidate(revision, manager);
+      await manager.update(RuntimeAssetEntity, assetId, { metadata: { activeRevision: revision, activeGatewaySnapshotFingerprint: fingerprint } });
+    });
+    await service.reload();
+  }
+  async function restored() {
+    let resolve, reject;
+    const completed = new Promise((yes, no) => { resolve = yes; reject = no; });
+    const subscription = service.observeActiveRouteCatalog(event => {
+      if (event.kind === 'reload' && event.snapshot.routes.length === 1) resolve();
+    });
+    const timeout = setTimeout(() => reject(new Error('fixture deployed reload did not complete')), 5000);
+    try {
+      service.handleSnapshotRefreshRequested({ reason: 'runtime_assets.gateway_deployed', runtimeAssetId: assetId });
+      await completed; await service.reload();
+    } finally { clearTimeout(timeout); subscription.close(); }
+  }
+  const makeHost = async () => { const f = fixture(); const host = await boot(f.token(), pg); dispose.push(host.close); return { f, host }; };
+  const args = host => ({ routes: service, capture: service.captureActiveRouteCatalog(service.readActiveRouteCatalog()), host, compiler, policies: [{ routeBindingId: 'route', siteId: 'site0', policy }], proofs: [{ sourceServiceAssetId: sourceA, providerEpoch: host.readEpoch(sourceA), proof: host.issueProof(sourceA) }] });
+  try {
+    await commit('v1');
+    const { f, host } = await makeHost(); assertHost(host); assert.throws(() => assertHost({ ...host })); count++;
+    for (const failure of ['clone', 'source', 'epoch', 'issuer', 'replay']) {
+      const proof = host.issueProof(sourceA), expected = host.readEpoch(sourceA);
+      if (failure === 'clone') assert.throws(() => host.consumeProof({ ...proof }, sourceA, expected));
+      if (failure === 'source') assert.throws(() => host.consumeProof(proof, sourceB, expected));
+      if (failure === 'epoch') assert.throws(() => host.consumeProof(proof, sourceA, 'wrong'));
+      if (failure === 'issuer') { const other = await makeHost(); assert.throws(() => other.host.consumeProof(proof, sourceA, other.host.readEpoch(sourceA))); }
+      if (failure === 'replay') { assert.ok(host.consumeProof(proof, sourceA, expected)); assert.throws(() => host.consumeProof(proof, sourceA, expected)); }
+      count++;
+    }
+    const input = args(host), bundle = assemble(input); assert.equal(inspect(bundle)[0].snapshot, host.captureSnapshot());
+    assert.equal(inspect(bundle)[0].providerEpoch, f.input.expectedGeneration); assert.throws(() => inspect({ ...bundle })); assert.throws(() => assemble(input)); count++;
+    let reentered = false; bundle.signal.addEventListener('abort', () => { assert.throws(() => inspect(bundle)); reentered = true; });
+    await service.reload(); assert.equal(bundle.signal.aborted, true); assert.equal(reentered, true); assert.throws(() => inspect(bundle)); count++;
+    const next = assemble(args(host)); assert.ok(inspect(next)); close(next); assert.equal(next.signal.aborted, true); close(next); count++;
+    for (const mode of ['cloneCapture', 'missingPolicy', 'wrongSite', 'clonedPolicy', 'wrongEpoch', 'wrongSource', 'wrongEndpoint']) {
+      const bad = args(host);
+      if (mode === 'cloneCapture') bad.capture = { ...bad.capture };
+      if (mode === 'missingPolicy') bad.policies = [];
+      if (mode === 'wrongSite') bad.policies[0].siteId = 'site1';
+      if (mode === 'clonedPolicy') bad.policies[0].policy = { ...policy };
+      if (mode === 'wrongEpoch') bad.proofs[0].providerEpoch = 'wrong';
+      if (mode === 'wrongSource') bad.proofs[0].sourceServiceAssetId = sourceB;
+      if (mode === 'wrongEndpoint') {
+        const route = service.resolve('localhost', 'GET', '/items'); const original = route.endpointDefinition.id;
+        route.endpointDefinition.id = endpointB; assert.throws(() => assemble(bad)); route.endpointDefinition.id = original; count++; continue;
+      }
+      assert.throws(() => assemble(bad)); count++;
+    }
+    await commit('origin-mismatch', 'https://other.example');
+    const wrongOrigin = args(host), mismatched = compiler.compile({ version: 1, id: 'other', revision: '1', sourceServiceAssetId: sourceA, siteId: 'site0', origin: 'https://other.example', mode: 'public', connection: 'direct' });
+    wrongOrigin.policies[0].policy = mismatched;
+    assert.equal(compiler.authorizeTarget(mismatched, { sourceServiceAssetId: sourceA, siteId: 'site0', url: 'https://other.example' }), true);
+    // Both the route and the compiled policy are valid, but Site 0 is bound to a.example.
+    let outbound = 0;
+    const outboundPorts = [[require('node:http'), 'request'], [require('node:https'), 'request'], [require('node:dns'), 'lookup'], [require('node:dns').promises, 'resolve4'], [require('node:dns').promises, 'resolve6']];
+    const originals = outboundPorts.map(([owner, key]) => owner[key]);
+    try {
+      outboundPorts.forEach(([owner, key]) => { owner[key] = () => { outbound++; throw new Error('unexpected fixture outbound'); }; });
+      assert.throws(() => assemble(wrongOrigin)); assert.equal(outbound, 0);
+    } finally { outboundPorts.forEach(([owner, key], index) => { owner[key] = originals[index]; }); }
+    count++;
+    await commit('origin-restored');
+    const expired = args(host); expired.proofs[0].proof = host.issueProof(sourceA, 1); await new Promise(resolve => setTimeout(resolve, 5)); assert.throws(() => assemble(expired)); count++;
+    const ttl = args(host); ttl.proofs[0].proof = host.issueProof(sourceA, 20); const short = assemble(ttl); await new Promise(resolve => setTimeout(resolve, 40)); assert.equal(short.signal.aborted, true); count++;
+    const preserved = assemble(args(host));
+    await assert.rejects(routesDb.transaction(async manager => {
+      await manager.update(RuntimeAssetEntity, assetId, { name: 'rolled-back' });
+      throw new Error('fixture rollback');
+    }));
+    assert.equal(inspect(preserved)[0].snapshot, host.captureSnapshot());
+    assert.equal((await routesDb.getRepository(RuntimeAssetEntity).findOneByOrFail({ id: assetId })).name, 'registration'); close(preserved); count++;
+    const ordinary = assemble(args(host));
+    f.store.activate(f.store.stage(f.material('next')), f.generation);
+    assert.equal(ordinary.signal.aborted, false); assert.equal(inspect(ordinary)[0].providerEpoch, f.input.expectedGeneration); close(ordinary); count++;
+    const race = args(host); let stopped = false;
+    race.compiler = { ...compiler, authorizeTarget(...values) {
+      const allowed = compiler.authorizeTarget(...values);
+      if (!stopped) { stopped = true; service.handleSnapshotRefreshRequested({ reason: 'runtime_assets.gateway_stopped', runtimeAssetId: assetId }); }
+      return allowed;
+    } };
+    assert.throws(() => assemble(race)); count++;
+    await restored();
+    const late = assemble(args(host)), read = service.readCommittedSnapshotRows.bind(service);
+    let release, ready; const held = new Promise(resolve => { release = resolve; }), reading = new Promise(resolve => { ready = resolve; });
+    service.readCommittedSnapshotRows = async () => { const rows = await read(); ready(); await held; return rows; };
+    const pending = service.reload(); await reading;
+    service.handleSnapshotRefreshRequested({ reason: 'runtime_assets.gateway_stopped', runtimeAssetId: assetId });
+    assert.equal(late.signal.aborted, true); release(); await pending;
+    assert.equal(service.readActiveRouteCatalog().routes.length, 0); assert.throws(() => inspect(late));
+    service.readCommittedSnapshotRows = read;
+    await restored(); count++;
+    const revoked = assemble(args(host)); f.store.revoke(f.generation); assert.equal(revoked.signal.aborted, true); assert.throws(() => inspect(revoked)); count++;
+    const second = await makeHost(), shut = assemble(args(second.host)); second.host.close(); assert.equal(shut.signal.aborted, true); assert.throws(() => assertHost(second.host)); count++;
+    for (const reason of ['gateway_stopped', 'gateway_deleted']) {
+      // A fresh service reload after stop remains fenced: a new committed revision is required.
+      await routesDb.getRepository(RuntimeAssetEntity).update(assetId, { status: RuntimeAssetStatus.ACTIVE });
+      await restored();
+      await commit('v-' + reason);
+      const active = await makeHost(), registered = assemble(args(active.host));
+      service.handleSnapshotRefreshRequested({ reason: 'runtime_assets.' + reason, runtimeAssetId: assetId });
+      assert.equal(registered.signal.aborted, true); assert.throws(() => inspect(registered)); count++;
+    }
+    return count;
+  } finally { service.onModuleDestroy(); }
+}

@@ -1,6 +1,6 @@
 import { types } from 'node:util';
 import { DataSource } from 'typeorm';
-import { UpstreamCredentialRegistry, type RegistryProviderEvidence, type UpstreamCredentialBindingsCandidate } from 'api-nova-parser';
+import { UpstreamCredentialRegistry, type RegistryProviderEvidence, type UpstreamCredentialRegistrySnapshot, type UpstreamCredentialBindingsCandidate } from 'api-nova-parser';
 import { GatewayHeaderHistoryLedgerService } from '../../../database/gateway-header-history-ledger.service';
 import { SourceServiceAssetEntity } from '../../../database/entities/source-service-asset.entity';
 import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
@@ -9,6 +9,22 @@ import { GATEWAY_HEADER_HISTORY_NAMESPACE, GATEWAY_HEADER_HISTORY_PROVENANCE } f
 import { consumeGatewayHostCredentialGenerationIssuer, resolveGatewayHostCredentialGenerationCapability, type GatewayHostCredentialGenerationCapability } from './gateway-host-credential-generation.capability';
 
 export interface GatewayHostCandidateAttestation { readonly kind: 'gateway-host-candidate-attestation' }
+export interface GatewayHostCredentialRegistry {
+  captureSnapshot(): UpstreamCredentialRegistrySnapshot;
+  issueProof(source: string, ttlMs?: number): object;
+  consumeProof(proof: object, source: string, expectedEpoch: string): Readonly<{ expiresAt: number }>;
+  readEpoch(source: string): string;
+  readSignal(source: string): AbortSignal;
+  close(): void;
+  onModuleDestroy(): void;
+}
+const hosts = new WeakMap<object, () => void>();
+/** Runtime brand; copying methods never transfers the private host capability. */
+export function assertGatewayHostCredentialRegistry(value: unknown): asserts value is GatewayHostCredentialRegistry {
+  const check = value && typeof value === 'object' ? hosts.get(value) : undefined;
+  if (!check) return fail();
+  check();
+}
 type Candidate = { capability: GatewayHostCredentialGenerationCapability; text: string; format: 'json' | 'yaml'; environment: string; expectedGeneration: string };
 const attestations = new WeakMap<object, Candidate>();
 const fail = (): never => { throw new Error('gateway_host_credential_registry_unavailable'); };
@@ -26,7 +42,7 @@ export function attestGatewayHostCredentialCandidate(input: Candidate): GatewayH
 }
 
 /** Private boot composition only. Never returns the mutable Registry or an issuer. */
-export async function createGatewayHostCredentialRegistry(token: GatewayHostCandidateAttestation, database: DataSource) {
+export async function createGatewayHostCredentialRegistry(token: GatewayHostCandidateAttestation, database: DataSource): Promise<GatewayHostCredentialRegistry> {
   const candidate = token && typeof token === 'object' ? attestations.get(token) : undefined;
   if (!candidate) return fail(); attestations.delete(token);
   let issuer: RegistryProviderEvidence | undefined, registry: UpstreamCredentialRegistry | undefined;
@@ -57,13 +73,20 @@ export async function createGatewayHostCredentialRegistry(token: GatewayHostCand
     let closed = false;
     const assertOpen = () => { if (closed) return fail(); for (const source of sources) assertSource(source); };
     const close = () => { if (closed) return; closed = true; registry!.onModuleDestroy(); evidence.close(); };
-    return Object.freeze({
+    const host: GatewayHostCredentialRegistry = Object.freeze({
       captureSnapshot: () => { assertOpen(); return snapshot; },
       issueProof: (source: string, ttlMs?: number) => { assertOpen(); assertSource(source); return evidence.issue(snapshot, source, ttlMs); },
+      consumeProof: (proof: object, source: string, expectedEpoch: string) => {
+        assertOpen(); assertSource(source);
+        const accepted = evidence.consume(proof, { snapshot, sourceServiceAssetId: source, providerEpoch: expectedEpoch });
+        if (!accepted || expectedEpoch !== candidate.expectedGeneration) return fail();
+        assertOpen(); return Object.freeze({ expiresAt: accepted.expiresAt });
+      },
       readEpoch: (source: string) => { assertOpen(); assertSource(source); return evidence.readEpoch(snapshot, source); },
       readSignal: (source: string) => { assertOpen(); assertSource(source); return evidence.readSignal(snapshot, source); },
       close, onModuleDestroy: close,
     });
+    hosts.set(host, assertOpen); return host;
   } catch { registry?.onModuleDestroy(); issuer?.close(); return fail(); }
 }
 
