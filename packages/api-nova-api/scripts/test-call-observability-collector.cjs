@@ -101,7 +101,8 @@ test('imports phases once and resumes from a transactionally committed byte offs
   assert.equal(await f.repository(entities.RuntimeInvocationEntity).count(), 1);
   assert.equal(await f.repository(entities.RuntimeInvocationRevisionEntity).count(), 2);
   assert.equal(await f.repository(entities.RuntimeIngestReceiptEntity).count(), 2);
-  assert.equal(await f.repository(Event).count(), 1);
+  // started in-flight delta + terminal in-flight delta + invocation.completed.
+  assert.equal(await f.repository(Event).count(), 3);
   const restarted = f.makeCollector();
   assert.equal((await restarted.collectFile(f.fileName)).processedRecords, 0);
 });
@@ -116,7 +117,8 @@ test('waits for an incomplete final line across collector restart without advanc
   assert.equal(partial.byteOffset, String(Buffer.byteLength(first)));
   assert.equal(partial.partialBytes, 71);
   assert.equal(partial.hasMore, false);
-  assert.equal(await f.repository(Event).count(), 0);
+  // Only the started in-flight delta is durable; the partial terminal is uncommitted.
+  assert.equal(await f.repository(Event).count(), 1);
   await fs.appendFile(f.file, end.slice(71));
   const result = await f.makeCollector().collectFile(f.fileName);
   assert.equal(result.processedRecords, 1);

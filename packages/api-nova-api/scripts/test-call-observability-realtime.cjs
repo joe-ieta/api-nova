@@ -120,6 +120,21 @@ test('subscription single-flight rejects concurrent subscribe while a page is pe
   assert.equal(f.socket.frames.length,1);
 });
 
+test('slow consumer without ACK is bounded to one in-flight page and resumes after acknowledgement', async t => {
+  const f=await fixture(t); await f.insert(Array.from({length:51},()=>({})));
+  let release, held=false;
+  f.socket.ack=async page=>{ if(!held){ held=true; await new Promise(r=>release=r); } return {nextCursor:page.data.nextCursor}; };
+  void f.realtime.subscribe(f.socket,start); await until(()=>release);
+  assert.equal(f.socket.frames.length,1);
+  await f.insert([{},{}]); await new Promise(r=>setTimeout(r,120));
+  assert.equal(f.socket.frames.length,1);
+  release(); await until(()=>f.socket.frames.length>=3);
+  assert.deepEqual(f.socket.frames[1].data.items.map(i=>i.sequence),['51']);
+  assert.deepEqual(f.socket.frames[2].data.items.map(i=>i.sequence),['52','53']);
+  const sequences=f.socket.frames.flatMap(p=>p.data.items.map(i=>i.sequence));
+  assert.equal(new Set(sequences).size,sequences.length);
+});
+
 test('catchup scan budget terminates selective backlog rather than unbounded polling', async t => {
   const f=await fixture(t); let reads=0;
   const list=f.events.list.bind(f.events);
