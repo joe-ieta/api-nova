@@ -71,14 +71,18 @@ export function createPublicationBatchCandidateExecutor(dependencies: Publicatio
       return Object.freeze({ atomic: false, items: Object.freeze(reports) });
     },
     /** Narrow synchronous candidate swap only. Async preparation belongs before this call.
-     * An asynchronous activation pipeline must supply its own commit-boundary validation. */
-    async activateCandidate(session: unknown, selection: PublicationPreviewSelector, candidate: { expectedEpoch: string; currentEpoch(): string; activate(): undefined }): Promise<void> {
+     * A host recheck may re-validate the shared evaluation; the epoch is compared again
+     * after it so no await remains between the final check and the synchronous swap. */
+    async activateCandidate(session: unknown, selection: PublicationPreviewSelector, candidate: { expectedEpoch: string; currentEpoch(): string; activate(): undefined; recheck?(): Promise<void> }): Promise<void> {
       const selector = selected(selection);
       const expectedEpoch = candidate.expectedEpoch;
       const currentEpoch = candidate.currentEpoch.bind(candidate), activate = candidate.activate.bind(candidate);
+      const recheck = candidate.recheck?.bind(candidate);
       const capability = await dependencies.fresh(session, selector);
       await ready(session, selector, capability);
       await current(session, selector, capability);
+      if (!expectedEpoch || currentEpoch() !== expectedEpoch) throw Error('publication_candidate_rejected');
+      if (recheck) await recheck();
       if (!expectedEpoch || currentEpoch() !== expectedEpoch) throw Error('publication_candidate_rejected');
       // No await between the live epoch check and this host-owned synchronous swap.
       activate();
