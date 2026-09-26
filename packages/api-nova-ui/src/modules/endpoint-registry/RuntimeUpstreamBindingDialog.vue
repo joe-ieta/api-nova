@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     :model-value="modelValue"
-    :title="`运行上游绑定 · ${endpointName || runtimeMembershipId}`"
+    :title="t('endpointRegistry.runtimeUpstreamBinding.title', { name: endpointName || runtimeMembershipId })"
     width="980px"
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
@@ -9,7 +9,7 @@
   >
     <div v-loading="loading" class="binding-dialog-body">
       <el-alert
-        title="发布成员必须显式绑定到某个环境的运行实例。运行时只解析健康且已启用的候选实例。"
+        :title="t('endpointRegistry.runtimeUpstreamBinding.hint')"
         type="info"
         show-icon
         :closable="false"
@@ -19,7 +19,7 @@
       <el-form label-width="110px">
         <el-row :gutter="16">
           <el-col :xs="24" :md="8">
-            <el-form-item label="运行环境" required>
+            <el-form-item :label="t('endpointRegistry.runtimeUpstreamBinding.fields.environment')" required>
               <el-select
                 v-model="form.environment"
                 filterable
@@ -32,27 +32,27 @@
             </el-form-item>
           </el-col>
           <el-col :xs="24" :md="8">
-            <el-form-item label="选择策略" required>
+            <el-form-item :label="t('endpointRegistry.runtimeUpstreamBinding.fields.selectionMode')" required>
               <el-select v-model="form.selectionMode" style="width: 100%">
-                <el-option label="固定主实例" value="fixed_primary" />
-                <el-option label="健康优先" value="healthy_priority" />
+                <el-option :label="t('endpointRegistry.runtimeUpstreamBinding.selectionModes.fixedPrimary')" value="fixed_primary" />
+                <el-option :label="t('endpointRegistry.runtimeUpstreamBinding.selectionModes.healthyPriority')" value="healthy_priority" />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :xs="24" :md="8">
-            <el-form-item label="绑定状态" required>
+            <el-form-item :label="t('endpointRegistry.runtimeUpstreamBinding.fields.status')" required>
               <el-select v-model="form.status" style="width: 100%">
-                <el-option label="草稿" value="draft" />
-                <el-option label="已验证" value="verified" />
-                <el-option label="已激活" value="active" />
-                <el-option label="已阻塞" value="blocked" />
+                <el-option :label="t('endpointRegistry.runtimeUpstreamBinding.statuses.draft')" value="draft" />
+                <el-option :label="t('endpointRegistry.runtimeUpstreamBinding.statuses.verified')" value="verified" />
+                <el-option :label="t('endpointRegistry.runtimeUpstreamBinding.statuses.active')" value="active" />
+                <el-option :label="t('endpointRegistry.runtimeUpstreamBinding.statuses.blocked')" value="blocked" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
 
-        <el-form-item v-if="form.selectionMode === 'fixed_primary'" label="主实例" required>
-          <el-select v-model="form.primaryInstanceId" style="width: 100%" placeholder="选择固定主实例">
+        <el-form-item v-if="form.selectionMode === 'fixed_primary'" :label="t('endpointRegistry.runtimeUpstreamBinding.fields.primaryInstance')" required>
+          <el-select v-model="form.primaryInstanceId" style="width: 100%" :placeholder="t('endpointRegistry.runtimeUpstreamBinding.primaryPlaceholder')">
             <el-option
               v-for="item in selectedCandidates"
               :key="item.id"
@@ -65,56 +65,56 @@
 
       <div class="candidate-header">
         <div>
-          <strong>候选实例</strong>
-          <span class="candidate-note">同优先级时按顺序值、实例 ID 稳定选择</span>
+          <strong>{{ t('endpointRegistry.runtimeUpstreamBinding.candidates.title') }}</strong>
+          <span class="candidate-note">{{ t('endpointRegistry.runtimeUpstreamBinding.candidates.note') }}</span>
         </div>
-        <el-tag v-if="revision" type="info" effect="plain">修订 {{ revision }}</el-tag>
+        <el-tag v-if="revision" type="info" effect="plain">{{ t('endpointRegistry.runtimeUpstreamBinding.candidates.revision', { revision }) }}</el-tag>
       </div>
 
       <el-table :data="candidateRows" border size="small">
-        <el-table-column label="启用候选" width="100" align="center">
+        <el-table-column :label="t('endpointRegistry.runtimeUpstreamBinding.candidates.columns.enabled')" width="100" align="center">
           <template #default="{ row }">
             <el-checkbox v-model="row.selected" @change="handleCandidateToggle(row)" />
           </template>
         </el-table-column>
-        <el-table-column prop="name" label="实例" min-width="150" />
-        <el-table-column label="运行地址" min-width="230">
+        <el-table-column prop="name" :label="t('endpointRegistry.runtimeUpstreamBinding.candidates.columns.instance')" min-width="150" />
+        <el-table-column :label="t('endpointRegistry.runtimeUpstreamBinding.candidates.columns.baseUrl')" min-width="230">
           <template #default="{ row }">{{ buildBaseUrl(row) }}</template>
         </el-table-column>
-        <el-table-column prop="status" label="健康状态" width="105">
+        <el-table-column prop="status" :label="t('endpointRegistry.runtimeUpstreamBinding.candidates.columns.health')" width="105">
           <template #default="{ row }">
             <el-tag :type="statusTagType(row.status)" effect="plain">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="优先级" width="125">
+        <el-table-column :label="t('endpointRegistry.runtimeUpstreamBinding.candidates.columns.priority')" width="125">
           <template #default="{ row }">
             <el-input-number v-model="row.priority" :min="0" :disabled="!row.selected" controls-position="right" />
           </template>
         </el-table-column>
-        <el-table-column label="顺序" width="115">
+        <el-table-column :label="t('endpointRegistry.runtimeUpstreamBinding.candidates.columns.order')" width="115">
           <template #default="{ row }">
             <el-input-number v-model="row.order" :min="0" :disabled="!row.selected" controls-position="right" />
           </template>
         </el-table-column>
-        <el-table-column label="权重" width="115">
+        <el-table-column :label="t('endpointRegistry.runtimeUpstreamBinding.candidates.columns.weight')" width="115">
           <template #default="{ row }">
             <el-input-number v-model="row.weight" :min="1" :disabled="!row.selected" controls-position="right" />
           </template>
         </el-table-column>
       </el-table>
-      <el-empty v-if="!loading && candidateRows.length === 0" description="该环境尚未配置运行实例" />
+      <el-empty v-if="!loading && candidateRows.length === 0" :description="t('endpointRegistry.runtimeUpstreamBinding.candidates.empty')" />
 
       <UpstreamCredentialPanel />
 
       <div v-if="resolution" class="resolution-panel">
         <div class="resolution-title">
-          <strong>当前解析结果</strong>
+          <strong>{{ t('endpointRegistry.runtimeUpstreamBinding.resolution.title') }}</strong>
           <el-tag :type="resolution.resolved ? 'success' : 'warning'">
-            {{ resolution.resolved ? "已解析" : reasonLabel(resolution.reason) }}
+            {{ resolution.resolved ? t("endpointRegistry.runtimeUpstreamBinding.resolution.resolved") : reasonLabel(resolution.reason) }}
           </el-tag>
         </div>
         <div v-if="resolution.resolved && resolution.instance" class="resolution-value">
-          {{ resolution.instance.name }} · {{ buildBaseUrl(resolution.instance) }} · 修订 {{ resolution.revision }}
+          {{ t("endpointRegistry.runtimeUpstreamBinding.resolution.summary", { name: resolution.instance.name, baseUrl: buildBaseUrl(resolution.instance), revision: resolution.revision }) }}
         </div>
         <div v-else class="resolution-value">{{ reasonLabel(resolution.reason) }}</div>
       </div>
@@ -123,12 +123,12 @@
     <template #footer>
       <div class="dialog-footer binding-footer">
         <el-button v-if="revision" type="danger" plain :loading="deleting" @click="removeBinding">
-          删除绑定
+          {{ t('endpointRegistry.runtimeUpstreamBinding.actions.deleteBinding') }}
         </el-button>
         <span class="footer-spacer" />
-        <el-button @click="emit('update:modelValue', false)">取消</el-button>
-        <el-button :disabled="!revision" :loading="resolving" @click="resolveBinding">解析验证</el-button>
-        <el-button type="primary" :loading="saving" @click="save">保存绑定</el-button>
+        <el-button @click="emit('update:modelValue', false)">{{ t('endpointRegistry.runtimeUpstreamBinding.actions.cancel') }}</el-button>
+        <el-button :disabled="!revision" :loading="resolving" @click="resolveBinding">{{ t('endpointRegistry.runtimeUpstreamBinding.actions.resolve') }}</el-button>
+        <el-button type="primary" :loading="saving" @click="save">{{ t('endpointRegistry.runtimeUpstreamBinding.actions.save') }}</el-button>
       </div>
     </template>
   </el-dialog>
@@ -137,6 +137,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { useI18n } from "vue-i18n";
 import UpstreamCredentialPanel from "../runtime-assets/UpstreamCredentialPanel.vue";
 import { serverAPI } from "@/services/api";
 
@@ -169,6 +170,8 @@ const emit = defineEmits<{
   (event: "update:modelValue", value: boolean): void;
   (event: "saved"): void;
 }>();
+
+const { t } = useI18n();
 
 const loading = ref(false);
 const saving = ref(false);
@@ -222,7 +225,7 @@ const load = async () => {
     }
     rebuildCandidates();
   } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message || error?.message || "运行上游绑定加载失败");
+    ElMessage.error(error?.response?.data?.message || error?.message || t("endpointRegistry.runtimeUpstreamBinding.messages.loadFailed"));
   } finally {
     loading.value = false;
   }
@@ -259,15 +262,15 @@ const save = async () => {
   const environment = form.environment.trim().toLowerCase();
   const candidates = selectedCandidates.value;
   if (!environment) {
-    ElMessage.warning("请选择运行环境");
+    ElMessage.warning(t("endpointRegistry.runtimeUpstreamBinding.messages.environmentRequired"));
     return;
   }
   if (candidates.length === 0) {
-    ElMessage.warning("至少选择一个候选实例");
+    ElMessage.warning(t("endpointRegistry.runtimeUpstreamBinding.messages.candidateRequired"));
     return;
   }
   if (form.selectionMode === "fixed_primary" && !form.primaryInstanceId) {
-    ElMessage.warning("固定主实例策略必须指定主实例");
+    ElMessage.warning(t("endpointRegistry.runtimeUpstreamBinding.messages.primaryRequired"));
     return;
   }
   saving.value = true;
@@ -290,11 +293,11 @@ const save = async () => {
     revision.value = result.binding.revision;
     loadedCandidates.value = result.candidates || [];
     rebuildCandidates();
-    ElMessage.success("运行上游绑定已保存");
+    ElMessage.success(t("endpointRegistry.runtimeUpstreamBinding.messages.saveSuccess"));
     emit("saved");
     await resolveBinding();
   } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message || error?.message || "运行上游绑定保存失败");
+    ElMessage.error(error?.response?.data?.message || error?.message || t("endpointRegistry.runtimeUpstreamBinding.messages.saveFailed"));
   } finally {
     saving.value = false;
   }
@@ -306,24 +309,28 @@ const resolveBinding = async () => {
   try {
     resolution.value = await serverAPI.resolveRuntimeUpstreamBinding(props.runtimeMembershipId);
   } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message || error?.message || "上游解析失败");
+    ElMessage.error(error?.response?.data?.message || error?.message || t("endpointRegistry.runtimeUpstreamBinding.messages.resolveFailed"));
   } finally {
     resolving.value = false;
   }
 };
 
 const removeBinding = async () => {
-  await ElMessageBox.confirm("确认删除当前发布成员的运行上游绑定？", "删除绑定", {
-    type: "warning",
-  });
+  await ElMessageBox.confirm(
+    t("endpointRegistry.runtimeUpstreamBinding.messages.deleteConfirm"),
+    t("endpointRegistry.runtimeUpstreamBinding.messages.deleteConfirmTitle"),
+    {
+      type: "warning",
+    },
+  );
   deleting.value = true;
   try {
     await serverAPI.deleteRuntimeUpstreamBinding(props.runtimeMembershipId);
-    ElMessage.success("运行上游绑定已删除");
+    ElMessage.success(t("endpointRegistry.runtimeUpstreamBinding.messages.deleteSuccess"));
     emit("saved");
     emit("update:modelValue", false);
   } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message || error?.message || "运行上游绑定删除失败");
+    ElMessage.error(error?.response?.data?.message || error?.message || t("endpointRegistry.runtimeUpstreamBinding.messages.deleteFailed"));
   } finally {
     deleting.value = false;
   }
@@ -345,13 +352,15 @@ const statusTagType = (status: string) => {
 };
 
 const reasonLabel = (reason: string) => {
-  const labels: Record<string, string> = {
-    resolved: "已解析",
-    binding_not_active: "绑定尚未激活",
-    fixed_primary_unavailable: "固定主实例当前不可用",
-    no_healthy_candidate: "没有健康且启用的候选实例",
+  const keys: Record<string, string> = {
+    resolved: "endpointRegistry.runtimeUpstreamBinding.resolution.resolved",
+    binding_not_active: "endpointRegistry.runtimeUpstreamBinding.resolution.reasons.bindingNotActive",
+    fixed_primary_unavailable: "endpointRegistry.runtimeUpstreamBinding.resolution.reasons.fixedPrimaryUnavailable",
+    no_healthy_candidate: "endpointRegistry.runtimeUpstreamBinding.resolution.reasons.noHealthyCandidate",
   };
-  return labels[reason] || reason || "尚未解析";
+  const key = keys[reason];
+  if (key) return t(key);
+  return reason || t("endpointRegistry.runtimeUpstreamBinding.resolution.notResolved");
 };
 </script>
 

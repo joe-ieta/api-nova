@@ -1,5 +1,5 @@
 ---
-doc-version: 1.166.0
+doc-version: 1.167.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -53,6 +53,10 @@ MAIL-02 限定 DONE：按 MAIL-01 合同落地 `MAIL_*` 配置、sink/smtp 传�
 
 SEC-F3a-01 补丁批（授权后）：显式受控升级12个主版本内包+UI echarts6/vue-echarts8（未用 audit fix），生产公告32→19（0C/4H/15M/0L），残余全部归Nest12族（含复核改归的@nestjs/common 10.x与file-type 22.x）；Parser 49套件/1196例、API 148套件/1623例及Parser/API/UI构建全绿；全量59→46（1C/18H/24M/3L）。
 
+MAINT-02 遗留闭合：`RuntimeUpstreamBindingDialog.vue` 46行可见中文全部i18n化，新增zh-CN/en-US `runtime-upstream-binding`模块（47键对称）并注册；交付i18n检查8/8、`visibleCjkLines:0`、UI type-check与构建通过。
+
+PROD-06 核定 DONE（DOC）：原WP70出口限定为同语句归属/发布读取（§26/27）、跨源校验（§28）、旧候选读取时点guard（§29，原文明确“不是跨进程CAS”）；完整/跨进程CAS、整体一致事务、标记修改/计划前混读/完整快照属并发强化候选，未批准不排期；WP70唯一剩余为EXT-07环境验收（[记录](../audits/2026-09-26-prod-06-cas-scope-determination.md)）。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -62,12 +66,12 @@ SEC-F3a-01 补丁批（授权后）：显式受控升级12个主版本内包+UI 
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 171 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 172 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 0 | 当前队列无 READY；`SEC-F3-02D`/`MAIL-02` 均以限定 DONE 出口 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 18 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
-| SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
+| SCOPE_REVIEW | 0 | PROD-06 核定后无待判范围项 |
 | DEFERRED | 2 | 不属于当前里程碑 |
 近期已完成C2B1/B2/B3、C2C1、B2B1/B2/C、B3A/C、SEC-A1-01跨层矩阵及当前版本SQLite空库验证A4-01的限定出口。C2C1证实旧预留无法在崩溃后唯一反查文件，原C2C2已进一步拆为保守降级A、持久发布意图B和可证明结算C；A已完成，B再细分为双方言模型B1、写入接线B2和崩溃验收B3；B1/B2/B3已完成限定出口，C已完成关联、文件证明与安全结算原语，C2C3本地恢复故障验收亦已完成，05C3的Windows隔离PG多写者/进程及PG重启出口已完成，Linux/生产验收仍独立登记。B3B已限定完成；无sample行的staged墓碑再细分为互斥E1、整理E2和故障验收E3，E1/E2/E3已完成限定出口，B3D本地限定验收已完成，真实环境仍归04C。READY不表示已开工。SEC-E1-02C1仍等待明确生产生命周期授权；事件物理删除E2B仍等待明确永久删除授权。
 
@@ -271,7 +275,7 @@ SEC-F3a-01 补丁批（授权后）：显式受控升级12个主版本内包+UI 
 | PROD-04B3D | DONE | 本地JWT HTTP删除→410→重启/失败墓碑重试→404，回放前/中撤销鲜读BLOCKED且旧版本保留；11套148/148；候选外发为mock、PG/平台待04C |
 | PROD-04C | NEED_ENV | B3D本机出口已完成；完整留存、跨进程PG/平台权限、生产身份及真实候选外发需要明确隔离目标环境 |
 | PROD-05 | DONE | 限定操作者透传与检索完成：实例/绑定变更actor已透传，`resource+resourceId+userId`可通过后续`audit:read`检索（DTO与findLogs/export接线），权限拒绝403记录action/level/status/requiredPermissions；4套22项（含SQL.js真实审计检索）；不新增审计存储/权限/UI，PG与UI检索另验 |
-| PROD-06 | SCOPE_REVIEW | 近期把完整CAS反复列作未完成，存在范围扩张风险 |
+| PROD-06 | DONE | 核定完成（[记录](../audits/2026-09-26-prod-06-cas-scope-determination.md)）：原WP70出口为同语句归属/发布读取、跨源校验、旧候选读取时点guard（§26~29），完整/跨进程CAS与整体一致事务属并发强化候选、未批准不排期；唯一原包剩余为EXT-07环境验收 |
 | EXT-01 | NEED_ENV | 不当成代码未实现 |
 | EXT-02 | NEED_ENV | 环境待核实 |
 | EXT-03 | NEED_ENV | 环境待核实 |
@@ -286,7 +290,7 @@ SEC-F3a-01 补丁批（授权后）：显式受控升级12个主版本内包+UI 
 | MAIL-01 | DONE | [邮件投递范围与受控验收合同](./mail-delivery-scope-and-acceptance.md)冻结三类接口、模板、测试邮箱与证据合同；仅DOC，不改变当前运行默认 |
 | MAIL-02 | DONE | 限定受控投递完成（[证据](../audits/2026-09-26-mail-02-controlled-delivery.md)）：配置/模块/认证/通知/失败恢复/测试/UI 全部落地，sink 端到端6套件30例+双构建+SQLite drift 0；真实外发、生产启用、PG运行时装迁移与队列化另需授权/另立任务 |
 | MAINT-01 | WAIT_DEP | 等待发布行为与接口边界稳定后再冻结维护验收，当前不进入主线 |
-| MAINT-02 | DONE | 限定本轮交付范围验收：新增`packages/api-nova-ui/scripts/check-delivery-i18n.cjs`对8个交付面文件做UTF-8严格解码/乱码检查，0乱码、8/8通过；`RuntimeUpstreamBindingDialog.vue`仍有46行可见硬编码中文，按叶子“不无限微修”约束登记为后续维护项，不阻塞本批 |
+| MAINT-02 | DONE | 限定本轮交付范围验收：`check-delivery-i18n.cjs` 8个交付面文件严格UTF-8/乱码检查0/8通过；原46行可见硬编码中文的`RuntimeUpstreamBindingDialog.vue`已完成i18n化（新增`runtime-upstream-binding`双语模块47键并注册），复核`visibleCjkLines:0`、8/8通过、type-check与UI构建通过 |
 | DEFER-01 | DEFERRED | 明确延期 |
 | DEFER-02 | DEFERRED | 明确延期 |
 

@@ -1,0 +1,71 @@
+export default {
+  endpointRegistry: {
+    runtimeUpstreamBinding: {
+      title: "运行上游绑定 · {name}",
+      hint: "发布成员必须显式绑定到某个环境的运行实例。运行时只解析健康且已启用的候选实例。",
+      fields: {
+        environment: "运行环境",
+        selectionMode: "选择策略",
+        status: "绑定状态",
+        primaryInstance: "主实例",
+      },
+      selectionModes: {
+        fixedPrimary: "固定主实例",
+        healthyPriority: "健康优先",
+      },
+      statuses: {
+        draft: "草稿",
+        verified: "已验证",
+        active: "已激活",
+        blocked: "已阻塞",
+      },
+      primaryPlaceholder: "选择固定主实例",
+      candidates: {
+        title: "候选实例",
+        note: "同优先级时按顺序值、实例 ID 稳定选择",
+        revision: "修订 {revision}",
+        empty: "该环境尚未配置运行实例",
+        columns: {
+          enabled: "启用候选",
+          instance: "实例",
+          baseUrl: "运行地址",
+          health: "健康状态",
+          priority: "优先级",
+          order: "顺序",
+          weight: "权重",
+        },
+      },
+      resolution: {
+        title: "当前解析结果",
+        resolved: "已解析",
+        summary: "{name} · {baseUrl} · 修订 {revision}",
+        notResolved: "尚未解析",
+        reasons: {
+          resolved: "已解析",
+          bindingNotActive: "绑定尚未激活",
+          fixedPrimaryUnavailable: "固定主实例当前不可用",
+          noHealthyCandidate: "没有健康且启用的候选实例",
+        },
+      },
+      actions: {
+        deleteBinding: "删除绑定",
+        cancel: "取消",
+        resolve: "解析验证",
+        save: "保存绑定",
+      },
+      messages: {
+        loadFailed: "运行上游绑定加载失败",
+        environmentRequired: "请选择运行环境",
+        candidateRequired: "至少选择一个候选实例",
+        primaryRequired: "固定主实例策略必须指定主实例",
+        saveSuccess: "运行上游绑定已保存",
+        saveFailed: "运行上游绑定保存失败",
+        resolveFailed: "上游解析失败",
+        deleteConfirmTitle: "删除绑定",
+        deleteConfirm: "确认删除当前发布成员的运行上游绑定？",
+        deleteSuccess: "运行上游绑定已删除",
+        deleteFailed: "运行上游绑定删除失败",
+      },
+    },
+  },
+};

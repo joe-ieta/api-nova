@@ -7,6 +7,7 @@ import feedback from "./modules/feedback";
 import logs from "./modules/logs";
 import monitoring from "./modules/monitoring";
 import openapi from "./modules/openapi";
+import runtimeUpstreamBinding from "./modules/runtime-upstream-binding";
 import servers from "./modules/servers";
 import tester from "./modules/tester";
 import time from "./modules/time";
@@ -23,6 +24,7 @@ const enUS = mergeLocaleMessages(
   logs,
   monitoring,
   openapi,
+  runtimeUpstreamBinding,
   tester,
   time,
   uiOverrides,
