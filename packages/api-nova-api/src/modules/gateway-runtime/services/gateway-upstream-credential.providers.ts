@@ -10,6 +10,7 @@ import {
   GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER,
   type GatewayUpstreamCredentialResolver,
 } from './gateway-upstream-credential-resolver';
+import { GATEWAY_HOST_RUNTIME, resolveGatewayHostRuntime } from './gateway-host-runtime.providers';
 
 export const GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY =
   Symbol('GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY');
@@ -29,11 +30,15 @@ export const GATEWAY_HEADER_HISTORY_PROVENANCE = createHash('sha256')
 /**
  * Opt-in durable activation. Nest awaits this factory before constructing
  * the resolver/proxy. Explicit but invalid configuration fails bootstrap.
+ * Explicit host mode excludes the legacy Registry before any config read or
+ * file watch, so the two providers can never be active at the same time.
  */
 export async function createConfiguredGatewayCredentialRegistry(
   config: Pick<ConfigService, 'get'>,
   dataSource?: DataSource,
+  hostRuntime?: unknown,
 ): Promise<UpstreamCredentialRegistry | null> {
+  if (resolveGatewayHostRuntime(hostRuntime)) return null;
   try {
     const file = config.get<unknown>(GATEWAY_UPSTREAM_CREDENTIAL_CONFIG.file);
     const format = config.get<unknown>(GATEWAY_UPSTREAM_CREDENTIAL_CONFIG.format);
@@ -73,7 +78,7 @@ export async function createConfiguredGatewayCredentialRegistry(
 export const gatewayUpstreamCredentialRegistryProvider:
 FactoryProvider<UpstreamCredentialRegistry | null> = {
   provide: GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY,
-  inject: [ConfigService, DataSource],
+  inject: [ConfigService, DataSource, GATEWAY_HOST_RUNTIME],
   useFactory: createConfiguredGatewayCredentialRegistry,
 };
 

@@ -28,6 +28,7 @@ import {
   type GatewayUpstreamCredentialHeaders,
   type GatewayUpstreamCredentialResolver,
 } from './gateway-upstream-credential-resolver';
+import { GATEWAY_HOST_RUNTIME, resolveGatewayHostRuntime, type GatewayHostRuntime } from './gateway-host-runtime.providers';
 
 export type GatewayPreparedProxyRequest = {
   networkLease?: GatewayNetworkLease;
@@ -49,12 +50,14 @@ export class GatewayProxyEngineService {
     @Optional() private readonly gatewayRuntimeMetricsService?: GatewayRuntimeMetricsService,
     @Optional() private readonly upstreamSecurityGuard?: GatewayUpstreamSecurityRuntimeGuard,
     @Optional() @Inject(GATEWAY_TRUSTED_NETWORK_PROVIDER) private readonly networkProvider?: GatewayTrustedNetworkProvider,
+    @Optional() @Inject(GATEWAY_HOST_RUNTIME) private readonly hostRuntime?: GatewayHostRuntime | null,
   ) { if (networkProvider) assertGatewayTrustedNetworkProvider(networkProvider); }
 
   async forward(
     resolvedRoute: GatewayResolvedRoute, req: Request, res: Response,
     options?: { captureResponseBodyMaxBytes?: number; attemptIndex?: number; upstreamOperationId?: string; preparedRequest?: GatewayPreparedProxyRequest },
   ): Promise<GatewayProxyResult & { targetUrl: string }> {
+    resolveGatewayHostRuntime(this.hostRuntime)?.assertOpen();
     const prior = options?.preparedRequest;
     if (prior) {
       const ownership = this.preparations.get(prior);
@@ -262,6 +265,7 @@ export class GatewayProxyEngineService {
 
   /** Validate current declaration and credentials before every cache lookup. */
   async prepareRequest(resolvedRoute: GatewayResolvedRoute, req: Request): Promise<GatewayPreparedProxyRequest> {
+    resolveGatewayHostRuntime(this.hostRuntime)?.assertOpen();
     const deadline = Date.now() + (resolvedRoute.policies?.traffic?.timeoutMs ?? resolvedRoute.routeBinding.timeoutMs ?? 30000);
     assertGatewayUpstreamDeclaration(resolvedRoute.endpointDefinition);
     await this.upstreamSecurityGuard?.assertCurrent(resolvedRoute);

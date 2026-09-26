@@ -22,6 +22,7 @@ import {
 import {
   GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER, GatewayUpstreamCredentialResolver,
 } from './gateway-upstream-credential-resolver';
+import { gatewayHostRuntimeProvider } from './gateway-host-runtime.providers';
 
 const secretName = 'API_NOVA_GATEWAY_CONFIG_SYNTHETIC_SECRET';
 function document(revision = 'r1') {
@@ -66,6 +67,7 @@ describe('Gateway configured credential activation', () => {
 
   test('registers the awaited factories in the actual Gateway module', () => {
     const providers = Reflect.getMetadata(MODULE_METADATA.PROVIDERS, GatewayRuntimeModule);
+    expect(providers).toContain(gatewayHostRuntimeProvider);
     expect(providers).toContain(gatewayUpstreamCredentialRegistryProvider);
     expect(providers).toContain(gatewayUpstreamCredentialResolverProvider);
   });
@@ -85,6 +87,7 @@ describe('Gateway configured credential activation', () => {
           [keys.file]: file, [keys.format]: format, [keys.environment]: 'test',
         }) },
         { provide: DataSource, useValue: database },
+        gatewayHostRuntimeProvider,
         gatewayUpstreamCredentialRegistryProvider,
         gatewayUpstreamCredentialResolverProvider,
       ],
@@ -123,6 +126,7 @@ describe('Gateway configured credential activation', () => {
           [keys.file]: file, [keys.format]: 'json', [keys.environment]: 'test',
         }) },
         { provide: DataSource, useValue: database },
+        gatewayHostRuntimeProvider,
         gatewayUpstreamCredentialRegistryProvider,
         gatewayUpstreamCredentialResolverProvider,
       ],
@@ -150,7 +154,7 @@ describe('Gateway configured credential activation', () => {
     const module = await Test.createTestingModule({ providers: [
       { provide: ConfigService, useValue: config({
         [keys.file]: file, [keys.format]: 'json', [keys.environment]: 'test', [keys.reloadMode]: 'watch',
-      }) }, { provide: DataSource, useValue: database }, gatewayUpstreamCredentialRegistryProvider, gatewayUpstreamCredentialResolverProvider,
+      }) }, { provide: DataSource, useValue: database }, gatewayHostRuntimeProvider, gatewayUpstreamCredentialRegistryProvider, gatewayUpstreamCredentialResolverProvider,
     ] }).compile();
     const registry = module.get<UpstreamCredentialRegistry>(GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY);
     try {

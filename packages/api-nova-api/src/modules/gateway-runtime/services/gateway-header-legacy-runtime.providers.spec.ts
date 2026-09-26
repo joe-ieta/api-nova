@@ -10,6 +10,7 @@ import { GatewayAccessLogService } from './gateway-access-log.service';
 import { GatewayRuntimeMetricsService } from './gateway-runtime-metrics.service';
 import { GatewayHeaderLegacyRuntimeGuard } from './gateway-header-legacy-runtime.guard';
 import { gatewayHeaderLegacyRuntimeGuardProvider } from './gateway-header-legacy-runtime.providers';
+import { gatewayHostRuntimeProvider } from './gateway-host-runtime.providers';
 import { GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY } from './gateway-upstream-credential.providers';
 import { GatewayRuntimeModule } from '../gateway-runtime.module';
 
@@ -18,7 +19,7 @@ describe('required Nest Legacy runtime guard provider', () => {
   it('production module registers the provider and Nest injects it', async () => {
     expect(Reflect.getMetadata('providers', GatewayRuntimeModule)).toContain(gatewayHeaderLegacyRuntimeGuardProvider);
     const module = await Test.createTestingModule({ providers: [GatewayRuntimeService, gatewayHeaderLegacyRuntimeGuardProvider,
-      { provide: DataSource, useValue: {} }, { provide: GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY, useValue: null }, ...dependencies()] }).compile();
+      { provide: DataSource, useValue: {} }, { provide: GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY, useValue: null }, gatewayHostRuntimeProvider, ...dependencies()] }).compile();
     try {
       expect(module.get(GatewayHeaderLegacyRuntimeGuard)).toBeInstanceOf(GatewayHeaderLegacyRuntimeGuard);
       expect((module.get(GatewayRuntimeService) as any).gatewayHeaderLegacyRuntimeGuard).toBe(module.get(GatewayHeaderLegacyRuntimeGuard));

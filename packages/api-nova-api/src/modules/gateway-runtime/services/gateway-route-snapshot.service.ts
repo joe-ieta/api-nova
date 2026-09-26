@@ -1,8 +1,10 @@
 import {
+  Inject,
   Injectable,
   Logger,
   OnModuleInit,
   OnModuleDestroy,
+  Optional,
 } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -38,6 +40,11 @@ import {
   type GatewaySnapshotRefreshPayload,
 } from '../gateway-runtime.events';
 import { GatewayPolicyService } from './gateway-policy.service';
+import {
+  GATEWAY_HOST_RUNTIME,
+  resolveGatewayHostRuntime,
+  type GatewayHostRuntime,
+} from './gateway-host-runtime.providers';
 import { RuntimeUpstreamBindingsService } from '../../runtime-upstream-bindings/services/runtime-upstream-bindings.service';
 import {
   GatewayActiveRouteCatalog,
@@ -169,10 +176,27 @@ export class GatewayRouteSnapshotService implements OnModuleInit, OnModuleDestro
     @InjectRepository(SourceServiceAssetEntity)
     private readonly sourceServiceRepository: Repository<SourceServiceAssetEntity>,
     private readonly runtimeUpstreamBindingsService: RuntimeUpstreamBindingsService,
+    @Optional() @Inject(GATEWAY_HOST_RUNTIME) private readonly hostRuntime?: GatewayHostRuntime | null,
   ) {}
 
   async onModuleInit() {
-    await this.reload();
+    try {
+      await this.reload();
+    } catch (error) {
+      const host = resolveGatewayHostRuntime(this.hostRuntime);
+      if (!host) throw error;
+      // Host mode fails closed: lock the whole Gateway and keep unrelated
+      // Nest surfaces healthy instead of aborting application startup.
+      host.lock('gateway_host_snapshot_unavailable');
+      this.snapshot = [];
+      this.snapshotInitialized = true;
+      if (!this.destroyed) {
+        this.activeRouteCatalog.replace([], catalog => {
+          this.activeRouteCaptures.set(catalog, Object.freeze([]));
+        });
+      }
+      this.logger.error('Locked Gateway host runtime after route initialization failure');
+    }
   }
 
   async reload() {

@@ -1,5 +1,10 @@
 import { GatewayHeaderLegacyRuntimeGuard } from './gateway-header-legacy-runtime.guard';
-import { BadGatewayException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadGatewayException, HttpException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import {
+  GATEWAY_HOST_RUNTIME,
+  resolveGatewayHostRuntime,
+  type GatewayHostRuntime,
+} from './gateway-host-runtime.providers';
 import { Request, Response } from 'express';
 import { GatewayAccessLogService } from './gateway-access-log.service';
 import { GatewayRuntimeMetricsService } from './gateway-runtime-metrics.service';
@@ -26,9 +31,11 @@ export class GatewayRuntimeService {
     private readonly gatewayAccessLogService: GatewayAccessLogService,
     private readonly gatewayRuntimeMetricsService: GatewayRuntimeMetricsService,
     private readonly gatewayHeaderLegacyRuntimeGuard?: GatewayHeaderLegacyRuntimeGuard,
+    @Optional() @Inject(GATEWAY_HOST_RUNTIME) private readonly gatewayHostRuntime?: GatewayHostRuntime | null,
   ) {}
 
   async forwardRequest(routePath: string, req: Request, res: Response): Promise<void> {
+    resolveGatewayHostRuntime(this.gatewayHostRuntime)?.assertOpen();
     const startedAt = Date.now();
     const requestId = this.resolveRequestId(req, res);
     const target = this.gatewayRouteSnapshotService.resolve(req.headers.host, req.method, routePath);
@@ -60,6 +67,7 @@ export class GatewayRuntimeService {
     startedAt = Date.now(),
     options: { bypassCache?: boolean } = {},
   ): Promise<void> {
+    resolveGatewayHostRuntime(this.gatewayHostRuntime)?.assertOpen();
     const bypassCache = options.bypassCache;
     const requestId = this.resolveRequestId(req, res);
     const audit = beginGatewayRequestAudit(req, res, requestId, target);
