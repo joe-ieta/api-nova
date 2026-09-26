@@ -68,6 +68,9 @@ export class GatewayRuntimeService {
     options: { bypassCache?: boolean } = {},
   ): Promise<void> {
     resolveGatewayHostRuntime(this.gatewayHostRuntime)?.assertOpen();
+    // One absolute deadline per request, anchored at entry. The operation
+    // authority, prepare, send and cancellation all share this value.
+    const requestDeadline = this.resolveRequestDeadline(target, startedAt);
     const bypassCache = options.bypassCache;
     const requestId = this.resolveRequestId(req, res);
     const audit = beginGatewayRequestAudit(req, res, requestId, target);
@@ -83,7 +86,7 @@ export class GatewayRuntimeService {
         const correlationId = this.resolveCorrelationId(req);
         const publishedTarget = target;
         const prepared = (target.policies.upstream?.compiledHeaderPolicy || this.gatewayProxyEngineService.requiresPreparation?.(target))
-          ? await this.gatewayProxyEngineService.prepareRequest(target, req) : undefined;
+          ? await this.gatewayProxyEngineService.prepareRequest(target, req, { deadline: requestDeadline }) : undefined;
         if (prepared?.compiledHeaderPolicy) {
           // Request-local view only: the Registry exchange must drive cache and
           // retry decisions without modifying the published route snapshot.
@@ -136,7 +139,7 @@ export class GatewayRuntimeService {
           return;
         }
 
-        const upstreamResponse = await this.forwardWithRetry(target, req, res, prepared, publishedTarget);
+        const upstreamResponse = await this.forwardWithRetry(target, req, res, prepared, publishedTarget, requestDeadline);
         if (!bypassCache && !prepared?.networkLease) {
           this.gatewayCacheService.store(target, req, authContext, upstreamResponse, prepared?.requestPolicy);
         }
@@ -236,12 +239,19 @@ export class GatewayRuntimeService {
     return undefined;
   }
 
+  private resolveRequestDeadline(target: GatewayResolvedRoute, startedAt: number): number {
+    const configured = Number(target.policies?.traffic?.timeoutMs ?? target.routeBinding.timeoutMs ?? 30000);
+    const timeoutMs = Number.isFinite(configured) && configured > 0 ? configured : 30000;
+    return startedAt + timeoutMs;
+  }
+
   private async forwardWithRetry(
     target: GatewayResolvedRoute,
     req: Request,
     res: Response,
     preparedRequest?: GatewayPreparedProxyRequest,
     publishedTarget: GatewayResolvedRoute = target,
+    deadline?: number,
   ) {
     const attempts = preparedRequest?.networkLease ? 1 : this.resolveMaxAttempts(target, req);
     const upstreamOperationId = randomUUID();
@@ -260,6 +270,7 @@ export class GatewayRuntimeService {
         const result = await this.gatewayProxyEngineService.forward(publishedTarget, req, res, {
           attemptIndex: attempt,
           upstreamOperationId,
+          ...(deadline === undefined ? {} : { deadline }),
           ...(preparedRequest && attempt === 1 ? { preparedRequest } : {}),
           captureResponseBodyMaxBytes: target.policies.cache.enabled
             ? target.policies.cache.maxBodyBytes

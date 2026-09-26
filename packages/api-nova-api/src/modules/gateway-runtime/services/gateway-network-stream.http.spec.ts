@@ -270,4 +270,13 @@ describe.each(['http', 'https'])('explicit host Gateway network stream through r
     expect(traffic.recordAttemptFailure).toHaveBeenCalledTimes(1); expect(traffic.recordRetryAttempt).not.toHaveBeenCalled(); expect(traffic.beforeAttempt).not.toHaveBeenCalled();
     expect(cache.resolve).not.toHaveBeenCalled(); expect(cache.store).not.toHaveBeenCalled();
   });
+  it('C3 anchors the network deadline at request entry instead of prepare time', async () => {
+    route.policies.traffic.timeoutMs = 40;
+    traffic.admit = async () => { await new Promise(resolve => setTimeout(resolve, 70)); return { release() {} }; };
+    const result = await request();
+    expect(result.status).toBe(504);
+    expect(connections).toBe(0); expect(hits).toBe(0); expect(dnsQueries).toBe(0);
+    expect(provider).not.toHaveBeenCalled();
+    expect(operationBegin).toHaveBeenCalledTimes(1);
+  });
 });

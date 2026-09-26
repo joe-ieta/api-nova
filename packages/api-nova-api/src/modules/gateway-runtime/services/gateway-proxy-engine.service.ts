@@ -55,7 +55,7 @@ export class GatewayProxyEngineService {
 
   async forward(
     resolvedRoute: GatewayResolvedRoute, req: Request, res: Response,
-    options?: { captureResponseBodyMaxBytes?: number; attemptIndex?: number; upstreamOperationId?: string; preparedRequest?: GatewayPreparedProxyRequest },
+    options?: { captureResponseBodyMaxBytes?: number; attemptIndex?: number; upstreamOperationId?: string; preparedRequest?: GatewayPreparedProxyRequest; deadline?: number },
   ): Promise<GatewayProxyResult & { targetUrl: string }> {
     resolveGatewayHostRuntime(this.hostRuntime)?.assertOpen();
     const prior = options?.preparedRequest;
@@ -68,8 +68,10 @@ export class GatewayProxyEngineService {
       }
       ownership.used = true;
     }
-    // Network leases already pin one authorized operation; legacy cache paths retain their fresh re-resolution.
-    const current = prior?.networkLease ? prior : await this.prepareRequest(resolvedRoute, req);
+    // Network leases already pin one authorized operation; legacy cache paths retain their fresh re-resolution
+    // but keep the single entry-anchored deadline when one is provided.
+    const current = prior?.networkLease ? prior : await this.prepareRequest(resolvedRoute, req,
+      options?.deadline === undefined ? {} : { deadline: options.deadline });
     this.preparations.get(current)!.used = true;
     this.preparations.get(current)!.detach?.();
     if (prior && (prior.url.href !== current.url.href ||
@@ -264,9 +266,15 @@ export class GatewayProxyEngineService {
   }
 
   /** Validate current declaration and credentials before every cache lookup. */
-  async prepareRequest(resolvedRoute: GatewayResolvedRoute, req: Request): Promise<GatewayPreparedProxyRequest> {
+  async prepareRequest(
+    resolvedRoute: GatewayResolvedRoute,
+    req: Request,
+    options: { deadline?: number } = {},
+  ): Promise<GatewayPreparedProxyRequest> {
     resolveGatewayHostRuntime(this.hostRuntime)?.assertOpen();
-    const deadline = Date.now() + (resolvedRoute.policies?.traffic?.timeoutMs ?? resolvedRoute.routeBinding.timeoutMs ?? 30000);
+    const fallbackTimeout = Number(resolvedRoute.policies?.traffic?.timeoutMs ?? resolvedRoute.routeBinding.timeoutMs ?? 30000);
+    const deadline = options.deadline ?? Date.now()
+      + (Number.isFinite(fallbackTimeout) && fallbackTimeout > 0 ? fallbackTimeout : 30000);
     assertGatewayUpstreamDeclaration(resolvedRoute.endpointDefinition);
     await this.upstreamSecurityGuard?.assertCurrent(resolvedRoute);
     const url = new URL(this.buildTargetUrl(resolvedRoute.upstreamBaseUrl,

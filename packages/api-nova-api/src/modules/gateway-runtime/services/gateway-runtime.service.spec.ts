@@ -152,6 +152,7 @@ describe('GatewayRuntimeService', () => {
         captureResponseBodyMaxBytes: undefined,
         attemptIndex: 1,
         upstreamOperationId: expect.any(String),
+        deadline: expect.any(Number),
       },
     );
     expect(deps.gatewaySecurityService.authorize).toHaveBeenCalled();
@@ -593,5 +594,107 @@ describe('GatewayRuntimeService', () => {
         cacheStatus: 'hit',
       }),
     );
+  });
+
+  const leasedPrepared = () => ({
+    networkLease: { strict: true },
+    url: new URL('https://api.example.com/orders'),
+    credentials: { headers: {}, cacheIdentity: 'identity', managedHeaderNames: [], credentialHeaderNames: [] },
+    requestPolicy: { headers: {}, chunked: false, cacheBypass: true },
+    compiledHeaderPolicy: { version: 1 },
+    historicalAuthenticationHeaderNames: [],
+  });
+  const networkTarget = () => createResolvedRoute({
+    routeBinding: {
+      id: 'route-1', routePath: '/orders', routeMethod: 'GET',
+      upstreamPath: '/orders', upstreamMethod: 'GET', timeoutMs: 10000,
+    },
+    policies: {
+      auth: { mode: 'anonymous' },
+      traffic: { timeoutMs: 10000, retryPolicy: { attempts: 3 } },
+      cache: { enabled: true, methods: ['GET', 'HEAD'] },
+      upstream: {},
+    },
+  });
+
+  it('C3 forces one network attempt and reuses the identical prepared lease', async () => {
+    const deps = createDeps();
+    const target = networkTarget();
+    deps.gatewayRouteSnapshotService.resolve.mockReturnValue(target);
+    deps.gatewaySecurityService.authorize.mockResolvedValue({ mode: 'anonymous' });
+    deps.gatewayTrafficControlService.admit.mockResolvedValue({ release: jest.fn() });
+    const prepared = leasedPrepared();
+    deps.gatewayProxyEngineService.requiresPreparation.mockReturnValue(true);
+    deps.gatewayProxyEngineService.prepareRequest.mockResolvedValue(prepared);
+    deps.gatewayProxyEngineService.forward.mockRejectedValue(new Error('upstream failed'));
+
+    await expect(deps.service.forwardRequest('/orders', {
+      method: 'GET',
+      originalUrl: '/v1/gateway/orders',
+      headers: { host: 'localhost:9001' },
+    } as any, { setHeader: jest.fn() } as any)).rejects.toThrow('upstream failed');
+
+    expect(deps.gatewayProxyEngineService.prepareRequest).toHaveBeenCalledTimes(1);
+    expect(deps.gatewayProxyEngineService.forward).toHaveBeenCalledTimes(1);
+    expect(deps.gatewayProxyEngineService.forward.mock.calls[0][3]).toMatchObject({
+      attemptIndex: 1,
+      preparedRequest: prepared,
+    });
+    expect(deps.gatewayTrafficControlService.beforeAttempt).not.toHaveBeenCalled();
+    expect(deps.gatewayTrafficControlService.recordRetryAttempt).not.toHaveBeenCalled();
+  });
+
+  it('C3 anchors one absolute deadline at entry and reuses it for prepare and forward', async () => {
+    const deps = createDeps();
+    const target = networkTarget();
+    deps.gatewayRouteSnapshotService.resolve.mockReturnValue(target);
+    deps.gatewaySecurityService.authorize.mockResolvedValue({ mode: 'anonymous' });
+    deps.gatewayTrafficControlService.admit.mockResolvedValue({ release: jest.fn() });
+    deps.gatewayProxyEngineService.requiresPreparation.mockReturnValue(true);
+    deps.gatewayProxyEngineService.prepareRequest.mockResolvedValue(leasedPrepared());
+    deps.gatewayProxyEngineService.forward.mockResolvedValue({
+      statusCode: 200, headers: {}, targetUrl: 'https://api.example.com/orders',
+    });
+
+    const startedAt = Date.now() - 5000;
+    await deps.service.forwardResolvedRoute(target as any, {
+      method: 'GET',
+      originalUrl: '/v1/gateway/orders',
+      headers: { host: 'localhost:9001' },
+    } as any, { setHeader: jest.fn() } as any, startedAt);
+
+    expect(deps.gatewayProxyEngineService.prepareRequest).toHaveBeenCalledWith(
+      target, expect.anything(), { deadline: startedAt + 10000 });
+    expect(deps.gatewayProxyEngineService.forward.mock.calls[0][3]).toMatchObject({
+      deadline: startedAt + 10000,
+    });
+  });
+
+  it('C3 never reads or writes cache for network-leased requests even with a warm entry', async () => {
+    const deps = createDeps();
+    const target = networkTarget();
+    deps.gatewayRouteSnapshotService.resolve.mockReturnValue(target);
+    deps.gatewaySecurityService.authorize.mockResolvedValue({ mode: 'anonymous' });
+    deps.gatewayTrafficControlService.admit.mockResolvedValue({ release: jest.fn() });
+    deps.gatewayCacheService.resolve.mockReturnValue({
+      key: 'cache-key', hit: true,
+      entry: { statusCode: 200, headers: {}, responseBytes: 2, body: Buffer.from('ok') },
+    });
+    deps.gatewayProxyEngineService.requiresPreparation.mockReturnValue(true);
+    deps.gatewayProxyEngineService.prepareRequest.mockResolvedValue(leasedPrepared());
+    deps.gatewayProxyEngineService.forward.mockResolvedValue({
+      statusCode: 200, headers: {}, targetUrl: 'https://api.example.com/orders',
+    });
+
+    await deps.service.forwardResolvedRoute(target as any, {
+      method: 'GET',
+      originalUrl: '/v1/gateway/orders',
+      headers: { host: 'localhost:9001' },
+    } as any, { setHeader: jest.fn() } as any);
+
+    expect(deps.gatewayCacheService.resolve).not.toHaveBeenCalled();
+    expect(deps.gatewayCacheService.store).not.toHaveBeenCalled();
+    expect(deps.gatewayCacheService.writeHit).not.toHaveBeenCalled();
+    expect(deps.gatewayProxyEngineService.forward).toHaveBeenCalledTimes(1);
   });
 });
