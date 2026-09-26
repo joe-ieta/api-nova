@@ -1,5 +1,5 @@
 ---
-doc-version: 1.152.0
+doc-version: 1.153.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -19,6 +19,8 @@ MAIL-01 DOC 完成：冻结验证码/重置/通知三类接口、token与失败�
 
 OBS-14-06T 限定 DONE：新增默认off的暂存源文件有界恢复（scan/delete上限、稳定排序、持久游标）：仅身份/已提交offset/边界/seal/closed退出证明/完整行全部复核且超过48小时才删除，活动文件、半行、未导入、身份不明与不匹配名一律保留；清理不触碰checkpoint/receipt/事件且不分配业务sequence。专项1 suite/8 tests、call-observability 10 suites/81 tests、API build；仅Windows/SQL.js本地，不含平台/多进程与旧schema。
 
+SEC-F3-02C1d4 限定 DONE：隔离PG真实host/Registry+本地HTTP联合验证facade在途流固定旧pair/旧凭据且新请求见新代次、错误origin装配被拒后当前pair继续服务、在途proof到期主动abort活动流并释放lease、shutdown同步中止全部signal且abort listener清零；隔离PG warm 61（本叶新增5）/cold 4检查、零漂移并停止清理；Gateway 51 suites/726 tests与既有真实TLS专项为邻证。未含外部Secret Manager/多进程E3b/目标环境。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -28,8 +30,8 @@ OBS-14-06T 限定 DONE：新增默认off的暂存源文件有界恢复（scan/de
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 155 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 11 | 可进入队列，当前并非全部开工 |
+| DONE | 156 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 10 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 23 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
@@ -153,7 +155,7 @@ OBS-14-06T 限定 DONE：新增默认off的暂存源文件有界恢复（scan/de
 | SEC-F3-02C1d2b3d2a | DONE | 限定host早期互斥完成：GATEWAY_HOST_RUNTIME仅在配置/ watch前短路的共享启动依赖；host旧Registry=null/admin disabled，PolicyService与legacy guard读取受控只读Snapshot；启动/失败整Gateway闭锁503且非Gateway Nest health200；无host不变。专项1 suite/7 tests、Gateway 50 suites/718 tests、API build；未接生产DI/真实host安装（归d2b） |
 | SEC-F3-02C1d2b3d2b | DONE | 限定显式host装配完成：默认off的host source/facade；bootstrap等待真实committed catalog与host snapshot后以新一次性proof执行c2 bundle与d1稳定facade装配；legacy env/file/watch冲突显式拒绝，装配失败整Gateway闭锁。专项1 suite/8 tests、Gateway 51 suites/726 tests、API build、隔离PG warm 56/cold 4（Nest/PG/HTTP正例+冲突/闭锁负例）、零漂移并清理；未接AppModule生产默认启用/外部Secret Manager/多进程 |
 | SEC-F3-02C1d3 | DONE | 限定Parser host生命周期桥完成：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off，缺providerEvidence永拒，WeakMap fixture仅为进程内不可伪造测试能力而非生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭 |
-| SEC-F3-02C1d4 | READY | d2b/d3已闭合；真实本地Registry/HTTP/TLS覆盖普通reload固定、失败保旧及撤销/收窄/epoch变化/到期在DNS/连接/大流阶段主动abort，shutdown无遗留资源；外部Secret Manager、多进程/E3b及目标环境另验 |
+| SEC-F3-02C1d4 | DONE | 限定联合验收完成：隔离PG真实host/Registry+本地HTTP验证facade在途流固定旧pair/旧凭据且新请求见新代次、错误origin装配被拒后当前pair继续服务、在途proof到期主动abort并释放lease、shutdown同步中止全部signal且abort listener清零；隔离PG warm 61（本叶新增5）/cold 4、零漂移并清理，Gateway 51 suites/726 tests与真实TLS专项为邻证；不含外部Secret Manager/多进程E3b/目标环境 |
 | SEC-F3-02C2a | DONE | 限定纯目标目录完成：2个独立Parser文件，专项30项及相邻5 suites/240 tests通过；按source asset与精确method+path绑定Endpoint/target，未知、歧义、跨asset、scheme降级及非受信目标失败关闭。未接多跳状态机、真实发送或生产网络模式 |
 | SEC-F3-02C2b1 | DONE | 限定纯redirect chain state完成：2个network文件，专项63 tests、相邻5 suites/303 tests、统一Parser 44 suites/1077 tests、typecheck/build及diff-check通过；只接受显式safe-read空正文GET/HEAD，规范化Location/loop、最多5跳及一次性decision。纯模块不触网、不启用生产入口，默认仍single-hop |
 | SEC-F3-02C2b2a | DONE | 限定raw Location唯一证据纯模块完成：2个network文件、自身21 tests、相邻3 suites/115 tests、统一Parser 45 suites/1098 tests、typecheck/build、cleanup及diff-check通过；只读rawHeaders并拒绝零个/重复/折叠/歧义/访问器/超长值。不解析目标、不触网、不改默认single-hop |

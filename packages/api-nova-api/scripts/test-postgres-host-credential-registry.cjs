@@ -45,6 +45,7 @@ async function main() {
       checks += await registrationChecks(db);
       checks += await facadeChecks(db);
       checks += await bootstrapChecks(db);
+      checks += await lifecycleChecks(db);
       const f = fixture(), module = await Test.createTestingModule({ providers: [{ provide: 'host', useFactory: () => boot(f.token(), db) }] }).compile();
       const host = module.get('host'); dispose.push(() => host.close()); const snapshot = host.captureSnapshot();
       assert.equal(host.readEpoch(sourceA), f.input.expectedGeneration); assert.equal(host.readEpoch(sourceB), f.input.expectedGeneration);
@@ -422,6 +423,110 @@ async function bootstrapChecks(pg) {
       assert.equal(result.status, 503, result.body); assert.equal(seen, 1); count++;
     } finally { await failedApp.close(); }
     service.onModuleDestroy();
+    return count;
+  } finally { await closeServer(upstream); }
+}
+async function lifecycleChecks(pg) {
+  const http = require('node:http');
+  const { getEventListeners } = require('node:events');
+  const { createGatewayHostRuntime } = require('../dist/src/modules/gateway-runtime/services/gateway-host-runtime.providers');
+  const { createGatewayTrustedNetworkFacade } = require('../dist/src/modules/gateway-runtime/services/gateway-trusted-network.provider');
+  const { createGatewayNetworkRegistrationBundle: assemble, closeGatewayNetworkRegistrationBundle: closeBundle } = require('../dist/src/modules/gateway-runtime/services/gateway-network-registration-coordinator');
+  const { GatewayRouteSnapshotEntity } = require('../dist/src/database/entities/gateway-route-snapshot.entity');
+  const { RuntimeAssetEntity, RuntimeAssetStatus, RuntimeAssetType } = require('../dist/src/database/entities/runtime-asset.entity');
+  const { GatewayRouteSnapshotService } = require('../dist/src/modules/gateway-runtime/services/gateway-route-snapshot.service');
+  const { GatewayPolicyService } = require('../dist/src/modules/gateway-runtime/services/gateway-policy.service');
+  const { GatewayRoutePathMatchMode } = require('../dist/src/database/entities/gateway-route-binding.entity');
+  const { createNetworkPolicyCompiler } = require('api-nova-parser');
+  let count = 0, seen = [], slowRelease = null;
+  const upstream = http.createServer((req, res) => {
+    seen.push(req.headers['x-retired-host']);
+    if (!slowRelease) { res.end('fast'); return; }
+    const release = slowRelease; slowRelease = null;
+    res.write('partial');
+    release.then(() => res.end('tail'));
+  });
+  const upstreamPort = await new Promise(resolve => upstream.listen(0, '127.0.0.1', () => resolve(upstream.address().port)));
+  const waitFor = async (check, ms = 5000) => { const deadline = Date.now() + ms; while (!check()) { if (Date.now() > deadline) throw new Error('fixture wait timeout'); await new Promise(resolve => setTimeout(resolve, 10)); } };
+  const closeServer = server => new Promise(resolve => { server.closeAllConnections?.(); server.close(() => resolve()); });
+  const origin = 'http://127.0.0.1:' + upstreamPort;
+  const document = { apiVersion: 'security.apinova.io/v1', kind: 'UpstreamCredentialBindings', metadata: { revision: 'life-r1', environment: 'test' }, reload: { mode: 'manual', debounceMs: 0, rejectPlaintextSecrets: true }, secretProviders: { first: { type: 'env' } },
+    credentials: { key: { type: 'apiKey', placement: { in: 'header', name: 'X-Retired-Host' }, secretRef: 'first:TOKEN' } },
+    sites: [{ id: 'site0', sourceServiceAssetId: sourceA, match: { scheme: 'http', host: '127.0.0.1', port: upstreamPort, basePath: '/' }, allowedHosts: ['127.0.0.1'], credential: 'key', headerPolicy: { version: 1 }, endpoints: [{ endpointDefinitionId: endpointA }] }] };
+  try {
+    for (const id of ['00000000-0000-0000-0000-000000000099', '00000000-0000-0000-0000-000000000100', '00000000-0000-0000-0000-000000000200'])
+      await pg.getRepository(RuntimeAssetEntity).update(id, { status: RuntimeAssetStatus.OFFLINE, metadata: {} });
+    const runtimeId = '00000000-0000-0000-0000-000000000300';
+    const runtimeAsset = await pg.getRepository(RuntimeAssetEntity).save({ id: runtimeId, name: 'lifecycle', type: RuntimeAssetType.GATEWAY_SERVICE, status: RuntimeAssetStatus.ACTIVE });
+    const oldFixture = fixture(document, false, 'old'), oldHost = await boot(oldFixture.token(), pg);
+    const nextFixture = fixture(document, false, 'next'), nextHost = await boot(nextFixture.token(), pg);
+    const expiryFixture = fixture(document, false, 'expiry'), expiryHost = await boot(expiryFixture.token(), pg);
+    const hostRuntime = createGatewayHostRuntime({ captureSnapshot: () => oldHost.captureSnapshot() });
+    const policies = new GatewayPolicyService(null, hostRuntime);
+    const service = new GatewayRouteSnapshotService(policies, {}, pg.getRepository(GatewayRouteSnapshotEntity), {}, {}, pg.getRepository(RuntimeAssetEntity), {}, {}, {});
+    const binding = { id: 'life-route', endpointDefinitionId: endpointA, authPolicyRef: 'jwt-default', pathMatchMode: GatewayRoutePathMatchMode.EXACT, upstreamMethod: 'GET', upstreamPath: '/items', createdAt: new Date(), updatedAt: new Date(), upstreamConfig: { headerPolicyMigration: { version: 1, mode: 'v1', source: 'registry' } } };
+    const entries = [{ runtimeAsset, routeBinding: binding, membership: { id: 'life-member', publicationRevision: 1 }, publishBinding: { id: 'life-pub' }, sourceServiceAsset: { id: sourceA }, endpointDefinition: { id: endpointA }, sourceServiceInstance: { id: 'instance' }, normalizedRoutePath: '/life', routeMethod: 'GET', upstreamBaseUrl: origin, priorityScore: 1, policies: policies.compileForRoute(binding) }];
+    const fingerprint = service.fingerprintEntries(entries);
+    service.candidateSnapshots.set('life-v1', { runtimeAssetId: runtimeId, entries, snapshotFingerprint: fingerprint, preparedAt: new Date() });
+    await pg.transaction(async manager => {
+      await service.activateCandidate('life-v1', manager);
+      await manager.update(RuntimeAssetEntity, runtimeId, { metadata: { activeRevision: 'life-v1', activeGatewaySnapshotFingerprint: fingerprint } });
+    });
+    await service.reload();
+    const route = service.resolve('localhost', 'GET', '/life'); assert.ok(route);
+    const compiler = createNetworkPolicyCompiler({ deniedDestinations: [], loopback: 'test-only' });
+    const policy = compiler.compile({ version: 1, id: 'life-policy', revision: '1', sourceServiceAssetId: sourceA, siteId: 'site0', origin, mode: 'private-exception', connection: 'direct',
+      privateException: { id: 'life-exception', revision: '1', sourceServiceAssetId: sourceA, siteId: 'site0', origin, addresses: ['127.0.0.1'], purpose: 'isolated test', owner: 'test', approvalRef: 'test', issuedAt: new Date(Date.now() - 1000).toISOString(), expiresAt: new Date(Date.now() + 120000).toISOString() } });
+    const capture = () => service.captureActiveRouteCatalog(service.readActiveRouteCatalog());
+    const installation = (active, ttlMs) => ({ compiler, servers: ['127.0.0.1:53'], bundle: assemble({ routes: service, capture: capture(), host: active, compiler,
+      policies: [{ routeBindingId: 'life-route', siteId: 'site0', policy }],
+      proofs: [{ sourceServiceAssetId: sourceA, providerEpoch: active.readEpoch(sourceA), proof: active.issueProof(sourceA, ttlMs) }] }) });
+    const collect = async response => { const chunks = []; for await (const chunk of response.body) chunks.push(Buffer.from(chunk)); await response.completed; return Buffer.concat(chunks).toString(); };
+    const facade = createGatewayTrustedNetworkFacade();
+    const preparedFor = () => facade.provider.prepare(route, origin + '/items', () => { throw new Error('unpaired resolver'); }, { deadline: Date.now() + 10000 });
+    const bundles = [];
+    try {
+      const first = installation(oldHost); bundles.push(first.bundle); facade.install(first);
+      let resolveSlow; slowRelease = new Promise(resolve => { resolveSlow = resolve; });
+      const oldPrepared = await preparedFor();
+      const oldResponse = await facade.provider.send(oldPrepared.lease, { framing: { mode: 'none' } });
+      const readingOld = collect(oldResponse).catch(error => error);
+      await waitFor(() => seen.length === 1);
+      const replacement = installation(nextHost); bundles.push(replacement.bundle);
+      facade.install(replacement);
+      resolveSlow();
+      assert.equal(await readingOld, 'partialtail'); assert.equal(seen[0], 'token-old'); count++;
+      const freshPrepared = await preparedFor();
+      assert.equal(await collect(await facade.provider.send(freshPrepared.lease, { framing: { mode: 'none' } })), 'fast');
+      assert.equal(seen[1], 'token-next'); count++;
+      // A rejected installation keeps the current pair serving over real HTTP.
+      const wrongPolicy = compiler.compile({ version: 1, id: 'wrong', revision: '1', sourceServiceAssetId: sourceA, siteId: 'site0', origin: 'https://wrong.example', mode: 'public', connection: 'direct' });
+      assert.throws(() => assemble({ routes: service, capture: capture(), host: nextHost, compiler,
+        policies: [{ routeBindingId: 'life-route', siteId: 'site0', policy: wrongPolicy }],
+        proofs: [{ sourceServiceAssetId: sourceA, providerEpoch: nextHost.readEpoch(sourceA), proof: nextHost.issueProof(sourceA) }] }));
+      const keptPrepared = await preparedFor();
+      assert.equal(await collect(await facade.provider.send(keptPrepared.lease, { framing: { mode: 'none' } })), 'fast');
+      assert.equal(seen[2], 'token-next'); count++;
+      // In-flight proof expiry aborts the active stream and releases the lease.
+      const expired = installation(expiryHost, 40); bundles.push(expired.bundle); facade.install(expired);
+      let releaseExpiry; slowRelease = new Promise(resolve => { releaseExpiry = resolve; });
+      const expiryPrepared = await preparedFor();
+      const expiryResponse = await facade.provider.send(expiryPrepared.lease, { framing: { mode: 'none' } });
+      const pendingExpiry = collect(expiryResponse).catch(error => error);
+      await waitFor(() => seen.length === 4);
+      const expiredResult = await pendingExpiry;
+      assert.ok(expiredResult instanceof Error);
+      releaseExpiry(); count++;
+      // Shutdown stops every pair and removes abort listeners synchronously.
+      const hostSignals = [oldHost, nextHost, expiryHost].map(value => value.readSignal(sourceA));
+      for (const bundle of bundles) closeBundle(bundle);
+      facade.close();
+      for (const value of [oldHost, nextHost, expiryHost]) value.close();
+      for (const signal of hostSignals) assert.equal(signal.aborted, true);
+      for (const bundle of bundles) assert.equal(getEventListeners(bundle.signal, 'abort').length, 0);
+      for (const signal of hostSignals) assert.equal(getEventListeners(signal, 'abort').length, 0);
+      count++;
+    } finally { facade.close(); service.onModuleDestroy(); }
     return count;
   } finally { await closeServer(upstream); }
 }

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.101.0
+doc-version: 1.102.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -16,6 +16,8 @@ D2b3d1 限定 DONE：品牌稳定facade把同bundle的Provider与私有Resolver�
 D2b3d2a 限定 DONE：新增共享host启动依赖GATEWAY_HOST_RUNTIME（仅显式brand；null/undefined即默认off）：legacy凭据Registry工厂在读取任何配置或启动watch前短路为null，admin自动disabled；GatewayPolicyService与legacy guard改读受控只读Snapshot；启动/失败时整Gateway闭锁（固定503 gateway_host_runtime_locked），非Gateway Nest health保持200；无host行为不变。新增专项1 suite/7 tests、Gateway 50 suites/718 tests、API build通过。未接RuntimeModule生产装配/d2b、真实host安装或Nest/PG/HTTP联合；旧watch/admin仍不交付。
 
 SEC-F3-02C1d2b3d2b 限定 DONE：新增默认off的GATEWAY_NETWORK_HOST_SOURCE/FACADE显式host装配；onApplicationBootstrap等待真实committed catalog与host snapshot，以新一次性proof执行c2 bundle与d1稳定facade成对装配；与legacy env/file/watch冲突显式拒绝，装配失败整Gateway保持闭锁；成功路径经GatewayProxyEngineService+facade provider真实HTTP到回环上游200。专项1 suite/8 tests、Gateway 51 suites/726 tests、API build、隔离PG warm 56/cold 4检查（Nest/PG/HTTP正例与冲突/闭锁负例）、零schema漂移并停止清理。未接AppModule生产默认启用/外部Secret Manager/多进程。
+
+SEC-F3-02C1d4 限定 DONE：隔离PG真实host/Registry+本地HTTP联合验证facade在途流固定旧pair/旧凭据且新请求见新代次、错误origin装配被拒后当前pair继续服务、在途proof到期主动abort活动流并释放lease、shutdown同步中止全部signal且abort listener清零；隔离PG warm 61（本叶新增5）/cold 4检查、零漂移并停止清理；Gateway 51 suites/726 tests与既有真实TLS专项为邻证。未含外部Secret Manager/多进程E3b/目标环境。
 
 ## 证据口径和版本
 
@@ -144,7 +146,7 @@ SEC-F3-02C1d2b3d2b 限定 DONE：新增默认off的GATEWAY_NETWORK_HOST_SOURCE/F
 | SEC-F3-02C1d2b3d2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md)、[专项spec](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-host-runtime.providers.spec.ts) | **DONE（限定）**：GATEWAY_HOST_RUNTIME共享启动依赖在配置/watch前判互斥；host Registry=null/admin disabled、受控只读Snapshot供PolicyService与legacy guard、启动/失败整Gateway闭锁503且非Gateway Nest health200、无host不变。专项1 suite/7 tests、Gateway 50 suites/718 tests、API build；无生产DI/真实host安装。 |
 | SEC-F3-02C1d2b3d2b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md)、[专项spec](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-network-host-bootstrap.spec.ts)、[隔离PG启动器](../../packages/api-nova-api/scripts/test-isolated-postgres-host-credential-registry.cjs) | **DONE（限定）**：默认off host source/facade；bootstrap等待committed catalog与host snapshot后以新proof执行c2/d1稳定装配；legacy env/file/watch冲突拒绝，失败整Gateway闭锁。专项8项、Gateway 51 suites/726 tests、隔离PG warm 56/cold 4（Nest/PG/HTTP正例+冲突/闭锁负例）零漂移；无AppModule默认启用/外部Secret Manager/多进程。 |
 | SEC-F3-02C1d3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off且缺providerEvidence永拒，WeakMap fixture不是生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭。 |
-| SEC-F3-02C1d4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：D2b3d/D3依赖已闭合；普通reload固定、失败保旧及撤销/收窄/epoch变化/到期主动abort的本地真实联合验收；外部Secret Manager、多进程/E3b及目标环境另验。 |
+| SEC-F3-02C1d4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md)、[隔离PG启动器](../../packages/api-nova-api/scripts/test-isolated-postgres-host-credential-registry.cjs) | **DONE（限定）**：隔离PG真实host/Registry+本地HTTP验证facade在途固定旧pair/旧凭据且新请求见新代次、错误装配被拒后当前pair继续服务、在途proof到期主动abort并释放lease、shutdown信号中止且abort listener清零；warm 61（本叶新增5）/cold 4零漂移并清理，Gateway 51 suites/726 tests与真实TLS专项邻证；无外部Secret Manager/多进程E3b/目标环境。 |
 | SEC-F3-02C2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个独立Parser文件，专项30项及相邻5 suites/240 tests通过；source asset+精确method/path绑定Endpoint/target，未知、歧义、跨asset、scheme降级及非受信目标失败关闭。未接多跳状态机、真实发送或生产网络模式。 |
 | SEC-F3-02C2b1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个network文件，专项63 tests、相邻5 suites/303 tests、统一Parser 44 suites/1077 tests、typecheck/build及diff-check通过；显式safe-read空正文GET/HEAD、规范化Location/loop、最多5跳及一次性decision已验。纯模块不触网、不启用生产入口，默认仍single-hop。 |
 | SEC-F3-02C2b2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个network文件、自身21 tests、相邻3 suites/115 tests、统一Parser 45 suites/1098 tests、typecheck/build、cleanup及diff-check通过；rawHeaders唯一Location证据已验，不解析目标、不触网、不改默认single-hop。首次TS7006失败保留为历史。 |
