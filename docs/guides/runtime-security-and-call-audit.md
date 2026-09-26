@@ -1,7 +1,7 @@
 ---
-doc-version: 1.2.0
+doc-version: 1.2.1
 doc-status: active
-doc-updated: 2026-09-14
+doc-updated: 2026-09-26
 ---
 # 安全调用与日志审计
 
@@ -56,7 +56,7 @@ MCP 同时记录 `tools/call` 的参数/结果和其下游 HTTP 调用，使用�
 
 外部调用者无需在 ApiNova 预先注册。JWT 校验通过后，以 `SHA-256(issuer + NUL + sub)` 生成 callerId，自动追加调用者观察记录，维护 firstSeenAt、lastSeenAt、使用过的协议。同一 issuer/sub 的新令牌保持同一个调用者。内部配置式 API Key 以稳定的 subject 归并，可配置多个不同 key 对应同一 subject；旧 Gateway 数据库 Key 仍按原凭证记录识别，跨 Key 归并建议迁至统一认证模式。
 
-`GET /api/v1/monitoring/management/external-callers?page=1&limit=20` 提供自动发现清单，沿用管理 JWT 与 `monitoring:read` 权限，不返回凭证和 Payload。它不是新调用者注册接口，也不授予访问权限。鉴权失败不登记可信主体；有效身份访问无权工具时仍保留已认证请求记录。不同签发方的同名 sub 不自动合并。
+调用者清单已迁移到统一可观测 API：`GET /api/monitoring/observability/callers`（管理 JWT + `monitoring:read`，资产范围校验，签名游标分页，不返回凭证和 Payload）。旧 `GET /api/v1/monitoring/management/external-callers` 文件扫描入口与 parser `listObservedRuntimeCallers` 已删除（OBS-15-01，无兼容别名或回退）。它不是新调用者注册接口，也不授予访问权限。鉴权失败不登记可信主体；有效身份访问无权工具时仍保留已认证请求记录。不同签发方的同名 sub 不自动合并。
 
 无需“预先注册调用者”并不意味着免认证：运维需配置受信任签发方，调用者仍需从约定渠道取得 JWT。本项目不实现 Token 获取/刷新、客户端注册、用户同意、授权服务器、登录页或任意签发方自动信任。
 

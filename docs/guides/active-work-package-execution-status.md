@@ -1,5 +1,5 @@
 ---
-doc-version: 1.154.0
+doc-version: 1.155.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -25,6 +25,8 @@ SEC-F3-02C3 限定 DONE：Gateway请求入口锚定唯一绝对deadline并贯通
 
 PROD-05 限定 DONE：实例/绑定变更actor已透传并可按resource+resourceId+userId检索（AuditLogQueryDto新增resourceId并接入findLogs/export），权限拒绝记录action/level/status/requiredPermissions可验证；4套22项（含SQL.js真实审计检索与actor断言）；不新增审计存储/权限/UI，PG与UI检索另验。
 
+OBS-15-01 限定 DONE：删除旧`/api/v1/monitoring/management/external-callers`文件扫描入口与parser `listObservedRuntimeCallers`（无别名/回退），消费者改用统一callers API或原始记录证据；新增结构/无回退spec、parser 23项与监控9项通过；Gateway旧后端删除与部署切换归OBS-15-02。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -34,10 +36,10 @@ PROD-05 限定 DONE：实例/绑定变更actor已透传并可按resource+resourc
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 158 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 159 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 10 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
-| WAIT_DEP | 21 | 等待列明子任务/条件 |
+| WAIT_DEP | 20 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -216,8 +218,8 @@ PROD-05 限定 DONE：实例/绑定变更actor已透传并可按resource+resourc
 | OBS-14-05D | WAIT_DEP | 状态/故障联调等待05C3 |
 | OBS-14-06A | DONE | 限定本功能管理审计有界清理完成：按明确resource归属（observability_caller/delivery/policy/subscription/payload/audit）仅选本功能记录，30天最小窗口；delete/checkpoint/单条管理记录同一Store事务；无法归属与更新记录保留；默认off。专项1 suite/7 tests、call-observability 9 suites/73 tests、API build；不含全产品安全审计/配额治理与平台多进程 |
 | OBS-14-06T | DONE | 限定暂存源文件有界恢复完成：仅身份/已提交offset/边界/seal/closed退出证明/完整行全部复核且超48小时才删除；活动、半行、未导入、身份不明与不匹配名保留；持久游标恢复；不触碰checkpoint/receipt/事件且不分配业务sequence。专项1 suite/8 tests、call-observability 10 suites/81 tests、API build；不含平台/多进程与旧schema |
-| OBS-15-01 | READY | Gateway日志入口已迁移 |
-| OBS-15-02 | WAIT_DEP | 等待OBS-13-01C与OBS-15-01；不重建第二主链 |
+| OBS-15-01 | DONE | 限定迁移完成：旧`/api/v1/monitoring/management/external-callers`文件扫描入口与parser `listObservedRuntimeCallers`已删除（无别名/回退），消费者改用统一`/api/monitoring/observability/callers`或原始`callers-*.jsonl`证据；结构/404/原始记录断言与parser 23项通过。Gateway旧后端删除与部署切换归OBS-15-02 |
+| OBS-15-02 | READY | OBS-13-01C与OBS-15-01已闭合；全链路身份/拒绝审计、旧后端删除与部署切换验收，不重建第二主链 |
 | OBS-16-01 | DONE | 交接文档2.2.0；AC01~20与脚本入口静态核对，未运行新全量矩阵；[交接](./runtime-observability-external-validation-handoff.md) |
 | OBS-16-02 | READY | 不等同全量平台验收 |
 | OBS-16-03 | NEED_ENV | 环境待核实 |

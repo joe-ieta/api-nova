@@ -1,5 +1,5 @@
 ---
-doc-version: 2.11.0
+doc-version: 2.12.0
 doc-status: active
 doc-updated: 2026-09-26
 approval-status: approved
@@ -223,7 +223,7 @@ flowchart TD
 
 依次联通“真实外部请求 → 上游 → 文件 → 索引 → 查询/聚合 → 事件 → 接收端”，覆盖三类采集来源与两类服务器。将重复 gateway-access-logs/external-callers 查询及其现有调用方收敛到新 Endpoint，验证统一分页、字段和权限；不保留兼容别名。
 
-Gateway日志UI已迁移为统一invocations查询，最近一小时、签名下一页，保留元数据权限边界；支持runtimeAssetId/outcome/requestId过滤；原HTTP method/path/status筛选不伪造为新接口支持。筛选/身份变化清理旧响应与游标，轮询不覆盖历史页，失败不回退旧接口。其余调用者查询、旧后端删除与完整链路仍待收敛。
+Gateway日志UI已迁移为统一invocations查询，最近一小时、签名下一页，保留元数据权限边界；支持runtimeAssetId/outcome/requestId过滤；原HTTP method/path/status筛选不伪造为新接口支持。筛选/身份变化清理旧响应与游标，轮询不覆盖历史页，失败不回退旧接口。旧`external-callers`文件扫描入口与parser `listObservedRuntimeCallers`已按OBS-15-01删除（无别名/回退）；调用者查询统一走`/api/monitoring/observability/callers`。Gateway旧后端删除、完整身份/拒绝审计与部署切换仍待收敛。
 
 输出增量启用、有限数据集初始化、停止新消费者的回退步骤；不能靠删数据回退。关联 ID 与数据源权威要证明没有两路日志重复计数。
 

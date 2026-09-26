@@ -55,7 +55,7 @@
 | [安全交付验收证据索引](./guides/security-delivery-evidence-index.md) | 1.103.0 | active | 2026-09-26 |
 | [邮件投递范围与受控验收合同](./guides/mail-delivery-scope-and-acceptance.md) | 1.0.0 | active | 2026-09-26 |
 | [MCP发布端点合同](./guides/mcp-publication-endpoint-contract.md) | 0.2.0 | active | 2026-09-21 |
-| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.154.0 | active | 2026-09-26 |
+| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.155.0 | active | 2026-09-26 |
 | [受管MCP启动交付设计](./guides/managed-mcp-credential-handoff-plan.md) | 0.4.0 | reviewed-slice | 2026-09-21 |
 | [候选激活与GC重试](./audits/2026-09-15-activation-gc-wave.md) | 1.0.0 | active | 2026-09-15 |
 | [上游归属交叉核验](./audits/2026-09-15-upstream-ownership-wave.md) | 1.0.0 | active | 2026-09-15 |
@@ -114,7 +114,7 @@
 | [安全设计](./reference/security-design-and-implementation.md) | 1.2.0 | active | 2026-09-14 |
 | [Gateway 文件激活](./guides/gateway-upstream-credential-file-activation.md) | 1.1.0 | active | 2026-09-14 |
 | [D1/F3 边界契约](./guides/security-header-network-boundary-contract.md) | 1.74.0 | active | 2026-09-26 |
-| [安全调用与日志审计](./guides/runtime-security-and-call-audit.md) | 1.2.0 | active | 2026-09-14 |
+| [安全调用与日志审计](./guides/runtime-security-and-call-audit.md) | 1.2.1 | active | 2026-09-26 |
 | [安全验收用例](./testing/runtime-security-audit-cases.md) | 1.2.0 | active | 2026-09-14 |
 | [SEC-A1-01鉴权模式跨层矩阵](./testing/sec-a1-01-auth-mode-cross-layer-matrix.md) | 0.2.0 | validation-evidence | 2026-09-16 |
 
@@ -129,9 +129,9 @@
 | [可观测性功能需求](./guides/runtime-observability-requirements.md) | 2.4.0 | active | 2026-09-26 |
 | [可观测性设计](./reference/runtime-observability-design.md) | 2.2.0 | active | 2026-09-14 |
 | [可观测性 API Endpoint](./reference/runtime-observability-api-endpoints.md) | 2.7.0 | active | 2026-09-14 |
-| [可观测性开发任务计划](./guides/runtime-observability-development-task-plan.md) | 2.11.0 | active | 2026-09-26 |
+| [可观测性开发任务计划](./guides/runtime-observability-development-task-plan.md) | 2.12.0 | active | 2026-09-26 |
 | [可观测性执行与完成状态](./guides/runtime-observability-development-execution-status.md) | 2.33.0 | active | 2026-09-26 |
-| [任务完成情况复核](./guides/runtime-observability-completion-review.md) | 2.25.0 | active | 2026-09-26 |
+| [任务完成情况复核](./guides/runtime-observability-completion-review.md) | 2.26.0 | active | 2026-09-26 |
 | [可观测性契约与接入映射](./reference/runtime-observability-contract-mapping.md) | 2.1.0 | active | 2026-09-14 |
 | [可观测性存储基础](./reference/runtime-observability-storage-foundation.md) | 2.1.0 | active | 2026-09-14 |
 | [可观测性生命周期合同](./reference/runtime-observability-lifecycle-contract.md) | 1.0.0 | active | 2026-09-15 |
