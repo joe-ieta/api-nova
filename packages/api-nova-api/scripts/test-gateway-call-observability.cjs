@@ -85,6 +85,10 @@ beforeEach(async () => {
   f.security = new GatewaySecurityService({ log: async () => undefined }, {
     findOne: async ({ where }) => f.credentials.get(where.keyId) || null,
     save: async value => value,
+    update: async (id, patch) => {
+      for (const credential of f.credentials.values()) if (credential.id === id) Object.assign(credential, patch);
+      return { affected: 1 };
+    },
   });
   const metrics = new Proxy({}, { get: () => async () => undefined });
   const traffic = {

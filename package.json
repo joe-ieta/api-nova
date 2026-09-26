@@ -35,7 +35,9 @@
     "verify:parser-chain": "node scripts/verify-parser-propagation.js",
     "verify:parser-chain:full": "node scripts/verify-parser-propagation.js --include-consumer-builds",
     "verify:f3-dual-runtime": "node scripts/verify-f3-dual-runtime.cjs",
-    "verify:mcp-observability-matrix": "node scripts/verify-mcp-observability-matrix.cjs"
+    "verify:mcp-observability-matrix": "node scripts/verify-mcp-observability-matrix.cjs",
+    "verify:obs-16-local-unit": "node scripts/verify-obs-16-local-unit.cjs",
+    "verify:obs-15-full-chain": "node scripts/verify-obs-15-full-chain.cjs"
   },
   "keywords": [
     "mcp",
