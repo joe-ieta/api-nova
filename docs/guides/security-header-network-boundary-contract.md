@@ -1,5 +1,5 @@
 ---
-doc-version: 1.74.0
+doc-version: 1.75.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -16,6 +16,8 @@ D2b3d2a 限定 DONE：新增共享host启动依赖GATEWAY_HOST_RUNTIME（仅显�
 SEC-F3-02C1d2b3d2b 限定 DONE：新增默认off的GATEWAY_NETWORK_HOST_SOURCE/FACADE显式host装配；onApplicationBootstrap等待真实committed catalog与host snapshot，以新一次性proof执行c2 bundle与d1稳定facade成对装配；与legacy env/file/watch冲突显式拒绝，装配失败整Gateway保持闭锁；成功路径经GatewayProxyEngineService+facade provider真实HTTP到回环上游200。专项1 suite/8 tests、Gateway 51 suites/726 tests、API build、隔离PG warm 56/cold 4检查（Nest/PG/HTTP正例与冲突/闭锁负例）、零schema漂移并停止清理。未接AppModule生产默认启用/外部Secret Manager/多进程。
 
 SEC-F3-02C1d4 限定 DONE：隔离PG真实host/Registry+本地HTTP联合验证facade在途流固定旧pair/旧凭据且新请求见新代次、错误origin装配被拒后当前pair继续服务、在途proof到期主动abort活动流并释放lease、shutdown同步中止全部signal且abort listener清零；隔离PG warm 61（本叶新增5）/cold 4检查、零漂移并停止清理；Gateway 51 suites/726 tests与既有真实TLS专项为邻证。未含外部Secret Manager/多进程E3b/目标环境。
+
+SEC-F3-02C5b 限定 DONE：新增parser `toNetworkFailure`与C5a导出，Gateway provider在prepare/send/completed单点emit `upstream.network_failure`（operationId/policy/revision/site/endpoint/revocationEpoch/attempt/hop/stage），stream对未知错误固定503且不回传原始DNS/TLS细节；Parser single-hop与host bridge显式failureAudit透传并按阶段emit。真实HTTP/TLS负测含sink故障不改拒绝与秘密扫描；Parser 49 suites/1196 tests、Gateway 51 suites/735 tests、两包构建通过。未持久化事件（归C6/F3D）、无managed child/E3b、生产默认关闭。
 
 ## 1. 范围与证据
 

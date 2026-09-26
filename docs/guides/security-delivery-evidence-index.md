@@ -1,5 +1,5 @@
 ---
-doc-version: 1.103.0
+doc-version: 1.104.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -18,6 +18,8 @@ D2b3d2a 限定 DONE：新增共享host启动依赖GATEWAY_HOST_RUNTIME（仅显�
 SEC-F3-02C1d2b3d2b 限定 DONE：新增默认off的GATEWAY_NETWORK_HOST_SOURCE/FACADE显式host装配；onApplicationBootstrap等待真实committed catalog与host snapshot，以新一次性proof执行c2 bundle与d1稳定facade成对装配；与legacy env/file/watch冲突显式拒绝，装配失败整Gateway保持闭锁；成功路径经GatewayProxyEngineService+facade provider真实HTTP到回环上游200。专项1 suite/8 tests、Gateway 51 suites/726 tests、API build、隔离PG warm 56/cold 4检查（Nest/PG/HTTP正例与冲突/闭锁负例）、零schema漂移并停止清理。未接AppModule生产默认启用/外部Secret Manager/多进程。
 
 SEC-F3-02C1d4 限定 DONE：隔离PG真实host/Registry+本地HTTP联合验证facade在途流固定旧pair/旧凭据且新请求见新代次、错误origin装配被拒后当前pair继续服务、在途proof到期主动abort活动流并释放lease、shutdown同步中止全部signal且abort listener清零；隔离PG warm 61（本叶新增5）/cold 4检查、零漂移并停止清理；Gateway 51 suites/726 tests与既有真实TLS专项为邻证。未含外部Secret Manager/多进程E3b/目标环境。
+
+SEC-F3-02C5b 限定 DONE：新增parser `toNetworkFailure`与C5a导出，Gateway provider在prepare/send/completed单点emit `upstream.network_failure`（operationId/policy/revision/site/endpoint/revocationEpoch/attempt/hop/stage），stream对未知错误固定503且不回传原始DNS/TLS细节；Parser single-hop与host bridge显式failureAudit透传并按阶段emit。真实HTTP/TLS负测含sink故障不改拒绝与秘密扫描；Parser 49 suites/1196 tests、Gateway 51 suites/735 tests、两包构建通过。未持久化事件（归C6/F3D）、无managed child/E3b、生产默认关闭。
 
 ## 证据口径和版本
 
@@ -156,8 +158,8 @@ SEC-F3-02C1d4 限定 DONE：隔离PG真实host/Registry+本地HTTP联合验证fa
 | SEC-F3-02C3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **DONE（限定）**：入口锚定唯一绝对deadline并贯通prepare/send/取消，network lease单attempt且复用同一prepared lease/host operation，热缓存不读写；运行时3项+真实HTTP/TLS entry-deadline验收、Gateway 51 suites/731 tests；redirect单跳不跟随，生产默认关闭。 |
 | SEC-F3-02C4 | [Parser操作验收](../../packages/api-nova-parser/src/network/trusted-network-operation-execution.spec.ts)、[Gateway真实流验收](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-network-stream.http.spec.ts) | **限定DONE**：仅两份既有spec新增23项真实失败验收（Parser9、Gateway14）；专项27/76项、Parser48 suites/1193 tests、Gateway47 suites/701 tests、Parser typecheck/build、API build及diff-check均PASS。reset/503 Retry-After/DNS拒绝与不可用/TLS失败均单attempt，cache read/store零调用，失败lease不可重放且沿用原operation handle/deadline/signal；旧非网络cache/retry兼容保持。无生产源码或默认开关变更，不覆盖生产配置/DI、缓存恢复、自动retry、C3/C5b/C6或D2b3b2 PostgreSQL持久ledger |
 | SEC-F3-02C5a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时。 |
-| SEC-F3-02C5b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：C2b3/C3/C5a依赖已闭合；双运行时接线与真实HTTP失败/审计负测待实施。 |
-| SEC-F3-02C6 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖C2b3/C3/C4/C5b；双运行时本地真实联合矩阵，不代表生产默认启用或F3D环境验收。 |
+| SEC-F3-02C5b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **DONE（限定）**：Gateway provider单点emit `upstream.network_failure`，stream未知错误固定503无原始细节；Parser single-hop与bridge显式failureAudit透传按阶段emit。真实HTTP/TLS负测含sink故障不改拒绝与秘密扫描；Parser 49 suites/1196 tests、Gateway 51 suites/735 tests。未持久化事件（C6/F3D）、生产默认关闭。 |
+| SEC-F3-02C6 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：C2b3/C3/C4/C5b依赖已闭合；双运行时本地真实联合矩阵，不代表生产默认启用或F3D环境验收。 |
 | SEC-F3-02D | [网络边界合同§4.6及N01–N17](./security-header-network-boundary-contract.md) | **待验收**：依赖C6；Gateway/Parser真实连接、生产默认启用及Windows/Linux矩阵未执行。 |
 | SEC-F3-03 | [安全用例](../testing/runtime-security-audit-cases.md)、[受管通道脚本](../../packages/api-nova-api/scripts/test-managed-mcp-channel.cjs) | **限定执行/待验收**：局部脱敏与 IPC 无 argv Secret 有证据；完整 argv/log/错误/快照 Secret Scan、创建/更新/撤销审计可检索依赖产品 E1。 |
 | SEC-F3a-01 | [安全台账 §6](./security-development-execution-status.md)、[锁文件](../../package-lock.json) | **历史执行/待验收**：2026-09-07 漏洞数已过时；当前可达性、在线公告、补丁/风险处置与签收无当前执行证据，不自动 audit fix。 |

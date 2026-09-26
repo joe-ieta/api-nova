@@ -1,5 +1,5 @@
 ---
-doc-version: 1.155.0
+doc-version: 1.156.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -27,6 +27,8 @@ PROD-05 限定 DONE：实例/绑定变更actor已透传并可按resource+resourc
 
 OBS-15-01 限定 DONE：删除旧`/api/v1/monitoring/management/external-callers`文件扫描入口与parser `listObservedRuntimeCallers`（无别名/回退），消费者改用统一callers API或原始记录证据；新增结构/无回退spec、parser 23项与监控9项通过；Gateway旧后端删除与部署切换归OBS-15-02。
 
+SEC-F3-02C5b 限定 DONE：双运行时接入C5a统一失败语义与审计：Gateway provider在prepare/send/completed单点emit `upstream.network_failure`，stream对未知错误固定503且不回传原始DNS/TLS细节；Parser single-hop与host bridge显式failureAudit透传并按阶段emit。真实HTTP/TLS负测覆盖sink故障不改拒绝与秘密扫描；Parser 49 suites/1196 tests、Gateway 51 suites/735 tests、两包构建通过。未持久化事件（归C6/F3D）、无managed child/E3b、生产默认关闭。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -36,10 +38,10 @@ OBS-15-01 限定 DONE：删除旧`/api/v1/monitoring/management/external-callers
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 159 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 160 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 10 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
-| WAIT_DEP | 20 | 等待列明子任务/条件 |
+| WAIT_DEP | 19 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -171,8 +173,8 @@ OBS-15-01 限定 DONE：删除旧`/api/v1/monitoring/management/external-callers
 | SEC-F3-02C3 | DONE | 限定固定操作生命周期完成：请求入口锚定唯一绝对deadline并贯通prepare/send/取消，network lease强制单attempt并复用同一prepared lease/host operation，热缓存也不读不写；运行时3项+真实HTTP/TLS entry-deadline验收、Gateway 51 suites/731 tests、API build；redirect仍单跳不跟随（Parser多跳归C2b2b2），生产默认关闭 |
 | SEC-F3-02C4 | DONE | 限定DONE：仅两份既有spec新增23项真实失败验收（Parser9、Gateway14）；专项27/76项、Parser48 suites/1193 tests、Gateway47 suites/701 tests、Parser typecheck/build、API build及diff-check均PASS。reset/503 Retry-After/DNS拒绝与不可用/TLS失败均单attempt，cache read/store零调用，失败lease不可重放且沿用原operation handle/deadline/signal；旧非网络cache/retry兼容保持。无生产源码或默认开关变更，不覆盖生产配置/DI、缓存恢复、自动retry、C3/C5b/C6或D2b3b2 PostgreSQL持久ledger |
 | SEC-F3-02C5a | DONE | 限定纯失败/审计模块完成：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时 |
-| SEC-F3-02C5b | READY | C2b3/C3/C5a已闭合；双运行时接入统一失败语义和审计，以真实HTTP负测验证fail-closed与零秘密泄漏 |
-| SEC-F3-02C6 | WAIT_DEP | 等C2b3/C3/C4/C5b；本地双运行时真实联合矩阵，不代表生产默认启用或F3D Windows/Linux环境验收 |
+| SEC-F3-02C5b | DONE | 限定双运行时接线完成：Gateway provider在prepare/send/completed单点emit `upstream.network_failure`（operationId/policy/revision/site/endpoint/revocationEpoch/attempt/hop/stage），stream未知错误固定503不回传原始DNS/TLS细节；Parser single-hop与host bridge显式failureAudit透传并按阶段emit。真实HTTP/TLS负测（sink故障不改拒绝、秘密扫描）；Parser 49 suites/1196 tests、Gateway 51 suites/735 tests、两包构建；未持久化事件（归C6/F3D）、无child/E3b、生产默认关闭 |
+| SEC-F3-02C6 | READY | C2b3/C3/C4/C5b已闭合；本地双运行时真实联合矩阵，不代表生产默认启用或F3D Windows/Linux环境验收 |
 | SEC-F3-02D | WAIT_DEP | 等C6；N01–N17 Gateway/Parser真实连接、生产默认启用及Windows/Linux环境矩阵待验收 |
 | SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
 | SEC-F3a-01 | READY | 需在线公告时另行验证，不复用旧漏洞数 |
