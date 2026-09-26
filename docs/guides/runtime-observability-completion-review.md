@@ -1,5 +1,5 @@
 ---
-doc-version: 2.27.0
+doc-version: 2.28.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -35,8 +35,8 @@ ApiNova 的主线是 API 资产导入、注册、测试、治理和发布，以�
 | TP12 | DONE | 远端订阅/投递 HTTP、受控测试、人工重投、签名、重试与相关管理审计已闭环；自动发送默认关闭，部署未验收 |
 | TP13 | IN_PROGRESS | OBS-13-01聚合现限定DONE：A/B1/B2/C均闭合，C以3文件、真实Socket.IO+SQL.js 4 suites/41 tests、旧realtime+events脚本27/27及API build通过；撤权/锁定/asset缩窄、grant TTL/重启、ACK前重放/后续传、scoped gap及旧协议隔离已有证据。正版本乱序只发refreshRequired，durable重复sequence由DB唯一约束拒绝，未ACK重放为合法语义；未知evidenceScope现fail-closed为EVENT_CURSOR_EXPIRED。OBS-13-02按依赖解锁READY，仍需长期/慢客户端、持久消费者及跨平台/跨部署恢复；无UI reducer/exactly-once、多实例grant/房间或全局水位证据，因此TP13/父OBS-13保持IN_PROGRESS |
 | TP14 | IN_PROGRESS | 新建投递记录30天与事件重投资格已分离；新事件/正文策略、默认关闭有界正文GC及受权策略管理UI已验证；已补GC同扫描容量样本、扫描失败重开与停机收尾及只读诊断UI；管理审计30天已按OBS-14-06A限定完成；整体保留/配额与跨组件故障恢复仍待闭合 |
-| TP15 | IN_PROGRESS | 公开/api路径已收敛，调用事实UI及Gateway日志入口已迁移到统一API/签名分页；旧external-callers文件扫描入口与parser清单helper已删除（OBS-15-01，无别名/回退）；完整身份/拒绝审计、Gateway旧后端删除与部署切换未闭合 |
-| TP16 | BACKLOG | 整合后的 PostgreSQL/Linux、多进程、持续负载/容量、性能及对外交付矩阵尚未完成 |
+| TP15 | IN_PROGRESS | 公开/api路径已收敛，调用事实UI及Gateway日志入口已迁移到统一API/签名分页；旧external-callers入口已删除（OBS-15-01）；OBS-15-02限定完成全链路身份/拒绝审计执行器与旧端点回退步骤，Gateway旧后端删除与部署切换仍未闭合 |
+| TP16 | BACKLOG | Windows本地故障/承载单元已按OBS-16-02限定完成（冻结规模+重开/重复/冲突）；整合后的 PostgreSQL/Linux、多进程、持续负载/容量、性能及对外交付矩阵仍未完成 |
 
 任务定义、依赖与退出条件见[开发任务计划](./runtime-observability-development-task-plan.md)；证据与验收限制见[执行状态](./runtime-observability-development-execution-status.md)。不得因后续平台或治理工作未完成而重开 TP11/TP12 的既定闭环。
 

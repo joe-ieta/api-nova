@@ -14,6 +14,8 @@
 
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
+| [OBS-15-02 全链路身份与切换验收](./audits/2026-09-26-obs-15-full-chain.md) | 1.0.0 | active | 2026-09-26 |
+| [OBS-16-02 本地故障与承载单元](./audits/2026-09-26-obs-16-local-unit.md) | 1.0.0 | active | 2026-09-26 |
 | [OBS-06-01 MCP正文与终态矩阵](./audits/2026-09-26-mcp-observability-matrix.md) | 1.0.0 | active | 2026-09-26 |
 | [Header策略缓存隔离与真实命中验收](./audits/2026-09-22-header-cache-isolation.md) | 1.0.0 | active | 2026-09-22 |
 | [四类上游凭据与生命周期作用域验收](./audits/2026-09-22-credential-types-scope.md) | 1.0.0 | active | 2026-09-22 |
@@ -41,7 +43,7 @@
 | [SEC-A1-02B4鉴权模式界面交付](./audits/2026-09-21-mcp-mode-ui-evidence.md) | 1.0.0 | active | 2026-09-21 |
 | [docs/audits/2026-09-04-manual-registration-publication.md](./audits/2026-09-04-manual-registration-publication.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/audits/2026-09-07-reviewed-merge.md](./audits/2026-09-07-reviewed-merge.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/audits/README.md](./audits/README.md) | 1.45.0 | active | 2026-09-26 |
+| [docs/audits/README.md](./audits/README.md) | 1.46.0 | active | 2026-09-26 |
 | [全范围审核与重拆](./audits/2026-09-15-work-package-replan.md) | 1.0.0 | active | 2026-09-15 |
 | [PROD-03本地发布循环](./audits/2026-09-15-prod-03-local-publication-cycle.md) | 0.1.0 | active | 2026-09-15 |
 | [重拆第二批限定证据](./audits/2026-09-16-replanned-batch-2-evidence.md) | 1.7.0 | active | 2026-09-16 |
@@ -56,7 +58,7 @@
 | [安全交付验收证据索引](./guides/security-delivery-evidence-index.md) | 1.106.0 | active | 2026-09-26 |
 | [邮件投递范围与受控验收合同](./guides/mail-delivery-scope-and-acceptance.md) | 1.0.0 | active | 2026-09-26 |
 | [MCP发布端点合同](./guides/mcp-publication-endpoint-contract.md) | 0.2.0 | active | 2026-09-21 |
-| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.160.0 | active | 2026-09-26 |
+| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.161.0 | active | 2026-09-26 |
 | [受管MCP启动交付设计](./guides/managed-mcp-credential-handoff-plan.md) | 0.4.0 | reviewed-slice | 2026-09-21 |
 | [候选激活与GC重试](./audits/2026-09-15-activation-gc-wave.md) | 1.0.0 | active | 2026-09-15 |
 | [上游归属交叉核验](./audits/2026-09-15-upstream-ownership-wave.md) | 1.0.0 | active | 2026-09-15 |
@@ -132,7 +134,7 @@
 | [可观测性 API Endpoint](./reference/runtime-observability-api-endpoints.md) | 2.7.0 | active | 2026-09-14 |
 | [可观测性开发任务计划](./guides/runtime-observability-development-task-plan.md) | 2.12.0 | active | 2026-09-26 |
 | [可观测性执行与完成状态](./guides/runtime-observability-development-execution-status.md) | 2.34.0 | active | 2026-09-26 |
-| [任务完成情况复核](./guides/runtime-observability-completion-review.md) | 2.27.0 | active | 2026-09-26 |
+| [任务完成情况复核](./guides/runtime-observability-completion-review.md) | 2.28.0 | active | 2026-09-26 |
 | [可观测性契约与接入映射](./reference/runtime-observability-contract-mapping.md) | 2.1.0 | active | 2026-09-14 |
 | [可观测性存储基础](./reference/runtime-observability-storage-foundation.md) | 2.1.0 | active | 2026-09-14 |
 | [可观测性生命周期合同](./reference/runtime-observability-lifecycle-contract.md) | 1.0.0 | active | 2026-09-15 |

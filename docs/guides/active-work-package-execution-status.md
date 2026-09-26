@@ -1,5 +1,5 @@
 ---
-doc-version: 1.160.0
+doc-version: 1.161.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -37,6 +37,10 @@ OBS-06-01 限定 DONE：新增`scripts/verify-mcp-observability-matrix.cjs`（np
 
 SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估结果，preview、G3单成员发布（toValidator）与G4批量/激活共用；G4 activateCandidate新增recheck并在await后重比epoch，激活前以`assertTransactionCurrent`复核context与验证证据；撤销/成员revision漂移被拒绝且零写入，生产G2 canPublish:false保持。专项1 suite/5 tests、publication 20 suites/245 tests、API build；未注册生产DI，PG并发归F1-02F。
 
+OBS-15-02 限定 DONE：新增`verify:obs-15-full-chain`（[证据](../audits/2026-09-26-obs-15-full-chain.md)）聚合gateway/events/deliveries/invocations/realtime/overview共115项并输出`OBS_15_FULL_CHAIN_OK`：外部请求到事件/投递身份边、401/403拒绝审计、旧端点退役清单与回退步骤；修复gateway夹具缺失update；PG/外部接收端/部署切换仍归环境项。
+
+OBS-16-02 限定 DONE：新增`verify:obs-16-local-unit`（[证据](../audits/2026-09-26-obs-16-local-unit.md)）按冻结规模（500调用/200事件/50正文）运行6套94项+新故障单元3项并输出`OBS_16_LOCAL_UNIT_OK`；重开与重复重放无双计数、冲突隔离、关闭store明确拒绝；Linux/PG/多进程/负载与部署仍归OBS-16-03/04。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -46,8 +50,8 @@ SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估�
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 164 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 7 | 可进入队列，当前并非全部开工 |
+| DONE | 166 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 5 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 18 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
@@ -229,9 +233,9 @@ SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估�
 | OBS-14-06A | DONE | 限定本功能管理审计有界清理完成：按明确resource归属（observability_caller/delivery/policy/subscription/payload/audit）仅选本功能记录，30天最小窗口；delete/checkpoint/单条管理记录同一Store事务；无法归属与更新记录保留；默认off。专项1 suite/7 tests、call-observability 9 suites/73 tests、API build；不含全产品安全审计/配额治理与平台多进程 |
 | OBS-14-06T | DONE | 限定暂存源文件有界恢复完成：仅身份/已提交offset/边界/seal/closed退出证明/完整行全部复核且超48小时才删除；活动、半行、未导入、身份不明与不匹配名保留；持久游标恢复；不触碰checkpoint/receipt/事件且不分配业务sequence。专项1 suite/8 tests、call-observability 10 suites/81 tests、API build；不含平台/多进程与旧schema |
 | OBS-15-01 | DONE | 限定迁移完成：旧`/api/v1/monitoring/management/external-callers`文件扫描入口与parser `listObservedRuntimeCallers`已删除（无别名/回退），消费者改用统一`/api/monitoring/observability/callers`或原始`callers-*.jsonl`证据；结构/404/原始记录断言与parser 23项通过。Gateway旧后端删除与部署切换归OBS-15-02 |
-| OBS-15-02 | READY | OBS-13-01C与OBS-15-01已闭合；全链路身份/拒绝审计、旧后端删除与部署切换验收，不重建第二主链 |
+| OBS-15-02 | DONE | 限定全链路身份验收完成：新增`verify:obs-15-full-chain`聚合gateway 21+events16+deliveries9+invocations38+realtime11+overview20共115项并输出`OBS_15_FULL_CHAIN_OK`（身份边、拒绝审计、旧端点与回退步骤）；修复gateway脚本夹具缺失update导致的2项失败；PG/外部接收端/部署切换仍属环境项 |
 | OBS-16-01 | DONE | 交接文档2.2.0；AC01~20与脚本入口静态核对，未运行新全量矩阵；[交接](./runtime-observability-external-validation-handoff.md) |
-| OBS-16-02 | READY | 不等同全量平台验收 |
+| OBS-16-02 | DONE | 限定本地故障单元完成：新增`verify:obs-16-local-unit`冻结规模（500调用/200事件/50正文）运行6套（94项+新故障单元3项）并输出`OBS_16_LOCAL_UNIT_OK`；重开/重复重放无双计数、冲突隔离、关闭store拒绝；Linux/PG/多进程/负载与部署仍归OBS-16-03/04 |
 | OBS-16-03 | NEED_ENV | 环境待核实 |
 | OBS-16-04 | WAIT_DEP | 部署需具体环境及授权 |
 | PROD-01 | DONE | [发布端点合同](./mcp-publication-endpoint-contract.md)，后端/监听/UI边界冻结；仅DOC |
