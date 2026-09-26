@@ -390,6 +390,11 @@ if (process.argv.includes('--fixture')) {
     const rows = await f.records();
     const protocol = protocolFor(rows, id), tool = assertChain(rows, protocol);
     assert.equal(protocol.outcome, 'success'); assert.equal(tool.outcome, 'success');
+    // OBS-06-01 body matrix: an 8 MiB result stays under the 16 MiB capture limit,
+    // so both the protocol and Tool bodies are fully captured after delivery.
+    assert.equal(protocol.response.state, 'complete');
+    assert.equal(tool.response.state, 'complete');
+    assert.ok(tool.response.data && Buffer.byteLength(tool.response.data, 'utf8') >= 8 * 1024 * 1024);
     assert.equal((await f.snapshot()).health.activeCalls, 0);
     f.assertProtocolOutput();
   });

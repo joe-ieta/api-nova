@@ -282,6 +282,14 @@ for (const transport of ['sse', 'streamable']) {
     assert.equal(tools.length, 1);
     assert.equal(tools[0].outcome, 'success');
     assert.equal(tools[0].protocolTransport, transport);
+    // OBS-06-01 body matrix: the oversized Tool result is omitted at the capture
+    // boundary, never truncated, while the small request stays fully captured.
+    assert.equal(tools[0].request.state, 'complete');
+    assert.ok(tools[0].request.data);
+    assert.equal(tools[0].response.state, 'omitted');
+    assert.equal(tools[0].response.reason, 'size_limit');
+    assert.equal(tools[0].response.data, undefined);
+    assert.ok(tools[0].response.totalBytes >= BULK_BYTES);
   });
 
   test(transport + ': disconnect during actual buffered send records incomplete failure', { timeout: 25000 }, async t => {
