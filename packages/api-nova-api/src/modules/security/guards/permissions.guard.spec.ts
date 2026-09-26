@@ -66,7 +66,19 @@ describe('PermissionsGuard', () => {
       ForbiddenException,
     );
     expect(authService.checkPermission).toHaveBeenCalledWith('user-1', 'server:write');
-    expect(auditLog).toHaveBeenCalled();
+    expect(auditLog).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'permission_revoked',
+      level: 'warning',
+      status: 'failed',
+      userId: 'user-1',
+      resource: 'security',
+      details: expect.objectContaining({
+        path: '/api/v1/servers',
+        method: 'POST',
+        requiredPermissions: expect.arrayContaining(['server:write']),
+        reason: '权限不足',
+      }),
+    }));
   });
 
   it('should allow super_admin without checking granular permissions', async () => {

@@ -468,6 +468,11 @@ export class AuditLogQueryDto {
   @IsString()
   resource?: string;
 
+  @ApiPropertyOptional({ description: '资源ID' })
+  @IsOptional()
+  @IsString()
+  resourceId?: string;
+
   @ApiPropertyOptional({ description: 'IP地址' })
   @IsOptional()
   @IsString()
