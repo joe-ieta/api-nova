@@ -1,5 +1,5 @@
 ---
-doc-version: 1.161.0
+doc-version: 1.162.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -41,6 +41,10 @@ OBS-15-02 限定 DONE：新增`verify:obs-15-full-chain`（[证据](../audits/20
 
 OBS-16-02 限定 DONE：新增`verify:obs-16-local-unit`（[证据](../audits/2026-09-26-obs-16-local-unit.md)）按冻结规模（500调用/200事件/50正文）运行6套94项+新故障单元3项并输出`OBS_16_LOCAL_UNIT_OK`；重开与重复重放无双计数、冲突隔离、关闭store明确拒绝；Linux/PG/多进程/负载与部署仍归OBS-16-03/04。
 
+OBS-13-02 限定 DONE：新增`verify:obs-13-02`（[证据](../audits/2026-09-26-obs-13-02-long-transport.md)）覆盖调用事实流12项与状态流10项：慢ACK限制单在途页、释放后从确认游标续传、另一订阅不受影响、断线重放与SLOW_CONSUMER；长时soak/跨平台/多实例与真实接收端仍归平台项。
+
+OBS-14-03D 限定 DONE：新增receipt墓碑实体与读取门禁、三阶段有界保留清理与默认关闭worker（[证据](../audits/2026-09-26-obs-14-03d-lifecycle-retention.md)）；30/32天与24小时边界、租约/未完成attempt/有效幂等结果保护、事务回滚、重启游标与审计保留均通过；专项12项、模块11 suites/94 tests、5脚本回归，sqlite 73表零漂移；物理删除默认关闭、墓碑不退休，PG并发归平台项。同时修正collector脚本2项因在途delta事件而陈旧的计数断言。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -50,8 +54,8 @@ OBS-16-02 限定 DONE：新增`verify:obs-16-local-unit`（[证据](../audits/20
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 166 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 5 | 可进入队列，当前并非全部开工 |
+| DONE | 168 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 3 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 18 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
@@ -202,14 +206,14 @@ OBS-16-02 限定 DONE：新增`verify:obs-16-local-unit`（[证据](../audits/20
 | OBS-13-01B1 | DONE | 限定状态专用durable delta reader完成：新reader/spec与A authorizer小接口共3文件，6 suites/39 tests、旧events/overview/bridge/Realtime脚本39/39及API build通过。组合首轮38/39源于SQL.js TypeORM bulk fixture ID回写交换；固定UUID复现后以updateEntity(false)+ID不可变断言修夹具，最终39/39，生产reader未放宽。仍未注册module/controller/WS |
 | OBS-13-01B2 | DONE | 限定state realtime接线完成：新service/spec及module/gateway接线共4文件，真实Socket.IO 3 suites/23 tests、旧Realtime脚本11/11及API build通过；两真实连接以独立room隔离，无跨协议帧、旧broadcast或initial snapshot泄漏，并覆盖ACK精确、断线重放、gap、撤权和过期。过期测试首轮全局时间跃迁误触Engine.IO heartbeat，改为仅同步grant.resolve内控时，生产TTL未变；旧invocation_facts_only保持不变 |
 | OBS-13-01C | DONE | 限定本地协议矩阵完成：3文件，真实Socket.IO+SQL.js 4 suites/41 tests、旧realtime+events脚本27/27及API build通过；新增18项验收，未知evidenceScope由skip改为EVENT_CURSOR_EXPIRED，并以两处合法过滤外fixture保持旧reader断言。撤权/锁定/asset缩窄、grant TTL/重启、ACK前重放/后续传、scoped gap和旧协议隔离通过；正版本乱序只发refreshRequired，DB唯一约束拒绝durable重复sequence，未ACK重放仍为合法语义。无UI reducer/exactly-once、多实例grant或跨部署证据；OBS-13-01聚合限定完成 |
-| OBS-13-02 | READY | OBS-13-01 A/B1/B2/C限定出口已闭合；下一步验收长期连接、慢客户端、持久消费者及跨平台/跨部署恢复，不把本地Socket.IO矩阵外推为UI exactly-once或多实例能力 |
+| OBS-13-02 | DONE | 限定慢客户端/恢复验收完成：新增`verify:obs-13-02`覆盖调用事实流12项（慢ACK限制单在途页并从确认游标续传、序号无重复缺口）与状态流10项（另一订阅不受影响、断线重放/SLOW_CONSUMER）；长时soak、跨平台/多实例/跨部署恢复与真实接收端仍归OBS-16/平台项 |
 | OBS-14-01 | DONE | [生命周期合同](../reference/runtime-observability-lifecycle-contract.md)冻结引用、保留、墓碑与重放边界；仅DOC |
 | OBS-14-02 | DONE | 持久keyset分页、同GC fence、修复与cursor同事务；真实SQL.js连接重建恢复；新增7项专项，联合67/67 |
 | OBS-14-03E1 | DONE | 持久非连续gap、授权查询与afterSequence 410；SQL/schema/migration同步，专项6/6 |
 | OBS-14-03E2A | DONE | 默认关闭的只读候选分类、授权/TTL/lease/delivery保护；无写入，专项4/4 |
 | OBS-14-03E2B | WAIT_DEP | 物理delete、gap与持久cursor同事务；自动审批要求具体删除授权 |
 | OBS-14-03E3 | WAIT_DEP | 整体验收等待物理清理完成 |
-| OBS-14-03D | READY | 引用/墓碑合同已冻结；不以仅有TTL字段代替清理 |
+| OBS-14-03D | DONE | 限定保留清理完成：新增receipt墓碑实体+读取门禁（同hash重放不增计数、异hash仍隔离），三阶段有界事务清理（幂等/墓碑化/投递+尝试，30/32天/24小时边界、租约与未完成attempt保护、有效幂等结果保护、回滚与重启游标）；专项12项、模块11 suites/94 tests、5脚本回归与sqlite 73表零漂移；物理删除默认关闭、墓碑不退休，PG并发归平台项 |
 | OBS-14-04 | DONE | [容量配额合同](../reference/runtime-observability-capacity-quota-contract.md)冻结计量、水位、并发预留、恢复与05A~D；仅DOC |
 | OBS-14-05A | DONE | 独立ledger/reservation、epoch/CAS、幂等预留结算与严格配置；联合18/18，未接写入 |
 | OBS-14-05B | DONE | 默认关闭的payload prepare/publish门禁；专项11/11、旧六脚本81/81、API类型检查/构建通过；外围元数据失败孤儿计费留05C2 |

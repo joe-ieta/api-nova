@@ -3,7 +3,7 @@
 > 2026-09-08: 数据库与持久化清理、43 表 PG/SQLite 空库及完整回归结果见 [本轮清理审查记录](./2026-09-08-persistence-cleanup.md)。旧报告中的 38/40 表与环境阻塞结论保留为历史证据。
 
 ---
-doc-version: 1.46.0
+doc-version: 1.47.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -16,6 +16,8 @@ doc-updated: 2026-09-26
 后续限定交付：[受管鉴权模式一致性](./2026-09-21-managed-inbound-mode-evidence.md)。
 
 恢复限定验收：[完整恢复链与故障矩阵](./2026-09-21-payload-recovery-acceptance.md)。
+
+本批证据：[OBS-13-02 长期传输与慢客户端验收](./2026-09-26-obs-13-02-long-transport.md)、[OBS-14-03D 投递保留与导入墓碑](./2026-09-26-obs-14-03d-lifecycle-retention.md)。
 
 本批证据：[OBS-16-02 本地故障与承载单元](./2026-09-26-obs-16-local-unit.md)、[OBS-15-02 全链路身份与切换验收](./2026-09-26-obs-15-full-chain.md)。
 
