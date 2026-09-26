@@ -33,7 +33,8 @@
     "verify:runtime-closure": "node scripts/verify-runtime-closure.js",
     "verify:runtime-security-integration": "node scripts/verify-runtime-security-integration.cjs",
     "verify:parser-chain": "node scripts/verify-parser-propagation.js",
-    "verify:parser-chain:full": "node scripts/verify-parser-propagation.js --include-consumer-builds"
+    "verify:parser-chain:full": "node scripts/verify-parser-propagation.js --include-consumer-builds",
+    "verify:f3-dual-runtime": "node scripts/verify-f3-dual-runtime.cjs"
   },
   "keywords": [
     "mcp",
