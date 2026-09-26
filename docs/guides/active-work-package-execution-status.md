@@ -35,9 +35,9 @@ PROD-05 限定 DONE：实例/绑定变更actor已透传并可按resource+resourc
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
 | DONE | 158 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 9 | 可进入队列，当前并非全部开工 |
+| READY | 10 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
-| WAIT_DEP | 22 | 等待列明子任务/条件 |
+| WAIT_DEP | 21 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 1 | 先判断是否属于批准范围 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -169,7 +169,7 @@ PROD-05 限定 DONE：实例/绑定变更actor已透传并可按resource+resourc
 | SEC-F3-02C3 | DONE | 限定固定操作生命周期完成：请求入口锚定唯一绝对deadline并贯通prepare/send/取消，network lease强制单attempt并复用同一prepared lease/host operation，热缓存也不读不写；运行时3项+真实HTTP/TLS entry-deadline验收、Gateway 51 suites/731 tests、API build；redirect仍单跳不跟随（Parser多跳归C2b2b2），生产默认关闭 |
 | SEC-F3-02C4 | DONE | 限定DONE：仅两份既有spec新增23项真实失败验收（Parser9、Gateway14）；专项27/76项、Parser48 suites/1193 tests、Gateway47 suites/701 tests、Parser typecheck/build、API build及diff-check均PASS。reset/503 Retry-After/DNS拒绝与不可用/TLS失败均单attempt，cache read/store零调用，失败lease不可重放且沿用原operation handle/deadline/signal；旧非网络cache/retry兼容保持。无生产源码或默认开关变更，不覆盖生产配置/DI、缓存恢复、自动retry、C3/C5b/C6或D2b3b2 PostgreSQL持久ledger |
 | SEC-F3-02C5a | DONE | 限定纯失败/审计模块完成：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时 |
-| SEC-F3-02C5b | WAIT_DEP | 等C2b3/C3/C5a；双运行时接入统一失败语义和审计，以真实HTTP负测验证fail-closed与零秘密泄漏 |
+| SEC-F3-02C5b | READY | C2b3/C3/C5a已闭合；双运行时接入统一失败语义和审计，以真实HTTP负测验证fail-closed与零秘密泄漏 |
 | SEC-F3-02C6 | WAIT_DEP | 等C2b3/C3/C4/C5b；本地双运行时真实联合矩阵，不代表生产默认启用或F3D Windows/Linux环境验收 |
 | SEC-F3-02D | WAIT_DEP | 等C6；N01–N17 Gateway/Parser真实连接、生产默认启用及Windows/Linux环境矩阵待验收 |
 | SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
