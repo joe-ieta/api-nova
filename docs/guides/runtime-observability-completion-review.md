@@ -1,7 +1,7 @@
 ---
-doc-version: 2.23.0
+doc-version: 2.24.0
 doc-status: active
-doc-updated: 2026-09-24
+doc-updated: 2026-09-26
 ---
 # 统一调用可观测性：当前完成情况与剩余工作
 
@@ -34,7 +34,7 @@ ApiNova 的主线是 API 资产导入、注册、测试、治理和发布，以�
 | TP11 | DONE | 远端规范事件、授权历史、持久 Outbox 与水位闭环；本地调用快照的可选授权桥接已整合 |
 | TP12 | DONE | 远端订阅/投递 HTTP、受控测试、人工重投、签名、重试与相关管理审计已闭环；自动发送默认关闭，部署未验收 |
 | TP13 | IN_PROGRESS | OBS-13-01聚合现限定DONE：A/B1/B2/C均闭合，C以3文件、真实Socket.IO+SQL.js 4 suites/41 tests、旧realtime+events脚本27/27及API build通过；撤权/锁定/asset缩窄、grant TTL/重启、ACK前重放/后续传、scoped gap及旧协议隔离已有证据。正版本乱序只发refreshRequired，durable重复sequence由DB唯一约束拒绝，未ACK重放为合法语义；未知evidenceScope现fail-closed为EVENT_CURSOR_EXPIRED。OBS-13-02按依赖解锁READY，仍需长期/慢客户端、持久消费者及跨平台/跨部署恢复；无UI reducer/exactly-once、多实例grant/房间或全局水位证据，因此TP13/父OBS-13保持IN_PROGRESS |
-| TP14 | IN_PROGRESS | 新建投递记录30天与事件重投资格已分离；新事件/正文策略、默认关闭有界正文GC及受权策略管理UI已验证；已补GC同扫描容量样本、扫描失败重开与停机收尾及只读诊断UI；整体保留/配额与跨组件故障恢复仍待闭合 |
+| TP14 | IN_PROGRESS | 新建投递记录30天与事件重投资格已分离；新事件/正文策略、默认关闭有界正文GC及受权策略管理UI已验证；已补GC同扫描容量样本、扫描失败重开与停机收尾及只读诊断UI；管理审计30天已按OBS-14-06A限定完成；整体保留/配额与跨组件故障恢复仍待闭合 |
 | TP15 | IN_PROGRESS | 公开/api路径已收敛，调用事实UI及Gateway日志入口已迁移到统一API/签名分页；完整身份/拒绝审计、其余消费者与部署切换未闭合 |
 | TP16 | BACKLOG | 整合后的 PostgreSQL/Linux、多进程、持续负载/容量、性能及对外交付矩阵尚未完成 |
 
@@ -71,11 +71,11 @@ Windows / Node v24.15.0、16 MiB Streamable 响应的原生 cork/uncork 恢复�
 | --- | --- | --- |
 | TP13 实时流 | 在已有调用事实快照接续、签名页流、权限复验、ACK背压和实际UI消费之上，完成server_state_v1受限状态快照/增量、其余消费者与长期/跨平台矩阵 | 不引入第二套事件源；保留已有恢复、撤权和慢消费专项，补齐已声明状态及跨环境验收；legacy/asset/global多实例共同水位保持unknown |
 | TP10 状态与覆盖 | 管理心跳、本实例路由、诊断UI、受管child最新generation投影及限定retained读模型已接入；B1/B2继续补managed lifecycle与in-flight的同事务sequence事件 | B1/B2不接Realtime；管理心跳不代表业务存活，保留窗口不是全历史。legacy状态、asset目录、全局多实例水位及live active继续unknown |
-| TP14 治理 | 在新事件/正文TTL、授权策略UI及默认关闭正文GC之上，完成配额强制、其余元数据生命周期、跨组件恢复、管理审计30天及历史记录策略 | 明确事件过期后的投递记录留存与重投资格分离；不能清除仍被活动投递引用的事件，不能直接启用破坏性清理 |
+| TP14 治理 | 在新事件/正文TTL、授权策略UI及默认关闭正文GC之上，完成配额强制、其余元数据生命周期、跨组件恢复及历史记录策略（管理审计30天已按OBS-14-06A限定完成） | 明确事件过期后的投递记录留存与重投资格分离；不能清除仍被活动投递引用的事件，不能直接启用破坏性清理 |
 | TP06/16 平台验收 | MCP 完整传输/正文矩阵、Windows 限制、PostgreSQL/Linux、多进程及负载/性能 | 可与实时流/治理开发并行准备环境；最终矩阵必须针对完成后的整合版本 |
 | TP15 集成收敛 | 服务身份、完整拒绝审计、旧消费者收敛和部署切换 | 根模块接入不再重复开发；最终切换依赖相应实时/治理能力和部署授权 |
 
-本轮已修复投递留存差异：Outbox 与订阅测试新建 delivery 均到创建后30天过期，事件仍按14天保留。worker 在发送前复核事件有效性，重试不得越过事件到期；事件过期/不存在时投递记录仍可查询，人工重投返回 EVENT_EXPIRED。历史记录不自动延长，管理审计30天和完整 GC/配额仍待 TP14，不撤销 TP12 的既定 DONE。
+本轮已修复投递留存差异：Outbox 与订阅测试新建 delivery 均到创建后30天过期，事件仍按14天保留。worker 在发送前复核事件有效性，重试不得越过事件到期；事件过期/不存在时投递记录仍可查询，人工重投返回 EVENT_EXPIRED。历史记录不自动延长，管理审计30天已由OBS-14-06A限定完成，完整 GC/配额仍待 TP14，不撤销 TP12 的既定 DONE。
 
 上述工作已有本轮源码切片；不等于整包或部署完成。需要外部环境时，按[外部验收交接](./runtime-observability-external-validation-handoff.md)提供隔离数据库、运行环境与受控接收端；不要在文档或会话中提供真实秘密。
 

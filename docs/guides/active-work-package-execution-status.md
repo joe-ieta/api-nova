@@ -1,5 +1,5 @@
 ---
-doc-version: 1.148.0
+doc-version: 1.149.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -11,6 +11,8 @@ D2b3d1 限定 DONE：品牌稳定facade把同bundle的Provider与私有Resolver�
 
 D2b3d2a 限定 DONE：新增共享host启动依赖GATEWAY_HOST_RUNTIME（仅显式brand；null/undefined即默认off）：legacy凭据Registry工厂在读取任何配置或启动watch前短路为null，admin自动disabled；GatewayPolicyService与legacy guard改读受控只读Snapshot；启动/失败时整Gateway闭锁（固定503 gateway_host_runtime_locked），非Gateway Nest health保持200；无host行为不变。新增专项1 suite/7 tests、Gateway 50 suites/718 tests、API build通过。未接RuntimeModule生产装配/d2b、真实host安装或Nest/PG/HTTP联合；旧watch/admin仍不交付。
 
+OBS-14-06A 限定 DONE：新增按明确resource归属的本功能管理审计有界清理（observability_caller/delivery/policy/subscription/payload/audit；默认off、30天最小窗口；delete/checkpoint/单条管理记录同一Store事务；无法归属与更新记录保留）。专项1 suite/7 tests、call-observability 9 suites/73 tests、API build通过。仅Windows/SQL.js本地，不接管全产品安全审计或配额治理。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -20,8 +22,8 @@ D2b3d2a 限定 DONE：新增共享host启动依赖GATEWAY_HOST_RUNTIME（仅显�
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 151 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 13 | 可进入队列，当前并非全部开工 |
+| DONE | 152 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 12 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a已限定完成，不外推生产启用 |
 | WAIT_DEP | 25 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
@@ -200,7 +202,7 @@ D2b3d2a 限定 DONE：新增共享host启动依赖GATEWAY_HOST_RUNTIME（仅显�
 | OBS-14-05C2C3 | DONE | 实际ingest/发布故障、关闭并重建SQL.js连接、缺receipt/元数据回滚/残留temp、重复恢复与重放5/5；每次确认reserved+committed覆盖实际路径字节；仅Windows隔离验收 |
 | OBS-14-05C3 | NEED_ENV | Windows PostgreSQL16.10真实9/9：四进程预算/幂等、四个实际ingest中断窗口、完整文件链并发和PG重启重放守恒；本机出口完成，Linux无就绪环境，整包不标DONE；PG掉电/长期压力未验 |
 | OBS-14-05D | WAIT_DEP | 状态/故障联调等待05C3 |
-| OBS-14-06A | READY | 生命周期合同已冻结；审计清理尚未实施 |
+| OBS-14-06A | DONE | 限定本功能管理审计有界清理完成：按明确resource归属（observability_caller/delivery/policy/subscription/payload/audit）仅选本功能记录，30天最小窗口；delete/checkpoint/单条管理记录同一Store事务；无法归属与更新记录保留；默认off。专项1 suite/7 tests、call-observability 9 suites/73 tests、API build；不含全产品安全审计/配额治理与平台多进程 |
 | OBS-14-06T | READY | 生命周期合同已冻结；暂存恢复尚未实施 |
 | OBS-15-01 | READY | Gateway日志入口已迁移 |
 | OBS-15-02 | WAIT_DEP | 等待OBS-13-01C与OBS-15-01；不重建第二主链 |

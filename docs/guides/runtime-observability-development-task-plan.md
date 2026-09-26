@@ -1,7 +1,7 @@
 ---
-doc-version: 2.9.0
+doc-version: 2.10.0
 doc-status: active
-doc-updated: 2026-09-15
+doc-updated: 2026-09-26
 approval-status: approved
 implementation-status: in-progress
 ---
@@ -211,7 +211,7 @@ flowchart TD
 
 ### OBS-TP-14 保留、容量与运行健康
 
-本包为 IN_PROGRESS；新建投递记录30天与事件重投资格分离已实现。OBS-API-26 限定读取已完成，OBS-API-27/28的新事件/正文留存、受权策略UI与默认关闭正文GC已验证；GC同扫描容量样本和只读诊断UI已接入，扫描失败重开/停机等待、诊断来源隔离及策略412重读失败的剩余GET取消已有回归；整体配额、管理审计30天及其余元数据清理未实现。容量样本是清理前逻辑文件长度，不表示当前磁盘总量或配额保证。
+本包为 IN_PROGRESS；新建投递记录30天与事件重投资格分离已实现。OBS-API-26 限定读取已完成，OBS-API-27/28的新事件/正文留存、受权策略UI与默认关闭正文GC已验证；GC同扫描容量样本和只读诊断UI已接入，扫描失败重开/停机等待、诊断来源隔离及策略412重读失败的剩余GET取消已有回归；整体配额及其余元数据清理未实现；管理审计30天已按OBS-14-06A限定完成（默认off、明确归属有界清理），不等于平台/配额治理。容量样本是清理前逻辑文件长度，不表示当前磁盘总量或配额保证。
 
 交付 OBS-API-26~28。统一暴露前面任务已有的采集/聚合/投递指标，实现有效策略、TTL、磁盘配额、正文过期状态、receipt 墓碑、孤立对象和未导入暂存处理。
 
@@ -294,6 +294,6 @@ API 状态依其自己的契约测试推进，不由某个共享基础包 DONE �
 
 overview、dependencies、servers/status、pipeline/status 和快照授权桥接属于已合并的本地独有增量。持久状态不等于实时心跳；overview 的 invocationSnapshotSeq 仅覆盖调用事实，不是服务器状态完整水位。新事件/正文TTL、授权策略UI、默认关闭正文GC及调用事实Socket.IO/UI已有实际接线与回归。剩余是整体配额/生命周期、全局状态快照和其余消费者、MCP剩余传输矩阵、全链路旧能力收敛及平台/性能验收，继续按对应任务包退出条件推进。
 
-批准保留目标不随实现缩减：新建 delivery 已保留创建后30天，与事件14天及重投资格分离；历史记录不自动回填。管理审计30天、整体保留与安全清理仍由 TP14 完成。
+批准保留目标不随实现缩减：新建 delivery 已保留创建后30天，与事件14天及重投资格分离；历史记录不自动回填。管理审计30天已按OBS-14-06A限定完成；整体保留与安全清理仍由 TP14 完成。
 
 逐轮记录、旧 B01/B02 接续设计与旧剩余清单不再作为当前执行依据。完整旧计划见[历史归档](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-development-task-plan.md)；当前剩余工作只查 execution-status。
