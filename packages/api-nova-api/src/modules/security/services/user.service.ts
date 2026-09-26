@@ -9,6 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere, Like, In } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { hashToken } from '../../../utils/secure-token';
 import { User, UserStatus } from '../../../database/entities/user.entity';
 import { Role, RoleType } from '../../../database/entities/role.entity';
 import { AuditLog, AuditAction, AuditLevel, AuditStatus } from '../../../database/entities/audit-log.entity';
@@ -309,22 +310,31 @@ export class UserService {
   }
 
   /**
-   * 重置密码
+   * 重置密码（令牌以 SHA-256 摘要存储，一次性消费）
    */
   async resetPassword(
     resetPasswordDto: ResetPasswordDto,
     ipAddress?: string,
-  ): Promise<void> {
+  ): Promise<User> {
     const { token, newPassword } = resetPasswordDto;
+
+    if (!token || typeof token !== 'string') {
+      throw new BadRequestException('重置令牌无效或已过期');
+    }
 
     // 查找具有有效重置令牌的用户
     const user = await this.userRepository.findOne({
       where: {
-        passwordResetToken: token,
+        passwordResetToken: hashToken(token),
       },
     });
 
-    if (!user || !user.passwordResetToken || user.passwordResetExpires < new Date()) {
+    if (
+      !user ||
+      !user.passwordResetToken ||
+      !user.passwordResetExpires ||
+      user.passwordResetExpires < new Date()
+    ) {
       throw new BadRequestException('重置令牌无效或已过期');
     }
 
@@ -348,6 +358,8 @@ export class UserService {
     });
 
     this.logger.log(`用户密码重置成功: ${user.username} (${user.id})`);
+
+    return user;
   }
 
   /**
@@ -487,7 +499,14 @@ export class UserService {
    * 转换为响应DTO
    */
   private toResponseDto(user: User): UserResponseDto {
-    const { password, passwordResetToken, emailVerificationToken, ...userData } = user;
+    const {
+      password,
+      passwordResetToken,
+      passwordResetExpires,
+      emailVerificationToken,
+      emailVerificationExpiresAt,
+      ...userData
+    } = user;
     return {
       ...userData,
       roles: user.roles?.map(role => ({
@@ -510,45 +529,59 @@ export class UserService {
   }
 
   /**
-   * 生成密码重置令牌
+   * 生成密码重置令牌（返回一次性明文，摘要入库）
    */
-  async generatePasswordResetToken(email: string): Promise<string> {
+  async generatePasswordResetToken(
+    email: string,
+  ): Promise<{ token: string; expiresAt: Date; user: User }> {
     const user = await this.userRepository.findOne({ where: { email } });
     if (!user) {
       throw new NotFoundException('用户不存在');
     }
 
-    const token = user.generatePasswordResetToken();
+    const { token, expiresAt } = user.generatePasswordResetToken();
     await this.userRepository.save(user);
 
-    return token;
+    return { token, expiresAt, user };
   }
 
   /**
-   * 生成邮箱验证令牌
+   * 生成邮箱验证令牌（返回一次性明文，摘要入库）
    */
-  async generateEmailVerificationToken(userId: string): Promise<string> {
+  async generateEmailVerificationToken(
+    userId: string,
+  ): Promise<{ token: string; expiresAt: Date }> {
     const user = await this.findUserById(userId);
-    const token = user.generateEmailVerificationToken();
+    const { token, expiresAt } = user.generateEmailVerificationToken();
     await this.userRepository.save(user);
 
-    return token;
+    return { token, expiresAt };
   }
 
   /**
-   * 验证邮箱
+   * 验证邮箱（摘要查找，一次性消费，过期/无效统一通用错误）
    */
   async verifyEmail(token: string): Promise<void> {
+    if (!token || typeof token !== 'string') {
+      throw new BadRequestException('验证令牌无效或已过期');
+    }
+
     const user = await this.userRepository.findOne({
-      where: { emailVerificationToken: token },
+      where: { emailVerificationToken: hashToken(token) },
     });
 
-    if (!user) {
-      throw new BadRequestException('验证令牌无效');
+    if (
+      !user ||
+      !user.emailVerificationToken ||
+      !user.emailVerificationExpiresAt ||
+      user.emailVerificationExpiresAt < new Date()
+    ) {
+      throw new BadRequestException('验证令牌无效或已过期');
     }
 
     user.emailVerified = true;
     user.emailVerificationToken = null;
+    user.emailVerificationExpiresAt = null;
     // 激活用户账户
     if (user.status === UserStatus.PENDING) {
       user.status = UserStatus.ACTIVE;

@@ -633,6 +633,20 @@ export class ForgotPasswordDto {
   email: string;
 }
 
+export class VerifyEmailDto {
+  @ApiPropertyOptional({ description: '邮箱验证令牌（推荐请求体传递）' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  token?: string;
+}
+
+export class ResendVerificationDto {
+  @ApiProperty({ description: '邮箱地址', example: 'john@example.com' })
+  @IsEmail()
+  email: string;
+}
+
 // 响应 DTOs
 export class UserResponseDto {
   @ApiProperty({ description: '用户ID' })

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.108.0
+doc-version: 1.109.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -169,6 +169,7 @@ SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估�
 | SEC-F3a-01 | [依赖可达性审计](../audits/2026-09-26-dependency-reachability-audit.md)、[安全台账 §6](./security-development-execution-status.md) | **DONE（限定）**：2026-09-26在线审计生产32项（0C/10H/21M/1L）与全量59项，逐项可达性与三类处置记录，锁文件SHA-256留证；未应用补丁/重大升级，发布前重跑。 |
 | SEC-F4-01 | 本索引及SEC当前叶子出口逐项映射 | **限定执行已完成/持续维护**：索引按当前112个SEC叶子或明确标注的聚合旧ID维护；ID/链接校验不改变技术父包状态，也不自动使 F4-02 READY。 |
 | SEC-F4-02 | [安全规划 §6/8](./security-development-task-plan.md)、[安全用例](../testing/runtime-security-audit-cases.md)、[发布准备清单](./release-readiness-checklist.md) | **待验收（环境）**：依赖 D2/E2/F1/F2/F3/F3a 的各自出口和目标环境授权；当前没有完整真实签收。 |
+| MAIL-02 | [受控投递证据](../audits/2026-09-26-mail-02-controlled-delivery.md)、[MAIL-01 合同](./mail-delivery-scope-and-acceptance.md) | **DONE（限定）**：sink 端到端 6套件/30例、白名单/限流/摘要 token/退避审计矩阵；未真实外发、未生产启用、PG运行时装迁移与队列化未覆盖。 |
 
 ## 发布验收时必须补齐的证据包
 

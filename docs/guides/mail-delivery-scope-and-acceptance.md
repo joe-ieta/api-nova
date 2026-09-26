@@ -1,5 +1,5 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -89,4 +89,5 @@ MAIL-01 的出口是：验证码、重置、通知三类接口、模板及测试
 
 - MAIL-01（本文）完成 DOC 出口；MAIL-02 依赖本文，从 WAIT_DEP 转为 READY。
 - 邮件投递仍不属于当前 OBS/SEC 专项计数；完成状态以[子任务台账](./active-work-package-execution-status.md)为准。
-- 本文不改变 [未完成事项](../reference/open-items.md) 第6节的待办性质，直到 MAIL-02 按第4节受控验收完成。
+- 2026-09-26 MAIL-02 按第4节完成受控验收并限定 DONE（[证据](../audits/2026-09-26-mail-02-controlled-delivery.md)）：本地 sink 端到端、回环假 SMTP、白名单/限流/摘要 token/退避审计矩阵与 UI 忘记密码路径；真实外发、生产启用、PostgreSQL 运行时装迁移、持久队列/退信与 UI 偏好开关仍待授权或另立任务。实现补充两个合同外配置键 `MAIL_SINK_DIR`、`MAIL_ACTION_BASE_URL`（已入 `.env.example`）。
+- [未完成事项](../reference/open-items.md) 第6节的待办性质在本轮按上述边界更新后仍保留“真实环境签收”部分。

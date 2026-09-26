@@ -17,6 +17,7 @@ export function buildDatabaseOptions(): DataSourceOptions {
       join(__dirname, 'migrations', `*-RuntimeAccessCredential${dialect}.${extension}`),
       join(__dirname, 'migrations', `*-UpstreamAuthenticationEvidence${dialect}.${extension}`),
       join(__dirname, 'migrations', `*-GatewayHeaderHistoryLedger${dialect}.${extension}`),
+      join(__dirname, 'migrations', `*-UserEmailVerificationExpiry${dialect}.${extension}`),
       join(__dirname, 'migrations', `*-UpstreamProductionChallengeEvidence${dialect}.${extension}`),
     ],
     synchronize: false,

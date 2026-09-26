@@ -268,6 +268,9 @@
                 $t("userAuth.login.rememberMe")
               }}</span>
             </label>
+            <router-link to="/forgot-password" class="forgot-link">
+              {{ $t("userAuth.login.forgotPassword") }}
+            </router-link>
           </div>
 
           <button
@@ -763,6 +766,17 @@ onMounted(() => {
 .checkbox-label {
   font-size: 0.875rem;
   color: var(--text-primary);
+}
+
+.forgot-link {
+  margin-left: auto;
+  font-size: 0.875rem;
+  color: var(--apple-blue);
+  text-decoration: none;
+}
+
+.forgot-link:hover {
+  text-decoration: underline;
 }
 
 .login-button {

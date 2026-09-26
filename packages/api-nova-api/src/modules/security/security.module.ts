@@ -6,6 +6,7 @@ import type { JwtModuleOptions, JwtSignOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
+import { MailModule } from '../mail/mail.module';
 
 // Entities
 import { User } from '../../database/entities/user.entity';
@@ -45,6 +46,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       RefreshToken,
     ]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
+    MailModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService): Promise<JwtModuleOptions> => ({

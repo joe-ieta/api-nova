@@ -39,7 +39,8 @@
     "verify:mcp-observability-matrix": "node scripts/verify-mcp-observability-matrix.cjs",
     "verify:obs-16-local-unit": "node scripts/verify-obs-16-local-unit.cjs",
     "verify:obs-15-full-chain": "node scripts/verify-obs-15-full-chain.cjs",
-    "verify:obs-13-02": "node scripts/verify-obs-13-02.cjs"
+    "verify:obs-13-02": "node scripts/verify-obs-13-02.cjs",
+    "verify:mail-02": "node scripts/test-mail-delivery.cjs"
   },
   "keywords": [
     "mcp",

@@ -30,6 +30,18 @@ export default {
       logoutSuccess: "已成功退出登录",
     },
 
+    forgotPassword: {
+      title: "找回密码",
+      subtitle: "输入注册邮箱，我们将发送密码重置指引",
+      email: "邮箱地址",
+      enterEmail: "请输入注册邮箱",
+      submitButton: "发送重置邮件",
+      submitting: "提交中...",
+      successMessage:
+        "如果该邮箱已注册，您将收到一封密码重置邮件，请查收并按提示操作。",
+      backToLogin: "返回登录",
+    },
+
     register: {
       title: "用户注册",
       subtitle: "创建您的新账号",

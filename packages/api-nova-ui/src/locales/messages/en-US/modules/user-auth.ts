@@ -30,6 +30,19 @@ export default {
       logoutSuccess: "Successfully signed out",
     },
 
+    forgotPassword: {
+      title: "Reset Password",
+      subtitle:
+        "Enter your registered email and we will send password reset instructions",
+      email: "Email Address",
+      enterEmail: "Please enter your registered email",
+      submitButton: "Send Reset Email",
+      submitting: "Submitting...",
+      successMessage:
+        "If that email is registered, you will receive a password reset email. Please check your inbox and follow the instructions.",
+      backToLogin: "Back to Login",
+    },
+
     register: {
       title: "User Registration",
       subtitle: "Create your new account",

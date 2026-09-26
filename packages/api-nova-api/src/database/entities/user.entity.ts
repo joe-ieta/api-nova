@@ -12,6 +12,7 @@ import {
   BeforeUpdate,
 } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { generateSecureToken, hashToken } from '../../utils/secure-token';
 import { Role } from './role.entity';
 import { AuditLog } from './audit-log.entity';
 import {
@@ -62,6 +63,9 @@ export class User {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   emailVerificationToken?: string;
+
+  @Column(getTimestampColumnOptions(process.env.DB_TYPE, { nullable: true }))
+  emailVerificationExpiresAt?: Date;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   passwordResetToken?: string;
@@ -185,26 +189,34 @@ export class User {
     this.lastLoginAt = new Date();
   }
 
-  // 生成密码重置令牌
-  generatePasswordResetToken(): string {
-    const token = Math.random().toString(36).substring(2, 15) + 
-                  Math.random().toString(36).substring(2, 15);
-    this.passwordResetToken = token;
-    this.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1小时有效
-    return token;
+  // 生成密码重置令牌（明文仅返回一次，持久化 SHA-256 摘要）
+  generatePasswordResetToken(): { token: string; expiresAt: Date } {
+    const token = generateSecureToken();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1小时有效
+    this.passwordResetToken = hashToken(token);
+    this.passwordResetExpires = expiresAt;
+    return { token, expiresAt };
   }
 
-  // 生成邮箱验证令牌
-  generateEmailVerificationToken(): string {
-    const token = Math.random().toString(36).substring(2, 15) + 
-                  Math.random().toString(36).substring(2, 15);
-    this.emailVerificationToken = token;
-    return token;
+  // 生成邮箱验证令牌（明文仅返回一次，持久化 SHA-256 摘要）
+  generateEmailVerificationToken(): { token: string; expiresAt: Date } {
+    const token = generateSecureToken();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24小时有效
+    this.emailVerificationToken = hashToken(token);
+    this.emailVerificationExpiresAt = expiresAt;
+    return { token, expiresAt };
   }
 
   // 清理敏感信息（用于API响应）
   toSafeObject() {
-    const { password, passwordResetToken, emailVerificationToken, ...safeUser } = this;
+    const {
+      password,
+      passwordResetToken,
+      passwordResetExpires,
+      emailVerificationToken,
+      emailVerificationExpiresAt,
+      ...safeUser
+    } = this;
     return safeUser;
   }
 }

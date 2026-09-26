@@ -33,7 +33,9 @@ describe('Gateway names-only ledger migration and CAS', () => {
         entities: (configured.entities as Function[]).filter(entity => entity.name !== 'UpstreamProductionChallengeEvidenceEntity'),
       };
       db = await new DataSource({ ...options, migrations: (options.migrations as string[]).filter(path => !path.includes('GatewayHeaderHistoryLedger')) } as any).initialize();
-      expect(await db.runMigrations()).toHaveLength(5);
+      // The baseline now includes the newer user-email-expiry migration; the
+      // ledger migration below is still the pending one after reopen.
+      expect(await db.runMigrations()).toHaveLength(6);
       await db.query(`INSERT INTO source_service_assets (id, sourceKey) VALUES ('old-source', 'old-source')`);
       await db.destroy(); db = await new DataSource(options).initialize();
       expect(await db.runMigrations()).toHaveLength(1);
@@ -63,7 +65,7 @@ describe('Gateway names-only ledger migration and CAS', () => {
       await db.getRepository(Ledger).update({ namespace: identity }, { headerNames: '["X-NONCANONICAL"]' });
       await expect(store.load(identity)).rejects.toThrow('header_history_noncanonical_record');
       expect(db.getMetadata(Ledger).columns.map(column => column.propertyName)).toEqual(['namespace', 'sourceKind', 'provenanceDigest', 'version', 'revision', 'headerNames']);
-      await db.undoLastMigration(); expect(await db.runMigrations()).toHaveLength(1);
+      await db.undoLastMigration(); await db.undoLastMigration(); expect(await db.runMigrations()).toHaveLength(2);
       expect(await db.getRepository(Ledger).count()).toBe(0);
       expect((await db.driver.createSchemaBuilder().log()).upQueries).toHaveLength(0);
     } finally { if (db?.isInitialized) await db.destroy(); process.env = original; rmSync(root, { recursive: true, force: true }); }
