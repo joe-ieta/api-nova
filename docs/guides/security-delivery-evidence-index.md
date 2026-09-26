@@ -1,5 +1,5 @@
 ---
-doc-version: 1.106.0
+doc-version: 1.107.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -166,7 +166,7 @@ SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估�
 | SEC-F3-02C6 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md)、[双运行时矩阵执行器](../../scripts/verify-f3-dual-runtime.cjs) | **DONE（限定）**：聚合重跑Parser 4 suites/78 tests与Gateway 3 suites/95 tests，输出clause矩阵`F3_DUAL_RUNTIME_MATRIX_OK`；仅本地回环DNS/HTTP/TLS，无生产默认启用/PG/F3D平台矩阵。 |
 | SEC-F3-02D | [网络边界合同§4.6及N01–N17](./security-header-network-boundary-contract.md) | **READY**：C6依赖已闭合；N01–N17真实连接、生产默认启用及Windows/Linux矩阵待执行。 |
 | SEC-F3-03 | [安全用例](../testing/runtime-security-audit-cases.md)、[受管通道脚本](../../packages/api-nova-api/scripts/test-managed-mcp-channel.cjs) | **限定执行/待验收**：局部脱敏与 IPC 无 argv Secret 有证据；完整 argv/log/错误/快照 Secret Scan、创建/更新/撤销审计可检索依赖产品 E1。 |
-| SEC-F3a-01 | [安全台账 §6](./security-development-execution-status.md)、[锁文件](../../package-lock.json) | **历史执行/待验收**：2026-09-07 漏洞数已过时；当前可达性、在线公告、补丁/风险处置与签收无当前执行证据，不自动 audit fix。 |
+| SEC-F3a-01 | [依赖可达性审计](../audits/2026-09-26-dependency-reachability-audit.md)、[安全台账 §6](./security-development-execution-status.md) | **DONE（限定）**：2026-09-26在线审计生产32项（0C/10H/21M/1L）与全量59项，逐项可达性与三类处置记录，锁文件SHA-256留证；未应用补丁/重大升级，发布前重跑。 |
 | SEC-F4-01 | 本索引及SEC当前叶子出口逐项映射 | **限定执行已完成/持续维护**：索引按当前112个SEC叶子或明确标注的聚合旧ID维护；ID/链接校验不改变技术父包状态，也不自动使 F4-02 READY。 |
 | SEC-F4-02 | [安全规划 §6/8](./security-development-task-plan.md)、[安全用例](../testing/runtime-security-audit-cases.md)、[发布准备清单](./release-readiness-checklist.md) | **待验收（环境）**：依赖 D2/E2/F1/F2/F3/F3a 的各自出口和目标环境授权；当前没有完整真实签收。 |
 
