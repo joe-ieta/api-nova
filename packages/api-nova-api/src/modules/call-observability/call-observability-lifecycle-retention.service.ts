@@ -8,23 +8,40 @@ import {
   RuntimeObservabilityIdempotencyEntity,
   RuntimePipelineStateEntity,
 } from '../../database/entities/runtime-call-observability.entity';
+import { RuntimeObservabilityEventEntity } from '../../database/entities/runtime-observability-event.entity';
 import { CallObservabilityStore, ObservabilityWriteTransaction } from './call-observability.store';
-import { DAY_MS, ObservabilityStorageError, publicSequence } from './call-observability-storage';
+import { recordEventDeletionGap } from './call-observability-event-gaps';
+import { classifyEventRetention } from './call-observability-event-retention-preview';
+import { DAY_MS, ObservabilityStorageError, publicSequence, sequenceKey } from './call-observability-storage';
 
 export const LIFECYCLE_RETENTION_STATE_ID = 'call-observability:lifecycle-retention';
 /** Approved floors; never lowered by configuration. */
 export const DELIVERY_RETENTION_FLOOR_MS = 30 * DAY_MS;
 export const RECEIPT_RETENTION_FLOOR_MS = 32 * DAY_MS;
 
+export interface LifecycleRetentionEventOptions {
+  /** Explicit authorization for permanent event deletion; omitted means disabled. */
+  enabled: boolean;
+  /** Optional E2A-compatible asset scope for bounded/test runs; null/undefined
+   * covers every asset. The persisted cursor is a single global sequence, so a
+   * scoped run advances it exactly like a global run. */
+  runtimeAssetIds?: readonly string[] | null;
+}
+
 export interface LifecycleRetentionCollectionOptions {
   scanLimit: number;
   deleteLimit: number;
   now?: Date;
+  events?: LifecycleRetentionEventOptions;
 }
 
 export interface LifecycleRetentionCheckpoint {
   at: string;
   id: string;
+}
+
+export interface LifecycleRetentionEventCheckpoint {
+  sequence: string;
 }
 
 export interface LifecycleRetentionPhaseReport {
@@ -34,9 +51,11 @@ export interface LifecycleRetentionPhaseReport {
   deleted: number;
   retained: number;
   retainedReasons: Record<string, number>;
-  checkpoint: LifecycleRetentionCheckpoint | null;
+  checkpoint: LifecycleRetentionCheckpoint | LifecycleRetentionEventCheckpoint | null;
   snapshotSeq: string;
 }
+
+export type LifecycleRetentionEventReport = LifecycleRetentionPhaseReport;
 
 export interface LifecycleRetentionReceiptReport extends LifecycleRetentionPhaseReport {
   tombstoned: number;
@@ -53,10 +72,12 @@ export interface LifecycleRetentionCollectionReport {
   idempotency: LifecycleRetentionPhaseReport;
   receipts: LifecycleRetentionReceiptReport;
   deliveries: LifecycleRetentionDeliveryReport;
+  /** Present only when event physical deletion was explicitly enabled for the run. */
+  events?: LifecycleRetentionEventReport;
   snapshotSeq: string;
 }
 
-type PhaseKey = 'idempotency' | 'receipts' | 'deliveries';
+type PhaseKey = 'idempotency' | 'receipts' | 'deliveries' | 'events';
 
 function readCheckpoint(value: unknown): LifecycleRetentionCheckpoint | null {
   const checkpoint = (value as { checkpoint?: unknown } | null)?.checkpoint;
@@ -65,6 +86,19 @@ function readCheckpoint(value: unknown): LifecycleRetentionCheckpoint | null {
   const parsed = typeof at === 'string' ? Date.parse(at) : NaN;
   if (!Number.isFinite(parsed) || typeof id !== 'string' || !id) return null;
   return { at: new Date(parsed).toISOString(), id };
+}
+
+function readEventCheckpoint(value: unknown): LifecycleRetentionEventCheckpoint | null {
+  const checkpoint = (value as { checkpoint?: unknown } | null)?.checkpoint;
+  if (!checkpoint || typeof checkpoint !== 'object') return null;
+  const { sequence } = checkpoint as { sequence?: unknown };
+  if (typeof sequence !== 'string' || !/^(0|[1-9][0-9]{0,19})$/.test(sequence)) return null;
+  try {
+    if (sequence === '0' || publicSequence(sequence) !== sequence) return null;
+  } catch {
+    return null;
+  }
+  return { sequence };
 }
 
 function readResourceId(value: unknown): string | null {
@@ -77,11 +111,13 @@ function readResourceId(value: unknown): string | null {
 
 /**
  * Bounded physical cleanup after logical expiry: expired management idempotency
- * records, expired ingest receipts (replaced by a minimal replay tombstone) and
- * expired delivery/attempt history. Every phase runs in its own Store
- * transaction, never allocates a business sequence, and persists its checkpoint
- * and report with the deletions. Events, invocations and audit rows are never
- * touched here. Tombstones have no expiry.
+ * records, expired ingest receipts (replaced by a minimal replay tombstone),
+ * expired delivery/attempt history and — only when explicitly enabled per call —
+ * expired events (replaced by a persistent deletion gap). Every phase runs in
+ * its own Store transaction, never allocates a business sequence, and persists
+ * its checkpoint and report with the deletions. Invocations and audit rows are
+ * never touched here; tombstones have no expiry. Event deletion is off unless
+ * the caller passes the explicit opt-in, so default behavior is unchanged.
  */
 @Injectable()
 export class CallObservabilityLifecycleRetentionService {
@@ -97,16 +133,29 @@ export class CallObservabilityLifecycleRetentionService {
     if (Number.isNaN(now.getTime())) {
       throw new ObservabilityStorageError('INVALID_LIFECYCLE_RETENTION_CONFIGURATION');
     }
+    const eventsOptions = options.events;
+    if (eventsOptions !== undefined && (eventsOptions === null || typeof eventsOptions !== 'object' ||
+      typeof eventsOptions.enabled !== 'boolean' ||
+      (eventsOptions.runtimeAssetIds !== undefined && eventsOptions.runtimeAssetIds !== null &&
+        (!Array.isArray(eventsOptions.runtimeAssetIds) ||
+          eventsOptions.runtimeAssetIds.some(asset => typeof asset !== 'string' || !asset || asset.length > 500))))) {
+      throw new ObservabilityStorageError('INVALID_LIFECYCLE_RETENTION_CONFIGURATION');
+    }
     const idempotency = await this.collectIdempotency(scanLimit, deleteLimit, now);
     const receipts = await this.collectReceipts(scanLimit, deleteLimit, now);
     const deliveries = await this.collectDeliveries(scanLimit, deleteLimit, now);
+    const events = eventsOptions?.enabled === true
+      ? await this.collectEvents(scanLimit, deleteLimit, now, eventsOptions.runtimeAssetIds ?? null)
+      : undefined;
     return {
       status: idempotency.status === 'completed' && receipts.status === 'completed' &&
-        deliveries.status === 'completed' ? 'completed' : 'waiting',
+        deliveries.status === 'completed' && (events?.status ?? 'completed') === 'completed'
+        ? 'completed' : 'waiting',
       startAt: now.toISOString(),
       idempotency,
       receipts,
       deliveries,
+      ...(events ? { events } : {}),
       snapshotSeq: deliveries.snapshotSeq,
     };
   }
@@ -289,6 +338,85 @@ export class CallObservabilityLifecycleRetentionService {
         snapshotSeq: '',
       };
       report.snapshotSeq = await this.persistPhase(tx, states, previous, 'deliveries', report, nowIso);
+      return report;
+    });
+  }
+
+  /**
+   * Physical deletion of expired events in one Store transaction: the deletion,
+   * its persistent gap interval and the persisted cursor all commit or roll back
+   * together. Candidate classification reuses the E2A rules against rows read in
+   * this transaction, and every delivery reference keeps its event alive.
+   */
+  private collectEvents(scanLimit: number, deleteLimit: number, now: Date,
+    runtimeAssetIds: readonly string[] | null): Promise<LifecycleRetentionEventReport> {
+    const nowIso = now.toISOString();
+    return this.store.transaction(async tx => {
+      const states = tx.manager.getRepository(RuntimePipelineStateEntity);
+      const previous = await states.findOneBy({ id: LIFECYCLE_RETENTION_STATE_ID });
+      const checkpoint = readEventCheckpoint(previous?.value?.events);
+      const repository = tx.manager.getRepository(RuntimeObservabilityEventEntity);
+      const expiryColumn = repository.metadata.findColumnWithPropertyName('expiresAt')!;
+      const expiry = tx.manager.connection.driver.preparePersistentValue(now, expiryColumn);
+      const high = publicSequence(tx.currentSequence());
+      const query = repository.createQueryBuilder('event')
+        .where('event.schemaVersion = :schema', { schema: '1.0' })
+        .andWhere('event.sequence IS NOT NULL AND event.expiresAt <= :expiry', { expiry })
+        .andWhere('event.sequence <= :high', { high: sequenceKey(high) })
+        .orderBy('event.sequence', 'ASC')
+        .take(scanLimit);
+      if (checkpoint) query.andWhere('event.sequence > :after', { after: sequenceKey(checkpoint.sequence) });
+      if (runtimeAssetIds !== null) {
+        if (runtimeAssetIds.length) {
+          query.andWhere('event.runtimeAssetId IN (:...assets)', { assets: [...runtimeAssetIds] });
+        } else {
+          query.andWhere('1 = 0');
+        }
+      }
+      const candidates = await query.getMany();
+      const retainedReasons: Record<string, number> = {};
+      const retained = (reason: string) => {
+        retainedReasons[reason] = (retainedReasons[reason] || 0) + 1;
+      };
+      const deletable: RuntimeObservabilityEventEntity[] = [];
+      let processed = 0;
+      const deliveries = tx.manager.getRepository(RuntimeEventDeliveryEntity);
+      for (const candidate of candidates) {
+        if (deletable.length >= deleteLimit) break;
+        processed += 1;
+        const classification = classifyEventRetention(candidate, now.getTime());
+        if (classification !== 'eligible') {
+          retained(classification === 'not_expired' ? 'not_expired' :
+            classification === 'lease_active' ? 'lease_active' : 'invalid_event');
+          continue;
+        }
+        const referenced = await deliveries.createQueryBuilder('delivery')
+          .where('delivery.eventId = :id', { id: candidate.id }).getExists();
+        if (referenced) {
+          retained('protected_by_delivery');
+          continue;
+        }
+        deletable.push(candidate);
+      }
+      for (const candidate of deletable) {
+        await recordEventDeletionGap(tx, candidate);
+        await repository.delete({ id: candidate.id });
+      }
+      const processedRows = candidates.slice(0, processed);
+      const last = processedRows[processedRows.length - 1];
+      const exhausted = candidates.length < scanLimit && processed === candidates.length;
+      const report: LifecycleRetentionEventReport = {
+        status: exhausted ? 'completed' : 'waiting',
+        cutoff: nowIso,
+        scanned: candidates.length,
+        deleted: deletable.length,
+        retained: processed - deletable.length,
+        retainedReasons,
+        checkpoint: processed === 0 || exhausted || !last
+          ? null : { sequence: publicSequence(last.sequence!) },
+        snapshotSeq: '',
+      };
+      report.snapshotSeq = await this.persistPhase(tx, states, previous, 'events', report, nowIso);
       return report;
     });
   }

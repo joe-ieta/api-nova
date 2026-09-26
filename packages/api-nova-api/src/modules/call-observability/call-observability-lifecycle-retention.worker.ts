@@ -13,6 +13,8 @@ export const LIFECYCLE_RETENTION_WORKER_ID = LIFECYCLE_RETENTION_STATE_ID;
 
 export interface LifecycleRetentionWorkerConfiguration {
   enabled: boolean;
+  /** Explicit permanent event deletion authorization; default false. */
+  eventsEnabled: boolean;
   intervalMs: number;
   scanLimit: number;
   deleteLimit: number;
@@ -42,6 +44,10 @@ export function lifecycleRetentionWorkerConfiguration(config: ConfigService): Li
   if (enabled !== undefined && enabled !== 'true' && enabled !== 'false') {
     throw new ObservabilityStorageError('INVALID_LIFECYCLE_RETENTION_CONFIGURATION');
   }
+  const eventsEnabled = config.get(PREFIX + 'EVENTS_ENABLED');
+  if (eventsEnabled !== undefined && eventsEnabled !== 'true' && eventsEnabled !== 'false') {
+    throw new ObservabilityStorageError('INVALID_LIFECYCLE_RETENTION_CONFIGURATION');
+  }
   const positive = (name: string, fallback: number, minimum: number, maximum: number): number => {
     const raw = config.get(PREFIX + name);
     if (raw === undefined) return fallback;
@@ -61,6 +67,7 @@ export function lifecycleRetentionWorkerConfiguration(config: ConfigService): Li
   }
   return {
     enabled: enabled === 'true',
+    eventsEnabled: eventsEnabled === 'true',
     intervalMs: positive('INTERVAL_MS', 60000, 1000, DAY_MS),
     scanLimit,
     deleteLimit,
@@ -76,7 +83,9 @@ const LIFECYCLE_RETENTION_ERROR_CODES = [
 ] as const;
 const SAFE_ERRORS = new Set<string>(LIFECYCLE_RETENTION_ERROR_CODES);
 
-/** Default off. Cleans expired lifecycle rows; never deletes events, invocations or audit. */
+/** Default off. Cleans expired lifecycle rows. Event physical deletion stays off
+ * unless API_NOVA_OBSERVABILITY_LIFECYCLE_RETENTION_EVENTS_ENABLED is explicitly
+ * true; invocations and audit rows are never deleted. */
 @Injectable()
 export class CallObservabilityLifecycleRetentionWorker implements OnApplicationBootstrap, OnModuleDestroy {
   private timer?: ReturnType<typeof setTimeout>;
@@ -187,6 +196,7 @@ export class CallObservabilityLifecycleRetentionWorker implements OnApplicationB
       const report = await this.lifecycleRetention.collect({
         scanLimit: options.scanLimit,
         deleteLimit: options.deleteLimit,
+        ...(options.eventsEnabled ? { events: { enabled: true } } : {}),
       });
       const now = new Date().toISOString();
       return await this.persist({

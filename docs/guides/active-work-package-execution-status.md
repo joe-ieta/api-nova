@@ -1,5 +1,5 @@
 ---
-doc-version: 1.167.0
+doc-version: 1.168.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -57,6 +57,8 @@ MAINT-02 遗留闭合：`RuntimeUpstreamBindingDialog.vue` 46行可见中文全�
 
 PROD-06 核定 DONE（DOC）：原WP70出口限定为同语句归属/发布读取（§26/27）、跨源校验（§28）、旧候选读取时点guard（§29，原文明确“不是跨进程CAS”）；完整/跨进程CAS、整体一致事务、标记修改/计划前混读/完整快照属并发强化候选，未批准不排期；WP70唯一剩余为EXT-07环境验收（[记录](../audits/2026-09-26-prod-06-cas-scope-determination.md)）。
 
+OBS-14-03E2B/E3 限定 DONE（授权后）：过期事件有界物理删除接入，同Store事务内 gap+delete+持久cursor，默认关闭开关 `API_NOVA_OBSERVABILITY_LIFECYCLE_RETENTION_EVENTS_ENABLED`；新增 `verify:obs-14-03e3` 与10项验收（默认关闭零删除、仅授权候选、原子回滚、批次/重启恢复、保护与幂等重跑），模块12 suites/102 tests及8脚本回归全绿（[证据](../audits/2026-09-26-obs-14-03e3-physical-cleanup.md)）。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -66,10 +68,10 @@ PROD-06 核定 DONE（DOC）：原WP70出口限定为同语句归属/发布读�
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 172 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 174 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 0 | 当前队列无 READY；`SEC-F3-02D`/`MAIL-02` 均以限定 DONE 出口 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
-| WAIT_DEP | 18 | 等待列明子任务/条件 |
+| WAIT_DEP | 16 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 0 | PROD-06 核定后无待判范围项 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -223,8 +225,8 @@ PROD-06 核定 DONE（DOC）：原WP70出口限定为同语句归属/发布读�
 | OBS-14-02 | DONE | 持久keyset分页、同GC fence、修复与cursor同事务；真实SQL.js连接重建恢复；新增7项专项，联合67/67 |
 | OBS-14-03E1 | DONE | 持久非连续gap、授权查询与afterSequence 410；SQL/schema/migration同步，专项6/6 |
 | OBS-14-03E2A | DONE | 默认关闭的只读候选分类、授权/TTL/lease/delivery保护；无写入，专项4/4 |
-| OBS-14-03E2B | WAIT_DEP | 物理delete、gap与持久cursor同事务；自动审批要求具体删除授权 |
-| OBS-14-03E3 | WAIT_DEP | 整体验收等待物理清理完成 |
+| OBS-14-03E2B | DONE | 限定物理删除完成（[证据](../audits/2026-09-26-obs-14-03e3-physical-cleanup.md)）：过期事件默认关闭的有界物理删除，同Store事务内gap+delete+持久cursor+报告；E2A分类/03D三阶段复用，租约/未完成attempt/有效幂等/投递引用保护与失败回滚、重启续扫幂等；专项8/8 |
+| OBS-14-03E3 | DONE | 限定整体验收完成（[证据](../audits/2026-09-26-obs-14-03e3-physical-cleanup.md)）：`verify:obs-14-03e3` 模块12 suites/102 tests与8脚本回归全绿、10项验收检查通过、sqlite 73表零漂移；PG运行时/多进程/长时/Linux与生产启用仍为平台项 |
 | OBS-14-03D | DONE | 限定保留清理完成：新增receipt墓碑实体+读取门禁（同hash重放不增计数、异hash仍隔离），三阶段有界事务清理（幂等/墓碑化/投递+尝试，30/32天/24小时边界、租约与未完成attempt保护、有效幂等结果保护、回滚与重启游标）；专项12项、模块11 suites/94 tests、5脚本回归与sqlite 73表零漂移；物理删除默认关闭、墓碑不退休，PG并发归平台项 |
 | OBS-14-04 | DONE | [容量配额合同](../reference/runtime-observability-capacity-quota-contract.md)冻结计量、水位、并发预留、恢复与05A~D；仅DOC |
 | OBS-14-05A | DONE | 独立ledger/reservation、epoch/CAS、幂等预留结算与严格配置；联合18/18，未接写入 |
