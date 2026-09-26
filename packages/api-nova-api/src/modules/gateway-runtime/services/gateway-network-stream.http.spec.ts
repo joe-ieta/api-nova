@@ -32,10 +32,12 @@ describe.each(['http', 'https'])('explicit host Gateway network stream through r
   let route: any, activeBinding: any, candidate: any, registry: UpstreamCredentialRegistry, network: GatewayTrustedNetworkProvider, proxy: GatewayProxyEngineService;
   let operationBegin: jest.Mock, operationClose: jest.Mock, operationAssert: jest.Mock, traffic: any, securityEpoch: string;
   let cache: GatewayCacheService, hits: number, connections: number, dnsQueries: number, dnsAddress: string, dnsFailure: boolean, dnsSilent: boolean, captureFailure: boolean, dnsGate: (() => void) | undefined;
+  let auditRecords: Array<Record<string, any>>, auditThrows: boolean;
   let seen: http.IncomingHttpHeaders[], handler: http.RequestListener, provider: jest.Mock;
   beforeEach(async () => {
     securityEpoch = 'epoch-1';
     hits = connections = dnsQueries = 0; dnsAddress = '127.0.0.1'; dnsFailure = dnsSilent = captureFailure = false; dnsGate = undefined; seen = [];
+    auditRecords = []; auditThrows = false;
     handler = (req, res) => { req.resume(); req.on('end', () => { res.setHeader('x-safe', 'yes'); res.setHeader('x-drop', 'secret'); res.end('ok'); }); };
     const serve: http.RequestListener = (req, res) => { hits++; seen.push(req.headers); handler(req, res); }; upstream = scheme === 'https' ? https.createServer({ key, cert: ca }, serve) : http.createServer(serve); upstream.on('connection', () => connections++); upstreamPort = await listen(upstream);
     udp = dgram.createSocket('udp4'); udp.on('message', (query, peer) => {
@@ -54,7 +56,9 @@ describe.each(['http', 'https'])('explicit host Gateway network stream through r
     provider = jest.fn(async () => 'synthetic'); registry = new UpstreamCredentialRegistry({ environment: 'test', providerFactory: description => ({ type: description.type, resolve: provider }) }); await registry.reload(candidate); provider.mockClear();
     const compiler = createNetworkPolicyCompiler({ deniedDestinations: [], loopback: 'test-only' }), origin = route.upstreamBaseUrl;
     const policy = compiler.compile({ version: 1, id: 'p', revision: '1', sourceServiceAssetId: 'asset', siteId: 'site', origin, mode: 'private-exception', connection: 'direct', privateException: { id: 'e', revision: '1', sourceServiceAssetId: 'asset', siteId: 'site', origin, addresses: ['127.0.0.1'], purpose: 'test', owner: 'test', approvalRef: 'test', issuedAt: new Date(Date.now() - 1000).toISOString(), expiresAt: new Date(Date.now() + 60000).toISOString() } });
-    network = createGatewayTrustedNetworkProvider({ compiler, ca, createOperationAuthority: capture => {
+    network = createGatewayTrustedNetworkProvider({ compiler, ca,
+      failureAudit: record => { auditRecords.push(record as any); if (auditThrows) throw new Error('sink down'); },
+      createOperationAuthority: capture => {
       const authority = createNetworkOperationAuthority({ compiler, readSecurityEpoch: () => { if (captureFailure) throw new Error('private host detail'); return securityEpoch; },
         captureAuthorizedContext: (selector, signal) => capture(selector, signal, securityEpoch) });
       operationBegin = jest.fn(authority.begin); operationClose = jest.fn(authority.close); operationAssert = jest.fn(authority.assertCurrent);
@@ -278,5 +282,52 @@ describe.each(['http', 'https'])('explicit host Gateway network stream through r
     expect(connections).toBe(0); expect(hits).toBe(0); expect(dnsQueries).toBe(0);
     expect(provider).not.toHaveBeenCalled();
     expect(operationBegin).toHaveBeenCalledTimes(1);
+  });
+  it('C5b audits a revoked operation once and keeps sink failures from changing the refusal', async () => {
+    dnsGate = () => network.revoke('binding');
+    auditThrows = true;
+    const result = await request();
+    expect(result.status).toBe(502);
+    expect(connections).toBe(0); expect(hits).toBe(0);
+    expect(operationClose).toHaveBeenCalledTimes(1);
+    expect(auditRecords).toHaveLength(1);
+    expect(auditRecords[0]).toMatchObject({
+      schemaVersion: 1,
+      eventName: 'upstream.network_failure',
+      reason: 'upstream_network_policy_denied',
+      stage: 'revocation',
+      attemptIndex: 1,
+      redirectHopIndex: 0,
+      revocationEpoch: '1',
+      sourceServiceAssetId: 'asset',
+      siteId: 'site',
+      endpointDefinitionId: 'endpoint',
+      policyId: 'p',
+      revision: '1',
+    });
+    const handle = await operationBegin.mock.results[0].value;
+    expect(auditRecords[0].operationId).toBe(handle.operationId);
+    const serialized = JSON.stringify(auditRecords);
+    for (const secret of ['fixture.test', String(upstreamPort), 'synthetic', 'X-Private', 'Bearer']) {
+      expect(serialized).not.toContain(secret);
+    }
+  });
+  it('C5b audits a mid-response revocation exactly once', async () => {
+    let closed!: () => void; const upstreamClosed = new Promise<void>(resolve => closed = resolve);
+    handler = (req, res) => { req.resume(); req.on('end', () => { res.once('close', closed); res.write('partial-only'); }); };
+    await new Promise<void>((resolve, reject) => {
+      const req = http.get({ host: '127.0.0.1', port, path: '/v1/gateway/wire' }, res => {
+        res.on('data', () => network.revoke('binding'));
+        res.once('aborted', resolve); res.once('error', () => {}); res.once('end', () => reject(new Error('revoked response unexpectedly completed')));
+      }); req.on('error', reject);
+    });
+    await upstreamClosed;
+    expect(auditRecords).toHaveLength(1);
+    expect(auditRecords[0]).toMatchObject({
+      reason: 'upstream_network_policy_denied',
+      stage: 'revocation',
+    });
+    expect(typeof auditRecords[0].operationId).toBe('string');
+    expect(operationClose).toHaveBeenCalledTimes(1);
   });
 });

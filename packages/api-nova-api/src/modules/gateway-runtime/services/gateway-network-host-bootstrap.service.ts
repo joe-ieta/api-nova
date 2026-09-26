@@ -4,6 +4,7 @@ import type { FactoryProvider, ValueProvider } from '@nestjs/common';
 import {
   createNetworkPolicyCompiler,
   type CompiledNetworkPolicy,
+  type NetworkDenialAuditRecord,
   type UpstreamCredentialRegistrySnapshot,
 } from 'api-nova-parser';
 import { GATEWAY_UPSTREAM_CREDENTIAL_CONFIG } from './gateway-upstream-credential.providers';
@@ -37,6 +38,7 @@ export interface GatewayNetworkHostSource {
   readonly compiler: ReturnType<typeof createNetworkPolicyCompiler>;
   readonly servers: readonly string[];
   readonly ca?: string;
+  readonly failureAudit?: (record: Readonly<NetworkDenialAuditRecord>) => unknown;
   /** Host-owned per-route policy; the coordinator re-validates origin and Site binding. */
   readonly policyFor: (input: {
     route: GatewayResolvedRoute;
@@ -52,12 +54,14 @@ export function createGatewayNetworkHostSource(input: {
   compiler: ReturnType<typeof createNetworkPolicyCompiler>;
   servers: readonly string[];
   ca?: string;
+  failureAudit?: (record: Readonly<NetworkDenialAuditRecord>) => unknown;
   policyFor: GatewayNetworkHostSource['policyFor'];
 }): GatewayNetworkHostSource {
   if (!input || typeof input !== 'object' || !input.host
     || typeof input.compiler?.compile !== 'function' || typeof input.compiler?.authorizeTarget !== 'function'
     || !Array.isArray(input.servers) || input.servers.length === 0
     || input.servers.some(value => typeof value !== 'string' || !value.trim())
+    || input.failureAudit !== undefined && typeof input.failureAudit !== 'function'
     || typeof input.policyFor !== 'function') {
     throw new Error('gateway_network_host_source_invalid');
   }
@@ -66,6 +70,7 @@ export function createGatewayNetworkHostSource(input: {
     compiler: input.compiler,
     servers: Object.freeze([...input.servers]),
     ...(typeof input.ca === 'string' ? { ca: input.ca } : {}),
+    ...(input.failureAudit === undefined ? {} : { failureAudit: input.failureAudit }),
     policyFor: input.policyFor,
   });
   sources.add(source);
@@ -184,6 +189,7 @@ export class GatewayNetworkHostBootstrapService implements OnApplicationBootstra
         compiler: source.compiler,
         servers: source.servers,
         ...(source.ca === undefined ? {} : { ca: source.ca }),
+        ...(source.failureAudit === undefined ? {} : { failureAudit: source.failureAudit }),
       });
       this.logger.log(`Installed Gateway host network assembly for ${captured.length} route(s)`);
     } catch {

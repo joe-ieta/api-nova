@@ -1,7 +1,7 @@
 import { inspectGatewayNetworkRegistrationBundle, type GatewayNetworkRegistrationBundle } from './gateway-network-registration-coordinator';
 import { BadGatewayException, GatewayTimeoutException, ServiceUnavailableException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { ControlledDnsError, createNetworkOperationAuthority, createNetworkPolicyCompiler, createPinnedHttpStreamTransport, type AuthorizedNetworkOperationContext, type NetworkOperationHandle, type NetworkOperationSelector, type CompiledNetworkPolicy, type UpstreamCredentialRegistrySnapshot, type PinnedHttpStreamRequest } from 'api-nova-parser';
+import { ControlledDnsError, auditNetworkFailure, createNetworkOperationAuthority, createNetworkPolicyCompiler, createPinnedHttpStreamTransport, toNetworkFailure, type AuthorizedNetworkOperationContext, type NetworkDenialAuditRecord, type NetworkFailureStage, type NetworkOperationHandle, type NetworkOperationSelector, type CompiledNetworkPolicy, type UpstreamCredentialRegistrySnapshot, type PinnedHttpStreamRequest } from 'api-nova-parser';
 import type { GatewayResolvedRoute } from '../types/gateway-route-snapshot.types';
 import { createGatewayUpstreamCredentialResolver, type GatewayUpstreamCredentialResolver, inspectGatewayCredentialProvenance, type GatewayUpstreamCredentialHeaders } from './gateway-upstream-credential-resolver';
 export const GATEWAY_TRUSTED_NETWORK_PROVIDER = Symbol('GATEWAY_TRUSTED_NETWORK_PROVIDER');
@@ -24,16 +24,37 @@ export function assertGatewayTrustedNetworkProvider(provider: GatewayTrustedNetw
 export function createGatewayTrustedNetworkProvider(input: {
   compiler: ReturnType<typeof createNetworkPolicyCompiler>; servers: readonly string[]; ca?: string;
   createOperationAuthority: (capture: Capture) => Authority;
+  failureAudit?: (record: Readonly<NetworkDenialAuditRecord>) => unknown;
   registrations: readonly { route: GatewayResolvedRoute; snapshot: UpstreamCredentialRegistrySnapshot; siteId: string; policy: CompiledNetworkPolicy;
     captureSnapshot: () => UpstreamCredentialRegistrySnapshot; captureRouteBinding: () => object | undefined }[];
 }): GatewayTrustedNetworkProvider {
   const compiler = input.compiler, servers = Object.freeze([...input.servers]), ca = input.ca;
   if (typeof input.createOperationAuthority !== 'function') unavailable();
+  const failureAudit = input.failureAudit;
+  if (failureAudit !== undefined && typeof failureAudit !== 'function') unavailable();
   const bindings = new WeakSet<object>(), scopes = new Set<string>();
+  let revocationEpoch = 0;
   const scope = (route: GatewayResolvedRoute) => JSON.stringify([route.runtimeAsset.id, route.membership.id]);
   const entries = new Map<string, { route: GatewayResolvedRoute; signature: string; snapshot: UpstreamCredentialRegistrySnapshot; siteId: string; policy: CompiledNetworkPolicy;
     captureSnapshot: () => UpstreamCredentialRegistrySnapshot; captureRouteBinding: () => object | undefined; active: boolean }>();
   const signature = (route: GatewayResolvedRoute) => JSON.stringify([route.routeBinding, route.sourceServiceAsset.id, route.endpointDefinition.id, route.upstreamBaseUrl]);
+  /** Single audit emission point per network failure; identity comes from the trusted registration only. */
+  const auditFailure = (failure: unknown, stage: NetworkFailureStage, operationId: string,
+    entry?: { route: GatewayResolvedRoute; siteId: string; policy: CompiledNetworkPolicy }) => {
+    if (!failureAudit || !entry) return;
+    auditNetworkFailure(toNetworkFailure(failure), {
+      operationId,
+      sourceServiceAssetId: entry.route.sourceServiceAsset.id,
+      siteId: entry.siteId,
+      endpointDefinitionId: entry.route.endpointDefinition.id,
+      policyId: entry.policy.id,
+      revision: entry.policy.revision,
+      revocationEpoch: String(revocationEpoch),
+      redirectHopIndex: 0,
+      attemptIndex: 1,
+      stage,
+    }, failureAudit);
+  };
   for (const value of input.registrations) {
     const id = value.route.routeBinding.id;
     if (!id || entries.has(id) || !Object.isFrozen(value.snapshot) || typeof value.captureSnapshot !== 'function' || typeof value.captureRouteBinding !== 'function') unavailable();
@@ -88,6 +109,8 @@ export function createGatewayTrustedNetworkProvider(input: {
       } catch (failure) {
         if (handle) authority.close(handle);
         if (failure instanceof ControlledDnsError) {
+          auditFailure(failure, failure.code === 'ETIMEDOUT' ? 'deadline' : 'admission',
+            handle?.operationId ?? randomUUID(), entry);
           if (failure.code === 'ETIMEDOUT') throw new GatewayTimeoutException('gateway_network_timeout');
           if (failure.code === 'upstream_network_policy_denied') return denied();
           return unavailable();
@@ -118,18 +141,27 @@ export function createGatewayTrustedNetworkProvider(input: {
         const response = await transport.send({ ...request, headers, deadline: context.handle.deadline, signal: context.handle.signal,
           rejectInformationalResponses: true, method: captured.method, policy: captured.policy,
           target: { sourceServiceAssetId: captured.sourceServiceAssetId, siteId: captured.siteId, url: captured.targetUrl } });
-        const completed = response.completed.catch(failure => { try { authority.assertCurrent(context.handle); } catch (reason) { throw reason; } throw failure; }).finally(() => { detach(); close(lease); });
+        const completed = response.completed.catch(failure => {
+          const stage: NetworkFailureStage = request.signal?.aborted ? 'cancel'
+            : context.handle.signal.aborted ? 'revocation' : 'send';
+          try { authority.assertCurrent(context.handle); } catch (reason) { auditFailure(reason, stage, context.handle.operationId, context.entry); throw reason; }
+          auditFailure(failure, stage, context.handle.operationId, context.entry);
+          throw failure;
+        }).finally(() => { detach(); close(lease); });
         // The consumer awaits completed; attach a handler immediately for early disconnects.
         void completed.catch(() => {});
         return { ...response, completed };
       } catch (failure) {
         let reason: unknown = guardFailure ?? failure;
         try { authority.assertCurrent(context.handle); } catch (current) { reason = current; }
-        detach(); close(lease); throw reason;
+        detach(); close(lease);
+        auditFailure(reason, context.handle.signal.aborted ? 'revocation'
+          : request.signal?.aborted ? 'cancel' : 'send', context.handle.operationId, context.entry);
+        throw reason;
       }
     },
     close,
-    revoke(id: string) { const entry = entries.get(id); if (entry) { entry.active = false; authority.revoke(entry.route.sourceServiceAsset.id); } },
+    revoke(id: string) { const entry = entries.get(id); if (entry) { revocationEpoch += 1; entry.active = false; authority.revoke(entry.route.sourceServiceAsset.id); } },
   });
   providers.add(provider); return provider;
 }
@@ -138,6 +170,7 @@ export interface GatewayNetworkHostInstallation {
   readonly compiler: ReturnType<typeof createNetworkPolicyCompiler>;
   readonly servers: readonly string[];
   readonly ca?: string;
+  readonly failureAudit?: (record: Readonly<NetworkDenialAuditRecord>) => unknown;
 }
 /** Stable host-owned facade. Installation is explicit and never renews a proof. */
 export function createGatewayTrustedNetworkFacade() {
@@ -210,6 +243,7 @@ export function createGatewayTrustedNetworkFacade() {
       };
       const ownResolver = createGatewayUpstreamCredentialResolver(() => { check(); return snapshot; }, { enableHeaderPolicy: true, requirePersistedV1: true });
       const inner = createGatewayTrustedNetworkProvider({ compiler, servers: input.servers, ca: input.ca,
+        failureAudit: input.failureAudit,
         createOperationAuthority: capture => createNetworkOperationAuthority({ compiler,
           readSecurityEpoch: source => { check(); if (!registrations.some(value => value.captured.route.sourceServiceAsset.id === source)) return unavailable(); return epoch; },
           captureAuthorizedContext: (selector, signal) => {
