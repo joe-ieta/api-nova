@@ -1,7 +1,7 @@
 ---
-doc-version: 2.2.0
+doc-version: 2.3.0
 doc-status: active
-doc-updated: 2026-09-15
+doc-updated: 2026-09-26
 ---
 # Runtime observability external validation handoff
 
@@ -28,7 +28,7 @@ The authoritative expected results are [AC-01~20 in the requirements](runtime-ob
 | AC | Existing evidence or runnable entry point | Remaining acceptance / limitation |
 | --- | --- | --- |
 | 01, 03 | `test-gateway-call-observability.cjs`; execution register historical integration and later Gateway slices | Full integrated request-to-receiver chain, all rejection/identity paths and old-consumer removal remain TP15 work. MCP admission coverage also belongs to TP06. |
-| 02, 04, 05 | [Server transport scripts](../../packages/api-nova-server/scripts/): `test-mcp-http-observability.cjs`, `test-mcp-http-delivery.cjs`, `test-mcp-transport-observability.cjs`, `test-mcp-stdio-observability.cjs`; [Parser audit tests](../../packages/api-nova-parser/src/audit/) | Complete retry/error/transport matrix remains TP06/16. Windows Node v24.15.0 16 MiB Streamable cork/uncork has a recorded 3-second noncompletion in both native and audited controls; passing the control test does not mean recovery succeeded. |
+| 02, 04, 05 | [MCP矩阵执行器](../../scripts/verify-mcp-observability-matrix.cjs)（`npm run verify:mcp-observability-matrix`）聚合 [Server transport scripts](../../packages/api-nova-server/scripts/)；[OBS-06-01证据](../audits/2026-09-26-mcp-observability-matrix.md) | Complete retry/error/transport matrix remains TP06/16. Windows Node v24.15.0 16 MiB Streamable cork/uncork has a recorded 3-second noncompletion in both native and audited controls; passing the control test does not mean recovery succeeded. |
 | 06, 07 | `source-identity`, `visitors`, `api-foundation`; TP03/08/09 evidence | Preserve trusted-subject, proxy-header and authorization boundaries when validating the complete chain. |
 | 08 | `payloads`; Parser audit and Server transport suites | Complete content-type/large-body/long-stream/platform matrix remains; component results do not cover all combinations. |
 | 09, 10 | `collector`, `worker`, `restart`, `source-lifecycle`, `bucket-projection-recovery` | Current integrated multi-process/crash-recovery matrix still required; do not equate injected rollback with process termination. |

@@ -1,5 +1,5 @@
 ---
-doc-version: 2.33.0
+doc-version: 2.34.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -60,7 +60,7 @@ Parser/MCP 的结果沿用前次整合验收记录，本轮没有重新执行或
 
 | 领域 | 真实欠缺或限制 | 归属 |
 | --- | --- | --- |
-| MCP | 完整传输/正文/平台矩阵；Windows Node v24.15.0 下 16 MiB Streamable 原生 cork/uncork 3 秒未完成对照仍存在 | TP06/16 |
+| MCP | OBS-06-01限定矩阵（[证据](../audits/2026-09-26-mcp-observability-matrix.md)）已覆盖三transport成功/取消/中断/大响应与Windows原生对照；Linux/PostgreSQL平台矩阵与retry仍未收口 | TP06/16 |
 | 实时流 | 有界授权页流已有专项；完整状态快照、旧 UI 迁移、长期/跨平台矩阵未闭合 | TP13 |
 | 状态/治理 | 真实存活、长期覆盖/保留/配额、完整策略、安全 GC 与恢复；新事件/正文策略、默认关闭正文GC和授权覆盖切片已验证 | TP10/14 |
 | 投递留存剩余 | 新记录30天与14天事件重投资格已分离；管理审计30天已按OBS-14-06A、暂存源恢复已按OBS-14-06T限定完成（默认off、有界清理）；历史记录策略及完整安全 GC 尚待完成 | TP14；不重开 TP12 既定闭环 |

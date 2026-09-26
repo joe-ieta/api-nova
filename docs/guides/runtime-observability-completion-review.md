@@ -1,5 +1,5 @@
 ---
-doc-version: 2.26.0
+doc-version: 2.27.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -27,7 +27,7 @@ ApiNova 的主线是 API 资产导入、注册、测试、治理和发布，以�
 | 任务 | 当前状态 | 已实现依据与尚未覆盖的边界 |
 | --- | --- | --- |
 | TP01~05 | DONE | 共享契约、存储、权限、采集与 Gateway 的既定任务范围已闭环；不代替整合后的跨平台验收 |
-| TP06 | IN_PROGRESS | MCP 发送确认及错误/不完整终态修复已保留；完整传输、正文、平台矩阵及 Windows 大响应背压限制仍待收口 |
+| TP06 | IN_PROGRESS | MCP 发送确认及错误/不完整终态修复已保留；OBS-06-01限定矩阵已聚合三transport成功/取消/中断/大响应与Windows原生对照（16MiB省略不截断、8MiB完整），Linux/OBS-06-02与retry矩阵仍未收口 |
 | TP07 | DONE | 真实测试、探测和候选验证接入，origin 隔离及 telemetry 排除已完成 |
 | TP08~09 | DONE | 源身份、生命周期、调用/正文/trace/调用者查询等既定范围已闭环；根模块已接入 |
 | TP10 | DONE | OBS-10-01/02A/B1/B2限定出口完成：managed lifecycle与有runtimeAssetId的gateway_request/mcp_tool在途成员变化已有同Store事务sequence-bound delta。B2为5 suites/28 tests及API build；storage修正后32/32，events16、invocations38、restart3分别通过。不接Realtime，legacy/asset/global多实例水位与live liveness仍unknown |
@@ -61,7 +61,7 @@ ApiNova 的主线是 API 资产导入、注册、测试、治理和发布，以�
 
 最初 543/548 的五项旧测试问题已经在前次整合中修正；它们不是当前待办。原始失败过程、修正原因及最终结果保存在[历史执行记录](../archive/summaries/runtime-observability-2026-09-14/runtime-observability-development-execution-status.md)。
 
-Windows / Node v24.15.0、16 MiB Streamable 响应的原生 cork/uncork 恢复组合，原生 SDK 与审计版本均有 3 秒未完成复现。对照通过不等于恢复成功；等待期间不报告伪成功，断开后为 error/incomplete。完整矩阵仍归 TP06/16。
+Windows / Node v24.15.0、16 MiB Streamable 响应的原生 cork/uncork 恢复组合，原生 SDK 与审计版本均有 3 秒未完成复现；[OBS-06-01矩阵](../audits/2026-09-26-mcp-observability-matrix.md)已自动复现并解析双方状态（timeout一致）。对照通过不等于恢复成功；等待期间不报告伪成功，断开后为 error/incomplete。完整矩阵仍归 TP06/16。
 
 最新增量已验证扫描失败重开/停机等待、诊断来源隔离与登出清理、策略412重读失败后的剩余GET取消；Gateway分页独立复核未发现新增缺口。详见[故障恢复审查](../audits/2026-09-15-ownership-recovery-wave.md)、[停机与取消审查](../audits/2026-09-15-publication-shutdown-wave.md)及[最新复核](../audits/2026-09-15-upstream-ownership-wave.md)。这些局部证据不完成整体配额、业务健康或平台验收。
 

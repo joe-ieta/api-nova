@@ -1,5 +1,5 @@
 ---
-doc-version: 1.158.0
+doc-version: 1.159.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -33,6 +33,8 @@ SEC-F3-02C6 限定 DONE：新增`scripts/verify-f3-dual-runtime.cjs`（npm run v
 
 MAINT-02 限定 DONE：新增`packages/api-nova-ui/scripts/check-delivery-i18n.cjs`对8个交付面UI文件做严格UTF-8解码与乱码检查，全部通过（0乱码）；`RuntimeUpstreamBindingDialog.vue`可见硬编码中文46行登记为后续维护项，按叶子约束不做无限微修。
 
+OBS-06-01 限定 DONE：新增`scripts/verify-mcp-observability-matrix.cjs`（npm run verify:mcp-observability-matrix）聚合MCP 4脚本55项与Parser上游失败74项，输出transport×场景矩阵；16MiB Tool正文省略不截断、8MiB stdio正文完整；Windows原生/审计16MiB cork对照双方timeout一致（复用既有限制复现，不称恢复）。仅Windows本地，Linux与retry矩阵仍归OBS-06-02/TP16。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -42,8 +44,8 @@ MAINT-02 限定 DONE：新增`packages/api-nova-ui/scripts/check-delivery-i18n.c
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 162 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 9 | 可进入队列，当前并非全部开工 |
+| DONE | 163 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 8 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 18 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
@@ -184,7 +186,7 @@ MAINT-02 限定 DONE：新增`packages/api-nova-ui/scripts/check-delivery-i18n.c
 | SEC-F3a-01 | READY | 需在线公告时另行验证，不复用旧漏洞数 |
 | SEC-F4-01 | DONE | 当前112个SEC叶子以逐项或明确聚合旧ID维护，D2b1/b2/b3a–d及C2b1/b2a/b2b1/b2b2/b3依赖已登记；区分历史/本地限定/未运行环境，不代表F4-02签收 |
 | SEC-F4-02 | NEED_ENV | 目标环境与授权另核实 |
-| OBS-06-01 | READY | 不重写已有发送边界 |
+| OBS-06-01 | DONE | 限定矩阵完成：新增`verify:mcp-observability-matrix`聚合4个server脚本（11+17+15+12）与Parser上游失败74项，输出`MCP_OBSERVABILITY_MATRIX_OK`；success/cancel/发送中断/大响应三transport有结果（16MiB Tool省略/8MiB完整），Windows原生对照复现双方timeout；Linux/OBS-06-02、AC-02 retry与MCP调用超时仍归TP06/16 |
 | OBS-06-02 | NEED_ENV | 真实环境待核实 |
 | OBS-10-01 | DONE | 受管业务子进程start/stop/unexpected_exit/lost已进入独立持久投影；runtimeAssetId+serverId+generation绑定，旧generation迟到终止不能覆盖新start，管理心跳不作为业务存活。SQL.js重开4/4、真实child/事件hook 3/3、状态投影1/1、ProcessManager相邻5 suites/32及API type-check/build通过 |
 | OBS-10-02A | DONE | 限定retained读模型完成：5100条保留历史有界聚合、revision水位、资产隔离、legacy坏行与SQL.js重开均覆盖，4 suites/15 tests通过。retained unfinished=0只表示保留事实中无未完成项；coverage仍为unknown，live active保持null；只投影最新generation而非全历史 |
