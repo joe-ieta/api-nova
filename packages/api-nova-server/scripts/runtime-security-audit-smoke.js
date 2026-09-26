@@ -9,7 +9,7 @@ const { generateKeyPair, exportJWK, SignJWT } = createRequire(require.resolve('a
 const { createMcpServer, startStreamableMcpServer, startSseMcpServer } = require('../dist/index.js');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { SSEClientTransport } = require('@modelcontextprotocol/sdk/client/sse.js');
-const { listObservedRuntimeCallers, flushRuntimeAudit } = require('api-nova-parser');
+const { flushRuntimeAudit } = require('api-nova-parser');
 
 async function main() {
   const directory = await fs.mkdtemp(path.join(tmpdir(), 'api-nova-mcp-audit-'));
@@ -178,8 +178,14 @@ async function main() {
       assert.equal(protocol.rootInvocationId, parent.rootInvocationId);
       assert.notEqual(protocol.parentInvocationId, protocol.invocationId);
     }
-    const inventory = await listObservedRuntimeCallers();
-    assert.equal(inventory.filter(caller => caller.subject === 'caller-a').length, 1);
+    const callerFiles = (await fs.readdir(directory)).filter(name => /^callers-.+\.jsonl$/.test(name));
+    const observations = [];
+    for (const file of callerFiles) {
+      for (const line of (await fs.readFile(path.join(directory, file), 'utf8')).split(/\r?\n/)) {
+        if (line) observations.push(JSON.parse(line));
+      }
+    }
+    assert.equal(observations.filter(item => item.subject === 'caller-a').length, 1);
     console.log('RUNTIME_SECURITY_AUDIT_SMOKE_OK');
   } finally {
     if (sseClient) await sseClient.close();

@@ -281,15 +281,12 @@ async function main() {
     assert.equal(login.status, 200, 'management login');
     const loginBody = await login.json(); const adminToken = loginBody.accessToken || loginBody.data?.accessToken;
     assert.ok(adminToken, 'management access token');
-    const inventoryPath = `${base}/api/v1/monitoring/management/external-callers`;
-    assert.equal((await fetchTls(inventoryPath)).status, 401);
-    assert.equal((await fetchTls(inventoryPath, { headers: { authorization: `Bearer ${mcpToken}` } })).status, 401);
-    const inventoryResponse = await fetchTls(inventoryPath, { headers: { authorization: `Bearer ${adminToken}` } });
-    assert.equal(inventoryResponse.status, 200);
-    const inventory = await inventoryResponse.json();
-    const callerRows = inventory.data.data.filter(item => item.subject === 'external-caller');
-    assert.equal(callerRows.length, 1); assert.deepEqual(callerRows[0].transports.sort(), ['gateway', 'mcp']);
-    check('protected management caller inventory merges both processes without registration');
+    const legacyInventoryPath = `${base}/api/v1/monitoring/management/external-callers`;
+    for (const headers of [{}, { authorization: `Bearer ${mcpToken}` }, { authorization: `Bearer ${adminToken}` }]) {
+      assert.equal((await fetchTls(legacyInventoryPath, { headers })).status, 404,
+        'legacy caller inventory must be removed without alias or fallback');
+    }
+    check('legacy management caller inventory removed without fallback');
     await mcpClient.close(); mcpClient = undefined;
     const runningChildren = children.filter(child => child.connected && child.exitCode === null && child.signalCode === null);
     assert.equal(runningChildren.length, 2, 'both test producers remain available for audit flush');
@@ -304,6 +301,11 @@ async function main() {
     for (const secret of [upstreamCredential, gatewayToken, mcpToken, 'response-private-value']) assert.ok(!raw.includes(secret), 'no credentials in audit');
     const records = raw.split('\n').filter(Boolean).map(line => JSON.parse(line));
     for (const record of records) assert.equal(record.schemaVersion, 2, 'current call record schema');
+    const callerFiles = (await fs.readdir(env.API_NOVA_AUDIT_DIR)).filter(file => /^callers-.+\.jsonl$/.test(file));
+    const callerObservations = (await Promise.all(callerFiles.map(file => fs.readFile(path.join(env.API_NOVA_AUDIT_DIR, file), 'utf8'))))
+      .join('').split('\n').filter(Boolean).map(line => JSON.parse(line)).filter(item => item.subject === 'external-caller');
+    assert.deepEqual([...new Set(callerObservations.map(item => item.transport))].sort(), ['gateway', 'mcp'],
+      'raw caller observations merge both processes');
     const calls = records.filter(item => item.phase === 'finished' && item.kind === 'api' && item.spanKind === 'upstream_api');
     assert.equal(calls.length, 3); assert.equal(new Set(calls.map(call => call.callerId)).size, 1);
     assert.equal(new Set(calls.map(call => call.invocationId)).size, 3, 'one terminal record per actual upstream call');

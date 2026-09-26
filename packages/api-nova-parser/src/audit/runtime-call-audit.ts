@@ -1,8 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, randomUUID } from 'node:crypto';
-import { appendFile, mkdir, readdir } from 'node:fs/promises';
-import { createReadStream } from 'node:fs';
-import { createInterface } from 'node:readline';
+import { appendFile, mkdir } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { publishRuntimeAuditSource } from './runtime-audit-source';
 import type { AuditRecordPhase, InvocationKind, InvocationOutcome, ObservabilityOrigin, ByteMeasurement } from './runtime-observability-contract';
@@ -416,37 +414,6 @@ export async function writeRuntimeCall(record: RuntimeCallRecord): Promise<void>
     pendingWriteBytes = Math.max(0, pendingWriteBytes - reservation);
   });
   await writeChain;
-}
-
-/** Credential-free inventory. Does not expose invocation bodies or tokens. */
-export async function listObservedRuntimeCallers() {
-  await flushRuntimeAudit();
-  const directory = auditDirectory();
-  let files: string[];
-  try { files = await readdir(directory); } catch (error: any) {
-    if (error.code === 'ENOENT') return [];
-    throw error;
-  }
-  const callers = new Map<string, { callerId: string; issuer?: string; subject?: string;
-    firstSeenAt: string; lastSeenAt: string; transports: string[] }>();
-  for (const file of files.filter(name => /^callers-[a-f0-9-]+\.jsonl$/.test(name))) {
-    const lines = createInterface({ input: createReadStream(join(directory, file)), crlfDelay: Infinity });
-    for await (const line of lines) {
-      let item: any;
-      try { item = JSON.parse(line); } catch { continue; } // A process may be appending its last line.
-      if (!item.callerId || !item.observedAt) continue;
-      const current = callers.get(item.callerId);
-      if (!current) callers.set(item.callerId, { callerId: item.callerId, issuer: item.issuer,
-        subject: item.subject, firstSeenAt: item.observedAt, lastSeenAt: item.observedAt,
-        transports: [item.transport] });
-      else {
-        current.firstSeenAt = current.firstSeenAt < item.observedAt ? current.firstSeenAt : item.observedAt;
-        current.lastSeenAt = current.lastSeenAt > item.observedAt ? current.lastSeenAt : item.observedAt;
-        if (!current.transports.includes(item.transport)) current.transports.push(item.transport);
-      }
-    }
-  }
-  return [...callers.values()].sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt) || a.callerId.localeCompare(b.callerId));
 }
 
 export async function flushRuntimeAudit(): Promise<void> {
