@@ -1,5 +1,5 @@
 ---
-doc-version: 1.77.0
+doc-version: 1.78.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -283,28 +283,28 @@ SEC-F3-02D按第 5 节 N01–N17 冻结矩阵执行：N02 分别验证 legacy �
 | H10 | 固定长度/分块/空体/Expect/取消 | framing 和实际字节一致，无双 framing、二次消费或空体重放 | 02B真实流与独立Expect入口通过；生产入口安装待D3/D4 |
 | H11 | Range/If-*/Accept-Encoding 不同而路径相同，随后缓存命中 | 状态/Header/正文与直连语义一致；按 §3.6 强制隔离或 bypass 有证据 | H11A完成Registry-source route-specific membership v1激活；H11B以真实deploy→plan/replay→activate→Nest HTTP/cache 33场景闭合，覆盖Range/If-*、gzip/identity字节、cache分区与直连/bypass；相关73 suites/1023 tests及API build通过 |
 | H12 | Resolver 错误/None/旧 Env/非法 Env | Resolver 错误固定 503 且 connectCalls=0；旧 Env 分支独立断言，不错误套用固定 503 | 02B真实Resolver503零命中及旧专项通过；完整生产接线待D1/D4 |
-| N01 | Gateway 收到 302/307 与 Location | 仅一次 request，返回状态/Location，hop=0，无下一跳 | 代码基线待执行 |
-| N02 | Parser legacy与safe-read第五/第六次跳转 | 分别验证既有legacy基线和显式safe-read的5次边界；默认不跟随；有无context一致 | 政策已定，待实现 |
-| N03 | 初始 scheme/host/port/base path/asset 不匹配 | C4 联网前拒绝，allowedHosts 不能单独放行 | Resolver 逻辑待执行 |
-| N04 | 相对 Location 到同 Site 有效 Endpoint | 每跳复验、重建 Header，仅目标凭据出站，hop 递增 | 政策已定，待实现 |
-| N05 | 同源跳出 /api、到 /api-evil 或 None Endpoint | 越界拒绝；有授权的 None 不携带前跳凭据；不复用初始 endpoint ID | 政策已定，待实现 |
-| N06 | 同asset的Site A到B、端口变化及跨asset目标 | 同asset全授权时仅B凭据出站；无授权或跨asset拒绝下一跳连接/写出 | 政策已定，待实现 |
-| N07 | HTTPS 降级/userinfo/非法 scheme/循环/超跳数 | 按显式政策拒绝，无下一跳写出；错误无敏感 URL | 首跳部分已校验，逐跳缺口 |
-| N08 | DNS 返回 10.0.0.1、127.0.0.1、169.254.169.254、0.0.0.0、100.64.0.1 | 公网配置逐地址拒绝，connectCalls=0 | 政策已定，待实现 |
-| N09 | ::、::1、fc00::1、fe80::1、::ffff:127.0.0.1、组播、zone ID | 公网配置拒绝；规范化变体不绕过 | 政策已定，待实现 |
-| N10 | 2130706433、0x7f000001、127.1等URL | 准入拒绝非规范IP字面量，规范化变体不能绕过始终拒绝集合 | 政策已定，待实现 |
-| N11 | A/AAAA 混合允许与禁止地址，CNAME 最终私网 | 整次拒绝，无连接；不只检查第一地址 | 政策已定，待实现 |
-| N12 | DNS 先允许后私网、peer 不同、复用旧 socket | 连接绑定验证地址；peer 不符 writeCalls=0；复用不绕过授权 | 政策已定，待实现 |
-| N13 | 精确内网origin/IP/端口例外、到期及始终拒绝地址 | 仅限期精确例外成功；过期/相邻地址/始终拒绝集合失败；legacy须显式迁移 | 政策已定，待实现 |
-| N14 | 显式代理、自定义transport及各大小写代理环境变量/NO_PROXY | v1配置拒绝代理/自定义transport；直连客户端不继承环境代理；代理陷阱零连接 | 政策已定，待实现 |
-| N15 | 307/308不可重放流；301/302/303 POST及空体GET/HEAD | 非空体或非GET/HEAD不跟随；仅safe-read可保持方法跟随空体GET/HEAD；无隐式重放 | 政策已定，待实现 |
-| N16 | 两跳间普通reload/撤销，retry/DNS超时/取消 | 普通reload固定版本，撤销世代变化终止；每新连接重验，取消后无写出 | 政策已定，待实现 |
-| N17 | 每种场景有/无context | 安全结果一致，观测失败不放宽政策，被拒跳不伪造发送 | 政策已定，待实现 |
+| N01 | Gateway 收到 302/307 与 Location | 仅一次 request，返回状态/Location，hop=0，无下一跳 | 限定本地通过：隔离HTTP 302单请求不跟随；307受同族重定向策略约束（F3-N矩阵） |
+| N02 | Parser legacy与safe-read第五/第六次跳转 | 分别验证既有legacy基线和显式safe-read的5次边界；默认不跟随；有无context一致 | 限定本地通过：safe-read五跳分连/第六跳拒绝、未配置分支单跳（F3-N矩阵） |
+| N03 | 初始 scheme/host/port/base path/asset 不匹配 | C4 联网前拒绝，allowedHosts 不能单独放行 | 限定本地通过：真实HTTP/TLS忽略ambient凭据、证书失败零字节、字面pin（F3-N矩阵） |
+| N04 | 相对 Location 到同 Site 有效 Endpoint | 每跳复验、重建 Header，仅目标凭据出站，hop 递增 | 限定本地通过：按真实method/path解析并重选Site（F3-N矩阵） |
+| N05 | 同源跳出 /api、到 /api-evil 或 None Endpoint | 越界拒绝；有授权的 None 不携带前跳凭据；不复用初始 endpoint ID | 限定本地通过：同asset跨origin重授权、None剥离历史凭据（F3-N矩阵） |
+| N06 | 同asset的Site A到B、端口变化及跨asset目标 | 同asset全授权时仅B凭据出站；无授权或跨asset拒绝下一跳连接/写出 | 限定本地通过：缺失/重复/循环/未知/外来Location零下一跳、降级拒绝（F3-N矩阵） |
+| N07 | HTTPS 降级/userinfo/非法 scheme/循环/超跳数 | 按显式政策拒绝，无下一跳写出；错误无敏感 URL | 限定本地通过：真实跟随剥离凭据、HEAD保持、伪造proof零发送（F3-N矩阵） |
+| N08 | DNS 返回 10.0.0.1、127.0.0.1、169.254.169.254、0.0.0.0、100.64.0.1 | 公网配置逐地址拒绝，connectCalls=0 | 限定本地通过：空/NXDOMAIN/SERVFAIL逐地址closed、例外过期即拒（F3-N矩阵） |
+| N09 | ::、::1、fc00::1、fe80::1、::ffff:127.0.0.1、组播、zone ID | 公网配置拒绝；规范化变体不绕过 | 限定本地通过：下一跳重解析拒绝rebinding并零HTTP（F3-N矩阵） |
+| N10 | 2130706433、0x7f000001、127.1等URL | 准入拒绝非规范IP字面量，规范化变体不能绕过始终拒绝集合 | 限定本地通过：静默DNS 5秒上限、预中止/超期零DNS包（F3-N矩阵） |
+| N11 | A/AAAA 混合允许与禁止地址，CNAME 最终私网 | 整次拒绝，无连接；不只检查第一地址 | 限定本地通过：混合与CNAME私网整组拒绝、CNAME终址授权（F3-N矩阵） |
+| N12 | DNS 先允许后私网、peer 不同、复用旧 socket | 连接绑定验证地址；peer 不符 writeCalls=0；复用不绕过授权 | 限定本地通过：完整A/AAAA授权零目标连接、单跳rebinding不可达另一peer（F3-N矩阵） |
+| N13 | 精确内网origin/IP/端口例外、到期及始终拒绝地址 | 仅限期精确例外成功；过期/相邻地址/始终拒绝集合失败；legacy须显式迁移 | 限定本地通过：限期精确例外、CIDR规范化与始终拒绝集合（F3-N矩阵） |
+| N14 | 显式代理、自定义transport及各大小写代理环境变量/NO_PROXY | v1配置拒绝代理/自定义transport；直连客户端不继承环境代理；代理陷阱零连接 | 限定本地通过：忽略代理环境、代理陷阱零连接、拒绝connection:proxy与外部transport（F3-N矩阵） |
+| N15 | 307/308不可重放流；301/302/303 POST及空体GET/HEAD | 非空体或非GET/HEAD不跟随；仅safe-read可保持方法跟随空体GET/HEAD；无隐式重放 | 限定本地通过：303保持GET/HEAD、POST/带体单跳原体返回、无隐式重放（F3-N矩阵） |
+| N16 | 两跳间普通reload/撤销，retry/DNS超时/取消 | 普通reload固定版本，撤销世代变化终止；每新连接重验，取消后无写出 | 限定本地通过：普通reload固定版本、撤销世代终止、每新连接重验（F3-N矩阵） |
+| N17 | 每种场景有/无context | 安全结果一致，观测失败不放宽政策，被拒跳不伪造发送 | 限定本地通过：有/无context一致、观测失败不放宽、被拒跳不伪造发送（F3-N矩阵） |
 | L01 | 全矩阵使用合成消费者/A/B 秘密，收集日志/异常/审计/快照 | 消费者秘密不出站，A 秘密不进入 B，采集输出无合成秘密，含安全原因/版本 | 待执行，不替代全量 F3 Scan |
 
 网络拒绝分阶段断言：URL/策略/DNS 拒绝要求 connectCalls=0；peer 复核拒绝允许已建连但要求 writeCalls=0。不能用“最后 HTTP 报错”代替联网前或写出前证据。若 mock Agent 无法观测真实发送时点，该项仍未覆盖，不得用 mock 返回值宣布通过。
 
-本地集成验收使用受控 HTTP/HTTPS/代理服务器验证 TLS、真实 socket、缓存、重放与平台差异，无需访问生产秘密或公网服务。
+本地集成验收使用受控 HTTP/HTTPS/代理服务器验证 TLS、真实 socket、缓存、重放与平台差异，无需访问生产秘密或公网服务。2026-09-26 本地 N 矩阵执行器 `scripts/verify-f3-n-matrix.cjs`（`npm run verify:f3-n-matrix`）在隔离回环 DNS/HTTP/TLS/代理上运行 parser 17 套件/573 例与 gateway 84 例全绿，逐项映射见[证据](../audits/2026-09-26-f3-n-matrix-local.md)；生产默认启用与 Linux 平台矩阵仍待环境验收。
 
 ## 6. 依赖与退出条件
 

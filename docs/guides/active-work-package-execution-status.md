@@ -1,5 +1,5 @@
 ---
-doc-version: 1.163.0
+doc-version: 1.164.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -47,6 +47,8 @@ OBS-14-03D 限定 DONE：新增receipt墓碑实体与读取门禁、三阶段有
 
 SEC-F3a-01 限定 DONE：在线执行当前锁文件依赖审计（[证据](../audits/2026-09-26-dependency-reachability-audit.md)）：生产32项（0 critical/10 high/21 moderate/1 low，544 prod）、全量59（1 critical/24 high/30 moderate/4 low）；逐包生产链与处置分三类（主版本内可补丁、Nest 12重大升级、UI直接依赖），锁文件SHA-256留证；未应用补丁或重大升级，发布前重跑。
 
+SEC-F3-02D 限定 DONE：新增 `verify:f3-n-matrix` 执行器，在隔离回环 DNS/HTTP/TLS/代理上按 N01–N17 逐项核对（[证据](../audits/2026-09-26-f3-n-matrix-local.md)）；parser 17套件/573例、gateway 84例全绿；补 gateway 单跳302不跟随用例；合同§4.6十七行状态更新为限定本地通过；生产默认启用、公网与Windows/Linux矩阵仍为环境项。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -56,8 +58,8 @@ SEC-F3a-01 限定 DONE：在线执行当前锁文件依赖审计（[证据](../a
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 169 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 2 | 可进入队列，当前并非全部开工 |
+| DONE | 170 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 1 | 仅剩 MAIL-02（大型 CODE），无其他 READY |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 18 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
@@ -193,7 +195,7 @@ SEC-F3a-01 限定 DONE：在线执行当前锁文件依赖审计（[证据](../a
 | SEC-F3-02C5a | DONE | 限定纯失败/审计模块完成：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时 |
 | SEC-F3-02C5b | DONE | 限定双运行时接线完成：Gateway provider在prepare/send/completed单点emit `upstream.network_failure`（operationId/policy/revision/site/endpoint/revocationEpoch/attempt/hop/stage），stream未知错误固定503不回传原始DNS/TLS细节；Parser single-hop与host bridge显式failureAudit透传并按阶段emit。真实HTTP/TLS负测（sink故障不改拒绝、秘密扫描）；Parser 49 suites/1196 tests、Gateway 51 suites/735 tests、两包构建；未持久化事件（归C6/F3D）、无child/E3b、生产默认关闭 |
 | SEC-F3-02C6 | DONE | 限定联合矩阵完成：新增`scripts/verify-f3-dual-runtime.cjs`（npm run verify:f3-dual-runtime）聚合重跑Parser 4 suites/78 tests与Gateway 3 suites/95 tests并输出clause矩阵`F3_DUAL_RUNTIME_MATRIX_OK`；仅本地回环DNS/HTTP/TLS，不代表生产默认启用/PG/F3D平台验收 |
-| SEC-F3-02D | READY | C6已闭合；N01–N17 Gateway/Parser真实连接、生产默认启用及Windows/Linux环境矩阵待验收 |
+| SEC-F3-02D | DONE | 限定本地 N 矩阵完成（[证据](../audits/2026-09-26-f3-n-matrix-local.md)）：隔离回环 DNS/HTTP/TLS/代理上 N01–N17 逐项映射，parser 17套件/573例+gateway 84例全绿（`verify:f3-n-matrix`，含新增N01单跳302用例）；生产默认启用、公网与Windows/Linux跨平台矩阵仍为环境项 |
 | SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
 | SEC-F3a-01 | DONE | 限定在线审计完成（[证据](../audits/2026-09-26-dependency-reachability-audit.md)）：生产32项（0C/10H/21M/1L）与逐项可达性/处置记录，dev 27项含1 critical（工具链）；锁文件SHA-256留证；未应用补丁或重大升级，主版本内补丁候选与Nest12/UI升级路径已登记 |
 | SEC-F4-01 | DONE | 当前112个SEC叶子以逐项或明确聚合旧ID维护，D2b1/b2/b3a–d及C2b1/b2a/b2b1/b2b2/b3依赖已登记；区分历史/本地限定/未运行环境，不代表F4-02签收 |

@@ -283,6 +283,12 @@ describe.each(['http', 'https'])('explicit host Gateway network stream through r
     expect(provider).not.toHaveBeenCalled();
     expect(operationBegin).toHaveBeenCalledTimes(1);
   });
+  it('N01 returns the first-hop redirect status and never follows or repeats the request', async () => {
+    handler = (_req, res) => { res.writeHead(302, { location: 'https://other.example/next' }); res.end(); };
+    const result = await request();
+    expect(result.status).toBe(302);
+    expect(hits).toBe(1); expect(connections).toBe(1); expect(dnsQueries).toBe(2);
+  });
   it('C5b audits a revoked operation once and keeps sink failures from changing the refusal', async () => {
     dnsGate = () => network.revoke('binding');
     auditThrows = true;

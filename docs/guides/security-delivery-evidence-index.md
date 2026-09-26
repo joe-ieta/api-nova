@@ -1,5 +1,5 @@
 ---
-doc-version: 1.107.0
+doc-version: 1.108.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -164,7 +164,7 @@ SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估�
 | SEC-F3-02C5a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时。 |
 | SEC-F3-02C5b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **DONE（限定）**：Gateway provider单点emit `upstream.network_failure`，stream未知错误固定503无原始细节；Parser single-hop与bridge显式failureAudit透传按阶段emit。真实HTTP/TLS负测含sink故障不改拒绝与秘密扫描；Parser 49 suites/1196 tests、Gateway 51 suites/735 tests。未持久化事件（C6/F3D）、生产默认关闭。 |
 | SEC-F3-02C6 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md)、[双运行时矩阵执行器](../../scripts/verify-f3-dual-runtime.cjs) | **DONE（限定）**：聚合重跑Parser 4 suites/78 tests与Gateway 3 suites/95 tests，输出clause矩阵`F3_DUAL_RUNTIME_MATRIX_OK`；仅本地回环DNS/HTTP/TLS，无生产默认启用/PG/F3D平台矩阵。 |
-| SEC-F3-02D | [网络边界合同§4.6及N01–N17](./security-header-network-boundary-contract.md) | **READY**：C6依赖已闭合；N01–N17真实连接、生产默认启用及Windows/Linux矩阵待执行。 |
+| SEC-F3-02D | [本地 N 矩阵证据](../audits/2026-09-26-f3-n-matrix-local.md)、[网络边界合同§4.6及N01–N17](./security-header-network-boundary-contract.md) | **DONE（限定）**：隔离回环 N01–N17 逐项映射，parser 17套件/573例+gateway 84例全绿；生产默认启用、公网与Windows/Linux矩阵仍为环境项。 |
 | SEC-F3-03 | [安全用例](../testing/runtime-security-audit-cases.md)、[受管通道脚本](../../packages/api-nova-api/scripts/test-managed-mcp-channel.cjs) | **限定执行/待验收**：局部脱敏与 IPC 无 argv Secret 有证据；完整 argv/log/错误/快照 Secret Scan、创建/更新/撤销审计可检索依赖产品 E1。 |
 | SEC-F3a-01 | [依赖可达性审计](../audits/2026-09-26-dependency-reachability-audit.md)、[安全台账 §6](./security-development-execution-status.md) | **DONE（限定）**：2026-09-26在线审计生产32项（0C/10H/21M/1L）与全量59项，逐项可达性与三类处置记录，锁文件SHA-256留证；未应用补丁/重大升级，发布前重跑。 |
 | SEC-F4-01 | 本索引及SEC当前叶子出口逐项映射 | **限定执行已完成/持续维护**：索引按当前112个SEC叶子或明确标注的聚合旧ID维护；ID/链接校验不改变技术父包状态，也不自动使 F4-02 READY。 |
