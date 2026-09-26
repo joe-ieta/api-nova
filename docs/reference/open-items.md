@@ -1,5 +1,5 @@
 ---
-doc-version: 1.14.1
+doc-version: 1.14.2
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -129,7 +129,7 @@ OAuth2 EXT-10 恢复后需提供：受信任 issuer/JWKS URL、Gateway/MCP 公�
 
 优先级：P2
 
-状态：内部实现完成；操作者身份透传与运营审计检索仍待后续工作。
+状态：本地限定完成（PROD-05）：操作者actor已透传，实例/绑定变更可按 `resource+resourceId+userId` 检索，权限拒绝可验证；PG/UI检索与持久队列仍由 AUDIT-02/03 与发布验收跟踪。
 
 源实例和上游绑定的创建、更新、归档、默认切换、探测、删除/替换均写入现有 `audit_logs`，资源类型、操作、before/after、原因和关联 revision 可用于后续检索。审计写入失败不阻断已完成的配置变更，生产告警/持久队列仍由 `AUDIT-02`/`AUDIT-03` 负责。
 

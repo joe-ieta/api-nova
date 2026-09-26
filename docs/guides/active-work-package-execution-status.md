@@ -1,5 +1,5 @@
 ---
-doc-version: 1.153.0
+doc-version: 1.154.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -21,6 +21,10 @@ OBS-14-06T 限定 DONE：新增默认off的暂存源文件有界恢复（scan/de
 
 SEC-F3-02C1d4 限定 DONE：隔离PG真实host/Registry+本地HTTP联合验证facade在途流固定旧pair/旧凭据且新请求见新代次、错误origin装配被拒后当前pair继续服务、在途proof到期主动abort活动流并释放lease、shutdown同步中止全部signal且abort listener清零；隔离PG warm 61（本叶新增5）/cold 4检查、零漂移并停止清理；Gateway 51 suites/726 tests与既有真实TLS专项为邻证。未含外部Secret Manager/多进程E3b/目标环境。
 
+SEC-F3-02C3 限定 DONE：Gateway请求入口锚定唯一绝对deadline并贯通prepare/send/取消（authorize/admit耗时计入），network lease强制单attempt、复用同一prepared lease与host operation且命中热缓存也不读不写；新增运行时3项与真实HTTP/TLS（http/https各一）入口deadline验收；Gateway 51 suites/731 tests、API build通过。redirect仍单跳不跟随（Parser多跳归C2b2b2），生产默认关闭。
+
+PROD-05 限定 DONE：实例/绑定变更actor已透传并可按resource+resourceId+userId检索（AuditLogQueryDto新增resourceId并接入findLogs/export），权限拒绝记录action/level/status/requiredPermissions可验证；4套22项（含SQL.js真实审计检索与actor断言）；不新增审计存储/权限/UI，PG与UI检索另验。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -30,8 +34,8 @@ SEC-F3-02C1d4 限定 DONE：隔离PG真实host/Registry+本地HTTP联合验证fa
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 156 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 11 | 可进入队列，当前并非全部开工 |
+| DONE | 158 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 9 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 22 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
@@ -162,7 +166,7 @@ SEC-F3-02C1d4 限定 DONE：隔离PG真实host/Registry+本地HTTP联合验证fa
 | SEC-F3-02C2b2b1 | DONE | 限定host-only readSignal完成：evidence源码/spec两文件，专项2 suites/60 tests、Parser 46 suites/1135 tests、typecheck/build、cleanup及diff-check全绿；同代generation与issuer失效合成同步AbortSignal，256有界缓存且终态detach。消费者的denied/unavailable网络映射、env/file激活和生产多跳仍待b2b2 |
 | SEC-F3-02C2b2b2 | DONE | 限定真实多跳transport完成：4个Parser network文件、专项3 suites/87 tests、Parser 47 suites/1170 tests、typecheck/build、cleanup及diff-check全绿；同一handle/signal/deadline与同generation贯穿逐跳DNS/TLS/epoch、raw Location、最多5跳及8MiB边界。默认off，不构成Transformer/Gateway生产启用 |
 | SEC-F3-02C2b3 | DONE | 限定Parser host-only safe-read接入完成：4个Parser文件、新增14 tests、Parser 48 suites/1184 tests、typecheck/build及diff-check全绿；只接受同一真实issuer与显式proof，工具/OpenAPI不能开关或提供目标模板。受信network branch缺redirect配置仍single-hop，历史Axios maxRedirects=5原样；Gateway未改、生产默认off |
-| SEC-F3-02C3 | READY | C1d4已闭合；Gateway固定同一operation/route/membership/Registry版本，redirect/retry/取消共享deadline，reload/撤销后旧epoch不得继续 |
+| SEC-F3-02C3 | DONE | 限定固定操作生命周期完成：请求入口锚定唯一绝对deadline并贯通prepare/send/取消，network lease强制单attempt并复用同一prepared lease/host operation，热缓存也不读不写；运行时3项+真实HTTP/TLS entry-deadline验收、Gateway 51 suites/731 tests、API build；redirect仍单跳不跟随（Parser多跳归C2b2b2），生产默认关闭 |
 | SEC-F3-02C4 | DONE | 限定DONE：仅两份既有spec新增23项真实失败验收（Parser9、Gateway14）；专项27/76项、Parser48 suites/1193 tests、Gateway47 suites/701 tests、Parser typecheck/build、API build及diff-check均PASS。reset/503 Retry-After/DNS拒绝与不可用/TLS失败均单attempt，cache read/store零调用，失败lease不可重放且沿用原operation handle/deadline/signal；旧非网络cache/retry兼容保持。无生产源码或默认开关变更，不覆盖生产配置/DI、缓存恢复、自动retry、C3/C5b/C6或D2b3b2 PostgreSQL持久ledger |
 | SEC-F3-02C5a | DONE | 限定纯失败/审计模块完成：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时 |
 | SEC-F3-02C5b | WAIT_DEP | 等C2b3/C3/C5a；双运行时接入统一失败语义和审计，以真实HTTP负测验证fail-closed与零秘密泄漏 |
@@ -238,7 +242,7 @@ SEC-F3-02C1d4 限定 DONE：隔离PG真实host/Registry+本地HTTP联合验证fa
 | PROD-04B3E3 | DONE | SQL.js临时目录双服务排队、旧写者、CAS/文件/DB失败与重启矩阵；四套75/75、API typecheck；不代表PG跨进程/生产验收 |
 | PROD-04B3D | DONE | 本地JWT HTTP删除→410→重启/失败墓碑重试→404，回放前/中撤销鲜读BLOCKED且旧版本保留；11套148/148；候选外发为mock、PG/平台待04C |
 | PROD-04C | NEED_ENV | B3D本机出口已完成；完整留存、跨进程PG/平台权限、生产身份及真实候选外发需要明确隔离目标环境 |
-| PROD-05 | READY | 既有变更审计不重做 |
+| PROD-05 | DONE | 限定操作者透传与检索完成：实例/绑定变更actor已透传，`resource+resourceId+userId`可通过后续`audit:read`检索（DTO与findLogs/export接线），权限拒绝403记录action/level/status/requiredPermissions；4套22项（含SQL.js真实审计检索）；不新增审计存储/权限/UI，PG与UI检索另验 |
 | PROD-06 | SCOPE_REVIEW | 近期把完整CAS反复列作未完成，存在范围扩张风险 |
 | EXT-01 | NEED_ENV | 不当成代码未实现 |
 | EXT-02 | NEED_ENV | 环境待核实 |
