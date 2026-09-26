@@ -1,5 +1,5 @@
 ---
-doc-version: 1.157.0
+doc-version: 1.158.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -31,6 +31,8 @@ SEC-F3-02C5b 限定 DONE：双运行时接入C5a统一失败语义与审计：Ga
 
 SEC-F3-02C6 限定 DONE：新增`scripts/verify-f3-dual-runtime.cjs`（npm run verify:f3-dual-runtime）聚合重跑Parser 4 suites/78 tests（operation epoch、多跳重选/逐跳凭据、host safe-read、failure audit）与Gateway 3 suites/95 tests（单attempt/cache-off、host装配/冲突拒绝、registration/撤销），输出clause矩阵与`F3_DUAL_RUNTIME_MATRIX_OK`；仅本地回环DNS/HTTP/TLS，不代表生产默认启用/PG/F3D平台验收。
 
+MAINT-02 限定 DONE：新增`packages/api-nova-ui/scripts/check-delivery-i18n.cjs`对8个交付面UI文件做严格UTF-8解码与乱码检查，全部通过（0乱码）；`RuntimeUpstreamBindingDialog.vue`可见硬编码中文46行登记为后续维护项，按叶子约束不做无限微修。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -40,8 +42,8 @@ SEC-F3-02C6 限定 DONE：新增`scripts/verify-f3-dual-runtime.cjs`（npm run v
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 161 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 10 | 可进入队列，当前并非全部开工 |
+| DONE | 162 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 9 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 18 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
@@ -264,7 +266,7 @@ SEC-F3-02C6 限定 DONE：新增`scripts/verify-f3-dual-runtime.cjs`（npm run v
 | MAIL-01 | DONE | [邮件投递范围与受控验收合同](./mail-delivery-scope-and-acceptance.md)冻结三类接口、模板、测试邮箱与证据合同；仅DOC，不改变当前运行默认 |
 | MAIL-02 | READY | MAIL-01已闭合；按合同实施受控投递与失败恢复，实际给他人发信另需授权 |
 | MAINT-01 | WAIT_DEP | 等待发布行为与接口边界稳定后再冻结维护验收，当前不进入主线 |
-| MAINT-02 | READY | 持续维护，不算固定父包完成率 |
+| MAINT-02 | DONE | 限定本轮交付范围验收：新增`packages/api-nova-ui/scripts/check-delivery-i18n.cjs`对8个交付面文件做UTF-8严格解码/乱码检查，0乱码、8/8通过；`RuntimeUpstreamBindingDialog.vue`仍有46行可见硬编码中文，按叶子“不无限微修”约束登记为后续维护项，不阻塞本批 |
 | DEFER-01 | DEFERRED | 明确延期 |
 | DEFER-02 | DEFERRED | 明确延期 |
 
