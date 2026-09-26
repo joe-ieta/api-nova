@@ -52,9 +52,10 @@
 | [重拆第五批限定证据](./audits/2026-09-16-replanned-batch-5-evidence.md) | 1.0.0 | active | 2026-09-16 |
 | [端点测试二进制样例合同](./guides/endpoint-test-binary-sample-contract.md) | 0.8.0 | active | 2026-09-17 |
 | [活跃工作包划分](./guides/active-work-package-breakdown.md) | 1.88.0 | active | 2026-09-24 |
-| [安全交付验收证据索引](./guides/security-delivery-evidence-index.md) | 1.100.0 | active | 2026-09-26 |
+| [安全交付验收证据索引](./guides/security-delivery-evidence-index.md) | 1.101.0 | active | 2026-09-26 |
+| [邮件投递范围与受控验收合同](./guides/mail-delivery-scope-and-acceptance.md) | 1.0.0 | active | 2026-09-26 |
 | [MCP发布端点合同](./guides/mcp-publication-endpoint-contract.md) | 0.2.0 | active | 2026-09-21 |
-| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.149.0 | active | 2026-09-26 |
+| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.151.0 | active | 2026-09-26 |
 | [受管MCP启动交付设计](./guides/managed-mcp-credential-handoff-plan.md) | 0.4.0 | reviewed-slice | 2026-09-21 |
 | [候选激活与GC重试](./audits/2026-09-15-activation-gc-wave.md) | 1.0.0 | active | 2026-09-15 |
 | [上游归属交叉核验](./audits/2026-09-15-upstream-ownership-wave.md) | 1.0.0 | active | 2026-09-15 |
@@ -89,7 +90,7 @@
 | [docs/reference/management-permission-matrix.md](./reference/management-permission-matrix.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/mcp-jsonrpc-relationship.md](./reference/mcp-jsonrpc-relationship.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/nodejs-module-systems-guide.md](./reference/nodejs-module-systems-guide.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/reference/open-items.md](./reference/open-items.md) | 1.14.0 | active | 2026-09-15 |
+| [docs/reference/open-items.md](./reference/open-items.md) | 1.14.1 | active | 2026-09-26 |
 | [docs/reference/README.md](./reference/README.md) | 1.3.0 | active | 2026-09-14 |
 | [docs/reference/versioning-policy.md](./reference/versioning-policy.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/release/api-nova-release-requirements.md](./release/api-nova-release-requirements.md) | 1.1.0 | active | 2026-09-08 |
@@ -107,12 +108,12 @@
 
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
-| [安全任务计划](./guides/security-development-task-plan.md) | 1.95.0 | active | 2026-09-26 |
-| [安全执行状态](./guides/security-development-execution-status.md) | 1.124.0 | active | 2026-09-26 |
+| [安全任务计划](./guides/security-development-task-plan.md) | 1.96.0 | active | 2026-09-26 |
+| [安全执行状态](./guides/security-development-execution-status.md) | 1.125.0 | active | 2026-09-26 |
 | [安全功能需求](./guides/security-functional-requirements.md) | 1.1.0 | active | 2026-09-15 |
 | [安全设计](./reference/security-design-and-implementation.md) | 1.2.0 | active | 2026-09-14 |
 | [Gateway 文件激活](./guides/gateway-upstream-credential-file-activation.md) | 1.1.0 | active | 2026-09-14 |
-| [D1/F3 边界契约](./guides/security-header-network-boundary-contract.md) | 1.72.0 | active | 2026-09-26 |
+| [D1/F3 边界契约](./guides/security-header-network-boundary-contract.md) | 1.73.0 | active | 2026-09-26 |
 | [安全调用与日志审计](./guides/runtime-security-and-call-audit.md) | 1.2.0 | active | 2026-09-14 |
 | [安全验收用例](./testing/runtime-security-audit-cases.md) | 1.2.0 | active | 2026-09-14 |
 | [SEC-A1-01鉴权模式跨层矩阵](./testing/sec-a1-01-auth-mode-cross-layer-matrix.md) | 0.2.0 | validation-evidence | 2026-09-16 |

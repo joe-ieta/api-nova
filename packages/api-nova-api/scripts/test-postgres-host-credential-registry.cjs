@@ -44,6 +44,7 @@ async function main() {
       await db.getRepository('EndpointDefinitionEntity').save([{ id: endpointA, sourceServiceAssetId: sourceA, method: 'GET', path: '/items' }, { id: endpointB, sourceServiceAssetId: sourceB, method: 'GET', path: '/items' }]);
       checks += await registrationChecks(db);
       checks += await facadeChecks(db);
+      checks += await bootstrapChecks(db);
       const f = fixture(), module = await Test.createTestingModule({ providers: [{ provide: 'host', useFactory: () => boot(f.token(), db) }] }).compile();
       const host = module.get('host'); dispose.push(() => host.close()); const snapshot = host.captureSnapshot();
       assert.equal(host.readEpoch(sourceA), f.input.expectedGeneration); assert.equal(host.readEpoch(sourceB), f.input.expectedGeneration);
@@ -325,4 +326,102 @@ async function facadeChecks(pg) {
     facade.close(); facade.close(); assert.equal(provider.requires(route), true); assert.equal(callbacks, 0); count++;
     return count;
   } finally { facade?.close(); service.onModuleDestroy(); }
+}
+async function bootstrapChecks(pg) {
+  const http = require('node:http');
+  const { ConfigService } = require('@nestjs/config');
+  const { Test } = require('@nestjs/testing');
+  const { createGatewayHostRuntime, GATEWAY_HOST_RUNTIME } = require('../dist/src/modules/gateway-runtime/services/gateway-host-runtime.providers');
+  const { createGatewayNetworkHostSource, GATEWAY_NETWORK_HOST_SOURCE, GATEWAY_NETWORK_HOST_FACADE,
+    GatewayNetworkHostBootstrapService } = require('../dist/src/modules/gateway-runtime/services/gateway-network-host-bootstrap.service');
+  const { GatewayRouteSnapshotService } = require('../dist/src/modules/gateway-runtime/services/gateway-route-snapshot.service');
+  const { GatewayPolicyService } = require('../dist/src/modules/gateway-runtime/services/gateway-policy.service');
+  const { GatewayProxyEngineService } = require('../dist/src/modules/gateway-runtime/services/gateway-proxy-engine.service');
+  const { GATEWAY_TRUSTED_NETWORK_PROVIDER, createGatewayTrustedNetworkFacade } = require('../dist/src/modules/gateway-runtime/services/gateway-trusted-network.provider');
+  const { GatewayRouteSnapshotEntity } = require('../dist/src/database/entities/gateway-route-snapshot.entity');
+  const { RuntimeAssetEntity, RuntimeAssetStatus, RuntimeAssetType } = require('../dist/src/database/entities/runtime-asset.entity');
+  const { GatewayRoutePathMatchMode } = require('../dist/src/database/entities/gateway-route-binding.entity');
+  const { createNetworkPolicyCompiler } = require('api-nova-parser');
+  let count = 0, seen = 0;
+  const upstream = http.createServer((_req, res) => { seen++; res.setHeader('content-type', 'text/plain'); res.end('host-network-ok'); });
+  const upstreamPort = await new Promise(resolve => upstream.listen(0, '127.0.0.1', () => resolve(upstream.address().port)));
+  const closeServer = server => new Promise(resolve => { server.closeAllConnections?.(); server.close(() => resolve()); });
+  const getStatus = (port, path) => new Promise((resolve, reject) => {
+    http.get({ hostname: '127.0.0.1', port, path }, res => { const chunks = []; res.on('data', chunk => chunks.push(chunk)); res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString() })); }).on('error', reject);
+  });
+  try {
+    const document = { apiVersion: 'security.apinova.io/v1', kind: 'UpstreamCredentialBindings', metadata: { revision: 'boot-r1', environment: 'test' }, reload: { mode: 'manual', debounceMs: 0, rejectPlaintextSecrets: true }, secretProviders: {}, credentials: {},
+      sites: [{ id: 'site0', sourceServiceAssetId: sourceA, match: { scheme: 'http', host: '127.0.0.1', port: upstreamPort, basePath: '/' }, allowedHosts: ['127.0.0.1'], credential: 'none', headerPolicy: { version: 1, responseHeaders: ['content-type'] }, endpoints: [{ endpointDefinitionId: endpointA }] }] };
+    const f = fixture(document), host = await boot(f.token(), pg); dispose.push(host.close);
+    for (const id of ['00000000-0000-0000-0000-000000000099', '00000000-0000-0000-0000-000000000100'])
+      await pg.getRepository(RuntimeAssetEntity).update(id, { status: RuntimeAssetStatus.OFFLINE, metadata: {} });
+    const runtimeId = '00000000-0000-0000-0000-000000000200';
+    const runtimeAsset = await pg.getRepository(RuntimeAssetEntity).save({ id: runtimeId, name: 'host-network', type: RuntimeAssetType.GATEWAY_SERVICE, status: RuntimeAssetStatus.ACTIVE });
+    const hostRuntime = createGatewayHostRuntime({ captureSnapshot: () => host.captureSnapshot() });
+    const policies = new GatewayPolicyService(null, hostRuntime);
+    const service = new GatewayRouteSnapshotService(policies, {}, pg.getRepository(GatewayRouteSnapshotEntity), {}, {}, pg.getRepository(RuntimeAssetEntity), {}, {}, {});
+    const binding = { id: 'boot-route', endpointDefinitionId: endpointA, authPolicyRef: 'jwt-default', pathMatchMode: GatewayRoutePathMatchMode.EXACT, upstreamMethod: 'GET', upstreamPath: '/items', createdAt: new Date(), updatedAt: new Date(), upstreamConfig: { headerPolicyMigration: { version: 1, mode: 'v1', source: 'registry' } } };
+    const entries = [{ runtimeAsset, routeBinding: binding, membership: { id: 'boot-member', publicationRevision: 1 }, publishBinding: { id: 'boot-pub' }, sourceServiceAsset: { id: sourceA }, endpointDefinition: { id: endpointA }, sourceServiceInstance: { id: 'instance' }, normalizedRoutePath: '/boot', routeMethod: 'GET', upstreamBaseUrl: 'http://127.0.0.1:' + upstreamPort, priorityScore: 1, policies: policies.compileForRoute(binding) }];
+    const fingerprint = service.fingerprintEntries(entries);
+    service.candidateSnapshots.set('boot-v1', { runtimeAssetId: runtimeId, entries, snapshotFingerprint: fingerprint, preparedAt: new Date() });
+    await pg.transaction(async manager => {
+      await service.activateCandidate('boot-v1', manager);
+      await manager.update(RuntimeAssetEntity, runtimeId, { metadata: { activeRevision: 'boot-v1', activeGatewaySnapshotFingerprint: fingerprint } });
+    });
+    await service.reload();
+    const route = service.resolve('localhost', 'GET', '/boot'); assert.ok(route);
+    const compiler = createNetworkPolicyCompiler({ deniedDestinations: [], loopback: 'test-only' });
+    const exception = (siteId, origin) => ({ id: 'boot-exception', revision: '1', sourceServiceAssetId: sourceA, siteId, origin, addresses: ['127.0.0.1'], purpose: 'isolated test', owner: 'test', approvalRef: 'test', issuedAt: new Date(Date.now() - 1000).toISOString(), expiresAt: new Date(Date.now() + 120000).toISOString() });
+    const policyFor = ({ route: target, siteId }) => compiler.compile({ version: 1, id: 'boot:' + target.routeBinding.id, revision: '1', sourceServiceAssetId: sourceA, siteId, origin: new URL(target.upstreamBaseUrl).origin, mode: 'private-exception', connection: 'direct', privateException: exception(siteId, new URL(target.upstreamBaseUrl).origin) });
+    const hostSource = createGatewayNetworkHostSource({ host, compiler, servers: ['127.0.0.1:53'], policyFor });
+    const facade = createGatewayTrustedNetworkFacade();
+    const makeRoutes = () => new GatewayRouteSnapshotService(new GatewayPolicyService(null, hostRuntime), {}, pg.getRepository(GatewayRouteSnapshotEntity), {}, {}, pg.getRepository(RuntimeAssetEntity), {}, {}, {});
+    const bootModule = (config, source = hostSource, routes = makeRoutes()) => Test.createTestingModule({ providers: [
+      { provide: GATEWAY_HOST_RUNTIME, useValue: hostRuntime },
+      { provide: GATEWAY_NETWORK_HOST_SOURCE, useValue: source },
+      { provide: GATEWAY_NETWORK_HOST_FACADE, useValue: facade },
+      { provide: GATEWAY_TRUSTED_NETWORK_PROVIDER, useFactory: value => value.provider, inject: [GATEWAY_NETWORK_HOST_FACADE] },
+      GatewayNetworkHostBootstrapService,
+      { provide: GatewayRouteSnapshotService, useValue: routes },
+      { provide: ConfigService, useValue: new ConfigService(config) },
+      { provide: GatewayProxyEngineService, useFactory: provider => new GatewayProxyEngineService({ createTracker: () => ({ observeChunk() {}, finalize: () => ({}) }) }, null, undefined, undefined, provider), inject: [GATEWAY_TRUSTED_NETWORK_PROVIDER] },
+    ] }).compile();
+    const positiveRoutes = makeRoutes();
+    const module = await bootModule({}, hostSource, positiveRoutes);
+    const app = module.createNestApplication();
+    app.use('/boot-gateway', (req, res) => {
+      const current = positiveRoutes.resolve('localhost', 'GET', '/boot');
+      void module.get(GatewayProxyEngineService).forward(current, req, res).catch(error => { console.error('[BOOT-FIXTURE]', error.stack || error); res.status(error.getStatus?.() ?? 500).json({ code: error.message }); });
+    });
+    await app.init();
+    assert.equal(hostRuntime.state().locked, false);
+    await app.listen(0, '127.0.0.1');
+    try {
+      const result = await getStatus(app.getHttpServer().address().port, '/boot-gateway');
+      assert.equal(result.status, 200, result.body); assert.equal(result.body, 'host-network-ok'); assert.equal(seen, 1); count++;
+    } finally { await app.close(); }
+    const conflictModule = await bootModule({ API_NOVA_UPSTREAM_CREDENTIAL_FILE: 'legacy.json' });
+    const conflictApp = conflictModule.createNestApplication();
+    try { await conflictApp.init(); throw new Error('conflicting host source was accepted'); }
+    catch (error) { assert.match(String(error), /gateway_network_host_installation_conflict/); count++; }
+    finally { await conflictApp.close().catch(() => undefined); }
+    const badSource = createGatewayNetworkHostSource({ host, compiler, servers: ['127.0.0.1:53'],
+      policyFor: () => compiler.compile({ version: 1, id: 'wrong', revision: '1', sourceServiceAssetId: sourceA, siteId: 'site0', origin: 'https://wrong.example', mode: 'public', connection: 'direct' }) });
+    const failedRoutes = makeRoutes();
+    const failedModule = await bootModule({}, badSource, failedRoutes);
+    const failedApp = failedModule.createNestApplication();
+    const { GatewayRuntimeService } = require('../dist/src/modules/gateway-runtime/services/gateway-runtime.service');
+    const lockedRuntime = new GatewayRuntimeService(failedRoutes, {}, {}, {}, failedModule.get(GatewayProxyEngineService), {}, {},
+      { assertAllowed: async () => undefined }, hostRuntime);
+    failedApp.use('/boot-gateway', (req, res) => { void lockedRuntime.forwardRequest('boot', req, res).catch(error => res.status(error.getStatus?.() ?? 500).json({ code: error.message })); });
+    await failedApp.init();
+    assert.equal(hostRuntime.state().locked, true);
+    await failedApp.listen(0, '127.0.0.1');
+    try {
+      const result = await getStatus(failedApp.getHttpServer().address().port, '/boot-gateway');
+      assert.equal(result.status, 503, result.body); assert.equal(seen, 1); count++;
+    } finally { await failedApp.close(); }
+    service.onModuleDestroy();
+    return count;
+  } finally { await closeServer(upstream); }
 }

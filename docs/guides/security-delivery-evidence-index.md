@@ -1,5 +1,5 @@
 ---
-doc-version: 1.100.0
+doc-version: 1.101.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -9,11 +9,13 @@ doc-updated: 2026-09-26
 > Contract: [安全任务规划](./security-development-task-plan.md)、[叶子任务划分](./active-work-package-breakdown.md)、[叶子状态](./active-work-package-execution-status.md)。
 > Last reconciled: 2026-09-24；索引按当前SEC叶子ID持续复核；后续拆分ID及当前状态以统一叶子台账为准。
 
-D2b3c2 限定 DONE：5份源码/测试文件完成私有品牌 host 与同一真实 issuer、固定 Snapshot/source/epoch 的一次性 consumeProof；协调器只接受 exact committed catalog、route 真对象与当前版本，逐 route 核对编译 policy 和 Registry Site 的 source/endpoint/origin。reload/removed、issuer/generation 终态先同步失效再 abort，不复用旧 proof；proof/策略到期关闭、clone/跨 source/epoch/错误 origin 拒绝。专项2 suites/20 tests、Gateway48 suites/707 tests、API build、diff-check通过；隔离PG41 warm+4 cold检查组（本叶新增27组）通过，schema零漂移且集群已停止/清理。SQL.js boot仍拒绝，仅以真实SQL.js路由负例验收；PG正向使用真实已迁移数据库，首次混用enum夹具和异步deployed等待失败均已修正为明确reload完成事件后复验。D2b3d拆为d1限定DONE/d2a限定DONE/d2b READY；生产DI/default-on、旧watch/admin、网络发送或外部目标部署未交付。
+D2b3c2 限定 DONE：5份源码/测试文件完成私有品牌 host 与同一真实 issuer、固定 Snapshot/source/epoch 的一次性 consumeProof；协调器只接受 exact committed catalog、route 真对象与当前版本，逐 route 核对编译 policy 和 Registry Site 的 source/endpoint/origin。reload/removed、issuer/generation 终态先同步失效再 abort，不复用旧 proof；proof/策略到期关闭、clone/跨 source/epoch/错误 origin 拒绝。专项2 suites/20 tests、Gateway48 suites/707 tests、API build、diff-check通过；隔离PG41 warm+4 cold检查组（本叶新增27组）通过，schema零漂移且集群已停止/清理。SQL.js boot仍拒绝，仅以真实SQL.js路由负例验收；PG正向使用真实已迁移数据库，首次混用enum夹具和异步deployed等待失败均已修正为明确reload完成事件后复验。D2b3d拆为d1限定DONE/d2a限定DONE/d2b限定DONE；生产DI/default-on、旧watch/admin、网络发送或外部目标部署未交付。
 
-D2b3d1 限定 DONE：品牌稳定facade把同bundle的Provider与私有Resolver成对原子swap，旧lease/pending固定旧pair，Proxy旧DI callback零调用；bundle/issuer撤销同步abort，proof到期必须host新proof显式重装。已保护runtimeAsset/route/scope保留有界墓碑，route+membership同时更换也不回落legacy；128保留pair超限拒绝，1024墓碑超限后本实例全局fail-closed且不驱逐，恢复需新受信host生命周期。4源码/测试文件、专项2 suites/9 tests、Gateway49 suites/711 tests、API build与diff-check通过；隔离PG53 warm+4 cold检查组（d1新增12组）通过，schema零漂移/重启/stop/cleanup完成。夹具先触发catalog容量、旧host策略拒绝与路由字典序fingerprint检查，均保留门禁并修正真实夹具后复验。未接RuntimeModule、生产DI/default-on、旧watch/admin；d2拆为d2a限定DONE/d2b READY，真实Nest/HTTP装配和外部环境另验。
+D2b3d1 限定 DONE：品牌稳定facade把同bundle的Provider与私有Resolver成对原子swap，旧lease/pending固定旧pair，Proxy旧DI callback零调用；bundle/issuer撤销同步abort，proof到期必须host新proof显式重装。已保护runtimeAsset/route/scope保留有界墓碑，route+membership同时更换也不回落legacy；128保留pair超限拒绝，1024墓碑超限后本实例全局fail-closed且不驱逐，恢复需新受信host生命周期。4源码/测试文件、专项2 suites/9 tests、Gateway49 suites/711 tests、API build与diff-check通过；隔离PG53 warm+4 cold检查组（d1新增12组）通过，schema零漂移/重启/stop/cleanup完成。夹具先触发catalog容量、旧host策略拒绝与路由字典序fingerprint检查，均保留门禁并修正真实夹具后复验。未接RuntimeModule、生产DI/default-on、旧watch/admin；d2拆为d2a限定DONE/d2b限定DONE，真实Nest/HTTP装配和外部环境另验。
 
 D2b3d2a 限定 DONE：新增共享host启动依赖GATEWAY_HOST_RUNTIME（仅显式brand；null/undefined即默认off）：legacy凭据Registry工厂在读取任何配置或启动watch前短路为null，admin自动disabled；GatewayPolicyService与legacy guard改读受控只读Snapshot；启动/失败时整Gateway闭锁（固定503 gateway_host_runtime_locked），非Gateway Nest health保持200；无host行为不变。新增专项1 suite/7 tests、Gateway 50 suites/718 tests、API build通过。未接RuntimeModule生产装配/d2b、真实host安装或Nest/PG/HTTP联合；旧watch/admin仍不交付。
+
+SEC-F3-02C1d2b3d2b 限定 DONE：新增默认off的GATEWAY_NETWORK_HOST_SOURCE/FACADE显式host装配；onApplicationBootstrap等待真实committed catalog与host snapshot，以新一次性proof执行c2 bundle与d1稳定facade成对装配；与legacy env/file/watch冲突显式拒绝，装配失败整Gateway保持闭锁；成功路径经GatewayProxyEngineService+facade provider真实HTTP到回环上游200。专项1 suite/8 tests、Gateway 51 suites/726 tests、API build、隔离PG warm 56/cold 4检查（Nest/PG/HTTP正例与冲突/闭锁负例）、零schema漂移并停止清理。未接AppModule生产默认启用/外部Secret Manager/多进程。
 
 ## 证据口径和版本
 
@@ -140,9 +142,9 @@ D2b3d2a 限定 DONE：新增共享host启动依赖GATEWAY_HOST_RUNTIME（仅显�
 | SEC-F3-02C1d2b3c2 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **DONE（限定）**：5份源码/测试完成exact-current route+品牌host/proof协调器，错误origin/复制/过期/重放拒绝；专项2套20项、Gateway48套707项、API build、隔离PG41 warm+4 cold检查组通过。未接生产DI/default-on，SQL.js boot仍拒绝。 |
 | SEC-F3-02C1d2b3d1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **DONE（限定）**：品牌facade与成对swap、旧lease固定/同步撤销及资产墓碑；专项2套9项、Gateway49套711项、API build、隔离PG53 warm+4 cold检查组通过。容量溢出实例fail-closed，无生产DI/default-on。 |
 | SEC-F3-02C1d2b3d2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md)、[专项spec](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-host-runtime.providers.spec.ts) | **DONE（限定）**：GATEWAY_HOST_RUNTIME共享启动依赖在配置/watch前判互斥；host Registry=null/admin disabled、受控只读Snapshot供PolicyService与legacy guard、启动/失败整Gateway闭锁503且非Gateway Nest health200、无host不变。专项1 suite/7 tests、Gateway 50 suites/718 tests、API build；无生产DI/真实host安装。 |
-| SEC-F3-02C1d2b3d2b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：d2a依赖已闭合，初始化后c2/d1显式装配与真实Nest/PG/HTTP联合验收。 |
+| SEC-F3-02C1d2b3d2b | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md)、[专项spec](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-network-host-bootstrap.spec.ts)、[隔离PG启动器](../../packages/api-nova-api/scripts/test-isolated-postgres-host-credential-registry.cjs) | **DONE（限定）**：默认off host source/facade；bootstrap等待committed catalog与host snapshot后以新proof执行c2/d1稳定装配；legacy env/file/watch冲突拒绝，失败整Gateway闭锁。专项8项、Gateway 51 suites/726 tests、隔离PG warm 56/cold 4（Nest/PG/HTTP正例+冲突/闭锁负例）零漂移；无AppModule默认启用/外部Secret Manager/多进程。 |
 | SEC-F3-02C1d3 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：5 Parser文件，专项20 tests、Parser 42 suites/991 tests、全量typecheck/build及diff-check通过；source/default-off且缺providerEvidence永拒，WeakMap fixture不是生产issuer。未接managed child/E3b或跨进程传播，不改变生产默认关闭。 |
-| SEC-F3-02C1d4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **WAIT_DEP**：依赖D2b3d/D3；普通reload固定、失败保旧及撤销/收窄/epoch变化/到期主动abort的本地真实联合验收；外部Secret Manager、多进程/E3b及目标环境另验。 |
+| SEC-F3-02C1d4 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **READY**：D2b3d/D3依赖已闭合；普通reload固定、失败保旧及撤销/收窄/epoch变化/到期主动abort的本地真实联合验收；外部Secret Manager、多进程/E3b及目标环境另验。 |
 | SEC-F3-02C2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个独立Parser文件，专项30项及相邻5 suites/240 tests通过；source asset+精确method/path绑定Endpoint/target，未知、歧义、跨asset、scheme降级及非受信目标失败关闭。未接多跳状态机、真实发送或生产网络模式。 |
 | SEC-F3-02C2b1 | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个network文件，专项63 tests、相邻5 suites/303 tests、统一Parser 44 suites/1077 tests、typecheck/build及diff-check通过；显式safe-read空正文GET/HEAD、规范化Location/loop、最多5跳及一次性decision已验。纯模块不触网、不启用生产入口，默认仍single-hop。 |
 | SEC-F3-02C2b2a | [网络边界合同§4.3–4.5](./security-header-network-boundary-contract.md) | **限定DONE**：2个network文件、自身21 tests、相邻3 suites/115 tests、统一Parser 45 suites/1098 tests、typecheck/build、cleanup及diff-check通过；rawHeaders唯一Location证据已验，不解析目标、不触网、不改默认single-hop。首次TS7006失败保留为历史。 |

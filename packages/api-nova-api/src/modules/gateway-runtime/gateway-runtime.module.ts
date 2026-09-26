@@ -1,5 +1,13 @@
 import { gatewayHeaderLegacyRuntimeGuardProvider } from './services/gateway-header-legacy-runtime.providers';
 import { GATEWAY_HOST_RUNTIME, gatewayHostRuntimeProvider } from './services/gateway-host-runtime.providers';
+import {
+  GATEWAY_NETWORK_HOST_FACADE,
+  GATEWAY_NETWORK_HOST_SOURCE,
+  GatewayNetworkHostBootstrapService,
+  gatewayNetworkHostFacadeProvider,
+  gatewayNetworkHostSourceProvider,
+  gatewayTrustedNetworkProvider,
+} from './services/gateway-network-host-bootstrap.service';
 import { GatewayUpstreamSecurityRuntimeGuard } from './services/gateway-upstream-security-runtime.guard';
 import { CallObservabilityModule } from '../call-observability/call-observability.module';
 import { GatewayRoutingObservationWorker } from './services/gateway-routing-observation.worker';
@@ -58,6 +66,10 @@ import { GatewayTrafficControlService } from './services/gateway-traffic-control
   controllers: [GatewayUpstreamCredentialAdminController, GatewayRuntimeController],
   providers: [
     gatewayHostRuntimeProvider,
+    gatewayNetworkHostSourceProvider,
+    gatewayNetworkHostFacadeProvider,
+    gatewayTrustedNetworkProvider,
+    GatewayNetworkHostBootstrapService,
     gatewayHeaderLegacyRuntimeGuardProvider,
     GatewayUpstreamSecurityRuntimeGuard,
     GatewayRoutingObservationWorker,
@@ -77,6 +89,9 @@ import { GatewayTrafficControlService } from './services/gateway-traffic-control
   ],
   exports: [
     GATEWAY_HOST_RUNTIME,
+    GATEWAY_NETWORK_HOST_SOURCE,
+    GATEWAY_NETWORK_HOST_FACADE,
+    GatewayNetworkHostBootstrapService,
     GatewayRuntimeService,
     GatewayRuntimeMetricsService,
     GatewayRouteSnapshotService,

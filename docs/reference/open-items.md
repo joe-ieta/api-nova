@@ -1,7 +1,7 @@
 ---
-doc-version: 1.14.0
+doc-version: 1.14.1
 doc-status: active
-doc-updated: 2026-09-15
+doc-updated: 2026-09-26
 ---
 # 未完成事项
 
@@ -159,7 +159,7 @@ OAuth2 EXT-10 恢复后需提供：受信任 issuer/JWKS URL、Gateway/MCP 公�
 
 ## 6. 安全与通知投递
 
-状态：通知投递仍待处理，以下发布门禁与后续能力各自带有独立状态。
+状态：通知投递仍待处理，以下发布门禁与后续能力各自带有独立状态。投递范围、接口/模板合同与受控验收策略已由 [邮件投递范围与受控验收合同](../guides/mail-delivery-scope-and-acceptance.md) 冻结；实现（MAIL-02）须按该合同执行，实际向他人发信仍需单独授权。
 
 - 邮件校验码投递
 - 重置密码邮件投递
