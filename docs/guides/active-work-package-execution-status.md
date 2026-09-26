@@ -1,5 +1,5 @@
 ---
-doc-version: 1.159.0
+doc-version: 1.160.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -35,6 +35,8 @@ MAINT-02 限定 DONE：新增`packages/api-nova-ui/scripts/check-delivery-i18n.c
 
 OBS-06-01 限定 DONE：新增`scripts/verify-mcp-observability-matrix.cjs`（npm run verify:mcp-observability-matrix）聚合MCP 4脚本55项与Parser上游失败74项，输出transport×场景矩阵；16MiB Tool正文省略不截断、8MiB stdio正文完整；Windows原生/审计16MiB cork对照双方timeout一致（复用既有限制复现，不称恢复）。仅Windows本地，Linux与retry矩阵仍归OBS-06-02/TP16。
 
+SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估结果，preview、G3单成员发布（toValidator）与G4批量/激活共用；G4 activateCandidate新增recheck并在await后重比epoch，激活前以`assertTransactionCurrent`复核context与验证证据；撤销/成员revision漂移被拒绝且零写入，生产G2 canPublish:false保持。专项1 suite/5 tests、publication 20 suites/245 tests、API build；未注册生产DI，PG并发归F1-02F。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -44,8 +46,8 @@ OBS-06-01 限定 DONE：新增`scripts/verify-mcp-observability-matrix.cjs`（np
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 163 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 8 | 可进入队列，当前并非全部开工 |
+| DONE | 164 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 7 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 18 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
@@ -138,7 +140,7 @@ OBS-06-01 限定 DONE：新增`scripts/verify-mcp-observability-matrix.cjs`（np
 | SEC-F1-02C3G4 | DONE | 有界executor切片限定完成：3 suites/30 tests及API build通过；生产G2默认false且验证G3零调用，仅显式future-readiness fixture证明部分提交/后续继续；candidate仅host-owned同步swap且无await，未接异步Registry生产链，不代表production batch/candidate activation完整 |
 | SEC-F1-02C3G5 | WAIT_DEP | 独立Gateway proof consumer guard与真实HTTP 3 suites/54 tests及API build通过，但未注册module/runtime；仍缺生产host challenge/session/proof issuer、同进程authority lifecycle与request-bound capability provider。只限proof消费，不开放Verified，E1继续拒绝 |
 | SEC-F1-02C3G6 | WAIT_DEP | 依赖E3b/G1；MCP/child实时许可与撤销待实现，proof不得序列化 |
-| SEC-F1-02D | READY | G2/G4显式依赖已闭合；仍须实现preview/单批发布/激活统一结果与事务内context复核，G4限定完成不代表生产激活已存在 |
+| SEC-F1-02D | DONE | 限定统一结果完成：新增`publication-security-evaluation.ts`冻结selector/preview/proof/evidenceFingerprint/contextVersion/membershipRevision，preview、G3单成员发布（toValidator）与G4批量/激活共用同一结果；G4 activateCandidate新增recheck并在await后重比epoch，激活前`assertTransactionCurrent`复核context与证据；生产G2 canPublish:false与现有发布路径不变。专项1 suite/5 tests、publication 20 suites/245 tests、API build；未注册生产DI，PG并发归F1-02F |
 | SEC-F1-02E1 | DONE | Gateway每次调用重评guard，6 files；39 suites/556及13项真实HTTP SQL.js重校、API build通过；不声称生产Verified |
 | SEC-F1-02E2 | DONE | Parser唯一声明规则与标准HTTP transformer门禁；6 files，Parser28/545、API102/1116、三构建及扩例7/7通过；不含Verified/custom handlers/E3 managed传播 |
 | SEC-F1-02E3a | DONE | 受限ManagedChildSecurityLeaseCoordinator纯协调原语；2 files/7 tests通过；未注册、未接handoff |

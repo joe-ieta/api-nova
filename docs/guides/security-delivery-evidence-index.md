@@ -1,5 +1,5 @@
 ---
-doc-version: 1.105.0
+doc-version: 1.106.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -22,6 +22,8 @@ SEC-F3-02C1d4 限定 DONE：隔离PG真实host/Registry+本地HTTP联合验证fa
 SEC-F3-02C5b 限定 DONE：新增parser `toNetworkFailure`与C5a导出，Gateway provider在prepare/send/completed单点emit `upstream.network_failure`（operationId/policy/revision/site/endpoint/revocationEpoch/attempt/hop/stage），stream对未知错误固定503且不回传原始DNS/TLS细节；Parser single-hop与host bridge显式failureAudit透传并按阶段emit。真实HTTP/TLS负测含sink故障不改拒绝与秘密扫描；Parser 49 suites/1196 tests、Gateway 51 suites/735 tests、两包构建通过。未持久化事件（归C6/F3D）、无managed child/E3b、生产默认关闭。
 
 SEC-F3-02C6 限定 DONE：新增`scripts/verify-f3-dual-runtime.cjs`（npm run verify:f3-dual-runtime）聚合重跑Parser 4 suites/78 tests与Gateway 3 suites/95 tests并输出clause矩阵`F3_DUAL_RUNTIME_MATRIX_OK`；仅本地回环DNS/HTTP/TLS，不代表生产默认启用/PG/F3D平台验收。
+
+SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估结果，preview、G3单成员发布（toValidator）与G4批量/激活共用；G4 activateCandidate新增recheck并在await后重比epoch，激活前以`assertTransactionCurrent`复核context与验证证据；撤销/成员revision漂移被拒绝且零写入，生产G2 canPublish:false保持。专项1 suite/5 tests、publication 20 suites/245 tests、API build；未注册生产DI，PG并发归F1-02F。
 
 ## 证据口径和版本
 
@@ -119,7 +121,7 @@ SEC-F3-02C6 限定 DONE：新增`scripts/verify-f3-dual-runtime.cjs`（npm run v
 | SEC-F1-02C3G4 | 有界executor专项与API构建 | **限定DONE**：3 suites/30 tests及API build通过；生产G2默认false且验证G3零调用，仅显式future-readiness fixture证明部分提交/后续继续。candidate只做host-owned同步swap且无await，未接异步Registry生产链，不能宣称production batch/candidate activation完整。 |
 | SEC-F1-02C3G5 | Gateway proof consumer guard限定切片 | **WAIT_DEP**：独立guard与真实HTTP 3 suites/54 tests及API build通过，缺失/过期/范围不符proof在Resolver/cache前拒绝；但未注册module/runtime，缺生产issuer、同进程authority lifecycle与request-bound capability provider。不开放Verified，E1继续拒绝。 |
 | SEC-F1-02C3G6 | 当前无MCP/child实时许可证据 | **WAIT_DEP**：依赖E3b/G1；实时许可、撤销与proof不序列化未验。 |
-| SEC-F1-02D | 无当前统一发布结果证据 | **READY**：G2/G4依赖已闭合；preview、单批发布和激活共同结果及事务内context复核未验，G4限定完成不构成生产激活证据。 |
+| SEC-F1-02D | [统一评估模块](../../packages/api-nova-api/src/modules/publication/services/publication-security-evaluation.ts)、[专项spec](../../packages/api-nova-api/src/modules/publication/services/publication-security-evaluation.spec.ts) | **DONE（限定）**：冻结评估结果被preview、G3单成员发布与G4批量/激活共同消费；commit边界recheck拒绝撤销/revision漂移且零写入；生产G2 canPublish:false保持。专项5项、publication 20 suites/245 tests；未注册生产DI，PG并发归F1-02F。 |
 | SEC-F1-02E1 | [Gateway guard](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-upstream-security-runtime.guard.ts)、[真实HTTP测试](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-upstream-security-runtime.http.spec.ts) | **限定执行/DONE**：6 files，39套556项及13项真实HTTP SQL.js重校、API构建通过；不声明生产Verified。 |
 | SEC-F1-02E2 | [Parser唯一规则](../../packages/api-nova-parser/src/security/upstream-security-reconciliation.ts)、[Transformer接线](../../packages/api-nova-parser/src/transformer/index.ts) | **限定执行/DONE**：标准HTTP门禁，6 files；Parser28套545项、API102套1116项、三构建及扩例7/7通过；不含Verified/custom handlers/E3 managed传播。 |
 | SEC-F1-02E3a | [协调器](../../packages/api-nova-api/src/modules/servers/services/managed-child-security-lease-coordinator.ts)、[协调器测试](../../packages/api-nova-api/src/modules/servers/services/managed-child-security-lease-coordinator.spec.ts) | **限定原语/DONE**：2 files/7 tests；未注册、未接handoff或事件IPC。 |
