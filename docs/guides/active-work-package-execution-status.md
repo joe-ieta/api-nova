@@ -1,5 +1,5 @@
 ---
-doc-version: 1.151.0
+doc-version: 1.152.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -17,6 +17,8 @@ OBS-14-06A 限定 DONE：新增按明确resource归属的本功能管理审计�
 
 MAIL-01 DOC 完成：冻结验证码/重置/通知三类接口、token与失败语义、模板政策、受控测试邮箱与证据合同（[合同](./mail-delivery-scope-and-acceptance.md)）；不改变当前运行默认，不新增依赖，MAIL-02转READY。
 
+OBS-14-06T 限定 DONE：新增默认off的暂存源文件有界恢复（scan/delete上限、稳定排序、持久游标）：仅身份/已提交offset/边界/seal/closed退出证明/完整行全部复核且超过48小时才删除，活动文件、半行、未导入、身份不明与不匹配名一律保留；清理不触碰checkpoint/receipt/事件且不分配业务sequence。专项1 suite/8 tests、call-observability 10 suites/81 tests、API build；仅Windows/SQL.js本地，不含平台/多进程与旧schema。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -26,8 +28,8 @@ MAIL-01 DOC 完成：冻结验证码/重置/通知三类接口、token与失败�
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 154 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 12 | 可进入队列，当前并非全部开工 |
+| DONE | 155 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 11 | 可进入队列，当前并非全部开工 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 23 | 等待列明子任务/条件 |
 | NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
@@ -207,7 +209,7 @@ MAIL-01 DOC 完成：冻结验证码/重置/通知三类接口、token与失败�
 | OBS-14-05C3 | NEED_ENV | Windows PostgreSQL16.10真实9/9：四进程预算/幂等、四个实际ingest中断窗口、完整文件链并发和PG重启重放守恒；本机出口完成，Linux无就绪环境，整包不标DONE；PG掉电/长期压力未验 |
 | OBS-14-05D | WAIT_DEP | 状态/故障联调等待05C3 |
 | OBS-14-06A | DONE | 限定本功能管理审计有界清理完成：按明确resource归属（observability_caller/delivery/policy/subscription/payload/audit）仅选本功能记录，30天最小窗口；delete/checkpoint/单条管理记录同一Store事务；无法归属与更新记录保留；默认off。专项1 suite/7 tests、call-observability 9 suites/73 tests、API build；不含全产品安全审计/配额治理与平台多进程 |
-| OBS-14-06T | READY | 生命周期合同已冻结；暂存恢复尚未实施 |
+| OBS-14-06T | DONE | 限定暂存源文件有界恢复完成：仅身份/已提交offset/边界/seal/closed退出证明/完整行全部复核且超48小时才删除；活动、半行、未导入、身份不明与不匹配名保留；持久游标恢复；不触碰checkpoint/receipt/事件且不分配业务sequence。专项1 suite/8 tests、call-observability 10 suites/81 tests、API build；不含平台/多进程与旧schema |
 | OBS-15-01 | READY | Gateway日志入口已迁移 |
 | OBS-15-02 | WAIT_DEP | 等待OBS-13-01C与OBS-15-01；不重建第二主链 |
 | OBS-16-01 | DONE | 交接文档2.2.0；AC01~20与脚本入口静态核对，未运行新全量矩阵；[交接](./runtime-observability-external-validation-handoff.md) |
