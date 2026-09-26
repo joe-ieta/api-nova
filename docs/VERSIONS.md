@@ -16,7 +16,7 @@
 | --- | --- | --- | --- |
 | [MAIL-02 受控邮件投递](./audits/2026-09-26-mail-02-controlled-delivery.md) | 1.0.0 | active | 2026-09-26 |
 | [SEC-F3-02D 本地 N 矩阵](./audits/2026-09-26-f3-n-matrix-local.md) | 1.0.0 | active | 2026-09-26 |
-| [SEC-F3a-01 依赖可达性审计](./audits/2026-09-26-dependency-reachability-audit.md) | 1.0.0 | active | 2026-09-26 |
+| [SEC-F3a-01 依赖可达性审计](./audits/2026-09-26-dependency-reachability-audit.md) | 1.1.0 | active | 2026-09-26 |
 | [OBS-13-02 长期传输与慢客户端验收](./audits/2026-09-26-obs-13-02-long-transport.md) | 1.0.0 | active | 2026-09-26 |
 | [OBS-14-03D 投递保留与导入墓碑](./audits/2026-09-26-obs-14-03d-lifecycle-retention.md) | 1.0.0 | active | 2026-09-26 |
 | [OBS-15-02 全链路身份与切换验收](./audits/2026-09-26-obs-15-full-chain.md) | 1.0.0 | active | 2026-09-26 |
@@ -63,7 +63,7 @@
 | [安全交付验收证据索引](./guides/security-delivery-evidence-index.md) | 1.109.0 | active | 2026-09-26 |
 | [邮件投递范围与受控验收合同](./guides/mail-delivery-scope-and-acceptance.md) | 1.1.0 | active | 2026-09-26 |
 | [MCP发布端点合同](./guides/mcp-publication-endpoint-contract.md) | 0.2.0 | active | 2026-09-21 |
-| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.165.0 | active | 2026-09-26 |
+| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.166.0 | active | 2026-09-26 |
 | [受管MCP启动交付设计](./guides/managed-mcp-credential-handoff-plan.md) | 0.4.0 | reviewed-slice | 2026-09-21 |
 | [候选激活与GC重试](./audits/2026-09-15-activation-gc-wave.md) | 1.0.0 | active | 2026-09-15 |
 | [上游归属交叉核验](./audits/2026-09-15-upstream-ownership-wave.md) | 1.0.0 | active | 2026-09-15 |

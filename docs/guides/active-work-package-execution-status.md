@@ -1,5 +1,5 @@
 ---
-doc-version: 1.165.0
+doc-version: 1.166.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -50,6 +50,8 @@ SEC-F3a-01 限定 DONE：在线执行当前锁文件依赖审计（[证据](../a
 SEC-F3-02D 限定 DONE：新增 `verify:f3-n-matrix` 执行器，在隔离回环 DNS/HTTP/TLS/代理上按 N01–N17 逐项核对（[证据](../audits/2026-09-26-f3-n-matrix-local.md)）；parser 17套件/573例、gateway 84例全绿；补 gateway 单跳302不跟随用例；合同§4.6十七行状态更新为限定本地通过；生产默认启用、公网与Windows/Linux矩阵仍为环境项。
 
 MAIL-02 限定 DONE：按 MAIL-01 合同落地 `MAIL_*` 配置、sink/smtp 传输、三模板、白名单+限流+审计、注册/忘记密码真实投递与 `resend-verification`/公开 `reset-password`、CSPRNG+摘要 token 与 24h/1h 到期双迁移、通知偏好解析与去重退避、UI 忘记密码路径（[证据](../audits/2026-09-26-mail-02-controlled-delivery.md)）；`verify:mail-02` 6套件/30例全绿、API/UI 构建与 SQLite drift 0；真实外发、生产启用、PG运行时装迁移、队列/退信与 UI 偏好开关明确未覆盖。
+
+SEC-F3a-01 补丁批（授权后）：显式受控升级12个主版本内包+UI echarts6/vue-echarts8（未用 audit fix），生产公告32→19（0C/4H/15M/0L），残余全部归Nest12族（含复核改归的@nestjs/common 10.x与file-type 22.x）；Parser 49套件/1196例、API 148套件/1623例及Parser/API/UI构建全绿；全量59→46（1C/18H/24M/3L）。
 
 ## 1. 本次重排快照
 
@@ -199,7 +201,7 @@ MAIL-02 限定 DONE：按 MAIL-01 合同落地 `MAIL_*` 配置、sink/smtp 传�
 | SEC-F3-02C6 | DONE | 限定联合矩阵完成：新增`scripts/verify-f3-dual-runtime.cjs`（npm run verify:f3-dual-runtime）聚合重跑Parser 4 suites/78 tests与Gateway 3 suites/95 tests并输出clause矩阵`F3_DUAL_RUNTIME_MATRIX_OK`；仅本地回环DNS/HTTP/TLS，不代表生产默认启用/PG/F3D平台验收 |
 | SEC-F3-02D | DONE | 限定本地 N 矩阵完成（[证据](../audits/2026-09-26-f3-n-matrix-local.md)）：隔离回环 DNS/HTTP/TLS/代理上 N01–N17 逐项映射，parser 17套件/573例+gateway 84例全绿（`verify:f3-n-matrix`，含新增N01单跳302用例）；生产默认启用、公网与Windows/Linux跨平台矩阵仍为环境项 |
 | SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
-| SEC-F3a-01 | DONE | 限定在线审计完成（[证据](../audits/2026-09-26-dependency-reachability-audit.md)）：生产32项（0C/10H/21M/1L）与逐项可达性/处置记录，dev 27项含1 critical（工具链）；锁文件SHA-256留证；未应用补丁或重大升级，主版本内补丁候选与Nest12/UI升级路径已登记 |
+| SEC-F3a-01 | DONE | 限定在线审计完成（[证据](../audits/2026-09-26-dependency-reachability-audit.md)）：首轮生产32项（0C/10H/21M/1L）；授权后补丁批已执行：主版本内12包+UI echarts6/vue-echarts8，生产降至19（0C/4H/15M/0L），残余全部归Nest12族；Parser 49/1196、API 148/1623与三包构建回归通过 |
 | SEC-F4-01 | DONE | 当前112个SEC叶子以逐项或明确聚合旧ID维护，D2b1/b2/b3a–d及C2b1/b2a/b2b1/b2b2/b3依赖已登记；区分历史/本地限定/未运行环境，不代表F4-02签收 |
 | SEC-F4-02 | NEED_ENV | 目标环境与授权另核实 |
 | OBS-06-01 | DONE | 限定矩阵完成：新增`verify:mcp-observability-matrix`聚合4个server脚本（11+17+15+12）与Parser上游失败74项，输出`MCP_OBSERVABILITY_MATRIX_OK`；success/cancel/发送中断/大响应三transport有结果（16MiB Tool省略/8MiB完整），Windows原生对照复现双方timeout；Linux/OBS-06-02、AC-02 retry与MCP调用超时仍归TP06/16 |

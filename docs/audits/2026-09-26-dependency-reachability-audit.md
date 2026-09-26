@@ -1,5 +1,5 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -64,6 +64,25 @@ doc-updated: 2026-09-26
 
 ## 5. 结论与边界
 
-- 本轮完成当前锁文件的生产可达性与逐项处置记录；**未应用任何补丁或重大升级**。
+- 本轮完成当前锁文件的生产可达性与逐项处置记录；首轮**未应用任何补丁或重大升级**。
 - 建议后续批次按 A（主版本内补丁）→ C（UI）→ B（Nest 12 重大升级）推进，每步执行相应回归与再审计。
 - 生产可达性为依赖树判定，不等于运行时可利用性证明；公告为时点数据，发布前需按 `SEC-F3a-01` 重跑并更新本页。
+
+## 6. 补丁批执行记录（2026-09-26，授权后）
+
+受控更新（显式 `npm update`/`npm install`，未使用 `npm audit fix`）：
+
+- 主版本内：`brace-expansion@2.1.7`、`fast-uri@3.1.8`、`ip-address@10.7.2`、`socket.io-parser@4.2.7`、`nanoid@3.3.19`、`postcss@8.5.28`、`typeorm@0.3.31`、`joi@17.13.8`、`express@4.22.3`、`@nestjs/common@10.4.22`、`hono@4.13.9`、`@hono/node-server@1.19.17`
+- UI 直接依赖：`echarts@6.1.0`、`vue-echarts@8.3.0`
+
+结果：
+
+| 范围 | 审计前 | 审计后 |
+| --- | --- | --- |
+| 生产（`--omit=dev`） | 32（0C/10H/21M/1L） | **19（0C/4H/15M/0L）** |
+| 全量 | 59（1C/24H/30M/4L） | **46（1C/18H/24M/3L）** |
+
+- 生产残余 19 项全部属于 Nest 12 升级族：`@nestjs/*` 12 项 + `body-parser`/`qs`/`multer`/`file-type`/`js-yaml`/`lodash`/`uuid`；逐项修复版本均已随 B 类登记。
+- 复核修正：`@nestjs/common` 的 10.x 最新版（10.4.22）仍在公告范围，`file-type` 修复需 22.x（超出 Nest 10 的 `^20.4.1`）——两项由 A 类改归 B 类。
+- 回归证据：Parser 全量 **49 套件/1196 例**、API 全量 **148 套件/1623 例**、Parser/API/UI 三包构建（UI 在 echarts 6 + vue-echarts 8 下 `vue-tsc && vite build`）全部通过。
+- 边界：未做 Nest 12 重大升级（B 类待执行）；真实外发/生产启用不在本批。
