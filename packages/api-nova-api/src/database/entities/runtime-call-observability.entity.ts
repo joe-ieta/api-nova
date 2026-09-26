@@ -295,6 +295,35 @@ export class RuntimeIngestReceiptEntity {
   expiresAt: string;
 }
 
+/** Minimal replay gate after the physical receipt is removed. Never stores bodies or credentials. */
+@Entity('runtime_ingest_receipt_tombstones')
+@Index('IDX_obs_ingest_receipt_tombstones_1', ["sourceInstanceId","eventId"], { unique: true })
+export class RuntimeIngestReceiptTombstoneEntity {
+  @PrimaryColumn({ type: 'varchar', length: 240, primaryKeyConstraintName: 'PK_obs_ingest_receipt_tombstones' })
+  id: string;
+
+  @Column({ type: 'varchar', length: 500 })
+  sourceInstanceId: string;
+
+  @Column({ type: 'varchar', length: 500 })
+  eventId: string;
+
+  @Column({ type: 'varchar', length: 64 })
+  recordHash: string;
+
+  @Column({ type: 'varchar', length: 500 })
+  invocationId: string;
+
+  @Column({ type: 'varchar', length: 500 })
+  receiptCreatedAt: string;
+
+  @Column({ type: 'varchar', length: 500 })
+  receiptExpiresAt: string;
+
+  @Column({ type: 'varchar', length: 500 })
+  tombstonedAt: string;
+}
+
 @Entity('runtime_metric_buckets')
 @Index('IDX_obs_metric_buckets_1', ["scope","bucketStart"])
 @Index('IDX_obs_metric_buckets_2', ["expiresAt"])
@@ -814,6 +843,7 @@ export const CALL_OBSERVABILITY_ENTITIES = [
   RuntimeCallerObservationEntity,
   RuntimeIngestCheckpointEntity,
   RuntimeIngestReceiptEntity,
+  RuntimeIngestReceiptTombstoneEntity,
   RuntimeMetricBucketEntity,
   RuntimeCallerBucketEntity,
   RuntimeMetricContributionEntity,

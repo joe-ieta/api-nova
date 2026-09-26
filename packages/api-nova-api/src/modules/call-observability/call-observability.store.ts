@@ -9,6 +9,7 @@ import {
 } from 'api-nova-parser';
 import {
   RuntimeIngestCheckpointEntity, RuntimeIngestQuarantineEntity, RuntimeIngestReceiptEntity,
+  RuntimeIngestReceiptTombstoneEntity,
   RuntimeInvocationEntity, RuntimeInvocationRevisionEntity, RuntimeMetricBucketEntity,
   RuntimeMetricContributionEntity, RuntimeAccessSourceEntity, RuntimeCallerBucketEntity, RuntimePayloadEntity,
   RuntimePipelineStateEntity,
@@ -319,6 +320,19 @@ export class CallObservabilityStore {
           const repository = tx.manager.getRepository(RuntimeInvocationEntity);
           const previous = await repository.findOne({ where: { invocationId: record.invocationId } });
           if (previousReceipt) {
+            await this.checkpoint(tx, context.checkpoint, source.sourceSequence, source.sourceInstanceId);
+            return this.result(tx, 'duplicate', previous);
+          }
+          // The receipt remains authoritative while present; the tombstone only gates
+          // replay after the physical receipt is removed. Matching identity + hash is a
+          // duplicate with no sequence, event or invocation mutation; a different hash
+          // keeps the original conflict isolation.
+          const previousTombstone = await tx.manager
+            .getRepository(RuntimeIngestReceiptTombstoneEntity).findOne({ where: { id: receiptId } });
+          if (previousTombstone) {
+            if (previousTombstone.recordHash !== recordHash) {
+              return this.quarantine(tx, context, recordHash, 'SOURCE_EVENT_CONFLICT', record);
+            }
             await this.checkpoint(tx, context.checkpoint, source.sourceSequence, source.sourceInstanceId);
             return this.result(tx, 'duplicate', previous);
           }
