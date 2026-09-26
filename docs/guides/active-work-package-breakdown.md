@@ -1,5 +1,5 @@
 ---
-doc-version: 1.87.0
+doc-version: 1.88.0
 doc-status: active
 doc-updated: 2026-09-24
 ---
@@ -164,9 +164,10 @@ SEC父包：A0/A1/A2/A3/B1/B2/B3/C1/E0 DONE；A4/C2/C3/C4/D1/D2/E1/E2/F1/F2/F3/F
 | SEC-F3-02C1d2b3c1 | SEC-F3 | CODE | Active-route原子捕获seam | 只将当前GatewayActiveRouteCatalog snapshot对象原子关联到同次已提交route对象引用；拒绝ID-only、克隆/旧snapshot，candidate/rollback零发布，stop/delete与迟到reload不能复活；不构造网络许可 | SEC-F3-02C1d2a |
 | SEC-F3-02C1d2b3c2 | SEC-F3 | CODE | Active-route注册协调器 | 仅消费c1不可伪造捕获与D2b3b2已验收安全Registry组合，构造/替换可信registration；reload/removed同步撤销，坏证据保守拒绝，不接生产DI | SEC-F3-02C1d2b3c1;SEC-F3-02C1d2b3b2 |
 | SEC-F3-02C1d2b3d1 | SEC-F3 | CODE | 品牌稳定facade与成对原子装配 | 同bundle provider/resolver原子swap、旧lease固定旧pair、受保护scope有界墓碑与同步撤销；缺capability默认off，proof到期须host显式新proof重装；不接RuntimeModule | SEC-F3-02C1d2b3c2 |
-| SEC-F3-02C1d2b3d2 | SEC-F3 | CODE | Nest受控注入与旧入口冲突拒绝 | RuntimeModule显式可选DI、与env/file watch/admin冲突拒绝、真实Nest/PG/HTTP联合验收；不自动启用或续proof | SEC-F3-02C1d2b3d1 |
+| SEC-F3-02C1d2b3d2a | SEC-F3 | CODE | host模式早期互斥与可信只读Snapshot | 共同启动依赖早于旧Registry/watch判互斥；host旧Registry=null/admin disabled，PolicyService读取受控Snapshot供route初始化，启动/失败整个Gateway闭锁且非Gateway健康，无host不变 | SEC-F3-02C1d2b3d1 |
+| SEC-F3-02C1d2b3d2b | SEC-F3 | CODE | Nest启动后显式网络装配 | onApplicationBootstrap等待真实committed route初始化，再以新proof执行c2/d1装配；稳定facade/冲突拒绝和真实Nest/PG/HTTP联合验收 | SEC-F3-02C1d2b3d2a |
 | SEC-F3-02C1d3 | SEC-F3 | CODE | Parser Host生命周期桥 | host-only装配TrustedSingleHopNetworkExecution与C1d1 lifecycle，注册可信Snapshot/policy并消费同进程reload/revoke/expiry；source/default-off，providerEvidence缺失永拒，WeakMap只作进程内不可伪造夹具且不是生产issuer；不接managed child/E3b IPC或跨进程传播 | SEC-F3-02C1d1;SEC-F3-02C1b |
-| SEC-F3-02C1d4 | SEC-F3 | VALIDATION | Host/Provider生命周期联合验收 | 真实本地Registry/HTTP/TLS验证普通reload在途固定旧Snapshot且新请求见新，撤销/安全收窄/provider epoch变化/到期在DNS、连接和大流阶段主动abort，失败reload保旧且shutdown无遗留监听/定时器；外部Secret Manager、多进程/E3b及目标环境另验 | SEC-F3-02C1d2b3d2;SEC-F3-02C1d3 |
+| SEC-F3-02C1d4 | SEC-F3 | VALIDATION | Host/Provider生命周期联合验收 | 真实本地Registry/HTTP/TLS验证普通reload在途固定旧Snapshot且新请求见新，撤销/安全收窄/provider epoch变化/到期在DNS、连接和大流阶段主动abort，失败reload保旧且shutdown无遗留监听/定时器；外部Secret Manager、多进程/E3b及目标环境另验 | SEC-F3-02C1d2b3d2b;SEC-F3-02C1d3 |
 | SEC-F3-02C2a | SEC-F3 | CODE | 精确受信Redirect目标目录 | 纯host-owned目录按source asset、精确method+path与Endpoint绑定目标；只接受精确路径，未知、歧义、跨asset、scheme降级和非受信目标一律拒绝，不启用生产网络模式 | SEC-F3-02C1b |
 | SEC-F3-02C2b1 | SEC-F3 | CODE | 纯Redirect Chain State | 纯模块只接受显式safe-read空正文GET/HEAD，规范化Location与loop key、最多5跳，并为每跳产生一次性decision；非safe method、正文、歧义/重复/过量跳数失败关闭，不触网也不启用生产入口 | SEC-F3-02C2a |
 | SEC-F3-02C2b2a | SEC-F3 | CODE | Raw Location唯一证据 | 纯模块只从transport rawHeaders读取唯一Location，拒绝零个/重复/折叠/歧义/访问器/超长值，并输出一次性不可伪造证据供C2b1消费；不解析目标、不触网、不改默认single-hop | SEC-F3-02C2b1 |
