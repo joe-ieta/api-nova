@@ -1,5 +1,5 @@
 ---
-doc-version: 1.173.0
+doc-version: 1.174.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -79,9 +79,9 @@ SEC-C3-03 限定 DONE：多进程Registry版本协调——真实隔离PostgreSQ
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
 | DONE | 180 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 0 | 当前无 READY；下一候选 E1-03/E1-04（依赖链已基本就绪） |
+| READY | 1 | `SEC-E1-03` 真实child受管执行闭环（依赖已解除） |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
-| WAIT_DEP | 13 | 等待列明子任务/条件 |
+| WAIT_DEP | 12 | 等待列明子任务/条件 |
 | NEED_ENV | 15 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 0 | PROD-06 核定后无待判范围项 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -151,7 +151,7 @@ SEC-C3-03 限定 DONE：多进程Registry版本协调——真实隔离PostgreSQ
 | SEC-E1-02B2 | DONE | 真实child稳定重读Registry、single-hop Resolver、API key认证与监听后READY；三脚本47例 |
 | SEC-E1-02C1 | DONE | 授权后限定完成（[证据](../audits/2026-09-27-e1-02c1-managed-lifecycle.md)）：持久单调世代CAS（复用runtime_pipeline_state）、每次启动B1快照、受保护配置逐次审批与失败关闭、旧世代拒绝、停止幂等与遗留对账、trusted_ipc_v1显式路由（默认关闭）；新增21项、servers 18 suites/108 tests、`verify:e1-02c1`真实child 6/6、E1旧脚本61/61及构建通过；PG/Linux/部署与C2重启边界未覆盖 |
 | SEC-E1-02C2 | DONE | 限定边界完成（[证据](../audits/2026-09-27-e1-02c2-restart-failure-legacy.md)）：崩溃→记录终结+ERROR投影（无假RUNNING）、重启必重准备新世代+逐次审批、legacy自动重启抑制且不重建秘密argv、bootstrap失败清理不保留旧实例、父断开停子进程、陈旧包拒绝、可信模式legacy凭据spawn前失败关闭、版本不匹配无回退；servers 20 suites/127 tests、`verify:e1-02c2`真实child 10/10；启动时自动reconcile按共享DB风险不做（未拥有世代报告current:false） |
-| SEC-E1-03 | WAIT_DEP | 不能用进程内transform替代 |
+| SEC-E1-03 | READY | 真实child受管执行闭环（E1-02C2依赖已解除）；矩阵须真实产品child入口、不得用进程内transform替代 |
 | SEC-E1-04 | WAIT_DEP | 未完成 |
 | SEC-E2-01 | WAIT_DEP | 复用已有smoke |
 | SEC-E2-02 | NEED_ENV | 需核实环境 |
