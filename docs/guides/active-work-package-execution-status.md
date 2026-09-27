@@ -1,5 +1,5 @@
 ---
-doc-version: 1.171.0
+doc-version: 1.172.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -65,6 +65,8 @@ OBS-14-05D 限定 DONE：`verify:obs-14-05d` 联调水位迟滞（H=90/L=80/Q硬
 
 SEC-E1-02C1 限定 DONE（授权后）：重建受管生命周期协调为产品代码——持久单调世代CAS（复用`runtime_pipeline_state`）、每次启动B1快照绑定、受保护配置逐次审批记录与失败关闭、旧世代事件拒绝、停止幂等与遗留子进程对账、`trusted_ipc_v1` 显式路由且默认关闭；新增21项Jest、servers 18 suites/108 tests、`verify:e1-02c1`真实child 6/6、E1旧脚本61/61与构建通过（[证据](../audits/2026-09-27-e1-02c1-managed-lifecycle.md)）；SEC-E1-02C2与SEC-C3-03依赖解除转READY；PG/Linux/部署与C2重启边界未覆盖。
 
+SEC-E1-02C2 限定 DONE：失败/重启/legacy边界落地——崩溃终结+`ERROR`投影（无假RUNNING，owned handle幂等关闭）、可信重启重准备新世代+逐次审批、`process.managed_restart_rejected` 抑制legacy自动重启且不重建秘密argv、bootstrap失败/超时清理不留旧实例、父IPC断开停子进程、Registry漂移后陈旧包拒绝、可信模式legacy bearer/custom-header spawn前失败关闭且无自动迁移/回退、版本不匹配拒绝；servers 20 suites/127 tests、`verify:e1-02c2`真实child 10/10与C1/通道/准备/运行时回归全绿（[证据](../audits/2026-09-27-e1-02c2-restart-failure-legacy.md)）；启动时自动reconcile（共享DB误弃风险）明确不做。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -74,8 +76,8 @@ SEC-E1-02C1 限定 DONE（授权后）：重建受管生命周期协调为产品
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 178 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 2 | `SEC-E1-02C2`、`SEC-C3-03`（C1依赖已解除） |
+| DONE | 179 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 1 | `SEC-C3-03`（跨进程Registry集成，C1依赖已解除） |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 13 | 等待列明子任务/条件 |
 | NEED_ENV | 15 | 需要核实目标环境，不是假定工具阻塞 |
@@ -146,7 +148,7 @@ SEC-E1-02C1 限定 DONE（授权后）：重建受管生命周期协调为产品
 | SEC-E1-02B1 | DONE | 固定Config源、双DB快照、稳定Registry摘要、候选/绑定/环境核验；专项23/23 |
 | SEC-E1-02B2 | DONE | 真实child稳定重读Registry、single-hop Resolver、API key认证与监听后READY；三脚本47例 |
 | SEC-E1-02C1 | DONE | 授权后限定完成（[证据](../audits/2026-09-27-e1-02c1-managed-lifecycle.md)）：持久单调世代CAS（复用runtime_pipeline_state）、每次启动B1快照、受保护配置逐次审批与失败关闭、旧世代拒绝、停止幂等与遗留对账、trusted_ipc_v1显式路由（默认关闭）；新增21项、servers 18 suites/108 tests、`verify:e1-02c1`真实child 6/6、E1旧脚本61/61及构建通过；PG/Linux/部署与C2重启边界未覆盖 |
-| SEC-E1-02C2 | READY | 重启/失败/legacy边界（C1依赖已解除），待排期 |
+| SEC-E1-02C2 | DONE | 限定边界完成（[证据](../audits/2026-09-27-e1-02c2-restart-failure-legacy.md)）：崩溃→记录终结+ERROR投影（无假RUNNING）、重启必重准备新世代+逐次审批、legacy自动重启抑制且不重建秘密argv、bootstrap失败清理不保留旧实例、父断开停子进程、陈旧包拒绝、可信模式legacy凭据spawn前失败关闭、版本不匹配无回退；servers 20 suites/127 tests、`verify:e1-02c2`真实child 10/10；启动时自动reconcile按共享DB风险不做（未拥有世代报告current:false） |
 | SEC-E1-03 | WAIT_DEP | 不能用进程内transform替代 |
 | SEC-E1-04 | WAIT_DEP | 未完成 |
 | SEC-E2-01 | WAIT_DEP | 复用已有smoke |

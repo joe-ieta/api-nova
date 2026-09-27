@@ -86,6 +86,14 @@ export class ManagedMcpHandoffPreparationService {
         server.inboundAuthMode !== McpInboundAuthMode.PRIVATE_API_KEY) return reject();
       const { asset, rows } = ownership;
       const metadata = asset.metadata || {}, config = server.config || {};
+      // Trusted mode does not auto-migrate legacy secret-bearing configuration:
+      // bearer values and custom headers cannot be rebuilt from Secret References.
+      const hasHeaders = (value: unknown) => !!value && typeof value === 'object' && Object.keys(value).length > 0;
+      const legacyAuth = server.authConfig && (server.authConfig.type !== 'none' ||
+        !!(server.authConfig.config && (server.authConfig.config.bearerToken || server.authConfig.config.bearerEnv)));
+      const nestedAuth = config.mcpConfig?.authConfig;
+      if (legacyAuth || hasHeaders(config.customHeaders) || hasHeaders(config.mcpConfig?.customHeaders) ||
+        (nestedAuth && (nestedAuth.type !== 'none' || !!nestedAuth.bearerToken || !!nestedAuth.bearerEnv))) return reject();
       if (metadata.managedServerId !== serverId || config.runtimeAssetId !== runtimeAssetId || config.managedByRuntimeAsset !== true ||
         metadata.verificationRequired !== false || !['stopped', 'error'].includes(server.status) ||
         typeof config.verificationRunId !== 'string' || !config.verificationRunId || typeof config.verifiedCandidateRevision !== 'string' || !config.verifiedCandidateRevision) reject();

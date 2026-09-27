@@ -1,5 +1,5 @@
 ---
-doc-version: 1.111.0
+doc-version: 1.112.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -94,7 +94,7 @@ SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估�
 | SEC-E1-02B1 | [父端准备脚本](../../packages/api-nova-api/scripts/test-managed-mcp-handoff-preparation.cjs)、[第二批审计](../audits/2026-09-16-replanned-batch-2-evidence.md) | **限定执行**：固定 Registry、双 DB 快照及候选/环境核验 23/23；不证明 child 生命周期。 |
 | SEC-E1-02B2 | [通道脚本](../../packages/api-nova-api/scripts/test-managed-mcp-channel.cjs)、[受管运行脚本](../../packages/api-nova-server/scripts/test-managed-runtime.cjs)、[第二批审计](../audits/2026-09-16-replanned-batch-2-evidence.md) | **限定执行**：独立 child 稳定重读、single-hop、监听后 READY，三脚本联合 47/47；仍不等于产品 Server 接线。 |
 | SEC-E1-02C1 | [生命周期协调证据](../audits/2026-09-27-e1-02c1-managed-lifecycle.md)、[受管交付草案](./managed-mcp-credential-handoff-plan.md) | **DONE（限定）**：授权后产品化实现——持久单调世代CAS、每次启动快照、逐次审批失败关闭、旧世代拒绝、停止幂等与遗留对账；servers 18 suites/108 tests、`verify:e1-02c1` 真实child 6/6；PG/Linux/部署与C2边界未覆盖。 |
-| SEC-E1-02C2 | 无当前重启/失败/legacy 完整执行脚本 | **待验收**：依赖 C1；每次重启重备、timeout/exit/stop 状态及旧模式边界未验。 |
+| SEC-E1-02C2 | [重启/失败/legacy 边界证据](../audits/2026-09-27-e1-02c2-restart-failure-legacy.md) | **DONE（限定）**：崩溃→ERROR投影、重启重准备+审批、legacy重启抑制、bootstrap失败清理、父断开停子进程、陈旧包/凭据/版本拒绝；servers 20 suites/127 tests、`verify:e1-02c2` 真实child 10/10。 |
 | SEC-E1-03 | [独立 child 脚本](../../packages/api-nova-server/scripts/test-managed-runtime.cjs) | **限定执行/待验收**：合成回环只证明 B2；产品受管路径的继承/覆盖/None、缺 Secret 零发送与零跳转未验。 |
 | SEC-E1-04 | 无当前运行中撤销完整脚本 | **待验收**：版本更新/撤销生效时间和在途策略未定义并验证。 |
 | SEC-E2-01 | [传输观测](../../packages/api-nova-server/scripts/test-mcp-transport-observability.cjs)、[安全 smoke](../../packages/api-nova-server/scripts/runtime-security-audit-smoke.js) | **历史执行/待验收**：取消、重连、回放隔离、撤销按已支持 transport 的当前联合矩阵待执行。 |

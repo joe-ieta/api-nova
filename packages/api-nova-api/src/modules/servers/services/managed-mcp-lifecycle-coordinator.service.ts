@@ -52,6 +52,8 @@ export interface ManagedMcpLifecycleCoordinatorDeps {
   readonly approval: ManagedLifecycleApprovalProvider;
   readonly channel?: ManagedLifecycleChannel;
   readonly now?: () => Date;
+  /** Bounded, non-secret projection of committed terminal transitions. */
+  readonly onStateChange?: ManagedLifecycleStateChangeSink;
 }
 
 export interface ManagedLifecycleStartInput {
@@ -80,6 +82,15 @@ export interface ManagedLifecycleEventInput {
 export interface ManagedLifecycleEventResult {
   readonly status: 'applied' | 'stale' | 'rejected';
 }
+export interface ManagedLifecycleStateChange {
+  readonly serverId: string;
+  readonly runtimeAssetId: string;
+  readonly generation: number;
+  readonly state: 'failed' | 'abandoned' | 'stopped';
+  readonly reason: ManagedLifecycleTerminalReason;
+  readonly code: string | null;
+}
+export type ManagedLifecycleStateChangeSink = (change: ManagedLifecycleStateChange) => void;
 export type ManagedLifecycleStatusResult =
   | { readonly status: 'absent'; readonly serverId: string; readonly current: false }
   | { readonly status: 'invalid'; readonly serverId: string; readonly current: false }
@@ -176,6 +187,16 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
       code: code && FAILURE_CODE.test(code) ? code : null });
   }
 
+  private notify(change: ManagedLifecycleStateChange): void {
+    const sink = this.deps.onStateChange;
+    if (!sink) return;
+    try {
+      sink(Object.freeze({ ...change }));
+    } catch {
+      this.logger.warn(`Managed lifecycle state change sink failed for server ${change.serverId}`);
+    }
+  }
+
   private async approve(
     action: ManagedLifecycleAction,
     serverId: string,
@@ -197,10 +218,12 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
   }
 
   private async failTransition(serverId: string, expectedUpdatedAt: string, base: ManagedLifecycleRecordV1, code: string): Promise<void> {
+    const terminal = this.terminal('runtime_failed', true, code);
     const failed = this.record(base, { serverId, runtimeAssetId: base.runtimeAssetId, generation: base.generation,
-      state: 'failed', currentVerified: false, updatedAt: this.now().toISOString(),
-      terminal: this.terminal('runtime_failed', true, code) });
-    await this.commit(serverId, expectedUpdatedAt, failed).catch(() => undefined);
+      state: 'failed', currentVerified: false, updatedAt: this.now().toISOString(), terminal });
+    const token = await this.commit(serverId, expectedUpdatedAt, failed).catch(() => null);
+    if (token) this.notify({ serverId, runtimeAssetId: base.runtimeAssetId, generation: base.generation,
+      state: 'failed', reason: terminal.reason, code: terminal.code });
   }
 
   private observeClosed(serverId: string, generation: number, handle: ManagedLifecycleChannelHandle): void {
@@ -337,9 +360,9 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
         verified = true;
       } catch { verified = false; }
     }
+    const terminal = this.terminal('stopped', verified, 'STOPPED');
     const stopped = this.record(record, { serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
-      state: 'stopped', currentVerified: false, updatedAt: this.now().toISOString(),
-      terminal: this.terminal('stopped', verified, 'STOPPED') });
+      state: 'stopped', currentVerified: false, updatedAt: this.now().toISOString(), terminal });
     const stoppedToken = await this.commit(serverId, expectedUpdatedAt, stopped);
     if (!stoppedToken) {
       const retry = await this.read(serverId);
@@ -348,6 +371,8 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
       }
       throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_CONFLICT');
     }
+    this.notify({ serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
+      state: 'stopped', reason: terminal.reason, code: terminal.code });
     return { status: 'stopped', generation: record.generation };
   }
 
@@ -365,7 +390,13 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
     const next = this.record(record, { serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
       state: stopping ? 'stopped' : 'failed', currentVerified: false, updatedAt: this.now().toISOString(), terminal });
     if (!await this.commit(serverId, read.updatedAt, next)) return { status: 'stale' };
-    this.handles.delete(serverId);
+    const entry = this.handles.get(serverId);
+    if (entry && entry.generation === record.generation) {
+      this.handles.delete(serverId);
+      await entry.handle.close().catch(() => undefined);
+    }
+    this.notify({ serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
+      state: stopping ? 'stopped' : 'failed', reason: terminal.reason, code: terminal.code });
     return { status: 'applied' };
   }
 
@@ -379,27 +410,33 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
       if (this.ownedGeneration(serverId) === record.generation && record.currentVerified) {
         return { status: 'observed', view: managedLifecyclePublicView(record, true) };
       }
+      const terminal = this.terminal('unverified_discovered_child', false, null);
       const abandoned = this.record(record, { serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
-        state: 'abandoned', currentVerified: false, updatedAt: this.now().toISOString(),
-        terminal: this.terminal('unverified_discovered_child', false, null) });
+        state: 'abandoned', currentVerified: false, updatedAt: this.now().toISOString(), terminal });
       const token = await this.commit(serverId, read.updatedAt, abandoned);
       if (!token) return this.status(serverId);
+      this.notify({ serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
+        state: 'abandoned', reason: terminal.reason, code: terminal.code });
       return { status: 'observed', view: managedLifecyclePublicView(abandoned, false) };
     }
     if (record.state === 'starting') {
+      const terminal = this.terminal('parent_transition_interrupted', false, null);
       const abandoned = this.record(record, { serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
-        state: 'abandoned', currentVerified: false, updatedAt: this.now().toISOString(),
-        terminal: this.terminal('parent_transition_interrupted', false, null) });
+        state: 'abandoned', currentVerified: false, updatedAt: this.now().toISOString(), terminal });
       const token = await this.commit(serverId, read.updatedAt, abandoned);
       if (!token) return this.status(serverId);
+      this.notify({ serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
+        state: 'abandoned', reason: terminal.reason, code: terminal.code });
       return { status: 'observed', view: managedLifecyclePublicView(abandoned, false) };
     }
     if (record.state === 'stopping') {
+      const terminal = this.terminal('stop_reconciled_without_parent', false, null);
       const stopped = this.record(record, { serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
-        state: 'stopped', currentVerified: false, updatedAt: this.now().toISOString(),
-        terminal: this.terminal('stop_reconciled_without_parent', false, null) });
+        state: 'stopped', currentVerified: false, updatedAt: this.now().toISOString(), terminal });
       const token = await this.commit(serverId, read.updatedAt, stopped);
       if (!token) return this.status(serverId);
+      this.notify({ serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
+        state: 'stopped', reason: terminal.reason, code: terminal.code });
       return { status: 'observed', view: managedLifecyclePublicView(stopped, false) };
     }
     return { status: 'observed', view: managedLifecyclePublicView(record, false) };

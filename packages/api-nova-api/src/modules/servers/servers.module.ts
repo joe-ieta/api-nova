@@ -8,7 +8,7 @@ import { startManagedMcpChannel } from './services/managed-mcp-channel';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { EventEmitterModule } from '@nestjs/event-emitter';
+import { EventEmitter2, EventEmitterModule } from '@nestjs/event-emitter';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -83,14 +83,16 @@ import { CallObservabilityModule } from '../call-observability/call-observabilit
     ManagedMcpHandoffPreparationService,
     {
       provide: ManagedMcpLifecycleCoordinator,
-      useFactory: (dataSource: DataSource, preparation: ManagedMcpHandoffPreparationService, config: ConfigService) =>
+      useFactory: (dataSource: DataSource, preparation: ManagedMcpHandoffPreparationService, config: ConfigService,
+        events: EventEmitter2) =>
         new ManagedMcpLifecycleCoordinator({
           store: new DataSourceManagedMcpLifecycleStore(dataSource),
           capture: (runtimeAssetId: string, serverId: string) => preparation.captureForManagedLifecycle(runtimeAssetId, serverId),
           approval: createConfigManagedLifecycleApprovalProvider(config),
           channel: input => startManagedMcpChannel(input),
+          onStateChange: change => events.emit('managed.lifecycle.changed', change),
         }),
-      inject: [DataSource, ManagedMcpHandoffPreparationService, ConfigService],
+      inject: [DataSource, ManagedMcpHandoffPreparationService, ConfigService, EventEmitter2],
     },
     ServerManagerService,
     ServerLifecycleService,

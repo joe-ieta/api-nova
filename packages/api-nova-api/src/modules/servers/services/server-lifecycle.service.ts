@@ -76,6 +76,27 @@ export class ServerLifecycleService {
   }
 
   /**
+   * trusted_ipc_v1 不自动迁移 legacy 秘密配置：argv/mcpConfig 中的
+   * bearer token、bearerEnv、custom headers 无法安全重建时必须先失败关闭。
+   * legacy 模式（非 trusted）行为保持不变。
+   */
+  private assertTrustedManagedConfiguration(serverEntity: MCPServerEntity): void {
+    const authConfig = serverEntity.authConfig;
+    const authConfigured = !!authConfig && (authConfig.type !== 'none' ||
+      !!(authConfig.config && (authConfig.config.bearerToken || authConfig.config.bearerEnv)));
+    const headers = serverEntity.config?.customHeaders;
+    const headersConfigured = !!headers && typeof headers === 'object' && Object.keys(headers).length > 0;
+    const nested = serverEntity.config?.mcpConfig;
+    const nestedHeaders = nested?.customHeaders;
+    const nestedHeadersConfigured = !!nestedHeaders && typeof nestedHeaders === 'object' && Object.keys(nestedHeaders).length > 0;
+    const nestedAuth = nested?.authConfig;
+    const nestedAuthConfigured = !!nestedAuth && (nestedAuth.type !== 'none' || !!nestedAuth.bearerToken || !!nestedAuth.bearerEnv);
+    if (authConfigured || headersConfigured || nestedHeadersConfigured || nestedAuthConfigured) {
+      throw new Error('MCP_MANAGED_LEGACY_CREDENTIALS_REJECTED');
+    }
+  }
+
+  /**
    * 验证OpenAPI数据
    */
   async validateOpenApiData(openApiData: any): Promise<void> {
@@ -119,6 +140,7 @@ export class ServerLifecycleService {
 
       if (this.usesTrustedIpcV1(serverEntity)) {
         if (!this.managedLifecycle) throw new Error('Managed lifecycle coordinator unavailable');
+        this.assertTrustedManagedConfiguration(serverEntity);
         const runtimeAssetId = typeof serverEntity.config?.runtimeAssetId === 'string' ? serverEntity.config.runtimeAssetId : '';
         const started = await this.managedLifecycle.start({ serverId: serverEntity.id, runtimeAssetId });
         const endpoint = this.getServerEndpoint(serverEntity);

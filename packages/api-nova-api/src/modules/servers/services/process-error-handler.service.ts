@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
+import { MCPServerEntity } from '../../../database/entities/mcp-server.entity';
 import { ProcessLogEntity } from '../entities/process-log.entity';
 import { ProcessInfoEntity } from '../entities/process-info.entity';
 import {
@@ -32,6 +33,8 @@ export class ProcessErrorHandlerService {
     private readonly processManager: ProcessManagerService,
     private readonly eventEmitter: EventEmitter2,
     private readonly configService: ConfigService,
+    @Optional() @InjectRepository(MCPServerEntity)
+    private readonly serverRepository?: Repository<MCPServerEntity>,
   ) {
     this.config = {
       ...DEFAULT_PROCESS_CONFIG,
@@ -54,8 +57,20 @@ export class ProcessErrorHandlerService {
     // 更新进程信息中的错误状态
     await this.updateProcessErrorInfo(serverId, error);
 
-    // 根据错误类型和重启策略决定是否重启
-    await this.handleRestartLogic(serverId, errorType, error);
+    // trusted_ipc_v1 的恢复由受管生命周期负责：重新准备（新世代）或停止。
+    // 禁止用可能携带陈旧秘密 argv 的 legacy 配置自动重启，也不回放旧交付包。
+    if (await this.isTrustedManagedServer(serverId)) {
+      this.cancelRestart(serverId);
+      await this.logInfo(serverId, 'Legacy restart suppressed for trusted managed server');
+      this.eventEmitter.emit('process.managed_restart_rejected', {
+        serverId,
+        errorType,
+        timestamp
+      });
+    } else {
+      // 根据错误类型和重启策略决定是否重启
+      await this.handleRestartLogic(serverId, errorType, error);
+    }
 
     // 发送错误事件
     this.eventEmitter.emit('process.error_handled', {
@@ -64,6 +79,20 @@ export class ProcessErrorHandlerService {
       error: error.message,
       timestamp
     });
+  }
+
+  /**
+   * trusted_ipc_v1 服务器重启必须经受管准备/审批，不能走 legacy CLI 重建参数。
+   * 仅在数据库明确声明该执行模式时抑制；查询失败保持既有 legacy 行为。
+   */
+  private async isTrustedManagedServer(serverId: string): Promise<boolean> {
+    if (!this.serverRepository) return false;
+    try {
+      const server = await this.serverRepository.findOne({ where: { id: serverId } });
+      return server?.config?.executionMode === 'trusted_ipc_v1';
+    } catch {
+      return false;
+    }
   }
 
   /**

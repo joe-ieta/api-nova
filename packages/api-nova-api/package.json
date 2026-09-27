@@ -27,7 +27,8 @@
     "db:generate-schema": "node scripts/database-tool.cjs generate",
     "db:create-empty": "node scripts/database-tool.cjs create",
     "db:smoke": "node scripts/database-tool.cjs smoke",
-    "verify:e1-02c1": "node scripts/verify-e1-02c1.cjs"
+    "verify:e1-02c1": "node scripts/verify-e1-02c1.cjs",
+    "verify:e1-02c2": "node scripts/verify-e1-02c2.cjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",

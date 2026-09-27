@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { MCPServerEntity, ServerStatus, TransportType } from '../../../database/entities/mcp-server.entity';
 import { LogEntryEntity, LogLevel, LogSource } from '../../../database/entities/log-entry.entity';
 import { ServerLifecycleService } from './server-lifecycle.service';
+import { ManagedLifecycleStateChange } from './managed-mcp-lifecycle-coordinator.service';
 import { ProcessManagerService } from './process-manager.service';
 import { ProcessHealthService } from './process-health.service';
 import { ProcessErrorHandlerService } from './process-error-handler.service';
@@ -85,6 +86,30 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
     this.eventEmitter.on('process.health_check_failed', async (event: ProcessEvent) => {
       await this.handleHealthCheckFailed(event);
     });
+
+    // 监听受管生命周期终态事件（受信 trusted_ipc_v1 子进程不回放陈旧交付包）
+    this.eventEmitter.on('managed.lifecycle.changed', async (event: ManagedLifecycleStateChange) => {
+      await this.handleManagedLifecycleChanged(event);
+    });
+  }
+
+  /**
+   * 受管生命周期失败/被放弃时投影权威状态，避免残留 RUNNING/READY。
+   * 自动重启由受管协调器按世代重新准备；此处只投影错误，不复用旧交付包。
+   */
+  private async handleManagedLifecycleChanged(event: ManagedLifecycleStateChange): Promise<void> {
+    try {
+      if (!event || !['failed', 'abandoned'].includes(event.state)) return;
+      if (this.startingServers.has(event.serverId)) return;
+      const code = typeof event.code === 'string' && /^[A-Z0-9_]{1,80}$/.test(event.code)
+        ? event.code : 'MANAGED_RUNTIME_FAILED';
+      const errorMessage = `Managed runtime generation ${event.generation} ${event.state} (${code})`;
+      await this.updateServerStatus(event.serverId, ServerStatus.ERROR, undefined, errorMessage);
+      const error = Object.assign(new Error(code), { name: 'ManagedLifecycleError' });
+      await this.logError(event.serverId, `Managed runtime ${event.state}`, error);
+    } catch (error) {
+      this.logger.error(`Failed to project managed lifecycle state for ${event?.serverId}:`, error);
+    }
   }
 
   /**
