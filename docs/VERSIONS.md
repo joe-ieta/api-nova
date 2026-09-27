@@ -16,6 +16,7 @@
 | --- | --- | --- | --- |
 | [OBS-14-03E3 授权物理清理](./audits/2026-09-26-obs-14-03e3-physical-cleanup.md) | 1.0.0 | active | 2026-09-26 |
 | [PROD-06 CAS 范围核定](./audits/2026-09-26-prod-06-cas-scope-determination.md) | 1.0.0 | active | 2026-09-26 |
+| [SEC-C3-03 多进程 Registry 协调](./audits/2026-09-27-c3-03-multi-process-registry.md) | 1.0.0 | active | 2026-09-27 |
 | [SEC-E1-02C2 重启/失败/legacy 边界](./audits/2026-09-27-e1-02c2-restart-failure-legacy.md) | 1.0.0 | active | 2026-09-27 |
 | [SEC-E1-02C1 生命周期协调](./audits/2026-09-27-e1-02c1-managed-lifecycle.md) | 1.0.0 | active | 2026-09-27 |
 | [OBS-14-05D 配额状态联调](./audits/2026-09-27-obs-14-05d-quota-state-joint.md) | 1.0.0 | active | 2026-09-27 |
@@ -54,7 +55,7 @@
 | [SEC-A1-02B4鉴权模式界面交付](./audits/2026-09-21-mcp-mode-ui-evidence.md) | 1.0.0 | active | 2026-09-21 |
 | [docs/audits/2026-09-04-manual-registration-publication.md](./audits/2026-09-04-manual-registration-publication.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/audits/2026-09-07-reviewed-merge.md](./audits/2026-09-07-reviewed-merge.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/audits/README.md](./audits/README.md) | 1.56.0 | active | 2026-09-27 |
+| [docs/audits/README.md](./audits/README.md) | 1.57.0 | active | 2026-09-27 |
 | [全范围审核与重拆](./audits/2026-09-15-work-package-replan.md) | 1.0.0 | active | 2026-09-15 |
 | [PROD-03本地发布循环](./audits/2026-09-15-prod-03-local-publication-cycle.md) | 0.1.0 | active | 2026-09-15 |
 | [重拆第二批限定证据](./audits/2026-09-16-replanned-batch-2-evidence.md) | 1.7.0 | active | 2026-09-16 |
@@ -66,10 +67,10 @@
 | [重拆第五批限定证据](./audits/2026-09-16-replanned-batch-5-evidence.md) | 1.0.0 | active | 2026-09-16 |
 | [端点测试二进制样例合同](./guides/endpoint-test-binary-sample-contract.md) | 0.8.0 | active | 2026-09-17 |
 | [活跃工作包划分](./guides/active-work-package-breakdown.md) | 1.88.0 | active | 2026-09-24 |
-| [安全交付验收证据索引](./guides/security-delivery-evidence-index.md) | 1.112.0 | active | 2026-09-27 |
+| [安全交付验收证据索引](./guides/security-delivery-evidence-index.md) | 1.113.0 | active | 2026-09-27 |
 | [邮件投递范围与受控验收合同](./guides/mail-delivery-scope-and-acceptance.md) | 1.1.0 | active | 2026-09-26 |
 | [MCP发布端点合同](./guides/mcp-publication-endpoint-contract.md) | 0.2.0 | active | 2026-09-21 |
-| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.172.0 | active | 2026-09-27 |
+| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.173.0 | active | 2026-09-27 |
 | [受管MCP启动交付设计](./guides/managed-mcp-credential-handoff-plan.md) | 0.4.0 | reviewed-slice | 2026-09-21 |
 | [候选激活与GC重试](./audits/2026-09-15-activation-gc-wave.md) | 1.0.0 | active | 2026-09-15 |
 | [上游归属交叉核验](./audits/2026-09-15-upstream-ownership-wave.md) | 1.0.0 | active | 2026-09-15 |

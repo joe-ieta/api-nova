@@ -1,5 +1,5 @@
 ---
-doc-version: 1.172.0
+doc-version: 1.173.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -65,7 +65,9 @@ OBS-14-05D 限定 DONE：`verify:obs-14-05d` 联调水位迟滞（H=90/L=80/Q硬
 
 SEC-E1-02C1 限定 DONE（授权后）：重建受管生命周期协调为产品代码——持久单调世代CAS（复用`runtime_pipeline_state`）、每次启动B1快照绑定、受保护配置逐次审批记录与失败关闭、旧世代事件拒绝、停止幂等与遗留子进程对账、`trusted_ipc_v1` 显式路由且默认关闭；新增21项Jest、servers 18 suites/108 tests、`verify:e1-02c1`真实child 6/6、E1旧脚本61/61与构建通过（[证据](../audits/2026-09-27-e1-02c1-managed-lifecycle.md)）；SEC-E1-02C2与SEC-C3-03依赖解除转READY；PG/Linux/部署与C2重启边界未覆盖。
 
-SEC-E1-02C2 限定 DONE：失败/重启/legacy边界落地——崩溃终结+`ERROR`投影（无假RUNNING，owned handle幂等关闭）、可信重启重准备新世代+逐次审批、`process.managed_restart_rejected` 抑制legacy自动重启且不重建秘密argv、bootstrap失败/超时清理不留旧实例、父IPC断开停子进程、Registry漂移后陈旧包拒绝、可信模式legacy bearer/custom-header spawn前失败关闭且无自动迁移/回退、版本不匹配拒绝；servers 20 suites/127 tests、`verify:e1-02c2`真实child 10/10与C1/通道/准备/运行时回归全绿（[证据](../audits/2026-09-27-e1-02c2-restart-failure-legacy.md)）；启动时自动reconcile（共享DB误弃风险）明确不做。
+SEC-E1-02C2 限定 DONE：失败/重启/legacy边界落地——崩溃终结+`ERROR`投影（无假RUNNING，owned handle幂等关闭）、可信重启重准备新世代+逐次审批、`process.managed_restart_rejected` 抑制legacy自动重启且不重建秘密argv、bootstrap失败/超时清理不留旧实例、父IPC断开停子进程、Registry漂移后陈旧包拒绝、可信模式legacy bearer/custom-header spawn前失败关闭且无自动迁移/回退、版本不匹配拒绝；servers 20 suites/131 tests、`verify:e1-02c2`真实child 10/10与C1/通道/准备/运行时回归全绿（[证据](../audits/2026-09-27-e1-02c2-restart-failure-legacy.md)）；启动时自动reconcile（共享DB误弃风险）明确不做。
+
+SEC-C3-03 限定 DONE：多进程Registry版本协调——真实隔离PostgreSQL上2个真实API进程共享库，`verify:c3-03` 18项检查（CAS单赢家/败者`MANAGED_LIFECYCLE_CONFLICT`零变更、外来start/stop/event失败关闭`MANAGED_LIFECYCLE_FOREIGN_CURRENT`、世代[1,2,3,5,6]单调且gen4陈旧包从未current、他进程可读状态/世代/Registry revision+digest/审批、崩溃后须显式reconcile接管）；并修复PG下`readMcpOwnership` uuid/varchar连接缺陷（无schema变更）；全量API 154 suites/1678 tests与C1/C2执行器全绿（[证据](../audits/2026-09-27-c3-03-multi-process-registry.md)）；watcher/推送归E1-04，Linux/部署未覆盖。
 
 ## 1. 本次重排快照
 
@@ -76,8 +78,8 @@ SEC-E1-02C2 限定 DONE：失败/重启/legacy边界落地——崩溃终结+`ER
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 179 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 1 | `SEC-C3-03`（跨进程Registry集成，C1依赖已解除） |
+| DONE | 180 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 0 | 当前无 READY；下一候选 E1-03/E1-04（依赖链已基本就绪） |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 13 | 等待列明子任务/条件 |
 | NEED_ENV | 15 | 需要核实目标环境，不是假定工具阻塞 |
@@ -118,7 +120,7 @@ SEC-E1-02C2 限定 DONE：失败/重启/legacy边界落地——崩溃终结+`ER
 | SEC-C2-02 | DONE | Windows原生句柄ACL验证；真实NTFS28/28主任务独立复跑，越权/链接/替换/并发写入均通过；依赖系统PowerShell与Add-Type，Linux另验 |
 | SEC-C3-01 | DONE | 固定文件Watch/debounce、坏文件保旧、admin锁内代次检查和Nest关闭已通过；Windows真实监听8/8、Parser252/252、Gateway31/31；见2026-09-21-registry-watch证据 |
 | SEC-C3-02 | DONE | Gateway启动/manual/watch激活均强制真实DB Source/Endpoint归属校验，未知/跨源/查询失败保旧；Parser46/46、Gateway46/46；见2026-09-21-registry-db-ownership |
-| SEC-C3-03 | READY | E1-02C1 已提供持久世代/每次启动快照/审批协调原语（[证据](../audits/2026-09-27-e1-02c1-managed-lifecycle.md)）；跨进程Registry集成待复核后实施，不能用实验cohort原语冒充 |
+| SEC-C3-03 | DONE | 限定多进程协调完成（[证据](../audits/2026-09-27-c3-03-multi-process-registry.md)）：真实PG双进程共享库——CAS单赢家/败者零变更、外来start/stop/event失败关闭、世代+Registry revision/digest跨进程可读（`currentVerified`+只读reader）、陈旧包不入current、崩溃需显式reconcile接管；18项检查`C3_03_VERIFY_OK`；并修复PG下uuid/varchar连接缺陷；watcher/推送（E1-04）与Linux/部署未覆盖 |
 | SEC-C4-01 | WAIT_DEP | 纯Resolver不重写 |
 | SEC-D1-01 | DONE | Header政策1.0.0定稿：双向精确allowlist、多值/framing、保留字段、缓存和限时迁移；H01–H12待实现，N01–N17仍F3提案 |
 | SEC-D1-02A | DONE | Parser v1编译/不可变快照/继承/摘要/冲突294项；Gateway双源及未就绪激活拒绝、真实固定文件保旧/SQL.js冷恢复拒绝；仅准备 |

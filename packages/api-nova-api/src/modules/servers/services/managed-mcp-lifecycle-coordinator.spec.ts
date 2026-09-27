@@ -22,6 +22,7 @@ import {
   ManagedLifecycleChannelInput,
   ManagedLifecycleChannelHandle,
   ManagedMcpLifecycleCoordinator,
+  readManagedMcpLifecycleStatus,
 } from './managed-mcp-lifecycle-coordinator.service';
 
 const SERVER = '00000000-0000-0000-0000-000000000001';
@@ -387,5 +388,79 @@ describe('managed lifecycle coordinator', () => {
     expect(serialized).not.toContain('openApiData');
     expect(serialized).not.toContain('environmentValues');
     expect(serialized).not.toContain(MANAGED_MCP_LIFECYCLE_PREFIX);
+  });
+});
+
+describe('cross-process coordination over a shared store', () => {
+  it('fails closed for a foreign current generation and projects its registry identity and approval', async () => {
+    const store = new InMemoryManagedMcpLifecycleStore();
+    const owner = coordinator(store);
+    const started = await owner.instance.start({ serverId: SERVER, runtimeAssetId: ASSET });
+    expect(started.generation).toBe(1);
+
+    const foreign = coordinator(store, { capture: captureSequence([payloadFor('foreign')]).capture });
+    await expect(foreign.instance.start({ serverId: SERVER, runtimeAssetId: ASSET }))
+      .rejects.toMatchObject({ code: 'MANAGED_LIFECYCLE_FOREIGN_CURRENT' });
+    await expect(foreign.instance.stop(SERVER))
+      .rejects.toMatchObject({ code: 'MANAGED_LIFECYCLE_FOREIGN_CURRENT' });
+    expect(foreign.channel.invocations).toHaveLength(0);
+
+    const observed = await readManagedMcpLifecycleStatus(store, SERVER);
+    expect(observed).toMatchObject({ status: 'observed', view: { generation: 1, state: 'current', current: false,
+      currentVerified: true, snapshotDigest: managedLifecycleSnapshotDigest(started.snapshot),
+      snapshot: { registryRevision: 'r1', registryContentDigest: 'b'.repeat(64) },
+      startDecision: { action: 'start', generation: 1 } } });
+    await expect(owner.instance.status(SERVER)).resolves.toMatchObject({ view: { current: true, currentVerified: true } });
+    await owner.instance.stop(SERVER);
+  });
+
+  it('does not claim a foreign in-flight start and rejects its lifecycle events', async () => {
+    const store = new InMemoryManagedMcpLifecycleStore();
+    const pending = fakeChannel({ ready: 'pending' });
+    const owner = new ManagedMcpLifecycleCoordinator({ store, capture: captureSequence([payloadFor('launch-pending')]).capture,
+      approval: createConfigManagedLifecycleApprovalProvider(config()), channel: pending.channel });
+    const inFlight = owner.start({ serverId: SERVER, runtimeAssetId: ASSET });
+    inFlight.catch(() => undefined);
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const read = await store.read(SERVER);
+      if (read.status === 'valid' && read.record.state === 'starting') break;
+      await new Promise(resolve => setTimeout(resolve, 5));
+    }
+    const foreign = coordinator(store, { capture: captureSequence([payloadFor('foreign')]).capture });
+    await expect(foreign.instance.start({ serverId: SERVER, runtimeAssetId: ASSET }))
+      .rejects.toMatchObject({ code: 'MANAGED_LIFECYCLE_FOREIGN_CURRENT' });
+    await expect(foreign.instance.event(SERVER, { generation: 1, type: 'failed', code: 'MANAGED_RUNTIME_FAILED' }))
+      .resolves.toEqual({ status: 'rejected' });
+    expect(foreign.channel.invocations).toHaveLength(0);
+    await expect(foreign.instance.status(SERVER)).resolves.toMatchObject({ status: 'observed',
+      view: { state: 'starting', currentVerified: false, current: false } });
+    pending.handles[0].settleReady();
+    await expect(inFlight).resolves.toMatchObject({ generation: 1 });
+    await owner.stop(SERVER);
+  });
+
+  it('rejects a foreign failure event for an owned current generation', async () => {
+    const store = new InMemoryManagedMcpLifecycleStore();
+    const owner = coordinator(store);
+    await owner.instance.start({ serverId: SERVER, runtimeAssetId: ASSET });
+    const foreign = coordinator(store);
+    await expect(foreign.instance.event(SERVER, { generation: 1, type: 'failed', code: 'MANAGED_RUNTIME_FAILED' }))
+      .resolves.toEqual({ status: 'rejected' });
+    await expect(owner.instance.status(SERVER)).resolves.toMatchObject({ view: { state: 'current', current: true } });
+    await owner.instance.stop(SERVER);
+  });
+
+  it('reads the persisted coordination record from a process that owns no child', async () => {
+    const store = new InMemoryManagedMcpLifecycleStore();
+    const owner = coordinator(store);
+    await owner.instance.start({ serverId: SERVER, runtimeAssetId: ASSET });
+    await owner.instance.event(SERVER, { generation: 1, type: 'failed', code: 'MANAGED_RUNTIME_FAILED' });
+    await expect(readManagedMcpLifecycleStatus(store, SERVER)).resolves.toMatchObject({ status: 'observed',
+      view: { generation: 1, state: 'failed', current: false, currentVerified: false,
+        snapshot: { registryRevision: 'r1' }, terminal: { reason: 'runtime_failed', code: 'MANAGED_RUNTIME_FAILED' },
+        startDecision: { action: 'start', generation: 1 } } });
+    await expect(readManagedMcpLifecycleStatus(store, OTHER_ASSET)).resolves.toEqual({ status: 'absent',
+      serverId: OTHER_ASSET, current: false });
+    await expect(readManagedMcpLifecycleStatus(store, 'not a valid id')).rejects.toMatchObject({ code: 'MANAGED_LIFECYCLE_REJECTED' });
   });
 });

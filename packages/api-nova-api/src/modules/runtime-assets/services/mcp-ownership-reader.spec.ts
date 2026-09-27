@@ -103,7 +103,12 @@ describe('MCP ownership single SELECT with real SQL.js entities', () => {
       expect(await readMcpOwnership(postgres.manager, id(1))).toBeNull();
       expect(postgres.isInitialized).toBe(false);
       expect(sql).toContain('MAX("profile_version"."version")');
-      expect(sql).toContain('"profile_version"."runtimeAssetEndpointBindingId" = "membership"."id"');
+      expect(sql).toContain('"profile_version"."runtimeAssetEndpointBindingId" = membership.id::text');
+      expect(sql).toContain('asset.id::text = "membership"."runtimeAssetId"');
+      expect(sql).toContain('endpoint.id::text = "membership"."endpointDefinitionId"');
+      expect(sql).toContain('source.id::text = "endpoint"."sourceServiceAssetId"');
+      expect(sql).toContain('"publication"."runtimeAssetEndpointBindingId" = membership.id::text');
+      expect(sql).toContain('"profile"."runtimeAssetEndpointBindingId" = membership.id::text');
       expect(sql).toContain('"profile"."version" = (SELECT');
       expect(sql).toContain('LIMIT 10001');
       expect(sql).toContain('$1');

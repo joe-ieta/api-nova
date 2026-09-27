@@ -10,6 +10,7 @@ export const MANAGED_MCP_LIFECYCLE_FAILURE_CODES = Object.freeze([
   'MANAGED_LIFECYCLE_APPROVAL_REJECTED',
   'MANAGED_LIFECYCLE_CONFLICT',
   'MANAGED_LIFECYCLE_ALREADY_CURRENT',
+  'MANAGED_LIFECYCLE_FOREIGN_CURRENT',
   'MANAGED_LIFECYCLE_STORE_UNAVAILABLE',
   'MANAGED_LIFECYCLE_INVALID_RECORD',
   'MANAGED_LIFECYCLE_CAPTURE_FAILED',
@@ -259,8 +260,13 @@ export interface ManagedLifecyclePublicView {
   readonly state: ManagedLifecycleState;
   readonly launchId: string | null;
   readonly pid: number | null;
+  /** True only in the process that owns the live handle for this generation. */
   readonly current: boolean;
+  /** True when the persisted record itself verifies this generation as current, readable cross-process. */
+  readonly currentVerified: boolean;
   readonly snapshotDigest: string | null;
+  /** Exact Registry/candidate identity this generation was started and verified against. Non-secret. */
+  readonly snapshot: ManagedLifecycleSnapshotIdentity | null;
   readonly startDecision: ManagedLifecycleDecisionV1 | null;
   readonly stopDecision: ManagedLifecycleDecisionV1 | null;
   readonly terminal: ManagedLifecycleTerminalV1 | null;
@@ -269,7 +275,7 @@ export interface ManagedLifecyclePublicView {
 
 export function managedLifecyclePublicView(record: ManagedLifecycleRecordV1, current: boolean): ManagedLifecyclePublicView {
   return Object.freeze({ serverId: record.serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
-    state: record.state, launchId: record.launchId, pid: record.pid, current,
-    snapshotDigest: record.snapshot ? managedLifecycleSnapshotDigest(record.snapshot) : null,
+    state: record.state, launchId: record.launchId, pid: record.pid, current, currentVerified: record.currentVerified,
+    snapshotDigest: record.snapshot ? managedLifecycleSnapshotDigest(record.snapshot) : null, snapshot: record.snapshot,
     startDecision: record.startDecision, stopDecision: record.stopDecision, terminal: record.terminal, updatedAt: record.updatedAt });
 }

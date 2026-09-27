@@ -243,8 +243,14 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
     const read = await this.read(serverId);
     if (read.status === 'invalid') throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_INVALID_RECORD');
     if (read.status === 'valid' && read.record.runtimeAssetId !== runtimeAssetId) throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_REJECTED');
-    if (read.status === 'valid' && read.record.state === 'current' && this.ownedGeneration(serverId) === read.record.generation) {
-      throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_ALREADY_CURRENT');
+    // A generation that is current or mid-start belongs to exactly one parent
+    // process. A process that does not own it must not advance the record over
+    // a possibly live child; recovery requires an explicit reconcile first.
+    if (read.status === 'valid' && (read.record.state === 'starting' || read.record.state === 'current')) {
+      if (read.record.state === 'current' && this.ownedGeneration(serverId) === read.record.generation) {
+        throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_ALREADY_CURRENT');
+      }
+      throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_FOREIGN_CURRENT');
     }
     const generation = (read.status === 'valid' ? read.record.generation : 0) + 1;
     if (generation > MANAGED_MCP_LIFECYCLE_MAX_GENERATION) throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_GENERATION_EXHAUSTED');
@@ -320,6 +326,11 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
     if (record.state === 'stopped' || record.state === 'failed' || record.state === 'abandoned') {
       return { status: 'already-stopped', generation: record.generation };
     }
+    // Only the owning process can stop a live current child. A foreign stop
+    // would write a terminal state it cannot back with an actual child exit.
+    if (record.state === 'current' && this.ownedGeneration(serverId) !== record.generation) {
+      throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_FOREIGN_CURRENT');
+    }
     const snapshotDigest = record.snapshot ? managedLifecycleSnapshotDigest(record.snapshot) : null;
     if (record.state === 'stopping') {
       if (!managedLifecycleDecisionValid(record.stopDecision, { action: 'stop', generation: record.generation, snapshotDigest })) {
@@ -385,6 +396,9 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
     if (read.status === 'absent' || read.record.generation !== input.generation) return { status: 'stale' };
     const record = read.record;
     if (record.state !== 'current' && record.state !== 'starting' && record.state !== 'stopping') return { status: 'stale' };
+    // Child lifecycle events are only valid from the parent that owns the live
+    // handle; a foreign process must not terminate another instance's child.
+    if (this.ownedGeneration(serverId) !== record.generation) return { status: 'rejected' };
     const stopping = record.state === 'stopping';
     const terminal = this.terminal(stopping ? 'stopped' : 'runtime_failed', true, input.code ?? null);
     const next = this.record(record, { serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
@@ -443,11 +457,30 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
   }
 
   async status(serverId: string): Promise<ManagedLifecycleStatusResult> {
-    if (!IDENTIFIER.test(serverId)) throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_REJECTED');
-    const read = await this.read(serverId);
-    if (read.status === 'absent') return { status: 'absent', serverId, current: false };
-    if (read.status === 'invalid') return { status: 'invalid', serverId, current: false };
-    const current = read.record.state === 'current' && read.record.currentVerified && this.ownedGeneration(serverId) === read.record.generation;
-    return { status: 'observed', view: managedLifecyclePublicView(read.record, current) };
+    const result = await readManagedMcpLifecycleStatus(this.deps.store, serverId);
+    if (result.status !== 'observed') return result;
+    const current = result.view.state === 'current' && result.view.currentVerified &&
+      this.ownedGeneration(serverId) === result.view.generation;
+    return { status: 'observed', view: Object.freeze({ ...result.view, current }) };
   }
+}
+
+/** Read-only cross-process projection of the shared coordination record.
+ * Never mutates the store and never touches a child; any process holding the
+ * shared store may observe state, generation, Registry identity, approvals,
+ * and the last static failure code of the owning process. */
+export async function readManagedMcpLifecycleStatus(
+  store: ManagedMcpLifecycleStore,
+  serverId: string,
+): Promise<ManagedLifecycleStatusResult> {
+  if (!IDENTIFIER.test(serverId)) throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_REJECTED');
+  let read: ManagedMcpLifecycleRead;
+  try {
+    read = await store.read(serverId);
+  } catch {
+    throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_STORE_UNAVAILABLE');
+  }
+  if (read.status === 'absent') return { status: 'absent', serverId, current: false };
+  if (read.status === 'invalid') return { status: 'invalid', serverId, current: false };
+  return { status: 'observed', view: managedLifecyclePublicView(read.record, false) };
 }
