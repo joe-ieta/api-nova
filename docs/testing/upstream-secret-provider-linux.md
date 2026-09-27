@@ -1,6 +1,6 @@
 ---
-doc-version: 1.0.0
-last-updated: 2026-09-14
+doc-version: 1.1.0
+last-updated: 2026-09-27
 status: active
 ---
 
@@ -8,7 +8,7 @@ status: active
 
 ## 当前状态
 
-这是待执行的操作说明，不是验收报告。Windows 本机 Provider 专项为 53 通过、0 失败、30 项真实 Linux 文件场景跳过。当前 Docker Linux 引擎没有运行；不会将 docker-desktop 内部 WSL 发行版当作通用 Linux 测试环境。
+2026-09-27 已在本机 Docker Desktop Linux 引擎执行（镜像 `node:24-alpine`，容器内 Node v24.21.0/musl）：**83 项 = 82 通过 / 0 失败 / 1 按设计跳过**，退出码 0，与预期计数一致；证据见 [Linux 容器平台验证](../audits/2026-09-27-linux-container-platform-validation.md)。执行偏差：单文件挂载缺少同目录模块，改为只读挂载整个 `dist` 目录；`--read-only` 下另补 `/tmp` tmpfs 以保证临时文件可写（建议后续回写本文命令）。
 
 ## 操作前提
 
@@ -58,4 +58,4 @@ if ($exit -ne 0) { throw "Provider Linux tests failed with exit code $exit; reta
 - 当前脚本的预期计数为 82 通过、1 项“不支持平台”测试跳过；这是预期，不是已经取得的结果。任何失败都必须保留，不能通过放松权限或跳过断言来凑齐数量。
 - 真实文件专项覆盖多级相对 key、目录权限、祖先目录可写性、普通文件/链接、UTF-8、大小与读取期间变更等已写入的场景。
 - 即便此脚本通过，也不等同于完整跨平台、安全文件系统或不同 UID/所有内核竞争条件的验收；Windows ACL 适配、Registry Watch/审计及 C4 Resolver 仍另行推进。
-- 本说明中的 Docker 命令尚未实际执行。若没有可用镜像或 Linux 引擎，请先提供环境，不需要提供任何真实秘密。
+- 2026-09-27 实际执行记录：镜像 `node:24-alpine`、Node v24.21.0、退出码 0、83 项（82 通过/1 跳过）；原始输出留于本地 `E:\temp\opencode\c2-01-linux.log`。仍不等同 glibc/内核竞态与不同 UID 竞争条件的完整验收。

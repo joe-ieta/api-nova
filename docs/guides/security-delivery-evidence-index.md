@@ -1,5 +1,5 @@
 ---
-doc-version: 1.109.0
+doc-version: 1.110.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -57,7 +57,7 @@ SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估�
 | SEC-B3-02 | [SDK会话矩阵](../audits/2026-09-21-sdk-session-contract.md) | **限定执行/DONE**：11项新增、联合71/71，固定dispatcher/Session/通知边界；不升级SDK或实现权限广播。 |
 | SEC-C1-01 | [类型、生命周期与作用域合同](./upstream-credential-types-contract.md) | **政策定稿/DONE（DOC）**：四类支持目标与拒绝类型、时间/Scope、F1兼容已冻结；C1-02代码仍待实现。 |
 | SEC-C1-02 | [四类型与Scope验收](../audits/2026-09-22-credential-types-scope.md) | **已实现/DONE**：四类型、生命周期/Scope、Basic双引用、秘密拒绝和真实Gateway/显式single-hop；受管生产E1/F1门禁仍独立。 |
-| SEC-C2-01 | [Linux 隔离操作说明](../testing/upstream-secret-provider-linux.md)、[Provider 脚本](../../packages/api-nova-parser/scripts/test-upstream-secret-provider.cjs) | **准备/待验收（环境）**：Windows 本机 53 项通过；30 个真实 Linux 文件权限场景尚未执行。说明中 82 通过只是预期值。 |
+| SEC-C2-01 | [Linux 容器平台验证](../audits/2026-09-27-linux-container-platform-validation.md)、[Linux 隔离操作说明](../testing/upstream-secret-provider-linux.md) | **DONE（限定）**：node:24-alpine 按加固参数运行 83 项 = 82 通过/0 失败/1 按设计跳过，退出码 0；Windows ACL 归 C2-02，glibc/内核竞态未覆盖。 |
 | SEC-C2-02 | [Windows ACL证据](../audits/2026-09-21-windows-secret-acl.md) | **限定执行/DONE**：真实NTFS28/28、主任务复跑通过；仅本地驱动器，需要系统PowerShell/Add-Type，未替代Linux验收。 |
 | SEC-C3-01 | [Watch交付证据](../audits/2026-09-21-registry-watch.md) | **限定执行/DONE**：Windows真实固定文件监听8/8、Parser凭据252/252、Gateway接线31/31；含坏文件保旧、并发管理员CAS、Nest关闭。DB归属、多进程及Linux不在此叶。 |
 | SEC-C3-02 | [真实DB归属证据](../audits/2026-09-21-registry-db-ownership.md) | **限定执行/DONE**：Source/Endpoint未知或跨源拒绝，manual/watch/启动同校验，失败保旧；不代表激活后的自动DB撤销。 |

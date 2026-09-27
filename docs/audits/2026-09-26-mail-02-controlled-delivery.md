@@ -1,7 +1,7 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
-doc-updated: 2026-09-26
+doc-updated: 2026-09-27
 ---
 # MAIL-02 受控邮件投递证据（2026-09-26）
 
@@ -32,7 +32,8 @@ doc-updated: 2026-09-26
 
 ## 4. 边界与决策（如实）
 
-- 未覆盖：真实外部 SMTP/第三方、PostgreSQL 运行时装新迁移（DDL 由专项断言）、持久投递队列/退信、UI 偏好开关（无设置页）、浏览器级 UI e2e、STARTTLS（仅隐式 TLS）。
+- 未覆盖：真实外部 SMTP/第三方、持久投递队列/退信、UI 偏好开关（无设置页）、浏览器级 UI e2e、STARTTLS（仅隐式 TLS）。
+- 2026-09-27 补充：PostgreSQL 运行时装迁移已实测——隔离 PostgreSQL 16 真实集群 `ISOLATED_POSTGRES_SCHEMA_ACCEPTANCE_OK`（entities 73/domainTables 73/appliedMigrations 8/empty drift 0/restart 0/API 启动通过），含 `emailVerificationExpiresAt` 双迁移；集群运行后已停止并移除。
 - 决策记录：限流超限=`REJECTED`；`MAIL_ENABLED=false` 不写审计（保持原“不投递”语义）；沿用既有 `AuditAction` 枚举 + `resource:'mail'`；旧明文 token 因摘要化而失效（迁移注意）；管理员重置改为摘要查找但不额外撤销会话；忘记密码成功文案改为通用 `Password reset request accepted.`。
 - 新增配置键 `MAIL_SINK_DIR`、`MAIL_ACTION_BASE_URL`（默认取首个 `CORS_ORIGINS`）为合同外实现补充，已写入 `.env.example`。
 

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.168.0
+doc-version: 1.169.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -59,6 +59,8 @@ PROD-06 核定 DONE（DOC）：原WP70出口限定为同语句归属/发布读�
 
 OBS-14-03E2B/E3 限定 DONE（授权后）：过期事件有界物理删除接入，同Store事务内 gap+delete+持久cursor，默认关闭开关 `API_NOVA_OBSERVABILITY_LIFECYCLE_RETENTION_EVENTS_ENABLED`；新增 `verify:obs-14-03e3` 与10项验收（默认关闭零删除、仅授权候选、原子回滚、批次/重启恢复、保护与幂等重跑），模块12 suites/102 tests及8脚本回归全绿（[证据](../audits/2026-09-26-obs-14-03e3-physical-cleanup.md)）。
 
+Docker/Linux 平台批（用户启动 Docker 后）：SEC-C2-01 按加固参数在 node:24-alpine 上 83 项=82过/0败/1跳过；OBS-14-05C3 Linux 与 Windows 对齐 9/9（Alpine PG 16.15+contrib、Docker卷数据目录），05C3 双平台限定 DONE、05D 转 READY；MAIL-02 的 PG 运行时装迁移由隔离 PostgreSQL 16 实测（8迁移/drift 0/API启动）；统一证据见 [Linux 容器平台验证](../audits/2026-09-27-linux-container-platform-validation.md)。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -68,11 +70,11 @@ OBS-14-03E2B/E3 限定 DONE（授权后）：过期事件有界物理删除接�
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 174 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 0 | 当前队列无 READY；`SEC-F3-02D`/`MAIL-02` 均以限定 DONE 出口 |
+| DONE | 176 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 1 | `OBS-14-05D`（05C3依赖已解除），其余无 READY |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
-| WAIT_DEP | 16 | 等待列明子任务/条件 |
-| NEED_ENV | 17 | 需要核实目标环境，不是假定工具阻塞 |
+| WAIT_DEP | 15 | 等待列明子任务/条件 |
+| NEED_ENV | 15 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 0 | PROD-06 核定后无待判范围项 |
 | DEFERRED | 2 | 不属于当前里程碑 |
 近期已完成C2B1/B2/B3、C2C1、B2B1/B2/C、B3A/C、SEC-A1-01跨层矩阵及当前版本SQLite空库验证A4-01的限定出口。C2C1证实旧预留无法在崩溃后唯一反查文件，原C2C2已进一步拆为保守降级A、持久发布意图B和可证明结算C；A已完成，B再细分为双方言模型B1、写入接线B2和崩溃验收B3；B1/B2/B3已完成限定出口，C已完成关联、文件证明与安全结算原语，C2C3本地恢复故障验收亦已完成，05C3的Windows隔离PG多写者/进程及PG重启出口已完成，Linux/生产验收仍独立登记。B3B已限定完成；无sample行的staged墓碑再细分为互斥E1、整理E2和故障验收E3，E1/E2/E3已完成限定出口，B3D本地限定验收已完成，真实环境仍归04C。READY不表示已开工。SEC-E1-02C1仍等待明确生产生命周期授权；事件物理删除E2B仍等待明确永久删除授权。
@@ -106,7 +108,7 @@ OBS-14-03E2B/E3 限定 DONE（授权后）：过期事件有界物理删除接�
 | SEC-B3-02 | DONE | SDK1.29.0 dispatcher/双传输Session/同主体换钥/跨主体拒绝/通知边界11项，统一入口71/71；scope不自动通知，目录变更阳性对照，见SDK证据 |
 | SEC-C1-01 | DONE | [类型合同](./upstream-credential-types-contract.md)冻结四类目标、拒绝类型、生命周期/Scope与F1兼容；DOC完成，非实现 |
 | SEC-C1-02 | DONE | [四类凭据证据](../audits/2026-09-22-credential-types-scope.md)：类型/双引用/生命周期/Scope、Gateway与显式single-hop真实27项、DB归属、533 Parser/428 API联合通过 |
-| SEC-C2-01 | NEED_ENV | Env/File本机实现已有 |
+| SEC-C2-01 | DONE | 限定Linux权限矩阵完成（[证据](../audits/2026-09-27-linux-container-platform-validation.md)）：node:24-alpine(v24.21.0/musl)按操作说明加固运行，83项=82过/0败/1按设计跳过；私有根/祖先可写/链接/编码/边界与读中变更覆盖；Windows ACL归C2-02，未覆盖glibc/内核竞态 |
 | SEC-C2-02 | DONE | Windows原生句柄ACL验证；真实NTFS28/28主任务独立复跑，越权/链接/替换/并发写入均通过；依赖系统PowerShell与Add-Type，Linux另验 |
 | SEC-C3-01 | DONE | 固定文件Watch/debounce、坏文件保旧、admin锁内代次检查和Nest关闭已通过；Windows真实监听8/8、Parser252/252、Gateway31/31；见2026-09-21-registry-watch证据 |
 | SEC-C3-02 | DONE | Gateway启动/manual/watch激活均强制真实DB Source/Endpoint归属校验，未知/跨源/查询失败保旧；Parser46/46、Gateway46/46；见2026-09-21-registry-db-ownership |
@@ -246,8 +248,8 @@ OBS-14-03E2B/E3 限定 DONE（授权后）：过期事件有界物理删除接�
 | OBS-14-05C2C2C2A | DONE | 同一inventory围栏内完整扫描、final digest/长度与temp缺失只读证明，返回file_proof_uncommitted；SQL.js 8/8、相关回归，不结算 |
 | OBS-14-05C2C2C2B | DONE | 同inventory围栏最终事务复核意图/receipt/元数据/预留和完整扫描、精确文件字节后安全结算；专项10/10、相邻55/55；不确定保守持有、quotaEnforced=false |
 | OBS-14-05C2C3 | DONE | 实际ingest/发布故障、关闭并重建SQL.js连接、缺receipt/元数据回滚/残留temp、重复恢复与重放5/5；每次确认reserved+committed覆盖实际路径字节；仅Windows隔离验收 |
-| OBS-14-05C3 | NEED_ENV | Windows PostgreSQL16.10真实9/9：四进程预算/幂等、四个实际ingest中断窗口、完整文件链并发和PG重启重放守恒；本机出口完成，Linux无就绪环境，整包不标DONE；PG掉电/长期压力未验 |
-| OBS-14-05D | WAIT_DEP | 状态/故障联调等待05C3 |
+| OBS-14-05C3 | DONE | 限定双平台完成（[证据](../audits/2026-09-27-linux-container-platform-validation.md)）：Windows PostgreSQL16.10 9/9 + Linux（node:24-alpine, PostgreSQL 16.15+contrib）9/9；四进程预算/幂等、四个ingest中断窗口、文件链并发与PG重启重放守恒；PG掉电/长时压力未验 |
+| OBS-14-05D | READY | 状态/故障联调（05C3依赖已解除），待排期 |
 | OBS-14-06A | DONE | 限定本功能管理审计有界清理完成：按明确resource归属（observability_caller/delivery/policy/subscription/payload/audit）仅选本功能记录，30天最小窗口；delete/checkpoint/单条管理记录同一Store事务；无法归属与更新记录保留；默认off。专项1 suite/7 tests、call-observability 9 suites/73 tests、API build；不含全产品安全审计/配额治理与平台多进程 |
 | OBS-14-06T | DONE | 限定暂存源文件有界恢复完成：仅身份/已提交offset/边界/seal/closed退出证明/完整行全部复核且超48小时才删除；活动、半行、未导入、身份不明与不匹配名保留；持久游标恢复；不触碰checkpoint/receipt/事件且不分配业务sequence。专项1 suite/8 tests、call-observability 10 suites/81 tests、API build；不含平台/多进程与旧schema |
 | OBS-15-01 | DONE | 限定迁移完成：旧`/api/v1/monitoring/management/external-callers`文件扫描入口与parser `listObservedRuntimeCallers`已删除（无别名/回退），消费者改用统一`/api/monitoring/observability/callers`或原始`callers-*.jsonl`证据；结构/404/原始记录断言与parser 23项通过。Gateway旧后端删除与部署切换归OBS-15-02 |
@@ -290,7 +292,7 @@ OBS-14-03E2B/E3 限定 DONE（授权后）：过期事件有界物理删除接�
 | ENV-01 | NEED_ENV | 不放宽执行策略 |
 | OPS-01 | WAIT_DEP | 不能与F4重复计算发布成果 |
 | MAIL-01 | DONE | [邮件投递范围与受控验收合同](./mail-delivery-scope-and-acceptance.md)冻结三类接口、模板、测试邮箱与证据合同；仅DOC，不改变当前运行默认 |
-| MAIL-02 | DONE | 限定受控投递完成（[证据](../audits/2026-09-26-mail-02-controlled-delivery.md)）：配置/模块/认证/通知/失败恢复/测试/UI 全部落地，sink 端到端6套件30例+双构建+SQLite drift 0；真实外发、生产启用、PG运行时装迁移与队列化另需授权/另立任务 |
+| MAIL-02 | DONE | 限定受控投递完成（[证据](../audits/2026-09-26-mail-02-controlled-delivery.md)）：配置/模块/认证/通知/失败恢复/测试/UI全部落地，sink端到端6套件30例+双构建+SQLite drift 0；PG运行时装迁移已由隔离PG实测通过（8迁移/drift 0/API启动）；真实外发、生产启用与队列化另需授权/另立任务 |
 | MAINT-01 | WAIT_DEP | 等待发布行为与接口边界稳定后再冻结维护验收，当前不进入主线 |
 | MAINT-02 | DONE | 限定本轮交付范围验收：`check-delivery-i18n.cjs` 8个交付面文件严格UTF-8/乱码检查0/8通过；原46行可见硬编码中文的`RuntimeUpstreamBindingDialog.vue`已完成i18n化（新增`runtime-upstream-binding`双语模块47键并注册），复核`visibleCjkLines:0`、8/8通过、type-check与UI构建通过 |
 | DEFER-01 | DEFERRED | 明确延期 |
