@@ -1,5 +1,5 @@
 ---
-doc-version: 1.110.0
+doc-version: 1.111.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -61,7 +61,7 @@ SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估�
 | SEC-C2-02 | [Windows ACL证据](../audits/2026-09-21-windows-secret-acl.md) | **限定执行/DONE**：真实NTFS28/28、主任务复跑通过；仅本地驱动器，需要系统PowerShell/Add-Type，未替代Linux验收。 |
 | SEC-C3-01 | [Watch交付证据](../audits/2026-09-21-registry-watch.md) | **限定执行/DONE**：Windows真实固定文件监听8/8、Parser凭据252/252、Gateway接线31/31；含坏文件保旧、并发管理员CAS、Nest关闭。DB归属、多进程及Linux不在此叶。 |
 | SEC-C3-02 | [真实DB归属证据](../audits/2026-09-21-registry-db-ownership.md) | **限定执行/DONE**：Source/Endpoint未知或跨源拒绝，manual/watch/启动同校验，失败保旧；不代表激活后的自动DB撤销。 |
-| SEC-C3-03 | 无当前跨进程 Registry 协调脚本 | **待验收**：需真实受管 child 链与跨进程 generation、失败/激活可观测证据。 |
+| SEC-C3-03 | [生命周期协调证据](../audits/2026-09-27-e1-02c1-managed-lifecycle.md) | **READY（依赖已解除）**：E1-02C1 提供持久世代/快照/审批原语；跨进程 Registry 集成与失败/激活可观测证据待实施后验收。 |
 | SEC-C4-01 | [Resolver 测试](../../packages/api-nova-parser/src/credentials/resolver.spec.ts)、[受管 child 测试](../../packages/api-nova-api/scripts/test-managed-mcp-handoff-preparation.cjs) | **限定执行/待验收**：纯 Resolver 与独立 child B1/B2 有结果；产品受管生命周期尚未接线，Gateway/MCP 继承/覆盖/None/Unresolved 联合门禁未验。 |
 
 ## D–E：数据面和 MCP
@@ -93,7 +93,7 @@ SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估�
 | SEC-E1-02A | [通道脚本](../../packages/api-nova-api/scripts/test-managed-mcp-channel.cjs)、[第二批审计](../audits/2026-09-16-replanned-batch-2-evidence.md) | **限定执行**：Windows 本机合成真实 Node child 私有 IPC 11/11、ProcessManager 3/3；不证明产品启动状态。 |
 | SEC-E1-02B1 | [父端准备脚本](../../packages/api-nova-api/scripts/test-managed-mcp-handoff-preparation.cjs)、[第二批审计](../audits/2026-09-16-replanned-batch-2-evidence.md) | **限定执行**：固定 Registry、双 DB 快照及候选/环境核验 23/23；不证明 child 生命周期。 |
 | SEC-E1-02B2 | [通道脚本](../../packages/api-nova-api/scripts/test-managed-mcp-channel.cjs)、[受管运行脚本](../../packages/api-nova-server/scripts/test-managed-runtime.cjs)、[第二批审计](../audits/2026-09-16-replanned-batch-2-evidence.md) | **限定执行**：独立 child 稳定重读、single-hop、监听后 READY，三脚本联合 47/47；仍不等于产品 Server 接线。 |
-| SEC-E1-02C1 | [受管交付草案](./managed-mcp-credential-handoff-plan.md) | **待验收**：未验收生命周期草稿已撤回；生产启动/停止状态行为变更需明确授权后再实施，不能用 02A/B 结果代替。 |
+| SEC-E1-02C1 | [生命周期协调证据](../audits/2026-09-27-e1-02c1-managed-lifecycle.md)、[受管交付草案](./managed-mcp-credential-handoff-plan.md) | **DONE（限定）**：授权后产品化实现——持久单调世代CAS、每次启动快照、逐次审批失败关闭、旧世代拒绝、停止幂等与遗留对账；servers 18 suites/108 tests、`verify:e1-02c1` 真实child 6/6；PG/Linux/部署与C2边界未覆盖。 |
 | SEC-E1-02C2 | 无当前重启/失败/legacy 完整执行脚本 | **待验收**：依赖 C1；每次重启重备、timeout/exit/stop 状态及旧模式边界未验。 |
 | SEC-E1-03 | [独立 child 脚本](../../packages/api-nova-server/scripts/test-managed-runtime.cjs) | **限定执行/待验收**：合成回环只证明 B2；产品受管路径的继承/覆盖/None、缺 Secret 零发送与零跳转未验。 |
 | SEC-E1-04 | 无当前运行中撤销完整脚本 | **待验收**：版本更新/撤销生效时间和在途策略未定义并验证。 |

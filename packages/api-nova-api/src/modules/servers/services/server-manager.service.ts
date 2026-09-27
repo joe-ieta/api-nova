@@ -638,7 +638,9 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
     // 添加到启动锁
     this.startingServers.add(id);
 
-    await this.updateServerStatus(id, ServerStatus.STARTING);
+    if (server.config?.executionMode !== 'trusted_ipc_v1') {
+      await this.updateServerStatus(id, ServerStatus.STARTING);
+    }
     
     try {
       const instance = await this.lifecycleService.startServer(server);
@@ -742,11 +744,12 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
       }
       this.logger.log(`🛑 [DEBUG] Memory instance found: ${!!instance}`);
       
-      if (instance) {
-        this.logger.log(`🛑 [DEBUG] Instance details - hasHttpServer: ${!!instance.httpServer}, hasMcpServer: ${!!instance.mcpServer}`);
+      if (instance || server.config?.executionMode === 'trusted_ipc_v1') {
+        const target: ServerInstance = instance ?? { id, entity: server };
+        this.logger.log(`🛑 [DEBUG] Instance details - hasHttpServer: ${!!target.httpServer}, hasMcpServer: ${!!target.mcpServer}`);
         this.logger.log(`🛑 [DEBUG] Calling lifecycleService.stopServer for ${server.name}`);
         
-        await this.lifecycleService.stopServer(instance);
+        await this.lifecycleService.stopServer(target);
         
         this.logger.log(`🛑 [DEBUG] lifecycleService.stopServer completed, cleaning up memory instance`);
         // 清理内存中的实例

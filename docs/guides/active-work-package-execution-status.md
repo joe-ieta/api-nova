@@ -1,5 +1,5 @@
 ---
-doc-version: 1.170.0
+doc-version: 1.171.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -63,6 +63,8 @@ Docker/Linux 平台批（用户启动 Docker 后）：SEC-C2-01 按加固参数�
 
 OBS-14-05D 限定 DONE：`verify:obs-14-05d` 联调水位迟滞（H=90/L=80/Q硬界）、真实 `fs.statfs` 物理余量守卫（新默认关闭 `API_NOVA_OBSERVABILITY_PAYLOAD_QUOTA_PHYSICAL_ENABLED`，低/过期/缺失显式拒绝）、版本/禁用状态、权限旁路与压力故障结算、业务降级声明；模块13 suites/105 tests、聚合19脚本/179项、17项检查全绿（[证据](../audits/2026-09-27-obs-14-05d-quota-state-joint.md)）；长时压力/Linux-PG联合/多进程/生产启用仍为环境项。
 
+SEC-E1-02C1 限定 DONE（授权后）：重建受管生命周期协调为产品代码——持久单调世代CAS（复用`runtime_pipeline_state`）、每次启动B1快照绑定、受保护配置逐次审批记录与失败关闭、旧世代事件拒绝、停止幂等与遗留子进程对账、`trusted_ipc_v1` 显式路由且默认关闭；新增21项Jest、servers 18 suites/108 tests、`verify:e1-02c1`真实child 6/6、E1旧脚本61/61与构建通过（[证据](../audits/2026-09-27-e1-02c1-managed-lifecycle.md)）；SEC-E1-02C2与SEC-C3-03依赖解除转READY；PG/Linux/部署与C2重启边界未覆盖。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -72,10 +74,10 @@ OBS-14-05D 限定 DONE：`verify:obs-14-05d` 联调水位迟滞（H=90/L=80/Q硬
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 177 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 0 | 当前无 READY；已授权项下一批为 E1 链与 G5 切片 |
+| DONE | 178 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 2 | `SEC-E1-02C2`、`SEC-C3-03`（C1依赖已解除） |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
-| WAIT_DEP | 15 | 等待列明子任务/条件 |
+| WAIT_DEP | 13 | 等待列明子任务/条件 |
 | NEED_ENV | 15 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 0 | PROD-06 核定后无待判范围项 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -114,7 +116,7 @@ OBS-14-05D 限定 DONE：`verify:obs-14-05d` 联调水位迟滞（H=90/L=80/Q硬
 | SEC-C2-02 | DONE | Windows原生句柄ACL验证；真实NTFS28/28主任务独立复跑，越权/链接/替换/并发写入均通过；依赖系统PowerShell与Add-Type，Linux另验 |
 | SEC-C3-01 | DONE | 固定文件Watch/debounce、坏文件保旧、admin锁内代次检查和Nest关闭已通过；Windows真实监听8/8、Parser252/252、Gateway31/31；见2026-09-21-registry-watch证据 |
 | SEC-C3-02 | DONE | Gateway启动/manual/watch激活均强制真实DB Source/Endpoint归属校验，未知/跨源/查询失败保旧；Parser46/46、Gateway46/46；见2026-09-21-registry-db-ownership |
-| SEC-C3-03 | WAIT_DEP | 复核发现实验handoff只启动时captureSnapshot且generation恒从1起；完整产品跨进程协调依赖E1-02C1，不能用实验cohort原语冒充交付 |
+| SEC-C3-03 | READY | E1-02C1 已提供持久世代/每次启动快照/审批协调原语（[证据](../audits/2026-09-27-e1-02c1-managed-lifecycle.md)）；跨进程Registry集成待复核后实施，不能用实验cohort原语冒充 |
 | SEC-C4-01 | WAIT_DEP | 纯Resolver不重写 |
 | SEC-D1-01 | DONE | Header政策1.0.0定稿：双向精确allowlist、多值/framing、保留字段、缓存和限时迁移；H01–H12待实现，N01–N17仍F3提案 |
 | SEC-D1-02A | DONE | Parser v1编译/不可变快照/继承/摘要/冲突294项；Gateway双源及未就绪激活拒绝、真实固定文件保旧/SQL.js冷恢复拒绝；仅准备 |
@@ -143,8 +145,8 @@ OBS-14-05D 限定 DONE：`verify:obs-14-05d` 联调水位迟滞（H=90/L=80/Q硬
 | SEC-E1-02A | DONE | 真实Node IPC、精确环境、ACK后固定拒绝、断连/超时/幂等关闭；专项11/11，ProcessManager 3/3 |
 | SEC-E1-02B1 | DONE | 固定Config源、双DB快照、稳定Registry摘要、候选/绑定/环境核验；专项23/23 |
 | SEC-E1-02B2 | DONE | 真实child稳定重读Registry、single-hop Resolver、API key认证与监听后READY；三脚本47例 |
-| SEC-E1-02C1 | WAIT_DEP | 未验收生命周期草稿已撤回；B1/B2独立准备与真实child测试保留。自动审批要求明确授权生产启动/停止状态行为变更后再实现 |
-| SEC-E1-02C2 | WAIT_DEP | 重启/失败/legacy边界等待C1 |
+| SEC-E1-02C1 | DONE | 授权后限定完成（[证据](../audits/2026-09-27-e1-02c1-managed-lifecycle.md)）：持久单调世代CAS（复用runtime_pipeline_state）、每次启动B1快照、受保护配置逐次审批与失败关闭、旧世代拒绝、停止幂等与遗留对账、trusted_ipc_v1显式路由（默认关闭）；新增21项、servers 18 suites/108 tests、`verify:e1-02c1`真实child 6/6、E1旧脚本61/61及构建通过；PG/Linux/部署与C2重启边界未覆盖 |
+| SEC-E1-02C2 | READY | 重启/失败/legacy边界（C1依赖已解除），待排期 |
 | SEC-E1-03 | WAIT_DEP | 不能用进程内transform替代 |
 | SEC-E1-04 | WAIT_DEP | 未完成 |
 | SEC-E2-01 | WAIT_DEP | 复用已有smoke |

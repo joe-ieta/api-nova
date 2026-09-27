@@ -171,6 +171,12 @@ export class ManagedMcpHandoffPreparationService {
     return (await this.capture(runtimeAssetId, serverId)).payload;
   }
 
+  async captureForManagedLifecycle(runtimeAssetId: string, serverId: string) {
+    const captured = await this.capture(runtimeAssetId, serverId);
+    return { payload: captured.payload, approvedEnvironmentNames: captured.approvedEnvironmentNames,
+      environmentValues: captured.environmentValues };
+  }
+
   /** Explicit internal experiment only: ACK is not readiness; await handle.ready.
    * No production lifecycle integration. */
   async startInternal(runtimeAssetId: string, serverId: string) {

@@ -11,6 +11,7 @@ import { MCPServerEntity, TransportType } from '../../../database/entities/mcp-s
 import { assertTemporaryAnonymousPolicy } from 'api-nova-parser';
 import { RuntimeCredentialResolverService } from './runtime-credential-resolver.service';
 import { persistedMcpInboundMode } from './mcp-inbound-process-env';
+import { ManagedMcpLifecycleCoordinator } from './managed-mcp-lifecycle-coordinator.service';
 import { ServerInstance } from './server-manager.service';
 import { ProcessManagerService } from './process-manager.service';
 import { ProcessHealthService } from './process-health.service';
@@ -67,7 +68,12 @@ export class ServerLifecycleService {
     private readonly parserService: ParserService,
     private readonly validatorService: ValidatorService,
     @Optional() private readonly credentialResolver?: RuntimeCredentialResolverService,
+    @Optional() private readonly managedLifecycle?: ManagedMcpLifecycleCoordinator,
   ) {}
+
+  private usesTrustedIpcV1(serverEntity: MCPServerEntity): boolean {
+    return serverEntity.config?.executionMode === 'trusted_ipc_v1';
+  }
 
   /**
    * 验证OpenAPI数据
@@ -110,6 +116,31 @@ export class ServerLifecycleService {
       const inboundAuthMode = await this.preflightInboundAuth(serverEntity);
       // 验证OpenAPI数据
       await this.validateOpenApiData(serverEntity.openApiData);
+
+      if (this.usesTrustedIpcV1(serverEntity)) {
+        if (!this.managedLifecycle) throw new Error('Managed lifecycle coordinator unavailable');
+        const runtimeAssetId = typeof serverEntity.config?.runtimeAssetId === 'string' ? serverEntity.config.runtimeAssetId : '';
+        const started = await this.managedLifecycle.start({ serverId: serverEntity.id, runtimeAssetId });
+        const endpoint = this.getServerEndpoint(serverEntity);
+        this.eventEmitter.emit('server.lifecycle.started', {
+          serverId: serverEntity.id,
+          serverName: serverEntity.name,
+          transport: serverEntity.transport,
+          endpoint,
+          pid: started.pid,
+        });
+        await this.recordRuntimeLifecycleEvent(serverEntity, {
+          eventName: 'mcp.started',
+          status: RuntimeObservabilityStatus.ACTIVE,
+          severity: RuntimeObservabilitySeverity.INFO,
+          currentStatus: RuntimeCurrentStatus.ACTIVE,
+          healthStatus: RuntimeHealthStatus.UNKNOWN,
+          summary: `MCP runtime asset '${serverEntity.config?.runtimeAssetId || serverEntity.id}' started`,
+          details: { endpoint, pid: started.pid, transport: serverEntity.transport, managedGeneration: started.generation },
+        });
+        this.logger.log(`Server '${serverEntity.name}' started successfully at ${endpoint} (generation: ${started.generation}, PID: ${started.pid})`);
+        return { mcpServer: null, httpServer: null, endpoint };
+      }
 
       // 构建CLI参数
       const cliArgs = this.buildCliArgs(serverEntity);
@@ -331,9 +362,14 @@ export class ServerLifecycleService {
       // 停止健康检查
       this.processHealth.stopHealthCheck(instance.id);
 
-      // 统一使用进程管理器停止服务器（适用于所有传输类型）
-      this.logger.log(`Stopping process-based server '${instance.entity.name}' via process manager`);
-      await this.processManager.stopProcess(instance.id);
+      if (this.usesTrustedIpcV1(instance.entity)) {
+        if (!this.managedLifecycle) throw new Error('Managed lifecycle coordinator unavailable');
+        await this.managedLifecycle.stop(instance.id);
+      } else {
+        // 统一使用进程管理器停止服务器（适用于所有传输类型）
+        this.logger.log(`Stopping process-based server '${instance.entity.name}' via process manager`);
+        await this.processManager.stopProcess(instance.id);
+      }
 
       // 清除超时监控
       const timeout = this.serverTimeouts.get(instance.id);

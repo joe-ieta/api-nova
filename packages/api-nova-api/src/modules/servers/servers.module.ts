@@ -1,7 +1,13 @@
 import { RuntimeCredentialResolverService } from './services/runtime-credential-resolver.service';
 import { Module } from '@nestjs/common';
 import { ManagedMcpHandoffPreparationService } from './services/managed-mcp-handoff-preparation.service';
+import { ManagedMcpLifecycleCoordinator } from './services/managed-mcp-lifecycle-coordinator.service';
+import { DataSourceManagedMcpLifecycleStore } from './services/managed-mcp-lifecycle.store';
+import { createConfigManagedLifecycleApprovalProvider } from './services/managed-mcp-lifecycle-approval';
+import { startManagedMcpChannel } from './services/managed-mcp-channel';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
@@ -75,6 +81,17 @@ import { CallObservabilityModule } from '../call-observability/call-observabilit
   providers: [
     RuntimeCredentialResolverService,
     ManagedMcpHandoffPreparationService,
+    {
+      provide: ManagedMcpLifecycleCoordinator,
+      useFactory: (dataSource: DataSource, preparation: ManagedMcpHandoffPreparationService, config: ConfigService) =>
+        new ManagedMcpLifecycleCoordinator({
+          store: new DataSourceManagedMcpLifecycleStore(dataSource),
+          capture: (runtimeAssetId: string, serverId: string) => preparation.captureForManagedLifecycle(runtimeAssetId, serverId),
+          approval: createConfigManagedLifecycleApprovalProvider(config),
+          channel: input => startManagedMcpChannel(input),
+        }),
+      inject: [DataSource, ManagedMcpHandoffPreparationService, ConfigService],
+    },
     ServerManagerService,
     ServerLifecycleService,
     ServerHealthService,
@@ -90,6 +107,7 @@ import { CallObservabilityModule } from '../call-observability/call-observabilit
   exports: [
     ServerManagerService,
     ServerLifecycleService,
+    ManagedMcpLifecycleCoordinator,
     ServerHealthService,
     ServerMetricsService,
     ProcessManagerService,

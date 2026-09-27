@@ -26,7 +26,8 @@
     "migration:revert": "npm run typeorm -- migration:revert -d src/database/data-source.ts",
     "db:generate-schema": "node scripts/database-tool.cjs generate",
     "db:create-empty": "node scripts/database-tool.cjs create",
-    "db:smoke": "node scripts/database-tool.cjs smoke"
+    "db:smoke": "node scripts/database-tool.cjs smoke",
+    "verify:e1-02c1": "node scripts/verify-e1-02c1.cjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
