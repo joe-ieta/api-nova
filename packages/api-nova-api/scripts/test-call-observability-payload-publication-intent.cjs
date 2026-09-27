@@ -24,7 +24,11 @@ const code = expected => error => error.code === expected;
 const { McpInboundAuthModeSqlite1790000002000: InboundMode } = load('database/migrations/1790000002000-McpInboundAuthModeSqlite');
 const { RuntimeAccessCredentialSqlite1790000004000: AccessCredential } = load('database/migrations/1790000004000-RuntimeAccessCredentialSqlite');
 const { UpstreamAuthenticationEvidenceSqlite1790000006000: AuthenticationEvidence } = load('database/migrations/1790000006000-UpstreamAuthenticationEvidenceSqlite');
-const migrations = [Initial, Forward, InboundMode, AccessCredential, AuthenticationEvidence];
+const { GatewayHeaderHistoryLedgerSqlite1790000008000: HeaderHistoryLedger } = load('database/migrations/1790000008000-GatewayHeaderHistoryLedgerSqlite');
+const { UpstreamProductionChallengeEvidenceSqlite1790000010000: ChallengeEvidence } = load('database/migrations/1790000010000-UpstreamProductionChallengeEvidenceSqlite');
+const { UserEmailVerificationExpirySqlite1790000012000: EmailVerificationExpiry } = load('database/migrations/1790000012000-UserEmailVerificationExpirySqlite');
+const migrations = [Initial, Forward, InboundMode, AccessCredential, AuthenticationEvidence,
+  HeaderHistoryLedger, ChallengeEvidence, EmailVerificationExpiry];
 
 async function fixture(t) {
   await fs.mkdir(parent, { recursive: true });

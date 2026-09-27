@@ -1,5 +1,6 @@
 import { PayloadQuotaPrimitives } from './call-observability-payload-quota';
 import { PayloadPublicationIntentStore } from './call-observability-payload-publication-intent';
+import { payloadPhysicalGuardEnabled } from './call-observability-payload-physical';
 import { Injectable } from '@nestjs/common';
 import { readEventRetentionPolicy } from './call-observability-policy';
 import { DataSource, EntityManager, In } from 'typeorm';
@@ -270,6 +271,8 @@ export class CallObservabilityStore {
             if (enabled !== 'true') throw new ObservabilityStorageError('QUOTA_UNAVAILABLE');
             const primitives = new PayloadQuotaPrimitives();
             const intent = new PayloadPublicationIntentStore();
+            const physical = payloadPhysicalGuardEnabled()
+              ? { observation: await this.payloadStore.measureFreeSpace() } : null;
             const reservation = await this.transaction(async tx => {
               await this.payloadCoordination.assertWriter(tx, lease);
               const status = await primitives.status({ manager: tx.manager, now: tx.now, snapshotSeq: publicSequence(tx.currentSequence()) });
@@ -280,7 +283,7 @@ export class CallObservabilityStore {
                 result = await intent.reserve(tx, status.epoch, {
                   sourceInstanceId: record.sourceInstanceId, sourceEventId: record.sourceEventId,
                   payloadId, generation: lease.generation, fileKey, digest, storedBytes,
-                });
+                }, physical);
               } catch (error) {
                 if (status.state === 'limited' && error instanceof ObservabilityStorageError && error.code === 'QUOTA_NOT_READY') {
                   throw new ObservabilityStorageError('QUOTA_EXHAUSTED');

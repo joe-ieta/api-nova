@@ -6,6 +6,7 @@ import { dirname, join, resolve } from 'path';
 import { randomUUID } from 'crypto';
 import { auditBodyLimit, auditDirectory, InvocationBody } from 'api-nova-parser';
 import type { QuotaSettlement } from './call-observability-payload-quota';
+import { observePayloadFreeSpace, PayloadPhysicalSpaceObservation } from './call-observability-payload-physical';
 import { PayloadInventorySession, type PayloadInventoryResumeEvidence } from './call-observability-payload-inventory';
 import { RuntimePayloadEntity } from '../../database/entities/runtime-call-observability.entity';
 import {
@@ -177,7 +178,8 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
           const quotaCode = error instanceof ObservabilityStorageError ? error.code : '';
           const quotaReason: Record<string, string> = { QUOTA_EXHAUSTED: 'quota_exhausted', QUOTA_NOT_READY: 'quota_unavailable',
             QUOTA_UNAVAILABLE: 'quota_unavailable', QUOTA_BODY_LIMIT: 'quota_body_limit', QUOTA_PUBLICATION_PENDING: 'quota_publication_pending',
-            QUOTA_PUBLICATION_UNCERTAIN: 'quota_publication_uncertain', QUOTA_EPOCH_MISMATCH: 'quota_unavailable' };
+            QUOTA_PUBLICATION_UNCERTAIN: 'quota_publication_uncertain', QUOTA_EPOCH_MISMATCH: 'quota_unavailable',
+            QUOTA_PHYSICAL_LOW: 'quota_physical_low', QUOTA_PHYSICAL_UNKNOWN: 'quota_physical_unknown' };
           storageFailed = !quotaReason[quotaCode];
           metadata.state = 'omitted';
           metadata.reason = quotaReason[quotaCode] ?? 'storage_error';
@@ -298,6 +300,10 @@ export class CallObservabilityPayloadStore implements OnModuleDestroy {
     if (!this.ownerId || await this.readOwner() !== this.ownerId) {
       throw new ObservabilityStorageError('PAYLOAD_ROOT_OWNER_MISMATCH');
     }
+  }
+
+  async measureFreeSpace(): Promise<PayloadPhysicalSpaceObservation | null> {
+    return observePayloadFreeSpace(this.root);
   }
 
   async openInventory(startShard = 0, resume?: PayloadInventoryResumeEvidence): Promise<PayloadInventorySession> {

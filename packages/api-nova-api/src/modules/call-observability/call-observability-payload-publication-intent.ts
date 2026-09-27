@@ -5,6 +5,7 @@ import {
 import { ObservabilityReadTransaction, ObservabilityWriteTransaction } from './call-observability.store';
 import { PAYLOAD_COORDINATION_ID, PAYLOAD_OWNER_ID } from './call-observability-payload.coordinator';
 import { PayloadQuotaPrimitives } from './call-observability-payload-quota';
+import { PayloadPhysicalSpaceObservation } from './call-observability-payload-physical';
 import { canonicalJson, contentHash, ObservabilityStorageError, publicSequence } from './call-observability-storage';
 import { randomUUID } from 'crypto';
 
@@ -63,7 +64,8 @@ export class PayloadPublicationIntentStore {
 
   /** Only use inside Store.transaction. No file may be opened before it commits. */
   async reserve(tx: ObservabilityWriteTransaction, epoch: string,
-    input: PayloadPublicationIntentInput): Promise<PayloadPublicationReservation> {
+    input: PayloadPublicationIntentInput,
+    physical?: { observation: PayloadPhysicalSpaceObservation | null } | null): Promise<PayloadPublicationReservation> {
     this.validate(input);
     const ownerId = await this.owner(tx);
     const coordination = await tx.manager.getRepository(RuntimePipelineStateEntity)
@@ -75,7 +77,7 @@ export class PayloadPublicationIntentStore {
     ]));
     const reservationId = contentHash(canonicalJson([ownerId, operationId]));
     const result = await new PayloadQuotaPrimitives().reserve(tx, epoch, operationId,
-      input.storedBytes * 2);
+      input.storedBytes * 2, physical);
     if (result.replayed) {
       const existing = await this.load(tx, reservationId);
       if (!existing || existing.ownerId !== ownerId || existing.epoch !== epoch ||
