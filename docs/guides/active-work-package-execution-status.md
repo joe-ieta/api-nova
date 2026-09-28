@@ -1,5 +1,5 @@
 ---
-doc-version: 1.174.0
+doc-version: 1.175.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -69,6 +69,8 @@ SEC-E1-02C2 限定 DONE：失败/重启/legacy边界落地——崩溃终结+`ER
 
 SEC-C3-03 限定 DONE：多进程Registry版本协调——真实隔离PostgreSQL上2个真实API进程共享库，`verify:c3-03` 18项检查（CAS单赢家/败者`MANAGED_LIFECYCLE_CONFLICT`零变更、外来start/stop/event失败关闭`MANAGED_LIFECYCLE_FOREIGN_CURRENT`、世代[1,2,3,5,6]单调且gen4陈旧包从未current、他进程可读状态/世代/Registry revision+digest/审批、崩溃后须显式reconcile接管）；并修复PG下`readMcpOwnership` uuid/varchar连接缺陷（无schema变更）；全量API 154 suites/1678 tests与C1/C2执行器全绿（[证据](../audits/2026-09-27-c3-03-multi-process-registry.md)）；watcher/推送归E1-04，Linux/部署未覆盖。
 
+SEC-E1-03 限定 DONE：`verify:e1-03` 以真实构建产物child逐行验证§7矩阵1–13——聚合既有77/77（channel/preparation/managed-runtime/C1/C2）+新增10场景/31检查（含多runtime同spec隔离、bootstrap失败保留既有实例、父IPC断开、argv/日志/审计合成秘密扫描、入站环境裁剪）+Linux容器4项；全量API 154 suites/1678 tests与三包构建通过（[证据](../audits/2026-09-27-e1-03-real-child-matrix.md)）；30s真实握手等待/受管JWT匿名/ProcessInfo/File Provider权限为notCovered。E1-04、E2-01、F1-02E3b、F3-03依赖解除转READY。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -78,10 +80,10 @@ SEC-C3-03 限定 DONE：多进程Registry版本协调——真实隔离PostgreSQ
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 180 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 1 | `SEC-E1-03` 真实child受管执行闭环（依赖已解除） |
+| DONE | 181 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 4 | `SEC-E1-04`、`SEC-E2-01`、`SEC-F1-02E3b`、`SEC-F3-03`（E1-03依赖已解除） |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
-| WAIT_DEP | 12 | 等待列明子任务/条件 |
+| WAIT_DEP | 8 | 等待列明子任务/条件 |
 | NEED_ENV | 15 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 0 | PROD-06 核定后无待判范围项 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -151,9 +153,9 @@ SEC-C3-03 限定 DONE：多进程Registry版本协调——真实隔离PostgreSQ
 | SEC-E1-02B2 | DONE | 真实child稳定重读Registry、single-hop Resolver、API key认证与监听后READY；三脚本47例 |
 | SEC-E1-02C1 | DONE | 授权后限定完成（[证据](../audits/2026-09-27-e1-02c1-managed-lifecycle.md)）：持久单调世代CAS（复用runtime_pipeline_state）、每次启动B1快照、受保护配置逐次审批与失败关闭、旧世代拒绝、停止幂等与遗留对账、trusted_ipc_v1显式路由（默认关闭）；新增21项、servers 18 suites/108 tests、`verify:e1-02c1`真实child 6/6、E1旧脚本61/61及构建通过；PG/Linux/部署与C2重启边界未覆盖 |
 | SEC-E1-02C2 | DONE | 限定边界完成（[证据](../audits/2026-09-27-e1-02c2-restart-failure-legacy.md)）：崩溃→记录终结+ERROR投影（无假RUNNING）、重启必重准备新世代+逐次审批、legacy自动重启抑制且不重建秘密argv、bootstrap失败清理不保留旧实例、父断开停子进程、陈旧包拒绝、可信模式legacy凭据spawn前失败关闭、版本不匹配无回退；servers 20 suites/127 tests、`verify:e1-02c2`真实child 10/10；启动时自动reconcile按共享DB风险不做（未拥有世代报告current:false） |
-| SEC-E1-03 | READY | 真实child受管执行闭环（E1-02C2依赖已解除）；矩阵须真实产品child入口、不得用进程内transform替代 |
-| SEC-E1-04 | WAIT_DEP | 未完成 |
-| SEC-E2-01 | WAIT_DEP | 复用已有smoke |
+| SEC-E1-03 | DONE | 限定闭环完成（[证据](../audits/2026-09-27-e1-03-real-child-matrix.md)）：真实构建产物child按§7矩阵1–13逐行映射，聚合既有77/77+新增10场景/31检查，Linux容器4项；全量API 154 suites/1678 tests；notCovered=30s真实握手等待/受管JWT匿名/ProcessInfo/File Provider权限 |
+| SEC-E1-04 | READY | 运行中版本变更与撤销（E1-03依赖已解除）；Registry变更→重准备+重启、有效撤销实时终止待实施 |
+| SEC-E2-01 | READY | 当前产物安全联合矩阵（E1-03/E0-01依赖已解除）；须覆盖取消/超时/重放/关闭与多transport |
 | SEC-E2-02 | NEED_ENV | 需核实环境 |
 | SEC-F1-01 | DONE | 四态、OpenAPI继承/OR-AND、Binding兼容及验证失效合同定稿；同revision秘密变更须重新验证；F1-02仍依赖C1-02 |
 | SEC-F1-02A | DONE | 声明保留、OR/AND显式选择、四态纯对账及发布/装配写入前拒绝；17 suites/234与API build通过；不含可信Registry/耐久验证 |
@@ -176,7 +178,7 @@ SEC-C3-03 限定 DONE：多进程Registry版本协调——真实隔离PostgreSQ
 | SEC-F1-02E1 | DONE | Gateway每次调用重评guard，6 files；39 suites/556及13项真实HTTP SQL.js重校、API build通过；不声称生产Verified |
 | SEC-F1-02E2 | DONE | Parser唯一声明规则与标准HTTP transformer门禁；6 files，Parser28/545、API102/1116、三构建及扩例7/7通过；不含Verified/custom handlers/E3 managed传播 |
 | SEC-F1-02E3a | DONE | 受限ManagedChildSecurityLeaseCoordinator纯协调原语；2 files/7 tests通过；未注册、未接handoff |
-| SEC-F1-02E3b | WAIT_DEP | 运行中更新前阻断、实时授权与事件IPC等待E3a及E1-03；在线撤销零联网未验 |
+| SEC-F1-02E3b | READY | 运行中更新前阻断、实时授权与事件IPC（E3a与E1-03依赖已解除）；在线撤销零联网待实施验证 |
 | SEC-F1-02F | WAIT_DEP | 双runtime端到端、SQL.js/PostgreSQL重开、并发迟到/同revision变化等待D/E3b/G5/G6 |
 | SEC-F2-01 | DONE | Consumer/Upstream分区、真实binding revision/Registry generation与reload恢复；UI12/12、实际UI适配器到Nest/Registry HTTP1/1、后端21/21；进程范围明确，浏览器点击未验 |
 | SEC-F2-02 | DONE | Gateway/MCP临时匿名原因/到期/生产风险和actor回显，保存重开及拒绝反馈；UI构建、表单/真实模板26/26，浏览器点击未验，见UI证据 |
@@ -216,7 +218,7 @@ SEC-C3-03 限定 DONE：多进程Registry版本协调——真实隔离PostgreSQ
 | SEC-F3-02C5b | DONE | 限定双运行时接线完成：Gateway provider在prepare/send/completed单点emit `upstream.network_failure`（operationId/policy/revision/site/endpoint/revocationEpoch/attempt/hop/stage），stream未知错误固定503不回传原始DNS/TLS细节；Parser single-hop与host bridge显式failureAudit透传并按阶段emit。真实HTTP/TLS负测（sink故障不改拒绝、秘密扫描）；Parser 49 suites/1196 tests、Gateway 51 suites/735 tests、两包构建；未持久化事件（归C6/F3D）、无child/E3b、生产默认关闭 |
 | SEC-F3-02C6 | DONE | 限定联合矩阵完成：新增`scripts/verify-f3-dual-runtime.cjs`（npm run verify:f3-dual-runtime）聚合重跑Parser 4 suites/78 tests与Gateway 3 suites/95 tests并输出clause矩阵`F3_DUAL_RUNTIME_MATRIX_OK`；仅本地回环DNS/HTTP/TLS，不代表生产默认启用/PG/F3D平台验收 |
 | SEC-F3-02D | DONE | 限定本地 N 矩阵完成（[证据](../audits/2026-09-26-f3-n-matrix-local.md)）：隔离回环 DNS/HTTP/TLS/代理上 N01–N17 逐项映射，parser 17套件/573例+gateway 84例全绿（`verify:f3-n-matrix`，含新增N01单跳302用例）；生产默认启用、公网与Windows/Linux跨平台矩阵仍为环境项 |
-| SEC-F3-03 | WAIT_DEP | E1负责argv实现，此项只消费证据 |
+| SEC-F3-03 | READY | 受管子进程秘密泄露扫描（E1-03已交付argv/日志/审计真实证据）；本项只消费证据做全渠道判定 |
 | SEC-F3a-01 | DONE | 限定在线审计完成（[证据](../audits/2026-09-26-dependency-reachability-audit.md)）：首轮生产32项（0C/10H/21M/1L）；授权后补丁批已执行：主版本内12包+UI echarts6/vue-echarts8，生产降至19（0C/4H/15M/0L），残余全部归Nest12族；Parser 49/1196、API 148/1623与三包构建回归通过 |
 | SEC-F4-01 | DONE | 当前112个SEC叶子以逐项或明确聚合旧ID维护，D2b1/b2/b3a–d及C2b1/b2a/b2b1/b2b2/b3依赖已登记；区分历史/本地限定/未运行环境，不代表F4-02签收 |
 | SEC-F4-02 | NEED_ENV | 目标环境与授权另核实 |
