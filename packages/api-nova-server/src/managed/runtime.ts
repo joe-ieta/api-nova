@@ -9,6 +9,7 @@ import { startStreamableMcpServer } from '../transportUtils/stream';
 import { startSseMcpServer } from '../transportUtils/sse';
 import { registerManagedMcpTools } from '../tools/initTools';
 import { ManagedMcpHandoffV1, ManagedRuntimeRevisions } from './handoff';
+import type { ManagedExecutionPermitBinding, ManagedExecutionPermitGate } from './authorization';
 
 function fingerprint(value: any): string {
   const canonical = (item: any): any => Array.isArray(item) ? item.map(canonical) : item && typeof item === 'object'
@@ -37,7 +38,8 @@ function checkConsumerAuthentication(payload: ManagedMcpHandoffV1): void {
 /** No CLI, default document, external reference fetch, automatic redirect or
  * registry watcher. All credentials are resolved before binding the listener.
  * Runtime calls still use the standard Parser single-hop Resolver path. */
-export async function activateManagedRuntime(payload: ManagedMcpHandoffV1, authorization?: { assertAllowed(toolName: string): void }): Promise<{ close(): Promise<void>; revisions: ManagedRuntimeRevisions }> {
+export async function activateManagedRuntime(payload: ManagedMcpHandoffV1, authorization?: { assertAllowed(toolName: string): void },
+  executionPermit?: ManagedExecutionPermitGate): Promise<{ close(): Promise<void>; revisions: ManagedRuntimeRevisions }> {
   checkConsumerAuthentication(payload);
   if (payload.transport.host !== '127.0.0.1' || !/^\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/.test(payload.transport.endpoint) ||
     payload.transport.endpoint === '/health' || payload.transport.endpoint.startsWith('/health/') || !payload.trustedOperationBindings.length ||
@@ -68,15 +70,22 @@ export async function activateManagedRuntime(payload: ManagedMcpHandoffV1, autho
     upstreamCredentialPolicy: Object.freeze({ mode: 'single-hop' as const, captureSnapshot: () => snapshot }) });
   if (tools.length !== payload.trustedOperationBindings.length) throw new Error();
   const names = new Set<string>(), selectors = new Set<string>();
+  const executionBindings = new Map<string, ManagedExecutionPermitBinding>();
   for (const tool of tools) {
     const method = tool.metadata?.method?.toUpperCase(), path = tool.metadata?.path;
     if (!method || !path || !compiled.get(method, path) || names.has(tool.name) || selectors.has(method + ' ' + path)) throw new Error();
+    // Bind every executable tool to the trusted handoff selector; per-execution
+    // permits must identify source/endpoint/target/method of this exact tool.
+    const trusted = payload.trustedOperationBindings.find(binding => binding.method === method && binding.path === path);
+    if (!trusted) throw new Error();
     names.add(tool.name); selectors.add(method + ' ' + path);
+    executionBindings.set(tool.name, Object.freeze({ tool: tool.name, method, path,
+      sourceServiceAssetId: trusted.sourceServiceAssetId, endpointDefinitionId: trusted.endpointDefinitionId }));
   }
   const sessions = new Set<McpServer>();
   const factory = async () => {
     const server = new McpServer({ name: 'api-nova-managed', version: '1' }, { capabilities: { tools: {} } });
-    try { registerManagedMcpTools(server, tools, authorization); sessions.add(server); return server; }
+    try { registerManagedMcpTools(server, tools, authorization, executionPermit, executionBindings); sessions.add(server); return server; }
     catch { await server.close(); throw new Error('MANAGED_RUNTIME_FAILED'); }
   };
   // Validate SDK registration before listening, not on the first consumer session.

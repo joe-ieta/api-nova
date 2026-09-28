@@ -1,5 +1,5 @@
 ---
-doc-version: 1.117.0
+doc-version: 1.118.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -119,8 +119,8 @@ SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估�
 | SEC-F1-02C3G2 | 只读adapter实现与专项日志 | **限定DONE**：2 files、2 suites/43及API build通过；SQL日志仅SELECT、实体/evidence零变更且无新增loopback。canPublish恒false、未接生产入口。 |
 | SEC-F1-02C3G3 | publication-member-transaction-writer实现与SQL.js专项 | **限定DONE**：2 files、1 suite/10项SQL.js及API build通过；publication记录同事务、部署副作用after commit。未注册生产入口、未验PostgreSQL。 |
 | SEC-F1-02C3G4 | 有界executor专项与API构建 | **限定DONE**：3 suites/30 tests及API build通过；生产G2默认false且验证G3零调用，仅显式future-readiness fixture证明部分提交/后续继续。candidate只做host-owned同步swap且无await，未接异步Registry生产链，不能宣称production batch/candidate activation完整。 |
-| SEC-F1-02C3G5 | Gateway proof consumer guard限定切片 | **WAIT_DEP**：独立guard与真实HTTP 3 suites/54 tests及API build通过，缺失/过期/范围不符proof在Resolver/cache前拒绝；但未注册module/runtime，缺生产issuer、同进程authority lifecycle与request-bound capability provider。不开放Verified，E1继续拒绝。 |
-| SEC-F1-02C3G6 | 当前无MCP/child实时许可证据 | **WAIT_DEP**：依赖E3b/G1；实时许可、撤销与proof不序列化未验。 |
+| SEC-F1-02C3G5 | [Gateway proof guard 证据](../audits/2026-09-28-f1-02c3g5-gateway-proof-guard.md) | **DONE（限定）**：issuer lifecycle + request-bound capability + Resolver/cache 前 guard 注册（null 默认）；5/58 与 gateway-runtime 55/784；Verified 关闭、PG/生产安装未覆盖。 |
+| SEC-F1-02C3G6 | [实时许可链证据](../audits/2026-09-28-f1-02c3g6-realtime-permits.md) | **DONE（限定）**：host G1 capability + child IPC permit 逐执行复核，撤销 0 网络有界终止，proof 不序列化扫描全清；runner 54 检查、servers 27/173。 |
 | SEC-F1-02D | [统一评估模块](../../packages/api-nova-api/src/modules/publication/services/publication-security-evaluation.ts)、[专项spec](../../packages/api-nova-api/src/modules/publication/services/publication-security-evaluation.spec.ts) | **DONE（限定）**：冻结评估结果被preview、G3单成员发布与G4批量/激活共同消费；commit边界recheck拒绝撤销/revision漂移且零写入；生产G2 canPublish:false保持。专项5项、publication 20 suites/245 tests；未注册生产DI，PG并发归F1-02F。 |
 | SEC-F1-02E1 | [Gateway guard](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-upstream-security-runtime.guard.ts)、[真实HTTP测试](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-upstream-security-runtime.http.spec.ts) | **限定执行/DONE**：6 files，39套556项及13项真实HTTP SQL.js重校、API构建通过；不声明生产Verified。 |
 | SEC-F1-02E2 | [Parser唯一规则](../../packages/api-nova-parser/src/security/upstream-security-reconciliation.ts)、[Transformer接线](../../packages/api-nova-parser/src/transformer/index.ts) | **限定执行/DONE**：标准HTTP门禁，6 files；Parser28套545项、API102套1116项、三构建及扩例7/7通过；不含Verified/custom handlers/E3 managed传播。 |

@@ -1,4 +1,5 @@
 import { GatewayHeaderLegacyRuntimeGuard } from './gateway-header-legacy-runtime.guard';
+import { GATEWAY_UPSTREAM_PROOF_EXECUTION, resolveGatewayUpstreamProofExecution, type GatewayUpstreamProofExecution } from './gateway-upstream-proof-execution.wiring';
 import { BadGatewayException, HttpException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import {
   GATEWAY_HOST_RUNTIME,
@@ -32,6 +33,7 @@ export class GatewayRuntimeService {
     private readonly gatewayRuntimeMetricsService: GatewayRuntimeMetricsService,
     private readonly gatewayHeaderLegacyRuntimeGuard?: GatewayHeaderLegacyRuntimeGuard,
     @Optional() @Inject(GATEWAY_HOST_RUNTIME) private readonly gatewayHostRuntime?: GatewayHostRuntime | null,
+    @Optional() @Inject(GATEWAY_UPSTREAM_PROOF_EXECUTION) private readonly gatewayUpstreamProofExecution?: GatewayUpstreamProofExecution | null,
   ) {}
 
   async forwardRequest(routePath: string, req: Request, res: Response): Promise<void> {
@@ -78,6 +80,7 @@ export class GatewayRuntimeService {
     try {
       // Nest requires this provider. Directly constructed unit fixtures may omit it.
       await this.gatewayHeaderLegacyRuntimeGuard?.assertAllowed(target);
+      await resolveGatewayUpstreamProofExecution(this.gatewayUpstreamProofExecution)?.guard.assertCurrent(target, req);
       const authContext = await this.gatewaySecurityService.authorize(target, req);
       audit.authenticated();
       const admission = await this.gatewayTrafficControlService.admit(target, authContext, req);

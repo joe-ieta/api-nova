@@ -40,7 +40,11 @@ describe('G5 independent pre-Runtime proof guard with real HTTP and G1 capabilit
       const member = await db.getRepository(Membership).findOneBy({ id: selector.runtimeMembershipId, runtimeAssetId: selector.runtimeAssetId });
       return member?.endpointDefinitionId === context.endpointDefinitionId ? context : undefined;
     } });
-    const capabilities = new WeakMap<object, any>(); held = { proof: result.proof, session };
+    const binding = Object.freeze({ runtimeAssetId: 'runtime', runtimeMembershipId: 'membership',
+      endpointDefinitionId: context.endpointDefinitionId, sourceServiceAssetId: context.sourceServiceAssetId,
+      method: context.method, requestMethod: 'GET', target: context.target, contextDigest: context.contextDigest,
+      providerEpoch: context.providerEpoch, generation: context.generation, actorId: context.actorId });
+    const capabilities = new WeakMap<object, any>(); held = { proof: result.proof, session, binding };
     read = jest.fn(async (request, scope) => { sequence.push('host-proof'); return capabilities.get(request); });
     auth = jest.fn(async (...args: Parameters<typeof g1.authorize>) => { sequence.push('g1'); return g1.authorize(...args); });
     const guard = new GatewayUpstreamProofExecutionGuard(db.getRepository(Endpoint), { read }, { authorize: auth });

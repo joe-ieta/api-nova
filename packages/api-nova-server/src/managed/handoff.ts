@@ -17,6 +17,7 @@ export interface ManagedMcpHandoffV1 {
 export const MANAGED_AUTHORIZATION_DECISIONS = Object.freeze(['allow', 'deny', 'revoke'] as const);
 export type ManagedAuthorizationDecision = typeof MANAGED_AUTHORIZATION_DECISIONS[number];
 export type ManagedAuthorizationAckStatus = 'applied' | 'duplicate';
+export const MANAGED_AUTHORIZATION_METHODS = Object.freeze(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS', 'TRACE'] as const);
 /** Bounded authorization event pushed parent -> child over the existing IPC
  * channel. `sequence` is a strictly increasing per-launch counter; a verbatim
  * duplicate is acknowledged without changing the child's authorization state. */
@@ -28,9 +29,33 @@ export interface ManagedAuthorizationAck {
   readonly type: 'authorizationAck'; readonly launchId: string; readonly sequence: number;
   readonly permitId: string; readonly decision: ManagedAuthorizationDecision; readonly status: ManagedAuthorizationAckStatus;
 }
-export type ManagedParentMessage = { type: 'handoff'; version: 1; launchId: string; payload: ManagedMcpHandoffV1 } | { type: 'stop'; launchId: string } | ManagedAuthorizationEvent;
+/** Parent -> child opt-in for per-execution live permits bound to the trusted
+ * operation selector. The child stays default-open until this event; once
+ * applied, every execution must obtain a fresh bounded parent decision. No
+ * proof/capability material is carried by this event, only a permit identity. */
+export interface ManagedPermitModeEvent {
+  readonly type: 'permitMode'; readonly version: 1; readonly launchId: string;
+  readonly sequence: number; readonly permitId: string;
+}
+export interface ManagedPermitModeAck {
+  readonly type: 'permitModeAck'; readonly launchId: string; readonly sequence: number;
+  readonly permitId: string; readonly status: ManagedAuthorizationAckStatus;
+}
+/** Child -> parent request for the live permit of exactly one execution. Only
+ * non-secret selector metadata crosses IPC; capability material stays host-side. */
+export interface ManagedPermitRequest {
+  readonly type: 'permitRequest'; readonly version: 1; readonly launchId: string; readonly requestId: string;
+  readonly tool: string; readonly method: string; readonly path: string;
+  readonly sourceServiceAssetId: string; readonly endpointDefinitionId: string;
+}
+/** Parent -> child bounded live decision for exactly one permit request. */
+export interface ManagedPermitDecision {
+  readonly type: 'permitDecision'; readonly version: 1; readonly launchId: string; readonly requestId: string;
+  readonly permitId: string; readonly decision: 'allow' | 'deny';
+}
+export type ManagedParentMessage = { type: 'handoff'; version: 1; launchId: string; payload: ManagedMcpHandoffV1 } | { type: 'stop'; launchId: string } | ManagedAuthorizationEvent | ManagedPermitModeEvent | ManagedPermitDecision;
 export interface ManagedRuntimeRevisions { candidateRevision: string; verificationRunId: string; behaviorFingerprint: string; registryRevision: string; registryContentDigest: string; authMode: 'api_key'; credentialMode: 'single-hop'; }
-export type ManagedChildMessage = { type: 'runtimeReady'; launchId: string; nonSecretRevisions: ManagedRuntimeRevisions } | { type: 'handoffAccepted'; launchId: string } | { type: 'failed'; launchId: string; code: ManagedFailureCode } | ManagedAuthorizationAck;
+export type ManagedChildMessage = { type: 'runtimeReady'; launchId: string; nonSecretRevisions: ManagedRuntimeRevisions } | { type: 'handoffAccepted'; launchId: string } | { type: 'failed'; launchId: string; code: ManagedFailureCode } | ManagedAuthorizationAck | ManagedPermitRequest | ManagedPermitModeAck;
 export class ManagedChannelError extends Error {
   constructor(readonly code: ManagedFailureCode) { super(code); this.name = 'ManagedChannelError'; }
 }
@@ -41,6 +66,9 @@ const sha256 = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9]{
 const text = (v: unknown, max: number) => typeof v === 'string' && v.length > 0 && v.length <= max && !/[\u0000-\u001f\u007f]/.test(v);
 const authorizationSequence = (v: unknown): v is number => Number.isSafeInteger(v) && (v as number) > 0 && (v as number) <= 2147483647;
 const authorizationDecision = (v: unknown): v is ManagedAuthorizationDecision => MANAGED_AUTHORIZATION_DECISIONS.includes(v as ManagedAuthorizationDecision);
+const operationMethod = (v: unknown): v is string => MANAGED_AUTHORIZATION_METHODS.includes(v as typeof MANAGED_AUTHORIZATION_METHODS[number]);
+const operationPath = (v: unknown): v is string => text(v, 1024) && (v as string).startsWith('/');
+const permitDecision = (v: unknown): v is 'allow' | 'deny' => v === 'allow' || v === 'deny';
 function jsonData(value: unknown, depth = 0, seen = new Set<object>()): void {
   if (depth > 64) throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
   if (value === null || typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number' && Number.isFinite(value)) return;
@@ -95,6 +123,20 @@ export function parseManagedParentMessage(input: unknown): ManagedParentMessage 
     return Object.freeze({ type: 'authorization', version: 1, launchId: input.launchId,
       sequence: input.sequence, permitId: input.permitId, decision: input.decision }) as ManagedAuthorizationEvent;
   }
+  if (exact(input, ['type', 'version', 'launchId', 'sequence', 'permitId']) && input.type === 'permitMode' && input.version === 1) {
+    if (!identifier(input.launchId) || !authorizationSequence(input.sequence) || !identifier(input.permitId)) {
+      throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
+    }
+    return Object.freeze({ type: 'permitMode', version: 1, launchId: input.launchId,
+      sequence: input.sequence, permitId: input.permitId }) as ManagedPermitModeEvent;
+  }
+  if (exact(input, ['type', 'version', 'launchId', 'requestId', 'permitId', 'decision']) && input.type === 'permitDecision' && input.version === 1) {
+    if (!identifier(input.launchId) || !identifier(input.requestId) || !identifier(input.permitId) || !permitDecision(input.decision)) {
+      throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
+    }
+    return Object.freeze({ type: 'permitDecision', version: 1, launchId: input.launchId,
+      requestId: input.requestId, permitId: input.permitId, decision: input.decision }) as ManagedPermitDecision;
+  }
   if (!exact(input, ['type', 'version', 'launchId', 'payload']) || input.type !== 'handoff' || input.version !== 1) throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
   const payload = captureManagedHandoff(input.payload);
   if (input.launchId !== payload.launchId) throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
@@ -109,6 +151,20 @@ export function parseManagedChildMessage(input: unknown, launchId: string): Mana
       !['applied', 'duplicate'].includes(input.status)) throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
     return Object.freeze({ type: 'authorizationAck', launchId, sequence: input.sequence, permitId: input.permitId,
       decision: input.decision, status: input.status }) as ManagedAuthorizationAck;
+  }
+  if (exact(input, ['type', 'launchId', 'sequence', 'permitId', 'status']) && input.type === 'permitModeAck') {
+    if (!authorizationSequence(input.sequence) || !identifier(input.permitId) ||
+      !['applied', 'duplicate'].includes(input.status)) throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
+    return Object.freeze({ type: 'permitModeAck', launchId, sequence: input.sequence, permitId: input.permitId,
+      status: input.status }) as ManagedPermitModeAck;
+  }
+  if (exact(input, ['type', 'version', 'launchId', 'requestId', 'tool', 'method', 'path', 'sourceServiceAssetId', 'endpointDefinitionId']) &&
+    input.type === 'permitRequest' && input.version === 1) {
+    if (!identifier(input.requestId) || !identifier(input.tool) || !operationMethod(input.method) || !operationPath(input.path) ||
+      !identifier(input.sourceServiceAssetId) || !identifier(input.endpointDefinitionId)) throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
+    return Object.freeze({ type: 'permitRequest', version: 1, launchId, requestId: input.requestId, tool: input.tool,
+      method: input.method, path: input.path, sourceServiceAssetId: input.sourceServiceAssetId,
+      endpointDefinitionId: input.endpointDefinitionId }) as ManagedPermitRequest;
   }
   if (exact(input, ['type', 'launchId', 'nonSecretRevisions']) && input.type === 'runtimeReady') {
     const r = input.nonSecretRevisions;

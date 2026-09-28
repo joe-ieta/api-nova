@@ -12,12 +12,29 @@ export interface GatewayExecutionProofScope {
   readonly endpointDefinitionId: string;
   readonly sourceServiceAssetId: string;
 }
+export interface GatewayExecutionProofCapabilityBinding {
+  readonly runtimeAssetId: string;
+  readonly runtimeMembershipId: string;
+  readonly endpointDefinitionId: string;
+  readonly sourceServiceAssetId: string;
+  readonly method: 'GET' | 'HEAD';
+  readonly requestMethod: string;
+  readonly target: string;
+  readonly contextDigest: string;
+  readonly providerEpoch: string;
+  readonly generation: number;
+  readonly actorId: string;
+}
+export interface GatewayExecutionProofCapability {
+  readonly proof: SecurityProof;
+  readonly session: unknown;
+  readonly binding: GatewayExecutionProofCapabilityBinding;
+}
 export interface GatewayExecutionProofReader {
   /** Host-held mapping only. Never reconstruct a proof/session from headers, metadata or a DB row. */
-  read(request: object, scope: GatewayExecutionProofScope): Promise<Readonly<{ proof: SecurityProof; session: unknown }> | undefined>;
+  read(request: object, scope: GatewayExecutionProofScope): Promise<GatewayExecutionProofCapability | undefined>;
 }
-/** Independent pre-execution adapter, not yet registered in the production Gateway module.
- * Passing this guard never bypasses E1 declaration/Verified or Header-policy guards. */
+/** Independent pre-execution adapter. Passing this guard never bypasses E1 declaration/Verified or Header-policy guards. */
 export class GatewayUpstreamProofExecutionGuard {
   constructor(private readonly endpoints: Pick<Repository<EndpointDefinitionEntity>, 'findOneBy'>,
     private readonly capabilities: GatewayExecutionProofReader,
@@ -36,7 +53,13 @@ export class GatewayUpstreamProofExecutionGuard {
       if (!requiresProof) return;
       const captured = securityDigest(current);
       const capability = await this.capabilities.read(request, scope);
-      if (!capability) throw unavailable();
+      if (!capability || !capability.binding) throw unavailable();
+      const binding = capability.binding;
+      const requestMethod = typeof (request as { method?: unknown })?.method === 'string'
+        ? String((request as { method: string }).method).toUpperCase() : '';
+      if (binding.runtimeAssetId !== scope.runtimeAssetId || binding.runtimeMembershipId !== scope.runtimeMembershipId
+        || binding.endpointDefinitionId !== scope.endpointDefinitionId || binding.sourceServiceAssetId !== scope.sourceServiceAssetId
+        || binding.requestMethod !== requestMethod) throw unavailable();
       const proof = capability.proof, session = capability.session;
       const selector = Object.freeze({ runtimeAssetId: scope.runtimeAssetId, runtimeMembershipId: scope.runtimeMembershipId });
       if (!(await this.authorization.authorize(proof, session, selector))) throw unavailable();

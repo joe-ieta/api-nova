@@ -9,6 +9,7 @@ import {
   gatewayTrustedNetworkProvider,
 } from './services/gateway-network-host-bootstrap.service';
 import { GatewayUpstreamSecurityRuntimeGuard } from './services/gateway-upstream-security-runtime.guard';
+import { gatewayUpstreamProofExecutionProvider } from './services/gateway-upstream-proof-execution.wiring';
 import { CallObservabilityModule } from '../call-observability/call-observability.module';
 import { GatewayRoutingObservationWorker } from './services/gateway-routing-observation.worker';
 import { GatewayUpstreamCredentialAdminController } from './gateway-upstream-credential-admin.controller';
@@ -71,6 +72,7 @@ import { GatewayTrafficControlService } from './services/gateway-traffic-control
     gatewayTrustedNetworkProvider,
     GatewayNetworkHostBootstrapService,
     gatewayHeaderLegacyRuntimeGuardProvider,
+    gatewayUpstreamProofExecutionProvider,
     GatewayUpstreamSecurityRuntimeGuard,
     GatewayRoutingObservationWorker,
     GatewayUpstreamCredentialAdminService,

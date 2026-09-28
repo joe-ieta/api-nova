@@ -1,5 +1,5 @@
 ---
-doc-version: 1.179.0
+doc-version: 1.180.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -81,6 +81,10 @@ SEC-E2-02 限定 DONE：`verify:e2-02` 在同一提交2ba8054上分别于Windows
 
 SEC-F1-02E3b 限定 DONE：E3a租约协调接入真实lifecycle（`managedMcp.securityLease.enabled`默认关闭/trusted-only）——`isolateSourceForUpdate`运行中更新前阻断（同步阻断租约→验证终止→持久`security_revoked`/`MANAGED_SECURITY_SOURCE_UPDATED`→再prepare/restart；未启用返回`unenforced`沿用checkRevision）；IPC `authorization`/`authorizationAck`实时授权（allow/deny/revoke、缺失/畸形/冲突fail-closed、重复幂等、拒绝固定码零上游）；挂起调用在线撤销0 HTTP/HTTPS/DNS、0新连接/请求、有界终止无重放；runner 5场景/49检查`F1_02E3B_VERIFY_OK`，servers 24 suites/156 tests（[证据](../audits/2026-09-28-f1-02e3b-realtime-authorization.md)）；生产更新调用方、逐工具许可、watcher/推送与Linux为notCovered。
 
+SEC-F1-02C3G5 限定 DONE：Gateway proof guard 补全并注册（null默认）——同进程issuer lifecycle（创建/TTL/单次/撤销/epoch复核，复用既有存储无schema）+request-bound capability（scope/method/target/context/epoch绑定、消费一次、仅`{kind}`可序列化），guard在Resolver/cache前执行；5套件58测试（含真实Nest HTTP与default-off对照）、gateway-runtime 55 suites/784 tests、type-check/build与verify:e1-04/f3-03全绿，`F1_02C3G5_VERIFY_OK`（[证据](../audits/2026-09-28-f1-02c3g5-gateway-proof-guard.md)）；Verified关闭、PG与生产安装未覆盖。
+
+SEC-F1-02C3G6 限定 DONE：MCP/child实时许可长链——host G1 capability逐执行消费+child有界IPC `permitMode/permitRequest/permitDecision/permitModeAck`逐调用复核（拒绝`MANAGED_TOOL_EXECUTION_DENIED`零上游）、撤销0网络有界终止无重放、幂等/畸形fail-closed、proof/能力不序列化扫描全清、重启需全新许可；runner 54检查`F1_02C3G6_VERIFY_OK`、servers 27 suites/173 tests（[证据](../audits/2026-09-28-f1-02c3g6-realtime-permits.md)）；在途abort（F3）、watcher/推送与Linux为notCovered。SEC-F1-02F依赖解除转READY。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -90,10 +94,10 @@ SEC-F1-02E3b 限定 DONE：E3a租约协调接入真实lifecycle（`managedMcp.se
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 186 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 2 | `SEC-F1-02C3G5`、`SEC-F1-02C3G6`（依赖已解除） |
+| DONE | 188 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 1 | `SEC-F1-02F`（G5/G6/E3b依赖已解除） |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
-| WAIT_DEP | 6 | 等待列明子任务/条件 |
+| WAIT_DEP | 5 | 等待列明子任务/条件 |
 | NEED_ENV | 14 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 0 | PROD-06 核定后无待判范围项 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -182,14 +186,14 @@ SEC-F1-02E3b 限定 DONE：E3a租约协调接入真实lifecycle（`managedMcp.se
 | SEC-F1-02C3G2 | DONE | 只读preview/readiness adapter限定完成：2 files、2 suites/43及API build通过；SQL日志仅SELECT、实体/evidence零变更且无新增loopback；canPublish恒false、未接生产入口 |
 | SEC-F1-02C3G3 | DONE | 单成员DB事务writer限定完成：2个publication-member-transaction-writer文件，1 suite/10项SQL.js及API build通过；未注册生产入口、未验PostgreSQL |
 | SEC-F1-02C3G4 | DONE | 有界executor切片限定完成：3 suites/30 tests及API build通过；生产G2默认false且验证G3零调用，仅显式future-readiness fixture证明部分提交/后续继续；candidate仅host-owned同步swap且无await，未接异步Registry生产链，不代表production batch/candidate activation完整 |
-| SEC-F1-02C3G5 | READY | 独立Gateway proof consumer guard已有真实HTTP 3 suites/54 tests；待补同进程authority lifecycle与request-bound capability provider并注册module/runtime（不开放Verified，E1继续拒绝） |
-| SEC-F1-02C3G6 | READY | MCP/child实时许可与撤销（E3b/G1依赖已解除）；proof不得序列化、须走IPC事件 |
+| SEC-F1-02C3G5 | DONE | 限定补全完成（[证据](../audits/2026-09-28-f1-02c3g5-gateway-proof-guard.md)）：同进程issuer lifecycle（创建/TTL/单次/撤销/epoch复核，无schema）+request-bound capability（scope/method/target/context/epoch绑定、消费一次、不可序列化）；guard在Resolver/cache前执行并以null默认注册；5套件58测试+真实Nest HTTP、gateway-runtime 55 suites/784 tests；Verified保持关闭，PG/生产安装未覆盖 |
+| SEC-F1-02C3G6 | DONE | 限定实时许可链完成（[证据](../audits/2026-09-28-f1-02c3g6-realtime-permits.md)）：host G1 capability逐执行消费+child有界IPC permit（拒绝固定码零上游）、撤销0网络有界终止无重放、幂等/失败关闭、proof不序列化扫描全清；runner 54检查、servers 27 suites/173 tests；在途abort归F3、watcher与Linux未覆盖 |
 | SEC-F1-02D | DONE | 限定统一结果完成：新增`publication-security-evaluation.ts`冻结selector/preview/proof/evidenceFingerprint/contextVersion/membershipRevision，preview、G3单成员发布（toValidator）与G4批量/激活共用同一结果；G4 activateCandidate新增recheck并在await后重比epoch，激活前`assertTransactionCurrent`复核context与证据；生产G2 canPublish:false与现有发布路径不变。专项1 suite/5 tests、publication 20 suites/245 tests、API build；未注册生产DI，PG并发归F1-02F |
 | SEC-F1-02E1 | DONE | Gateway每次调用重评guard，6 files；39 suites/556及13项真实HTTP SQL.js重校、API build通过；不声称生产Verified |
 | SEC-F1-02E2 | DONE | Parser唯一声明规则与标准HTTP transformer门禁；6 files，Parser28/545、API102/1116、三构建及扩例7/7通过；不含Verified/custom handlers/E3 managed传播 |
 | SEC-F1-02E3a | DONE | 受限ManagedChildSecurityLeaseCoordinator纯协调原语；2 files/7 tests通过；未注册、未接handoff |
 | SEC-F1-02E3b | DONE | 限定实施完成（[证据](../audits/2026-09-28-f1-02e3b-realtime-authorization.md)）：E3a租约接入lifecycle（默认关闭/trusted-only）；`isolateSourceForUpdate`运行中更新前阻断、IPC `authorization/authorizationAck`实时授权（allow/deny/revoke，fail-closed、幂等）、在线撤销挂起调用0网络有界终止；runner 5场景/49检查`F1_02E3B_VERIFY_OK`，servers 24 suites/156 tests；生产更新调用方/逐工具许可/watcher与Linux未覆盖 |
-| SEC-F1-02F | WAIT_DEP | 双runtime端到端、SQL.js/PostgreSQL重开、并发迟到/同revision变化等待D/E3b/G5/G6 |
+| SEC-F1-02F | READY | 双runtime端到端、SQL.js/PostgreSQL重开、并发迟到/同revision变化（D/E3b/G5/G6依赖已解除），待排期 |
 | SEC-F2-01 | DONE | Consumer/Upstream分区、真实binding revision/Registry generation与reload恢复；UI12/12、实际UI适配器到Nest/Registry HTTP1/1、后端21/21；进程范围明确，浏览器点击未验 |
 | SEC-F2-02 | DONE | Gateway/MCP临时匿名原因/到期/生产风险和actor回显，保存重开及拒绝反馈；UI构建、表单/真实模板26/26，浏览器点击未验，见UI证据 |
 | SEC-F3-01 | DONE | [网络合同§4](./security-header-network-boundary-contract.md)冻结public/direct、限期例外、DNS/peer/TLS、safe-read及撤销；仅DOC |

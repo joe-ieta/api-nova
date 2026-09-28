@@ -1,6 +1,7 @@
 import { spawn, ChildProcess } from 'node:child_process';
 import { MANAGED_HANDOFF_LIMITS, ManagedChannelError, ManagedFailureCode, ManagedMcpHandoffV1, ManagedRuntimeRevisions,
   captureManagedHandoff, parseManagedParentMessage, parseManagedChildMessage } from 'api-nova-server';
+import type { ManagedPermitRequest } from 'api-nova-server';
 
 const SYSTEM_ENV = new Set(['PATH', 'SYSTEMROOT', 'WINDIR', 'COMSPEC', 'TEMP', 'TMP', 'TMPDIR', 'HOME', 'USERPROFILE', 'LANG', 'LC_ALL', 'TZ']);
 export function buildManagedEnvironment(approvedNames: readonly string[], values: Readonly<Record<string, string>>): NodeJS.ProcessEnv {
@@ -29,9 +30,24 @@ export function buildManagedEnvironment(approvedNames: readonly string[], values
     return env;
   } catch { throw new ManagedChannelError('MANAGED_ENVIRONMENT_REJECTED'); }
 }
+/** Host-side live permit authority for one launch. `authorize` consumes the
+ * trusted capability host-side only; it must never be handed to the child. */
+export interface ManagedChannelPermitInput {
+  readonly tool: string; readonly sourceServiceAssetId: string; readonly endpointDefinitionId: string;
+  readonly method: string; readonly path: string;
+}
+export interface ManagedChannelPermitAuthority {
+  readonly permitId: string;
+  authorize(request: ManagedChannelPermitInput): Promise<{ readonly decision: 'allow' | 'deny' }>;
+  revoke?(): void;
+}
+export const MANAGED_PERMIT_DECISION_MS = 5000;
+export const MANAGED_PERMIT_MAX_PENDING = 64;
 export interface ManagedChannelInput {
   launchId: string; serverId: string; payload: ManagedMcpHandoffV1;
   approvedEnvironmentNames: readonly string[]; environmentValues: Readonly<Record<string, string>>;
+  /** Trusted-only opt-in. Absent keeps the E3b default-open compatibility path. */
+  readonly permitAuthority?: ManagedChannelPermitAuthority;
 }
 export interface ManagedChannelResult { code: ManagedFailureCode | 'STOPPED'; }
 export interface ManagedChannelAuthorizationInput {
@@ -55,6 +71,9 @@ const MANAGED_IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,239}$/;
 export async function startManagedMcpChannel(input: ManagedChannelInput): Promise<ManagedChannelHandle> {
   const payload = captureManagedHandoff(input.payload);
   if (input.launchId !== payload.launchId || input.serverId !== payload.managedServerId) throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
+  const permitAuthority = input.permitAuthority;
+  if (permitAuthority && (typeof permitAuthority !== 'object' || !MANAGED_IDENTIFIER.test(String(permitAuthority.permitId ?? '')) ||
+    typeof permitAuthority.authorize !== 'function')) throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
   const outbound = parseManagedParentMessage({ type: 'handoff', version: 1, launchId: payload.launchId, payload });
   const environment = buildManagedEnvironment(input.approvedEnvironmentNames, input.environmentValues);
   let entry: string;
@@ -82,6 +101,12 @@ export async function startManagedMcpChannel(input: ManagedChannelInput): Promis
   const sentAuthorizations = new Map<number, { permitId: string; decision: ManagedChannelAuthorizationInput['decision'];
     promise: Promise<ManagedChannelAuthorizationResult> }>();
   let highestSentSequence = 0;
+  let permitSequence = 0, permitModeEnabled = false, pendingPermitCount = 0;
+  let authorizationState: 'unset' | 'allow' | 'deny' | 'revoked' = 'unset';
+  let permitAckTimer: NodeJS.Timeout | undefined, pendingReadyRevisions: ManagedRuntimeRevisions | undefined;
+  let readySettled = false;
+  const permitTimers = new Set<NodeJS.Timeout>();
+  const settleReady = (value: ManagedRuntimeRevisions) => { if (!readySettled) { readySettled = true; resolveReady(value); } };
   const rejectAuthorizations = (error: Error) => {
     for (const item of pendingAuthorizations.values()) { clearTimeout(item.timer); item.reject(error); }
     pendingAuthorizations.clear();
@@ -89,12 +114,15 @@ export async function startManagedMcpChannel(input: ManagedChannelInput): Promis
   const finish = () => {
     if (settled) return;
     settled = true; clearTimeout(handshake); if (forceTimer) clearTimeout(forceTimer);
+    if (permitAckTimer) clearTimeout(permitAckTimer);
+    for (const timer of permitTimers) clearTimeout(timer); permitTimers.clear();
+    try { permitAuthority?.revoke?.(); } catch { /* teardown revocation is best-effort; the owner revokes too */ }
     rejectAuthorizations(new ManagedChannelError(failure || 'MANAGED_CHANNEL_FAILED'));
     sentAuthorizations.clear();
     child.removeListener('message', onMessage); child.removeListener('error', onError); child.removeListener('close', onClose);
     child.removeListener('exit', onClose); child.removeListener('disconnect', onDisconnect);
     child.stdout?.destroy(); child.stderr?.destroy(); child.stdin?.destroy();
-    if (!readyState) rejectReady(new ManagedChannelError(failure || 'MANAGED_CHILD_EXITED'));
+    if (!readySettled) { readySettled = true; rejectReady(new ManagedChannelError(failure || 'MANAGED_CHILD_EXITED')); }
     if (!accepted) rejectStarted(new ManagedChannelError(failure || 'MANAGED_CHILD_EXITED'));
     resolveClosed(Object.freeze({ code: failure || (stopping ? 'STOPPED' : 'MANAGED_CHILD_EXITED') }));
   };
@@ -114,6 +142,31 @@ export async function startManagedMcpChannel(input: ManagedChannelInput): Promis
   const onError = () => { fail('MANAGED_CHANNEL_FAILED'); if (!child.pid) finish(); };
   const onClose = () => finish();
   const onDisconnect = () => { if (!stopping && !settled) fail('MANAGED_CHANNEL_FAILED'); };
+  /** Live permit decision for exactly one execution. The host consumes its
+   * capability strictly in-process; only a bounded allow/deny decision and the
+   * non-secret permit identity are ever sent over IPC. Any authority failure is
+   * a denial, never an allow. */
+  const servePermitRequest = async (message: ManagedPermitRequest, forced?: 'deny'): Promise<void> => {
+    let decision: 'allow' | 'deny' = forced ?? 'deny';
+    try {
+      if (!forced) {
+        const timeout = new Promise<{ readonly decision: 'deny' }>(resolve => {
+          const timer = setTimeout(() => { permitTimers.delete(timer); resolve({ decision: 'deny' }); }, MANAGED_PERMIT_DECISION_MS);
+          permitTimers.add(timer);
+        });
+        const result = await Promise.race([permitAuthority!.authorize({ tool: message.tool, method: message.method,
+          path: message.path, sourceServiceAssetId: message.sourceServiceAssetId,
+          endpointDefinitionId: message.endpointDefinitionId }), timeout]);
+        if (result && result.decision === 'allow') decision = 'allow';
+      }
+    } catch { decision = 'deny'; }
+    pendingPermitCount -= 1;
+    if (settled || stopping || !child.connected) return;
+    try {
+      child.send({ type: 'permitDecision', version: 1, launchId: payload.launchId, requestId: message.requestId,
+        permitId: permitAuthority!.permitId, decision }, error => { if (error) fail('MANAGED_CHANNEL_FAILED'); });
+    } catch { fail('MANAGED_CHANNEL_FAILED'); }
+  };
   const onMessage = (inputMessage: unknown) => {
     if (settled) return;
     try {
@@ -123,7 +176,40 @@ export async function startManagedMcpChannel(input: ManagedChannelInput): Promis
         const r = message.nonSecretRevisions;
         if (!accepted || readyState || stopping || r.candidateRevision !== payload.candidateRevision || r.verificationRunId !== payload.verificationRunId ||
           payload.inboundAuthMode !== 'private_api_key' || r.authMode !== 'api_key' || r.behaviorFingerprint !== payload.behaviorFingerprint || r.registryRevision !== payload.registrySource.expectedRevision || r.registryContentDigest !== payload.registrySource.expectedContentDigest) { fail('INVALID_MANAGED_HANDOFF'); return; }
-        readyState = true; clearTimeout(handshake); resolveReady(r); return;
+        readyState = true; clearTimeout(handshake);
+        if (!permitAuthority) { settleReady(r); return; }
+        // Trusted-only opt-in: enable per-execution permits, and only resolve
+        // READY after the real child acknowledges the mode fail-closed.
+        pendingReadyRevisions = r; permitSequence = 1;
+        permitAckTimer = setTimeout(() => fail('MANAGED_AUTHORIZATION_UNVERIFIED'), MANAGED_AUTHORIZATION_ACK_MS);
+        try {
+          child.send({ type: 'permitMode', version: 1, launchId: payload.launchId, sequence: permitSequence,
+            permitId: permitAuthority.permitId }, error => { if (error) fail('MANAGED_CHANNEL_FAILED'); });
+        } catch { fail('MANAGED_CHANNEL_FAILED'); }
+        return;
+      }
+      if (message.type === 'permitModeAck') {
+        if (!pendingReadyRevisions || !permitAuthority || message.sequence !== permitSequence ||
+          message.permitId !== permitAuthority.permitId || !['applied', 'duplicate'].includes(message.status)) {
+          fail('INVALID_MANAGED_HANDOFF'); return;
+        }
+        if (permitAckTimer) { clearTimeout(permitAckTimer); permitAckTimer = undefined; }
+        permitModeEnabled = true;
+        const revisions = pendingReadyRevisions; pendingReadyRevisions = undefined;
+        settleReady(revisions);
+        return;
+      }
+      if (message.type === 'permitRequest') {
+        if (!permitModeEnabled || !permitAuthority || stopping) { fail('INVALID_MANAGED_HANDOFF'); return; }
+        const trusted = payload.trustedOperationBindings.some(binding => binding.method === message.method && binding.path === message.path &&
+          binding.sourceServiceAssetId === message.sourceServiceAssetId && binding.endpointDefinitionId === message.endpointDefinitionId);
+        if (!trusted) { fail('INVALID_MANAGED_HANDOFF'); return; }
+        if (pendingPermitCount >= MANAGED_PERMIT_MAX_PENDING) { fail('MANAGED_AUTHORIZATION_UNVERIFIED'); return; }
+        pendingPermitCount += 1;
+        // A launch-level deny/revoke short-circuits live permits without any
+        // host capability read; a later higher-sequence allow restores them.
+        void servePermitRequest(message, authorizationState === 'deny' || authorizationState === 'revoked' ? 'deny' : undefined);
+        return;
       }
       if (message.type === 'authorizationAck') {
         const item = pendingAuthorizations.get(message.sequence);
@@ -135,6 +221,7 @@ export async function startManagedMcpChannel(input: ManagedChannelInput): Promis
         pendingAuthorizations.delete(message.sequence);
         sentAuthorizations.delete(message.sequence);
         clearTimeout(item.timer);
+        authorizationState = item.decision === 'revoke' ? 'revoked' : item.decision;
         item.resolve({ status: message.status });
         return;
       }

@@ -6,6 +6,7 @@ import { AuthConfig } from 'api-nova-parser';
 import type { CallToolResult, ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import { isServerDebugEnabled, serverDebugLog, serverWarnLog } from "../utils/logger";
 import { assertMcpToolExecutionScopes, installMcpToolListScopeFilter } from './runtime-security';
+import type { ManagedExecutionPermitBinding } from '../managed/authorization';
 
 interface ToolInitializationOptions {
   openApiData?: any;
@@ -392,14 +393,27 @@ function convertInputSchemaToZod(inputSchema: MCPTool['inputSchema']): z.ZodRawS
 /** Managed mode has no cache/default-spec fallback and registration is atomic
  * from its caller's perspective: any failure aborts before the HTTP listener.
  * The optional authorization gate is checked per execution before any tool
- * handler or upstream work; a denial is a fixed-code MCP error, never network. */
+ * handler or upstream work; a denial is a fixed-code MCP error, never network.
+ * The optional per-execution permit re-checks a live host decision bound to the
+ * tool's trusted selector (source/endpoint/target/method) before the handler.
+ * Neither gate ever carries proof/capability material across IPC. */
 export function registerManagedMcpTools(server: McpServer, tools: readonly MCPTool[],
-  authorization?: { assertAllowed(toolName: string): void }): void {
+  authorization?: { assertAllowed(toolName: string): void },
+  executionPermit?: { assertAllowed(binding: ManagedExecutionPermitBinding): Promise<void> },
+  executionBindings?: ReadonlyMap<string, ManagedExecutionPermitBinding>): void {
   const register = server.registerTool.bind(server) as RegisterToolCompat;
   for (const tool of tools) register(tool.name, { description: tool.description, inputSchema: convertInputSchemaToZod(tool.inputSchema) }, async args => {
     await assertMcpToolExecutionScopes(tool.name);
     if (authorization) {
       try { authorization.assertAllowed(tool.name); }
+      catch { return { isError: true, content: [{ type: 'text', text: 'MANAGED_TOOL_EXECUTION_DENIED' }] }; }
+    }
+    if (executionPermit) {
+      // A tool without a trusted selector binding can never execute under
+      // per-execution permits: fail closed rather than skipping the live check.
+      const binding = executionBindings?.get(tool.name);
+      if (!binding) return { isError: true, content: [{ type: 'text', text: 'MANAGED_TOOL_EXECUTION_DENIED' }] };
+      try { await executionPermit.assertAllowed(binding); }
       catch { return { isError: true, content: [{ type: 'text', text: 'MANAGED_TOOL_EXECUTION_DENIED' }] }; }
     }
     try { return await tool.handler(args) as unknown as CallToolResult; }

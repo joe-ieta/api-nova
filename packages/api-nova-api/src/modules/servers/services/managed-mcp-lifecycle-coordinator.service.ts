@@ -45,12 +45,39 @@ export interface ManagedLifecycleChannelHandle {
   /** Optional real-time authorization transport. Absent means fail closed. */
   authorize?(input: ManagedLifecycleAuthorizationInput): Promise<{ status: 'applied' | 'duplicate' }>;
 }
+export interface ManagedLifecyclePermitInput {
+  readonly tool: string;
+  readonly sourceServiceAssetId: string;
+  readonly endpointDefinitionId: string;
+  readonly method: string;
+  readonly path: string;
+}
+/** Host-side live permit authority for one launch generation. The capability/
+ * proof material it consumes never leaves the host process and never enters
+ * this interface: `authorize` performs the live check internally and returns a
+ * bounded decision only. */
+export interface ManagedLifecyclePermitAuthority {
+  readonly permitId: string;
+  authorize(request: ManagedLifecyclePermitInput): Promise<{ readonly decision: 'allow' | 'deny' }>;
+  revoke?(): void;
+}
+export interface ManagedLifecyclePermitContext {
+  readonly serverId: string;
+  readonly runtimeAssetId: string;
+  readonly generation: number;
+  readonly payload: ManagedMcpHandoffV1;
+}
+/** Trusted-only, default-off seam: when absent the child keeps the E3b
+ * default-open authorization behavior with no per-execution permit traffic. */
+export type ManagedLifecyclePermitProvider = (context: ManagedLifecyclePermitContext) =>
+  Promise<ManagedLifecyclePermitAuthority | undefined> | ManagedLifecyclePermitAuthority | undefined;
 export interface ManagedLifecycleChannelInput {
   readonly launchId: string;
   readonly serverId: string;
   readonly payload: ManagedMcpHandoffV1;
   readonly approvedEnvironmentNames: readonly string[];
   readonly environmentValues: Readonly<Record<string, string>>;
+  readonly permitAuthority?: ManagedLifecyclePermitAuthority;
 }
 export type ManagedLifecycleChannel = (input: ManagedLifecycleChannelInput) => Promise<ManagedLifecycleChannelHandle>;
 
@@ -65,6 +92,9 @@ export interface ManagedMcpLifecycleCoordinatorDeps {
   /** Opt-in trusted-only lease barrier. Absent keeps the established
    * default-off running-update behavior (explicit checkRevision/stop). */
   readonly lease?: ManagedChildSecurityLeaseCoordinator;
+  /** Opt-in trusted-only per-execution permit provider. Absent keeps the E3b
+   * default-open child behavior and sends no permit-mode traffic. */
+  readonly permit?: ManagedLifecyclePermitProvider;
 }
 
 export interface ManagedLifecycleStartInput {
@@ -161,6 +191,7 @@ interface OwnedHandle {
   readonly generation: number;
   readonly handle: ManagedLifecycleChannelHandle;
   readonly sourceAssetIds: readonly string[];
+  readonly permitAuthority?: ManagedLifecyclePermitAuthority;
   authorization?: { readonly sequence: number; readonly permitId: string; readonly decision: 'allow' | 'deny' | 'revoke' };
 }
 
@@ -183,6 +214,11 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
     const entries = [...this.handles.values()];
     this.handles.clear();
     await Promise.allSettled(entries.map(entry => entry.handle.close()));
+    for (const entry of entries) this.revokePermit(entry.permitAuthority);
+  }
+
+  private revokePermit(authority?: ManagedLifecyclePermitAuthority): void {
+    try { authority?.revoke?.(); } catch { /* best-effort: permit identity is per-launch */ }
   }
 
   ownedGeneration(serverId: string): number | null {
@@ -343,10 +379,22 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
     if (superseded) {
       this.handles.delete(serverId);
       await superseded.handle.close().catch(() => undefined);
+      this.revokePermit(superseded.permitAuthority);
     }
     const fresh = await this.freshCapture(runtimeAssetId, serverId);
     if (!fresh) throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_CAPTURE_FAILED');
     const { payload, snapshot, captured } = fresh;
+    // Trusted-only opt-in: a fresh host permit authority per launch generation.
+    // Any provider failure rejects the start before a child is spawned; the
+    // permit capability itself stays host-side and never reaches the channel.
+    let permitAuthority: ManagedLifecyclePermitAuthority | undefined;
+    if (this.deps.permit) {
+      try { permitAuthority = await this.deps.permit({ serverId, runtimeAssetId, generation, payload }); }
+      catch { throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_CAPTURE_FAILED'); }
+      if (!permitAuthority || !IDENTIFIER.test(String(permitAuthority.permitId ?? '')) || typeof permitAuthority.authorize !== 'function') {
+        throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_REJECTED');
+      }
+    }
     const decision = await this.approve('start', serverId, runtimeAssetId, generation, snapshot);
     const startedAt = this.now().toISOString();
     const starting = this.record(read.status === 'valid' ? read.record : null, {
@@ -364,20 +412,23 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
     let handle: ManagedLifecycleChannelHandle;
     try {
       handle = await this.channel({ launchId: payload.launchId, serverId, payload,
-        approvedEnvironmentNames: captured.approvedEnvironmentNames ?? [], environmentValues: captured.environmentValues ?? {} });
+        approvedEnvironmentNames: captured.approvedEnvironmentNames ?? [], environmentValues: captured.environmentValues ?? {},
+        permitAuthority });
     } catch {
+      this.revokePermit(permitAuthority);
       await this.failTransition(serverId, startingToken, starting, 'MANAGED_LIFECYCLE_CHANNEL_FAILED');
       throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_CHANNEL_FAILED');
     }
     const sourceAssetIds = Object.freeze([...new Set(payload.trustedOperationBindings
       .map(binding => String(binding?.sourceServiceAssetId ?? ''))
       .filter(value => IDENTIFIER.test(value)))]);
-    this.handles.set(serverId, { generation, handle, sourceAssetIds });
+    this.handles.set(serverId, { generation, handle, sourceAssetIds, permitAuthority });
     try {
       await handle.ready;
     } catch {
       this.handles.delete(serverId);
       await handle.close().catch(() => undefined);
+      this.revokePermit(permitAuthority);
       await this.failTransition(serverId, startingToken, starting, 'MANAGED_LIFECYCLE_CHANNEL_FAILED');
       throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_CHANNEL_FAILED');
     }
@@ -386,6 +437,7 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
     if (!await this.commit(serverId, startingToken, current)) {
       this.handles.delete(serverId);
       await handle.close().catch(() => undefined);
+      this.revokePermit(permitAuthority);
       throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_CONFLICT');
     }
     if (this.deps.lease) {
@@ -461,6 +513,7 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
         await entry.handle.closed;
         verified = true;
       } catch { verified = false; }
+      this.revokePermit(entry.permitAuthority);
     }
     const terminal = this.terminal('stopped', verified, 'STOPPED');
     const stopped = this.record(record, { serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
@@ -499,6 +552,7 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
     if (entry && entry.generation === record.generation) {
       this.handles.delete(serverId);
       await entry.handle.close().catch(() => undefined);
+      this.revokePermit(entry.permitAuthority);
     }
     this.notify({ serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
       state: stopping ? 'stopped' : 'failed', reason: terminal.reason, code: terminal.code });
@@ -582,6 +636,7 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
         await entry.handle.closed;
         verified = true;
       } catch { verified = false; }
+      this.revokePermit(entry.permitAuthority);
     }
     return this.commitSecurityTerminal(serverId, read.updatedAt, record, verified, code);
   }

@@ -1,5 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { MANAGED_HANDOFF_LIMITS, ManagedFailureCode, ManagedMcpHandoffV1, ManagedRuntimeRevisions, parseManagedParentMessage } from './handoff';
-import { ManagedAuthorizationGate } from './authorization';
+import { ManagedAuthorizationGate, ManagedExecutionPermitBinding, ManagedExecutionPermitGate, MANAGED_EXECUTION_PERMIT_WAIT_MS } from './authorization';
 /** Dedicated managed child. All diagnostics are fixed IPC codes, never raw
  * third-party parser/transport logging that could include spec or secrets. */
 export function runManagedEntry(): void {
@@ -9,9 +10,31 @@ export function runManagedEntry(): void {
   let runtime: { close(): Promise<void>; revisions: ManagedRuntimeRevisions } | undefined;
   let activation: Promise<void> | undefined;
   const authorization = new ManagedAuthorizationGate();
+  interface PendingPermit { resolve: (decision: 'allow' | 'deny') => void; timer: NodeJS.Timeout; }
+  const pendingPermits = new Map<string, PendingPermit>();
+  const settlePendingPermits = (decision: 'allow' | 'deny') => {
+    for (const pending of pendingPermits.values()) { clearTimeout(pending.timer); pending.resolve(decision); }
+    pendingPermits.clear();
+  };
+  /** Parent round trip for one execution. Every failure mode is a denial; the
+   * request only ever carries non-secret selector metadata and the eventual
+   * decision is bound to the exact child-generated request identity. */
+  const requestExecutionPermit = (binding: ManagedExecutionPermitBinding): Promise<'allow' | 'deny'> => new Promise(resolve => {
+    if (ending || !process.connected) return resolve('deny');
+    const requestId = `permit-${randomUUID()}`;
+    const timer = setTimeout(() => { pendingPermits.delete(requestId); resolve('deny'); }, MANAGED_EXECUTION_PERMIT_WAIT_MS);
+    pendingPermits.set(requestId, { resolve, timer });
+    try {
+      process.send!({ type: 'permitRequest', version: 1, launchId, requestId, tool: binding.tool, method: binding.method,
+        path: binding.path, sourceServiceAssetId: binding.sourceServiceAssetId, endpointDefinitionId: binding.endpointDefinitionId },
+      error => { if (error) { clearTimeout(timer); pendingPermits.delete(requestId); resolve('deny'); } });
+    } catch { clearTimeout(timer); pendingPermits.delete(requestId); resolve('deny'); }
+  });
+  const executionPermit = new ManagedExecutionPermitGate(requestExecutionPermit);
   const finish = (code?: ManagedFailureCode) => {
     if (ending) return;
     ending = true; clearTimeout(timer);
+    settlePendingPermits('deny');
     const deadline = setTimeout(() => process.exit(code ? 1 : 0), MANAGED_HANDOFF_LIMITS.shutdownMs);
     process.removeListener('message', message); process.removeListener('disconnect', disconnected);
     void (async () => {
@@ -37,7 +60,26 @@ export function runManagedEntry(): void {
         let ack;
         try { ack = authorization.apply(parsed); }
         catch { return finish('INVALID_MANAGED_HANDOFF'); }
+        if (parsed.decision === 'revoke') { executionPermit.revoke(); settlePendingPermits('deny'); }
         process.send!(ack, error => { if (error) finish('MANAGED_CHANNEL_FAILED'); });
+        return;
+      }
+      if (parsed.type === 'permitMode') {
+        if (!received || parsed.launchId !== launchId) return finish('INVALID_MANAGED_HANDOFF');
+        let ack;
+        try { ack = executionPermit.applyMode(parsed); }
+        catch { return finish('INVALID_MANAGED_HANDOFF'); }
+        process.send!(ack, error => { if (error) finish('MANAGED_CHANNEL_FAILED'); });
+        return;
+      }
+      if (parsed.type === 'permitDecision') {
+        // A decision for another launch/permit identity or an unsolicited
+        // request is never authoritative: terminate fail closed.
+        if (!received || parsed.launchId !== launchId || parsed.permitId !== executionPermit.permitId) return finish('INVALID_MANAGED_HANDOFF');
+        const pending = pendingPermits.get(parsed.requestId);
+        if (!pending) return finish('INVALID_MANAGED_HANDOFF');
+        pendingPermits.delete(parsed.requestId); clearTimeout(pending.timer);
+        pending.resolve(parsed.decision);
         return;
       }
       if (received) return finish('INVALID_MANAGED_HANDOFF');
@@ -48,8 +90,8 @@ export function runManagedEntry(): void {
         activation = (async () => {
           try {
             // Lazy load only after validated IPC. No CLI/default document entry.
-            const { activateManagedRuntime } = require('./runtime') as { activateManagedRuntime(payload: ManagedMcpHandoffV1, gate?: { assertAllowed(toolName: string): void }): Promise<{ close(): Promise<void>; revisions: ManagedRuntimeRevisions }> };
-            runtime = await activateManagedRuntime(parsed.payload, authorization);
+            const { activateManagedRuntime } = require('./runtime') as { activateManagedRuntime(payload: ManagedMcpHandoffV1, gate?: { assertAllowed(toolName: string): void }, permits?: { assertAllowed(binding: ManagedExecutionPermitBinding): Promise<void> }): Promise<{ close(): Promise<void>; revisions: ManagedRuntimeRevisions }> };
+            runtime = await activateManagedRuntime(parsed.payload, authorization, executionPermit);
             if (ending) return;
             process.send!({ type: 'runtimeReady', launchId, nonSecretRevisions: runtime.revisions }, error => {
               if (error) finish('MANAGED_CHANNEL_FAILED'); else clearTimeout(timer);
