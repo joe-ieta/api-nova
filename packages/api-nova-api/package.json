@@ -30,6 +30,7 @@
     "verify:e1-02c1": "node scripts/verify-e1-02c1.cjs",
     "verify:e1-02c2": "node scripts/verify-e1-02c2.cjs",
     "verify:e1-03": "node scripts/verify-e1-03.cjs",
+    "verify:e1-04": "node scripts/verify-e1-04.cjs",
     "verify:f3-03": "node scripts/verify-f3-03.cjs",
     "verify:c3-03": "node scripts/verify-c3-03.cjs"
   },

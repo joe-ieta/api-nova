@@ -99,7 +99,10 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
    */
   private async handleManagedLifecycleChanged(event: ManagedLifecycleStateChange): Promise<void> {
     try {
-      if (!event || !['failed', 'abandoned'].includes(event.state)) return;
+      if (!event || !['failed', 'abandoned', 'stopped'].includes(event.state)) return;
+      // Normal stops are projected by the stop flows; only a security
+      // revocation terminal is projected here as an error state.
+      if (event.state === 'stopped' && event.reason !== 'security_revoked') return;
       if (this.startingServers.has(event.serverId)) return;
       const code = typeof event.code === 'string' && /^[A-Z0-9_]{1,80}$/.test(event.code)
         ? event.code : 'MANAGED_RUNTIME_FAILED';

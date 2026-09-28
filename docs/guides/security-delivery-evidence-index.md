@@ -1,5 +1,5 @@
 ---
-doc-version: 1.115.0
+doc-version: 1.116.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -96,8 +96,8 @@ SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估�
 | SEC-E1-02C1 | [生命周期协调证据](../audits/2026-09-27-e1-02c1-managed-lifecycle.md)、[受管交付草案](./managed-mcp-credential-handoff-plan.md) | **DONE（限定）**：授权后产品化实现——持久单调世代CAS、每次启动快照、逐次审批失败关闭、旧世代拒绝、停止幂等与遗留对账；servers 18 suites/108 tests、`verify:e1-02c1` 真实child 6/6；PG/Linux/部署与C2边界未覆盖。 |
 | SEC-E1-02C2 | [重启/失败/legacy 边界证据](../audits/2026-09-27-e1-02c2-restart-failure-legacy.md) | **DONE（限定）**：崩溃→ERROR投影、重启重准备+审批、legacy重启抑制、bootstrap失败清理、父断开停子进程、陈旧包/凭据/版本拒绝；servers 20 suites/127 tests、`verify:e1-02c2` 真实child 10/10。 |
 | SEC-E1-03 | [真实 child 矩阵证据](../audits/2026-09-27-e1-03-real-child-matrix.md) | **DONE（限定）**：真实构建产物 child 按 §7 矩阵 1–13 逐行验证（聚合 77/77 + 新增 10 场景/31 检查 + Linux 容器 4 项）；notCovered=30s 真实握手等待/受管 JWT 匿名/ProcessInfo/File Provider 权限。 |
-| SEC-E1-04 | 无当前运行中撤销完整脚本 | **待验收**：版本更新/撤销生效时间和在途策略未定义并验证。 |
-| SEC-E2-01 | [传输观测](../../packages/api-nova-server/scripts/test-mcp-transport-observability.cjs)、[安全 smoke](../../packages/api-nova-server/scripts/runtime-security-audit-smoke.js) | **历史执行/待验收**：取消、重连、回放隔离、撤销按已支持 transport 的当前联合矩阵待执行。 |
+| SEC-E1-04 | [运行中变更/撤销证据](../audits/2026-09-28-e1-04-runtime-change-revocation.md) | **DONE（限定）**：`checkRevision`/`revoke` 触发器——版本变化终止旧世代并重准备、撤销终态不自动重启、幂等与在途有界终止；真实child 5/5、servers 21 suites/140 tests；watcher/推送与在途上游abort未覆盖。 |
+| SEC-E2-01 | [安全联合矩阵证据](../audits/2026-09-28-e2-01-security-joint-matrix.md) | **DONE（限定）**：聚合 12 套件 153/153 + 新增 5 场景/19 检查，覆盖四传输族的取消/超时/重放/关闭；idle 超时/在途 abort/SSE 游标重放为 notCovered。 |
 | SEC-E2-02 | 同上；[安全用例](../testing/runtime-security-audit-cases.md) | **待验收（环境）**：同一最终 SHA 的 Linux/Windows 分平台原始结果缺失；本机 Windows 结果不能外推。 |
 
 ## F：治理、供应链和交付

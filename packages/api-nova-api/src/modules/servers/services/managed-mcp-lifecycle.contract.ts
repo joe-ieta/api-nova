@@ -36,7 +36,8 @@ export type ManagedLifecycleTerminalReason =
   | 'runtime_failed'
   | 'parent_transition_interrupted'
   | 'unverified_discovered_child'
-  | 'stop_reconciled_without_parent';
+  | 'stop_reconciled_without_parent'
+  | 'security_revoked';
 
 export interface ManagedLifecycleSnapshotIdentity {
   readonly runtimeAssetId: string;
@@ -99,7 +100,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const SHA256 = /^[a-f0-9]{64}$/;
 const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const TERMINAL_REASONS: readonly ManagedLifecycleTerminalReason[] = ['stopped', 'start_failed', 'runtime_failed',
-  'parent_transition_interrupted', 'unverified_discovered_child', 'stop_reconciled_without_parent'];
+  'parent_transition_interrupted', 'unverified_discovered_child', 'stop_reconciled_without_parent', 'security_revoked'];
 const STATES: readonly ManagedLifecycleState[] = ['starting', 'current', 'stopping', 'stopped', 'failed', 'abandoned'];
 const ACTIONS: readonly ManagedLifecycleAction[] = ['start', 'stop'];
 

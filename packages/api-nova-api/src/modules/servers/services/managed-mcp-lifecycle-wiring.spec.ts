@@ -171,6 +171,23 @@ describe('trusted_ipc_v1 managed failure projection', () => {
     expect(statuses(h.serverRepository)).toContain(ServerStatus.ERROR);
   });
 
+  it('projects a security revocation terminal to ERROR and still ignores normal stops', async () => {
+    const h = managerHarness();
+    const listener = h.listeners.get('managed.lifecycle.changed')!;
+    await listener({ serverId: 's1', runtimeAssetId: RUNTIME, generation: 2,
+      state: 'stopped', reason: 'security_revoked', code: 'MANAGED_SECURITY_REVOKED' });
+    expect(statuses(h.serverRepository)).toContain(ServerStatus.ERROR);
+    expect(statuses(h.serverRepository)).not.toContain(ServerStatus.RUNNING);
+    const errorMessage = h.serverRepository.update.mock.calls
+      .map(call => (call[1] as any).errorMessage).filter(Boolean).join('|');
+    expect(errorMessage).toContain('MANAGED_SECURITY_REVOKED');
+
+    h.serverRepository.update.mockClear();
+    await listener({ serverId: 's1', runtimeAssetId: RUNTIME, generation: 2,
+      state: 'stopped', reason: 'stopped', code: 'STOPPED' });
+    expect(statuses(h.serverRepository)).toHaveLength(0);
+  });
+
   it('projects ERROR and never STARTING/RUNNING when trusted bootstrap fails', async () => {
     const h = managerHarness(jest.fn(async () => { throw new Error('MANAGED_LIFECYCLE_CHANNEL_FAILED'); }),
       ServerStatus.STOPPED);

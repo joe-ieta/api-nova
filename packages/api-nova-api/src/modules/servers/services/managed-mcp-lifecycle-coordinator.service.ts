@@ -96,6 +96,39 @@ export type ManagedLifecycleStatusResult =
   | { readonly status: 'invalid'; readonly serverId: string; readonly current: false }
   | { readonly status: 'observed'; readonly view: ManagedLifecyclePublicView };
 
+export interface ManagedLifecycleRevisionInput {
+  readonly serverId: string;
+  readonly runtimeAssetId: string;
+}
+
+/**
+ * Deterministic outcome of an explicit running-version check. A changed
+ * Registry/candidate identity is re-prepared as a new generation only after
+ * the previous generation is verified stopped. Any failure to re-verify the
+ * trusted security state terminates the owned child instead of leaving it
+ * running a generation that can no longer be proven current.
+ */
+export type ManagedLifecycleRevisionResult =
+  | { readonly status: 'absent'; readonly serverId: string }
+  | { readonly status: 'not-current'; readonly serverId: string; readonly state: ManagedLifecycleState; readonly generation: number }
+  | { readonly status: 'in-progress'; readonly serverId: string; readonly state: ManagedLifecycleState; readonly generation: number }
+  | { readonly status: 'foreign-current'; readonly serverId: string; readonly generation: number }
+  | { readonly status: 'unchanged'; readonly serverId: string; readonly generation: number; readonly snapshotDigest: string }
+  | { readonly status: 'restarted'; readonly serverId: string; readonly previousGeneration: number; readonly generation: number;
+      readonly snapshot: ManagedLifecycleSnapshotIdentity; readonly snapshotDigest: string }
+  | { readonly status: 'terminated'; readonly serverId: string; readonly generation: number; readonly code: string };
+
+export interface ManagedLifecycleRevokeOptions {
+  readonly code?: string;
+}
+export type ManagedLifecycleRevokeResult =
+  | { readonly status: 'absent'; readonly serverId: string; readonly generation: 0 }
+  | { readonly status: 'already-stopped'; readonly serverId: string; readonly generation: number; readonly code: string | null }
+  | { readonly status: 'revoked'; readonly serverId: string; readonly generation: number; readonly code: string };
+
+export const MANAGED_MCP_LIFECYCLE_REVOKED_CODE = 'MANAGED_SECURITY_REVOKED';
+export const MANAGED_MCP_LIFECYCLE_STATE_INVALIDATED_CODE = 'MANAGED_SECURITY_STATE_INVALIDATED';
+
 interface OwnedHandle {
   readonly generation: number;
   readonly handle: ManagedLifecycleChannelHandle;
@@ -107,6 +140,7 @@ const FAILURE_CODE = /^[A-Z0-9_]{1,80}$/;
 export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
   private readonly logger = new Logger(ManagedMcpLifecycleCoordinator.name);
   private readonly handles = new Map<string, OwnedHandle>();
+  private readonly serial = new Map<string, Promise<void>>();
   private readonly now: () => Date;
   private readonly channel?: ManagedLifecycleChannel;
 
@@ -237,6 +271,27 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
     );
   }
 
+  private async freshCapture(runtimeAssetId: string, serverId: string): Promise<{
+    readonly payload: ManagedMcpHandoffV1;
+    readonly snapshot: ManagedLifecycleSnapshotIdentity;
+    readonly captured: ManagedLifecycleCapturedHandoff;
+  } | null> {
+    let captured: ManagedLifecycleCapturedHandoff;
+    try {
+      captured = await this.deps.capture(runtimeAssetId, serverId);
+    } catch {
+      return null;
+    }
+    const payload = captured?.payload;
+    if (!payload || !IDENTIFIER.test(String(payload.launchId ?? ''))) return null;
+    const snapshot = managedLifecycleSnapshot({
+      runtimeAssetId: String(payload.runtimeAssetId ?? ''), candidateRevision: String(payload.candidateRevision ?? ''),
+      verificationRunId: String(payload.verificationRunId ?? ''), behaviorFingerprint: String(payload.behaviorFingerprint ?? ''),
+      inboundAuthMode: String(payload.inboundAuthMode ?? ''), registrySource: payload.registrySource as ManagedLifecycleSnapshotSource['registrySource'] });
+    if (!snapshot || snapshot.runtimeAssetId !== runtimeAssetId) return null;
+    return { payload, snapshot, captured };
+  }
+
   async start(input: ManagedLifecycleStartInput): Promise<ManagedLifecycleStartResult> {
     const { serverId, runtimeAssetId } = input ?? { serverId: '', runtimeAssetId: '' };
     if (!IDENTIFIER.test(serverId) || !IDENTIFIER.test(runtimeAssetId)) throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_REJECTED');
@@ -259,21 +314,9 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
       this.handles.delete(serverId);
       await superseded.handle.close().catch(() => undefined);
     }
-    let captured: ManagedLifecycleCapturedHandoff;
-    try {
-      captured = await this.deps.capture(runtimeAssetId, serverId);
-    } catch {
-      throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_CAPTURE_FAILED');
-    }
-    const payload = captured?.payload;
-    if (!payload || !IDENTIFIER.test(String(payload.launchId ?? ''))) {
-      throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_CAPTURE_FAILED');
-    }
-    const snapshot = managedLifecycleSnapshot({
-      runtimeAssetId: String(payload.runtimeAssetId ?? ''), candidateRevision: String(payload.candidateRevision ?? ''),
-      verificationRunId: String(payload.verificationRunId ?? ''), behaviorFingerprint: String(payload.behaviorFingerprint ?? ''),
-      inboundAuthMode: String(payload.inboundAuthMode ?? ''), registrySource: payload.registrySource as ManagedLifecycleSnapshotSource['registrySource'] });
-    if (!snapshot || snapshot.runtimeAssetId !== runtimeAssetId) throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_CAPTURE_FAILED');
+    const fresh = await this.freshCapture(runtimeAssetId, serverId);
+    if (!fresh) throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_CAPTURE_FAILED');
+    const { payload, snapshot, captured } = fresh;
     const decision = await this.approve('start', serverId, runtimeAssetId, generation, snapshot);
     const startedAt = this.now().toISOString();
     const starting = this.record(read.status === 'valid' ? read.record : null, {
@@ -454,6 +497,130 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
       return { status: 'observed', view: managedLifecyclePublicView(stopped, false) };
     }
     return { status: 'observed', view: managedLifecyclePublicView(record, false) };
+  }
+
+  /** Serializes the explicit check/revoke signals per server so repeated or
+   * concurrent signals cannot interleave and double-apply a transition. */
+  private serialize<T>(serverId: string, task: () => Promise<T>): Promise<T> {
+    const previous = this.serial.get(serverId) ?? Promise.resolve();
+    const result = previous.then(task, task);
+    const guard = result.then(() => undefined, () => undefined);
+    this.serial.set(serverId, guard);
+    void guard.then(() => { if (this.serial.get(serverId) === guard) this.serial.delete(serverId); });
+    return result;
+  }
+
+  /** Fail-closed termination of an owned live generation with a distinct
+   * security terminal. Does not consult the approval policy: when the policy
+   * or the trusted snapshot itself is what got revoked, termination must not be
+   * blocked by it. The child is closed before the terminal is committed. */
+  private async forceTerminate(serverId: string, code: string): Promise<{ generation: number; code: string }> {
+    const read = await this.read(serverId);
+    if (read.status === 'invalid') throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_INVALID_RECORD');
+    if (read.status === 'absent') throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_REJECTED');
+    const record = read.record;
+    if (record.state !== 'starting' && record.state !== 'current' && record.state !== 'stopping') {
+      return { generation: record.generation, code: record.terminal?.code ?? code };
+    }
+    if (this.ownedGeneration(serverId) !== record.generation) {
+      throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_FOREIGN_CURRENT');
+    }
+    const entry = this.handles.get(serverId);
+    this.handles.delete(serverId);
+    let verified = false;
+    if (entry && entry.generation === record.generation) {
+      try {
+        await entry.handle.close();
+        await entry.handle.closed;
+        verified = true;
+      } catch { verified = false; }
+    }
+    const terminalCode = FAILURE_CODE.test(code) ? code : MANAGED_MCP_LIFECYCLE_REVOKED_CODE;
+    const terminal = this.terminal('security_revoked', verified, terminalCode);
+    const revoked = this.record(record, { serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
+      state: 'stopped', currentVerified: false, updatedAt: this.now().toISOString(), terminal });
+    const token = await this.commit(serverId, read.updatedAt, revoked);
+    if (!token) {
+      const retry = await this.read(serverId);
+      if (retry.status === 'valid' && (retry.record.state === 'stopped' || retry.record.state === 'failed' || retry.record.state === 'abandoned')) {
+        return { generation: retry.record.generation, code: retry.record.terminal?.code ?? terminalCode };
+      }
+      throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_CONFLICT');
+    }
+    this.notify({ serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
+      state: 'stopped', reason: terminal.reason, code: terminal.code });
+    return { generation: record.generation, code: terminal.code ?? terminalCode };
+  }
+
+  /** Explicit running-version/security check. A current trusted child is
+   * compared against a fresh trusted preparation of the same runtime asset:
+   * unchanged identity is a no-op, changed identity stops the old generation
+   * and re-prepares a new one, and any capture failure terminates the child so
+   * it cannot keep executing a generation that is no longer verifiable. */
+  async checkRevision(input: ManagedLifecycleRevisionInput): Promise<ManagedLifecycleRevisionResult> {
+    const { serverId, runtimeAssetId } = input ?? { serverId: '', runtimeAssetId: '' };
+    if (!IDENTIFIER.test(serverId) || !IDENTIFIER.test(runtimeAssetId)) throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_REJECTED');
+    return this.serialize(serverId, async () => {
+      const read = await this.read(serverId);
+      if (read.status === 'invalid') throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_INVALID_RECORD');
+      if (read.status === 'absent') return { status: 'absent', serverId };
+      const record = read.record;
+      if (record.runtimeAssetId !== runtimeAssetId) throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_REJECTED');
+      if (record.state === 'starting' || record.state === 'stopping') {
+        return { status: 'in-progress', serverId, state: record.state, generation: record.generation };
+      }
+      if (record.state !== 'current') return { status: 'not-current', serverId, state: record.state, generation: record.generation };
+      if (this.ownedGeneration(serverId) !== record.generation) return { status: 'foreign-current', serverId, generation: record.generation };
+      const fresh = await this.freshCapture(runtimeAssetId, serverId);
+      if (!fresh) {
+        const terminated = await this.forceTerminate(serverId, MANAGED_MCP_LIFECYCLE_STATE_INVALIDATED_CODE).catch(() => null);
+        if (!terminated) throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_CAPTURE_FAILED');
+        return { status: 'terminated', serverId, generation: terminated.generation, code: terminated.code };
+      }
+      const digest = managedLifecycleSnapshotDigest(fresh.snapshot);
+      if (record.snapshot && managedLifecycleSnapshotDigest(record.snapshot) === digest) {
+        return { status: 'unchanged', serverId, generation: record.generation, snapshotDigest: digest };
+      }
+      let previous: number;
+      try {
+        previous = (await this.stop(serverId)).generation;
+      } catch (error) {
+        if (error instanceof ManagedMcpLifecycleError && error.code === 'MANAGED_LIFECYCLE_FOREIGN_CURRENT') throw error;
+        const terminated = await this.forceTerminate(serverId, MANAGED_MCP_LIFECYCLE_STATE_INVALIDATED_CODE).catch(() => null);
+        if (terminated) return { status: 'terminated', serverId, generation: terminated.generation, code: terminated.code };
+        throw error;
+      }
+      try {
+        const started = await this.start({ serverId, runtimeAssetId });
+        return { status: 'restarted', serverId, previousGeneration: previous, generation: started.generation,
+          snapshot: started.snapshot, snapshotDigest: managedLifecycleSnapshotDigest(started.snapshot) };
+      } catch (error) {
+        const code = error instanceof ManagedMcpLifecycleError ? error.code : MANAGED_MCP_LIFECYCLE_REVOKED_CODE;
+        const after = await this.read(serverId).catch(() => null);
+        const generation = after?.status === 'valid' ? after.record.generation : previous;
+        return { status: 'terminated', serverId, generation, code };
+      }
+    });
+  }
+
+  /** Explicit security revocation of the running generation. Termination is
+   * verified, persisted with a `security_revoked` terminal and never restarts
+   * by itself; any later start still has to re-prepare and pass approval. */
+  async revoke(serverId: string, options: ManagedLifecycleRevokeOptions = {}): Promise<ManagedLifecycleRevokeResult> {
+    if (!IDENTIFIER.test(serverId)) throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_REJECTED');
+    const requested = typeof options?.code === 'string' && FAILURE_CODE.test(options.code) ? options.code : MANAGED_MCP_LIFECYCLE_REVOKED_CODE;
+    return this.serialize(serverId, async () => {
+      const read = await this.read(serverId);
+      if (read.status === 'invalid') throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_INVALID_RECORD');
+      if (read.status === 'absent') return { status: 'absent', serverId, generation: 0 };
+      const record = read.record;
+      if (record.state !== 'starting' && record.state !== 'current' && record.state !== 'stopping') {
+        return { status: 'already-stopped', serverId, generation: record.generation, code: record.terminal?.code ?? null };
+      }
+      if (this.ownedGeneration(serverId) !== record.generation) throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_FOREIGN_CURRENT');
+      const terminated = await this.forceTerminate(serverId, requested);
+      return { status: 'revoked', serverId, generation: terminated.generation, code: terminated.code };
+    });
   }
 
   async status(serverId: string): Promise<ManagedLifecycleStatusResult> {
