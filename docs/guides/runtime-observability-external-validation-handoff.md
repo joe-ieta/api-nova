@@ -1,5 +1,5 @@
 ---
-doc-version: 2.3.0
+doc-version: 2.4.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -19,7 +19,7 @@ Recorded evidence includes the earlier Parser 103, MCP 53 and API 548 results, f
 
 Already implemented and locally verified slices include new delivery retention of 30 days independent of event eligibility; versioned policy reads/updates for new events and payloads; default-off bounded payload GC; scan-capacity samples and diagnostics; management heartbeat and local Gateway routing-registry observations. The last two do not prove business-server liveness. Capacity samples are pre-cleanup logical file lengths, not current total disk usage or quota enforcement. Full quota/lifecycle management, management-audit retention of 30 days and post-unlink database-rollback metadata reconciliation remain unfinished.
 
-**Real-environment deployment acceptance remains NOT PERFORMED.** Current integrated Linux/PostgreSQL, multi-process and sustained-load/performance acceptance also remain unverified. TP02 has historical PostgreSQL storage evidence; do not describe PostgreSQL as never tested, or extrapolate that evidence to the current whole system. Isolated fixtures do not establish receiver reachability, installed secrets, certificates or deployment readiness.
+**Real-environment deployment acceptance remains NOT PERFORMED.** 2026-09-28 补充：集成 Windows/隔离 PostgreSQL 与 Linux(Alpine)/PostgreSQL 的多进程 outbox/delivery（真实 SIGKILL 恢复、skip_locked 租约）与受控接收端矩阵已按 [OBS-16-03 证据](../audits/2026-09-28-obs-16-03-environment-lane.md) 执行（5 格通过、2 格 blocked：自签 TLS 成功需部署信任配置、容器 `--network none` 需预装 PG 包）；持续负载/性能、glibc/多主机与部署签收仍未验。TP02 有历史 PostgreSQL 存储证据；不要把本补充外推为整系统或部署就绪。Isolated fixtures do not establish receiver reachability, installed secrets, certificates or deployment readiness.
 
 ## AC evidence map and remaining acceptance
 

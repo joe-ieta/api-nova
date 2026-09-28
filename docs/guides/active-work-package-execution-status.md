@@ -1,5 +1,5 @@
 ---
-doc-version: 1.182.0
+doc-version: 1.183.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -89,6 +89,8 @@ SEC-F1-02F 限定 DONE：`verify:f1-02f` 聚合18/18套件165/165测试`F1_02F_V
 
 SEC-C4-01 限定 DONE：`verify:c4-01` `C4_01_VERIFY_OK`（反向门控）聚合API 8套/92项、Parser 5套/110项、handoff 32/32+channel 15/15与E1-03真实child矩阵；新增`credential-execution-semantics.c4-01.http.spec.ts` 1套/10项真实HTTP联合：Gateway/MCP同绑定继承/覆盖/None一致、非选中凭据不上游、None无consumer/ambient/legacy回退、removed provider/策略未解析/scope/site未命中在秘密读取/网络/cache前固定码拒绝且无部分状态可恢复、不支持provider引用激活期拒绝保旧快照、default-off parity；gateway-runtime 56/794、publication 21/252、servers 27/173与f1-02f/G5/G6/E3b/f3-03/e1-04全绿（[证据](../audits/2026-09-28-c4-01-resolver-semantics.md)）；未改生产源码、未重写Resolver；真实vault/外网、PG重开与child IPC permit分别归F1-02F/G6-E3b范围。
 
+OBS-16-03 限定 DONE：`verify:obs-16-03` `OBS_16_03_VERIFY_OK`（exit 0）——Stage1真实PG多进程：Windows隔离PG16.10与Linux/Alpine PG16.15各10/10（源码机制pessimistic_write+skip_locked、事件15s/投递30s租约、SIGKILL打断物化与请求后租约回收、无丢失无重复、revision/撤销/暂停/过期边界；容器回退postgres:16.14亦验证）；Stage2受控接收端矩阵各8/8（2xx、408/429/5xx+Retry-After秒与HTTP日期、终态4xx与301/302/303/307/308、缺秘密、DNS、metadata阻断、自签/不可达TLS、socket空闲界）；2格blocked（自签TLS成功无CA注入契约需部署信任配置；容器--network none需预装PG包）；既有obs-16-local-unit/obs-15-full-chain/obs-14-03e3全绿（[证据](../audits/2026-09-28-obs-16-03-environment-lane.md)）；部署签收/长时/glibc/多主机仍为环境项。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -98,11 +100,11 @@ SEC-C4-01 限定 DONE：`verify:c4-01` `C4_01_VERIFY_OK`（反向门控）聚合
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 190 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 191 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 0 | 当前无 READY；剩余为 WAIT_DEP/环境与签收项 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 4 | 等待列明子任务/条件 |
-| NEED_ENV | 14 | 需要核实目标环境，不是假定工具阻塞 |
+| NEED_ENV | 13 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 0 | PROD-06 核定后无待判范围项 |
 | DEFERRED | 2 | 不属于当前里程碑 |
 近期已完成C2B1/B2/B3、C2C1、B2B1/B2/C、B3A/C、SEC-A1-01跨层矩阵及当前版本SQLite空库验证A4-01的限定出口。C2C1证实旧预留无法在崩溃后唯一反查文件，原C2C2已进一步拆为保守降级A、持久发布意图B和可证明结算C；A已完成，B再细分为双方言模型B1、写入接线B2和崩溃验收B3；B1/B2/B3已完成限定出口，C已完成关联、文件证明与安全结算原语，C2C3本地恢复故障验收亦已完成，05C3的Windows隔离PG多写者/进程及PG重启出口已完成，Linux/生产验收仍独立登记。B3B已限定完成；无sample行的staged墓碑再细分为互斥E1、整理E2和故障验收E3，E1/E2/E3已完成限定出口，B3D本地限定验收已完成，真实环境仍归04C。READY不表示已开工。SEC-E1-02C1仍等待明确生产生命周期授权；事件物理删除E2B仍等待明确永久删除授权。
@@ -284,7 +286,7 @@ SEC-C4-01 限定 DONE：`verify:c4-01` `C4_01_VERIFY_OK`（反向门控）聚合
 | OBS-15-02 | DONE | 限定全链路身份验收完成：新增`verify:obs-15-full-chain`聚合gateway 21+events16+deliveries9+invocations38+realtime11+overview20共115项并输出`OBS_15_FULL_CHAIN_OK`（身份边、拒绝审计、旧端点与回退步骤）；修复gateway脚本夹具缺失update导致的2项失败；PG/外部接收端/部署切换仍属环境项 |
 | OBS-16-01 | DONE | 交接文档2.2.0；AC01~20与脚本入口静态核对，未运行新全量矩阵；[交接](./runtime-observability-external-validation-handoff.md) |
 | OBS-16-02 | DONE | 限定本地故障单元完成：新增`verify:obs-16-local-unit`冻结规模（500调用/200事件/50正文）运行6套（94项+新故障单元3项）并输出`OBS_16_LOCAL_UNIT_OK`；重开/重复重放无双计数、冲突隔离、关闭store拒绝；Linux/PG/多进程/负载与部署仍归OBS-16-03/04 |
-| OBS-16-03 | NEED_ENV | 环境待核实 |
+| OBS-16-03 | DONE | 限定环境车道完成（[证据](../audits/2026-09-28-obs-16-03-environment-lane.md)）：`verify:obs-16-03` `OBS_16_03_VERIFY_OK`——Windows/隔离PG16.10与Linux/Alpine PG16.15双平台多进程（skip_locked+租约+SIGKILL恢复无丢失无重复，10/10×2）+受控接收端矩阵（2xx/408/429/5xx+Retry-After秒与日期/终态4xx与3xx/缺秘密/DNS/metadata/自签与不可达TLS，8/8×2）；2格blocked（自签TLS成功需部署信任配置；容器--network none需预装PG包）；部署签收/长时/glibc归OBS-16-04与平台项 |
 | OBS-16-04 | WAIT_DEP | 部署需具体环境及授权 |
 | PROD-01 | DONE | [发布端点合同](./mcp-publication-endpoint-contract.md)，后端/监听/UI边界冻结；仅DOC |
 | PROD-02A1 | DONE | DTO、统一解析、授权preview、更新保留、归属/运行态保护及summary；专项与部署回归49/49 |

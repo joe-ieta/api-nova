@@ -16,6 +16,7 @@
 | --- | --- | --- | --- |
 | [OBS-14-03E3 授权物理清理](./audits/2026-09-26-obs-14-03e3-physical-cleanup.md) | 1.0.0 | active | 2026-09-26 |
 | [PROD-06 CAS 范围核定](./audits/2026-09-26-prod-06-cas-scope-determination.md) | 1.0.0 | active | 2026-09-26 |
+| [OBS-16-03 环境车道](./audits/2026-09-28-obs-16-03-environment-lane.md) | 1.0.0 | active | 2026-09-28 |
 | [SEC-C4-01 Resolver 语义](./audits/2026-09-28-c4-01-resolver-semantics.md) | 1.0.0 | active | 2026-09-28 |
 | [SEC-F1-02F 双运行时重开](./audits/2026-09-28-f1-02f-dual-runtime-reopen.md) | 1.0.0 | active | 2026-09-28 |
 | [SEC-F1-02C3G6 实时许可链](./audits/2026-09-28-f1-02c3g6-realtime-permits.md) | 1.0.0 | active | 2026-09-28 |
@@ -80,7 +81,7 @@
 | [安全交付验收证据索引](./guides/security-delivery-evidence-index.md) | 1.120.0 | active | 2026-09-28 |
 | [邮件投递范围与受控验收合同](./guides/mail-delivery-scope-and-acceptance.md) | 1.1.0 | active | 2026-09-26 |
 | [MCP发布端点合同](./guides/mcp-publication-endpoint-contract.md) | 0.2.0 | active | 2026-09-21 |
-| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.182.0 | active | 2026-09-28 |
+| [活跃子任务执行状态](./guides/active-work-package-execution-status.md) | 1.183.0 | active | 2026-09-28 |
 | [受管MCP启动交付设计](./guides/managed-mcp-credential-handoff-plan.md) | 0.4.0 | reviewed-slice | 2026-09-21 |
 | [候选激活与GC重试](./audits/2026-09-15-activation-gc-wave.md) | 1.0.0 | active | 2026-09-15 |
 | [上游归属交叉核验](./audits/2026-09-15-upstream-ownership-wave.md) | 1.0.0 | active | 2026-09-15 |
@@ -163,7 +164,7 @@
 | [可观测性容量配额合同](./reference/runtime-observability-capacity-quota-contract.md) | 1.10.0 | active | 2026-09-21 |
 | [运行集成指南](./guides/runtime-observability-integration.md) | 2.7.0 | active | 2026-09-14 |
 | [订阅集成指南](./guides/runtime-observability-subscription-integration.md) | 2.4.0 | active | 2026-09-14 |
-| [外部验收交接](./guides/runtime-observability-external-validation-handoff.md) | 2.3.0 | active | 2026-09-26 |
+| [外部验收交接](./guides/runtime-observability-external-validation-handoff.md) | 2.4.0 | active | 2026-09-28 |
 
 ### 2026-09-14 可观测性历史归档
 
