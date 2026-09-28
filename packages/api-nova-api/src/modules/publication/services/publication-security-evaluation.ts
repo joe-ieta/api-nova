@@ -37,6 +37,8 @@ export interface PublicationSecurityEvaluationDependencies {
 
 interface RegisteredEvaluation {
   readonly selector: Readonly<PublicationPreviewSelector>;
+  readonly session: unknown;
+  readonly proof: SecurityProof;
   readonly evidenceFingerprint: string;
   readonly contextVersion: string;
   readonly membershipRevision: number;
@@ -90,6 +92,8 @@ export function createPublicationSecurityEvaluation(dependencies: PublicationSec
     if (!evidence || !membership) throw Error('publication_evaluation_rejected');
     const registered: RegisteredEvaluation = Object.freeze({
       selector,
+      session,
+      proof: capability.proof,
       evidenceFingerprint: challengeEvidenceFingerprint(evidence),
       contextVersion: capability.contextVersion,
       membershipRevision: membership.publicationRevision,
@@ -126,6 +130,11 @@ export function createPublicationSecurityEvaluation(dependencies: PublicationSec
         || challengeEvidenceFingerprint(context.evidence) !== registered.evidenceFingerprint) {
         throw Error('publication_evaluation_context_changed');
       }
+      // Re-authorize against the live provider/session context even when the persisted
+      // evidence row is unchanged (same-revision Provider change is not DB-visible).
+      if (!(await dependencies.authorization.authorize(registered.proof, registered.session, registered.selector))) {
+        throw Error('publication_evaluation_context_changed');
+      }
       if (validate) {
         const version = await validate(context);
         if (version !== registered.contextVersion) throw Error('publication_evaluation_context_changed');
@@ -140,6 +149,11 @@ export function createPublicationSecurityEvaluation(dependencies: PublicationSec
     evaluation: PublicationSecurityEvaluation): Promise<void> {
     const registered = evaluations.get(evaluation);
     if (!registered) throw Error('publication_evaluation_missing');
+    // Live authorization is re-checked with the persisted row checks so a same-revision
+    // Provider change can never be blessed by a stale evaluation at the activation boundary.
+    if (!(await dependencies.authorization.authorize(registered.proof, registered.session, registered.selector))) {
+      throw Error('publication_transaction_context_changed');
+    }
     const evidence = await manager.getRepository(Evidence).findOneBy({ id: evaluation.evidenceId });
     const membership = await manager.getRepository(Membership)
       .findOneBy({ id: registered.selector.runtimeMembershipId, runtimeAssetId: registered.selector.runtimeAssetId });

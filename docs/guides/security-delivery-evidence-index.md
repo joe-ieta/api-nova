@@ -1,5 +1,5 @@
 ---
-doc-version: 1.118.0
+doc-version: 1.119.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -126,7 +126,7 @@ SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估�
 | SEC-F1-02E2 | [Parser唯一规则](../../packages/api-nova-parser/src/security/upstream-security-reconciliation.ts)、[Transformer接线](../../packages/api-nova-parser/src/transformer/index.ts) | **限定执行/DONE**：标准HTTP门禁，6 files；Parser28套545项、API102套1116项、三构建及扩例7/7通过；不含Verified/custom handlers/E3 managed传播。 |
 | SEC-F1-02E3a | [协调器](../../packages/api-nova-api/src/modules/servers/services/managed-child-security-lease-coordinator.ts)、[协调器测试](../../packages/api-nova-api/src/modules/servers/services/managed-child-security-lease-coordinator.spec.ts) | **限定原语/DONE**：2 files/7 tests；未注册、未接handoff或事件IPC。 |
 | SEC-F1-02E3b | [实时授权 IPC 证据](../audits/2026-09-28-f1-02e3b-realtime-authorization.md) | **DONE（限定）**：更新前阻断、IPC 授权 allow/deny/revoke（fail-closed/幂等）、在线撤销 0 网络有界终止；runner 49 检查、servers 24 suites/156 tests。 |
-| SEC-F1-02F | 无双运行时完整验收 | **WAIT_DEP**：依赖D/E3b/G5/G6；两runtime端到端、SQL.js/PostgreSQL重开、并发迟到与同revision Provider变化未验。 |
+| SEC-F1-02F | [双运行时重开证据](../audits/2026-09-28-f1-02f-dual-runtime-reopen.md) | **DONE（限定）**：18/18 套件 165/165 测试 + 隔离 PG 并发 1 胜 1 负 revision+1、重开零漂移；同 revision Provider 变化在发布边界重新授权（无 schema）；跨进程归 c3-03。 |
 | SEC-F2-01 | [分区与重载UI证据](../audits/2026-09-21-upstream-credential-management-ui.md) | **限定执行/DONE**：binding revision/进程Registry generation及失败刷新恢复，UI12+真实HTTP1+后端21；非浏览器点击或MCP完整凭证编辑。 |
 | SEC-F2-02 | [匿名UI证据](../audits/2026-09-21-temporary-anonymous-ui.md) | **限定执行/DONE**：Gateway/MCP申请、到期/生产风险与拒绝显示，26/26和构建；无真实浏览器点击验收。 |
 | SEC-F3-01 | [请求头与网络边界合同§4](./security-header-network-boundary-contract.md) | **政策定稿/DONE（DOC）**：public/direct、精确限期内网例外、DNS/连接/跳转/撤销已冻结；代码F3-02未实现，零redirect仍不等于SSRF防护。 |
