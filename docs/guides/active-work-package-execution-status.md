@@ -1,5 +1,5 @@
 ---
-doc-version: 1.178.0
+doc-version: 1.179.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -91,9 +91,9 @@ SEC-F1-02E3b 限定 DONE：E3a租约协调接入真实lifecycle（`managedMcp.se
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
 | DONE | 186 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 0 | 当前无 READY；后续 WAIT_DEP 需 G5/G6/F1-02F 等先行 |
+| READY | 2 | `SEC-F1-02C3G5`、`SEC-F1-02C3G6`（依赖已解除） |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
-| WAIT_DEP | 8 | 等待列明子任务/条件 |
+| WAIT_DEP | 6 | 等待列明子任务/条件 |
 | NEED_ENV | 14 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 0 | PROD-06 核定后无待判范围项 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -182,8 +182,8 @@ SEC-F1-02E3b 限定 DONE：E3a租约协调接入真实lifecycle（`managedMcp.se
 | SEC-F1-02C3G2 | DONE | 只读preview/readiness adapter限定完成：2 files、2 suites/43及API build通过；SQL日志仅SELECT、实体/evidence零变更且无新增loopback；canPublish恒false、未接生产入口 |
 | SEC-F1-02C3G3 | DONE | 单成员DB事务writer限定完成：2个publication-member-transaction-writer文件，1 suite/10项SQL.js及API build通过；未注册生产入口、未验PostgreSQL |
 | SEC-F1-02C3G4 | DONE | 有界executor切片限定完成：3 suites/30 tests及API build通过；生产G2默认false且验证G3零调用，仅显式future-readiness fixture证明部分提交/后续继续；candidate仅host-owned同步swap且无await，未接异步Registry生产链，不代表production batch/candidate activation完整 |
-| SEC-F1-02C3G5 | WAIT_DEP | 独立Gateway proof consumer guard与真实HTTP 3 suites/54 tests及API build通过，但未注册module/runtime；仍缺生产host challenge/session/proof issuer、同进程authority lifecycle与request-bound capability provider。只限proof消费，不开放Verified，E1继续拒绝 |
-| SEC-F1-02C3G6 | WAIT_DEP | 依赖E3b/G1；MCP/child实时许可与撤销待实现，proof不得序列化 |
+| SEC-F1-02C3G5 | READY | 独立Gateway proof consumer guard已有真实HTTP 3 suites/54 tests；待补同进程authority lifecycle与request-bound capability provider并注册module/runtime（不开放Verified，E1继续拒绝） |
+| SEC-F1-02C3G6 | READY | MCP/child实时许可与撤销（E3b/G1依赖已解除）；proof不得序列化、须走IPC事件 |
 | SEC-F1-02D | DONE | 限定统一结果完成：新增`publication-security-evaluation.ts`冻结selector/preview/proof/evidenceFingerprint/contextVersion/membershipRevision，preview、G3单成员发布（toValidator）与G4批量/激活共用同一结果；G4 activateCandidate新增recheck并在await后重比epoch，激活前`assertTransactionCurrent`复核context与证据；生产G2 canPublish:false与现有发布路径不变。专项1 suite/5 tests、publication 20 suites/245 tests、API build；未注册生产DI，PG并发归F1-02F |
 | SEC-F1-02E1 | DONE | Gateway每次调用重评guard，6 files；39 suites/556及13项真实HTTP SQL.js重校、API build通过；不声称生产Verified |
 | SEC-F1-02E2 | DONE | Parser唯一声明规则与标准HTTP transformer门禁；6 files，Parser28/545、API102/1116、三构建及扩例7/7通过；不含Verified/custom handlers/E3 managed传播 |
