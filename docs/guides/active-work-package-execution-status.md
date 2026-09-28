@@ -1,5 +1,5 @@
 ---
-doc-version: 1.175.0
+doc-version: 1.176.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -71,6 +71,8 @@ SEC-C3-03 限定 DONE：多进程Registry版本协调——真实隔离PostgreSQ
 
 SEC-E1-03 限定 DONE：`verify:e1-03` 以真实构建产物child逐行验证§7矩阵1–13——聚合既有77/77（channel/preparation/managed-runtime/C1/C2）+新增10场景/31检查（含多runtime同spec隔离、bootstrap失败保留既有实例、父IPC断开、argv/日志/审计合成秘密扫描、入站环境裁剪）+Linux容器4项；全量API 154 suites/1678 tests与三包构建通过（[证据](../audits/2026-09-27-e1-03-real-child-matrix.md)）；30s真实握手等待/受管JWT匿名/ProcessInfo/File Provider权限为notCovered。E1-04、E2-01、F1-02E3b、F3-03依赖解除转READY。
 
+SEC-F3-03 限定 DONE：`verify:f3-03` 在真实child+回环上游+SQL.js上以9个合成秘密跨15渠道扫描（OS级argv、spawn/实际env、stdio、错误面/静态码、持久store/raw行、状态事件、READY telemetry、日志投影、管理审计检索），904项检查0泄露且检测器非空洞自测；回归channel 15/15、E1-02C2 10/10、E1-03全绿（[证据](../audits/2026-09-28-f3-03-secret-leak-matrix.md)）；部署级审计sink/ProcessInfo/观测事件sink/Linux argv为notCovered。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -80,8 +82,8 @@ SEC-E1-03 限定 DONE：`verify:e1-03` 以真实构建产物child逐行验证§7
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 181 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 4 | `SEC-E1-04`、`SEC-E2-01`、`SEC-F1-02E3b`、`SEC-F3-03`（E1-03依赖已解除） |
+| DONE | 182 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 3 | `SEC-E1-04`、`SEC-E2-01`、`SEC-F1-02E3b` |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 8 | 等待列明子任务/条件 |
 | NEED_ENV | 15 | 需要核实目标环境，不是假定工具阻塞 |
@@ -218,7 +220,7 @@ SEC-E1-03 限定 DONE：`verify:e1-03` 以真实构建产物child逐行验证§7
 | SEC-F3-02C5b | DONE | 限定双运行时接线完成：Gateway provider在prepare/send/completed单点emit `upstream.network_failure`（operationId/policy/revision/site/endpoint/revocationEpoch/attempt/hop/stage），stream未知错误固定503不回传原始DNS/TLS细节；Parser single-hop与host bridge显式failureAudit透传并按阶段emit。真实HTTP/TLS负测（sink故障不改拒绝、秘密扫描）；Parser 49 suites/1196 tests、Gateway 51 suites/735 tests、两包构建；未持久化事件（归C6/F3D）、无child/E3b、生产默认关闭 |
 | SEC-F3-02C6 | DONE | 限定联合矩阵完成：新增`scripts/verify-f3-dual-runtime.cjs`（npm run verify:f3-dual-runtime）聚合重跑Parser 4 suites/78 tests与Gateway 3 suites/95 tests并输出clause矩阵`F3_DUAL_RUNTIME_MATRIX_OK`；仅本地回环DNS/HTTP/TLS，不代表生产默认启用/PG/F3D平台验收 |
 | SEC-F3-02D | DONE | 限定本地 N 矩阵完成（[证据](../audits/2026-09-26-f3-n-matrix-local.md)）：隔离回环 DNS/HTTP/TLS/代理上 N01–N17 逐项映射，parser 17套件/573例+gateway 84例全绿（`verify:f3-n-matrix`，含新增N01单跳302用例）；生产默认启用、公网与Windows/Linux跨平台矩阵仍为环境项 |
-| SEC-F3-03 | READY | 受管子进程秘密泄露扫描（E1-03已交付argv/日志/审计真实证据）；本项只消费证据做全渠道判定 |
+| SEC-F3-03 | DONE | 限定全渠道扫描完成（[证据](../audits/2026-09-28-f3-03-secret-leak-matrix.md)）：真实child+回环上游+SQL.js，9合成秘密跨15渠道、904项检查0泄露、检测器非空洞自测；含OS级argv/spawn与实际env/stdio/错误面/静态码/持久行/状态事件/日志投影/管理审计检索；notCovered=部署级HTTP审计sink/ProcessInfo/观测事件sink/Linux argv |
 | SEC-F3a-01 | DONE | 限定在线审计完成（[证据](../audits/2026-09-26-dependency-reachability-audit.md)）：首轮生产32项（0C/10H/21M/1L）；授权后补丁批已执行：主版本内12包+UI echarts6/vue-echarts8，生产降至19（0C/4H/15M/0L），残余全部归Nest12族；Parser 49/1196、API 148/1623与三包构建回归通过 |
 | SEC-F4-01 | DONE | 当前112个SEC叶子以逐项或明确聚合旧ID维护，D2b1/b2/b3a–d及C2b1/b2a/b2b1/b2b2/b3依赖已登记；区分历史/本地限定/未运行环境，不代表F4-02签收 |
 | SEC-F4-02 | NEED_ENV | 目标环境与授权另核实 |
