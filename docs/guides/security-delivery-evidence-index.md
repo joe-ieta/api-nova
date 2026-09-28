@@ -1,5 +1,5 @@
 ---
-doc-version: 1.119.0
+doc-version: 1.120.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -62,7 +62,7 @@ SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估�
 | SEC-C3-01 | [Watch交付证据](../audits/2026-09-21-registry-watch.md) | **限定执行/DONE**：Windows真实固定文件监听8/8、Parser凭据252/252、Gateway接线31/31；含坏文件保旧、并发管理员CAS、Nest关闭。DB归属、多进程及Linux不在此叶。 |
 | SEC-C3-02 | [真实DB归属证据](../audits/2026-09-21-registry-db-ownership.md) | **限定执行/DONE**：Source/Endpoint未知或跨源拒绝，manual/watch/启动同校验，失败保旧；不代表激活后的自动DB撤销。 |
 | SEC-C3-03 | [多进程 Registry 协调证据](../audits/2026-09-27-c3-03-multi-process-registry.md) | **DONE（限定）**：真实 PG 双进程 18/18（单赢家、外来操作失败关闭、世代/Registry revision 跨进程可读、陈旧包不入 current）；watcher/推送（E1-04）与 Linux/部署未覆盖。 |
-| SEC-C4-01 | [Resolver 测试](../../packages/api-nova-parser/src/credentials/resolver.spec.ts)、[受管 child 测试](../../packages/api-nova-api/scripts/test-managed-mcp-handoff-preparation.cjs) | **限定执行/待验收**：纯 Resolver 与独立 child B1/B2 有结果；产品受管生命周期尚未接线，Gateway/MCP 继承/覆盖/None/Unresolved 联合门禁未验。 |
+| SEC-C4-01 | [Resolver 语义联合证据](../audits/2026-09-28-c4-01-resolver-semantics.md) | **DONE（限定）**：Gateway/MCP 同绑定继承/覆盖/None 一致、非选中凭据不上线、Unresolved 联网前固定码拒绝；`verify:c4-01` 聚合 8/92 + 5/110 + 32/15 + E1-03。 |
 
 ## D–E：数据面和 MCP
 

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.181.0
+doc-version: 1.182.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -87,6 +87,8 @@ SEC-F1-02C3G6 限定 DONE：MCP/child实时许可长链——host G1 capability�
 
 SEC-F1-02F 限定 DONE：`verify:f1-02f` 聚合18/18套件165/165测试`F1_02F_VERIFY_OK`（含`F1_02F_FORCE_FAIL`反向门控）+隔离PostgreSQL 16.10（73表/8迁移、重开零漂移、撤销持久、双连接并发`winners:1,losers:1`revision+1、集群停止删除）；Gateway Nest HTTP与MCP Streamable HTTP双运行时端到端及default-off对照、迟到proof/激活/发布拒绝、同revision Provider秘密轮换在`toValidator`/`assertTransactionCurrent`边界重新授权（生产+14行、无schema）；publication 21/252、gateway-runtime 55/784、servers 27/173及G5/G6/E3b/c3-03/f3-03/e1-04全绿（[证据](../audits/2026-09-28-f1-02f-dual-runtime-reopen.md)）；跨进程发布竞态归c3-03、受管child IPC归G6/E3b。SEC-C4-01依赖解除转READY。
 
+SEC-C4-01 限定 DONE：`verify:c4-01` `C4_01_VERIFY_OK`（反向门控）聚合API 8套/92项、Parser 5套/110项、handoff 32/32+channel 15/15与E1-03真实child矩阵；新增`credential-execution-semantics.c4-01.http.spec.ts` 1套/10项真实HTTP联合：Gateway/MCP同绑定继承/覆盖/None一致、非选中凭据不上游、None无consumer/ambient/legacy回退、removed provider/策略未解析/scope/site未命中在秘密读取/网络/cache前固定码拒绝且无部分状态可恢复、不支持provider引用激活期拒绝保旧快照、default-off parity；gateway-runtime 56/794、publication 21/252、servers 27/173与f1-02f/G5/G6/E3b/f3-03/e1-04全绿（[证据](../audits/2026-09-28-c4-01-resolver-semantics.md)）；未改生产源码、未重写Resolver；真实vault/外网、PG重开与child IPC permit分别归F1-02F/G6-E3b范围。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -96,8 +98,8 @@ SEC-F1-02F 限定 DONE：`verify:f1-02f` 聚合18/18套件165/165测试`F1_02F_V
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 189 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 1 | `SEC-C4-01`（E1-03/F1-02F依赖已解除） |
+| DONE | 190 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 0 | 当前无 READY；剩余为 WAIT_DEP/环境与签收项 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 4 | 等待列明子任务/条件 |
 | NEED_ENV | 14 | 需要核实目标环境，不是假定工具阻塞 |
@@ -139,7 +141,7 @@ SEC-F1-02F 限定 DONE：`verify:f1-02f` 聚合18/18套件165/165测试`F1_02F_V
 | SEC-C3-01 | DONE | 固定文件Watch/debounce、坏文件保旧、admin锁内代次检查和Nest关闭已通过；Windows真实监听8/8、Parser252/252、Gateway31/31；见2026-09-21-registry-watch证据 |
 | SEC-C3-02 | DONE | Gateway启动/manual/watch激活均强制真实DB Source/Endpoint归属校验，未知/跨源/查询失败保旧；Parser46/46、Gateway46/46；见2026-09-21-registry-db-ownership |
 | SEC-C3-03 | DONE | 限定多进程协调完成（[证据](../audits/2026-09-27-c3-03-multi-process-registry.md)）：真实PG双进程共享库——CAS单赢家/败者零变更、外来start/stop/event失败关闭、世代+Registry revision/digest跨进程可读（`currentVerified`+只读reader）、陈旧包不入current、崩溃需显式reconcile接管；18项检查`C3_03_VERIFY_OK`；并修复PG下uuid/varchar连接缺陷；watcher/推送（E1-04）与Linux/部署未覆盖 |
-| SEC-C4-01 | READY | 运行时Resolver执行语义联合验证（E1-03/F1-02F依赖已解除）；Gateway对继承/覆盖/None/Unresolved须联网前拒绝一致，待排期 |
+| SEC-C4-01 | DONE | 限定联合验证完成（[证据](../audits/2026-09-28-c4-01-resolver-semantics.md)）：`verify:c4-01` `C4_01_VERIFY_OK`（反向门控）聚合API 8套/92项、Parser 5套/110项、handoff 32/32+channel 15/15与E1-03矩阵；新增1套/10项真实HTTP：Gateway/MCP同绑定继承/覆盖/None一致、非选中凭据不上线、None无回退、Unresolved在秘密读取/网络/cache前固定码拒绝且可恢复、激活期拒绝保旧快照；未改生产源码、未重写Resolver |
 | SEC-D1-01 | DONE | Header政策1.0.0定稿：双向精确allowlist、多值/framing、保留字段、缓存和限时迁移；H01–H12待实现，N01–N17仍F3提案 |
 | SEC-D1-02A | DONE | Parser v1编译/不可变快照/继承/摘要/冲突294项；Gateway双源及未就绪激活拒绝、真实固定文件保旧/SQL.js冷恢复拒绝；仅准备 |
 | SEC-D1-02B | DONE | [双向真实流证据](../audits/2026-09-21-header-wire-execution.md)：纯字段60、入口TCP15、proxy真实21及联合353通过；仅显式compiled路径，生产门禁保持 |

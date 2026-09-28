@@ -35,7 +35,8 @@
     "verify:f1-02f": "node scripts/verify-f1-02f.cjs",
     "verify:f1-02e3b": "node scripts/verify-f1-02e3b.cjs",
     "verify:f3-03": "node scripts/verify-f3-03.cjs",
-    "verify:c3-03": "node scripts/verify-c3-03.cjs"
+    "verify:c3-03": "node scripts/verify-c3-03.cjs",
+    "verify:c4-01": "node scripts/verify-c4-01.cjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
