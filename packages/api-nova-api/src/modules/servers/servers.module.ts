@@ -2,6 +2,7 @@ import { RuntimeCredentialResolverService } from './services/runtime-credential-
 import { Module } from '@nestjs/common';
 import { ManagedMcpHandoffPreparationService } from './services/managed-mcp-handoff-preparation.service';
 import { ManagedMcpLifecycleCoordinator } from './services/managed-mcp-lifecycle-coordinator.service';
+import { ManagedChildSecurityLeaseCoordinator } from './services/managed-child-security-lease-coordinator';
 import { DataSourceManagedMcpLifecycleStore } from './services/managed-mcp-lifecycle.store';
 import { createConfigManagedLifecycleApprovalProvider } from './services/managed-mcp-lifecycle-approval';
 import { startManagedMcpChannel } from './services/managed-mcp-channel';
@@ -91,6 +92,9 @@ import { CallObservabilityModule } from '../call-observability/call-observabilit
           approval: createConfigManagedLifecycleApprovalProvider(config),
           channel: input => startManagedMcpChannel(input),
           onStateChange: change => events.emit('managed.lifecycle.changed', change),
+          // Trusted-only running-update barrier; explicitly default-off and
+          // never constructed unless the operator enables the lease.
+          lease: config.get<boolean>('managedMcp.securityLease.enabled') === true ? new ManagedChildSecurityLeaseCoordinator() : undefined,
         }),
       inject: [DataSource, ManagedMcpHandoffPreparationService, ConfigService, EventEmitter2],
     },

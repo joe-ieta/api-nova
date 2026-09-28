@@ -3,7 +3,7 @@
 > 2026-09-08: 数据库与持久化清理、43 表 PG/SQLite 空库及完整回归结果见 [本轮清理审查记录](./2026-09-08-persistence-cleanup.md)。旧报告中的 38/40 表与环境阻塞结论保留为历史证据。
 
 ---
-doc-version: 1.60.0
+doc-version: 1.61.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -17,7 +17,7 @@ doc-updated: 2026-09-26
 
 恢复限定验收：[完整恢复链与故障矩阵](./2026-09-21-payload-recovery-acceptance.md)。
 
-本批证据：[SEC-E2-01 安全联合矩阵](./2026-09-28-e2-01-security-joint-matrix.md)、[SEC-E1-04 运行中变更/撤销](./2026-09-28-e1-04-runtime-change-revocation.md)、[SEC-F3-03 秘密泄露矩阵](./2026-09-28-f3-03-secret-leak-matrix.md)、[SEC-E1-03 真实 child 矩阵](./2026-09-27-e1-03-real-child-matrix.md)、[SEC-C3-03 多进程 Registry 协调](./2026-09-27-c3-03-multi-process-registry.md)、[SEC-E1-02C2 重启/失败/legacy 边界](./2026-09-27-e1-02c2-restart-failure-legacy.md)、[SEC-E1-02C1 生命周期协调](./2026-09-27-e1-02c1-managed-lifecycle.md)、[OBS-14-05D 配额状态联调](./2026-09-27-obs-14-05d-quota-state-joint.md)、[Linux 容器平台验证](./2026-09-27-linux-container-platform-validation.md)、[OBS-14-03E3 授权物理清理](./2026-09-26-obs-14-03e3-physical-cleanup.md)、[PROD-06 CAS 范围核定](./2026-09-26-prod-06-cas-scope-determination.md)、[MAIL-02 受控邮件投递](./2026-09-26-mail-02-controlled-delivery.md)、[SEC-F3-02D 本地 N 矩阵](./2026-09-26-f3-n-matrix-local.md)、[SEC-F3a-01 依赖可达性审计](./2026-09-26-dependency-reachability-audit.md)、[OBS-13-02 长期传输与慢客户端验收](./2026-09-26-obs-13-02-long-transport.md)、[OBS-14-03D 投递保留与导入墓碑](./2026-09-26-obs-14-03d-lifecycle-retention.md)。
+本批证据：[SEC-F1-02E3b 实时授权 IPC](./2026-09-28-f1-02e3b-realtime-authorization.md)、[SEC-E2-02 双平台矩阵](./2026-09-28-e2-02-dual-platform-matrix.md)、[SEC-E2-01 安全联合矩阵](./2026-09-28-e2-01-security-joint-matrix.md)、[SEC-E1-04 运行中变更/撤销](./2026-09-28-e1-04-runtime-change-revocation.md)、[SEC-F3-03 秘密泄露矩阵](./2026-09-28-f3-03-secret-leak-matrix.md)、[SEC-E1-03 真实 child 矩阵](./2026-09-27-e1-03-real-child-matrix.md)、[SEC-C3-03 多进程 Registry 协调](./2026-09-27-c3-03-multi-process-registry.md)、[SEC-E1-02C2 重启/失败/legacy 边界](./2026-09-27-e1-02c2-restart-failure-legacy.md)、[SEC-E1-02C1 生命周期协调](./2026-09-27-e1-02c1-managed-lifecycle.md)、[OBS-14-05D 配额状态联调](./2026-09-27-obs-14-05d-quota-state-joint.md)、[Linux 容器平台验证](./2026-09-27-linux-container-platform-validation.md)、[OBS-14-03E3 授权物理清理](./2026-09-26-obs-14-03e3-physical-cleanup.md)、[PROD-06 CAS 范围核定](./2026-09-26-prod-06-cas-scope-determination.md)、[MAIL-02 受控邮件投递](./2026-09-26-mail-02-controlled-delivery.md)、[SEC-F3-02D 本地 N 矩阵](./2026-09-26-f3-n-matrix-local.md)、[SEC-F3a-01 依赖可达性审计](./2026-09-26-dependency-reachability-audit.md)、[OBS-13-02 长期传输与慢客户端验收](./2026-09-26-obs-13-02-long-transport.md)、[OBS-14-03D 投递保留与导入墓碑](./2026-09-26-obs-14-03d-lifecycle-retention.md)。
 
 本批证据：[OBS-16-02 本地故障与承载单元](./2026-09-26-obs-16-local-unit.md)、[OBS-15-02 全链路身份与切换验收](./2026-09-26-obs-15-full-chain.md)。
 

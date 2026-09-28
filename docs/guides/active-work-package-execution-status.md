@@ -1,5 +1,5 @@
 ---
-doc-version: 1.177.0
+doc-version: 1.178.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -77,6 +77,10 @@ SEC-E1-04 限定 DONE：显式运行中版本/撤销触发器——`checkRevisio
 
 SEC-E2-01 限定 DONE：`verify:e2-01` 联合矩阵聚合12套件153/153（E0-01 adapter、B3-02 SDK会话、传输/HTTP观测、HTTP/SSE投递、stdio观测、B3-01撤销、managed channel/config/lifecycle、publication endpoints）+新增5场景/19检查，覆盖Streamable/SSE/stdio/managed IPC的取消/超时/重放/关闭（含真实child 30s握手超时exit 1与同端口重启）；idle超时/在途上游abort/SSE游标重放/父端静默child计时为notCovered（[证据](../audits/2026-09-28-e2-01-security-joint-matrix.md)）。E2-02 因Linux容器与Windows均可用转READY。
 
+SEC-E2-02 限定 DONE：`verify:e2-02` 在同一提交2ba8054上分别于Windows(v24.15.0)与node:24-alpine(v24.21.0/musl, --network none, 本地镜像不拉取)复跑E2-01矩阵，17行映射双平台各12套件/153测试+5场景/19检查全绿、retries=0、0结果差异；容器配方（canonical挂载+tar→tmpfs(exec)+NODE_PATH）与Node补丁/musl差异、b3-01间歇及“首证保留+至多一次同平台重跑”策略均已记录（[证据](../audits/2026-09-28-e2-02-dual-platform-matrix.md)）；glibc/macOS/部署/长浸泡为notCovered。
+
+SEC-F1-02E3b 限定 DONE：E3a租约协调接入真实lifecycle（`managedMcp.securityLease.enabled`默认关闭/trusted-only）——`isolateSourceForUpdate`运行中更新前阻断（同步阻断租约→验证终止→持久`security_revoked`/`MANAGED_SECURITY_SOURCE_UPDATED`→再prepare/restart；未启用返回`unenforced`沿用checkRevision）；IPC `authorization`/`authorizationAck`实时授权（allow/deny/revoke、缺失/畸形/冲突fail-closed、重复幂等、拒绝固定码零上游）；挂起调用在线撤销0 HTTP/HTTPS/DNS、0新连接/请求、有界终止无重放；runner 5场景/49检查`F1_02E3B_VERIFY_OK`，servers 24 suites/156 tests（[证据](../audits/2026-09-28-f1-02e3b-realtime-authorization.md)）；生产更新调用方、逐工具许可、watcher/推送与Linux为notCovered。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -86,8 +90,8 @@ SEC-E2-01 限定 DONE：`verify:e2-01` 联合矩阵聚合12套件153/153（E0-01
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 184 | 限定出口已完成；父包仍按独立退出条件核对 |
-| READY | 2 | `SEC-E2-02`（Linux容器+Windows）、`SEC-F1-02E3b` |
+| DONE | 186 | 限定出口已完成；父包仍按独立退出条件核对 |
+| READY | 0 | 当前无 READY；后续 WAIT_DEP 需 G5/G6/F1-02F 等先行 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 8 | 等待列明子任务/条件 |
 | NEED_ENV | 14 | 需要核实目标环境，不是假定工具阻塞 |
@@ -162,7 +166,7 @@ SEC-E2-01 限定 DONE：`verify:e2-01` 联合矩阵聚合12套件153/153（E0-01
 | SEC-E1-03 | DONE | 限定闭环完成（[证据](../audits/2026-09-27-e1-03-real-child-matrix.md)）：真实构建产物child按§7矩阵1–13逐行映射，聚合既有77/77+新增10场景/31检查，Linux容器4项；全量API 154 suites/1678 tests；notCovered=30s真实握手等待/受管JWT匿名/ProcessInfo/File Provider权限 |
 | SEC-E1-04 | DONE | 限定实施完成（[证据](../audits/2026-09-28-e1-04-runtime-change-revocation.md)）：显式`checkRevision`（版本变化→终止旧世代→重准备新世代；快照失效fail-closed）与`revoke`（`security_revoked`终态、不自动重启、start需重准备+审批）；重复/并发幂等、在途有界终止无重放；真实child 5/5 exit 0（marker exit-code门控），单测23、servers 21 suites/140 tests；watcher/推送与在途上游abort（F3）未覆盖 |
 | SEC-E2-01 | DONE | 限定联合矩阵完成（[证据](../audits/2026-09-28-e2-01-security-joint-matrix.md)）：`verify:e2-01` 聚合12套件153/153 + 新增5场景/19检查，覆盖Streamable/SSE/stdio/managed IPC的取消/超时/重放/关闭；idle超时、在途上游abort、SSE游标重放等为notCovered |
-| SEC-E2-02 | READY | 双平台稳定性误差（E2-01依赖已解除；Docker Linux容器与Windows本机均可用），待排期 |
+| SEC-E2-02 | DONE | 限定双平台完成（[证据](../audits/2026-09-28-e2-02-dual-platform-matrix.md)）：同一提交Windows(v24.15.0)与node:24-alpine(v24.21.0/musl, --network none)复跑E2-01矩阵，17行映射双平台各153/153+19检查，retries=0、0结果差异；容器配方与Node补丁/musl差异已记录；glibc/macOS/部署/长浸泡未覆盖 |
 | SEC-F1-01 | DONE | 四态、OpenAPI继承/OR-AND、Binding兼容及验证失效合同定稿；同revision秘密变更须重新验证；F1-02仍依赖C1-02 |
 | SEC-F1-02A | DONE | 声明保留、OR/AND显式选择、四态纯对账及发布/装配写入前拒绝；17 suites/234与API build通过；不含可信Registry/耐久验证 |
 | SEC-F1-02B | DONE | 可信Registry/Resolver Binding评估与opaque Provider epoch接入；5 suites/57与API build通过；不替代C的耐久验证ledger |
@@ -184,7 +188,7 @@ SEC-E2-01 限定 DONE：`verify:e2-01` 联合矩阵聚合12套件153/153（E0-01
 | SEC-F1-02E1 | DONE | Gateway每次调用重评guard，6 files；39 suites/556及13项真实HTTP SQL.js重校、API build通过；不声称生产Verified |
 | SEC-F1-02E2 | DONE | Parser唯一声明规则与标准HTTP transformer门禁；6 files，Parser28/545、API102/1116、三构建及扩例7/7通过；不含Verified/custom handlers/E3 managed传播 |
 | SEC-F1-02E3a | DONE | 受限ManagedChildSecurityLeaseCoordinator纯协调原语；2 files/7 tests通过；未注册、未接handoff |
-| SEC-F1-02E3b | READY | 运行中更新前阻断、实时授权与事件IPC（E3a与E1-03依赖已解除）；在线撤销零联网待实施验证 |
+| SEC-F1-02E3b | DONE | 限定实施完成（[证据](../audits/2026-09-28-f1-02e3b-realtime-authorization.md)）：E3a租约接入lifecycle（默认关闭/trusted-only）；`isolateSourceForUpdate`运行中更新前阻断、IPC `authorization/authorizationAck`实时授权（allow/deny/revoke，fail-closed、幂等）、在线撤销挂起调用0网络有界终止；runner 5场景/49检查`F1_02E3B_VERIFY_OK`，servers 24 suites/156 tests；生产更新调用方/逐工具许可/watcher与Linux未覆盖 |
 | SEC-F1-02F | WAIT_DEP | 双runtime端到端、SQL.js/PostgreSQL重开、并发迟到/同revision变化等待D/E3b/G5/G6 |
 | SEC-F2-01 | DONE | Consumer/Upstream分区、真实binding revision/Registry generation与reload恢复；UI12/12、实际UI适配器到Nest/Registry HTTP1/1、后端21/21；进程范围明确，浏览器点击未验 |
 | SEC-F2-02 | DONE | Gateway/MCP临时匿名原因/到期/生产风险和actor回显，保存重开及拒绝反馈；UI构建、表单/真实模板26/26，浏览器点击未验，见UI证据 |

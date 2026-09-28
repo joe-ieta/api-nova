@@ -1,5 +1,5 @@
 ---
-doc-version: 1.116.0
+doc-version: 1.117.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -98,7 +98,7 @@ SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估�
 | SEC-E1-03 | [真实 child 矩阵证据](../audits/2026-09-27-e1-03-real-child-matrix.md) | **DONE（限定）**：真实构建产物 child 按 §7 矩阵 1–13 逐行验证（聚合 77/77 + 新增 10 场景/31 检查 + Linux 容器 4 项）；notCovered=30s 真实握手等待/受管 JWT 匿名/ProcessInfo/File Provider 权限。 |
 | SEC-E1-04 | [运行中变更/撤销证据](../audits/2026-09-28-e1-04-runtime-change-revocation.md) | **DONE（限定）**：`checkRevision`/`revoke` 触发器——版本变化终止旧世代并重准备、撤销终态不自动重启、幂等与在途有界终止；真实child 5/5、servers 21 suites/140 tests；watcher/推送与在途上游abort未覆盖。 |
 | SEC-E2-01 | [安全联合矩阵证据](../audits/2026-09-28-e2-01-security-joint-matrix.md) | **DONE（限定）**：聚合 12 套件 153/153 + 新增 5 场景/19 检查，覆盖四传输族的取消/超时/重放/关闭；idle 超时/在途 abort/SSE 游标重放为 notCovered。 |
-| SEC-E2-02 | 同上；[安全用例](../testing/runtime-security-audit-cases.md) | **待验收（环境）**：同一最终 SHA 的 Linux/Windows 分平台原始结果缺失；本机 Windows 结果不能外推。 |
+| SEC-E2-02 | [双平台矩阵证据](../audits/2026-09-28-e2-02-dual-platform-matrix.md) | **DONE（限定）**：同一提交 Windows 与 node:24-alpine 复跑 E2-01 矩阵，17 行双平台各 153/153+19 检查、0 差异；glibc/macOS/部署未覆盖。 |
 
 ## F：治理、供应链和交付
 
@@ -125,7 +125,7 @@ SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估�
 | SEC-F1-02E1 | [Gateway guard](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-upstream-security-runtime.guard.ts)、[真实HTTP测试](../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-upstream-security-runtime.http.spec.ts) | **限定执行/DONE**：6 files，39套556项及13项真实HTTP SQL.js重校、API构建通过；不声明生产Verified。 |
 | SEC-F1-02E2 | [Parser唯一规则](../../packages/api-nova-parser/src/security/upstream-security-reconciliation.ts)、[Transformer接线](../../packages/api-nova-parser/src/transformer/index.ts) | **限定执行/DONE**：标准HTTP门禁，6 files；Parser28套545项、API102套1116项、三构建及扩例7/7通过；不含Verified/custom handlers/E3 managed传播。 |
 | SEC-F1-02E3a | [协调器](../../packages/api-nova-api/src/modules/servers/services/managed-child-security-lease-coordinator.ts)、[协调器测试](../../packages/api-nova-api/src/modules/servers/services/managed-child-security-lease-coordinator.spec.ts) | **限定原语/DONE**：2 files/7 tests；未注册、未接handoff或事件IPC。 |
-| SEC-F1-02E3b | 当前无运行中传播证据 | **WAIT_DEP**：运行中更新前阻断、实时授权、事件IPC及在线撤销零联网未验。 |
+| SEC-F1-02E3b | [实时授权 IPC 证据](../audits/2026-09-28-f1-02e3b-realtime-authorization.md) | **DONE（限定）**：更新前阻断、IPC 授权 allow/deny/revoke（fail-closed/幂等）、在线撤销 0 网络有界终止；runner 49 检查、servers 24 suites/156 tests。 |
 | SEC-F1-02F | 无双运行时完整验收 | **WAIT_DEP**：依赖D/E3b/G5/G6；两runtime端到端、SQL.js/PostgreSQL重开、并发迟到与同revision Provider变化未验。 |
 | SEC-F2-01 | [分区与重载UI证据](../audits/2026-09-21-upstream-credential-management-ui.md) | **限定执行/DONE**：binding revision/进程Registry generation及失败刷新恢复，UI12+真实HTTP1+后端21；非浏览器点击或MCP完整凭证编辑。 |
 | SEC-F2-02 | [匿名UI证据](../audits/2026-09-21-temporary-anonymous-ui.md) | **限定执行/DONE**：Gateway/MCP申请、到期/生产风险与拒绝显示，26/26和构建；无真实浏览器点击验收。 |

@@ -37,7 +37,7 @@ function checkConsumerAuthentication(payload: ManagedMcpHandoffV1): void {
 /** No CLI, default document, external reference fetch, automatic redirect or
  * registry watcher. All credentials are resolved before binding the listener.
  * Runtime calls still use the standard Parser single-hop Resolver path. */
-export async function activateManagedRuntime(payload: ManagedMcpHandoffV1): Promise<{ close(): Promise<void>; revisions: ManagedRuntimeRevisions }> {
+export async function activateManagedRuntime(payload: ManagedMcpHandoffV1, authorization?: { assertAllowed(toolName: string): void }): Promise<{ close(): Promise<void>; revisions: ManagedRuntimeRevisions }> {
   checkConsumerAuthentication(payload);
   if (payload.transport.host !== '127.0.0.1' || !/^\/[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/.test(payload.transport.endpoint) ||
     payload.transport.endpoint === '/health' || payload.transport.endpoint.startsWith('/health/') || !payload.trustedOperationBindings.length ||
@@ -76,7 +76,7 @@ export async function activateManagedRuntime(payload: ManagedMcpHandoffV1): Prom
   const sessions = new Set<McpServer>();
   const factory = async () => {
     const server = new McpServer({ name: 'api-nova-managed', version: '1' }, { capabilities: { tools: {} } });
-    try { registerManagedMcpTools(server, tools); sessions.add(server); return server; }
+    try { registerManagedMcpTools(server, tools, authorization); sessions.add(server); return server; }
     catch { await server.close(); throw new Error('MANAGED_RUNTIME_FAILED'); }
   };
   // Validate SDK registration before listening, not on the first consumer session.

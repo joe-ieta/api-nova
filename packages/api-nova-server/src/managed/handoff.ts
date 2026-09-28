@@ -2,7 +2,8 @@ import { isAbsolute } from 'node:path';
 /** Managed IPC v1: structural transport contract only, not runtime authorization. */
 export const MANAGED_HANDOFF_LIMITS = Object.freeze({ bytes: 8 * 1024 * 1024, bindings: 10000, handshakeMs: 30000, shutdownMs: 5000 });
 export const MANAGED_FAILURE_CODES = Object.freeze(['INVALID_MANAGED_HANDOFF', 'MANAGED_IPC_REQUIRED', 'MANAGED_HANDSHAKE_TIMEOUT',
-  'MANAGED_CHANNEL_FAILED', 'MANAGED_CHILD_EXITED', 'MANAGED_ENVIRONMENT_REJECTED', 'MANAGED_ENTRY_UNAVAILABLE', 'RUNTIME_ACTIVATION_NOT_IMPLEMENTED', 'MANAGED_RUNTIME_FAILED'] as const);
+  'MANAGED_CHANNEL_FAILED', 'MANAGED_CHILD_EXITED', 'MANAGED_ENVIRONMENT_REJECTED', 'MANAGED_ENTRY_UNAVAILABLE', 'RUNTIME_ACTIVATION_NOT_IMPLEMENTED', 'MANAGED_RUNTIME_FAILED',
+  'MANAGED_AUTHORIZATION_UNVERIFIED'] as const);
 export type ManagedFailureCode = typeof MANAGED_FAILURE_CODES[number];
 export interface ManagedMcpHandoffV1 {
   version: 1; launchId: string; managedServerId: string; runtimeAssetId: string;
@@ -13,9 +14,23 @@ export interface ManagedMcpHandoffV1 {
   trustedOperationBindings: readonly { method: string; path: string; endpointDefinitionId: string; sourceServiceAssetId: string }[];
   registrySource: { configId: string; path: string; format: 'json' | 'yaml'; environment: string; expectedRevision: string; expectedContentDigest: string };
 }
-export type ManagedParentMessage = { type: 'handoff'; version: 1; launchId: string; payload: ManagedMcpHandoffV1 } | { type: 'stop'; launchId: string };
+export const MANAGED_AUTHORIZATION_DECISIONS = Object.freeze(['allow', 'deny', 'revoke'] as const);
+export type ManagedAuthorizationDecision = typeof MANAGED_AUTHORIZATION_DECISIONS[number];
+export type ManagedAuthorizationAckStatus = 'applied' | 'duplicate';
+/** Bounded authorization event pushed parent -> child over the existing IPC
+ * channel. `sequence` is a strictly increasing per-launch counter; a verbatim
+ * duplicate is acknowledged without changing the child's authorization state. */
+export interface ManagedAuthorizationEvent {
+  readonly type: 'authorization'; readonly version: 1; readonly launchId: string;
+  readonly sequence: number; readonly permitId: string; readonly decision: ManagedAuthorizationDecision;
+}
+export interface ManagedAuthorizationAck {
+  readonly type: 'authorizationAck'; readonly launchId: string; readonly sequence: number;
+  readonly permitId: string; readonly decision: ManagedAuthorizationDecision; readonly status: ManagedAuthorizationAckStatus;
+}
+export type ManagedParentMessage = { type: 'handoff'; version: 1; launchId: string; payload: ManagedMcpHandoffV1 } | { type: 'stop'; launchId: string } | ManagedAuthorizationEvent;
 export interface ManagedRuntimeRevisions { candidateRevision: string; verificationRunId: string; behaviorFingerprint: string; registryRevision: string; registryContentDigest: string; authMode: 'api_key'; credentialMode: 'single-hop'; }
-export type ManagedChildMessage = { type: 'runtimeReady'; launchId: string; nonSecretRevisions: ManagedRuntimeRevisions } | { type: 'handoffAccepted'; launchId: string } | { type: 'failed'; launchId: string; code: ManagedFailureCode };
+export type ManagedChildMessage = { type: 'runtimeReady'; launchId: string; nonSecretRevisions: ManagedRuntimeRevisions } | { type: 'handoffAccepted'; launchId: string } | { type: 'failed'; launchId: string; code: ManagedFailureCode } | ManagedAuthorizationAck;
 export class ManagedChannelError extends Error {
   constructor(readonly code: ManagedFailureCode) { super(code); this.name = 'ManagedChannelError'; }
 }
@@ -24,6 +39,8 @@ const exact = (v: unknown, keys: string[]): v is Record<string, any> => object(v
 const identifier = (v: unknown) => typeof v === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,239}$/.test(v);
 const sha256 = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9]{64}$/.test(v);
 const text = (v: unknown, max: number) => typeof v === 'string' && v.length > 0 && v.length <= max && !/[\u0000-\u001f\u007f]/.test(v);
+const authorizationSequence = (v: unknown): v is number => Number.isSafeInteger(v) && (v as number) > 0 && (v as number) <= 2147483647;
+const authorizationDecision = (v: unknown): v is ManagedAuthorizationDecision => MANAGED_AUTHORIZATION_DECISIONS.includes(v as ManagedAuthorizationDecision);
 function jsonData(value: unknown, depth = 0, seen = new Set<object>()): void {
   if (depth > 64) throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
   if (value === null || typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number' && Number.isFinite(value)) return;
@@ -71,6 +88,13 @@ export function parseManagedParentMessage(input: unknown): ManagedParentMessage 
   jsonData(input);
   if (Buffer.byteLength(JSON.stringify(input), 'utf8') > MANAGED_HANDOFF_LIMITS.bytes) throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
   if (exact(input, ['type', 'launchId']) && input.type === 'stop' && identifier(input.launchId)) return { type: 'stop', launchId: input.launchId };
+  if (exact(input, ['type', 'version', 'launchId', 'sequence', 'permitId', 'decision']) && input.type === 'authorization' && input.version === 1) {
+    if (!identifier(input.launchId) || !authorizationSequence(input.sequence) || !identifier(input.permitId) || !authorizationDecision(input.decision)) {
+      throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
+    }
+    return Object.freeze({ type: 'authorization', version: 1, launchId: input.launchId,
+      sequence: input.sequence, permitId: input.permitId, decision: input.decision }) as ManagedAuthorizationEvent;
+  }
   if (!exact(input, ['type', 'version', 'launchId', 'payload']) || input.type !== 'handoff' || input.version !== 1) throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
   const payload = captureManagedHandoff(input.payload);
   if (input.launchId !== payload.launchId) throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
@@ -80,6 +104,12 @@ export function parseManagedChildMessage(input: unknown, launchId: string): Mana
   jsonData(input);
   if (Buffer.byteLength(JSON.stringify(input), 'utf8') > 4096) throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
   if (!object(input) || input.launchId !== launchId) throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
+  if (exact(input, ['type', 'launchId', 'sequence', 'permitId', 'decision', 'status']) && input.type === 'authorizationAck') {
+    if (!authorizationSequence(input.sequence) || !identifier(input.permitId) || !authorizationDecision(input.decision) ||
+      !['applied', 'duplicate'].includes(input.status)) throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
+    return Object.freeze({ type: 'authorizationAck', launchId, sequence: input.sequence, permitId: input.permitId,
+      decision: input.decision, status: input.status }) as ManagedAuthorizationAck;
+  }
   if (exact(input, ['type', 'launchId', 'nonSecretRevisions']) && input.type === 'runtimeReady') {
     const r = input.nonSecretRevisions;
     if (!exact(r, ['candidateRevision', 'verificationRunId', 'behaviorFingerprint', 'registryRevision', 'registryContentDigest', 'authMode', 'credentialMode']) ||

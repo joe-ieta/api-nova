@@ -34,12 +34,23 @@ export interface ManagedChannelInput {
   approvedEnvironmentNames: readonly string[]; environmentValues: Readonly<Record<string, string>>;
 }
 export interface ManagedChannelResult { code: ManagedFailureCode | 'STOPPED'; }
+export interface ManagedChannelAuthorizationInput {
+  readonly decision: 'allow' | 'deny' | 'revoke';
+  readonly permitId: string;
+  readonly sequence: number;
+}
+export interface ManagedChannelAuthorizationResult { readonly status: 'applied' | 'duplicate'; }
 export interface ManagedChannelHandle {
   readonly launchId: string; readonly pid: number; readonly state: 'handoffAccepted' | 'runtimeReady';
   readonly ready: Promise<ManagedRuntimeRevisions>;
   readonly closed: Promise<ManagedChannelResult>;
   close(): Promise<void>;
+  authorize?(input: ManagedChannelAuthorizationInput): Promise<ManagedChannelAuthorizationResult>;
 }
+/** Bounded wait for the child's applied/duplicate acknowledgement. A missing,
+ * malformed or unsolicited ack fails closed by terminating the child. */
+export const MANAGED_AUTHORIZATION_ACK_MS = 5000;
+const MANAGED_IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,239}$/;
 /** Internal opt-in channel only. Never called by legacy lifecycle or persisted in ProcessInfo. */
 export async function startManagedMcpChannel(input: ManagedChannelInput): Promise<ManagedChannelHandle> {
   const payload = captureManagedHandoff(input.payload);
@@ -65,9 +76,21 @@ export async function startManagedMcpChannel(input: ManagedChannelInput): Promis
   const closed = new Promise<ManagedChannelResult>(resolve => { resolveClosed = resolve; });
   let resolveStarted!: (value: ManagedChannelHandle) => void, rejectStarted!: (reason: Error) => void;
   const started = new Promise<ManagedChannelHandle>((resolve, reject) => { resolveStarted = resolve; rejectStarted = reject; });
+  interface PendingAuthorization { permitId: string; decision: ManagedChannelAuthorizationInput['decision'];
+    resolve: (value: ManagedChannelAuthorizationResult) => void; reject: (error: Error) => void; timer: NodeJS.Timeout; }
+  const pendingAuthorizations = new Map<number, PendingAuthorization>();
+  const sentAuthorizations = new Map<number, { permitId: string; decision: ManagedChannelAuthorizationInput['decision'];
+    promise: Promise<ManagedChannelAuthorizationResult> }>();
+  let highestSentSequence = 0;
+  const rejectAuthorizations = (error: Error) => {
+    for (const item of pendingAuthorizations.values()) { clearTimeout(item.timer); item.reject(error); }
+    pendingAuthorizations.clear();
+  };
   const finish = () => {
     if (settled) return;
     settled = true; clearTimeout(handshake); if (forceTimer) clearTimeout(forceTimer);
+    rejectAuthorizations(new ManagedChannelError(failure || 'MANAGED_CHANNEL_FAILED'));
+    sentAuthorizations.clear();
     child.removeListener('message', onMessage); child.removeListener('error', onError); child.removeListener('close', onClose);
     child.removeListener('exit', onClose); child.removeListener('disconnect', onDisconnect);
     child.stdout?.destroy(); child.stderr?.destroy(); child.stdin?.destroy();
@@ -102,11 +125,62 @@ export async function startManagedMcpChannel(input: ManagedChannelInput): Promis
           payload.inboundAuthMode !== 'private_api_key' || r.authMode !== 'api_key' || r.behaviorFingerprint !== payload.behaviorFingerprint || r.registryRevision !== payload.registrySource.expectedRevision || r.registryContentDigest !== payload.registrySource.expectedContentDigest) { fail('INVALID_MANAGED_HANDOFF'); return; }
         readyState = true; clearTimeout(handshake); resolveReady(r); return;
       }
+      if (message.type === 'authorizationAck') {
+        const item = pendingAuthorizations.get(message.sequence);
+        const sent = sentAuthorizations.get(message.sequence);
+        if (!item || !sent || sent.permitId !== message.permitId || sent.decision !== message.decision ||
+          item.permitId !== message.permitId || item.decision !== message.decision) {
+          fail('INVALID_MANAGED_HANDOFF'); return;
+        }
+        pendingAuthorizations.delete(message.sequence);
+        sentAuthorizations.delete(message.sequence);
+        clearTimeout(item.timer);
+        item.resolve({ status: message.status });
+        return;
+      }
       if (accepted || stopping || !child.pid) { fail('INVALID_MANAGED_HANDOFF'); return; }
       accepted = true;
       // This is only transport acceptance; a bounded timer remains until exit.
-      resolveStarted(Object.freeze({ launchId: payload.launchId, pid: child.pid, get state() { return readyState ? 'runtimeReady' as const : 'handoffAccepted' as const; }, ready, closed, close: stop }));
+      resolveStarted(baseHandle());
     } catch { fail('INVALID_MANAGED_HANDOFF'); }
+  };
+  const baseHandle = (): ManagedChannelHandle => {
+    const handle = { launchId: payload.launchId, pid: child.pid as number,
+      get state() { return readyState ? 'runtimeReady' as const : 'handoffAccepted' as const; }, ready, closed, close: stop };
+    // Authorization remains an explicit, non-enumerable capability so the
+    // established transport handle shape is unchanged for existing callers.
+    Object.defineProperty(handle, 'authorize', { value: requestAuthorization, enumerable: false, writable: false, configurable: false });
+    return Object.freeze(handle) as ManagedChannelHandle;
+  };
+  const requestAuthorization = (request: ManagedChannelAuthorizationInput): Promise<ManagedChannelAuthorizationResult> => {
+    if (settled || stopping || !accepted) return Promise.reject(new ManagedChannelError('MANAGED_CHANNEL_FAILED'));
+    if (!request || typeof request !== 'object' || !['allow', 'deny', 'revoke'].includes(request.decision) ||
+      typeof request.permitId !== 'string' || !MANAGED_IDENTIFIER.test(request.permitId) ||
+      !Number.isSafeInteger(request.sequence) || request.sequence < 1 || request.sequence > 2147483647) {
+      return Promise.reject(new ManagedChannelError('INVALID_MANAGED_HANDOFF'));
+    }
+    const existing = sentAuthorizations.get(request.sequence);
+    if (existing) {
+      if (existing.permitId !== request.permitId || existing.decision !== request.decision) return Promise.reject(new ManagedChannelError('MANAGED_AUTHORIZATION_UNVERIFIED'));
+      return existing.promise;
+    }
+    if (request.sequence <= highestSentSequence) return Promise.reject(new ManagedChannelError('MANAGED_AUTHORIZATION_UNVERIFIED'));
+    const promise = new Promise<ManagedChannelAuthorizationResult>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        pendingAuthorizations.delete(request.sequence);
+        sentAuthorizations.delete(request.sequence);
+        fail('MANAGED_AUTHORIZATION_UNVERIFIED');
+        reject(new ManagedChannelError('MANAGED_AUTHORIZATION_UNVERIFIED'));
+      }, MANAGED_AUTHORIZATION_ACK_MS);
+      pendingAuthorizations.set(request.sequence, { permitId: request.permitId, decision: request.decision, resolve, reject, timer });
+      try {
+        child.send({ type: 'authorization', version: 1, launchId: payload.launchId, sequence: request.sequence,
+          permitId: request.permitId, decision: request.decision }, error => { if (error) fail('MANAGED_CHANNEL_FAILED'); });
+      } catch { fail('MANAGED_CHANNEL_FAILED'); }
+    });
+    sentAuthorizations.set(request.sequence, { permitId: request.permitId, decision: request.decision, promise });
+    highestSentSequence = Math.max(highestSentSequence, request.sequence);
+    return promise;
   };
   const handshake = setTimeout(() => fail('MANAGED_HANDSHAKE_TIMEOUT'), MANAGED_HANDOFF_LIMITS.handshakeMs);
   child.on('message', onMessage); child.on('error', onError); child.on('close', onClose); child.on('exit', onClose); child.on('disconnect', onDisconnect);

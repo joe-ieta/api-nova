@@ -21,6 +21,7 @@ import {
 } from './managed-mcp-lifecycle.contract';
 import { ManagedLifecycleApprovalProvider } from './managed-mcp-lifecycle-approval';
 import { ManagedMcpLifecycleRead, ManagedMcpLifecycleStore } from './managed-mcp-lifecycle.store';
+import { ManagedChildSecurityLeaseCoordinator } from './managed-child-security-lease-coordinator';
 
 export interface ManagedLifecycleCapturedHandoff {
   readonly payload: ManagedMcpHandoffV1;
@@ -29,6 +30,11 @@ export interface ManagedLifecycleCapturedHandoff {
 }
 export type ManagedLifecycleCapture = (runtimeAssetId: string, serverId: string) => Promise<ManagedLifecycleCapturedHandoff>;
 
+export interface ManagedLifecycleAuthorizationInput {
+  readonly decision: 'allow' | 'deny' | 'revoke';
+  readonly permitId: string;
+  readonly sequence: number;
+}
 export interface ManagedLifecycleChannelHandle {
   readonly launchId: string;
   readonly pid: number;
@@ -36,6 +42,8 @@ export interface ManagedLifecycleChannelHandle {
   readonly ready: Promise<ManagedRuntimeRevisions>;
   readonly closed: Promise<{ code: string }>;
   close(): Promise<void>;
+  /** Optional real-time authorization transport. Absent means fail closed. */
+  authorize?(input: ManagedLifecycleAuthorizationInput): Promise<{ status: 'applied' | 'duplicate' }>;
 }
 export interface ManagedLifecycleChannelInput {
   readonly launchId: string;
@@ -54,6 +62,9 @@ export interface ManagedMcpLifecycleCoordinatorDeps {
   readonly now?: () => Date;
   /** Bounded, non-secret projection of committed terminal transitions. */
   readonly onStateChange?: ManagedLifecycleStateChangeSink;
+  /** Opt-in trusted-only lease barrier. Absent keeps the established
+   * default-off running-update behavior (explicit checkRevision/stop). */
+  readonly lease?: ManagedChildSecurityLeaseCoordinator;
 }
 
 export interface ManagedLifecycleStartInput {
@@ -126,12 +137,31 @@ export type ManagedLifecycleRevokeResult =
   | { readonly status: 'already-stopped'; readonly serverId: string; readonly generation: number; readonly code: string | null }
   | { readonly status: 'revoked'; readonly serverId: string; readonly generation: number; readonly code: string };
 
+export type ManagedLifecycleAuthorizationResult =
+  | { readonly status: 'applied' | 'duplicate'; readonly serverId: string; readonly generation: number;
+      readonly decision: 'allow' | 'deny' | 'revoke'; readonly permitId: string; readonly sequence: number }
+  | { readonly status: 'revoked'; readonly serverId: string; readonly generation: number;
+      readonly permitId: string; readonly sequence: number; readonly code: string }
+  | { readonly status: 'rejected'; readonly serverId: string };
+
+/** Result of the running-update pre-block barrier. `clear` means every child
+ * whose lease referenced the source is verified stopped, so the caller may
+ * apply the security-relevant mutation and re-prepare/restart afterwards. */
+export type ManagedLifecycleSourceUpdateResult =
+  | { readonly status: 'unenforced'; readonly sourceAssetId: string }
+  | { readonly status: 'clear'; readonly sourceAssetId: string; readonly isolatedGenerations: readonly number[] }
+  | { readonly status: 'failed'; readonly sourceAssetId: string; readonly code: string };
+
 export const MANAGED_MCP_LIFECYCLE_REVOKED_CODE = 'MANAGED_SECURITY_REVOKED';
 export const MANAGED_MCP_LIFECYCLE_STATE_INVALIDATED_CODE = 'MANAGED_SECURITY_STATE_INVALIDATED';
+export const MANAGED_MCP_LIFECYCLE_SOURCE_UPDATED_CODE = 'MANAGED_SECURITY_SOURCE_UPDATED';
+export const MANAGED_MCP_AUTHORIZATION_UNVERIFIED_CODE = 'MANAGED_SECURITY_AUTHORIZATION_UNVERIFIED';
 
 interface OwnedHandle {
   readonly generation: number;
   readonly handle: ManagedLifecycleChannelHandle;
+  readonly sourceAssetIds: readonly string[];
+  authorization?: { readonly sequence: number; readonly permitId: string; readonly decision: 'allow' | 'deny' | 'revoke' };
 }
 
 const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
@@ -339,7 +369,10 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
       await this.failTransition(serverId, startingToken, starting, 'MANAGED_LIFECYCLE_CHANNEL_FAILED');
       throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_CHANNEL_FAILED');
     }
-    this.handles.set(serverId, { generation, handle });
+    const sourceAssetIds = Object.freeze([...new Set(payload.trustedOperationBindings
+      .map(binding => String(binding?.sourceServiceAssetId ?? ''))
+      .filter(value => IDENTIFIER.test(value)))]);
+    this.handles.set(serverId, { generation, handle, sourceAssetIds });
     try {
       await handle.ready;
     } catch {
@@ -354,6 +387,21 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
       this.handles.delete(serverId);
       await handle.close().catch(() => undefined);
       throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_CONFLICT');
+    }
+    if (this.deps.lease) {
+      // The barrier is trusted-only and explicit: a lease is registered only
+      // for the owned, verified current generation. Registration failure must
+      // never leave an unprotected child running.
+      try {
+        this.deps.lease.register({ serverId, launchId: payload.launchId,
+          contextToken: managedLifecycleSnapshotDigest(snapshot), sourceAssetIds }, {
+          stop: () => this.terminateLease(serverId, generation),
+          closed: handle.closed,
+        });
+      } catch {
+        await this.forceTerminate(serverId, MANAGED_MCP_LIFECYCLE_STATE_INVALIDATED_CODE).catch(() => undefined);
+        throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_REJECTED');
+      }
     }
     this.observeClosed(serverId, generation, handle);
     this.logger.log(`Managed lifecycle generation ${generation} is current for server ${serverId} (PID ${handle.pid})`);
@@ -535,11 +583,19 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
         verified = true;
       } catch { verified = false; }
     }
+    return this.commitSecurityTerminal(serverId, read.updatedAt, record, verified, code);
+  }
+
+  /** Persist a `security_revoked` terminal exactly once after the owned child
+   * has been closed. A concurrent terminal writer wins the CAS and its code is
+   * reported without ever reviving the lease. */
+  private async commitSecurityTerminal(serverId: string, expectedUpdatedAt: string, record: ManagedLifecycleRecordV1,
+    verified: boolean, code: string): Promise<{ generation: number; code: string }> {
     const terminalCode = FAILURE_CODE.test(code) ? code : MANAGED_MCP_LIFECYCLE_REVOKED_CODE;
     const terminal = this.terminal('security_revoked', verified, terminalCode);
     const revoked = this.record(record, { serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
       state: 'stopped', currentVerified: false, updatedAt: this.now().toISOString(), terminal });
-    const token = await this.commit(serverId, read.updatedAt, revoked);
+    const token = await this.commit(serverId, expectedUpdatedAt, revoked);
     if (!token) {
       const retry = await this.read(serverId);
       if (retry.status === 'valid' && (retry.record.state === 'stopped' || retry.record.state === 'failed' || retry.record.state === 'abandoned')) {
@@ -550,6 +606,15 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
     this.notify({ serverId, runtimeAssetId: record.runtimeAssetId, generation: record.generation,
       state: 'stopped', reason: terminal.reason, code: terminal.code });
     return { generation: record.generation, code: terminal.code ?? terminalCode };
+  }
+
+  /** Lease-barrier stop: the E3a coordinator calls this synchronously blocks
+   * the lease and awaits the child's verified termination before an update may
+   * touch the referenced source asset. */
+  private async terminateLease(serverId: string, generation: number): Promise<void> {
+    const entry = this.handles.get(serverId);
+    if (!entry || entry.generation !== generation) return;
+    await this.forceTerminate(serverId, MANAGED_MCP_LIFECYCLE_SOURCE_UPDATED_CODE);
   }
 
   /** Explicit running-version/security check. A current trusted child is
@@ -621,6 +686,76 @@ export class ManagedMcpLifecycleCoordinator implements OnModuleDestroy {
       const terminated = await this.forceTerminate(serverId, requested);
       return { status: 'revoked', serverId, generation: terminated.generation, code: terminated.code };
     });
+  }
+
+  /** Real-time authorization over the existing child IPC channel. Decisions
+   * are pushed and acknowledged within the channel's bounded wait; a missing
+   * or malformed acknowledgement terminates the child fail closed. Repeated
+   * verbatim delivery is idempotent, conflicting reuse of a sequence is
+   * rejected without touching the child. */
+  async authorize(serverId: string, input: ManagedLifecycleAuthorizationInput): Promise<ManagedLifecycleAuthorizationResult> {
+    const decision = input?.decision, permitId = input?.permitId, sequence = input?.sequence;
+    if (!IDENTIFIER.test(serverId) || !['allow', 'deny', 'revoke'].includes(decision) || !IDENTIFIER.test(String(permitId)) ||
+      !Number.isSafeInteger(sequence) || sequence < 1 || sequence > MANAGED_MCP_LIFECYCLE_MAX_GENERATION) {
+      throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_REJECTED');
+    }
+    return this.serialize(serverId, async () => {
+      const read = await this.read(serverId);
+      if (read.status === 'invalid') throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_INVALID_RECORD');
+      if (read.status === 'absent') return { status: 'rejected', serverId };
+      const record = read.record;
+      if (record.state !== 'current' || this.ownedGeneration(serverId) !== record.generation) return { status: 'rejected', serverId };
+      const entry = this.handles.get(serverId)!;
+      if (typeof entry.handle.authorize !== 'function') return { status: 'rejected', serverId };
+      const previous = entry.authorization;
+      if (previous && previous.sequence === sequence) {
+        if (previous.permitId === permitId && previous.decision === decision) {
+          return { status: 'duplicate', serverId, generation: record.generation, decision, permitId, sequence };
+        }
+        return { status: 'rejected', serverId };
+      }
+      if (previous && sequence <= previous.sequence) return { status: 'rejected', serverId };
+      let ack: { status: 'applied' | 'duplicate' };
+      try {
+        ack = await entry.handle.authorize({ decision, permitId, sequence });
+      } catch {
+        await this.forceTerminate(serverId, MANAGED_MCP_AUTHORIZATION_UNVERIFIED_CODE).catch(() => undefined);
+        return { status: 'rejected', serverId };
+      }
+      if (ack?.status !== 'applied' && ack?.status !== 'duplicate') {
+        await this.forceTerminate(serverId, MANAGED_MCP_AUTHORIZATION_UNVERIFIED_CODE).catch(() => undefined);
+        return { status: 'rejected', serverId };
+      }
+      entry.authorization = Object.freeze({ sequence, permitId, decision });
+      if (decision === 'revoke') {
+        const terminated = await this.forceTerminate(serverId, MANAGED_MCP_LIFECYCLE_REVOKED_CODE);
+        return { status: 'revoked', serverId, generation: terminated.generation, permitId, sequence, code: terminated.code };
+      }
+      return { status: ack.status, serverId, generation: record.generation, decision, permitId, sequence };
+    });
+  }
+
+  /** Running-update pre-block barrier for an explicit security-relevant source
+   * update (credential/registry revision). While the trusted lease is enabled
+   * this synchronously blocks every affected lease, stops the owned children
+   * and waits for verified closure, so the caller may only apply the mutation
+   * after the barrier returns `clear`. Without the opt-in lease it reports
+   * `unenforced`; the established explicit `checkRevision` route (stop /
+   * re-prepare / restart) remains the supported default-off path. */
+  async isolateSourceForUpdate(sourceAssetId: string): Promise<ManagedLifecycleSourceUpdateResult> {
+    if (!IDENTIFIER.test(sourceAssetId)) throw new ManagedMcpLifecycleError('MANAGED_LIFECYCLE_REJECTED');
+    const lease = this.deps.lease;
+    if (!lease) return { status: 'unenforced', sourceAssetId };
+    const isolatedGenerations = Object.freeze([...this.handles.values()]
+      .filter(entry => entry.sourceAssetIds.includes(sourceAssetId))
+      .map(entry => entry.generation)
+      .sort((a, b) => a - b));
+    try {
+      await lease.isolateSource(sourceAssetId);
+    } catch {
+      return { status: 'failed', sourceAssetId, code: 'MANAGED_ISOLATION_FAILED' };
+    }
+    return { status: 'clear', sourceAssetId, isolatedGenerations };
   }
 
   async status(serverId: string): Promise<ManagedLifecycleStatusResult> {

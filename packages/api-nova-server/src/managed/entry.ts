@@ -1,4 +1,5 @@
 import { MANAGED_HANDOFF_LIMITS, ManagedFailureCode, ManagedMcpHandoffV1, ManagedRuntimeRevisions, parseManagedParentMessage } from './handoff';
+import { ManagedAuthorizationGate } from './authorization';
 /** Dedicated managed child. All diagnostics are fixed IPC codes, never raw
  * third-party parser/transport logging that could include spec or secrets. */
 export function runManagedEntry(): void {
@@ -7,6 +8,7 @@ export function runManagedEntry(): void {
   let received = false, ending = false, launchId = '';
   let runtime: { close(): Promise<void>; revisions: ManagedRuntimeRevisions } | undefined;
   let activation: Promise<void> | undefined;
+  const authorization = new ManagedAuthorizationGate();
   const finish = (code?: ManagedFailureCode) => {
     if (ending) return;
     ending = true; clearTimeout(timer);
@@ -28,6 +30,16 @@ export function runManagedEntry(): void {
     try {
       const parsed = parseManagedParentMessage(input);
       if (parsed.type === 'stop') { if (!received || parsed.launchId !== launchId) return finish('INVALID_MANAGED_HANDOFF'); return finish(); }
+      if (parsed.type === 'authorization') {
+        if (!received || parsed.launchId !== launchId) return finish('INVALID_MANAGED_HANDOFF');
+        // Malformed or conflicting events are already rejected by the wire
+        // parser/gate; anything unverified terminates the launch fail closed.
+        let ack;
+        try { ack = authorization.apply(parsed); }
+        catch { return finish('INVALID_MANAGED_HANDOFF'); }
+        process.send!(ack, error => { if (error) finish('MANAGED_CHANNEL_FAILED'); });
+        return;
+      }
       if (received) return finish('INVALID_MANAGED_HANDOFF');
       received = true; launchId = parsed.launchId;
       process.send!({ type: 'handoffAccepted', launchId }, error => {
@@ -36,8 +48,8 @@ export function runManagedEntry(): void {
         activation = (async () => {
           try {
             // Lazy load only after validated IPC. No CLI/default document entry.
-            const { activateManagedRuntime } = require('./runtime') as { activateManagedRuntime(payload: ManagedMcpHandoffV1): Promise<{ close(): Promise<void>; revisions: ManagedRuntimeRevisions }> };
-            runtime = await activateManagedRuntime(parsed.payload);
+            const { activateManagedRuntime } = require('./runtime') as { activateManagedRuntime(payload: ManagedMcpHandoffV1, gate?: { assertAllowed(toolName: string): void }): Promise<{ close(): Promise<void>; revisions: ManagedRuntimeRevisions }> };
+            runtime = await activateManagedRuntime(parsed.payload, authorization);
             if (ending) return;
             process.send!({ type: 'runtimeReady', launchId, nonSecretRevisions: runtime.revisions }, error => {
               if (error) finish('MANAGED_CHANNEL_FAILED'); else clearTimeout(timer);
