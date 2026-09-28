@@ -57,81 +57,114 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (
-              id.includes("/node_modules/vue/") ||
-              id.includes("/node_modules/@vue/") ||
-              id.includes("/node_modules/vue-router/") ||
-              id.includes("/node_modules/pinia/") ||
-              id.includes("/node_modules/vue-i18n/")
-            ) {
-              return "vendor-vue";
-            }
+            const normalizedId = id.replace(/\\/g, "/");
 
             if (
-              id.includes("/node_modules/axios/") ||
-              id.includes("/node_modules/date-fns/") ||
-              id.includes("/node_modules/highlight.js/")
+              normalizedId.includes("plugin-vue:export-helper") ||
+              normalizedId.includes("vite/preload-helper")
             ) {
-              return "vendor-app";
+              return "app-core";
             }
 
-            if (id.includes("monaco-editor")) {
-              return "vendor-monaco";
+            if (normalizedId.includes("/node_modules/")) {
+              if (
+                normalizedId.includes("/node_modules/vue/") ||
+                normalizedId.includes("/node_modules/@vue/") ||
+                normalizedId.includes("/node_modules/vue-router/") ||
+                normalizedId.includes("/node_modules/pinia/") ||
+                normalizedId.includes("/node_modules/vue-i18n/") ||
+                normalizedId.includes("/node_modules/@intlify/")
+              ) {
+                return "vendor-vue";
+              }
+
+              if (
+                normalizedId.includes("element-plus") ||
+                normalizedId.includes("@element-plus")
+              ) {
+                return "vendor-element-plus";
+              }
+
+              if (
+                normalizedId.includes("/node_modules/echarts/") ||
+                normalizedId.includes("/node_modules/vue-echarts/") ||
+                normalizedId.includes("/node_modules/zrender/")
+              ) {
+                return "vendor-charts";
+              }
+
+              if (
+                normalizedId.includes("/node_modules/socket.io-client/") ||
+                normalizedId.includes("/node_modules/socket.io-parser/") ||
+                normalizedId.includes("/node_modules/engine.io-client/") ||
+                normalizedId.includes("/node_modules/engine.io-parser/") ||
+                normalizedId.includes("/node_modules/@socket.io/")
+              ) {
+                return "vendor-realtime";
+              }
+
+              if (
+                normalizedId.includes("/node_modules/axios/") ||
+                normalizedId.includes("/node_modules/date-fns/") ||
+                normalizedId.includes("/node_modules/highlight.js/")
+              ) {
+                return "vendor-app";
+              }
+
+              if (normalizedId.includes("monaco-editor")) {
+                return "vendor-monaco";
+              }
+
+              return "vendor-misc";
             }
 
-            if (id.includes("element-plus") || id.includes("@element-plus")) {
-              return "vendor-element-plus";
+            if (
+              normalizedId.includes("/src/stores/") ||
+              normalizedId.includes("/src/services/") ||
+              normalizedId.includes("/src/composables/") ||
+              normalizedId.includes("/src/utils/") ||
+              normalizedId.includes("/src/api/")
+            ) {
+              return "app-core";
             }
 
-            if (id.includes("echarts") || id.includes("vue-echarts")) {
-              return "vendor-charts";
+            if (normalizedId.includes("/src/locales/")) {
+              return "feature-i18n";
             }
 
-            if (id.includes("socket.io-client")) {
-              return "vendor-realtime";
-            }
-
-            if (id.includes("/src/modules/monitoring/")) {
+            if (normalizedId.includes("/src/modules/monitoring/")) {
               return "feature-monitoring";
             }
 
             if (
-              id.includes("/src/shared/components/monaco/") ||
-              id.includes("/src/shared/composables/useMonaco")
+              normalizedId.includes("/src/shared/components/monaco/") ||
+              normalizedId.includes("/src/shared/composables/useMonaco")
             ) {
               return "feature-editor";
             }
 
-            if (id.includes("/src/modules/auth/")) {
+            if (normalizedId.includes("/src/modules/auth/")) {
               return "feature-auth";
             }
 
-            if (id.includes("/src/modules/ai/")) {
+            if (normalizedId.includes("/src/modules/ai/")) {
               return "feature-ai";
             }
 
-            if (id.includes("/src/modules/config/")) {
+            if (normalizedId.includes("/src/modules/config/")) {
               return "feature-config";
             }
 
-            if (id.includes("/src/modules/testing/")) {
+            if (normalizedId.includes("/src/modules/testing/")) {
               return "feature-testing";
             }
 
-            if (id.includes("/src/locales/messages/")) {
-              return "feature-i18n";
-            }
-
-            if (id.includes("/src/modules/openapi/")) {
+            if (normalizedId.includes("/src/modules/openapi/")) {
               return "feature-openapi";
             }
 
-            if (id.includes("/src/modules/servers/")) {
+            if (normalizedId.includes("/src/modules/servers/")) {
               return "feature-servers";
-            }
-
-            if (id.includes("/node_modules/")) {
-              return "vendor-misc";
             }
           },
         },

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.183.0
+doc-version: 1.184.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -91,6 +91,8 @@ SEC-C4-01 限定 DONE：`verify:c4-01` `C4_01_VERIFY_OK`（反向门控）聚合
 
 OBS-16-03 限定 DONE：`verify:obs-16-03` `OBS_16_03_VERIFY_OK`（exit 0）——Stage1真实PG多进程：Windows隔离PG16.10与Linux/Alpine PG16.15各10/10（源码机制pessimistic_write+skip_locked、事件15s/投递30s租约、SIGKILL打断物化与请求后租约回收、无丢失无重复、revision/撤销/暂停/过期边界；容器回退postgres:16.14亦验证）；Stage2受控接收端矩阵各8/8（2xx、408/429/5xx+Retry-After秒与HTTP日期、终态4xx与301/302/303/307/308、缺秘密、DNS、metadata阻断、自签/不可达TLS、socket空闲界）；2格blocked（自签TLS成功无CA注入契约需部署信任配置；容器--network none需预装PG包）；既有obs-16-local-unit/obs-15-full-chain/obs-14-03e3全绿（[证据](../audits/2026-09-28-obs-16-03-environment-lane.md)）；部署签收/长时/glibc/多主机仍为环境项。
 
+MAINT-01 限定 DONE：计划所有者2026-09-28手工确认“接口/发布边界稳定”后解冻；测量驱动整理仅改`vite.config.ts`与`main.ts`——首屏预载2113.02→1776.71 kB raw（gzip −14.1%）、eager CSS 360.15→266.92 kB、vendor-misc 416.06→172.95 kB并消除Circular chunk，feature-editor/openapi/servers与charts/monitoring/testing退出首屏，新增app-core固定boot层；type-check/build/交付i18n(8/8)通过、lint无新增、预览`/`/`/endpoints`/`/runtime-assets`/`/registration/batch` 200且懒chunk可用（[证据](../audits/2026-09-28-maint-01-frontend-chunking.md)）；无路由/接口/依赖变更。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -100,10 +102,10 @@ OBS-16-03 限定 DONE：`verify:obs-16-03` `OBS_16_03_VERIFY_OK`（exit 0）—�
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 191 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 192 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 0 | 当前无 READY；剩余为 WAIT_DEP/环境与签收项 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
-| WAIT_DEP | 4 | 等待列明子任务/条件 |
+| WAIT_DEP | 3 | 等待列明子任务/条件 |
 | NEED_ENV | 13 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 0 | PROD-06 核定后无待判范围项 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -323,7 +325,7 @@ OBS-16-03 限定 DONE：`verify:obs-16-03` `OBS_16_03_VERIFY_OK`（exit 0）—�
 | OPS-01 | WAIT_DEP | 不能与F4重复计算发布成果 |
 | MAIL-01 | DONE | [邮件投递范围与受控验收合同](./mail-delivery-scope-and-acceptance.md)冻结三类接口、模板、测试邮箱与证据合同；仅DOC，不改变当前运行默认 |
 | MAIL-02 | DONE | 限定受控投递完成（[证据](../audits/2026-09-26-mail-02-controlled-delivery.md)）：配置/模块/认证/通知/失败恢复/测试/UI全部落地，sink端到端6套件30例+双构建+SQLite drift 0；PG运行时装迁移已由隔离PG实测通过（8迁移/drift 0/API启动）；真实外发、生产启用与队列化另需授权/另立任务 |
-| MAINT-01 | WAIT_DEP | 等待发布行为与接口边界稳定后再冻结维护验收，当前不进入主线 |
+| MAINT-01 | DONE | 限定整理完成（[证据](../audits/2026-09-28-maint-01-frontend-chunking.md)）：首屏预载2113.02→1776.71 kB raw（gzip 619.66→531.98）、CSS 360.15→266.92、vendor-misc 416.06→172.95与循环chunk告警消除；feature-editor/openapi/servers与charts/monitoring/testing退出首屏；仅改vite.config.ts+main.ts；type-check/build/i18n(8/8)通过、lint仅6个既有错误、预览4路由200与懒chunk可用；无路由/接口/依赖变更 |
 | MAINT-02 | DONE | 限定本轮交付范围验收：`check-delivery-i18n.cjs` 8个交付面文件严格UTF-8/乱码检查0/8通过；原46行可见硬编码中文的`RuntimeUpstreamBindingDialog.vue`已完成i18n化（新增`runtime-upstream-binding`双语模块47键并注册），复核`visibleCjkLines:0`、8/8通过、type-check与UI构建通过 |
 | DEFER-01 | DEFERRED | 明确延期 |
 | DEFER-02 | DEFERRED | 明确延期 |
