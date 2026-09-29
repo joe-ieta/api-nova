@@ -37,6 +37,8 @@
     "verify:f3-dual-runtime": "node scripts/verify-f3-dual-runtime.cjs",
     "verify:f3-n-matrix": "node scripts/verify-f3-n-matrix.cjs",
     "verify:mcp-observability-matrix": "node scripts/verify-mcp-observability-matrix.cjs",
+    "verify:obs-06-02": "node scripts/verify-obs-06-02.cjs",
+    "verify:ext-09": "node scripts/verify-ext-09.cjs",
     "verify:obs-16-03": "node scripts/verify-obs-16-03.cjs",
     "verify:obs-16-local-unit": "node scripts/verify-obs-16-local-unit.cjs",
     "verify:obs-15-full-chain": "node scripts/verify-obs-15-full-chain.cjs",
@@ -46,7 +48,9 @@
     "verify:mail-02": "node scripts/test-mail-delivery.cjs",
     "verify:e2-01": "node scripts/verify-e2-01.cjs",
     "verify:e2-02": "node scripts/verify-e2-02.cjs",
-    "verify:f1-02c3g6": "node scripts/verify-f1-02c3g6.cjs"
+    "verify:f1-02c3g6": "node scripts/verify-f1-02c3g6.cjs",
+    "verify:ext-06": "node scripts/verify-ext-06.cjs",
+    "verify:ext-08": "node scripts/verify-ext-08.cjs"
   },
   "keywords": [
     "mcp",

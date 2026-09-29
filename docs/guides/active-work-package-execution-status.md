@@ -1,5 +1,5 @@
 ---
-doc-version: 1.184.0
+doc-version: 1.185.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -93,6 +93,8 @@ OBS-16-03 限定 DONE：`verify:obs-16-03` `OBS_16_03_VERIFY_OK`（exit 0）—�
 
 MAINT-01 限定 DONE：计划所有者2026-09-28手工确认“接口/发布边界稳定”后解冻；测量驱动整理仅改`vite.config.ts`与`main.ts`——首屏预载2113.02→1776.71 kB raw（gzip −14.1%）、eager CSS 360.15→266.92 kB、vendor-misc 416.06→172.95 kB并消除Circular chunk，feature-editor/openapi/servers与charts/monitoring/testing退出首屏，新增app-core固定boot层；type-check/build/交付i18n(8/8)通过、lint无新增、预览`/`/`/endpoints`/`/runtime-assets`/`/registration/batch` 200且懒chunk可用（[证据](../audits/2026-09-28-maint-01-frontend-chunking.md)）；无路由/接口/依赖变更。
 
+EXT 环境批（三路并行，2026-09-28）：EXT-08 `verify:ext-08` `EXT_08_VERIFY_OK`（Windows隔离9011/5181，26/26：启动/ready/SPA/登录/导入/转换/治理/发布/deploy-mcp激活）；EXT-06 `verify:ext-06` `EXT_06_VERIFY_OK`（25/25，真实SDK1.29 Streamable+SSE+managed child、凭据/会话/撤销与秘密扫描；发现内部spec回调JWT保护与spawn取spec冲突、managedMcp.*对象配置纯env不可达两个后续项）；EXT-09 `verify:ext-09` `EXT_09_VERIFY_OK`（ubuntu:24.04同版本npm ci+构建+迁移+启动+Streamable E2E）；OBS-06-02 `verify:obs-06-02` `OBS_06_02_VERIFY_OK`（Linux/Windows同版本22行21匹配，1项16MiB cork/uncork平台差异记录）。四项均独立复跑通过（[Windows证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)、[Ubuntu证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）。
+
 ## 1. 本次重排快照
 
 依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
@@ -102,11 +104,11 @@ MAINT-01 限定 DONE：计划所有者2026-09-28手工确认“接口/发布边�
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 192 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 196 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 0 | 当前无 READY；剩余为 WAIT_DEP/环境与签收项 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 3 | 等待列明子任务/条件 |
-| NEED_ENV | 13 | 需要核实目标环境，不是假定工具阻塞 |
+| NEED_ENV | 9 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 0 | PROD-06 核定后无待判范围项 |
 | DEFERRED | 2 | 不属于当前里程碑 |
 近期已完成C2B1/B2/B3、C2C1、B2B1/B2/C、B3A/C、SEC-A1-01跨层矩阵及当前版本SQLite空库验证A4-01的限定出口。C2C1证实旧预留无法在崩溃后唯一反查文件，原C2C2已进一步拆为保守降级A、持久发布意图B和可证明结算C；A已完成，B再细分为双方言模型B1、写入接线B2和崩溃验收B3；B1/B2/B3已完成限定出口，C已完成关联、文件证明与安全结算原语，C2C3本地恢复故障验收亦已完成，05C3的Windows隔离PG多写者/进程及PG重启出口已完成，Linux/生产验收仍独立登记。B3B已限定完成；无sample行的staged墓碑再细分为互斥E1、整理E2和故障验收E3，E1/E2/E3已完成限定出口，B3D本地限定验收已完成，真实环境仍归04C。READY不表示已开工。SEC-E1-02C1仍等待明确生产生命周期授权；事件物理删除E2B仍等待明确永久删除授权。
@@ -245,7 +247,7 @@ MAINT-01 限定 DONE：计划所有者2026-09-28手工确认“接口/发布边�
 | SEC-F4-01 | DONE | 当前112个SEC叶子以逐项或明确聚合旧ID维护，D2b1/b2/b3a–d及C2b1/b2a/b2b1/b2b2/b3依赖已登记；区分历史/本地限定/未运行环境，不代表F4-02签收 |
 | SEC-F4-02 | NEED_ENV | 目标环境与授权另核实 |
 | OBS-06-01 | DONE | 限定矩阵完成：新增`verify:mcp-observability-matrix`聚合4个server脚本（11+17+15+12）与Parser上游失败74项，输出`MCP_OBSERVABILITY_MATRIX_OK`；success/cancel/发送中断/大响应三transport有结果（16MiB Tool省略/8MiB完整），Windows原生对照复现双方timeout；Linux/OBS-06-02、AC-02 retry与MCP调用超时仍归TP06/16 |
-| OBS-06-02 | NEED_ENV | 真实环境待核实 |
+| OBS-06-02 | DONE | 限定跨平台完成（[证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:obs-06-02` `OBS_06_02_VERIFY_OK`——Ubuntu24.04/容器Node v24.15.0与Windows同版本矩阵22行21匹配（server 11/17/15/12、parser 74/74、15 transport单元一致）；1项记录差异=16MiB cork/uncork Linux completed vs Windows timeout（字节相同、两侧native/audited自洽）；裸机内核/PG/负载与生产启用未覆盖 |
 | OBS-10-01 | DONE | 受管业务子进程start/stop/unexpected_exit/lost已进入独立持久投影；runtimeAssetId+serverId+generation绑定，旧generation迟到终止不能覆盖新start，管理心跳不作为业务存活。SQL.js重开4/4、真实child/事件hook 3/3、状态投影1/1、ProcessManager相邻5 suites/32及API type-check/build通过 |
 | OBS-10-02A | DONE | 限定retained读模型完成：5100条保留历史有界聚合、revision水位、资产隔离、legacy坏行与SQL.js重开均覆盖，4 suites/15 tests通过。retained unfinished=0只表示保留事实中无未完成项；coverage仍为unknown，live active保持null；只投影最新generation而非全历史 |
 | OBS-10-02B1 | DONE | managed start/terminal与最新generation投影在同一Store事务写入server.state_changed并分配sequence；4 suites/21 tests及API build通过。只证明同一DataSource内并发与耐久delta，不接Realtime，不证明跨实例全局水位或实时liveness |
@@ -317,10 +319,10 @@ MAINT-01 限定 DONE：计划所有者2026-09-28手工确认“接口/发布边�
 | EXT-03 | NEED_ENV | 环境待核实 |
 | EXT-04 | NEED_ENV | 环境待核实 |
 | EXT-05 | NEED_ENV | 环境待核实 |
-| EXT-06 | NEED_ENV | 环境待核实 |
+| EXT-06 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)）：`verify:ext-06` `EXT_06_VERIFY_OK` 25/25（独立复跑3次）——真实SDK1.29 Streamable+SSE+受信managed child 端到端、凭据/会话/撤销矩阵、秘密全渠道扫描；发现2个后续项（内部spec回调JWT保护与spawn取spec冲突；managedMcp.*对象配置不可由纯env到达）；外部网络/Linux/生产启用为notCovered |
 | EXT-07 | NEED_ENV | 本地SQL.js不是该证据 |
-| EXT-08 | NEED_ENV | 需核实当前可运行条件 |
-| EXT-09 | NEED_ENV | 环境待核实 |
+| EXT-08 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)）：`verify:ext-08` `EXT_08_VERIFY_OK` 26/26 gating——隔离9011/5181真实启动API/UI、ready、SPA 10/11路由、超管登录、上传/URL导入/文档转换、治理probe/test/sample/readiness、发布至MCP候选并deploy-mcp激活（candidateRevision与activeRevision一致）；浏览器点击/截图与受管child会话归EXT-06/手工 |
+| EXT-09 | DONE | 限定容器完成（[证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:ext-09` `EXT_09_VERIFY_OK`——ubuntu:24.04/容器Node v24.15.0同版本、npm ci+三包构建+迁移+启动ready+Streamable E2E（managed-runtime 14/14、publication-endpoints 3/3）+优雅停止；裸机/systemd/PG/UI/长时为notCovered |
 | ENV-01 | NEED_ENV | 不放宽执行策略 |
 | OPS-01 | WAIT_DEP | 不能与F4重复计算发布成果 |
 | MAIL-01 | DONE | [邮件投递范围与受控验收合同](./mail-delivery-scope-and-acceptance.md)冻结三类接口、模板、测试邮箱与证据合同；仅DOC，不改变当前运行默认 |
