@@ -66,8 +66,7 @@ const notCovered = [
   { item: 'linux-variant', reason: 'Windows-only execution; Ubuntu/EXT-09 matrix was not run here.' },
   { item: 'external-network', reason: 'Loopback-only; no external receivers, real upstreams, OIDC/OAuth provider or EXT-10 flows.' },
   { item: 'production-enablement', reason: 'No production enablement: Verified/canPublish stays closed, no production migrations or DI switches.' },
-  { item: 'spec-callback-shim', reason: 'The product internal spec callback /api/openapi/by-runtime-asset is management-JWT guarded; the runner pointed API_BASE_URL at a loopback JWT-injecting proxy so the spawned runtime could fetch its published spec (harness shim, product behavior unchanged).' },
-  { item: 'trusted-lifecycle-via-api-config', reason: 'The API trusted lifecycle reads managedMcp.handoffSources/lifecycleApproval through Nest ConfigService, which only yields string environment values; object-valued config is reachable only with injected config (as in the SEC-E1-04 specs). The trusted managed child is therefore proven here through the existing SEC-E1-03 fixture channel, while its API deploy/assembly path is exercised separately.' },
+  { item: 'trusted-lifecycle-via-api-config', reason: 'The API trusted lifecycle reads managedMcp.handoffSources/lifecycleApproval through Nest ConfigService, which now supports the validated API_NOVA_MANAGED_MCP_CONFIG environment envelope (and still accepts injected host config). The trusted managed child is proven here through the existing SEC-E1-03 fixture channel, while the env-driven config path is covered by API unit/HTTP specs.' },
 ];
 
 const canonical = value => Array.isArray(value) ? value.map(canonical)
@@ -94,7 +93,6 @@ function sanitize(value) {
 
 const children = [];
 let upstreamState = null;
-let proxyState = null;
 let apiChild = null;
 let apiLogStream = null;
 let apiToken = null;
@@ -216,34 +214,6 @@ function startUpstream() {
   return new Promise(resolve => {
     server.listen(0, '127.0.0.1', () => resolve({
       server, received, port: server.address().port,
-      close: () => new Promise(done => { server.closeAllConnections(); server.close(() => done()); }),
-    }));
-  });
-}
-
-function startSpecProxy() {
-  const specRequests = [];
-  const server = http.createServer((request, response) => {
-    const isSpec = String(request.url || '').startsWith('/api/openapi/');
-    const headers = { ...request.headers };
-    if (isSpec) {
-      specRequests.push({ method: request.method, path: request.url, injected: Boolean(apiToken), childAuthorization: headers.authorization || null });
-      if (apiToken) headers.authorization = `Bearer ${apiToken}`;
-    }
-    delete headers.host;
-    const forwarded = http.request({
-      hostname: '127.0.0.1', port: API_PORT, path: request.url, method: request.method,
-      headers: { ...headers, host: `127.0.0.1:${API_PORT}` },
-    }, upstreamResponse => {
-      response.writeHead(upstreamResponse.statusCode || 502, upstreamResponse.headers);
-      upstreamResponse.pipe(response);
-    });
-    forwarded.on('error', () => { if (!response.headersSent) response.writeHead(502); response.end(); });
-    request.pipe(forwarded);
-  });
-  return new Promise(resolve => {
-    server.listen(0, '127.0.0.1', () => resolve({
-      server, specRequests, port: server.address().port,
       close: () => new Promise(done => { server.closeAllConnections(); server.close(() => done()); }),
     }));
   });
@@ -459,11 +429,6 @@ async function main() {
     if (!SKIP_MANAGED) assert.ok(trusted && trusted.runtimeAssetId, 'trusted publication graph missing');
   });
 
-  await step('spec-callback-proxy-ready', async () => {
-    proxyState = await startSpecProxy();
-    assert.ok(proxyState.port > 0);
-  });
-
   const managedResource = `http://127.0.0.1:${TRUSTED_MCP_PORT}${TRUSTED_ENDPOINT}`;
   const managedKeys = [
     {
@@ -517,7 +482,7 @@ async function main() {
     API_NOVA_AUDIT_DIR: auditDir,
     PID_DIRECTORY: pidDir,
     LOG_DIRECTORY: logDir,
-    API_BASE_URL: `http://127.0.0.1:${proxyState.port}`,
+    API_BASE_URL: `http://127.0.0.1:${API_PORT}`,
     MAIL_SINK_DIR: mailSinkDir,
     THROTTLE_LIMIT: '10000',
     THROTTLE_TTL: '60',
@@ -550,6 +515,20 @@ async function main() {
   });
 
   const credentialsUrl = id => `http://127.0.0.1:${API_PORT}/api/v1/runtime-assets/${id}/runtime-access-credentials`;
+  const specCallbackUrl = id => `http://127.0.0.1:${API_PORT}/api/openapi/by-runtime-asset/${id}`;
+
+  await step('runtime-spec-callback-credential-guard', async () => {
+    const anonymous = await fetchJson(specCallbackUrl(legacy.runtimeAssetId));
+    assert.equal(anonymous.status, 401, `anonymous spec callback status ${anonymous.status}`);
+    const bogus = await fetchJson(specCallbackUrl(legacy.runtimeAssetId), {
+      headers: { 'x-api-key': 'apinova-spec-v1.bogus-signature' },
+    });
+    assert.equal(bogus.status, 401, `bogus spec credential status ${bogus.status}`);
+    const management = await fetchJson(specCallbackUrl(legacy.runtimeAssetId), { token: apiToken });
+    assert.equal(management.status, 200, `management spec callback status ${management.status}`);
+    assert.ok(management.json?.paths?.['/ping'], 'management spec callback did not return the assembled spec');
+    assert.ok(!JSON.stringify(management.json).includes('apinova-spec-v1.'), 'spec callback response leaked a spec credential');
+  });
 
   await step('selected-transport-credentials-issued', async () => {
     const create = async (body) => {
@@ -609,10 +588,11 @@ async function main() {
         return response.status === 200;
       } catch { return false; }
     }, 'legacy MCP health did not become ready', 30000, 200);
-    await waitFor(async () => proxyState.specRequests.some(request => request.injected), 'spawned runtime did not use the authenticated spec callback', 20000, 200);
-    const specRequest = proxyState.specRequests.find(request => request.injected);
-    assert.equal(specRequest.childAuthorization, null, 'child unexpectedly sent its own management authorization');
-    assert.ok(specRequest.path.includes('/api/openapi/by-runtime-asset/'), 'unexpected spec callback path');
+    await waitFor(async () => {
+      const logs = await fetchJson(`http://127.0.0.1:${API_PORT}/api/audit/logs?resource=openapi.spec_access&limit=50`, { token: apiToken });
+      return logs.status === 200 && Array.isArray(logs.json?.data) &&
+        logs.json.data.some(row => row.resourceId === legacy.runtimeAssetId && row.status === 'success');
+    }, 'spawned runtime spec callback access was not audited', 20000, 200);
   });
 
   await step('legacy-child-process-and-argv', async () => {
@@ -627,7 +607,8 @@ async function main() {
     assert.ok(args.includes('--endpoint') && args.includes(LEGACY_ENDPOINT));
     const openApiArg = args.find(value => value.startsWith('http://127.0.0.1:') && value.includes('/api/openapi/by-runtime-asset/'));
     assert.ok(openApiArg, 'child does not use the published runtime-asset spec callback');
-    assert.ok(openApiArg.includes(`:${proxyState.port}/`), 'spec callback does not run through the loopback shim');
+    assert.ok(openApiArg.includes(`:${API_PORT}/`), 'spec callback does not target the API directly');
+    assert.ok(!JSON.stringify(processInfo.json).includes('apinova-spec-v1.'), 'process info leaked a runtime spec credential');
     for (const secret of [legacyApiKey, legacyOtherKey, legacyRestrictedKey, managedSecret]) {
       assert.ok(!JSON.stringify(processInfo.json).includes(secret), 'process info leaked a consumer credential');
     }
@@ -798,20 +779,24 @@ async function main() {
       .filter(Boolean).concat(runtimeSecrets);
     const upstreamWire = JSON.stringify(upstreamState.received);
     for (const marker of markers) assert.ok(!upstreamWire.includes(marker), 'upstream evidence leaked a credential');
-    assert.ok(!JSON.stringify(proxyState.specRequests).includes(legacyApiKey), 'proxy evidence leaked a credential');
+    const specMarker = 'apinova-spec-v1.';
     const apiLog = fs.existsSync(apiLogPath) ? fs.readFileSync(apiLogPath, 'utf8') : '';
     for (const marker of markers) assert.ok(!apiLog.includes(marker), 'API process log leaked a credential');
+    assert.ok(!apiLog.includes(specMarker), 'API process log leaked a runtime spec credential');
     if (fs.existsSync(logDir)) {
       for (const file of collectFiles(logDir)) {
         const contents = fs.readFileSync(file).toString('utf8');
         for (const marker of markers) assert.ok(!contents.includes(marker), `runtime log ${path.basename(file)} leaked a credential`);
+        assert.ok(!contents.includes(specMarker), `runtime log ${path.basename(file)} leaked a runtime spec credential`);
       }
     }
     const databaseBytes = fs.readFileSync(dbPath).toString('utf8');
     for (const marker of markers) assert.ok(!databaseBytes.includes(marker), 'persisted database leaked a credential');
+    assert.ok(!databaseBytes.includes(specMarker), 'persisted database leaked a runtime spec credential');
     const processLogs = await fetchJson(`http://127.0.0.1:${API_PORT}/api/v1/servers/${legacyServerId}/process/logs?limit=200`, { token: apiToken, timeout: 30000 });
     assert.equal(processLogs.status, 200);
     for (const marker of [legacyApiKey, legacyOtherKey, managedApiKey]) assert.ok(!processLogs.text.includes(marker), 'process log endpoint leaked a credential');
+    assert.ok(!processLogs.text.includes(specMarker), 'process log endpoint leaked a runtime spec credential');
     const persistedList = await fetchJson(credentialsUrl(legacy.runtimeAssetId), { token: apiToken });
     for (const marker of [legacyApiKey, legacyOtherKey]) assert.ok(!persistedList.text.includes(marker), 'persisted credential list leaked a full key');
   });
@@ -960,7 +945,6 @@ async function run() {
     for (const pid of [legacyPid, trustedPid, managedPid]) {
       if (pid && pidAlive(pid)) { try { process.kill(pid, 'SIGKILL'); } catch { /* best effort */ } }
     }
-    if (proxyState) { try { await proxyState.close(); } catch { /* best effort */ } }
     if (upstreamState) { try { await upstreamState.close(); } catch { /* best effort */ } }
     await delay(500);
   }

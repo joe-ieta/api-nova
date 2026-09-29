@@ -12,6 +12,7 @@ import { readMcpOwnership } from '../../runtime-assets/services/mcp-ownership-re
 import { createMcpTrustedOperationBindings } from '../../runtime-assets/services/mcp-trusted-operation-bindings';
 import { resolveMcpEndpoint } from '../../runtime-assets/services/mcp-endpoint-config';
 import { buildManagedEnvironment, startManagedMcpChannel } from './managed-mcp-channel';
+import { resolveManagedMcpConfigValue } from './managed-mcp-trusted-config';
 
 export const MANAGED_MCP_SOURCES_CONFIG_KEY = 'managedMcp.handoffSources';
 export const MANAGED_MCP_PREPARATION_REJECTED = 'MANAGED_MCP_PREPARATION_REJECTED';
@@ -64,7 +65,7 @@ export class ManagedMcpHandoffPreparationService {
   constructor(private readonly db: DataSource, private readonly config: ConfigService) {}
 
   private source(runtimeAssetId: string): SourceConfiguration {
-    const sources = data(this.config.get(MANAGED_MCP_SOURCES_CONFIG_KEY));
+    const sources = data(resolveManagedMcpConfigValue(this.config, MANAGED_MCP_SOURCES_CONFIG_KEY, 'handoffSources'));
     if (Buffer.byteLength(JSON.stringify(sources), 'utf8') > 65536 || Array.isArray(sources) || !Object.prototype.hasOwnProperty.call(sources, runtimeAssetId)) reject();
     const source = sources[runtimeAssetId];
     exact(source, ['registrySource', 'approvedEnvironmentNames']);

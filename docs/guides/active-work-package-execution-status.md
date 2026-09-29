@@ -1,5 +1,5 @@
 ---
-doc-version: 1.185.0
+doc-version: 1.186.0
 doc-status: active
 doc-updated: 2026-09-26
 ---
@@ -93,7 +93,9 @@ OBS-16-03 限定 DONE：`verify:obs-16-03` `OBS_16_03_VERIFY_OK`（exit 0）—�
 
 MAINT-01 限定 DONE：计划所有者2026-09-28手工确认“接口/发布边界稳定”后解冻；测量驱动整理仅改`vite.config.ts`与`main.ts`——首屏预载2113.02→1776.71 kB raw（gzip −14.1%）、eager CSS 360.15→266.92 kB、vendor-misc 416.06→172.95 kB并消除Circular chunk，feature-editor/openapi/servers与charts/monitoring/testing退出首屏，新增app-core固定boot层；type-check/build/交付i18n(8/8)通过、lint无新增、预览`/`/`/endpoints`/`/runtime-assets`/`/registration/batch` 200且懒chunk可用（[证据](../audits/2026-09-28-maint-01-frontend-chunking.md)）；无路由/接口/依赖变更。
 
-EXT 环境批（三路并行，2026-09-28）：EXT-08 `verify:ext-08` `EXT_08_VERIFY_OK`（Windows隔离9011/5181，26/26：启动/ready/SPA/登录/导入/转换/治理/发布/deploy-mcp激活）；EXT-06 `verify:ext-06` `EXT_06_VERIFY_OK`（25/25，真实SDK1.29 Streamable+SSE+managed child、凭据/会话/撤销与秘密扫描；发现内部spec回调JWT保护与spawn取spec冲突、managedMcp.*对象配置纯env不可达两个后续项）；EXT-09 `verify:ext-09` `EXT_09_VERIFY_OK`（ubuntu:24.04同版本npm ci+构建+迁移+启动+Streamable E2E）；OBS-06-02 `verify:obs-06-02` `OBS_06_02_VERIFY_OK`（Linux/Windows同版本22行21匹配，1项16MiB cork/uncork平台差异记录）。四项均独立复跑通过（[Windows证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)、[Ubuntu证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）。
+EXT 环境批（三路并行，2026-09-28）：EXT-08 `verify:ext-08` `EXT_08_VERIFY_OK`（Windows隔离9011/5181，26/26：启动/ready/SPA/登录/导入/转换/治理/发布/deploy-mcp激活）；EXT-06 `verify:ext-06` `EXT_06_VERIFY_OK`（25/25，真实SDK1.29 Streamable+SSE+managed child、凭据/会话/撤销与秘密扫描；两个发现已修复）；EXT-09 `verify:ext-09` `EXT_09_VERIFY_OK`（ubuntu:24.04同版本npm ci+构建+迁移+启动+Streamable E2E）；OBS-06-02 `verify:obs-06-02` `OBS_06_02_VERIFY_OK`（Linux/Windows同版本22行21匹配，1项16MiB cork/uncork平台差异记录）。四项均独立复跑通过（[Windows证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)、[Ubuntu证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）。
+
+EXT-06 加固 + EXT-07 限定 DONE：①运行时受权抓取自身 spec——`RuntimeSpecAccessService` HMAC 授权（域分离、TTL≤3600s、常量时间校验）+ 专用 `RuntimeSpecAccessGuard`（管理 JWT 不变；缺失/无效/过期 401、异资产 403、成功脱敏审计），ProcessManager 仅对受管 spawn 注入临时环境 token；`verify:ext-06` 移除代理 shim 后 25/25 通过（server CLI +15 行 header 透传，避免 URL 内嵌凭据泄漏）。②`API_NOVA_MANAGED_MCP_CONFIG` 受校验 JSON 信封（≤64KiB、仅两顶层键、限深/节点、拒原型污染、固定错误、不回显），注入配置优先、缺省失败关闭。验证：新 specs 5套/22项、servers+security 35套/236项、openapi 5/20、runtime-assets 7/128、构建/type-check 与 e1-02c1/c2/03/04、c3-03 全绿。③EXT-07 `verify:ext-07` `EXT_07_VERIFY_OK` 51/51 gating（连续两次、隔离9013/9034/9035）：有效候选激活→失败候选 409 `RUNTIME_VERIFICATION_FAILED`/`retained_previous`，旧 revision/快照继续服务、恢复后无需重部署、重试后切换；MCP 同理含 API 重启后 SDK 复读（[证据](../audits/2026-09-28-ext-06-hardening-and-ext-07.md)）。
 
 ## 1. 本次重排快照
 
@@ -104,11 +106,11 @@ EXT 环境批（三路并行，2026-09-28）：EXT-08 `verify:ext-08` `EXT_08_VE
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 196 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 197 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 0 | 当前无 READY；剩余为 WAIT_DEP/环境与签收项 |
 | IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
 | WAIT_DEP | 3 | 等待列明子任务/条件 |
-| NEED_ENV | 9 | 需要核实目标环境，不是假定工具阻塞 |
+| NEED_ENV | 8 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 0 | PROD-06 核定后无待判范围项 |
 | DEFERRED | 2 | 不属于当前里程碑 |
 近期已完成C2B1/B2/B3、C2C1、B2B1/B2/C、B3A/C、SEC-A1-01跨层矩阵及当前版本SQLite空库验证A4-01的限定出口。C2C1证实旧预留无法在崩溃后唯一反查文件，原C2C2已进一步拆为保守降级A、持久发布意图B和可证明结算C；A已完成，B再细分为双方言模型B1、写入接线B2和崩溃验收B3；B1/B2/B3已完成限定出口，C已完成关联、文件证明与安全结算原语，C2C3本地恢复故障验收亦已完成，05C3的Windows隔离PG多写者/进程及PG重启出口已完成，Linux/生产验收仍独立登记。B3B已限定完成；无sample行的staged墓碑再细分为互斥E1、整理E2和故障验收E3，E1/E2/E3已完成限定出口，B3D本地限定验收已完成，真实环境仍归04C。READY不表示已开工。SEC-E1-02C1仍等待明确生产生命周期授权；事件物理删除E2B仍等待明确永久删除授权。
@@ -319,8 +321,8 @@ EXT 环境批（三路并行，2026-09-28）：EXT-08 `verify:ext-08` `EXT_08_VE
 | EXT-03 | NEED_ENV | 环境待核实 |
 | EXT-04 | NEED_ENV | 环境待核实 |
 | EXT-05 | NEED_ENV | 环境待核实 |
-| EXT-06 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)）：`verify:ext-06` `EXT_06_VERIFY_OK` 25/25（独立复跑3次）——真实SDK1.29 Streamable+SSE+受信managed child 端到端、凭据/会话/撤销矩阵、秘密全渠道扫描；发现2个后续项（内部spec回调JWT保护与spawn取spec冲突；managedMcp.*对象配置不可由纯env到达）；外部网络/Linux/生产启用为notCovered |
-| EXT-07 | NEED_ENV | 本地SQL.js不是该证据 |
+| EXT-06 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)、[加固](../audits/2026-09-28-ext-06-hardening-and-ext-07.md)）：`verify:ext-06` `EXT_06_VERIFY_OK` 25/25（独立复跑，**已无 shim**）——真实SDK1.29 Streamable+SSE+受信managed child 端到端、凭据/会话/撤销矩阵、秘密全渠道扫描；两项发现已修复：运行时受权spec获取（HMAC授权+专用Guard，管理JWT不变、异资产403、审计）与`API_NOVA_MANAGED_MCP_CONFIG`受校验信封；外部网络/Linux/生产启用为notCovered |
+| EXT-07 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-06-hardening-and-ext-07.md)）：`verify:ext-07` `EXT_07_VERIFY_OK` 51/51 gating（连续两次，隔离9013/9034/9035）——有效候选激活服务→注入失败候选409`RUNTIME_VERIFICATION_FAILED`/`retained_previous`、旧revision与快照继续服务且恢复后无需重部署→重试激活切换；MCP同理含API重启后SDK复读；匿名+external网关路由与runner规格代理shim记录为notCovered（产品缺口已由EXT-06无shim证明修复） |
 | EXT-08 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)）：`verify:ext-08` `EXT_08_VERIFY_OK` 26/26 gating——隔离9011/5181真实启动API/UI、ready、SPA 10/11路由、超管登录、上传/URL导入/文档转换、治理probe/test/sample/readiness、发布至MCP候选并deploy-mcp激活（candidateRevision与activeRevision一致）；浏览器点击/截图与受管child会话归EXT-06/手工 |
 | EXT-09 | DONE | 限定容器完成（[证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:ext-09` `EXT_09_VERIFY_OK`——ubuntu:24.04/容器Node v24.15.0同版本、npm ci+三包构建+迁移+启动ready+Streamable E2E（managed-runtime 14/14、publication-endpoints 3/3）+优雅停止；裸机/systemd/PG/UI/长时为notCovered |
 | ENV-01 | NEED_ENV | 不放宽执行策略 |

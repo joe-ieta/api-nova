@@ -1,5 +1,5 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
 doc-updated: 2026-09-28
 ---
@@ -33,3 +33,4 @@ doc-updated: 2026-09-28
   1. 产品内部 spec 回调 `/api/openapi/by-runtime-asset/:id` 受管理 JWT 保护，而 spawn 的运行时需要抓取 spec；验收以 loopback 注入 token 的代理绕过（产品未改）。建议评估运行时可用的受权 spec 获取方式。
   2. 受信生命周期读取 `managedMcp.handoffSources/lifecycleApproval` 为对象，经 Nest `ConfigService` 从纯环境变量只能得到字符串；对象仅在注入配置（如 E1-04 规格）下可达，API 侧受管部署路径依赖 fixture 通道。建议产品化配置来源。
 - 证据：`E:\temp\opencode\ext-06\evidence.json`（脱敏机读记录）、runner SHA256 `373B1DFC…`；notCovered：外部网络/接收端、Linux 变体、生产启用。
+- **后续（2026-09-28 已修复）**：两项发现已产品化修复——运行时受权 spec 获取（`RuntimeSpecAccessService`+专用 Guard；`verify:ext-06` 已无 shim 通过）与 `API_NOVA_MANAGED_MCP_CONFIG` 受校验信封；详见[加固证据](./2026-09-28-ext-06-hardening-and-ext-07.md)。

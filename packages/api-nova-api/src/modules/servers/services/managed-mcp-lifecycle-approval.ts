@@ -9,6 +9,7 @@ import {
   managedLifecycleSnapshotDigest,
   parseManagedLifecycleDecision,
 } from './managed-mcp-lifecycle.contract';
+import { resolveManagedMcpConfigValue } from './managed-mcp-trusted-config';
 
 export const MANAGED_MCP_LIFECYCLE_APPROVAL_CONFIG_KEY = 'managedMcp.lifecycleApproval';
 
@@ -83,7 +84,7 @@ export function createConfigManagedLifecycleApprovalProvider(config: ConfigServi
     try {
       if (!request || !IDENTIFIER.test(request.serverId) || !IDENTIFIER.test(request.runtimeAssetId) || !ACTIONS.includes(request.action) ||
         !Number.isSafeInteger(request.generation) || request.generation < 1) return null;
-      const sources = readonlyData(config.get(MANAGED_MCP_LIFECYCLE_APPROVAL_CONFIG_KEY)) as Record<string, unknown> | null;
+      const sources = readonlyData(resolveManagedMcpConfigValue(config, MANAGED_MCP_LIFECYCLE_APPROVAL_CONFIG_KEY, 'lifecycleApproval')) as Record<string, unknown> | null;
       if (!sources || Array.isArray(sources) || !Object.prototype.hasOwnProperty.call(sources, request.runtimeAssetId)) return null;
       const policy = parseManagedLifecycleApprovalPolicy(sources[request.runtimeAssetId]);
       if (!policy || !policy.allowedActions.includes(request.action) || !policy.allowedServerIds.includes(request.serverId)) return null;

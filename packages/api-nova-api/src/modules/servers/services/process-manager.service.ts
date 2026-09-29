@@ -25,6 +25,7 @@ import { ProcessLogMonitorService, ProcessLogEntry } from './process-log-monitor
 import { AppConfigService } from '../../../config/app-config.service';
 import { auditDirectory, assertTemporaryAnonymousPolicy } from 'api-nova-parser';
 import { RuntimeCredentialResolverService } from './runtime-credential-resolver.service';
+import { RuntimeSpecAccessService } from '../../security/services/runtime-spec-access.service';
 import { managedMcpJwtPolicyEnv, mcpInboundSpawnEnv } from './mcp-inbound-process-env';
 import {
   ManagedProcessLifecycleEvidenceService,
@@ -91,6 +92,7 @@ export class ProcessManagerService implements OnModuleDestroy {
     private readonly logMonitor: ProcessLogMonitorService,
     @Optional() private readonly credentialResolver?: RuntimeCredentialResolverService,
     @Optional() private readonly lifecycleEvidence?: ManagedProcessLifecycleEvidenceService,
+    @Optional() private readonly runtimeSpecAccess?: RuntimeSpecAccessService,
   ) {
     this.config = {
       ...DEFAULT_PROCESS_CONFIG,
@@ -161,6 +163,12 @@ export class ProcessManagerService implements OnModuleDestroy {
       if (!this.credentialResolver || !expectedRuntimeAssetId) throw new Error('Runtime credential resolver unavailable');
       await this.credentialResolver.validateForRuntime(expectedRuntimeAssetId);
       if (spawning) Object.assign(env, await this.credentialResolver.createSpawnEnv(config.id, expectedRuntimeAssetId));
+    }
+    if (spawning && config.mcpConfig?.managed && expectedRuntimeAssetId && this.runtimeSpecAccess) {
+      env.API_NOVA_RUNTIME_SPEC_ACCESS_TOKEN = this.runtimeSpecAccess.mint({
+        runtimeAssetId: expectedRuntimeAssetId,
+        serverId: config.id,
+      });
     }
     return env;
   }
