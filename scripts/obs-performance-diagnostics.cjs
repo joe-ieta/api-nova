@@ -15,6 +15,7 @@ for (const [module, type, methods] of [
   ['call-observability-payload.store', 'CallObservabilityPayloadStore', ['prepare']],
   ['call-observability-outbox.service', 'CallObservabilityOutboxService', ['runOnce']],
   ['call-observability-delivery.worker', 'CallObservabilityDeliveryWorker', ['runOnce']],
+  ['../runtime-observability/services/runtime-observability.service', 'RuntimeObservabilityService', ['recordGatewayRequestResult', 'recordGatewayCacheResult']],
 ]) {
   const prototype = require(path.join(built, module + '.js'))[type].prototype;
   for (const method of methods) {
@@ -29,6 +30,39 @@ for (const [module, type, methods] of [
     };
   }
 }
+// Isolated test child only: count real SQL.js exports without changing persistence.
+const sqljsExports = { count: 0, bytes: 0, maxBytes: 0, totalMs: 0, maxMs: 0 };
+const factory = require(path.join(__dirname, '../packages/api-nova-api/dist/src/database/sqljs-persistence.js'));
+const createSource = factory.createApplicationDataSource;
+factory.createApplicationDataSource = function (...args) {
+  const source = createSource.apply(this, args);
+  if (source.options.type !== 'sqljs') return source;
+  const driver = source.driver;
+  const create = driver.createDatabaseConnectionWithImport.bind(driver);
+  driver.createDatabaseConnectionWithImport = async function (...parameters) {
+    const database = await create(...parameters);
+    const original = database.export.bind(database);
+    database.export = function (...values) {
+      const start = performance.now();
+      const result = original(...values);
+      const duration = performance.now() - start;
+      sqljsExports.count++; sqljsExports.bytes += result.byteLength;
+      sqljsExports.maxBytes = Math.max(sqljsExports.maxBytes, result.byteLength);
+      sqljsExports.totalMs += duration; sqljsExports.maxMs = Math.max(sqljsExports.maxMs, duration);
+      return result;
+    };
+    return database;
+  };
+  const save = driver.save.bind(driver);
+  const metric = { histogram: createHistogram(), active: 0 };
+  phases.set('SqljsDriver.save', metric);
+  driver.save = async function (...parameters) {
+    const start = performance.now(); metric.active++;
+    try { return await save(...parameters); }
+    finally { metric.active--; metric.histogram.record(Math.max(1, Math.round((performance.now() - start) * 1e6))); }
+  };
+  return source;
+};
 function phaseSnapshot() {
   return Object.fromEntries([...phases].map(([name, { histogram: h, active }]) => [name,
     { completed: h.count, active, totalMs: h.count ? h.mean * h.count / 1e6 : 0,
@@ -38,7 +72,7 @@ function phaseSnapshot() {
 function snapshot(id) {
   const current = performance.eventLoopUtilization();
   const data = { type: 'obs-perf-health', id, at: Date.now(), health: getRuntimeAuditHealth(),
-    memory: process.memoryUsage(), phases: phaseSnapshot(), eventLoop: { ...performance.eventLoopUtilization(current, previous),
+    memory: process.memoryUsage(), sqljsExports: { ...sqljsExports }, phases: phaseSnapshot(), eventLoop: { ...performance.eventLoopUtilization(current, previous),
       delayP95Ms: Number.isFinite(lag.mean) ? lag.percentile(95) / 1e6 : null } };
   previous = current; lag.reset();
   if (process.connected) process.send(data, () => {});

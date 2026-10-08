@@ -29,9 +29,19 @@ let apiBase, token, apiProcess, receiver, polling = false, curveTimer, pgStarted
 const postgres = process.argv.includes('--postgres');
 const pgdata = path.join(workDir, 'pgdata');
 const deliveries = [], observed = new Map(), requests = new Map(), resourceCurve = [], producerCurve = [];
+const relaxedTimeouts = process.argv.includes('--relaxed-timeouts');
+function timeoutOption(name, fallback, min, max) {
+  const value = Number(process.env[name] ?? fallback);
+  assert.ok(Number.isInteger(value) && value >= min && value <= max, name + ' outside allowed bounds');
+  return value;
+}
+const requestTimeoutMs = timeoutOption('OBS_PERF_REQUEST_TIMEOUT_MS', relaxedTimeouts ? 180000 : 45000, 1000, 600000);
+const managementTimeoutMs = timeoutOption('OBS_PERF_MANAGEMENT_TIMEOUT_MS', relaxedTimeouts ? 180000 : 45000, 1000, 600000);
+const diagnosticTimeoutMs = timeoutOption('OBS_PERF_DIAGNOSTIC_TIMEOUT_MS', relaxedTimeouts ? 60000 : 30000, 1000, 180000);
+const shutdownTimeoutMs = timeoutOption('OBS_PERF_SHUTDOWN_TIMEOUT_MS', relaxedTimeouts ? 180000 : 30000, 1000, 600000);
 const diagnosticRequests = new Map();
 let diagnosticSequence = 0;
-function diagnostics(command, timeoutMs = 30000) {
+function diagnostics(command, timeoutMs = diagnosticTimeoutMs) {
   return new Promise((resolve, reject) => {
     if (!apiProcess?.connected) return reject(new Error('Diagnostic IPC unavailable'));
     const id = ++diagnosticSequence;
@@ -41,10 +51,11 @@ function diagnostics(command, timeoutMs = 30000) {
   });
 }
 const responseText = JSON.stringify({ ok: true, padding: 'x'.repeat(4000) });
+const successfulRequest = row => row.status === 200 && row.responseValid === true;
 const smoke = process.argv.includes('--smoke');
 const rate = smoke ? 2 : 100;
 const durationSeconds = Number(process.env.OBS_PERF_DURATION_SECONDS || (smoke ? 10 : 30));
-const tailSeconds = Number(process.env.OBS_PERF_TAIL_SECONDS || 60);
+const tailSeconds = Number(process.env.OBS_PERF_TAIL_SECONDS || (relaxedTimeouts ? 300 : 60));
 assert.ok(Number.isInteger(durationSeconds) && durationSeconds >= 10 && durationSeconds <= 120);
 assert.ok(Number.isInteger(tailSeconds) && tailSeconds >= 10 && tailSeconds <= 300);
 const percentile = (values, p = 0.95) => values.length ? [...values].sort((a,b)=>a-b)[Math.ceil(values.length*p)-1] : null;
@@ -56,14 +67,14 @@ async function step(id, fn) {
   catch (e) { evidence.steps.push({ id, passed: false, error: redact(e.message) }); save(); throw e; }
 }
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function request(url, { method = 'GET', body, headers = {} } = {}) {
+async function request(url, { method = 'GET', body, headers = {}, timeoutMs = requestTimeoutMs, signal } = {}) {
   const r = await fetch(url, { method, headers: { ...(body === undefined ? {} : { 'content-type': 'application/json' }), ...headers },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(45000) });
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs) });
   const text = await r.text(); let data; try { data = JSON.parse(text); } catch { data = text; }
   return { status: r.status, body: data, headers: Object.fromEntries(r.headers) };
 }
-async function api(method, url, body, expected = method === 'POST' ? 201 : 200) {
-  const r = await request(`${apiBase}/api${url}`, { method, body, headers: token ? { authorization: `Bearer ${token}` } : {} });
+async function api(method, url, body, expected = method === 'POST' ? 201 : 200, requestOptions = {}) {
+  const r = await request(`${apiBase}/api${url}`, { method, body, timeoutMs: managementTimeoutMs, ...requestOptions, headers: token ? { authorization: `Bearer ${token}` } : {} });
   assert.equal(r.status, expected, `${method} ${url}: ${r.status} ${redact(JSON.stringify(r.body)).slice(0, 1800)}`); return r.body;
 }
 async function port() { const s = http.createServer(); await new Promise(r => s.listen(0, '127.0.0.1', r)); const p = s.address().port; await new Promise(r => s.close(r)); return p; }
@@ -144,11 +155,14 @@ async function main() {
     path.join(apiDir, 'dist/src/modules/runtime-verification/services/gateway-candidate-replay.service.js')];
   artifactPaths.push(path.join(root,'package-lock.json'), path.join(root,'scripts/obs-performance-diagnostics.cjs'), path.join(root,'packages/api-nova-parser/src/audit/runtime-call-audit.ts'), path.join(root,'packages/api-nova-parser/dist/audit/runtime-call-audit.js'), ...['call-observability.worker','call-observability.collector','call-observability.store','call-observability-outbox.service','call-observability-delivery.worker'].flatMap(name=>[path.join(apiDir,'src/modules/call-observability',name+'.ts'),path.join(apiDir,'dist/src/modules/call-observability',name+'.js')]));
   artifactPaths.push(...['sqljs-persistence','database.module','data-source'].flatMap(name=>[path.join(apiDir,'src/database',name+'.ts'),path.join(apiDir,'dist/src/database',name+'.js')]));
+
+  artifactPaths.push(...['runtime-observability/services/runtime-observability.service','gateway-runtime/services/gateway-runtime-metrics.service'].flatMap(name=>[path.join(apiDir,'src/modules',name+'.ts'),path.join(apiDir,'dist/src/modules',name+'.js')]));
   evidence.artifacts = artifactPaths.map(file => ({ path: path.relative(root, file), sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex') }));
   evidence.workingTree = spawnSync('git', ['status', '--short', '--untracked-files=no'], { cwd: root, encoding: 'utf8', windowsHide: true }).stdout.trim();
   evidence.machine = { platform: process.platform, release: os.release(), architecture: os.arch(), cpuModel: os.cpus()[0]?.model, logicalCpus: os.cpus().length, memoryBytes: os.totalmem(), freeMemoryBytes: os.freemem(), reference: '4 cores / 8 GiB / SSD; this host is not constrained to that reference', diskMedium: 'not independently verified' };
+  evidence.timeouts = { profile: relaxedTimeouts ? 'relaxed-diagnostic' : 'standard', requestTimeoutMs, managementTimeoutMs, diagnosticTimeoutMs, shutdownTimeoutMs, tailSeconds, performanceTargetsUnchanged: true };
   evidence.load = { requestsPerSecond: rate, smoke, durationSeconds, tailSeconds, responseBytes: Buffer.byteLength(responseText), requestBodyBytes: 0, capture: 'default body capture', subscription: 'one invocation.completed per external gateway_request', automaticWorkers: true };
-  evidence.notCovered = ['production hardware/identity/network', 'Linux/PostgreSQL performance', 'MCP performance', 'fixed uninstrumented baseline: no product switch disables producer instrumentation; direct upstream latency is not incremental capture overhead', 'long sustained capacity and thermal steady-state'];
+  evidence.notCovered = ['production hardware/identity/network', 'Linux performance', ...(postgres ? ['SQLite performance'] : ['PostgreSQL performance']), 'MCP performance', 'fixed uninstrumented baseline: no product switch disables producer instrumentation; direct upstream latency is not incremental capture overhead', 'long sustained capacity and thermal steady-state'];
   const a = await upstream('A'); const b = a; const apiPort = await port(); const mcpPort = await port(); apiBase = `http://127.0.0.1:${apiPort}`;
   evidence.ports = { api: apiPort, mcp: mcpPort, upstreamA: a.port, upstreamB: b.port };
   const password = `ExtClosure!${randomBytes(18).toString('hex')}`; const jwt = randomBytes(32).toString('hex'); secrets.push(password, jwt);
@@ -180,7 +194,7 @@ async function main() {
   const log = fs.openSync(path.join(workDir, 'api.log'), 'w'); apiProcess = spawn(process.execPath, ['--require', path.join(root,'scripts/obs-performance-diagnostics.cjs'), apiEntry], { cwd: apiDir, env, stdio: ['ignore', log, log, 'ipc'], windowsHide: true }); children.push(apiProcess); fs.closeSync(log);
   apiProcess.on('message', message => { if (message?.type !== 'obs-perf-health') return; producerCurve.push(message); const done = diagnosticRequests.get(message.id); if (done) { diagnosticRequests.delete(message.id); done(message); } });
   await step('isolated.start', async () => {
-    const until = Date.now() + 90000; while (Date.now() < until) { if (apiProcess.exitCode !== null) throw new Error(`API exited ${apiProcess.exitCode}; see ${workDir}/api.log`);
+    const until = Date.now() + (relaxedTimeouts ? 180000 : 90000); while (Date.now() < until) { if (apiProcess.exitCode !== null) throw new Error(`API exited ${apiProcess.exitCode}; see ${workDir}/api.log`);
       try { const r = await request(`${apiBase}/api/health/ready`); if (r.status === 200 && r.body.status === 'ready') return { port: apiPort }; } catch {} await delay(300); }
     throw new Error('API readiness timeout');
   });
@@ -203,29 +217,33 @@ async function main() {
   await delay(4000);
   evidence.producerBeforeLoad = await diagnostics('snapshot');
   polling=true;
+  const pollAbort = new AbortController();
+  let measurementCutoffAt = Infinity;
   const queryBase=`${obs}/invocations?runtimeAssetId=${assetId}&spanKind=gateway_request&origin=external&limit=200`;
   const pollErrors=[];
   let historyCursor;
-  const recordPage = page => { const at=Date.now();for(const item of page.data.items){if(item.lifecycle==='finished' && !observed.has(item.requestId)) observed.set(item.requestId,{at,completedAt:Date.parse(item.completedAt),invocationId:item.invocationId});} };
+  const recordPage = page => { const at=Date.now();if(at>measurementCutoffAt)return;for(const item of page.data.items){if(item.lifecycle==='finished' && !observed.has(item.requestId)) observed.set(item.requestId,{at,completedAt:Date.parse(item.completedAt),invocationId:item.invocationId});} };
   // Observe the newest page and one historical page per poll. Cursor snapshots are
   // exhausted and renewed, so late old records cannot hide behind the newest 200.
   // First visibility is always the real HTTP observation time, never backdated.
   const poller=(async()=>{while(polling){try{
-    const page=await api('GET',queryBase);recordPage(page);
+    const page=await api('GET',queryBase,undefined,200,{signal:pollAbort.signal});recordPage(page);
     const cursor=historyCursor||page.data.nextCursor;
-    if(cursor){const historical=await api('GET',queryBase+'&cursor='+encodeURIComponent(cursor));recordPage(historical);historyCursor=historical.data.nextCursor;}
-  }catch(e){pollErrors.push(redact(e.message));historyCursor=undefined;}await delay(100);}})();
+    if(cursor&&polling){const historical=await api('GET',queryBase+'&cursor='+encodeURIComponent(cursor),undefined,200,{signal:pollAbort.signal});recordPage(historical);historyCursor=historical.data.nextCursor;}
+  }catch(e){if(polling)pollErrors.push(redact(e.message));historyCursor=undefined;}if(polling)await delay(100);}})();
   curveTimer=setInterval(()=>resourceCurve.push({at:Date.now(),hostFreeMemoryBytes:os.freemem(),loadGenerator:process.memoryUsage(),observed:observed.size,received:deliveries.length,hostCpuTimes:os.cpus().reduce((sum,c)=>({idle:sum.idle+c.times.idle,total:sum.total+Object.values(c.times).reduce((a,b)=>a+b,0)}),{idle:0,total:0})}),1000);
   const start=performance.now(),wallStart=Date.now(),load=[];
   for(let i=0;i<durationSeconds*rate;i++){
     const due=start+i*1000/rate; if(performance.now()<due)await delay(due-performance.now());
-    load.push((async()=>{const sent=Date.now(),begin=performance.now();try{const r=await request(apiBase+'/api/v1/gateway/perf/payload',{headers:{'x-api-key':key}}); const row={sent,completed:Date.now(),durationMs:performance.now()-begin,status:r.status,requestId:r.headers['x-request-id'],scheduledOffsetMs:i*1000/rate,schedulingLagMs:Math.max(0,begin-due)}; row.attemptIndex=i; if(r.status!==200)row.error=redact(JSON.stringify(r.body)).slice(0,250); requests.set(String(i),row); }catch(e){requests.set(String(i),{attemptIndex:i,sent,status:0,error:e.message});}})());
+    load.push((async()=>{const sent=Date.now(),begin=performance.now();try{const r=await request(apiBase+'/api/v1/gateway/perf/payload',{headers:{'x-api-key':key}}); const row={sent,completed:Date.now(),durationMs:performance.now()-begin,status:r.status,requestId:r.headers['x-request-id'],scheduledOffsetMs:i*1000/rate,schedulingLagMs:Math.max(0,begin-due)}; row.attemptIndex=i;row.responseValid=r.status===200&&JSON.stringify(r.body)===responseText;if(r.status===200&&!row.responseValid)row.error='Unexpected Gateway response payload'; if(r.status!==200)row.error=redact(JSON.stringify(r.body)).slice(0,250); requests.set(String(i),row); }catch(e){requests.set(String(i),{attemptIndex:i,sent,completed:Date.now(),durationMs:performance.now()-begin,status:0,error:e.message});}})());
   }
   evidence.load.actualSchedulingDurationMs=performance.now()-start;await Promise.all(load); evidence.load.actualCompletionDurationMs=performance.now()-start; evidence.load.startedAt=new Date(wallStart).toISOString(); console.log(`LOAD_COMPLETE ${requests.size}`); save();
   const tailUntil=Date.now()+tailSeconds*1000;
-  while(Date.now()<tailUntil){const success=[...requests.values()].filter(row=>row.status===200);const delivered=new Set(deliveries.filter(row=>row.valid&&row.event?.eventType==='invocation.completed').map(row=>row.event.subject?.id));if(success.length&&success.every(row=>observed.has(row.requestId)&&delivered.has(observed.get(row.requestId).invocationId)))break;await delay(1000);}
-  polling=false;await poller;clearInterval(curveTimer);
-  const completed=[...requests.values()].filter(r=>r.status===200), visible=completed.filter(r=>observed.has(r.requestId));
+  while(Date.now()<tailUntil){const success=[...requests.values()].filter(successfulRequest);const delivered=new Set(deliveries.filter(row=>row.valid&&row.event?.eventType==='invocation.completed').map(row=>row.event.subject?.id));if(success.length&&success.every(row=>observed.has(row.requestId)&&delivered.has(observed.get(row.requestId).invocationId)))break;await delay(1000);}
+  measurementCutoffAt=Date.now();evidence.measurementCutoffAt=new Date(measurementCutoffAt).toISOString();
+  evidence.load.observationDurationAfterCompletionMs=measurementCutoffAt-(wallStart+evidence.load.actualCompletionDurationMs);
+  polling=false;pollAbort.abort(new Error('Observation window closed'));await poller;clearInterval(curveTimer);
+  const completed=[...requests.values()].filter(successfulRequest), visible=completed.filter(r=>observed.has(r.requestId));
   evidence.load.expectedAttempts=durationSeconds*rate;
   evidence.load.successRequestIdsUnique=completed.every(row=>typeof row.requestId==='string'&&row.requestId.length>0)&&new Set(completed.map(row=>row.requestId)).size===completed.length;
   evidence.load.allAttemptsRecorded=requests.size===durationSeconds*rate;
@@ -233,10 +251,10 @@ async function main() {
   evidence.visibility={...summary(visible.map(r=>Math.max(0,observed.get(r.requestId).at-observed.get(r.requestId).completedAt))),expected:completed.length,observed:visible.length,censored:completed.length-visible.length,p95Scope:visible.length===completed.length?'full completed cohort':'observed subset only; censored samples prevent a full-cohort pass',thresholdMs:3000,measurement:'HTTP metadata first observed minus recorded terminal completion; 100ms idle poll plus current/historical HTTP page durations add observation delay; rotating bounded pages include late older records'};
   evidence.visibility.pass=visible.length===completed.length&&evidence.visibility.p95Ms<=3000;
   const eligibleInvocations=new Set(visible.map(row=>observed.get(row.requestId).invocationId));
-  const firstDeliveries=[...new Map([...deliveries].reverse().filter(d=>d.valid&&d.event?.eventType==='invocation.completed'&&d.event.dimensions?.origin==='external'&&eligibleInvocations.has(d.event.subject?.id)).map(d=>[d.event.subject.id,d])).values()];
+  const firstDeliveries=[...new Map([...deliveries].reverse().filter(d=>d.receivedAt<=measurementCutoffAt&&d.valid&&d.event?.eventType==='invocation.completed'&&d.event.dimensions?.origin==='external'&&eligibleInvocations.has(d.event.subject?.id)).map(d=>[d.event.subject.id,d])).values()];
   evidence.delivery={...summary(firstDeliveries.map(d=>Math.max(0,d.receivedAt-Date.parse(d.event.occurredAt)))),expected:completed.length,received:firstDeliveries.length,censored:completed.length-firstDeliveries.length,p95Scope:firstDeliveries.length===completed.length?'full completed cohort':'received subset only; censored samples prevent a full-cohort pass',thresholdMs:5000,measurement:'first valid ordinary invocation.completed receipt per successful invocation minus occurredAt; full invocation membership, not event count; no test-subscription events'};
   evidence.delivery.pass=firstDeliveries.length===completed.length&&evidence.delivery.p95Ms<=5000;
-  evidence.load.achievedSchedulingRate=requests.size/(evidence.load.actualSchedulingDurationMs/1000);evidence.load.successful=completed.length;evidence.load.failed=requests.size-completed.length;evidence.pollErrors=pollErrors;
+  evidence.load.achievedSchedulingRate=requests.size/(evidence.load.actualSchedulingDurationMs/1000);evidence.load.rateTolerancePercent=5;evidence.load.scheduleWithinTolerance=Math.abs(evidence.load.achievedSchedulingRate/rate-1)<=0.05;evidence.load.successful=completed.length;evidence.load.failed=requests.size-completed.length;evidence.pollErrors=pollErrors;
   const latest=await api('GET',queryBase+'&includeTotal=true'); evidence.queryCapacity={gatewayInvocations:latest.data.total,requested:requests.size,firstPageSize:latest.data.items.length,partialBacklog:visible.length!==completed.length};
   evidence.queries=[];
   for(const [name,url] of [['detail',latest.data.items.length?obs+'/invocations/'+latest.data.items[0].invocationId:null],['list',queryBase],['summary',`${obs}/statistics/summary?scope=http_ingress&runtimeAssetId=${assetId}`]]){
@@ -245,7 +263,7 @@ async function main() {
   evidence.resources=resourceCurve;evidence.resourceBoundary='Host CPU/free-memory and generator memory; isolated IPC samples API memory, producer health and event-loop delay every second. Cumulative inclusive phase timers include waiting and overlap, so their totals must not be added. Sampling/timing adds diagnostic overhead and is not a production health endpoint.';
   evidence.producerAfterMeasurement = await diagnostics('snapshot');
   evidence.captureOverhead={status:'NOT_MEASURED',reason:'No equivalent uninstrumented Gateway product switch exists; direct upstream timing would include authentication/routing differences and cannot isolate capture overhead.'};
-  evidence.measurementComplete=true;evidence.thresholdsPassed=evidence.load.allAttemptsRecorded&&evidence.load.successRequestIdsUnique&&evidence.load.failed===0&&evidence.visibility.pass&&evidence.delivery.pass&&evidence.queries.every(q=>q.pass);
+  evidence.measurementComplete=true;evidence.thresholdsPassed=evidence.load.allAttemptsRecorded&&evidence.load.successRequestIdsUnique&&evidence.load.scheduleWithinTolerance&&evidence.load.failed===0&&evidence.visibility.pass&&evidence.delivery.pass&&evidence.queries.every(q=>q.pass);
   fs.writeFileSync(path.join(workDir,'samples.json'),JSON.stringify({requests:[...requests.values()],observed:[...observed.entries()],deliveries},null,2));
   if(!evidence.thresholdsPassed)process.exitCode=2;
 }
@@ -264,7 +282,7 @@ function sourceIntegrity() {
   }
   const processes=[...sequences].map(([processId,seen])=>{const ordered=[...seen].sort((a,b)=>a-b);return {processId,count:seen.size,min:ordered[0],max:ordered.at(-1),missingWithinRange:ordered.at(-1)-ordered[0]+1-seen.size};});
   const health=evidence.producerFlushed?.health;const producer=health?sequences.get(health.processId):undefined;
-  const successes=[...requests.values()].filter(row=>row.status===200);
+  const successes=[...requests.values()].filter(successfulRequest);
   return {count,bytes,parseFailures,duplicateSequences:duplicates,processes,finishedGatewayRecords,
     successfulGatewayTerminalRecords:successes.filter(row=>finished.has(row.requestId)).length,successfulGatewayExpected:successes.length,
     missingWithinObservedSequenceRange:processes.reduce((n,p)=>n+p.missingWithinRange,0),
@@ -277,7 +295,7 @@ async function finish(){
   evidence.resources=resourceCurve;
   if(apiProcess?.exitCode===null && apiProcess.connected) {
     try { evidence.producerFlushed = await diagnostics('flush'); } catch(error) { evidence.producerFlushError=redact(error.message); }
-    const exited=new Promise(resolve=>{const timer=setTimeout(()=>{apiProcess.removeListener('exit',done);resolve(false);},30000);function done(){clearTimeout(timer);resolve(true);}apiProcess.once('exit',done);});
+    const exited=new Promise(resolve=>{const timer=setTimeout(()=>{apiProcess.removeListener('exit',done);resolve(false);},shutdownTimeoutMs);function done(){clearTimeout(timer);resolve(true);}apiProcess.once('exit',done);});
     apiProcess.send({type:'obs-perf-diagnostics',command:'shutdown'},()=>{});
     evidence.gracefulShutdown=await exited;
   }

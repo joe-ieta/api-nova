@@ -1,9 +1,11 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.0.1
 doc-status: active
 doc-updated: 2026-10-08
 ---
 # OBS-16-04 源写入、采集与投递批处理联合证据
+
+> 后续按用户授权放宽等待并合并旧指标事务，见[本轮重试证据](2026-10-08-observability-relaxed-timeouts.md)。本文保留84c7aaf阶段结果，不替代最新候选。
 
 本批交付源写入、采集和 outbox 的有界批处理，以及可区分队列丢弃、内存预算、I/O、采集积压和实际 API 资源的测量入口。原批准性能门槛未降低；OBS-16-04 继续 IN_PROGRESS，完整容量、等价采集 A/B 和生产签收尚未完成。上一轮结果保存在[历史性能证据](2026-10-08-observability-performance.md)，不能与本轮候选混用。
 

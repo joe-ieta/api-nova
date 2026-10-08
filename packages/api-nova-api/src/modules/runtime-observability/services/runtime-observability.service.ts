@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, MoreThanOrEqual, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, MoreThanOrEqual, Repository } from 'typeorm';
+import { createHash } from 'crypto';
 import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
 import {
   RuntimeMetricAggregationWindow,
@@ -25,6 +26,25 @@ import {
 import { RuntimeAssetEndpointBindingEntity } from '../../../database/entities/runtime-asset-endpoint-binding.entity';
 import { RuntimeAssetEntity } from '../../../database/entities/runtime-asset.entity';
 
+// Local admission happens before PostgreSQL checks out a connection. The database
+// advisory lock remains authoritative across processes and DataSource instances.
+const postgresAssetWrites = new WeakMap<DataSource, Map<string, Promise<void>>>();
+
+function admitPostgresAssetWrite<T>(connection: DataSource, asset: string, operation: () => Promise<T>): Promise<T> {
+  let assets = postgresAssetWrites.get(connection);
+  if (!assets) { assets = new Map(); postgresAssetWrites.set(connection, assets); }
+  const result = (assets.get(asset) || Promise.resolve()).then(operation);
+  const completed = result.then(() => undefined, () => undefined);
+  assets.set(asset, completed);
+  void completed.then(() => {
+    if (assets!.get(asset) === completed) {
+      assets!.delete(asset);
+      if (!assets!.size) postgresAssetWrites.delete(connection);
+    }
+  });
+  return result;
+}
+
 type ResolvedRuntimeRefs = {
   runtimeAssetId: string;
   runtimeAssetEndpointBindingId?: string;
@@ -35,6 +55,7 @@ type ResolvedRuntimeRefs = {
 @Injectable()
 export class RuntimeObservabilityService {
   private readonly logger = new Logger(RuntimeObservabilityService.name);
+  private writeManager?: EntityManager;
 
   constructor(
     @InjectRepository(RuntimeAssetEntity)
@@ -62,7 +83,9 @@ export class RuntimeObservabilityService {
     statusCode?: number;
     success: boolean;
     errorMessage?: string;
-  }) {
+  }): Promise<void> {
+    if (!this.writeManager) return this.withRuntimeWrite(input.runtimeAssetId,
+      scoped => scoped.recordGatewayRequestResult(input));
     const refs = await this.resolveRuntimeRefs(
       input.runtimeAssetId,
       input.runtimeMembershipId,
@@ -70,8 +93,8 @@ export class RuntimeObservabilityService {
     const now = new Date();
     const minuteWindow = this.toMinuteWindow(now);
 
-    await Promise.all([
-      this.incrementMetricCounter(
+    await this.persistSequentially([
+      () => this.incrementMetricCounter(
         refs,
         RuntimeMetricScope.RUNTIME_ASSET,
         'gateway.requests.total',
@@ -82,7 +105,7 @@ export class RuntimeObservabilityService {
           routeMethod: input.routeMethod,
         },
       ),
-      this.incrementMetricCounter(
+      () => this.incrementMetricCounter(
         refs,
         RuntimeMetricScope.RUNTIME_ASSET,
         input.success ? 'gateway.requests.success' : 'gateway.requests.error',
@@ -94,7 +117,7 @@ export class RuntimeObservabilityService {
           statusCode: input.statusCode,
         },
       ),
-      this.updateMetricAverage(
+      () => this.updateMetricAverage(
         refs,
         RuntimeMetricScope.RUNTIME_ASSET,
         'gateway.latency.avg_ms',
@@ -105,7 +128,7 @@ export class RuntimeObservabilityService {
           routeMethod: input.routeMethod,
         },
       ),
-      this.incrementMetricCounter(
+      () => this.incrementMetricCounter(
         refs,
         RuntimeMetricScope.RUNTIME_MEMBERSHIP,
         'gateway.requests.total',
@@ -116,7 +139,7 @@ export class RuntimeObservabilityService {
           routeMethod: input.routeMethod,
         },
       ),
-      this.updateMetricAverage(
+      () => this.updateMetricAverage(
         refs,
         RuntimeMetricScope.RUNTIME_MEMBERSHIP,
         'gateway.latency.avg_ms',
@@ -129,8 +152,8 @@ export class RuntimeObservabilityService {
       ),
     ]);
 
-    await Promise.all([
-      this.upsertState({
+    await this.persistSequentially([
+      () => this.upsertState({
         refs,
         scopeType: RuntimeObservabilityScopeType.RUNTIME_ASSET,
         currentStatus: input.success
@@ -158,7 +181,7 @@ export class RuntimeObservabilityService {
           lastRouteMethod: input.routeMethod,
         },
       }),
-      this.upsertState({
+      () => this.upsertState({
         refs,
         scopeType: RuntimeObservabilityScopeType.RUNTIME_MEMBERSHIP,
         currentStatus: input.success
@@ -224,7 +247,9 @@ export class RuntimeObservabilityService {
     summary?: string;
     details?: Record<string, unknown>;
     dimensions?: Record<string, unknown>;
-  }) {
+  }): Promise<void> {
+    if (!this.writeManager) return this.withRuntimeWrite(input.runtimeAssetId,
+      scoped => scoped.recordRuntimeControlEvent(input));
     const refs = await this.resolveRuntimeRefs(
       input.runtimeAssetId,
       input.runtimeMembershipId,
@@ -305,7 +330,9 @@ export class RuntimeObservabilityService {
     cacheStatus: 'hit' | 'miss';
     requestId?: string;
     correlationId?: string;
-  }) {
+  }): Promise<void> {
+    if (!this.writeManager) return this.withRuntimeWrite(input.runtimeAssetId,
+      scoped => scoped.recordGatewayCacheResult(input));
     const refs = await this.resolveRuntimeRefs(
       input.runtimeAssetId,
       input.runtimeMembershipId,
@@ -315,8 +342,8 @@ export class RuntimeObservabilityService {
     const metricName =
       input.cacheStatus === 'hit' ? 'gateway.cache.hit' : 'gateway.cache.miss';
 
-    await Promise.all([
-      this.incrementMetricCounter(
+    await this.persistSequentially([
+      () => this.incrementMetricCounter(
         refs,
         RuntimeMetricScope.RUNTIME_ASSET,
         metricName,
@@ -327,7 +354,7 @@ export class RuntimeObservabilityService {
           routeMethod: input.routeMethod,
         },
       ),
-      this.incrementMetricCounter(
+      () => this.incrementMetricCounter(
         refs,
         RuntimeMetricScope.RUNTIME_MEMBERSHIP,
         metricName,
@@ -338,7 +365,7 @@ export class RuntimeObservabilityService {
           routeMethod: input.routeMethod,
         },
       ),
-      this.upsertState({
+      () => this.upsertState({
         refs,
         scopeType: RuntimeObservabilityScopeType.RUNTIME_ASSET,
         lastEventAt: now,
@@ -606,6 +633,41 @@ export class RuntimeObservabilityService {
       page,
       limit,
     );
+  }
+
+  /** One input is a bounded durable unit: all legacy counters, means, states and
+   * its event commit together. No singleton repositories are swapped between requests. */
+  private async withRuntimeWrite<T>(runtimeAssetId: string,
+    operation: (scoped: RuntimeObservabilityService) => Promise<T>): Promise<T> {
+    const originalManager = this.eventRepository.manager;
+    const execute = () => originalManager.transaction(async manager => {
+      if (manager.connection.options.type === 'postgres') {
+        // Lock before any projection reads, including absent-row creation. All
+        // request/cache/control writers for this asset use the same transaction lock.
+        const key = createHash('sha256').update('api-nova.runtime-observability.v1:')
+          .update(runtimeAssetId).digest();
+        await manager.query('SELECT pg_advisory_xact_lock($1, $2)', [key.readInt32BE(0), key.readInt32BE(4)]);
+      }
+      const scoped = new RuntimeObservabilityService(
+        manager.getRepository(RuntimeAssetEntity), manager.getRepository(RuntimeAssetEndpointBindingEntity),
+        manager.getRepository(EndpointDefinitionEntity), manager.getRepository(RuntimeObservabilityEventEntity),
+        manager.getRepository(RuntimeMetricSeriesEntity), manager.getRepository(RuntimeObservabilityStateEntity),
+      );
+      scoped.writeManager = manager;
+      return operation(scoped);
+    });
+    // A bound manager already owns its connection/outer transaction. Waiting on
+    // a root admission lane here could wait behind a caller blocked by that owner.
+    if (originalManager.connection.options.type === 'postgres' && !originalManager.queryRunner) {
+      return admitPostgresAssetWrite(originalManager.connection, runtimeAssetId, execute);
+    }
+    return execute();
+  }
+
+  private async persistSequentially(operations: Array<() => Promise<unknown>>): Promise<void> {
+    // Do not let Promise.all reject while sibling statements are still running
+    // against a transaction that the caller is about to roll back.
+    for (const operation of operations) await operation();
   }
 
   private async resolveRuntimeRefs(
