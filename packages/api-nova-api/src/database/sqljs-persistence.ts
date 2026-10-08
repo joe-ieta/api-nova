@@ -1,6 +1,16 @@
 import { AsyncLocalStorage } from 'async_hooks';
 import { DataSource, DataSourceOptions } from 'typeorm';
 
+/** Only known non-persistent statements are exempt. Unknown SQL, including
+ * PRAGMA setters and WITH statements, remains conservatively dirty. The complete
+ * control statement must match; a leading keyword alone is not a write classifier. */
+function doesNotChangePersistentState(sql: string): boolean {
+  const statement = sql.trim();
+  // Preserve the driver's existing SELECT classification exactly.
+  if (statement.split(' ', 1)[0] === 'SELECT') return true;
+  return /^(?:BEGIN(?:\s+(?:DEFERRED|IMMEDIATE|EXCLUSIVE))?(?:\s+TRANSACTION)?|COMMIT(?:\s+TRANSACTION)?|END(?:\s+TRANSACTION)?|ROLLBACK(?:\s+TRANSACTION)?|SAVEPOINT\s+[A-Za-z_][A-Za-z0-9_]*|RELEASE(?:\s+SAVEPOINT)?\s+[A-Za-z_][A-Za-z0-9_]*|ROLLBACK(?:\s+TRANSACTION)?\s+TO(?:\s+SAVEPOINT)?\s+[A-Za-z_][A-Za-z0-9_]*|PRAGMA\s+read_uncommitted\s*=\s*(?:true|false|0|1))\s*;?$/i.test(statement);
+}
+
 /** TypeORM SQL.js has one shared runner. Its stock flush clears dirty only after
  * asynchronous file I/O, so concurrent reader release() calls export/write the
  * entire database again. Keep one save in flight and fence completion by query
@@ -53,9 +63,13 @@ export function createApplicationDataSource(options: DataSourceOptions): DataSou
     const query = runner.query.bind(runner);
     runner.query = (sql: string, ...parameters: unknown[]) => exclusive(async () => {
       const result = await query(sql, ...parameters);
-      // Match the driver's conservative dirty classification, including transaction
-      // controls. SELECT alone never creates another persistence generation.
-      if (sql.trim().split(' ', 1)[0] !== 'SELECT') generation++;
+      // Stock SQL.js marks BEGIN/COMMIT/isolation controls dirty. A read-only
+      // transaction must not export the database just because it was committed.
+      if (!doesNotChangePersistentState(sql)) generation++;
+      // Recompute after await: an in-flight save may have completed or failed,
+      // and a reentrant subscriber may have written a newer generation. Do not
+      // restore a stale pre-query dirty flag or dirty the already captured flight.
+      runner.isDirty = generation > (saving?.generation ?? durableGeneration);
       return result;
     });
     runner.flush = async () => {

@@ -80,7 +80,7 @@
     "swagger2openapi": "^7.0.8",
     "tail": "^2.2.6",
     "typeorm": "^0.3.17",
-    "uuid": "^9.0.0",
+    "uuid": "^11.1.1",
     "ws": "^8.14.0"
   },
   "devDependencies": {
@@ -98,7 +98,6 @@
     "@types/pidusage": "^2.0.5",
     "@types/supertest": "^2.0.12",
     "@types/tail": "^2.2.3",
-    "@types/uuid": "^9.0.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.42.0",
@@ -136,7 +135,7 @@
     "testEnvironment": "node"
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=20.0.0",
     "npm": ">=10.0.0"
   }
 }

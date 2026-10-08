@@ -51,6 +51,10 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
   private stopping = false;
   private lastWarning = 0;
   private nextBacklogRecomputeAt = 0;
+  private scanProcessedRecords = 0;
+  private completedBacklogProgress = false;
+  private turnHasPartialLine = false;
+  private turnHasUnproductiveBacklog = false;
 
   constructor(
     private readonly collector: CallObservabilityCollector,
@@ -69,7 +73,14 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
       let nextDelayMs = 1000;
       try {
         const report = await this.runOnce();
-        if (report.processedRecords > 0 || (!report.scanComplete && report.scan.partialBytes === 0 && report.state === 'running')) nextDelayMs = 0;
+        const canDrain = report.state === 'running' && !report.scan.partialBytes &&
+          !report.quarantinedRecords && !report.scan.quarantinedRecords &&
+          Object.keys(report.scan.errors || {}).length === 0 &&
+          !this.turnHasPartialLine && !this.turnHasUnproductiveBacklog;
+        // Reaching directory EOF is not source idleness when this finite scan
+        // already advanced records and observed more. Resume discovery next turn.
+        if (canDrain && (report.processedRecords > 0 || this.completedBacklogProgress ||
+          !report.scanComplete)) nextDelayMs = 0;
       }
       catch {
         if (Date.now() - this.lastWarning >= 15000) {
@@ -102,6 +113,10 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
     this.directory = undefined;
     this.pendingFile = undefined;
     this.continuations.length = 0;
+    this.scanProcessedRecords = 0;
+    this.completedBacklogProgress = false;
+    this.turnHasPartialLine = false;
+    this.turnHasUnproductiveBacklog = false;
   }
 
   private async run(options: CollectorLimits & { maxEntries?: number }): Promise<WorkerReport> {
@@ -113,7 +128,11 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
         throw new ObservabilityStorageError('INVALID_COLLECTOR_LIMIT');
       }
     }
+    this.completedBacklogProgress = false;
+    this.turnHasPartialLine = false;
+    this.turnHasUnproductiveBacklog = false;
     await this.collector.initialize();
+    if (!this.cycle) this.scanProcessedRecords = 0;
     if (!this.cycle) this.cycle = {
       startedAt: new Date().toISOString(), visitedFiles: 0, partialBytes: 0, backlogFiles: 0, quarantinedRecords: 0, errors: {},
     };
@@ -177,6 +196,9 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
           }, this.callers.project);
           report.bytesRead += result.bytesRead;
           report.processedRecords += result.processedRecords;
+          this.scanProcessedRecords += result.processedRecords;
+          this.turnHasPartialLine ||= result.partialBytes > 0;
+          this.turnHasUnproductiveBacklog ||= result.hasMore && result.processedRecords === 0 && result.partialBytes === 0;
           report.quarantinedRecords += result.quarantinedRecords;
           report.scan.quarantinedRecords += result.quarantinedRecords;
           if (result.hasMore && result.partialBytes > 0) break;
@@ -203,6 +225,8 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
         }
       }
       if (report.scanComplete) {
+        this.completedBacklogProgress = this.scanProcessedRecords > 0 && report.scan.backlogFiles > 0;
+        this.scanProcessedRecords = 0;
         if (!report.scan.partialBytes && !report.scan.backlogFiles && !report.scan.quarantinedRecords &&
           Object.keys(report.scan.errors).length === 0) {
           report.reconciledInvocations = await this.recover(report.scan.startedAt);

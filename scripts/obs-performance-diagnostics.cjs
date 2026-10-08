@@ -11,7 +11,9 @@ let previous = performance.eventLoopUtilization();
 const phases = new Map();
 const built = path.join(__dirname, '../packages/api-nova-api/dist/src/modules/call-observability');
 for (const [module, type, methods] of [
-  ['call-observability.store', 'CallObservabilityStore', ['ingestBatch', 'readSnapshot', 'transaction', 'saveProjection', 'markBucketsForRecompute', 'recomputePendingBuckets']],
+  ['call-observability.store', 'CallObservabilityStore', ['ingestBatch', 'readSnapshot', 'transaction', 'saveProjection', 'markBucketsForRecompute', 'recomputePendingBuckets', 'prepareFactBatch', 'flushFactBatch']],
+  ['call-observability-callers.projector', 'CallObservabilityCallersProjector', ['projectRecord', 'flushBatch']],
+  ['call-observability-payload.coordinator', 'CallObservabilityPayloadCoordinator', ['acquireWriter', 'assertWriter', 'releaseWriter']],
   ['call-observability-payload.store', 'CallObservabilityPayloadStore', ['prepare']],
   ['call-observability-outbox.service', 'CallObservabilityOutboxService', ['runOnce']],
   ['call-observability-delivery.worker', 'CallObservabilityDeliveryWorker', ['runOnce']],

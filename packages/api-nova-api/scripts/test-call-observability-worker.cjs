@@ -423,3 +423,33 @@ test('bounded recompute shares work between metric/caller markers and backs off 
   await assert.rejects(f.store.recomputePendingBuckets(0), code('INVALID_RECOMPUTE_LIMIT'));
   await assert.rejects(f.store.recomputePendingBuckets(129), code('INVALID_RECOMPUTE_LIMIT'));
 });
+
+
+test('automatic collector starts the next finite scan immediately after productive backlog EOF and discovers a new source', async t => {
+  const f = await fixture(t, { API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED: 'true' });
+  const rows = Array.from({ length: 160 }, () => evidence({ origin: 'internal' }));
+  await fs.writeFile(f.file, rows.map(encode).join(''));
+  const originalTimer = global.setTimeout, scheduled = [], delays = [], reports = [];
+  const runOnce = f.worker.runOnce.bind(f.worker);
+  f.worker.runOnce = async (...args) => { const report = await runOnce(...args); reports.push(report); return report; };
+  global.setTimeout = (callback, delay, ...args) => {
+    if (callback.name !== 'tick') return originalTimer(callback, delay, ...args);
+    scheduled.push(callback); delays.push(delay); return { unref() {} };
+  };
+  try {
+    f.worker.onApplicationBootstrap();
+    await scheduled.shift()(); // 128 source rows, same finite budget.
+    await scheduled.shift()(); // Directory EOF, but known backlog remains.
+    assert.deepEqual(reports.map(report => report.processedRecords), [128, 0]);
+    assert.equal(reports[1].scanComplete, true);
+    assert.ok(reports[1].scan.backlogFiles > 0);
+    assert.deepEqual(delays, [0, 0, 0]);
+    await fs.writeFile(path.join(f.source, 'calls-v2-new-source.jsonl'), encode(evidence({ origin: 'internal' })));
+    await scheduled.shift()(); // Fresh discovery finds the remaining 32 and new source.
+    assert.equal(reports[2].processedRecords, 33);
+    assert.equal(await f.repository(entities.RuntimeInvocationEntity).count(), 161);
+    await scheduled.shift()();
+    assert.equal(delays.at(-1), 1000);
+    assert.equal(reports.at(-1).processedRecords, 0);
+  } finally { await f.worker.onModuleDestroy(); global.setTimeout = originalTimer; }
+});

@@ -142,11 +142,20 @@ export interface ObservabilityWriteTransaction {
   suppressBucketEvents?: boolean;
 }
 
-export type ProjectionHook = (
+export interface ProjectionBatch {
+  project: ProjectionHook;
+  flush(transaction: ObservabilityWriteTransaction): Promise<void>;
+  dispose(): void;
+}
+
+export type ProjectionHook = ((
   transaction: ObservabilityWriteTransaction,
   before: RuntimeInvocationEntity | null,
   after: RuntimeInvocationEntity,
-) => Promise<void>;
+) => Promise<void>) & {
+  /** Internal bounded collector optimization; default calls retain immediate writes. */
+  createBatch?: () => ProjectionBatch;
+};
 
 export interface IngestBatchEntry {
   input?: unknown;
@@ -305,55 +314,60 @@ export class CallObservabilityStore {
             response: row.responsePayloadId ? expiry.get(row.responsePayloadId) : undefined,
           }])) };
         });
-        const preparedKeys: PreparedBatchKeys[] = [];
-        const operations: Array<(tx: ObservabilityWriteTransaction) => Promise<IngestResult>> = [];
-        for (const entry of entries) {
-          if (entry.rejection) {
-            const rejected = entry.rejection;
-            operations.push(tx => this.quarantine(tx, entry.context, rejected.hash, rejected.reason));
-          } else {
-            try { operations.push(await this.prepareIngest(entry.input, entry.context, lease, retention, project, preparedKeys)); }
-            catch (error) {
-              const invalid = error instanceof InvalidRuntimeAuditRecord ||
-                error instanceof ObservabilityStorageError && [
-                  'INVALID_RECORD_VERSION', 'INVALID_ASSET_REFERENCE',
-                  'INVALID_RECORD_DEPTH', 'INVALID_RECORD_VALUE',
-                ].includes(error.code);
-              if (!invalid || !entry.sourceHash || !/^[a-f0-9]{64}$/.test(entry.sourceHash)) throw error;
-              operations.push(tx => this.quarantine(tx, entry.context, entry.sourceHash!, 'INVALID_SOURCE_SCHEMA'));
-            }
-          }
-        }
-        return this.transaction(async tx => {
-          await this.payloadCoordination.assertWriter(tx, lease);
-          const facts = options.batchFacts ? await this.prepareFactBatch(tx, preparedKeys, entries) : undefined;
-          if (facts) this.factBatches.set(tx, facts);
-          // Collector hooks do not read pending bucket markers. Other callers retain
-          // immediate read-your-writes unless they explicitly opt in to coalescing.
-          const buckets = options.coalesceBuckets ? {
-            metrics: new Map<string, RuntimeMetricBucketEntity>(), callers: new Map<string, RuntimeCallerBucketEntity>(),
-          } : undefined;
-          if (buckets) this.batchBuckets.set(tx, buckets);
-          const results: IngestResult[] = [];
-          for (const operation of operations) {
-            const eventOffset = tx.events.length;
-            const result = await operation(tx);
-            results.push({ ...result, events: tx.events.slice(eventOffset) });
-          }
-          if (facts) await this.flushFactBatch(tx, facts);
-          if (buckets) {
-            if (facts) {
-              await this.upsertFactRows(tx, RuntimeMetricBucketEntity, [...buckets.metrics.values()], 'id');
-              await this.upsertFactRows(tx, RuntimeCallerBucketEntity, [...buckets.callers.values()], 'id');
+        const projectionBatch = options.batchFacts ? project?.createBatch?.() : undefined;
+        const activeProject = projectionBatch?.project || project;
+        try {
+          const preparedKeys: PreparedBatchKeys[] = [];
+          const operations: Array<(tx: ObservabilityWriteTransaction) => Promise<IngestResult>> = [];
+          for (const entry of entries) {
+            if (entry.rejection) {
+              const rejected = entry.rejection;
+              operations.push(tx => this.quarantine(tx, entry.context, rejected.hash, rejected.reason));
             } else {
-              if (buckets.metrics.size) await tx.manager.getRepository(RuntimeMetricBucketEntity).save([...buckets.metrics.values()]);
-              if (buckets.callers.size) await tx.manager.getRepository(RuntimeCallerBucketEntity).save([...buckets.callers.values()]);
+              try { operations.push(await this.prepareIngest(entry.input, entry.context, lease, retention, activeProject, preparedKeys)); }
+              catch (error) {
+                const invalid = error instanceof InvalidRuntimeAuditRecord ||
+                  error instanceof ObservabilityStorageError && [
+                    'INVALID_RECORD_VERSION', 'INVALID_ASSET_REFERENCE',
+                    'INVALID_RECORD_DEPTH', 'INVALID_RECORD_VALUE',
+                  ].includes(error.code);
+                if (!invalid || !entry.sourceHash || !/^[a-f0-9]{64}$/.test(entry.sourceHash)) throw error;
+                operations.push(tx => this.quarantine(tx, entry.context, entry.sourceHash!, 'INVALID_SOURCE_SCHEMA'));
+              }
             }
-            this.batchBuckets.delete(tx);
           }
-          this.factBatches.delete(tx);
-          return results;
-        });
+          return await this.transaction(async tx => {
+            await this.payloadCoordination.assertWriter(tx, lease);
+            const facts = options.batchFacts ? await this.prepareFactBatch(tx, preparedKeys, entries) : undefined;
+            if (facts) this.factBatches.set(tx, facts);
+            // Collector hooks do not read pending bucket markers. Other callers retain
+            // immediate read-your-writes unless they explicitly opt in to coalescing.
+            const buckets = options.coalesceBuckets ? {
+              metrics: new Map<string, RuntimeMetricBucketEntity>(), callers: new Map<string, RuntimeCallerBucketEntity>(),
+            } : undefined;
+            if (buckets) this.batchBuckets.set(tx, buckets);
+            const results: IngestResult[] = [];
+            for (const operation of operations) {
+              const eventOffset = tx.events.length;
+              const result = await operation(tx);
+              results.push({ ...result, events: tx.events.slice(eventOffset) });
+            }
+            if (projectionBatch) await projectionBatch.flush(tx);
+            if (facts) await this.flushFactBatch(tx, facts);
+            if (buckets) {
+              if (facts) {
+                await this.upsertFactRows(tx, RuntimeMetricBucketEntity, [...buckets.metrics.values()], 'id');
+                await this.upsertFactRows(tx, RuntimeCallerBucketEntity, [...buckets.callers.values()], 'id');
+              } else {
+                if (buckets.metrics.size) await tx.manager.getRepository(RuntimeMetricBucketEntity).save([...buckets.metrics.values()]);
+                if (buckets.callers.size) await tx.manager.getRepository(RuntimeCallerBucketEntity).save([...buckets.callers.values()]);
+              }
+              this.batchBuckets.delete(tx);
+            }
+            this.factBatches.delete(tx);
+            return results;
+          });
+        } finally { projectionBatch?.dispose(); }
       });
     });
   }

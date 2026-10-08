@@ -1,5 +1,5 @@
 ---
-doc-version: 1.8.0
+doc-version: 1.9.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
@@ -92,7 +92,7 @@ Current progress:
 
 Next order:
 
-1. Continue Nest/uuid risk remediation in parallel with observability latency and SQL.js persistence work. The production parser and literal file watcher migrations leave 13 moderate dependency nodes, with no high or critical nodes. Bounded bulk fact SQL, paged outbox materialization and cost-aware maintenance scheduling are implemented; final API regression passes 184 suites / 1918 tests. The same candidate returns all 3000 valid responses on both databases, with complete source records and graceful shutdown. PostgreSQL now exposes and delivers all 3000 terminal calls and passes the full-cohort local query checks, but visibility/delivery p95 remains about 267/268 seconds. SQLite exposes/delivers only 479/3000; cumulative whole-database exports remain expensive. Prioritize read-only/cross-module persistence costs and production projector/transaction overhead while preserving durability. Reference-hardware capacity and equivalent capture-overhead A/B remain open; see the active breakdown and latest bulk-pipeline evidence.
+1. Continue Nest SSE framework remediation in parallel with bounded multi-call legacy metric transactions and SQL batching. File-type/UUID migration leaves 10 moderate dependency nodes from one Nest SSE advisory, with no high/critical findings. Read-only SQL.js transactions no longer export, production identity projection is batched, and productive backlog EOF no longer adds a one-second idle delay. Final regression passes 184 suites / 1932 tests plus 67 pipeline checks. PostgreSQL observes/delivers all 3000 terminal calls, but p95 is 155.5/156.4 seconds; SQLite observes and delivers only 517 of 3000 terminal calls. Preserve original latency targets and record regressions. Full reference-hardware capacity and equivalent capture A/B remain open; use the active breakdown and latest persistence/projector audit.
 2. Consolidate the results on one candidate version and finish target-environment sign-off (SEC-F4-02, OBS-16-04, OPS-01). The user selected local isolated validation for now; production sign-off remains open.
 
 PROD-04C is complete within local Windows/isolated PostgreSQL scope: 16 real-HTTP lifecycle checks plus related regression coverage; production identity/ACL, Linux semantics and real MCP binary outbound remain outside this run. See [binary lifecycle evidence](../audits/2026-10-08-prod-04c-binary-lifecycle.md).

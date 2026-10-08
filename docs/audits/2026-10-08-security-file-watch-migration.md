@@ -1,9 +1,11 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
 # SEC-F4-02 文件监听依赖迁移
+
+> 本文保留监听迁移后的 13 个 moderate 时点证据。后续 file-type/UUID 消费者迁移已使生产审计降至 10 个 Nest SSE 传播节点；见[残余依赖迁移与风险边界](./2026-10-08-security-residual-dependency-migration.md)。
 
 本批在 `5a9f227` 后继续处理[解析器迁移](./2026-10-08-security-parser-chain-migration.md)保留的 chokidar/braces 生产风险。两处实际入口为 CLI 的 OpenAPI 文件热重启，以及交互配置管理器的配置变更通知；均传入一个具体文件路径，不需要 glob。`path.resolve` 本身不会关闭旧版 glob 解析，因此不能据此接受旧链风险。
 

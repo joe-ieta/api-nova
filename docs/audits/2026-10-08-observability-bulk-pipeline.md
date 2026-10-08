@@ -1,9 +1,11 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.0.1
 doc-status: active
 doc-updated: 2026-10-08
 ---
 # OBS-16-04 批量采集与投递联合验收
+
+> 本文保留5f5e2d2阶段的历史结果。后续只读持久化、身份批投影和EOF调度修复及最新正式测量见[后续联合验收](2026-10-08-observability-persistence-and-projector.md)。
 
 本轮基于oc_dev的5a9f227继续原计划：先减少source→终态事实的逐条SQL、扫描和状态成本，再减少outbox重复查询，并为统计提供有界推进预算。SEC-F4-02的文件监听迁移并行完成，见[安全证据](2026-10-08-security-file-watch-migration.md)。上一候选完整测量及失败边界保留在[宽等待证据](2026-10-08-observability-relaxed-timeouts.md)。
 

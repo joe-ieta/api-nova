@@ -136,4 +136,32 @@ describe('collector bounded file continuations and maintenance fairness', () => 
     expect(store.recomputePendingBuckets).toHaveBeenCalledTimes(2);
   });
 
+
+  it('carries only successful scan progress across EOF, then clears it for a permanently unproductive source', async () => {
+    await file('calls-v2-hot.jsonl');
+    collector.collectFile.mockImplementation(async (_name: string, limits: any) => report({ processedRecords: limits.maxRecords, hasMore: true }));
+    await worker.runOnce();
+    expect((worker as any).completedBacklogProgress).toBe(false);
+    const eof = await worker.runOnce();
+    expect(eof.scanComplete).toBe(true); expect(eof.processedRecords).toBe(0);
+    expect((worker as any).completedBacklogProgress).toBe(true);
+    collector.collectFile.mockResolvedValue(report({ hasMore: true }));
+    const noProgress = await worker.runOnce();
+    expect(noProgress.scanComplete).toBe(true);
+    expect((worker as any).completedBacklogProgress).toBe(false);
+    expect((worker as any).turnHasUnproductiveBacklog).toBe(true);
+  });
+
+  it('tracks a partial line before the early break even when older records made progress, and resets next turn', async () => {
+    await file('calls-v2-partial.jsonl');
+    collector.collectFile.mockResolvedValueOnce(report({ processedRecords: 1, hasMore: true, partialBytes: 12 }))
+      .mockResolvedValue(report());
+    await worker.runOnce();
+    expect((worker as any).turnHasPartialLine).toBe(true);
+    await worker.runOnce();
+    expect((worker as any).turnHasPartialLine).toBe(false);
+    await worker.onModuleDestroy();
+    expect((worker as any).completedBacklogProgress).toBe(false);
+  });
+
 });

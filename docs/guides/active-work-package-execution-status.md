@@ -1,11 +1,11 @@
 ---
-doc-version: 1.194.0
+doc-version: 1.195.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
 # 开发任务包总览与执行状态
 
-> 最近复核：2026-10-08；代码基线：`oc_dev / 5a9f227`加本轮批量采集/投递与监听迁移。项目处于**核心能力收口与发布验收阶段，整体交付尚未完成**。
+> 最近复核：2026-10-08；代码基线：`oc_dev / 5f5e2d2`加本轮只读持久化、身份批投影和残余依赖迁移。项目处于**核心能力收口与发布验收阶段，整体交付尚未完成**。
 >
 > 当前里程碑还有 **3项待完成工作**，另有 **2项明确延期**；PROD-04C与ENV-01已限定验收。SEC-F4-02、OBS-16-04有可本地并行推进的实质工作；OPS-01等待两者签收，生产签收按用户选择保留待办。
 
@@ -34,13 +34,13 @@ doc-updated: 2026-10-08
 
 | 顺序与原任务 | 当前状态 / 可并行关系 | 下一步具体工作 | 完成标准 |
 | --- | --- | --- | --- |
-| 1A · SEC-F4-02 安全发布签收 | **IN_PROGRESS，执行中**；已列实现依赖均有DONE记录 | Nest实际上传/解析器链已迁移并双npm干净安装复现，审计降至13节点（0 critical/0 high/13 moderate）；Chokidar4字面文件监听7/7及server全链通过；继续Nest/uuid残余风险处置，再完成目标签收 | 各原安全出口在目标环境有可追溯结果，残余风险及启用条件明确，形成安全签收结论 |
-| 1B · OBS-16-04 可观测部署签收 | **IN_PROGRESS，数据库消费吞吐整改中**；与安全签收并行 | 批量SQL/扫描/outbox及调度修复已交付；同候选PG3000/3000可见/投递、完整容量查询通过但p95约267秒；SQLite479/3000，约318GB累计整库导出。下一步降低只读/跨模块持久化和生产投影/事务成本，再验原延迟及采集A/B | 原批准验收条件有实测证据；失败和回退可执行，形成可观测签收结论 |
+| 1A · SEC-F4-02 安全发布签收 | **IN_PROGRESS，本地依赖处置及目标签收待完成**；与OBS并行 | 解析器、监听、file-type和UUID实际链迁移已完成；当前10 moderate传递节点均属于同一Nest SSE公告，0 high/critical。无当前Nest SSE生产入口，但漏洞未修复；继续框架维护迁移/补丁及目标签收 | 原安全出口有可追溯结果，剩余公告得到修复或明确签收处置；不能将无当前消费等同修复 |
+| 1B · OBS-16-04 可观测部署签收 | **IN_PROGRESS，性能仍阻断**；与安全框架处置并行 | 只读事务冗余导出、身份投影批写、确认积压跨EOF空等已修复。最终同候选两库3000完整响应、源完整及正常关停；PG可见/投递3000/3000，全体p95 155.5/156.4秒，完整容量三类查询p95最大1439.3ms；SQLite终态可见与投递均仅517/3000，业务p95 148.0秒、累计整库导出约292.6GB。原3/5秒目标仍未达。下一步有界多调用legacy指标批处理及共享事务/持久化竞争处置 | 原负载下完整成功/终态/签名投递与3/5秒时延达标，再完成参考容量、采集A/B及目标签收 |
 | 2 · OPS-01 最终交付签收 | **WAIT_DEP，最终签收待前置**；直接等待SEC-F4-02、OBS-16-04 | 在同一候选版本与目标环境汇总留存、健康、安全和可观测结果；同revision重复激活冲突已修复并真实PG复验；完成真实浏览器主流程、部署重启、权限/TLS、告警及回退核验 | 交付步骤可复现，必要证据齐备，阻断问题清零或有明确处置；给出发布/不发布结论，不以本地单测代替 |
 
 并发依赖：PROD-04C和ENV-01已限定完成；SEC-F4-02与OBS-16-04的实现前置均DONE，两条本地主线互不阻塞，可并行实施。OPS-01直接依赖二者签收，同时汇总留存、健康和浏览器主流程证据。固定同一候选版本后再做最终交付汇总，避免混用不同轮次结果。
 
-推进安排：下一轮并行推进框架/uuid残余安全风险与可观测剩余吞吐整改；后者再依次验证完整参考容量和采集开销，随后汇总OPS-01。具体能力步骤见任务划分页；不以新增细叶数量冒充进度；每包完成后同步本总览、任务划分及证据并提交推送。只修阻断验收或有明确重大影响的问题。
+推进安排：安全框架SSE处置与可观测结构性持久化整改并行。OBS首先完成同asset多调用指标批量事务/SQL，保留精确计数、均值、最后状态与每调用失败事件；再据测量处理剩余共享事务/正文准备成本，不能继续以caller局部SQL减量冒充整体闭环。具体步骤及退出条件见任务划分页；每包同步状态和证据并提交推送。
 
 当前环境限制：完整health因系统盘使用率超过90%仍返回503；MCP异常汇总与监控页入口已修复。需人工释放系统盘空间后复跑，不调整阈值掩盖限制；不能仅凭ready或SPA响应签收整个部署。
 
@@ -48,7 +48,7 @@ doc-updated: 2026-10-08
 
 ## 最近完成的能力包
 
-本轮按计划完成采集事实批量SQL、有界文件续读/桶预算、outbox订阅分页与批量job写入；固定16条fixture SQL1475→163，SQLite新增7/7、PG新增3/3，统一API184套/1918项、联合CJS66/66及PG多进程10/10通过。安全监听迁移生产high归零，剩余13 moderate。端到端负载结果见[本轮联合验收](../audits/2026-10-08-observability-bulk-pipeline.md)，不以局部SQL降幅替代原性能出口。
+本轮完成SQL.js只读事务冗余持久化修复（真实16事务export16→0）、生产身份批投影（SQLite投影SQL194→11、PG193→9）以及确认积压跨EOF立即续扫/无进展退避。SQLite17项、投影SQLite7组/PG8组、调度2套30项及真实161条源验证通过；最终API184套/1932项、联合CJS67/67通过。file-type与UUID真实链迁移后剩余10 moderate（Nest SSE同一公告），0 high/critical。[本轮联合验收](../audits/2026-10-08-observability-persistence-and-projector.md)保留两次候选结果、回退与失败，不将局部优化当父包达标。
 
 此前单调用旧Runtime指标/状态原子事务、SQL.js7项与独立PG6组验证继续有效；当轮宽等待测量仅作为[历史对照](../audits/2026-10-08-observability-relaxed-timeouts.md)，最新双库结果以上述本轮联合验收为准。此前解析器迁移、源writer/采集/outbox批处理与SQL.js正确性修复继续有效。此前完整PG冷备恢复、响应断连、Worker调度及同revision重复部署冲突已修复（[重复部署证据](../audits/2026-10-08-gateway-repeat-deployment.md)，真实PG/HTTP17/17）。这些成果分别归SEC-F4-02、OBS-16-04、OPS-01，不新增历史细叶，也不自动关闭生产签收。
 
@@ -56,7 +56,7 @@ PROD-04C已限定完成：真实PG/HTTP 16项通过，并结合事务/路径/权
 
 ENV-01已限定完成：完整health实测及限制留证，修复MCP异常汇总；运行MCP后仅系统盘90%阈值失败。上轮采样距阈值差约678MB，建议人工释放至少1GB并留余量后重跑。两种部署方式的监控页入口已修复，8项HTTP通过；不声称浏览器全过程完成。[健康与入口证据](../audits/2026-10-08-env-01-health-and-monitoring.md)。
 
-用户环境选择已确认：本轮只用本机隔离环境，生产签收保留待办。安全依赖critical已修复，残余兼容补丁/可利用性复核仍可本地推进；可观测TLS信任补验已完成，完整冷备恢复已7/7通过，批处理和SQL.js正确性修复后正式吞吐仍未达标，数据库重复持久化、消费积压与原时延未达属于本地工程阻断；最新同候选PG整批排空/完整容量查询已通过，但实时延迟仍失败；SQLite479/3000且共享持久化仍阻断，双库正常关停。不能把这些本地可做工作笼统标成“等环境”。
+用户环境选择已确认：暂用本机隔离环境，生产签收保留待办。TLS2/2与完整PG冷备恢复7/7继续有效。最终同候选两库3000完整响应、源完整及正常关停；PG可见/投递3000/3000，全体p95 155.5/156.4秒，完整容量三类查询p95最大1439.3ms；SQLite终态可见与投递均仅517/3000，业务p95 148.0秒、累计整库导出约292.6GB。原3/5秒目标仍未达。这仍是可本地推进的工程阻断，不能笼统归为“等环境”。
 
 
 EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试治理→发布部署→上游A/B迁移→认证聚合消费。修复无server误建实例、认证候选无法重放、自动探测旧地址三项阻塞；11/11阶段、94 suites/1312 tests及API构建通过，已提交推送`ad6793d`。[完整证据](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md)。本轮未覆盖PG/Linux/外部生产身份/浏览器/MCP，不等于生产签收。
@@ -207,7 +207,7 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | SEC-F3-03 | DONE | 限定全渠道扫描完成（[证据](../audits/2026-09-28-f3-03-secret-leak-matrix.md)）：真实child+回环上游+SQL.js，9合成秘密跨15渠道、904项检查0泄露、检测器非空洞自测；含OS级argv/spawn与实际env/stdio/错误面/静态码/持久行/状态事件/日志投影/管理审计检索；notCovered=部署级HTTP审计sink/ProcessInfo/观测事件sink/Linux argv |
 | SEC-F3a-01 | DONE | 限定在线审计完成（[证据](../audits/2026-09-26-dependency-reachability-audit.md)）：首轮生产32项（0C/10H/21M/1L）；授权后补丁批已执行：主版本内12包+UI echarts6/vue-echarts8，生产降至19（0C/4H/15M/0L），残余全部归Nest12族；Parser 49/1196、API 148/1623与三包构建回归通过 |
 | SEC-F4-01 | DONE | 当前112个SEC叶子以逐项或明确聚合旧ID维护，D2b1/b2/b3a–d及C2b1/b2a/b2b1/b2b2/b3依赖已登记；区分历史/本地限定/未运行环境，不代表F4-02签收 |
-| SEC-F4-02 | IN_PROGRESS | [解析器迁移](../audits/2026-10-08-security-parser-chain-migration.md)及[Chokidar4字面监听迁移](../audits/2026-10-08-security-file-watch-migration.md)：生产审计21→15→13节点（0 critical/0 high/13 moderate），npm10/11前批干净安装、13项实际消费者检查、真实上传/Gateway/Socket.IO23/23继续有效；本轮真实文件监听7/7及server默认完整测试链通过。Nest SSE/file-type、uuid及生产签收仍待 |
+| SEC-F4-02 | IN_PROGRESS | [本轮残余依赖迁移](../audits/2026-10-08-security-residual-dependency-migration.md)：file-type21.3.4、UUID11.1.1真实消费链已修复；生产审计13→10 moderate传递节点，0 high/critical。新消费者4/4、npm10隔离clean ci、原解析门禁、server全链和统一API184套/1932项通过；同一Nest SSE公告仍未修复，无当前生产入口不等于关闭；框架处置及生产签收待办 |
 | OBS-06-01 | DONE | 限定矩阵完成：新增`verify:mcp-observability-matrix`聚合4个server脚本（11+17+15+12）与Parser上游失败74项，输出`MCP_OBSERVABILITY_MATRIX_OK`；success/cancel/发送中断/大响应三transport有结果（16MiB Tool省略/8MiB完整），Windows原生对照复现双方timeout；Linux/OBS-06-02、AC-02 retry与MCP调用超时仍归TP06/16 |
 | OBS-06-02 | DONE | 限定跨平台完成（[证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:obs-06-02` `OBS_06_02_VERIFY_OK`——Ubuntu24.04/容器Node v24.15.0与Windows同版本矩阵22行21匹配（server 11/17/15/12、parser 74/74、15 transport单元一致）；1项记录差异=16MiB cork/uncork Linux completed vs Windows timeout（字节相同、两侧native/audited自洽）；裸机内核/PG/负载与生产启用未覆盖 |
 | OBS-10-01 | DONE | 受管业务子进程start/stop/unexpected_exit/lost已进入独立持久投影；runtimeAssetId+serverId+generation绑定，旧generation迟到终止不能覆盖新start，管理心跳不作为业务存活。SQL.js重开4/4、真实child/事件hook 3/3、状态投影1/1、ProcessManager相邻5 suites/32及API type-check/build通过 |
@@ -253,7 +253,7 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | OBS-16-01 | DONE | 交接文档2.2.0；AC01~20与脚本入口静态核对，未运行新全量矩阵；[交接](./runtime-observability-external-validation-handoff.md) |
 | OBS-16-02 | DONE | 限定本地故障单元完成：新增`verify:obs-16-local-unit`冻结规模（500调用/200事件/50正文）运行6套（94项+新故障单元3项）并输出`OBS_16_LOCAL_UNIT_OK`；重开/重复重放无双计数、冲突隔离、关闭store拒绝；Linux/PG/多进程/负载与部署仍归OBS-16-03/04 |
 | OBS-16-03 | DONE | 限定环境车道完成（[证据](../audits/2026-09-28-obs-16-03-environment-lane.md)）：`verify:obs-16-03` `OBS_16_03_VERIFY_OK`——Windows/隔离PG16.10与Linux/Alpine PG16.15双平台多进程（skip_locked+租约+SIGKILL恢复无丢失无重复，10/10×2）+受控接收端矩阵（2xx/408/429/5xx+Retry-After秒与日期/终态4xx与3xx/缺秘密/DNS/metadata/自签与不可达TLS，8/8×2）；2格blocked（自签TLS成功需部署信任配置；容器--network none需预装PG包）；部署签收/长时/glibc归OBS-16-04与平台项 |
-| OBS-16-04 | IN_PROGRESS | [本轮批量流水线](../audits/2026-10-08-observability-bulk-pipeline.md)：采集SQL1475→163固定fixture、outbox分页/批量写、源续读及耗时维护预算已实现；API184套/1918项、CJS66/66、PG多进程10/10通过。同候选双库3000完整响应、源无缺口/正常关停；PG可见/投递3000/3000、完整容量查询p95≤235ms，但全体可见/投递p95约267/268秒未达3/5秒。SQLite仅479/3000、累计整库导出约318GB；共享持久化、实时延迟、参考容量/A-B与目标签收仍待；TLS2/2及冷备恢复7/7继续有效 |
+| OBS-16-04 | IN_PROGRESS | [本轮联合验收](../audits/2026-10-08-observability-persistence-and-projector.md)：只读事务导出减负、生产身份批SQL及EOF积压续扫已实现；API184套/1932项、CJS67/67通过。最终同候选两库3000完整响应、源完整及正常关停；PG可见/投递3000/3000，全体p95 155.5/156.4秒，完整容量三类查询p95最大1439.3ms；SQLite终态可见与投递均仅517/3000，业务p95 148.0秒、累计整库导出约292.6GB。原3/5秒目标仍未达。下一实现为legacy多调用批量事务/SQL及剩余共享通道成本，参考硬件、采集A/B和目标签收仍待；TLS2/2及冷备恢复7/7复用 |
 | PROD-01 | DONE | [发布端点合同](./mcp-publication-endpoint-contract.md)，后端/监听/UI边界冻结；仅DOC |
 | PROD-02A1 | DONE | DTO、统一解析、授权preview、更新保留、归属/运行态保护及summary；专项与部署回归49/49 |
 | PROD-02A2 | DONE | 实际端点三项进入候选哈希/metadata并在激活事务复核；四套81/81 |

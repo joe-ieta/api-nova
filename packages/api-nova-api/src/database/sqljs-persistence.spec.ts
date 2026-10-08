@@ -177,4 +177,110 @@ describe('SQL.js single-flight durable persistence', () => {
     expect(lateDone).toBe(false); finish.resolve(); await next; await late; expect(await persistedCount()).toBe(3);
   });
 
+  it('reduces 16 real read-only SERIALIZABLE commits from 16 exports to zero without changing disk data', async () => {
+    await open(false);
+    const stockExports = jest.spyOn((db.driver as any).databaseConnection, 'export');
+    for (let index = 0; index < 16; index++) await db.transaction('SERIALIZABLE', async manager => {
+      expect(await manager.query('SELECT COUNT(*) AS total FROM sample')).toEqual([{ total: 0 }]);
+    });
+    expect(stockExports).toHaveBeenCalledTimes(16);
+    await db.destroy();
+    db = await createApplicationDataSource({ type: 'sqljs', location, autoSave: true, entities: [Sample] }).initialize();
+    const optimizedExports = jest.spyOn((db.driver as any).databaseConnection, 'export');
+    for (let index = 0; index < 16; index++) await db.transaction('SERIALIZABLE', async manager => {
+      expect(await manager.query('SELECT COUNT(*) AS total FROM sample')).toEqual([{ total: 0 }]);
+    });
+    expect(optimizedExports).not.toHaveBeenCalled(); expect(await persistedCount()).toBe(0);
+    console.log(JSON.stringify({ fixture: '16 read-only SERIALIZABLE transactions', stockExports: 16, optimizedExports: 0 }));
+  });
+
+  it('keeps read-only nested savepoints and rollback clean but persists DDL, DML and unknown PRAGMA setters', async () => {
+    await open(); const exports = jest.spyOn((db.driver as any).databaseConnection, 'export');
+    await db.transaction('READ UNCOMMITTED', async manager => {
+      await manager.transaction(async nested => { await nested.query('SELECT * FROM sample'); });
+      await expect(manager.transaction(async nested => {
+        await nested.query('SELECT * FROM sample'); throw new Error('read-only nested rollback');
+      })).rejects.toThrow('read-only nested rollback');
+    });
+    await expect(db.transaction(async manager => {
+      await manager.query('SELECT * FROM sample'); throw new Error('read-only outer rollback');
+    })).rejects.toThrow('read-only outer rollback');
+    expect(exports).not.toHaveBeenCalled();
+    await db.query('PRAGMA user_version = 17');
+    await db.query('CREATE INDEX sample_value ON sample(value)');
+    await db.query("WITH seed(id, value) AS (SELECT 1, 'one') INSERT INTO sample SELECT * FROM seed");
+    expect(exports).toHaveBeenCalledTimes(3);
+    const reader = await new DataSource({ type: 'sqljs', location, autoSave: false }).initialize();
+    try {
+      expect(await reader.query('PRAGMA user_version')).toEqual([{ user_version: 17 }]);
+      expect(await reader.query("SELECT name FROM sqlite_master WHERE type='index'")).toEqual([{ name: 'sample_value' }]);
+      expect(await reader.query('SELECT * FROM sample')).toEqual([{ id: 1, value: 'one' }]);
+    } finally { await reader.destroy(); }
+  });
+
+  it('joins a captured write during a read-only transaction without making another export after it completes', async () => {
+    await open(); const exports = gate();
+    const write = db.query("INSERT INTO sample VALUES (1, 'one')");
+    await until(() => blocked.length === 1); let committed = false;
+    const read = db.transaction('SERIALIZABLE', async manager => {
+      expect(await manager.query('SELECT * FROM sample')).toEqual([{ id: 1, value: 'one' }]);
+    }).then(() => { committed = true; });
+    await new Promise(resolve => setTimeout(resolve, 15));
+    expect(committed).toBe(false); expect(exports).toHaveBeenCalledTimes(1);
+    blocked[0].resolve(); await Promise.all([write, read]);
+    await db.transaction(async manager => { await manager.query('SELECT * FROM sample'); });
+    expect(exports).toHaveBeenCalledTimes(1); expect(peak).toBe(1); expect(await persistedCount()).toBe(1);
+  });
+
+  it('retains failed dirty data when a read-only transaction retries persistence before BEGIN', async () => {
+    await open(); const exports = gate();
+    const write = db.query("INSERT INTO sample VALUES (1, 'one')").then(() => 'unexpected', error => String(error));
+    await until(() => blocked.length === 1); blocked[0].reject(new Error('failed disk write'));
+    expect(await write).toContain('failed disk write'); expect(await persistedCount()).toBe(0);
+    let entered = false, completed = false;
+    const retry = db.transaction('SERIALIZABLE', async manager => {
+      entered = true; expect(await manager.query('SELECT * FROM sample')).toHaveLength(1);
+    }).then(() => { completed = true; });
+    await until(() => blocked.length === 2);
+    expect(entered).toBe(false); expect(completed).toBe(false);
+    blocked[1].resolve(); await retry;
+    expect(exports).toHaveBeenCalledTimes(2); expect(await persistedCount()).toBe(1);
+    await db.query('SELECT * FROM sample'); expect(exports).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not erase failed persistence when an awaited isolation control resumes after the failure', async () => {
+    await open(); const exports = gate();
+    const write = db.query("INSERT INTO sample VALUES (1, 'one')").then(() => 'unexpected', error => String(error));
+    await until(() => blocked.length === 1);
+    const runner = db.createQueryRunner(), controlEntered = deferred(), continueControl = deferred();
+    const broadcast = runner.broadcaster.broadcast.bind(runner.broadcaster);
+    jest.spyOn(runner.broadcaster, 'broadcast').mockImplementation(async (...args: any[]) => {
+      if (args[0] === 'BeforeQuery' && args[1] === 'PRAGMA read_uncommitted = false') {
+        controlEntered.resolve(); await continueControl.promise;
+      }
+      return broadcast(...args as Parameters<typeof broadcast>);
+    });
+    let committed = false;
+    const read = db.transaction('SERIALIZABLE', async manager => { await manager.query('SELECT * FROM sample'); })
+      .then(() => { committed = true; });
+    await controlEntered.promise; blocked[0].reject(new Error('failed while isolation control awaits'));
+    expect(await write).toContain('failed while isolation control awaits');
+    expect(await persistedCount()).toBe(0);
+    continueControl.resolve(); await until(() => blocked.length === 2);
+    expect(committed).toBe(false); blocked[1].resolve(); await read;
+    expect(await persistedCount()).toBe(1); expect(exports).toHaveBeenCalledTimes(2); expect(peak).toBe(1);
+  });
+
+  it('treats commented and multi-statement PRAGMA text conservatively, rather than matching only a clean prefix', async () => {
+    await open(); const exports = jest.spyOn((db.driver as any).databaseConnection, 'export');
+    await db.query('PRAGMA read_uncommitted = false /* conservative unknown suffix */');
+    expect(exports).toHaveBeenCalledTimes(1);
+    // TypeORM prepares one statement, but the adapter must not infer that arbitrary
+    // SQL following a known prefix is non-persistent if that driver detail changes.
+    await db.query('PRAGMA read_uncommitted = false; SELECT 1');
+    expect(exports).toHaveBeenCalledTimes(2);
+    await db.transaction('SERIALIZABLE', async manager => { await manager.query('SELECT * FROM sample'); });
+    expect(exports).toHaveBeenCalledTimes(2);
+  });
+
 });

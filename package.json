@@ -59,7 +59,8 @@
     "verify:prod-04c": "node scripts/verify-prod-04c.cjs",
     "verify:obs-16-04-backup-restore": "node scripts/verify-obs-16-04-backup-restore.cjs",
     "verify:obs-16-04-performance": "node scripts/verify-obs-16-04-performance.cjs",
-    "verify:security-parser-dependencies": "node scripts/verify-security-parser-dependencies.cjs"
+    "verify:security-parser-dependencies": "node scripts/verify-security-parser-dependencies.cjs",
+    "verify:security-residual-dependencies": "node --test scripts/test-security-residual-dependencies.cjs"
   },
   "keywords": [
     "mcp",
@@ -85,7 +86,10 @@
   "dependencies": {
     "@nestjs/platform-express": "10.4.22",
     "@nestjs/swagger": "7.4.2",
-    "@nestjs/config": "3.3.0"
+    "@nestjs/config": "3.3.0",
+    "@nestjs/common": "10.4.22",
+    "@nestjs/schedule": "4.1.2",
+    "@nestjs/typeorm": "10.0.2"
   },
   "overrides": {
     "@nestjs/platform-express": {
@@ -106,6 +110,15 @@
     },
     "@nestjs/config": {
       "lodash": "4.18.1"
+    },
+    "@nestjs/common": {
+      "file-type": "21.3.4"
+    },
+    "@nestjs/schedule": {
+      "uuid": "11.1.1"
+    },
+    "@nestjs/typeorm": {
+      "uuid": "11.1.1"
     }
   }
 }

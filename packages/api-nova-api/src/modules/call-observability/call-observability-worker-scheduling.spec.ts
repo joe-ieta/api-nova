@@ -81,3 +81,40 @@ it('collector advances a bounded directory scan but backs off on a partial sourc
     expect(timers.mock.calls.map(call => call[1])).toEqual([0, 0, 1000]);
   } finally { await worker.onModuleDestroy(); jest.restoreAllMocks(); jest.useRealTimers(); }
 });
+
+
+describe('collector backlog fast path retains failure and partial-line backoff', () => {
+  it.each([
+    ['partial line despite processed records', { partialBytes: 4 }, 'running', 1],
+    ['quarantined record', { quarantinedRecords: 1 }, 'running', 1],
+    ['source identity error', { errors: { SOURCE_FILE_CHANGED: 1 } }, 'running', 1],
+    ['degraded maintenance', {}, 'degraded', 1],
+  ])('%s', async (_name, extra, state, processedRecords) => {
+    jest.useFakeTimers();
+    const worker = new CallObservabilityWorker({} as any, {} as any, {} as any, { get: () => 'true' } as any);
+    const run = jest.spyOn(worker, 'runOnce').mockResolvedValue({ processedRecords, scanComplete: false, state,
+      scan: { partialBytes: 0, quarantinedRecords: 0, errors: {}, ...extra as any } } as any);
+    const timers = jest.spyOn(global, 'setTimeout');
+    try {
+      worker.onApplicationBootstrap(); await jest.advanceTimersByTimeAsync(10);
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(timers.mock.calls.map(call => call[1])).toEqual([0, 1000]);
+    } finally { await worker.onModuleDestroy(); jest.restoreAllMocks(); jest.useRealTimers(); }
+  });
+});
+
+
+it.each(['turnHasPartialLine', 'turnHasUnproductiveBacklog'])('collector backs off on %s even if the report otherwise permits fast draining', async hint => {
+  jest.useFakeTimers();
+  const worker = new CallObservabilityWorker({} as any, {} as any, {} as any, { get: () => 'true' } as any);
+  const run = jest.spyOn(worker, 'runOnce').mockImplementation(async () => {
+    (worker as any)[hint] = true;
+    return { processedRecords: 1, scanComplete: false, state: 'running', scan: { partialBytes: 0 } } as any;
+  });
+  const timers = jest.spyOn(global, 'setTimeout');
+  try {
+    worker.onApplicationBootstrap(); await jest.advanceTimersByTimeAsync(10);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(timers.mock.calls.map(call => call[1])).toEqual([0, 1000]);
+  } finally { await worker.onModuleDestroy(); jest.restoreAllMocks(); jest.useRealTimers(); }
+});
