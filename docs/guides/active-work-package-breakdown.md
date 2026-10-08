@@ -1,11 +1,13 @@
 ---
-doc-version: 1.89.0
+doc-version: 1.90.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
 # 活跃工作包划分与验收子任务
 
 ## 当前能力交付队列（2026-10-08）
+
+**掌握整体进度先看[任务包总览与五项后续清单](./active-work-package-execution-status.md#package-overview)**。本页保留任务合同、归属和依赖；历史细叶DONE不等于整个产品已完成交付。
 
 以当前工作分支 oc_dev 的实际代码和验收证据推进；main 的旧快照不代表当前工作进度。历史209个叶子保留追溯，不再为同一接缝新增细叶。每轮以一条可运行的产品流程及其验收结果交付。
 
