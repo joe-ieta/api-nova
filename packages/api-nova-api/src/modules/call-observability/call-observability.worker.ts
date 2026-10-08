@@ -58,7 +58,13 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
     // Root-module activation is an integration/deployment decision, not a side effect of import.
     if (this.config.get('API_NOVA_OBSERVABILITY_COLLECTOR_ENABLED') !== 'true') return;
     const tick = async () => {
-      try { await this.runOnce(); }
+      // Drain finite batches while making progress; yield between them for HTTP and
+      // other workers. Empty/failed passes retain the existing one-second backoff.
+      let nextDelayMs = 1000;
+      try {
+        const report = await this.runOnce();
+        if (report.processedRecords > 0 || (!report.scanComplete && report.scan.partialBytes === 0 && report.state === 'running')) nextDelayMs = 0;
+      }
       catch {
         if (Date.now() - this.lastWarning >= 15000) {
           this.lastWarning = Date.now();
@@ -66,7 +72,7 @@ export class CallObservabilityWorker implements OnApplicationBootstrap, OnModule
         }
       } finally {
         if (!this.stopping) {
-          this.timer = setTimeout(tick, 1000);
+          this.timer = setTimeout(tick, nextDelayMs);
           this.timer.unref();
         }
       }

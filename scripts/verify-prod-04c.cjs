@@ -198,6 +198,24 @@ async function main() {
     const saved=await api('GET',`/v1/runtime-assets/${assetId}/verification-runs/${result.verification.run.id}`);const smoke=saved.results.filter(r=>r.kind==='smoke');assert.ok(smoke.length);for(const r of smoke)assert.deepEqual(r.evidence.responsePayload,{omitted:true,reason:'binary_status_only'});
     const call=await request(apiBase+'/api/v1/gateway/binaryclosure/binary',{auth:null,headers:{'x-api-key':key},binary:true});assert.equal(call.status,200);assert.deepEqual(call.body,bytes);return {assetId,run:result.verification.run,realOutboundCount:received.length-before,bodyEvidenceOmitted:true};
   });
+  await step('gateway.unchanged_redeploy_reuses_verified_revision',async()=>{
+    const runIds=[];
+    for(let attempt=0;attempt<2;attempt++){
+      const before=received.length;
+      const result=await api('POST',`/v1/runtime-assets/${assetId}/deploy-gateway`,{publishedOnly:true});
+      assert.equal(result.verification.run.status,'passed',JSON.stringify(result));
+      assert.equal(result.verification.run.activationStatus,'activated');
+      assert.equal(result.verification.run.candidateRevision,firstRevision);
+      assert.ok(received.length>before,'repeat deployment must still execute candidate verification');
+      runIds.push(result.verification.run.id);
+    }
+    assert.notEqual(runIds[0],runIds[1]);
+    const rows=await db.query('SELECT id FROM gateway_route_snapshots WHERE "runtimeAssetId"=$1 AND revision=$2',[assetId,firstRevision]);
+    assert.equal(rows.rowCount,1,'one immutable snapshot per verified revision');
+    const call=await request(apiBase+'/api/v1/gateway/binaryclosure/binary',{auth:null,headers:{'x-api-key':key},binary:true});
+    assert.equal(call.status,200);assert.deepEqual(call.body,bytes);
+    return {candidateRevision:firstRevision,distinctVerificationRunIds:runIds,persistedSnapshotCount:rows.rowCount,liveConsumerStatus:call.status};
+  });
   await step('gateway.unsupported_blocks_before_outbound_preserves_live',async()=>{
     await api('PATCH',sampleUrl(samples['/binary'].id),{metadata:{responseAssertion:{mode:'exact'}}});await delay(1100);const before=received.length;const rejected=await api('POST',`/v1/runtime-assets/${assetId}/deploy-gateway`,{publishedOnly:true},409);const r={verification:rejected.error.details.verification};assert.equal(r.verification.run.status,'blocked',JSON.stringify(r));assert.equal(received.length,before,'unsupported binary candidate must not reach upstream');
     const call=await request(apiBase+'/api/v1/gateway/binaryclosure/binary',{auth:null,headers:{'x-api-key':key},binary:true});assert.equal(call.status,200);assert.deepEqual(call.body,bytes);await api('PATCH',sampleUrl(samples['/binary'].id),{metadata:{responseAssertion:{mode:'status'}},tags:[]});return {blockedRun:r.verification.run,previousRevision:firstRevision,previousRouteStillServed:true};

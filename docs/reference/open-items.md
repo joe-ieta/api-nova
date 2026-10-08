@@ -1,5 +1,5 @@
 ---
-doc-version: 1.17.0
+doc-version: 1.18.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
@@ -24,14 +24,14 @@ ENV-01按“完整通过或限制有证据”原合同限定完成；MCP失联�
 | 原任务 | 真实剩余出口 |
 | --- | --- |
 | SEC-F4-02 | 当前版本安全发布签收：目标环境、平台/数据库、依赖公告、身份与网络策略及实际开关 |
-| OBS-16-04 | 可观测部署签收：批准AC、性能、审计/正文保留、备份恢复、运行开关和回退证据 |
+| OBS-16-04 | 源写入完整性、采集/持久化/投影吞吐是首要阻断；之后完整容量查询与采集A/B，最终目标签收；本机完整PG冷备恢复已验 |
 | OPS-01 | 消费上述安全与可观测结果，完成生产权限、TLS/反代、日志目录与告警触达的统一签收 |
 
-用户已确认本轮暂用本机隔离环境，生产签收保留待办。可观测TLS信任正反补验已2/2通过；参考负载性能测量及完整数据库/正文/配置备份恢复仍未完成，可继续隔离准备。[可观测签收矩阵与外部输入](../audits/2026-10-08-observability-signoff-readiness.md)。
+用户已确认本轮暂用本机隔离环境，生产签收保留待办。可观测TLS信任正反补验已2/2通过；完整PG数据库/正文/配置及独立秘密的冷备恢复已7/7通过，见[恢复演练](../audits/2026-10-08-observability-backup-restore.md)；参考负载性能已完成测量但未达标，且存在源写入记录缺口；下一步为源writer与采集持久化/投影吞吐整改，随后完整容量查询和等价采集A/B。[双数据库性能与缺口证据](../audits/2026-10-08-observability-performance.md)。[可观测签收矩阵与外部输入](../audits/2026-10-08-observability-signoff-readiness.md)。
 
 默认关闭的host网络路径、Verified许可、受管IPC、清理/投递worker等必须按各自部署合同显式安装或启用。已有本地和容器验证不自动等于生产可用。真实邮件外发、目标SMTP和第三方接收端仅在明确范围下执行。
 
-本轮已刷新生产依赖审计并修复proxy-addr critical，32→29个受影响依赖节点（0 critical/14 high/15 moderate），3项真实HTTP回归通过。残余兼容补丁和可利用性复核仍可本地推进，不把它们笼统归为等待生产环境；不进行未经评估的重大依赖升级。[当前安全准备](../audits/2026-10-08-security-signoff-readiness.md)。
+前批修复proxy-addr critical，本批兼容更新后审计29→21节点（0 critical/6 high/15 moderate）；上传解析阶段限额HTTP8/8、SDK合同71/71。Nest旧上传/解析器链等仍需本地可复现迁移与风险处置，不把它们归为等待生产环境。[当前安全证据](../audits/2026-10-08-security-dependency-closure.md)。
 
 ## 已交付能力的复用边界
 
@@ -43,4 +43,4 @@ EXT-06/07/08/09、MCP端点表单和真实监听、绑定失效与审计检索�
 
 OAuth2（DEFER-01/SEC-G1/EXT-10）、额外令牌适配与跨协议QoS（DEFER-02）继续延期。完整跨进程发布CAS经[PROD-06范围核定](../audits/2026-09-26-prod-06-cas-scope-determination.md)属未批准的强化候选，不进入当前产品闭环。已完成邮件和前端任务不再列作延期或无期限微修。
 
-已知待查（归OPS-01）：在物理缺失修复前的隔离PG复现中，同candidateRevision重复激活触发唯一键冲突，验证run最终failed/retained_previous，旧版本保留（`.tmp/prod-04c-5NfT7Y/api-first.log`）。本轮没有修改该激活逻辑，不能声称无变化重复部署幂等已通过；下一轮在完整样例下独立复现并处理，不新增历史细叶。
+已解决（归OPS-01）：同candidateRevision重复激活的唯一键冲突已通过复用一致且有效的不可变快照修复，重复验证仍真实外发；真实PG/HTTP17/17通过。[证据](../audits/2026-10-08-gateway-repeat-deployment.md)。不宣称多主机并发首次激活幂等或完整OPS签收。

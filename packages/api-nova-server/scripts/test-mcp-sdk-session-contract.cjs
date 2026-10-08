@@ -1,5 +1,5 @@
 'use strict';
-// SEC-B3-02: fresh Parser/Server builds required. No SDK upgrade.
+// SEC-B3-02: fresh Parser/Server builds required. SDK version changes require rerunning this contract.
 const { test } = require('node:test'),
   assert = require('node:assert/strict');
 const fs = require('node:fs/promises'),
@@ -20,12 +20,12 @@ const {
 const { startStreamableMcpServer } = require('../dist/transportUtils/stream.js');
 const { startSseMcpServer } = require('../dist/transportUtils/sse.js');
 const names = (result) => result.tools.map((tool) => tool.name).sort();
-test('SDK 1.29.0 dispatcher: shape, late registration and idempotence', async () => {
+test('SDK 1.32.1 dispatcher: shape, late registration and idempotence', async () => {
   const sdkRoot = path.resolve(
     path.dirname(require.resolve('@modelcontextprotocol/sdk/server/mcp.js')),
     '../../..',
   );
-  assert.equal(JSON.parse(await fs.readFile(path.join(sdkRoot, 'package.json'), 'utf8')).version, '1.29.0');
+  assert.equal(JSON.parse(await fs.readFile(path.join(sdkRoot, 'package.json'), 'utf8')).version, '1.32.1');
   assert.throws(
     () => installMcpToolListScopeFilter({ server: { _requestHandlers: {} } }),
     /Unsupported MCP tool-list dispatcher/,

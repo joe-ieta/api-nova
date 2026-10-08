@@ -40,10 +40,16 @@ export class CallObservabilityOutboxService implements OnApplicationBootstrap, O
   onApplicationBootstrap(): void {
     if (this.config.get('API_NOVA_OBSERVABILITY_OUTBOX_ENABLED') !== 'true') return;
     const tick = async () => {
-      try { await this.runOnce(); } catch { /* A bounded lease preserves recovery for the next cycle. */ }
+      // Drain finite batches while making progress; yield between them for HTTP and
+      // other workers. Empty/failed passes retain the existing one-second backoff.
+      let nextDelayMs = 1000;
+      try {
+        const report = await this.runOnce();
+        if (report.materializedEvents > 0) nextDelayMs = 0;
+      } catch { /* A bounded lease preserves recovery for the next cycle. */ }
       finally {
         if (!this.stopping) {
-          this.timer = setTimeout(tick, 1000);
+          this.timer = setTimeout(tick, nextDelayMs);
           this.timer.unref();
         }
       }

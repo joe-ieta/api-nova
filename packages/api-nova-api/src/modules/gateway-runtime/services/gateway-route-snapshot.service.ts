@@ -402,16 +402,34 @@ export class GatewayRouteSnapshotService implements OnModuleInit, OnModuleDestro
       entry => entry.runtimeAsset.id === candidate.runtimeAssetId,
     );
     const repository = manager?.getRepository(GatewayRouteSnapshotEntity) || this.persistedSnapshotRepository;
-    await repository.save(
-      repository.create({
-        runtimeAssetId: candidate.runtimeAssetId,
-        revision: candidateRevision,
-        fingerprint: candidate.snapshotFingerprint,
-        routeCount: candidate.entries.length,
-        payload: this.serializeEntries(candidate.entries),
-        activatedAt: new Date(),
-      }),
-    );
+    const existing = await repository.findOneBy({
+      runtimeAssetId: candidate.runtimeAssetId, revision: candidateRevision,
+    });
+    if (existing) {
+      // Re-verification of unchanged behavior creates a new run, not a second
+      // immutable snapshot. Never overwrite conflicting or corrupt evidence.
+      let valid = false;
+      try {
+        const restored = this.deserializeEntries(existing.payload, candidate.entries[0].runtimeAsset);
+        this.assertSnapshotPolicies(restored);
+        valid = existing.fingerprint === candidate.snapshotFingerprint &&
+          existing.routeCount === candidate.entries.length &&
+          restored.length === existing.routeCount &&
+          this.fingerprintEntries(restored) === existing.fingerprint;
+      } catch { /* A damaged persisted revision must fail closed. */ }
+      if (!valid) throw new Error('GATEWAY_SNAPSHOT_REVISION_CONFLICT');
+    } else {
+      await repository.save(
+        repository.create({
+          runtimeAssetId: candidate.runtimeAssetId,
+          revision: candidateRevision,
+          fingerprint: candidate.snapshotFingerprint,
+          routeCount: candidate.entries.length,
+          payload: this.serializeEntries(candidate.entries),
+          activatedAt: new Date(),
+        }),
+      );
+    }
     this.rollbackSnapshots.set(candidate.runtimeAssetId, previousEntries);
     this.snapshot = this.sortSnapshot([
       ...this.snapshot.filter(entry => entry.runtimeAsset.id !== candidate.runtimeAssetId),

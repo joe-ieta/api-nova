@@ -1,5 +1,5 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.0.1
 doc-status: active
 doc-updated: 2026-10-08
 ---
@@ -7,7 +7,9 @@ doc-updated: 2026-10-08
 
 用户已选择本轮暂用本机隔离环境，生产签收保留待办。SEC-F4-02未完成：本轮刷新依赖证据并修复新增critical项；残余依赖风险处置和目标环境权限/网络/开关签收仍需完成，不把审计命令执行成功视为安全通过。
 
-## 当前依赖审计
+后续同日已完成第二批兼容更新，最新为21个依赖节点（6 high、15 moderate）；本页保留第一批历史证据，当前结果与逐项剩余行动以[第二批风险处置](./2026-10-08-security-dependency-closure.md)为准。
+
+## 第一批依赖审计
 
 在`oc_dev / 94b5841`加本轮改动上运行`npm audit --omit=dev --json`。该命令退出1表示有依赖告警，HTTP查询和JSON解析成功；没有运行`npm audit fix`。
 

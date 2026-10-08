@@ -24,7 +24,7 @@ import {
   ApiQuery,
   ApiParam,
 } from '@nestjs/swagger';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { OpenAPIUploadInterceptor, openAPIUploadLimit } from './openapi-upload.interceptor';
 import { Express } from 'express';
 import { LoggingInterceptor } from '../../common/interceptors/logging.interceptor';
 import { OpenAPIService } from './services/openapi.service';
@@ -44,16 +44,6 @@ export class OpenAPIController {
     private readonly openApiService: OpenAPIService,
     private readonly configService: AppConfigService,
   ) {}
-
-  private parseFileSize(sizeStr: string): number {
-    const units = { B: 1, KB: 1024, MB: 1024 * 1024, GB: 1024 * 1024 * 1024 };
-    const match = sizeStr.match(/^(\d+)\s*(B|KB|MB|GB)$/i);
-    if (!match) {
-      throw new Error(`Invalid file size format: ${sizeStr}`);
-    }
-    const [, size, unit] = match;
-    return parseInt(size) * units[unit.toUpperCase()];
-  }
 
   @Post('parse')
   @HttpCode(HttpStatus.OK)
@@ -209,7 +199,7 @@ export class OpenAPIController {
 
   @Post('upload')
   @HttpCode(HttpStatus.OK)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(OpenAPIUploadInterceptor)
   @ApiOperation({
     summary: 'Upload and parse OpenAPI/Swagger specification file',
     description: 'Upload a JSON or YAML file containing OpenAPI/Swagger specification',
@@ -250,7 +240,7 @@ export class OpenAPIController {
 
       // Check file size using configured limit
       const maxFileSizeStr = this.configService.maxOpenAPIFileSize;
-      const maxSize = this.parseFileSize(maxFileSizeStr);
+      const maxSize = openAPIUploadLimit(maxFileSizeStr);
       if (file.size > maxSize) {
         throw new BadRequestException(`File size exceeds ${maxFileSizeStr} limit`);
       }
@@ -289,7 +279,7 @@ export class OpenAPIController {
 
   @Post('validate-upload')
   @HttpCode(HttpStatus.OK)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(OpenAPIUploadInterceptor)
   @ApiOperation({
     summary: 'Upload and validate OpenAPI/Swagger specification file',
     description: 'Upload a JSON or YAML file for validation only',
@@ -339,7 +329,7 @@ export class OpenAPIController {
 
       // Check file size using configured limit
       const maxFileSizeStr = this.configService.maxOpenAPIFileSize;
-      const maxSize = this.parseFileSize(maxFileSizeStr);
+      const maxSize = openAPIUploadLimit(maxFileSizeStr);
       if (file.size > maxSize) {
         throw new BadRequestException(`File size exceeds ${maxFileSizeStr} limit`);
       }

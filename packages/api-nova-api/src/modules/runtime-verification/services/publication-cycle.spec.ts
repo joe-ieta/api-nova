@@ -55,6 +55,11 @@ describe('bounded SQL.js registered fixture -> binding -> verification -> activa
   };
   const first=await plan();expect(first.canExecute).toBe(true);await execute(first.run);
   const active=(await repo(RuntimeAssetEntity).findOneByOrFail({id:id(3)})).metadata.activeRevision;expect(active).toBe(first.run.candidateRevision);
+  if(type==='gateway_service') {
+   const repeated=await plan();expect(repeated.run.candidateRevision).toBe(active);
+   expect((await execute(repeated.run)).run.status).toBe('passed');
+   expect(await repo(GatewayRouteSnapshotEntity).count()).toBe(1);
+  }
   context.behaviorFingerprint = 'unpublished-candidate'; const old=await plan();
   await bindings.upsert(id(4),{...dto,expectedRevision:binding.binding.revision},{actorId:'operator-fixture'});
   const changed=await repo(RuntimeAssetEntity).findOneByOrFail({id:id(3)});

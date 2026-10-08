@@ -1,5 +1,5 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.0.1
 doc-status: active
 doc-updated: 2026-10-08
 ---
@@ -43,4 +43,4 @@ doc-updated: 2026-10-08
 
 判定：PROD-04C按本机Windows/PG与既有SQL.js组合证据限定DONE。生产运行账户/ACL、Linux文件语义及MCP二进制真实外发仍未由本次证明，统一在SEC-F4-02/OPS-01后续矩阵中列明；不表示生产存储已签收。
 
-已知待查（归OPS-01）：在物理缺失修复前的隔离PG复现中，同candidateRevision重复激活触发唯一键冲突，验证run最终failed/retained_previous，旧版本保留（`.tmp/prod-04c-5NfT7Y/api-first.log`）。本轮没有修改该激活逻辑，不能声称无变化重复部署幂等已通过；下一轮在完整样例下独立复现并处理，不新增历史细叶。
+后续已解决（归OPS-01）：同candidateRevision重复激活唯一键冲突已独立复现并修复，完整样例下两次重复部署仍执行真实验证，仅保留一份有效快照；后续PG/HTTP17/17通过，见[重复部署证据](./2026-10-08-gateway-repeat-deployment.md)。本报告原16项为上一轮执行记录，不回写成当时已验。

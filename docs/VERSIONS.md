@@ -14,10 +14,14 @@
 
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
-| [PROD-04C二进制留存联合验收](./audits/2026-10-08-prod-04c-binary-lifecycle.md) | 1.0.0 | active | 2026-10-08 |
+| [Gateway同版本重复部署修复](./audits/2026-10-08-gateway-repeat-deployment.md) | 1.0.0 | active | 2026-10-08 |
+| [第二批安全依赖与上传防护](./audits/2026-10-08-security-dependency-closure.md) | 1.0.0 | active | 2026-10-08 |
+| [可观测完整冷备恢复](./audits/2026-10-08-observability-backup-restore.md) | 1.0.0 | active | 2026-10-08 |
+| [可观测双DB性能与吞吐阻断](./audits/2026-10-08-observability-performance.md) | 1.0.0 | active | 2026-10-08 |
+| [PROD-04C二进制留存联合验收](./audits/2026-10-08-prod-04c-binary-lifecycle.md) | 1.0.1 | active | 2026-10-08 |
 | [ENV-01健康与监控入口](./audits/2026-10-08-env-01-health-and-monitoring.md) | 1.0.0 | active | 2026-10-08 |
-| [SEC-F4-02本地安全签收准备](./audits/2026-10-08-security-signoff-readiness.md) | 1.0.0 | active | 2026-10-08 |
-| [OBS-16-04可观测签收准备](./audits/2026-10-08-observability-signoff-readiness.md) | 1.0.0 | active | 2026-10-08 |
+| [SEC-F4-02本地安全签收准备](./audits/2026-10-08-security-signoff-readiness.md) | 1.0.1 | active | 2026-10-08 |
+| [OBS-16-04可观测签收准备](./audits/2026-10-08-observability-signoff-readiness.md) | 1.1.0 | active | 2026-10-08 |
 | [EXT-01～05 Gateway能力闭环](./audits/2026-10-08-ext-01-05-gateway-lifecycle.md) | 1.0.0 | active | 2026-10-08 |
 | [docs/testing/runtime-publication-acceptance-cases.md](./testing/runtime-publication-acceptance-cases.md) | 1.0.0 | active | 2026-10-08 |
 | [OBS-14-03E3 授权物理清理](./audits/2026-09-26-obs-14-03e3-physical-cleanup.md) | 1.0.0 | active | 2026-09-26 |
@@ -87,11 +91,11 @@
 | [额度中断恢复证据](./audits/2026-09-17-interruption-recovery-evidence.md) | 1.0.0 | active | 2026-09-17 |
 | [重拆第五批限定证据](./audits/2026-09-16-replanned-batch-5-evidence.md) | 1.0.0 | active | 2026-09-16 |
 | [端点测试二进制样例合同](./guides/endpoint-test-binary-sample-contract.md) | 0.9.0 | active | 2026-10-08 |
-| [活跃工作包划分](./guides/active-work-package-breakdown.md) | 1.92.0 | active | 2026-10-08 |
+| [活跃工作包划分](./guides/active-work-package-breakdown.md) | 1.93.0 | active | 2026-10-08 |
 | [安全交付验收证据索引](./guides/security-delivery-evidence-index.md) | 1.120.0 | active | 2026-09-28 |
 | [邮件投递范围与受控验收合同](./guides/mail-delivery-scope-and-acceptance.md) | 1.1.0 | active | 2026-09-26 |
 | [MCP发布端点合同](./guides/mcp-publication-endpoint-contract.md) | 0.2.0 | active | 2026-09-21 |
-| [开发任务包总览与执行状态](./guides/active-work-package-execution-status.md) | 1.190.0 | active | 2026-10-08 |
+| [开发任务包总览与执行状态](./guides/active-work-package-execution-status.md) | 1.191.0 | active | 2026-10-08 |
 | [受管MCP启动交付设计](./guides/managed-mcp-credential-handoff-plan.md) | 0.4.0 | reviewed-slice | 2026-09-21 |
 | [候选激活与GC重试](./audits/2026-09-15-activation-gc-wave.md) | 1.0.0 | active | 2026-09-15 |
 | [上游归属交叉核验](./audits/2026-09-15-upstream-ownership-wave.md) | 1.0.0 | active | 2026-09-15 |
@@ -118,7 +122,7 @@
 | [docs/guides/publication-resource-baseline.md](./guides/publication-resource-baseline.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/guides/README.md](./guides/README.md) | 1.3.1 | active | 2026-09-16 |
 | [docs/guides/release-readiness-checklist.md](./guides/release-readiness-checklist.md) | 1.1.0 | active | 2026-09-08 |
-| [docs/guides/staged-development-plan.md](./guides/staged-development-plan.md) | 1.4.0 | active | 2026-10-08 |
+| [docs/guides/staged-development-plan.md](./guides/staged-development-plan.md) | 1.5.0 | active | 2026-10-08 |
 | [docs/README.md](./README.md) | 1.3.1 | active | 2026-09-16 |
 | [docs/reference/changelog-field-guide.md](./reference/changelog-field-guide.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/esm-commonjs-quick-reference.md](./reference/esm-commonjs-quick-reference.md) | 1.0.0 | active | 2026-09-07 |
@@ -126,7 +130,7 @@
 | [docs/reference/management-permission-matrix.md](./reference/management-permission-matrix.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/mcp-jsonrpc-relationship.md](./reference/mcp-jsonrpc-relationship.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/nodejs-module-systems-guide.md](./reference/nodejs-module-systems-guide.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/reference/open-items.md](./reference/open-items.md) | 1.17.0 | active | 2026-10-08 |
+| [docs/reference/open-items.md](./reference/open-items.md) | 1.18.0 | active | 2026-10-08 |
 | [docs/reference/README.md](./reference/README.md) | 1.3.0 | active | 2026-09-14 |
 | [docs/reference/versioning-policy.md](./reference/versioning-policy.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/release/api-nova-release-requirements.md](./release/api-nova-release-requirements.md) | 1.1.0 | active | 2026-09-08 |

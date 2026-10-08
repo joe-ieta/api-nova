@@ -381,6 +381,7 @@ describe('PublicationService', () => {
       new GatewayPolicyService(),
       { find: jest.fn(async () => [route]) } as any,
       {
+        findOneBy: jest.fn().mockResolvedValue(null),
         create: jest.fn(value => value),
         save: jest.fn(async value => value),
       } as any,

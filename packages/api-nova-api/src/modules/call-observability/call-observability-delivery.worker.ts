@@ -72,7 +72,13 @@ export class CallObservabilityDeliveryWorker implements OnApplicationBootstrap, 
   onApplicationBootstrap(): void {
     if (this.config.get('API_NOVA_OBSERVABILITY_WEBHOOK_ENABLED') !== 'true') return;
     const tick = async () => {
-      try { await this.runOnce(); }
+      // Drain finite batches while making progress; yield between them for HTTP and
+      // other workers. Empty/failed passes retain the existing one-second backoff.
+      let nextDelayMs = 1000;
+      try {
+        const report = await this.runOnce();
+        if (report.claimed > 0) nextDelayMs = 0;
+      }
       catch {
         if (Date.now() - this.lastWarning >= 15000) {
           this.lastWarning = Date.now();
@@ -80,7 +86,7 @@ export class CallObservabilityDeliveryWorker implements OnApplicationBootstrap, 
         }
       } finally {
         if (!this.stopping) {
-          this.timer = setTimeout(tick, 1000);
+          this.timer = setTimeout(tick, nextDelayMs);
           this.timer.unref();
         }
       }
