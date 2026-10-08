@@ -69,12 +69,9 @@ export class HealthController {
             return await this.http.pingCheck('mcp_server', `${mcpUrl}/health`);
           } catch (error) {
             this.logger.warn(`MCP server health check failed: ${error.message}`);
-            return {
-              mcp_server: {
-                status: 'down',
-                message: error.message,
-              },
-            };
+            // Terminus treats returned values as success, including status=down.
+            // Preserve the indicator error so dependency failure produces HTTP 503.
+            throw error;
           }
         },
       ]);

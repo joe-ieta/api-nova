@@ -1,5 +1,5 @@
 ---
-doc-version: 1.2.0
+doc-version: 1.3.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
@@ -93,7 +93,9 @@ Current progress:
 Next order:
 
 1. Complete the remaining binary-sample retention acceptance (PROD-04C) using the existing capture, download, revocation, cleanup, and recovery implementation.
-2. Complete target-environment health and release sign-off (ENV-01, SEC-F4-02, OBS-16-04, OPS-01). Local validation does not establish production availability.
+2. Continue local dependency remediation, observability performance and complete backup/restore preparation; then finish target-environment sign-off (SEC-F4-02, OBS-16-04, OPS-01). The user selected local isolated validation for now; production sign-off remains open.
+
+ENV-01 is complete under its original pass-or-evidenced-limitation criterion: the real MCP health failure is now propagated, while full health still reports the host system-disk threshold. Monitoring SPA routing is repaired in packaged and Vite startup modes. See [health evidence](../audits/2026-10-08-env-01-health-and-monitoring.md). A completed diagnostic task is not a claim that full health is green.
 
 EXT-01 through EXT-05 are now complete within Windows local real-HTTP scope: 11/11 workflow stages, 94 suites/1312 tests, and the final API build passed. The workflow exposed and fixed incorrect instance creation for unbound imports, authenticated candidate replay, and stale probe addresses after instance migration. See [acceptance evidence](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md). PostgreSQL, Linux, browser interaction, production identity, and MCP transport are outside this run.
 

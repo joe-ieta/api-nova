@@ -1,13 +1,13 @@
 ---
-doc-version: 1.188.0
+doc-version: 1.189.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
 # 开发任务包总览与执行状态
 
-> 最近复核：2026-10-08；代码基线：`oc_dev / ad6793d`。项目处于**核心能力收口与发布验收阶段，整体交付尚未完成**。
+> 最近复核：2026-10-08；代码基线：`oc_dev / 94b5841`加本轮隔离验收改动。项目处于**核心能力收口与发布验收阶段，整体交付尚未完成**。
 >
-> 当前里程碑还有 **5项待完成工作**，另有 **2项明确延期**；当前没有登记在执行中的开发任务。下一主线为二进制样例完整留存验收，可并行准备健康检查与目标环境。
+> 当前里程碑还有 **4项待完成工作**，另有 **2项明确延期**；ENV-01已按原合同限定验收；本轮3项继续推进：PROD-04C、SEC-F4-02、OBS-16-04；OPS-01等待安全与可观测签收，本地部署入口排查可先行。
 
 阅读入口：[任务包总览](#package-overview) · [后续执行清单](#next-work) · [子任务统计与明细](#task-ledger) · [历史记录](#history)。原任务合同与依赖见[任务划分](./active-work-package-breakdown.md)。
 
@@ -23,22 +23,23 @@ doc-updated: 2026-10-08
 | 二进制样例完整留存 | **未完成：下一主线，待联合验收** | 对象采集、授权下载、撤销、清理、故障恢复已分别实现和验证 | PROD-04C：到期回收、引用一致、重启/重复执行、越权读取及PG/平台联合验证 |
 | 安全发布 | **实现已有，待目标环境签收** | 凭据/权限、策略、运行时许可、重载撤销及局部跨平台矩阵已有证据 | SEC-F4-02：同一候选版本的平台/DB、身份、网络、依赖与有效开关核验 |
 | 可观测与审计运维 | **实现已有，待部署签收** | 调用关联、审计、保留清理、受控投递及部分PG多进程/恢复矩阵已有证据 | OBS-16-04：实际接收端/TLS、性能、留存、备份恢复、开关与回退验收 |
-| 安装、健康与用户操作 | **部分验收，整体仍待验证** | Windows API/UI启动、Ubuntu容器核心流程已有记录；真实浏览器点击全过程尚未闭合 | ENV-01负责Windows完整health；OPS-01负责同版本目标部署与浏览器注册→发布→消费→运维流程 |
+| 安装、健康与用户操作 | **部分验收，整体仍待验证** | Windows API/UI启动、Ubuntu容器核心流程已有记录；真实浏览器点击全过程尚未闭合 | ENV-01已完成完整health复核并明确系统盘限制；OPS-01负责同版本目标部署与浏览器注册→发布→消费→运维流程 |
 | 最终发布交付 | **未完成：等待签收汇总** | 各能力包的实现与限定证据可复用 | OPS-01依赖安全与可观测签收，汇总留存/健康与整体操作结果，形成可复现部署、回退及发布结论 |
 | 邮件、前端分块与国际化 | **已限定交付，转回归维护** | MAIL-01/02、MAINT-01/02已有受控投递、构建及相关回归 | 生产SMTP/告警触达归目标部署验收；仅修交付阻断或重大问题，不重新扩展整理任务 |
 
 <a id="next-work"></a>
-## 后续执行清单：当前里程碑剩余5项
+## 后续执行清单：当前里程碑剩余4项
 
-以下五项是仍需关闭的原任务；顺序是执行优先级，不表示已经开工。NEED_ENV需先核实具体可用环境，不表示无法进行本地准备。
+以下四项是仍需关闭的原任务；顺序是执行优先级，不表示已经开工。NEED_ENV需先核实具体可用环境，不表示无法进行本地准备。
 
 | 顺序与原任务 | 当前状态 / 可并行关系 | 下一步具体工作 | 完成标准 |
 | --- | --- | --- | --- |
-| 1 · PROD-04C 二进制样例留存 | **NEED_ENV，下一主线，未开工**；已完成依赖PROD-04B3D | 复用现有实现与脚本，核实隔离PG、存储目录和执行身份；跑采集→读取→到期/撤销→清理→重启恢复的完整流程 | 引用一致，无越权读取或误删；重启/重复执行结果正确；记录PG/平台覆盖与未覆盖范围，完整出口有实测证据 |
-| 并行 · ENV-01 完整健康检查 | **NEED_ENV，未开工**；无新增代码前置依赖 | 复跑Windows完整health，区分磁盘阈值、运行时状态和权限限制，修复产品缺陷或给出有证据的环境结论 | 保存完整探测结果及限制；不能用ready成功替代，也不能靠放宽系统策略通过 |
-| 2 · SEC-F4-02 安全发布签收 | **NEED_ENV，未开工**；已列实现依赖均有DONE记录 | 明确候选版本和目标平台/数据库、身份与网络配置；复核依赖公告、运行开关、凭据和权限正反向行为 | 各原安全出口在目标环境有可追溯结果，残余风险及启用条件明确，形成安全签收结论 |
-| 2 · OBS-16-04 可观测部署签收 | **WAIT_DEP，未开工**；可与安全签收并行准备 | 原实现依赖已DONE，实际等待部署配置、接收端/TLS信任及性能/留存条件；验证真实投递、审计保留、备份恢复、开关和回退 | 原批准验收条件有实测证据；失败和回退可执行，形成可观测签收结论 |
+| 1 · PROD-04C 二进制样例留存 | **IN_PROGRESS，主线实施中**；已完成依赖PROD-04B3D | 复用现有实现与脚本，核实隔离PG、存储目录和执行身份；跑采集→读取→到期/撤销→清理→重启恢复的完整流程 | 引用一致，无越权读取或误删；重启/重复执行结果正确；记录PG/平台覆盖与未覆盖范围，完整出口有实测证据 |
+| 2 · SEC-F4-02 安全发布签收 | **IN_PROGRESS，执行中**；已列实现依赖均有DONE记录 | 明确候选版本和目标平台/数据库、身份与网络配置；复核依赖公告、运行开关、凭据和权限正反向行为 | 各原安全出口在目标环境有可追溯结果，残余风险及启用条件明确，形成安全签收结论 |
+| 2 · OBS-16-04 可观测部署签收 | **IN_PROGRESS，本地准备与条件核验中**；与安全签收并行 | 原实现依赖已DONE，实际等待部署配置、接收端/TLS信任及性能/留存条件；验证真实投递、审计保留、备份恢复、开关和回退 | 原批准验收条件有实测证据；失败和回退可执行，形成可观测签收结论 |
 | 3 · OPS-01 最终交付签收 | **WAIT_DEP，未开工**；直接等待SEC-F4-02、OBS-16-04 | 在同一候选版本与目标环境汇总留存、健康、安全和可观测结果；完成真实浏览器主流程、部署重启、权限/TLS、告警及回退核验 | 交付步骤可复现，必要证据齐备，阻断问题清零或有明确处置；给出发布/不发布结论，不以本地单测代替 |
+
+本轮并发依赖：PROD-04C的B3D实现前置已完成，ENV-01无新增代码依赖，两者可独立运行；SEC-F4-02和OBS-16-04的已列实现前置均为DONE，可并行核对当前版本与部署条件。OPS-01仍以安全和可观测签收为直接前置，并汇总二进制留存、健康及用户操作证据。正在执行本地准备不代表目标环境已签收；待外部输入会明确列出，不静默关闭任务。
 
 推进安排：先以PROD-04C为主要交付包，同时处理ENV-01和目标环境准备；安全与可观测签收具备条件后并行执行，最后汇总OPS-01。每包完成后更新本总览、下方原子任务状态和证据，再提交推送。只修阻断验收或有明确重大影响的问题。
 
@@ -48,25 +49,30 @@ doc-updated: 2026-10-08
 
 ## 最近完成的能力包
 
+ENV-01已限定完成：完整health实测及限制留证，修复MCP异常汇总；运行MCP后仅系统盘90%阈值失败。最后采样距阈值差约678MB，建议人工释放至少1GB并留余量后重跑。两种部署方式的监控页入口已修复，8项HTTP通过；不声称浏览器全过程完成。[健康与入口证据](../audits/2026-10-08-env-01-health-and-monitoring.md)。
+
+用户环境选择已确认：本轮只用本机隔离环境，生产签收保留待办。安全依赖critical已修复，残余兼容补丁/可利用性复核仍可本地推进；可观测TLS信任补验已完成，性能与完整备份恢复仍是实质待办。不能把这些本地可做工作笼统标成“等环境”。
+
+
 EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试治理→发布部署→上游A/B迁移→认证聚合消费。修复无server误建实例、认证候选无法重放、自动探测旧地址三项阻塞；11/11阶段、94 suites/1312 tests及API构建通过，已提交推送`ad6793d`。[完整证据](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md)。本轮未覆盖PG/Linux/外部生产身份/浏览器/MCP，不等于生产签收。
 
 <a id="task-ledger"></a>
 ## 历史子任务统计与当前明细
 
-以下209条是不同大小的历史实现、文档、验证及环境子项；202条DONE不能换算成项目完成百分比。掌握整体状态请看页首能力包和五项后续清单；需要定位具体代码与证据时再查明细。
+以下209条是不同大小的历史实现、文档、验证及环境子项；203条DONE不能换算成项目完成百分比。掌握整体状态请看页首能力包和四项后续清单；需要定位具体代码与证据时再查明细。
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 202 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 203 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 0 | 没有已登记READY的原子项；本地准备可按后续清单开展 |
-| IN_PROGRESS | 0 | EXT-01～05已限定验收；下一能力包尚未登记开工 |
-| WAIT_DEP | 2 | OBS-16-04等部署条件；OPS-01等安全/可观测签收 |
-| NEED_ENV | 3 | PROD-04C、ENV-01、SEC-F4-02待核实环境并执行验收 |
+| IN_PROGRESS | 3 | PROD-04C实际验收；SEC-F4-02残余风险处置；OBS-16-04性能/备份恢复及签收准备 |
+| WAIT_DEP | 1 | OPS-01等待安全/可观测签收；本地入口检查可先行 |
+| NEED_ENV | 0 | 环境调查已开工；未确定的生产条件在各进行中任务内明确登记 |
 | SCOPE_REVIEW | 0 | PROD-06 核定后无待判范围项 |
 | DEFERRED | 2 | 不属于当前里程碑 |
 
 <details>
-<summary>展开209条原子任务状态与证据（含202条历史DONE）</summary>
+<summary>展开209条原子任务状态与证据（含203条历史DONE）</summary>
 
 ## 2. 子任务状态与证据
 
@@ -196,7 +202,7 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | SEC-F3-03 | DONE | 限定全渠道扫描完成（[证据](../audits/2026-09-28-f3-03-secret-leak-matrix.md)）：真实child+回环上游+SQL.js，9合成秘密跨15渠道、904项检查0泄露、检测器非空洞自测；含OS级argv/spawn与实际env/stdio/错误面/静态码/持久行/状态事件/日志投影/管理审计检索；notCovered=部署级HTTP审计sink/ProcessInfo/观测事件sink/Linux argv |
 | SEC-F3a-01 | DONE | 限定在线审计完成（[证据](../audits/2026-09-26-dependency-reachability-audit.md)）：首轮生产32项（0C/10H/21M/1L）；授权后补丁批已执行：主版本内12包+UI echarts6/vue-echarts8，生产降至19（0C/4H/15M/0L），残余全部归Nest12族；Parser 49/1196、API 148/1623与三包构建回归通过 |
 | SEC-F4-01 | DONE | 当前112个SEC叶子以逐项或明确聚合旧ID维护，D2b1/b2/b3a–d及C2b1/b2a/b2b1/b2b2/b3依赖已登记；区分历史/本地限定/未运行环境，不代表F4-02签收 |
-| SEC-F4-02 | NEED_ENV | 安全实现依赖已有限定验收；待确定候选版本、目标平台/数据库、身份与网络配置，复核依赖公告、有效开关及正反向权限矩阵后签收 |
+| SEC-F4-02 | IN_PROGRESS | [本地准备与补丁](../audits/2026-10-08-security-signoff-readiness.md)：刷新生产依赖32→29项，proxy-addr 2.0.8修复critical，3项真实HTTP通过；残余14 high/15 moderate待受控处置；用户选本机隔离，生产身份/平台/网络和开关签收仍待 |
 | OBS-06-01 | DONE | 限定矩阵完成：新增`verify:mcp-observability-matrix`聚合4个server脚本（11+17+15+12）与Parser上游失败74项，输出`MCP_OBSERVABILITY_MATRIX_OK`；success/cancel/发送中断/大响应三transport有结果（16MiB Tool省略/8MiB完整），Windows原生对照复现双方timeout；Linux/OBS-06-02、AC-02 retry与MCP调用超时仍归TP06/16 |
 | OBS-06-02 | DONE | 限定跨平台完成（[证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:obs-06-02` `OBS_06_02_VERIFY_OK`——Ubuntu24.04/容器Node v24.15.0与Windows同版本矩阵22行21匹配（server 11/17/15/12、parser 74/74、15 transport单元一致）；1项记录差异=16MiB cork/uncork Linux completed vs Windows timeout（字节相同、两侧native/audited自洽）；裸机内核/PG/负载与生产启用未覆盖 |
 | OBS-10-01 | DONE | 受管业务子进程start/stop/unexpected_exit/lost已进入独立持久投影；runtimeAssetId+serverId+generation绑定，旧generation迟到终止不能覆盖新start，管理心跳不作为业务存活。SQL.js重开4/4、真实child/事件hook 3/3、状态投影1/1、ProcessManager相邻5 suites/32及API type-check/build通过 |
@@ -242,7 +248,7 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | OBS-16-01 | DONE | 交接文档2.2.0；AC01~20与脚本入口静态核对，未运行新全量矩阵；[交接](./runtime-observability-external-validation-handoff.md) |
 | OBS-16-02 | DONE | 限定本地故障单元完成：新增`verify:obs-16-local-unit`冻结规模（500调用/200事件/50正文）运行6套（94项+新故障单元3项）并输出`OBS_16_LOCAL_UNIT_OK`；重开/重复重放无双计数、冲突隔离、关闭store拒绝；Linux/PG/多进程/负载与部署仍归OBS-16-03/04 |
 | OBS-16-03 | DONE | 限定环境车道完成（[证据](../audits/2026-09-28-obs-16-03-environment-lane.md)）：`verify:obs-16-03` `OBS_16_03_VERIFY_OK`——Windows/隔离PG16.10与Linux/Alpine PG16.15双平台多进程（skip_locked+租约+SIGKILL恢复无丢失无重复，10/10×2）+受控接收端矩阵（2xx/408/429/5xx+Retry-After秒与日期/终态4xx与3xx/缺秘密/DNS/metadata/自签与不可达TLS，8/8×2）；2格blocked（自签TLS成功需部署信任配置；容器--network none需预装PG包）；部署签收/长时/glibc归OBS-16-04与平台项 |
-| OBS-16-04 | WAIT_DEP | 原代码/局部验收依赖已DONE；仍等待部署配置、接收端/TLS信任及性能与留存验收条件，完成真实投递、审计保留、备份恢复和回退证据后签收 |
+| OBS-16-04 | IN_PROGRESS | [本地准备](../audits/2026-10-08-observability-signoff-readiness.md)：真实Worker TLS无CA拒绝/受信CA成功2/2，完成签收矩阵与配置核对；性能测量、完整备份恢复尚未执行，可继续隔离准备；真实接收端/生产部署签收保留待办 |
 | PROD-01 | DONE | [发布端点合同](./mcp-publication-endpoint-contract.md)，后端/监听/UI边界冻结；仅DOC |
 | PROD-02A1 | DONE | DTO、统一解析、授权preview、更新保留、归属/运行态保护及summary；专项与部署回归49/49 |
 | PROD-02A2 | DONE | 实际端点三项进入候选哈希/metadata并在激活事务复核；四套81/81 |
@@ -262,7 +268,7 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | PROD-04B3E2 | DONE | 无引用staged满5分钟后围栏内复查并持久CAS至delete_pending，再按受控key有界整理；失败保ORPHAN墓碑，SQL.js隔离验证 |
 | PROD-04B3E3 | DONE | SQL.js临时目录双服务排队、旧写者、CAS/文件/DB失败与重启矩阵；四套75/75、API typecheck；不代表PG跨进程/生产验收 |
 | PROD-04B3D | DONE | 本地JWT HTTP删除→410→重启/失败墓碑重试→404，回放前/中撤销鲜读BLOCKED且旧版本保留；11套148/148；候选外发为mock、PG/平台待04C |
-| PROD-04C | NEED_ENV | 下一主线、尚未开工；采集/读取/撤销/清理/恢复实现已有，需核实隔离PG和平台身份，联合验证到期回收、引用一致、重启/重复执行及越权拒绝；本地准备可先行，目标环境完整验收尚未完成 |
+| PROD-04C | IN_PROGRESS | 本轮已开工；本机PG16工具已确认可用，采用自有集群/动态端口和隔离SQLite联合验收；采集/读取/撤销/清理/恢复实现已有，需核实隔离PG和平台身份，联合验证到期回收、引用一致、重启/重复执行及越权拒绝；本地准备可先行，目标环境完整验收尚未完成 |
 | PROD-05 | DONE | 限定操作者透传与检索完成：实例/绑定变更actor已透传，`resource+resourceId+userId`可通过后续`audit:read`检索（DTO与findLogs/export接线），权限拒绝403记录action/level/status/requiredPermissions；4套22项（含SQL.js真实审计检索）；不新增审计存储/权限/UI，PG与UI检索另验 |
 | PROD-06 | DONE | 核定完成（[记录](../audits/2026-09-26-prod-06-cas-scope-determination.md)）：原WP70出口为同语句归属/发布读取、跨源校验、旧候选读取时点guard（§26~29），完整/跨进程CAS与整体一致事务属并发强化候选、未批准不排期；唯一原包剩余为EXT-07环境验收 |
 | EXT-01 | DONE | 限定Windows本地真实HTTP：[联合证据](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md)；真实URL导入产生实例、探测/测试成功并留存样例。联合11/11、独立94 suites/1312 tests及API build通过；PG/Linux/生产身份/浏览器/MCP未覆盖 |
@@ -274,7 +280,7 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | EXT-07 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-06-hardening-and-ext-07.md)）：`verify:ext-07` `EXT_07_VERIFY_OK` 51/51 gating（连续两次，隔离9013/9034/9035）——有效候选激活服务→注入失败候选409`RUNTIME_VERIFICATION_FAILED`/`retained_previous`、旧revision与快照继续服务且恢复后无需重部署→重试激活切换；MCP同理含API重启后SDK复读；匿名+external网关路由与runner规格代理shim记录为notCovered（产品缺口已由EXT-06无shim证明修复） |
 | EXT-08 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)）：`verify:ext-08` `EXT_08_VERIFY_OK` 26/26 gating——隔离9011/5181真实启动API/UI、ready、SPA 10/11路由、超管登录、上传/URL导入/文档转换、治理probe/test/sample/readiness、发布至MCP候选并deploy-mcp激活（candidateRevision与activeRevision一致）；浏览器点击/截图与受管child会话归EXT-06/手工 |
 | EXT-09 | DONE | 限定容器完成（[证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:ext-09` `EXT_09_VERIFY_OK`——ubuntu:24.04/容器Node v24.15.0同版本、npm ci+三包构建+迁移+启动ready+Streamable E2E（managed-runtime 14/14、publication-endpoints 3/3）+优雅停止；裸机/systemd/PG/UI/长时为notCovered |
-| ENV-01 | NEED_ENV | 可与PROD-04C并行复核；重新执行Windows完整health，查明磁盘阈值、运行时状态及权限限制，保存通过结果或明确限制；ready不替代全量，不放宽系统执行策略 |
+| ENV-01 | DONE | [限定证据](../audits/2026-10-08-env-01-health-and-monitoring.md)：原合同“完整通过或限制有证据”已完成；修复MCP异常被吞掉，Terminus回归1/1，完整health仅系统盘阈值失败；当前非健康全绿，建议释放至少1GB并留余量后复跑。监控入口两部署方式8项HTTP通过归OPS本地准备 |
 | OPS-01 | WAIT_DEP | 直接依赖SEC-F4-02和OBS-16-04；汇总PROD-04C/ENV-01证据，在同一候选版本完成目标部署、浏览器主流程、权限/TLS、告警、备份与回退核验，形成发布或不发布结论；不重复计算安全与可观测成果 |
 | MAIL-01 | DONE | [邮件投递范围与受控验收合同](./mail-delivery-scope-and-acceptance.md)冻结三类接口、模板、测试邮箱与证据合同；仅DOC，不改变当前运行默认 |
 | MAIL-02 | DONE | 限定受控投递完成（[证据](../audits/2026-09-26-mail-02-controlled-delivery.md)）：配置/模块/认证/通知/失败恢复/测试/UI全部落地，sink端到端6套件30例+双构建+SQLite drift 0；PG运行时装迁移已由隔离PG实测通过（8迁移/drift 0/API启动）；真实外发、生产启用与队列化另需授权/另立任务 |

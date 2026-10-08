@@ -109,7 +109,7 @@ async function bootstrap() {
       res.status(404).json({ error: 'oauth_metadata_not_supported' });
     });
     const spaFallbackPattern =
-      /^\/(?!(api|socket\.io|monitoring|health|metrics|assets)(\/|$)|favicon\.ico$|vite\.svg$).*/;
+      /^\/(?!(api|socket\.io|health|metrics|assets)(\/|$)|favicon\.ico$|vite\.svg$).*/;
 
     expressInstance.get(spaFallbackPattern, (_req, res, next) => {
       if (!existsSync(indexFile)) {

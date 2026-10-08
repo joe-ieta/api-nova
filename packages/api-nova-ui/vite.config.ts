@@ -43,11 +43,6 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           ws: true,
         },
-        "/monitoring": {
-          target: proxyTarget,
-          changeOrigin: true,
-          ws: true,
-        },
       },
     },
     build: {
