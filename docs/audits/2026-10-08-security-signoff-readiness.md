@@ -1,5 +1,5 @@
 ---
-doc-version: 1.0.1
+doc-version: 1.0.2
 doc-status: active
 doc-updated: 2026-10-08
 ---
@@ -7,7 +7,7 @@ doc-updated: 2026-10-08
 
 用户已选择本轮暂用本机隔离环境，生产签收保留待办。SEC-F4-02未完成：本轮刷新依赖证据并修复新增critical项；残余依赖风险处置和目标环境权限/网络/开关签收仍需完成，不把审计命令执行成功视为安全通过。
 
-后续同日已完成第二批兼容更新，最新为21个依赖节点（6 high、15 moderate）；本页保留第一批历史证据，当前结果与逐项剩余行动以[第二批风险处置](./2026-10-08-security-dependency-closure.md)为准。
+后续同日已完成兼容更新及Nest实际上传/解析器链迁移，最新为15个依赖节点（0 critical、2 high、13 moderate）；本页保留第一批历史证据，当前结果与剩余行动以[解析器链迁移](./2026-10-08-security-parser-chain-migration.md)为准。
 
 ## 第一批依赖审计
 

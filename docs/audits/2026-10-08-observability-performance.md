@@ -1,9 +1,11 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.0.1
 doc-status: active
 doc-updated: 2026-10-08
 ---
 # OBS-16-04 本机真实链路性能测量与调度修复
+
+> 后续批处理、源完整性与SQL.js整改结果见[2026-10-08联合吞吐证据](2026-10-08-observability-throughput-closure.md)。本文保留上一阶段实测；当前整体状态仍未签收。
 
 本轮使用独立数据库、随机回环端口、真实管理认证与 Gateway 认证调用，自动启动生产 collector、outbox 和 webhook Worker。不是手动调用 `runOnce`，不是向数据库注入事件后测发送器。正式生产签收仍待办，性能门槛保持[原批准要求](../guides/runtime-observability-requirements.md)不变。
 

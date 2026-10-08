@@ -96,13 +96,29 @@ const contextStorage = new AsyncLocalStorage<RuntimeCallContext>();
 const processId = randomUUID();
 let sourceManifestDirectory: string | undefined;
 let sequence = 0;
-let writeChain: Promise<void> = Promise.resolve();
+interface PendingAuditWrite {
+  directory: string;
+  file: string;
+  line: Buffer;
+  callerLine: Buffer;
+  bytes: number;
+  reservation: number;
+  complete: () => void;
+}
+const pendingQueue: PendingAuditWrite[] = [];
+let drainPromise: Promise<void> | undefined;
+let preparedDirectory: string | undefined;
+const WRITE_BATCH_RECORDS = 128;
+const WRITE_BATCH_BYTES = 256 * 1024;
 let captureMemoryBytes = 0;
 let pendingWriteBytes = 0;
 let pendingWrites = 0;
 let activeCalls = 0;
 const auditHealth = { writtenRecords: 0, writeFailures: 0, sourceManifestFailures: 0, droppedRecords: 0,
-  omittedBodies: 0, lastWriteAt: null as string | null };
+  omittedBodies: 0, queueDroppedRecords: 0, budgetDroppedRecords: 0, serializationDroppedRecords: 0,
+  ioFailedRecords: 0, callerWriteFailures: 0, writtenBatches: 0, appendOperations: 0,
+  pendingWritesHighWater: 0, pendingWriteBytesHighWater: 0, captureMemoryBytesHighWater: 0,
+  lastWriteAt: null as string | null };
 
 function memoryBudget(): number {
   const value = Number(process.env.API_NOVA_AUDIT_MEMORY_BUDGET_BYTES);
@@ -112,11 +128,11 @@ function memoryBudget(): number {
 
 export function getRuntimeAuditHealth() {
   return { ...auditHealth, activeCalls, pendingWrites, pendingWriteBytes, captureMemoryBytes,
-    memoryBudgetBytes: memoryBudget(), processId };
+    memoryBudgetBytes: memoryBudget(), currentSourceSequence: sequence, processId };
 }
 
-function storageWarning() {
-  process.stderr.write('[RUNTIME_AUDIT_WRITE_FAILED] Invocation evidence could not be persisted.\n');
+function storageWarning(reason: string, records = 1) {
+  process.stderr.write('[RUNTIME_AUDIT_WRITE_FAILED] reason=' + reason + ' records=' + records + '\n');
 }
 
 export function withRuntimeCallContext<T>(context: RuntimeCallContext, callback: () => T): T {
@@ -256,6 +272,7 @@ export function createAuditBodyTracker(contentType = '', limit = auditBodyLimit(
       const reservation = buffer.length * 3;
       if (captureMemoryBytes + pendingWriteBytes + reservation > memoryBudget()) return omit('capture_budget');
       captureMemoryBytes += reservation;
+      auditHealth.captureMemoryBytesHighWater = Math.max(auditHealth.captureMemoryBytesHighWater, captureMemoryBytes);
       heldBytes += reservation;
       chunks.push(Buffer.from(buffer));
     },
@@ -374,49 +391,137 @@ export function beginRuntimeCall(context: RuntimeCallContext, kind: RuntimeCallR
   } };
 }
 
+/** One ordered pump; each bounded append contains only consecutive records for one file. */
+async function drainAuditQueue(): Promise<void> {
+  while (pendingQueue.length) {
+    const first = pendingQueue[0];
+    let count = 1;
+    let bytes = first.bytes;
+    while (count < pendingQueue.length && count < WRITE_BATCH_RECORDS) {
+      const next = pendingQueue[count];
+      if (next.file !== first.file || bytes + next.bytes > WRITE_BATCH_BYTES) break;
+      bytes += next.bytes;
+      count++;
+    }
+    // A single record can exceed the batch target, but remains constrained by the shared budget.
+    const batch = pendingQueue.splice(0, count);
+    try {
+      if (preparedDirectory !== first.directory) {
+        await mkdir(first.directory, { recursive: true, mode: 0o700 });
+        preparedDirectory = first.directory;
+      }
+      if (sourceManifestDirectory !== first.directory) {
+        try {
+          await publishRuntimeAuditSource(first.directory, processId);
+          sourceManifestDirectory = first.directory;
+        } catch {
+          auditHealth.sourceManifestFailures++;
+          storageWarning('source_manifest', count);
+        }
+      }
+      auditHealth.appendOperations++;
+      await appendFile(first.file, Buffer.concat(batch.map(item => item.line)), { mode: 0o600 });
+      auditHealth.writtenRecords += count;
+      auditHealth.writtenBatches++;
+      auditHealth.lastWriteAt = new Date().toISOString();
+      const callers = batch.filter(item => item.callerLine.length);
+      if (callers.length) {
+        try {
+          auditHealth.appendOperations++;
+          await appendFile(join(first.directory, 'callers-' + processId + '.jsonl'),
+            Buffer.concat(callers.map(item => item.callerLine)), { mode: 0o600 });
+        } catch {
+          // Calls are already durable to the same extent as appendFile before batching.
+          // Retrying the batch could duplicate an unknown partially appended prefix.
+          auditHealth.callerWriteFailures += callers.length;
+          auditHealth.writeFailures += callers.length;
+          preparedDirectory = undefined;
+          sourceManifestDirectory = undefined;
+          storageWarning('caller_io', callers.length);
+        }
+      }
+    } catch {
+      auditHealth.ioFailedRecords += count;
+      auditHealth.writeFailures += count;
+      preparedDirectory = undefined;
+      sourceManifestDirectory = undefined;
+      storageWarning('record_io', count);
+    } finally {
+      for (const item of batch) {
+        pendingWrites--;
+        pendingWriteBytes = Math.max(0, pendingWriteBytes - item.reservation);
+        item.complete();
+      }
+    }
+  }
+}
+
+function scheduleAuditDrain(): void {
+  if (drainPromise) return;
+  // Coalesce records from the current turn without holding the business path on filesystem I/O.
+  drainPromise = new Promise<void>(resolve => setImmediate(resolve))
+    .then(drainAuditQueue).finally(() => {
+      drainPromise = undefined;
+      if (pendingQueue.length) scheduleAuditDrain();
+    });
+}
+
 export async function writeRuntimeCall(record: RuntimeCallRecord): Promise<void> {
   const directory = auditDirectory();
   const file = join(directory, 'calls-v2-' + new Date().toISOString().slice(0, 10) + '-' + processId + '.jsonl');
   let line: string;
-  try { line = JSON.stringify(record) + '\n'; }
-  catch { auditHealth.droppedRecords++; storageWarning(); return; }
-  let reservation = Buffer.byteLength(line, 'utf8') * 2;
-  if (captureMemoryBytes + pendingWriteBytes + reservation > memoryBudget()) {
-    line = JSON.stringify({ ...record, request: withoutBodyData(record.request),
-      response: withoutBodyData(record.response) }) + '\n';
-    reservation = Buffer.byteLength(line, 'utf8') * 2;
-    auditHealth.omittedBodies += Number(!!record.request?.data) + Number(!!record.response?.data);
+  let callerLine = '';
+  let reservation: number;
+  try {
+    line = JSON.stringify(record) + '\n';
+    if (record.phase === 'finished' && record.identitySource === 'authenticated' && record.callerId) {
+      callerLine = JSON.stringify({ callerId: record.callerId, issuer: record.callerIssuer,
+        subject: record.callerSubject, clientId: record.clientId, transport: record.transport,
+        observedAt: record.startedAt }) + '\n';
+    }
+    // Queue UTF-8 buffers, reserving both retained bytes and the bounded batch concatenation.
+    // Caller evidence is snapshotted and budgeted at enqueue time as well.
+    reservation = (Buffer.byteLength(line, 'utf8') + Buffer.byteLength(callerLine, 'utf8')) * 2;
+    if (captureMemoryBytes + pendingWriteBytes + reservation > memoryBudget()) {
+      line = JSON.stringify({ ...record, request: withoutBodyData(record.request),
+        response: withoutBodyData(record.response) }) + '\n';
+      reservation = (Buffer.byteLength(line, 'utf8') + Buffer.byteLength(callerLine, 'utf8')) * 2;
+      auditHealth.omittedBodies += Number(!!record.request?.data) + Number(!!record.response?.data);
+    }
+  } catch {
+    auditHealth.droppedRecords++;
+    auditHealth.serializationDroppedRecords++;
+    storageWarning('serialization');
+    return;
   }
-  if (pendingWrites >= 4096 || captureMemoryBytes + pendingWriteBytes + reservation > memoryBudget()) {
-    auditHealth.droppedRecords++; storageWarning(); return;
+  if (pendingWrites >= 4096) {
+    auditHealth.droppedRecords++;
+    auditHealth.queueDroppedRecords++;
+    storageWarning('queue_limit');
+    return;
+  }
+  if (captureMemoryBytes + pendingWriteBytes + reservation > memoryBudget()) {
+    auditHealth.droppedRecords++;
+    auditHealth.budgetDroppedRecords++;
+    storageWarning('memory_budget');
+    return;
   }
   pendingWrites++;
   pendingWriteBytes += reservation;
-  const write = writeChain.then(async () => {
-    await mkdir(directory, { recursive: true, mode: 0o700 });
-    if (sourceManifestDirectory !== directory) {
-      try { await publishRuntimeAuditSource(directory, processId); sourceManifestDirectory = directory; }
-      catch { auditHealth.sourceManifestFailures++; storageWarning(); }
-    }
-    await appendFile(file, line, { encoding: 'utf8', mode: 0o600 });
-    auditHealth.writtenRecords++;
-    auditHealth.lastWriteAt = new Date().toISOString();
-    if (record.phase === 'finished' && record.identitySource === 'authenticated' && record.callerId) {
-      const observation = { callerId: record.callerId, issuer: record.callerIssuer,
-        subject: record.callerSubject, clientId: record.clientId, transport: record.transport,
-        observedAt: record.startedAt };
-      await appendFile(join(directory, 'callers-' + processId + '.jsonl'), JSON.stringify(observation) + '\n',
-        { encoding: 'utf8', mode: 0o600 });
-    }
+  auditHealth.pendingWritesHighWater = Math.max(auditHealth.pendingWritesHighWater, pendingWrites);
+  auditHealth.pendingWriteBytesHighWater = Math.max(auditHealth.pendingWriteBytesHighWater, pendingWriteBytes);
+  return new Promise<void>(complete => {
+    pendingQueue.push({ directory, file, line: Buffer.from(line), callerLine: Buffer.from(callerLine),
+      bytes: Buffer.byteLength(line, 'utf8') + Buffer.byteLength(callerLine, 'utf8'), reservation, complete });
+    scheduleAuditDrain();
   });
-  writeChain = write.catch(() => { auditHealth.writeFailures++; storageWarning(); }).finally(() => {
-    pendingWrites--;
-    pendingWriteBytes = Math.max(0, pendingWriteBytes - reservation);
-  });
-  await writeChain;
 }
 
 export async function flushRuntimeAudit(): Promise<void> {
-  let pending: Promise<void>;
-  do { pending = writeChain; await pending; } while (pending !== writeChain);
+  // A writer resumed by a completed batch may enqueue another record before drain settles.
+  // Recheck both queue and pump so flush includes those records and never overtakes I/O.
+  do {
+    if (pendingQueue.length && !drainPromise) scheduleAuditDrain();
+    await drainPromise;
+  } while (drainPromise || pendingQueue.length);
 }

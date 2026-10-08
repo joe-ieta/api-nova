@@ -1,5 +1,5 @@
 ---
-doc-version: 1.5.0
+doc-version: 1.6.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
@@ -92,7 +92,7 @@ Current progress:
 
 Next order:
 
-1. Continue residual security dependency migration and observability producer/ingestion throughput remediation in parallel. Both database load runs failed the observability targets and revealed source-record gaps; complete-cohort capacity and capture-overhead validation follow that remediation. The compatible dependency batch, upload parsing limits, isolated PostgreSQL complete cold backup/restore, and unchanged Gateway redeployment are now validated; production sign-off remains open.
+1. Continue watcher/framework security risk remediation in parallel with observability throughput closure. The actual Nest parser dependency migration, source batching, ingestion transactions and outbox batching are implemented; full-load visibility and delivery targets remain unmet. SQL.js persistence and transaction correctness passed isolated tests and real-application smoke; the full load still timed out during queries and shutdown. Prioritize consolidation of legacy runtime metric/state persistence with the new observability path, with explicit database queue and export measurements. Complete-cohort capacity and equivalent capture-overhead A/B follow throughput closure; see the active work-package breakdown and execution status.
 2. Consolidate the results on one candidate version and finish target-environment sign-off (SEC-F4-02, OBS-16-04, OPS-01). The user selected local isolated validation for now; production sign-off remains open.
 
 PROD-04C is complete within local Windows/isolated PostgreSQL scope: 16 real-HTTP lifecycle checks plus related regression coverage; production identity/ACL, Linux semantics and real MCP binary outbound remain outside this run. See [binary lifecycle evidence](../audits/2026-10-08-prod-04c-binary-lifecycle.md).

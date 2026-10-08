@@ -18,9 +18,11 @@ export class OpenAPIUploadInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler) {
     const maxBytes = openAPIUploadLimit(this.config.maxOpenAPIFileSize);
-    // Busboy signals its limit when the byte count reaches it. Allow the existing
-    // inclusive business boundary; the first byte above it aborts multipart parsing.
-    const interceptor = new (FileInterceptor('file', { limits: { fileSize: maxBytes + 1 } }))();
+    // Multer 2.4 implements the inclusive fileSize boundary itself. These routes
+    // accept one file and no text fields; reject unexpected fields before parsing.
+    const interceptor = new (FileInterceptor('file', {
+      limits: { fileSize: maxBytes, files: 1, fields: 0, parts: 1, fieldNameSize: 100 },
+    }))();
     return interceptor.intercept(context, next);
   }
 }

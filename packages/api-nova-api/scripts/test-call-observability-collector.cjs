@@ -180,12 +180,12 @@ test('failed projection does not commit evidence, checkpoint or its boundary fin
 test('a GC-held write lease fails without consuming the source and can be retried', async t => {
   const f = await fixture(t);
   await fs.writeFile(f.file, encode(evidence()));
-  const original = f.store.ingest.bind(f.store);
-  f.store.ingest = async () => { const error = new Error('PAYLOAD_GC_BUSY'); error.code = 'PAYLOAD_GC_BUSY'; throw error; };
+  const original = f.store.ingestBatch.bind(f.store);
+  f.store.ingestBatch = async () => { const error = new Error('PAYLOAD_GC_BUSY'); error.code = 'PAYLOAD_GC_BUSY'; throw error; };
   await assert.rejects(f.collector.collectFile(f.fileName), code('PAYLOAD_GC_BUSY'));
   assert.equal(await f.repository(entities.RuntimeIngestCheckpointEntity).count(), 0);
   assert.equal(await f.repository(entities.RuntimeIngestQuarantineEntity).count(), 0);
-  f.store.ingest = original;
+  f.store.ingestBatch = original;
   assert.equal((await f.collector.collectFile(f.fileName)).processedRecords, 1);
 });
 

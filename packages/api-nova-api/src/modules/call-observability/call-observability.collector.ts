@@ -5,11 +5,11 @@ import { join, resolve } from 'path';
 import { createHash, Hash } from 'crypto';
 import { TextDecoder } from 'util';
 import { matchesOpenedSource } from './call-observability-source-identity';
-import { auditDirectory, InvalidRuntimeAuditRecord, isRuntimeAuditSourceId } from 'api-nova-parser';
+import { auditDirectory, isRuntimeAuditSourceId } from 'api-nova-parser';
 import {
   RuntimeIngestCheckpointEntity, RuntimePipelineStateEntity,
 } from '../../database/entities/runtime-call-observability.entity';
-import { CallObservabilityStore, IngestContext, ProjectionHook } from './call-observability.store';
+import { CallObservabilityStore, IngestBatchEntry, IngestContext, ProjectionHook } from './call-observability.store';
 import {
   canonicalJson, contentHash, ObservabilityStorageError, publicSequence, SerialStorageLane,
 } from './call-observability-storage';
@@ -147,6 +147,18 @@ export class CallObservabilityCollector implements OnModuleDestroy {
           pendingFileBytes: opened.size - offset, hasMore: false, snapshotSeq: await this.store.watermark(),
           sourceState: 'unknown', sourceStateReason: 'not_observed', closedPartialRecords: 0, closedPartialBytes: 0,
         };
+        const pending: IngestBatchEntry[] = [];
+        const flush = async () => {
+          if (!pending.length) return;
+          const results = await this.store.ingestBatch(pending, project, { coalesceBuckets: true });
+          session.committedOffset = Number(pending[pending.length - 1].context.checkpoint!.byteOffset);
+          for (const result of results) {
+            report.quarantinedRecords += Number(result.status === 'quarantined');
+            report.duplicateRecords += Number(result.status === 'duplicate');
+            report.snapshotSeq = result.snapshotSeq;
+          }
+          pending.length = 0;
+        };
         // Pin this pass to the opened size. New appends belong to the next pass.
         while (session.readOffset < opened.size && report.bytesRead < maximumRead &&
           report.processedRecords < maximumRecords) {
@@ -169,7 +181,8 @@ export class CallObservabilityCollector implements OnModuleDestroy {
             cursor = end;
             if (newline < 0) continue;
             const context: IngestContext = { checkpoint: {
-              id, fileName, fileIdentity: identity, previousOffset: String(session.committedOffset),
+              id, fileName, fileIdentity: identity,
+              previousOffset: pending.length ? pending[pending.length - 1].context.checkpoint!.byteOffset : String(session.committedOffset),
               byteOffset: String(session.readOffset), boundaryHash: contentHash(session.tail),
             } };
             const hash = session.hash.digest('hex');
@@ -186,32 +199,18 @@ export class CallObservabilityCollector implements OnModuleDestroy {
               !session.tail.equals(await this.tail(handle, session.readOffset))) {
               throw new ObservabilityStorageError('SOURCE_BOUNDARY_CHANGED');
             }
-            let result;
-            if (reason) result = await this.store.rejectRecord(context, hash, reason);
-            else {
-              context.suppressEvent = Date.parse(input?.completedAt || input?.startedAt) <
-                Date.parse(dataset.eventLiveSince);
-              try { result = await this.store.ingest(input, context, project); }
-              catch (error) {
-                const invalid = error instanceof InvalidRuntimeAuditRecord ||
-                  error instanceof ObservabilityStorageError && [
-                    'INVALID_RECORD_VERSION', 'INVALID_ASSET_REFERENCE',
-                    'INVALID_RECORD_DEPTH', 'INVALID_RECORD_VALUE',
-                  ].includes(error.code);
-                if (!invalid) throw error; // Busy/storage failures MUST NOT consume source bytes.
-                result = await this.store.rejectRecord(context, hash, 'INVALID_SOURCE_SCHEMA');
-              }
-            }
-            session.committedOffset = session.readOffset;
+            context.suppressEvent = Date.parse(input?.completedAt || input?.startedAt) <
+              Date.parse(dataset.eventLiveSince);
+            pending.push({ input, context, sourceHash: hash,
+              rejection: reason ? { hash, reason } : undefined });
             session.chunks = [];
             session.lineBytes = 0;
             session.hash = createHash('sha256');
             report.processedRecords++;
-            report.quarantinedRecords += Number(result.status === 'quarantined');
-            report.duplicateRecords += Number(result.status === 'duplicate');
-            report.snapshotSeq = result.snapshotSeq;
+            if (pending.length === 16) await flush();
           }
         }
+        await flush();
         if (this.sourceLifecycle && session.readOffset === opened.size) {
           const binding = await this.store.transaction(tx => tx.manager.getRepository(RuntimePipelineStateEntity)
             .findOneBy({ id: checkpointBoundaryId(id) }));

@@ -1,9 +1,11 @@
 ---
-doc-version: 1.1.0
+doc-version: 1.1.1
 doc-status: active
 doc-updated: 2026-10-08
 ---
 # OBS-16-04 可观测部署签收准备与剩余条件
+
+> 后续批处理、源完整性与SQL.js整改结果见[2026-10-08联合吞吐证据](2026-10-08-observability-throughput-closure.md)。本文保留上一阶段实测；当前整体状态仍未签收。
 
 后续完整PG冷备恢复已7/7通过，见[备份恢复实测](./2026-10-08-observability-backup-restore.md)；双DB参考性能已经测量但未达标，并发现源记录缺口，见[性能与吞吐阻断](./2026-10-08-observability-performance.md)。下文“尚无完整runner”等为准备阶段历史调查，不能继续列为当前缺口。
 

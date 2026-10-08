@@ -211,3 +211,41 @@ test('delivery history retains 30 days independently of the shorter event lifeti
   assert.ok(Date.parse(delivery.expiresAt) > event.expiresAt.getTime());
   assert.ok(await f.events.findOneBy({ id: event.id }));
 });
+
+test('bounded outbox batches commit jobs and watermark once per 32 events', async t => {
+  const f = await fixture(t);
+  await f.subscription();
+  const events = [];
+  for (let index = 0; index < 65; index++) events.push(await f.event());
+  let transactions = 0;
+  const original = f.store.transaction.bind(f.store);
+  f.store.transaction = async operation => { transactions++; return original(operation); };
+  const report = await f.worker.runOnce(65);
+  assert.equal(report.materializedEvents, 65);
+  assert.equal(report.deliveriesCreated, 65);
+  assert.equal(transactions, 4); // One claim plus three bounded durable materialization commits.
+  assert.equal(report.watermark, '65');
+  assert.equal(await f.deliveries.count(), 65);
+  assert.equal((await f.events.find()).every(row => row.dispatchState === 'materialized'), true);
+  await f.makeWorker().runOnce();
+  assert.equal(await f.deliveries.count(), 65);
+});
+
+test('failure in the middle of an outbox batch rolls back all jobs and its watermark', async t => {
+  const f = await fixture(t);
+  await f.subscription();
+  const events = [];
+  for (let index = 0; index < 16; index++) events.push(await f.event());
+  await f.database.query("CREATE TRIGGER reject_ninth_delivery BEFORE INSERT ON runtime_event_deliveries WHEN NEW.eventId = '" + events[8].id + "' BEGIN SELECT RAISE(ABORT, 'batch fixture failure'); END");
+  await assert.rejects(() => f.worker.runOnce(), /batch fixture failure/);
+  assert.equal(await f.deliveries.count(), 0);
+  assert.equal((await f.events.find()).every(row => row.dispatchState === 'leased'), true);
+  assert.equal(await f.states.findOneBy({ id: OUTBOX_WORKER_STATE_ID }), null);
+  await f.database.query('DROP TRIGGER reject_ninth_delivery');
+  for (const event of events) await f.events.update(event.id, { dispatchLeaseUntil: new Date(Date.now() - 1000) });
+  const report = await f.makeWorker().runOnce();
+  assert.equal(report.recoveredLeases, 16);
+  assert.equal(report.materializedEvents, 16);
+  assert.equal(report.watermark, '16');
+  assert.equal(await f.deliveries.count(), 16);
+});

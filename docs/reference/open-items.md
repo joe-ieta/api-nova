@@ -1,5 +1,5 @@
 ---
-doc-version: 1.18.0
+doc-version: 1.19.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
@@ -24,14 +24,14 @@ ENV-01按“完整通过或限制有证据”原合同限定完成；MCP失联�
 | 原任务 | 真实剩余出口 |
 | --- | --- |
 | SEC-F4-02 | 当前版本安全发布签收：目标环境、平台/数据库、依赖公告、身份与网络策略及实际开关 |
-| OBS-16-04 | 源写入完整性、采集/持久化/投影吞吐是首要阻断；之后完整容量查询与采集A/B，最终目标签收；本机完整PG冷备恢复已验 |
+| OBS-16-04 | 源批写和采集/outbox批事务已实现；业务数据库竞争、完整投影/投递吞吐是首要阻断；之后完整容量查询与采集A/B，最终目标签收；本机完整PG冷备恢复已验 |
 | OPS-01 | 消费上述安全与可观测结果，完成生产权限、TLS/反代、日志目录与告警触达的统一签收 |
 
-用户已确认本轮暂用本机隔离环境，生产签收保留待办。可观测TLS信任正反补验已2/2通过；完整PG数据库/正文/配置及独立秘密的冷备恢复已7/7通过，见[恢复演练](../audits/2026-10-08-observability-backup-restore.md)；参考负载性能已完成测量但未达标，且存在源写入记录缺口；下一步为源writer与采集持久化/投影吞吐整改，随后完整容量查询和等价采集A/B。[双数据库性能与缺口证据](../audits/2026-10-08-observability-performance.md)。[可观测签收矩阵与外部输入](../audits/2026-10-08-observability-signoff-readiness.md)。
+用户已确认本轮暂用本机隔离环境，生产签收保留待办。可观测TLS信任正反补验已2/2通过；完整PG数据库/正文/配置及独立秘密的冷备恢复已7/7通过，见[恢复演练](../audits/2026-10-08-observability-backup-restore.md)；有界批处理及SQL.js并发导出/事务隔离已修复，但正式负载仍未达标，SQLite查询及关停超时。下一步优先合并旧runtime指标/状态重复持久化并量化数据库排队，再推进完整投影/投递，随后完整容量查询和等价采集A/B。[本轮联合吞吐与失败证据](../audits/2026-10-08-observability-throughput-closure.md)。[可观测签收矩阵与外部输入](../audits/2026-10-08-observability-signoff-readiness.md)。
 
 默认关闭的host网络路径、Verified许可、受管IPC、清理/投递worker等必须按各自部署合同显式安装或启用。已有本地和容器验证不自动等于生产可用。真实邮件外发、目标SMTP和第三方接收端仅在明确范围下执行。
 
-前批修复proxy-addr critical，本批兼容更新后审计29→21节点（0 critical/6 high/15 moderate）；上传解析阶段限额HTTP8/8、SDK合同71/71。Nest旧上传/解析器链等仍需本地可复现迁移与风险处置，不把它们归为等待生产环境。[当前安全证据](../audits/2026-10-08-security-dependency-closure.md)。
+Nest实际上传/解析器旧链已迁移，审计21→15节点（0 critical/2 high/13 moderate）；双npm干净安装、消费者解析门禁、上传/Gateway/Socket.IO专项23/23通过。剩余chokidar/braces、Nest SSE/file-type及uuid仍需本地风险处置；单workspace独立安装不继承根overrides，交付方式须单独核对。[当前安全证据](../audits/2026-10-08-security-parser-chain-migration.md)。
 
 ## 已交付能力的复用边界
 

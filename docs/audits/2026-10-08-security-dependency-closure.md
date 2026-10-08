@@ -1,9 +1,11 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
 # SEC-F4-02 第二批本机依赖风险处置
+
+> 本文保留第二批的时点证据（21 节点）。后续已完成 Nest 实际上传/解析器链迁移，当前为 15 节点；见[第三批迁移与验收](./2026-10-08-security-parser-chain-migration.md)。下文旧 multer/解析器条目是当时待办，不代表最新候选仍使用旧版本。
 
 本轮在 `oc_dev / ffaafe0` 后的候选上继续本机隔离验证；生产签收仍待办。本批解决兼容范围内的实际依赖更新，未宣称 SEC-F4-02 完成。
 
