@@ -1,9 +1,11 @@
 ---
-doc-version: 1.10.0
+doc-version: 1.11.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
 # Staged Development Plan
+
+> 2026-10-08 用户调整验收规则：未关闭事项的时间门禁不再作为不能关闭的硬条件。可见3秒、投递5秒、查询2秒及采集A/B开销目标保留为诊断指标；本机耗时不再单独阻断任务关闭。完整数据/投递、持久化、权限与恢复正确性仍为验收条件，生产签收仍待办。历史性能记录保留当时口径。
 
 > Document status: Active
 > Last reviewed: 2026-10-08
@@ -92,7 +94,7 @@ Current progress:
 
 Next order:
 
-1. Multi-call legacy metric persistence and the official Nest SSE backport are locally validated. API regression passes 184 suites / 1932 tests, plus 67 pipeline checks. PostgreSQL observes/delivers all 3000 calls, but p95 remains 148.2/149.9 seconds. SQLite business completion improves from 182.3 to 57.1 seconds, while only 818/3000 terminal calls are visible and 671/3000 delivered at cutoff. Next, implement ingestion lease/retention transaction coalescing and delivery claim/completion batching in parallel, then run one frozen-candidate dual-database acceptance. Keep original latency, reference-hardware and equivalent capture A/B requirements. The SSE code path is patched; npm audit still lists 10 moderate version-range nodes, and target security sign-off remains open.
+1. Ingestion coordination and delivery batching are complete within the tested scope: 43 dual-database groups and 186 API suites / 1940 tests pass. PostgreSQL passes the complete 3000-call flow. SQLite returns all 3000 business responses with intact source records, but the 30-minute observation does not cover every terminal projection/delivery; it is not claimed as full acceptance. Per the user decision, timing and bounded load observations remain non-blocking diagnostics, not a reason to keep reopening implementation work. Continue the OPS browser workflow and target-environment sign-off. See [scoped acceptance and diagnostics](../audits/2026-10-08-observability-functional-closure.md).
 2. Consolidate the results on one candidate version and finish target-environment sign-off (SEC-F4-02, OBS-16-04, OPS-01). The user selected local isolated validation for now; production sign-off remains open.
 
 PROD-04C is complete within local Windows/isolated PostgreSQL scope: 16 real-HTTP lifecycle checks plus related regression coverage; production identity/ACL, Linux semantics and real MCP binary outbound remain outside this run. See [binary lifecycle evidence](../audits/2026-10-08-prod-04c-binary-lifecycle.md).

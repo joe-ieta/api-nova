@@ -1,8 +1,10 @@
 // OBS-16-04: actual authenticated Gateway, automatic collector/outbox/delivery workers.
-// No manual runOnce; reports unmet thresholds and censored samples honestly.
+// No manual runOnce; timing is diagnostic by default, correctness remains required.
 // Each run owns a fresh SQLite database and loopback ports. No existing service or data is used.
 'use strict';
 const assert = require('node:assert/strict');
+const { assessObservabilityAcceptance } = require('./obs-acceptance-policy.cjs');
+const { createObservabilityManagementSession } = require('./obs-management-session.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
@@ -25,11 +27,12 @@ const evidence = { marker: 'OBS_16_04_PERFORMANCE_V1', startedAt: new Date().toI
   commit: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true }).stdout.trim(),
   platform: process.platform, node: process.version, database: { type: 'sqlite', driver: 'sqljs', autoSave: true, path: dbPath, isolated: true }, steps: [],
   notCovered: ['external deployed upstreams', 'PostgreSQL', 'browser interactions', 'production identity providers', 'MCP transport'] };
-let apiBase, token, apiProcess, receiver, polling = false, curveTimer, pgStarted = false;
+let apiBase, managementSession, apiProcess, receiver, polling = false, curveTimer, pgStarted = false;
 const postgres = process.argv.includes('--postgres');
 const pgdata = path.join(workDir, 'pgdata');
 const deliveries = [], observed = new Map(), requests = new Map(), resourceCurve = [], producerCurve = [];
 const relaxedTimeouts = process.argv.includes('--relaxed-timeouts');
+const enforceTimingGates = process.argv.includes('--enforce-timing-gates');
 function timeoutOption(name, fallback, min, max) {
   const value = Number(process.env[name] ?? fallback);
   assert.ok(Number.isInteger(value) && value >= min && value <= max, name + ' outside allowed bounds');
@@ -55,9 +58,9 @@ const successfulRequest = row => row.status === 200 && row.responseValid === tru
 const smoke = process.argv.includes('--smoke');
 const rate = smoke ? 2 : 100;
 const durationSeconds = Number(process.env.OBS_PERF_DURATION_SECONDS || (smoke ? 10 : 30));
-const tailSeconds = Number(process.env.OBS_PERF_TAIL_SECONDS || (relaxedTimeouts ? 300 : 60));
+const tailSeconds = Number(process.env.OBS_PERF_TAIL_SECONDS || (enforceTimingGates ? (relaxedTimeouts ? 300 : 60) : (smoke ? 60 : 1200)));
 assert.ok(Number.isInteger(durationSeconds) && durationSeconds >= 10 && durationSeconds <= 120);
-assert.ok(Number.isInteger(tailSeconds) && tailSeconds >= 10 && tailSeconds <= 300);
+assert.ok(Number.isInteger(tailSeconds) && tailSeconds >= 10 && tailSeconds <= 1800);
 const percentile = (values, p = 0.95) => values.length ? [...values].sort((a,b)=>a-b)[Math.ceil(values.length*p)-1] : null;
 const summary = values => ({ count: values.length, p50Ms: percentile(values,0.5), p95Ms: percentile(values), p99Ms: percentile(values,0.99), maxMs: values.length ? Math.max(...values) : null });
 function redact(value) { let text = String(value); for (const s of secrets) if (s) text = text.split(s).join('[redacted]'); return text; }
@@ -74,7 +77,7 @@ async function request(url, { method = 'GET', body, headers = {}, timeoutMs = re
   return { status: r.status, body: data, headers: Object.fromEntries(r.headers) };
 }
 async function api(method, url, body, expected = method === 'POST' ? 201 : 200, requestOptions = {}) {
-  const r = await request(`${apiBase}/api${url}`, { method, body, timeoutMs: managementTimeoutMs, ...requestOptions, headers: token ? { authorization: `Bearer ${token}` } : {} });
+  const r = await managementSession.request(method, url, body, { timeoutMs: managementTimeoutMs, ...requestOptions });
   assert.equal(r.status, expected, `${method} ${url}: ${r.status} ${redact(JSON.stringify(r.body)).slice(0, 1800)}`); return r.body;
 }
 async function port() { const s = http.createServer(); await new Promise(r => s.listen(0, '127.0.0.1', r)); const p = s.address().port; await new Promise(r => s.close(r)); return p; }
@@ -148,7 +151,8 @@ async function pgRun(name, args) {
 }
 async function main() {
   assert.ok(fs.existsSync(apiEntry), 'Build api-nova-api first');
-  const artifactPaths = [__filename, apiEntry,
+  const artifactPaths = [__filename, path.join(root, 'scripts/obs-acceptance-policy.cjs'),
+    path.join(root, 'scripts/obs-management-session.cjs'), apiEntry,
     path.join(apiDir, 'dist/src/modules/asset-catalog/services/asset-catalog.service.js'),
     path.join(apiDir, 'dist/src/modules/gateway-runtime/services/gateway-security.service.js'),
     path.join(apiDir, 'dist/src/modules/gateway-runtime/services/gateway-candidate-replay-authority.js'),
@@ -160,7 +164,7 @@ async function main() {
   evidence.artifacts = artifactPaths.map(file => ({ path: path.relative(root, file), sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex') }));
   evidence.workingTree = spawnSync('git', ['status', '--short', '--untracked-files=no'], { cwd: root, encoding: 'utf8', windowsHide: true }).stdout.trim();
   evidence.machine = { platform: process.platform, release: os.release(), architecture: os.arch(), cpuModel: os.cpus()[0]?.model, logicalCpus: os.cpus().length, memoryBytes: os.totalmem(), freeMemoryBytes: os.freemem(), reference: '4 cores / 8 GiB / SSD; this host is not constrained to that reference', diskMedium: 'not independently verified' };
-  evidence.timeouts = { profile: relaxedTimeouts ? 'relaxed-diagnostic' : 'standard', requestTimeoutMs, managementTimeoutMs, diagnosticTimeoutMs, shutdownTimeoutMs, tailSeconds, performanceTargetsUnchanged: true };
+  evidence.timeouts = { profile: relaxedTimeouts ? 'relaxed-diagnostic' : 'standard', requestTimeoutMs, managementTimeoutMs, diagnosticTimeoutMs, shutdownTimeoutMs, tailSeconds, performanceTargetsUnchanged: true, timingGates: enforceTimingGates ? 'enforced-benchmark' : 'diagnostic-only', observationGuard: 'Finite completeness collection guard; an incomplete cohort never passes as complete.' };
   evidence.load = { requestsPerSecond: rate, smoke, durationSeconds, tailSeconds, responseBytes: Buffer.byteLength(responseText), requestBodyBytes: 0, capture: 'default body capture', subscription: 'one invocation.completed per external gateway_request', automaticWorkers: true };
   evidence.notCovered = ['production hardware/identity/network', 'Linux performance', ...(postgres ? ['SQLite performance'] : ['PostgreSQL performance']), 'MCP performance', 'fixed uninstrumented baseline: no product switch disables producer instrumentation; direct upstream latency is not incremental capture overhead', 'long sustained capacity and thermal steady-state'];
   const a = await upstream('A'); const b = a; const apiPort = await port(); const mcpPort = await port(); apiBase = `http://127.0.0.1:${apiPort}`;
@@ -198,7 +202,11 @@ async function main() {
       try { const r = await request(`${apiBase}/api/health/ready`); if (r.status === 200 && r.body.status === 'ready') return { port: apiPort }; } catch {} await delay(300); }
     throw new Error('API readiness timeout');
   });
-  const login = await api('POST', '/auth/login', { username: 'extclosureadmin', password }, 200); token = login.accessToken; assert.ok(token); secrets.push(token);
+  managementSession = createObservabilityManagementSession({ baseUrl: apiBase, request, username: 'extclosureadmin', password,
+    timeoutMs: managementTimeoutMs, rememberSecret: value => secrets.push(value) });
+  await managementSession.login();
+  evidence.managementSession = { mechanism: 'ordinary login with fresh credentials', proactiveExpiryMarginSeconds: 60,
+    concurrentLogin: 'single-flight', unauthorizedRetry: 'GET once only; mutations are never replayed', productTokenLifetimeUnchanged: true };
   const registered = await api('POST','/v1/assets/endpoints/manual',{name:'perf-source',baseUrl:a.url,method:'GET',path:'/payload',description:'Isolated performance payload'});
   const rec = {id:registered.id,path:'/payload',source:registered.sourceServiceAsset.id};
   const instance = (await instances(rec.source)).find(i=>i.enabled) || await attach(rec.source,a);
@@ -238,8 +246,9 @@ async function main() {
     load.push((async()=>{const sent=Date.now(),begin=performance.now();try{const r=await request(apiBase+'/api/v1/gateway/perf/payload',{headers:{'x-api-key':key}}); const row={sent,completed:Date.now(),durationMs:performance.now()-begin,status:r.status,requestId:r.headers['x-request-id'],scheduledOffsetMs:i*1000/rate,schedulingLagMs:Math.max(0,begin-due)}; row.attemptIndex=i;row.responseValid=r.status===200&&JSON.stringify(r.body)===responseText;if(r.status===200&&!row.responseValid)row.error='Unexpected Gateway response payload'; if(r.status!==200)row.error=redact(JSON.stringify(r.body)).slice(0,250); requests.set(String(i),row); }catch(e){requests.set(String(i),{attemptIndex:i,sent,completed:Date.now(),durationMs:performance.now()-begin,status:0,error:e.message});}})());
   }
   evidence.load.actualSchedulingDurationMs=performance.now()-start;await Promise.all(load); evidence.load.actualCompletionDurationMs=performance.now()-start; evidence.load.startedAt=new Date(wallStart).toISOString(); console.log(`LOAD_COMPLETE ${requests.size}`); save();
-  const tailUntil=Date.now()+tailSeconds*1000;
-  while(Date.now()<tailUntil){const success=[...requests.values()].filter(successfulRequest);const delivered=new Set(deliveries.filter(row=>row.valid&&row.event?.eventType==='invocation.completed').map(row=>row.event.subject?.id));if(success.length&&success.every(row=>observed.has(row.requestId)&&delivered.has(observed.get(row.requestId).invocationId)))break;await delay(1000);}
+  const tailStart=Date.now(), tailUntil=tailStart+tailSeconds*1000;
+  let nextProgressAt=tailStart;
+  while(Date.now()<tailUntil){const success=[...requests.values()].filter(successfulRequest);const delivered=new Set(deliveries.filter(row=>row.valid&&row.event?.eventType==='invocation.completed').map(row=>row.event.subject?.id));if(success.length&&success.every(row=>observed.has(row.requestId)&&delivered.has(observed.get(row.requestId).invocationId)) )break;if(Date.now()>=nextProgressAt){console.log(`DRAIN_PROGRESS visible=${success.filter(row=>observed.has(row.requestId)).length}/${success.length} delivered=${success.filter(row=>observed.has(row.requestId)&&delivered.has(observed.get(row.requestId).invocationId)).length}/${success.length} elapsedSeconds=${Math.round((Date.now()-tailStart)/1000)}`);nextProgressAt=Date.now()+30000;}await delay(1000);}
   measurementCutoffAt=Date.now();evidence.measurementCutoffAt=new Date(measurementCutoffAt).toISOString();
   evidence.load.observationDurationAfterCompletionMs=measurementCutoffAt-(wallStart+evidence.load.actualCompletionDurationMs);
   polling=false;pollAbort.abort(new Error('Observation window closed'));await poller;clearInterval(curveTimer);
@@ -257,15 +266,21 @@ async function main() {
   evidence.load.achievedSchedulingRate=requests.size/(evidence.load.actualSchedulingDurationMs/1000);evidence.load.rateTolerancePercent=5;evidence.load.scheduleWithinTolerance=Math.abs(evidence.load.achievedSchedulingRate/rate-1)<=0.05;evidence.load.successful=completed.length;evidence.load.failed=requests.size-completed.length;evidence.pollErrors=pollErrors;
   const latest=await api('GET',queryBase+'&includeTotal=true'); evidence.queryCapacity={gatewayInvocations:latest.data.total,requested:requests.size,firstPageSize:latest.data.items.length,partialBacklog:visible.length!==completed.length};
   evidence.queries=[];
-  for(const [name,url] of [['detail',latest.data.items.length?obs+'/invocations/'+latest.data.items[0].invocationId:null],['list',queryBase],['summary',`${obs}/statistics/summary?scope=http_ingress&runtimeAssetId=${assetId}`]]){
-    if(!url)continue;const times=[];for(let i=0;i<20;i++){const begin=performance.now();await api('GET',url);times.push(performance.now()-begin);}const result={name,...summary(times),thresholdMs:2000};result.pass=result.p95Ms<=2000;evidence.queries.push(result);
+  for(const [name,url] of [['detail',latest.data.items.length?obs+'/invocations/'+latest.data.items[0].invocationId:null],['list',queryBase],['summary',`${obs}/statistics/summary?scope=http_ingress&origin=external&runtimeAssetId=${assetId}`]]){
+    if(!url)continue;const times=[];for(let i=0;i<20;i++){
+      const begin=performance.now();const response=await api('GET',url);times.push(performance.now()-begin);
+      const checkItem=item=>{assert.equal(item.runtimeAssetId,assetId);assert.equal(item.lifecycle,'finished');assert.equal(item.outcome,'success');assert.ok(completed.some(row=>row.requestId===item.requestId&&observed.get(row.requestId)?.invocationId===item.invocationId),'query item must belong to completed cohort');};
+      if(name==='detail'){assert.equal(response.data.invocationId,latest.data.items[0].invocationId);checkItem(response.data);}
+      if(name==='list'){assert.equal(response.data.items.length,Math.min(200,completed.length));assert.equal(new Set(response.data.items.map(item=>item.invocationId)).size,response.data.items.length);response.data.items.forEach(checkItem);}
+      if(name==='summary'){assert.equal(response.data.metrics.selectedInvocations,completed.length);assert.equal(response.data.metrics.successes,completed.length);assert.equal(response.data.metrics.failures,0);}
+    }const result={name,...summary(times),correctnessPassed:true,thresholdMs:2000};result.pass=result.p95Ms<=2000;evidence.queries.push(result);
   }
   evidence.resources=resourceCurve;evidence.resourceBoundary='Host CPU/free-memory and generator memory; isolated IPC samples API memory, producer health and event-loop delay every second. Cumulative inclusive phase timers include waiting and overlap, so their totals must not be added. Sampling/timing adds diagnostic overhead and is not a production health endpoint.';
   evidence.producerAfterMeasurement = await diagnostics('snapshot');
   evidence.captureOverhead={status:'NOT_MEASURED',reason:'No equivalent uninstrumented Gateway product switch exists; direct upstream timing would include authentication/routing differences and cannot isolate capture overhead.'};
   evidence.measurementComplete=true;evidence.thresholdsPassed=evidence.load.allAttemptsRecorded&&evidence.load.successRequestIdsUnique&&evidence.load.scheduleWithinTolerance&&evidence.load.failed===0&&evidence.visibility.pass&&evidence.delivery.pass&&evidence.queries.every(q=>q.pass);
   fs.writeFileSync(path.join(workDir,'samples.json'),JSON.stringify({requests:[...requests.values()],observed:[...observed.entries()],deliveries},null,2));
-  if(!evidence.thresholdsPassed)process.exitCode=2;
+  // The final decision also requires source integrity and clean shutdown.
 }
 function sourceIntegrity() {
   const directory=path.join(workDir,'audit'), sequences=new Map(), finished=new Set();
@@ -295,7 +310,7 @@ async function finish(){
   evidence.resources=resourceCurve;
   if(apiProcess?.exitCode===null && apiProcess.connected) {
     try { evidence.producerFlushed = await diagnostics('flush'); } catch(error) { evidence.producerFlushError=redact(error.message); }
-    const exited=new Promise(resolve=>{const timer=setTimeout(()=>{apiProcess.removeListener('exit',done);resolve(false);},shutdownTimeoutMs);function done(){clearTimeout(timer);resolve(true);}apiProcess.once('exit',done);});
+    const exited=new Promise(resolve=>{const timer=setTimeout(()=>{apiProcess.removeListener('exit',done);resolve(false);},shutdownTimeoutMs);function done(code,signal){clearTimeout(timer);evidence.apiExit={code,signal};resolve(code===0&&signal===null);}apiProcess.once('exit',done);});
     apiProcess.send({type:'obs-perf-diagnostics',command:'shutdown'},()=>{});
     evidence.gracefulShutdown=await exited;
   }
@@ -310,6 +325,9 @@ async function finish(){
   evidence.sourceIntegrity = sourceIntegrity();
   fs.writeFileSync(path.join(workDir,'audit-source-summary.json'),JSON.stringify(evidence.sourceIntegrity,null,2));
   if(evidence.sourceIntegrity.successfulGatewayTerminalRecords!==evidence.sourceIntegrity.successfulGatewayExpected || evidence.sourceIntegrity.parseFailures || evidence.sourceIntegrity.missingWithinObservedSequenceRange || evidence.sourceIntegrity.missingThroughProducerSequence || evidence.sourceIntegrity.duplicateSequences || evidence.producerFlushed?.health?.droppedRecords || evidence.producerFlushed?.health?.writeFailures || evidence.producerFlushError || evidence.gracefulShutdown===false) { evidence.thresholdsPassed=false; if(process.exitCode!==1)process.exitCode=2; }
+  evidence.receiverIntegrity={allSignaturesValid:deliveries.length>0&&deliveries.every(row=>row.valid),allEventsParsed:deliveries.length>0&&deliveries.every(row=>row.event&&typeof row.event==='object')};
+  Object.assign(evidence,assessObservabilityAcceptance(evidence,{enforceTimingGates}));
+  if(process.exitCode!==1)process.exitCode=evidence.acceptancePassed?0:2;
   evidence.finishedAt=new Date().toISOString();save();console.log(`OBS_16_04_PERFORMANCE_${evidence.measurementComplete?'MEASURED':'ERROR'} ${evidencePath}`);
 }
 main().catch(e=>{evidence.error=redact(e.stack);console.error(redact(e.message));process.exitCode=1;}).finally(finish);

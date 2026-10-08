@@ -5,6 +5,7 @@ import { lookup } from 'dns/promises';
 import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
 import { isIP } from 'net';
+import { In } from 'typeorm';
 import {
   RuntimeEventDeliveryAttemptEntity, RuntimeEventDeliveryEntity, RuntimeEventSubscriptionEntity,
   RuntimePipelineStateEntity, RuntimeSubscriptionRevisionEntity,
@@ -21,6 +22,8 @@ const ACTIVE_RETRY_MS = 24 * 60 * 60 * 1000;
 const LEASE_MS = 30000;
 const MAX_ATTEMPTS = 6;
 const MAX_RESPONSE_BYTES = 2048;
+const SEND_CONCURRENCY = 4;
+const LEASE_COMPLETION_RESERVE_MS = 1000;
 
 interface ClaimedDelivery {
   id: string;
@@ -32,6 +35,10 @@ interface ClaimedDelivery {
   generationAttempt: number;
   generationStartedAt: string;
   leaseOwner: string;
+  leaseUntil: string;
+  version: number;
+  deliveryExpiresAt: string;
+  previousReady: { status: string; nextAttemptAt: string; lastError: any };
   ownerId: string;
   subscriptionScope: any;
   revisionScope: any;
@@ -40,13 +47,22 @@ interface ClaimedDelivery {
   event: RuntimeObservabilityEventEntity;
 }
 interface DeliveryOutcome {
-  disposition: 'succeeded' | 'retry' | 'dead' | 'cancelled';
+  disposition: 'succeeded' | 'retry' | 'dead' | 'cancelled' | 'deferred';
   result: string;
   durationMs: number;
   httpStatus: number | null;
   errorCategory: string | null;
   responseSummary: string | null;
   retryAfterMs?: number;
+  startedAt: string;
+  completedAt: string;
+}
+interface PreparedDelivery {
+  destination: URL;
+  address: { address: string; family: number };
+  body: string;
+  headers: Record<string, string>;
+  deadline: number;
 }
 export interface WebhookWorkerReport {
   state: 'running' | 'degraded';
@@ -116,21 +132,30 @@ export class CallObservabilityDeliveryWorker implements OnApplicationBootstrap, 
       state: 'running', claimed: 0, succeeded: 0, retrying: 0, dead: 0, cancelled: 0,
       snapshotSeq: await this.store.watermark(),
     };
-    for (let index = 0; index < limit; index++) {
-      const claimed = await this.claim();
-      if (!claimed) break;
-      report.claimed++;
-      let outcome: DeliveryOutcome;
-      if (!(await this.currentlyAuthorized(claimed))) {
-        outcome = this.outcome('cancelled', 'authorization_revoked', 0, null, null);
-      } else {
-        outcome = await this.send(claimed);
+    // Claim only the next four runnable slots. No leased delivery waits behind a
+    // previous HTTP wave, even when the public bounded limit is 100.
+    while (report.claimed < limit && !this.stopping) {
+      const claimed = await this.claimBatch(Math.min(SEND_CONCURRENCY, limit - report.claimed));
+      if (!claimed.length) break;
+      report.claimed += claimed.length;
+      const prepared = await Promise.all(claimed.map(item => this.prepare(item)));
+      // Re-read roles after every DNS preparation has settled: another slow DNS
+      // lookup in this wave must not age an earlier authorization decision.
+      const authorizations = await Promise.all(claimed.map(item => this.authorization(item)));
+      const preflight = await this.preflightBatch(claimed, authorizations);
+      const results = await Promise.all(claimed.map(async (item, index) => ({
+        claimed: item,
+        outcome: preflight[index] || ('disposition' in prepared[index]
+          ? prepared[index] as DeliveryOutcome
+          : await this.sendPrepared(item, prepared[index] as PreparedDelivery)),
+      })));
+      const statuses = await this.completeBatch(results);
+      for (const status of statuses) {
+        if (status === 'succeeded') report.succeeded++;
+        else if (status === 'retry_wait') report.retrying++;
+        else if (status === 'dead') report.dead++;
+        else if (status === 'cancelled') report.cancelled++;
       }
-      const status = await this.complete(claimed, outcome);
-      if (status === 'succeeded') report.succeeded++;
-      else if (status === 'retry_wait') report.retrying++;
-      else if (status === 'dead') report.dead++;
-      else if (status === 'cancelled') report.cancelled++;
     }
     report.state = report.dead || report.cancelled ? 'degraded' : 'running';
     await this.store.transaction(async tx => {
@@ -143,7 +168,7 @@ export class CallObservabilityDeliveryWorker implements OnApplicationBootstrap, 
     return report;
   }
 
-  private async claim(): Promise<ClaimedDelivery | null> {
+  private async claimBatch(limit: number): Promise<ClaimedDelivery[]> {
     return this.store.transaction(async tx => {
       const deliveries = tx.manager.getRepository(RuntimeEventDeliveryEntity);
       const query = deliveries.createQueryBuilder('delivery')
@@ -157,67 +182,133 @@ export class CallObservabilityDeliveryWorker implements OnApplicationBootstrap, 
         .addOrderBy('delivery.id', 'ASC').take(32);
       if (tx.manager.connection.options.type === 'postgres') query.setLock('pessimistic_write').setOnLocked('skip_locked');
       const candidates = await query.getMany();
+      if (!candidates.length) return [];
+      const facts = await this.deliveryFacts(tx.manager, candidates);
+      const changed: RuntimeEventDeliveryEntity[] = [];
+      const claimed: ClaimedDelivery[] = [];
       for (const delivery of candidates) {
-        const subscription = await tx.manager.getRepository(RuntimeEventSubscriptionEntity)
-          .findOneBy({ id: delivery.subscriptionId });
-        if (!subscription || subscription.deletedAt || subscription.state === 'deleted') {
-          await this.cancelUnsendable(tx, delivery, 'subscription_deleted');
-          continue;
-        }
-        if (subscription.state !== 'enabled') continue;
-        const revision = await tx.manager.getRepository(RuntimeSubscriptionRevisionEntity)
-          .findOneBy({ subscriptionId: delivery.subscriptionId, version: delivery.subscriptionRevision });
-        if (!revision || revision.revoked) {
-          await this.cancelUnsendable(tx, delivery, 'subscription_revision_revoked');
-          continue;
-        }
-        const event = await tx.manager.getRepository(RuntimeObservabilityEventEntity)
-          .findOneBy({ id: delivery.eventId });
-        if (!event || !event.expiresAt || event.expiresAt.getTime() <= Date.parse(tx.now)) {
-          await this.cancelUnsendable(tx, delivery, 'event_expired', 'dead');
-          continue;
+        const subscription = facts.subscriptions.get(delivery.subscriptionId);
+        let category: string | undefined;
+        let status = 'cancelled';
+        const revision = facts.revisions.get(this.revisionKey(delivery));
+        const event = facts.events.get(delivery.eventId);
+        if (!subscription || subscription.deletedAt || subscription.state === 'deleted') category = 'subscription_deleted';
+        else if (subscription.state !== 'enabled') continue;
+        else if (!revision || revision.revoked) category = 'subscription_revision_revoked';
+        else if (!event?.expiresAt || event.expiresAt.getTime() <= Date.parse(tx.now)) {
+          category = 'event_expired'; status = 'dead';
         }
         const oldError = object(delivery.lastError) ? delivery.lastError : {};
         const generationStartedAt = typeof oldError.generationStartedAt === 'string'
           ? oldError.generationStartedAt : delivery.replayGeneration > 0 ? delivery.updatedAt : delivery.createdAt;
         const generationAttempt = Number(oldError.generationAttempt || 0) + 1;
-        if (!Number.isSafeInteger(generationAttempt) || generationAttempt < 1 || generationAttempt > MAX_ATTEMPTS) {
-          await this.cancelUnsendable(tx, delivery, 'attempt_limit_reached', 'dead');
+        if (!category && (!Number.isSafeInteger(generationAttempt) || generationAttempt < 1 || generationAttempt > MAX_ATTEMPTS)) {
+          category = 'attempt_limit_reached'; status = 'dead';
+        }
+        if (category) {
+          Object.assign(delivery, { status, version: delivery.version + 1, leaseOwner: null, leaseUntil: null,
+            updatedAt: tx.now, lastError: { category, at: tx.now } });
+          changed.push(delivery);
           continue;
         }
+        const previousReady = { status: delivery.status === 'retry_wait' ? 'retry_wait' : 'pending',
+          nextAttemptAt: delivery.nextAttemptAt, lastError: delivery.lastError };
         const leaseUntil = new Date(Date.parse(tx.now) + LEASE_MS).toISOString();
-        Object.assign(delivery, { status: 'in_flight', leaseOwner: this.owner, leaseUntil,
+        const leaseOwner = this.owner + ':' + randomUUID();
+        Object.assign(delivery, { status: 'in_flight', leaseOwner, leaseUntil,
           version: delivery.version + 1, updatedAt: tx.now,
           lastError: { ...oldError, generationAttempt, generationStartedAt } });
-        await deliveries.save(delivery);
-        const config = revision.config || {};
-        return {
+        changed.push(delivery);
+        const config = revision!.config || {};
+        claimed.push({
           id: delivery.id, eventId: delivery.eventId, subscriptionId: delivery.subscriptionId,
           subscriptionRevision: delivery.subscriptionRevision, replayGeneration: delivery.replayGeneration,
           attemptNo: delivery.attemptCount + 1, generationAttempt, generationStartedAt,
-          leaseOwner: this.owner, ownerId: subscription.ownerId, subscriptionScope: subscription.scope,
-          revisionScope: config.scope, destination: config.destination, secretRef: config.secretRef, event,
-        };
+          leaseOwner, leaseUntil, version: delivery.version, deliveryExpiresAt: delivery.expiresAt,
+          previousReady, ownerId: subscription!.ownerId, subscriptionScope: subscription!.scope,
+          revisionScope: config.scope, destination: config.destination, secretRef: config.secretRef, event: event!,
+        });
+        if (claimed.length === limit) break;
       }
-      return null;
+      // At most 32 existing rows (~600 parameters), safe on SQLite and PostgreSQL.
+      if (changed.length) await deliveries.upsert(changed, ['id']);
+      return claimed;
     });
   }
 
-  private async currentlyAuthorized(claimed: ClaimedDelivery): Promise<boolean> {
-    try {
-      const user = await this.users.findUserById(claimed.ownerId);
-      const authorization = authorizeObservability(user, ['monitoring:subscription:manage']);
-      return this.visible(claimed.subscriptionScope, authorization) &&
-        this.visible(claimed.revisionScope, authorization);
-    } catch { return false; }
+  private revisionKey(delivery: Pick<RuntimeEventDeliveryEntity, 'subscriptionId' | 'subscriptionRevision'>): string {
+    return canonicalJson([delivery.subscriptionId, delivery.subscriptionRevision]);
   }
 
-  private async send(claimed: ClaimedDelivery): Promise<DeliveryOutcome> {
+  private async deliveryFacts(manager: ObservabilityWriteTransaction['manager'], rows: RuntimeEventDeliveryEntity[]) {
+    const subscriptions = await manager.getRepository(RuntimeEventSubscriptionEntity)
+      .findBy({ id: In([...new Set(rows.map(row => row.subscriptionId))]) });
+    const revisions = await manager.getRepository(RuntimeSubscriptionRevisionEntity).findBy(
+      [...new Map(rows.map(row => [this.revisionKey(row),
+        { subscriptionId: row.subscriptionId, version: row.subscriptionRevision }])).values()]);
+    const events = await manager.getRepository(RuntimeObservabilityEventEntity)
+      .findBy({ id: In([...new Set(rows.map(row => row.eventId))]) });
+    return { subscriptions: new Map(subscriptions.map(row => [row.id, row])),
+      revisions: new Map(revisions.map(row => [canonicalJson([row.subscriptionId, row.version]), row])),
+      events: new Map(events.map(row => [row.id, row])) };
+  }
+
+  private async authorization(claimed: ClaimedDelivery): Promise<ObservabilityAuthorization | null> {
+    try {
+      const user = await this.users.findUserById(claimed.ownerId);
+      return authorizeObservability(user, ['monitoring:subscription:manage']);
+    } catch { return null; }
+  }
+
+  private matchesClaim(delivery: RuntimeEventDeliveryEntity | undefined, claimed: ClaimedDelivery): boolean {
+    return !!delivery && delivery.status === 'in_flight' && delivery.leaseOwner === claimed.leaseOwner &&
+      delivery.leaseUntil === claimed.leaseUntil && delivery.version === claimed.version &&
+      delivery.replayGeneration === claimed.replayGeneration && delivery.attemptCount + 1 === claimed.attemptNo &&
+      delivery.subscriptionId === claimed.subscriptionId && delivery.subscriptionRevision === claimed.subscriptionRevision &&
+      delivery.eventId === claimed.eventId;
+  }
+
+  private async preflightBatch(claimed: ClaimedDelivery[], authorizations: (ObservabilityAuthorization | null)[]): Promise<(DeliveryOutcome | null)[]> {
+    return this.store.readSnapshot(async tx => {
+      const rows = await tx.manager.getRepository(RuntimeEventDeliveryEntity).findBy({ id: In(claimed.map(item => item.id)) });
+      const deliveries = new Map(rows.map(row => [row.id, row]));
+      const facts = rows.length ? await this.deliveryFacts(tx.manager, rows) : null;
+      return claimed.map((item, index) => {
+        const row = deliveries.get(item.id);
+        if (!this.matchesClaim(row, item)) return this.outcome('deferred', 'lease_lost', 0, null, null);
+        const subscription = facts!.subscriptions.get(item.subscriptionId);
+        const revision = facts!.revisions.get(this.revisionKey(row!));
+        const event = facts!.events.get(item.eventId);
+        if (!subscription || subscription.deletedAt || subscription.state === 'deleted') {
+          return this.outcome('cancelled', 'subscription_deleted', 0, null, null);
+        }
+        if (!revision || revision.revoked) return this.outcome('cancelled', 'subscription_revision_revoked', 0, null, null);
+        const authorization = authorizations[index];
+        if (!authorization || subscription.ownerId !== item.ownerId || !this.visible(subscription.scope, authorization) ||
+          !this.visible(revision.config?.scope, authorization)) {
+          return this.outcome('cancelled', 'authorization_revoked', 0, null, null);
+        }
+        if (!event?.expiresAt || event.expiresAt.getTime() <= Date.now() || Date.parse(row!.expiresAt) <= Date.now()) {
+          return this.outcome('dead', 'event_expired', 0, null, null);
+        }
+        item.event.expiresAt = event.expiresAt;
+        item.deliveryExpiresAt = row!.expiresAt;
+        if (subscription.state !== 'enabled') return this.outcome('deferred', 'subscription_paused', 0, null, null);
+        if (this.stopping || Date.parse(item.leaseUntil) - Date.now() <= LEASE_COMPLETION_RESERVE_MS) {
+          return this.outcome('deferred', this.stopping ? 'worker_stopped' : 'lease_budget_exhausted', 0, null, null);
+        }
+        return null;
+      });
+    });
+  }
+
+  private async prepare(claimed: ClaimedDelivery): Promise<PreparedDelivery | DeliveryOutcome> {
     const started = Date.now();
     try {
       const destination = this.destination(claimed.destination);
       const secret = this.secret(claimed.secretRef);
-      const timeout = this.timeoutMs();
+      const timeout = Math.min(this.timeoutMs(), Date.parse(claimed.leaseUntil) - started - LEASE_COMPLETION_RESERVE_MS);
+      if (this.stopping || timeout <= 0) return this.outcome('deferred', 'lease_budget_exhausted', 0, null, null);
       const addresses = await this.addresses(destination.hostname, timeout);
       const address = addresses[this.addressIndex(claimed.id, claimed.attemptNo, addresses.length)];
       const timestamp = String(Math.floor(Date.now() / 1000));
@@ -231,80 +322,95 @@ export class CallObservabilityDeliveryWorker implements OnApplicationBootstrap, 
         delivery: { id: claimed.id, attemptNo: claimed.attemptNo,
           replayGeneration: claimed.replayGeneration, subscriptionRevision: claimed.subscriptionRevision },
       });
-      if (Buffer.byteLength(body) > 256 * 1024) {
-        return this.outcome('dead', 'payload_too_large', Date.now() - started, null, null);
-      }
+      if (Buffer.byteLength(body) > 256 * 1024) return this.outcome('dead', 'payload_too_large', Date.now() - started, null, null, started);
       const signature = createHmac('sha256', secret).update(timestamp + '.' + body).digest('hex');
-      const remaining = timeout - (Date.now() - started);
-      // Retained delivery history never extends the event's send eligibility.
-      if (!claimed.event.expiresAt || claimed.event.expiresAt.getTime() <= Date.now()) {
-        return this.outcome('dead', 'event_expired', Date.now() - started, null, null);
-      }
-      if (remaining <= 0) this.deliveryError('timeout');
-      const response = await this.post(destination, address, body, {
+      return { destination, address, body, deadline: started + timeout, headers: {
         'content-type': 'application/json', 'content-length': String(Buffer.byteLength(body)),
         'user-agent': 'ApiNova-Observability-Webhook/1.0',
         'x-apinova-event-id': claimed.eventId, 'x-apinova-delivery-id': claimed.id,
         'x-apinova-timestamp': timestamp, 'x-apinova-signature': 'sha256=' + signature,
-      }, remaining);
-      const duration = Date.now() - started;
-      if (response.status >= 200 && response.status < 300) {
-        return this.outcome('succeeded', null, duration, response.status, response.summary);
-      }
-      if (response.status === 408 || response.status === 429 || response.status >= 500) {
-        return { ...this.outcome('retry', 'http_response', duration, response.status, response.summary),
-          retryAfterMs: this.retryAfter(response.retryAfter) };
-      }
-      return this.outcome('dead', 'http_response', duration, response.status, response.summary);
-    } catch (error: any) {
-      const category = typeof error?.deliveryCategory === 'string' ? error.deliveryCategory : this.networkCategory(error);
-      const disposition = ['address_blocked', 'configuration', 'payload_too_large'].includes(category) ? 'dead' : 'retry';
-      return this.outcome(disposition, category, Date.now() - started, null, null);
-    }
+      } };
+    } catch (error: any) { return this.failure(error, started); }
   }
 
-  private async complete(claimed: ClaimedDelivery, outcome: DeliveryOutcome): Promise<string | null> {
+  private async sendPrepared(claimed: ClaimedDelivery, prepared: PreparedDelivery): Promise<DeliveryOutcome> {
+    const started = Date.now();
+    // This local check immediately precedes post. The DB preflight is a snapshot,
+    // not an atomic lock spanning HTTP: concurrent revocation still has a narrow
+    // unavoidable window, and receivers must tolerate at-least-once delivery.
+    if (!claimed.event.expiresAt || claimed.event.expiresAt.getTime() <= started || Date.parse(claimed.deliveryExpiresAt) <= started) {
+      return this.outcome('dead', 'event_expired', 0, null, null);
+    }
+    const remaining = Math.min(prepared.deadline, Date.parse(claimed.leaseUntil) - LEASE_COMPLETION_RESERVE_MS) - started;
+    if (this.stopping || remaining <= 0) return this.outcome('deferred', 'lease_budget_exhausted', 0, null, null);
+    try {
+      const response = await this.post(prepared.destination, prepared.address, prepared.body, prepared.headers, remaining);
+      const duration = Date.now() - started;
+      if (response.status >= 200 && response.status < 300) return this.outcome('succeeded', null, duration, response.status, response.summary, started);
+      if (response.status === 408 || response.status === 429 || response.status >= 500) {
+        return { ...this.outcome('retry', 'http_response', duration, response.status, response.summary, started), retryAfterMs: this.retryAfter(response.retryAfter) };
+      }
+      return this.outcome('dead', 'http_response', duration, response.status, response.summary, started);
+    } catch (error: any) { return this.failure(error, started); }
+  }
+
+  private failure(error: any, started: number): DeliveryOutcome {
+    const category = typeof error?.deliveryCategory === 'string' ? error.deliveryCategory : this.networkCategory(error);
+    return this.outcome(['address_blocked', 'configuration', 'payload_too_large'].includes(category) ? 'dead' : 'retry',
+      category, Date.now() - started, null, null, started);
+  }
+
+  private async completeBatch(results: { claimed: ClaimedDelivery; outcome: DeliveryOutcome }[]): Promise<(string | null)[]> {
     return this.store.transaction(async tx => {
       const deliveries = tx.manager.getRepository(RuntimeEventDeliveryEntity);
-      const query = deliveries.createQueryBuilder('delivery').where('delivery.id = :id', { id: claimed.id });
+      const query = deliveries.createQueryBuilder('delivery').where('delivery.id IN (:...ids)', { ids: results.map(item => item.claimed.id) })
+        .orderBy('delivery.id', 'ASC');
       if (tx.manager.connection.options.type === 'postgres') query.setLock('pessimistic_write');
-      const delivery = await query.getOne();
-      if (!delivery || delivery.status !== 'in_flight' || delivery.leaseOwner !== claimed.leaseOwner) return null;
+      const rows = new Map((await query.getMany()).map(row => [row.id, row]));
+      const changed: RuntimeEventDeliveryEntity[] = [];
+      const attemptRows: RuntimeEventDeliveryAttemptEntity[] = [];
       const attempts = tx.manager.getRepository(RuntimeEventDeliveryAttemptEntity);
-      await attempts.insert({
-        id: randomUUID(), deliveryId: delivery.id, attemptNo: claimed.attemptNo,
-        startedAt: new Date(Date.parse(tx.now) - outcome.durationMs).toISOString(), completedAt: tx.now,
-        result: outcome.result, durationMs: outcome.durationMs, httpStatus: outcome.httpStatus,
-        errorCategory: outcome.errorCategory, responseSummary: this.safeSummary(outcome.responseSummary),
+      const statuses = results.map(({ claimed, outcome }) => {
+        const delivery = rows.get(claimed.id);
+        if (!delivery || !this.matchesClaim(delivery, claimed)) return null;
+        if (outcome.disposition === 'deferred') {
+          Object.assign(delivery, claimed.previousReady, { version: delivery.version + 1,
+            leaseOwner: null, leaseUntil: null, updatedAt: tx.now });
+          changed.push(delivery);
+          return null;
+        }
+        attemptRows.push(attempts.create({
+          id: randomUUID(), deliveryId: delivery.id, attemptNo: claimed.attemptNo,
+          startedAt: outcome.startedAt, completedAt: outcome.completedAt,
+          result: outcome.result, durationMs: outcome.durationMs, httpStatus: outcome.httpStatus,
+          errorCategory: outcome.errorCategory, responseSummary: this.safeSummary(outcome.responseSummary),
+        }));
+        let status: string = outcome.disposition;
+        let nextAttemptAt = tx.now;
+        if (outcome.disposition === 'retry') {
+          const delay = Math.max(this.retryDelay(delivery.id, claimed.generationAttempt), outcome.retryAfterMs || 0);
+          const deadline = Math.min(Date.parse(claimed.generationStartedAt) + ACTIVE_RETRY_MS,
+            Date.parse(delivery.expiresAt), claimed.event.expiresAt.getTime());
+          if (claimed.generationAttempt >= MAX_ATTEMPTS || Date.parse(tx.now) + delay >= deadline) status = 'dead';
+          else { status = 'retry_wait'; nextAttemptAt = new Date(Date.parse(tx.now) + delay).toISOString(); }
+        }
+        Object.assign(delivery, {
+          status, nextAttemptAt, attemptCount: claimed.attemptNo, version: delivery.version + 1,
+          leaseOwner: null, leaseUntil: null, updatedAt: tx.now,
+          lastError: status === 'succeeded' ? {} : {
+            category: outcome.errorCategory || (status === 'cancelled' ? 'authorization_revoked' : 'delivery_failed'),
+            code: outcome.result, httpStatus: outcome.httpStatus, at: tx.now,
+            generationAttempt: claimed.generationAttempt, generationStartedAt: claimed.generationStartedAt,
+          },
+        });
+        changed.push(delivery);
+        return status;
       });
-      let status: string = outcome.disposition;
-      let nextAttemptAt = tx.now;
-      if (outcome.disposition === 'retry') {
-        const delay = Math.max(this.retryDelay(delivery.id, claimed.generationAttempt), outcome.retryAfterMs || 0);
-        const deadline = Math.min(Date.parse(claimed.generationStartedAt) + ACTIVE_RETRY_MS,
-          Date.parse(delivery.expiresAt), claimed.event.expiresAt.getTime());
-        if (claimed.generationAttempt >= MAX_ATTEMPTS || Date.parse(tx.now) + delay >= deadline) status = 'dead';
-        else { status = 'retry_wait'; nextAttemptAt = new Date(Date.parse(tx.now) + delay).toISOString(); }
-      }
-      Object.assign(delivery, {
-        status, nextAttemptAt, attemptCount: claimed.attemptNo, version: delivery.version + 1,
-        leaseOwner: null, leaseUntil: null, updatedAt: tx.now,
-        lastError: status === 'succeeded' ? {} : {
-          category: outcome.errorCategory || (status === 'cancelled' ? 'authorization_revoked' : 'delivery_failed'),
-          code: outcome.result, httpStatus: outcome.httpStatus, at: tx.now,
-          generationAttempt: claimed.generationAttempt, generationStartedAt: claimed.generationStartedAt,
-        },
-      });
-      await deliveries.save(delivery);
-      return status;
+      // One attempt insert and one existing-row upsert per wave, committed together.
+      if (attemptRows.length) await attempts.insert(attemptRows);
+      if (changed.length) await deliveries.upsert(changed, ['id']);
+      return statuses;
     });
-  }
-
-  private async cancelUnsendable(tx: ObservabilityWriteTransaction, delivery: RuntimeEventDeliveryEntity,
-    category: string, status = 'cancelled'): Promise<void> {
-    Object.assign(delivery, { status, version: delivery.version + 1, leaseOwner: null, leaseUntil: null,
-      updatedAt: tx.now, lastError: { category, at: tx.now } });
-    await tx.manager.getRepository(RuntimeEventDeliveryEntity).save(delivery);
   }
 
   private destination(value: unknown): URL {
@@ -339,13 +445,15 @@ export class CallObservabilityDeliveryWorker implements OnApplicationBootstrap, 
   private async addresses(hostname: string, timeout: number) {
     const host = hostname.startsWith('[') && hostname.endsWith(']') ? hostname.slice(1, -1) : hostname;
     if (['169.254.169.254', 'fd00:ec2::254'].includes(host.toLowerCase())) this.deliveryError('address_blocked');
+    let timeoutHandle: ReturnType<typeof setTimeout>;
     const timer = new Promise<never>((_, reject) => {
-      const handle = setTimeout(() => {
+      timeoutHandle = setTimeout(() => {
         const error: any = new Error('DNS timeout'); error.deliveryCategory = 'timeout'; reject(error);
       }, timeout);
-      handle.unref();
+      timeoutHandle.unref();
     });
-    const records = await Promise.race([lookup(host, { all: true, verbatim: true }), timer]);
+    const records = await Promise.race([lookup(host, { all: true, verbatim: true }), timer])
+      .finally(() => clearTimeout(timeoutHandle));
     const unique = [...new Map(records.map(record => [record.address, record])).values()];
     if (!unique.length) this.deliveryError('dns');
     const privateAllowed = new Set((this.config.get<string>('API_NOVA_OBSERVABILITY_WEBHOOK_ALLOWED_PRIVATE_IPS') || '')
@@ -371,6 +479,8 @@ export class CallObservabilityDeliveryWorker implements OnApplicationBootstrap, 
         method: 'POST', headers: { ...headers, host: url.host },
         ...(url.protocol === 'https:' && !isIP(url.hostname) ? { servername: url.hostname } : {}),
       };
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const fail = (error: Error) => { if (timer) clearTimeout(timer); reject(error); };
       const request = transport(options, response => {
         const chunks: Buffer[] = [];
         let bytes = 0;
@@ -381,18 +491,23 @@ export class CallObservabilityDeliveryWorker implements OnApplicationBootstrap, 
           chunks.push(data.subarray(0, remaining));
           bytes += Math.min(data.length, remaining);
         });
-        response.on('end', () => resolve({
-          status: response.statusCode || 0,
-          summary: 'bytes=' + bytes + ';sha256=' +
-            contentHash(Buffer.concat(chunks).toString('base64')),
-          retryAfter: Array.isArray(response.headers['retry-after'])
-            ? response.headers['retry-after'][0] : response.headers['retry-after'],
-        }));
+        response.on('error', fail);
+        response.on('aborted', () => fail(new Error('Webhook response aborted')));
+        response.on('end', () => {
+          if (timer) clearTimeout(timer);
+          resolve({ status: response.statusCode || 0,
+            summary: 'bytes=' + bytes + ';sha256=' + contentHash(Buffer.concat(chunks).toString('base64')),
+            retryAfter: Array.isArray(response.headers['retry-after']) ? response.headers['retry-after'][0] : response.headers['retry-after'] });
+        });
       });
-      request.setTimeout(timeout, () => {
-        const error: any = new Error('Request timeout'); error.code = 'ETIMEDOUT'; request.destroy(error);
-      });
-      request.on('error', reject);
+      // Absolute wall-clock deadline, not an inactivity timeout that a dripping
+      // receiver can extend beyond the claim lease indefinitely.
+      timer = setTimeout(() => {
+        const error: any = new Error('Request timeout'); error.code = 'ETIMEDOUT';
+        request.destroy(error); fail(error);
+      }, Math.max(1, timeout));
+      timer.unref();
+      request.on('error', fail);
       request.end(body);
     });
   }
@@ -451,10 +566,13 @@ export class CallObservabilityDeliveryWorker implements OnApplicationBootstrap, 
     return 'connection';
   }
   private outcome(disposition: DeliveryOutcome['disposition'], category: string | null,
-    durationMs: number, httpStatus: number | null, summary: string | null): DeliveryOutcome {
-    return { disposition, result: disposition === 'succeeded' ? 'succeeded' :
+    durationMs: number, httpStatus: number | null, summary: string | null, startedAt?: number): DeliveryOutcome {
+    const completed = Date.now();
+    const started = startedAt ?? completed - Math.max(0, durationMs);
+    return { disposition, startedAt: new Date(started).toISOString(),
+      completedAt: new Date(completed).toISOString(), result: disposition === 'succeeded' ? 'succeeded' :
       disposition === 'cancelled' ? 'cancelled' : disposition === 'retry' ? 'retryable_failure' : 'permanent_failure',
-      durationMs: Math.max(0, Math.min(durationMs, 2147483647)), httpStatus,
+      durationMs: Math.max(0, Math.min(completed - started, 2147483647)), httpStatus,
       errorCategory: category, responseSummary: this.safeSummary(summary) };
   }
   private deliveryError(category: string): never {

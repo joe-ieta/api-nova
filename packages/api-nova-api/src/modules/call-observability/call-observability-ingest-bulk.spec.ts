@@ -73,7 +73,7 @@ describe('bounded bulk fact SQL', () => {
     const actual = optimized.mock.calls.length;
     console.log(JSON.stringify({ fixture: '16 terminal facts/checkpoints', baselineQueries: baseline, bulkQueries: actual }));
     expect(actual).toBeLessThan(baseline * 0.65);
-    expect(saves).toHaveBeenCalledTimes(4);
+    expect(saves).toHaveBeenCalledTimes(2);
     expect(await db.getRepository(RuntimeInvocationEntity).count()).toBe(16);
     expect(await db.getRepository(RuntimeInvocationRevisionEntity).count()).toBe(16);
     expect(await db.getRepository(RuntimeIngestReceiptEntity).count()).toBe(16);

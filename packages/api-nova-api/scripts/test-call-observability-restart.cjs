@@ -51,7 +51,7 @@ function terminal(start) {
 async function childMain() {
   const directory = ownedDirectory(process.argv[3]);
   const action = process.argv[4];
-  if (!['collect', 'age', 'collect-and-wait'].includes(action)) throw new Error('Invalid fixture action');
+  if (!['collect', 'collect-settled', 'age', 'collect-and-wait'].includes(action)) throw new Error('Invalid fixture action');
   process.env.API_NOVA_AUDIT_DIR = path.join(directory, 'source');
   process.env.API_NOVA_OBSERVABILITY_DATA_DIR = path.join(directory, 'data');
   const database = new DataSource({ type: 'sqljs', location: path.join(directory, 'observability.sqlite'),
@@ -65,6 +65,11 @@ async function childMain() {
     API_NOVA_OBSERVABILITY_SOURCE_ID_KEY_ID: 'restart-v1' });
   const callers = new CallObservabilityCallersProjector(config);
   const worker = new CallObservabilityWorker(collector, callers, store, config);
+  const pendingBuckets = async () => {
+    const rows = (await database.getRepository(entities.RuntimeMetricBucketEntity).find())
+      .concat(await database.getRepository(entities.RuntimeCallerBucketEntity).find());
+    return rows.filter(row => row.metrics?.recompute?.state === 'pending').map(row => row.id).sort();
+  };
   let report = null;
   if (action === 'age') {
     // A deterministic observation-clock fixture, not a claim that 45 seconds elapsed in real time.
@@ -74,9 +79,13 @@ async function childMain() {
   } else {
     for (let i = 0; i < 100; i++) {
       report = await worker.runOnce();
-      if (report.scanComplete) break;
+      // A completed source scan can leave derived buckets pending under the worker's budget.
+      if (report.scanComplete && (action !== 'collect-settled' || !(await pendingBuckets()).length)) break;
     }
     if (!report?.scanComplete) throw new Error('Fixture scan did not converge');
+    if (action === 'collect-settled' && (await pendingBuckets()).length) {
+      throw new Error('Fixture derived buckets did not converge');
+    }
   }
   const calls = await database.getRepository(entities.RuntimeInvocationEntity).find();
   const events = await database.getRepository(Event).find();
@@ -88,6 +97,7 @@ async function childMain() {
     if (body?.state === 'captured') responseBodies.push((await payloads.read(body)).data);
   }
   const summary = { pid: process.pid, dataset, watermark: await store.watermark(), report,
+    pendingBuckets: await pendingBuckets(),
     calls: calls.map(row => ({ id: row.invocationId, phase: row.phase, outcome: row.outcome,
       recordVersion: row.recordVersion, sourceRecordVersion: row.sourceRecordVersion,
       completedAt: row.completedAt, completionSource: row.record.completionSource })),
@@ -188,7 +198,9 @@ if (process.argv[2] === '--collector-child') {
     assert.equal(invocationEvents(first, [start.invocationId]).length, 0);
     assertProjectionEvents(first, false);
     await fs.appendFile(f.file, end.slice(91));
-    const second = await f.run('collect');
+    // Establish a quiescent projection baseline before checking duplicate idempotency.
+    const second = await f.run('collect-settled');
+    assert.deepEqual(second.pendingBuckets, []);
     assert.notEqual(second.pid, first.pid);
     assert.deepEqual(second.dataset, first.dataset);
     assert.equal(second.calls[0].phase, 'finished');
@@ -202,6 +214,8 @@ if (process.argv[2] === '--collector-child') {
     const replay = await f.run('collect');
     assert.equal(replay.watermark, second.watermark);
     assert.equal(replay.receipts, 2);
+    assert.deepEqual(replay.pendingBuckets, []);
+    assert.deepEqual(replay.calls, second.calls);
     assert.deepEqual(replay.events, second.events);
     assert.equal(replay.checkpoints[0].byteOffset, String(Buffer.byteLength(initial + end + end)));
   });

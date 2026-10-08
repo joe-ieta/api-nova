@@ -296,10 +296,9 @@ export class CallObservabilityStore {
     }
     return this.ingestion.run(async () => {
       await this.ensurePayloadStorage();
-      return this.payloadCoordination.withWriter(async lease => {
-        // One stable retention view for this bounded batch. The commit path rechecks
-        // references, including earlier revisions in this same transaction.
-        const retention = await this.readSnapshot(async tx => {
+      return this.payloadCoordination.withPreparedWriter(async tx => {
+          // Acquire the writer lease and its bounded retention view under one
+          // commit-counter lock. Body I/O starts only after this transaction ends.
           const policy = await readEventRetentionPolicy(tx.manager);
           const ids = entries.map(entry => (entry.input as any)?.invocationId)
             .filter((id): id is string => typeof id === 'string' && id.length <= 240);
@@ -313,7 +312,8 @@ export class CallObservabilityStore {
             request: row.requestPayloadId ? expiry.get(row.requestPayloadId) : undefined,
             response: row.responsePayloadId ? expiry.get(row.responsePayloadId) : undefined,
           }])) };
-        });
+        }, async session => {
+        const { lease, prepared: retention } = session;
         const projectionBatch = options.batchFacts ? project?.createBatch?.() : undefined;
         const activeProject = projectionBatch?.project || project;
         try {
@@ -336,7 +336,7 @@ export class CallObservabilityStore {
               }
             }
           }
-          return await this.transaction(async tx => {
+          return await session.commit(async tx => {
             await this.payloadCoordination.assertWriter(tx, lease);
             const facts = options.batchFacts ? await this.prepareFactBatch(tx, preparedKeys, entries) : undefined;
             if (facts) this.factBatches.set(tx, facts);

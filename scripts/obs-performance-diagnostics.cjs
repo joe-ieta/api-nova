@@ -13,10 +13,10 @@ const built = path.join(__dirname, '../packages/api-nova-api/dist/src/modules/ca
 for (const [module, type, methods] of [
   ['call-observability.store', 'CallObservabilityStore', ['ingestBatch', 'readSnapshot', 'transaction', 'saveProjection', 'markBucketsForRecompute', 'recomputePendingBuckets', 'prepareFactBatch', 'flushFactBatch']],
   ['call-observability-callers.projector', 'CallObservabilityCallersProjector', ['projectRecord', 'flushBatch']],
-  ['call-observability-payload.coordinator', 'CallObservabilityPayloadCoordinator', ['acquireWriter', 'assertWriter', 'releaseWriter']],
+  ['call-observability-payload.coordinator', 'CallObservabilityPayloadCoordinator', ['acquireWriter', 'assertWriter', 'releaseWriter', 'acquireWriterInTransaction', 'commitPreparedWriter']],
   ['call-observability-payload.store', 'CallObservabilityPayloadStore', ['prepare']],
   ['call-observability-outbox.service', 'CallObservabilityOutboxService', ['runOnce']],
-  ['call-observability-delivery.worker', 'CallObservabilityDeliveryWorker', ['runOnce']],
+  ['call-observability-delivery.worker', 'CallObservabilityDeliveryWorker', ['runOnce', 'claimBatch', 'prepare', 'preflightBatch', 'sendPrepared', 'completeBatch']],
   ['../runtime-observability/services/runtime-observability.service', 'RuntimeObservabilityService', ['recordGatewayRequestResult', 'recordGatewayCacheResult', 'executeRuntimeWriteBatch', 'prefetchRuntimeRefs', 'flushRuntimeWriteBatch']],
 ]) {
   const prototype = require(path.join(built, module + '.js'))[type].prototype;

@@ -92,20 +92,20 @@ describe('bounded durable collector batches', () => {
     const payload = await db.getRepository(RuntimePayloadEntity).findOneByOrFail({ id: row.requestPayloadId! });
     expect(payload.expiresAt).toBe(new Date(Date.parse(start.startedAt) + 7 * 86400000).toISOString());
   });
-  it('uses one durable acquire/read/commit/release cycle for 16 records without disabling autoSave', async () => {
+  it('uses two durable acquisition/commit transactions for 16 records without disabling autoSave', async () => {
     await store.ensurePayloadStorage();
     const save = jest.spyOn(db.driver as any, 'autoSave');
     for (let index = 0; index < 16; index++) await store.ingest(evidence());
-    expect(save).toHaveBeenCalledTimes(64);
+    expect(save).toHaveBeenCalledTimes(32);
     save.mockClear();
     await store.ingestBatch(Array.from({ length: 16 }, () => ({ input: evidence(), context: {} })));
     expect(db.options.type).toBe('sqljs'); expect((db.options as any).autoSave).toBe(true);
-    expect(save).toHaveBeenCalledTimes(4);
+    expect(save).toHaveBeenCalledTimes(2);
     await expect(store.ingestBatch(Array.from({ length: 17 }, () => ({ input: evidence(), context: {} })))).rejects.toThrow('INVALID_INGEST_BATCH');
   });
   it('blocks GC during preparation and refuses commit after a real writer lease is released', async () => {
-    let lease: any; const acquire = store.payloadCoordination.acquireWriter.bind(store.payloadCoordination);
-    jest.spyOn(store.payloadCoordination, 'acquireWriter').mockImplementation(async () => { lease = await acquire(); return lease; });
+    let lease: any; const acquire = store.payloadCoordination.acquireWriterInTransaction.bind(store.payloadCoordination);
+    jest.spyOn(store.payloadCoordination, 'acquireWriterInTransaction').mockImplementation(async tx => { lease = await acquire(tx); return lease; });
     const prepare = payloads.prepare.bind(payloads); let calls = 0;
     jest.spyOn(payloads, 'prepare').mockImplementation(async (...args) => {
       const prepared = await prepare(...args);
