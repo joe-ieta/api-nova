@@ -424,7 +424,7 @@ export class ConfigManager {
     await this.initConfig();
     let oldConfig = { ...await this.getConfig() };
     
-    // chokidar is now statically imported
+    // Chokidar 4 watches this concrete Conf path literally, without glob expansion.
     const watcher = chokidar.watch(this.config.path);
     
     watcher.on('change', async () => {

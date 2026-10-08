@@ -185,7 +185,22 @@ async function main() {
         if (line) observations.push(JSON.parse(line));
       }
     }
-    assert.equal(observations.filter(item => item.subject === 'caller-a').length, 1);
+    // Caller JSONL is an observation journal: one row per authenticated finished
+    // span, not a deduplicated caller catalog. Check exact evidence multiplicity.
+    const authenticated = records.filter(record => record.identitySource === 'authenticated' && record.callerId);
+    const expectedObservations = authenticated.map(record => ({ callerId: record.callerId,
+      issuer: record.callerIssuer, subject: record.callerSubject, clientId: record.clientId,
+      transport: record.transport, observedAt: record.startedAt }));
+    const canonical = rows => rows.map(row => JSON.stringify(row)).sort();
+    assert.deepEqual(canonical(observations), canonical(expectedObservations));
+    const callerA = observations.filter(item => item.subject === 'caller-a');
+    const callerAFinished = authenticated.filter(record => record.callerSubject === 'caller-a');
+    assert.ok(callerAFinished.length > 1, 'fixture must exercise repeated caller observations');
+    assert.equal(callerA.length, callerAFinished.length);
+    assert.equal(new Set(callerA.map(item => item.callerId)).size, 1);
+    assert.ok(callerA.every(item => item.issuer === process.env.API_NOVA_RUNTIME_ISSUER));
+    assert.ok(!JSON.stringify(observations).includes(token));
+    assert.ok(!JSON.stringify(observations).includes(other));
     console.log('RUNTIME_SECURITY_AUDIT_SMOKE_OK');
   } finally {
     if (sseClient) await sseClient.close();

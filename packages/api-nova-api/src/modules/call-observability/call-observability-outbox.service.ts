@@ -87,12 +87,9 @@ export class CallObservabilityOutboxService implements OnApplicationBootstrap, O
       const rows = await query.getMany();
       const leaseUntil = new Date(Date.parse(tx.now) + EVENT_LEASE_MS);
       const recovered = rows.filter(row => row.dispatchState === 'leased').length;
-      for (const row of rows) {
-        row.dispatchState = 'leased';
-        row.dispatchLeaseOwner = this.owner;
-        row.dispatchLeaseUntil = leaseUntil;
-      }
-      await repository.save(rows);
+      if (rows.length) await repository.update({ id: In(rows.map(row => row.id)) }, {
+        dispatchState: 'leased', dispatchLeaseOwner: this.owner, dispatchLeaseUntil: leaseUntil,
+      });
       return { ids: rows.map(row => row.id), recovered };
     });
 
@@ -102,13 +99,9 @@ export class CallObservabilityOutboxService implements OnApplicationBootstrap, O
     // No network I/O occurs here; durable jobs and their watermark commit atomically.
     for (let offset = 0; offset < claimed.ids.length; offset += 32) {
       const batch = await this.store.transaction(async tx => {
-        let materialized = 0, created = 0, lastEventId: string | undefined;
-        for (const id of claimed.ids.slice(offset, offset + 32)) {
-          const result = await this.materializeInTransaction(tx, id);
-          if (result) { materialized++; created += result.created; lastEventId = id; }
-        }
-        return { materialized, created,
-          watermark: await this.advanceWatermarkInTransaction(tx, lastEventId) };
+        const result = await this.materializeBatch(tx, claimed.ids.slice(offset, offset + 32));
+        return { materialized: result.eventIds.length, created: result.created,
+          watermark: await this.advanceWatermarkInTransaction(tx, result.eventIds.at(-1)) };
       });
       report.materializedEvents += batch.materialized;
       report.deliveriesCreated += batch.created;
@@ -118,43 +111,82 @@ export class CallObservabilityOutboxService implements OnApplicationBootstrap, O
     return report;
   }
 
-  private async materializeInTransaction(tx: ObservabilityWriteTransaction,
-    eventId: string): Promise<{ created: number } | null> {
+  private async materializeBatch(tx: ObservabilityWriteTransaction,
+    eventIds: string[]): Promise<{ created: number; eventIds: string[] }> {
     const eventRepository = tx.manager.getRepository(RuntimeObservabilityEventEntity);
-    const event = await eventRepository.findOneBy({ id: eventId });
-    if (!event || event.dispatchState !== 'leased' || event.dispatchLeaseOwner !== this.owner ||
-      !event.dispatchLeaseUntil || event.dispatchLeaseUntil.getTime() <= Date.parse(tx.now) ||
-      !event.sequence || !event.expiresAt || event.expiresAt.getTime() <= Date.parse(tx.now)) return null;
-    const sequence = sequenceKey(event.sequence);
-    const revisions = await tx.manager.getRepository(RuntimeSubscriptionRevisionEntity)
-      .createQueryBuilder('revision')
-      .where('revision.revoked = :revoked', { revoked: false })
-      .andWhere('revision.effectiveFromSequence <= :sequence', { sequence })
-      .andWhere('(revision.effectiveUntilSequence IS NULL OR revision.effectiveUntilSequence > :sequence)', { sequence })
-      .orderBy('revision.subscriptionId', 'ASC').addOrderBy('revision.version', 'ASC').getMany();
+    const rows = new Map((await eventRepository.findBy({ id: In(eventIds) })).map(row => [row.id, row]));
+    const events = eventIds.map(id => rows.get(id)).filter((event): event is RuntimeObservabilityEventEntity =>
+      !!event && event.dispatchState === 'leased' && event.dispatchLeaseOwner === this.owner &&
+      !!event.dispatchLeaseUntil && event.dispatchLeaseUntil.getTime() > Date.parse(tx.now) &&
+      !!event.sequence && !!event.expiresAt && event.expiresAt.getTime() > Date.parse(tx.now));
+    if (!events.length) return { created: 0, eventIds: [] };
+    const sequences = events.map(event => sequenceKey(event.sequence!));
+    const sortedSequences = [...sequences].sort();
     const deliveries = tx.manager.getRepository(RuntimeEventDeliveryEntity);
     let created = 0;
+    const pending: RuntimeEventDeliveryEntity[] = [];
+    const flush = async () => {
+      if (!pending.length) return;
+      const existing = new Set((await deliveries.find({ where: { id: In(pending.map(row => row.id)) },
+        select: { id: true } })).map(row => row.id));
+      const fresh = pending.filter(row => !existing.has(row.id));
+      if (fresh.length) await deliveries.insert(fresh);
+      created += fresh.length;
+      pending.length = 0;
+    };
+    // Keep only one subscription's effective revision per event. Keyset pages
+    // bound both memory and SQL parameters even with a large revision history.
     const effective = new Map<string, RuntimeSubscriptionRevisionEntity>();
-    for (const revision of revisions) effective.set(revision.subscriptionId, revision);
-    for (const revision of effective.values()) {
-      const config = revision.config as SubscriptionConfig;
-      if (!this.matches(event, config)) continue;
-      const id = contentHash(canonicalJson(['observability.delivery.v1', revision.subscriptionId, event.id]));
-      const previous = await deliveries.findOneBy({ id });
-      if (previous) continue;
-      await deliveries.insert(deliveries.create({ id, subscriptionId: revision.subscriptionId,
-        subscriptionRevision: revision.version, eventId: event.id, eventSequence: sequence,
-        status: 'pending', version: 1, attemptCount: 0, replayGeneration: 0,
-        nextAttemptAt: tx.now, leaseOwner: null, leaseUntil: null, lastError: {},
-        createdAt: tx.now, updatedAt: tx.now,
-        expiresAt: new Date(Date.parse(tx.now) + DELIVERY_RETENTION_MS).toISOString() }));
-      created++;
+    const emitSubscription = async () => {
+      for (const event of events) {
+        const revision = effective.get(event.id);
+        if (!revision || !this.matches(event, revision.config as SubscriptionConfig)) continue;
+        pending.push(deliveries.create({
+          id: contentHash(canonicalJson(['observability.delivery.v1', revision.subscriptionId, event.id])),
+          subscriptionId: revision.subscriptionId, subscriptionRevision: revision.version,
+          eventId: event.id, eventSequence: sequenceKey(event.sequence!), status: 'pending',
+          version: 1, attemptCount: 0, replayGeneration: 0, nextAttemptAt: tx.now,
+          leaseOwner: null, leaseUntil: null, lastError: {}, createdAt: tx.now, updatedAt: tx.now,
+          expiresAt: new Date(Date.parse(tx.now) + DELIVERY_RETENTION_MS).toISOString(),
+        }));
+        if (pending.length === 32) await flush();
+      }
+      effective.clear();
+    };
+    let subscription: string | undefined;
+    let cursor: { subscriptionId: string; version: number } | undefined;
+    while (true) {
+      const query = tx.manager.getRepository(RuntimeSubscriptionRevisionEntity).createQueryBuilder('revision')
+        .where('revision.revoked = :revoked', { revoked: false })
+        .andWhere('revision.effectiveFromSequence <= :maximum', { maximum: sortedSequences.at(-1) })
+        .andWhere('(revision.effectiveUntilSequence IS NULL OR revision.effectiveUntilSequence > :minimum)',
+          { minimum: sortedSequences[0] });
+      if (cursor) query.andWhere('(revision.subscriptionId > :subscriptionId OR ' +
+        '(revision.subscriptionId = :subscriptionId AND revision.version > :version))', cursor);
+      const revisions = await query.orderBy('revision.subscriptionId', 'ASC')
+        .addOrderBy('revision.version', 'ASC').take(128).getMany();
+      for (const revision of revisions) {
+        if (subscription !== undefined && subscription !== revision.subscriptionId) await emitSubscription();
+        subscription = revision.subscriptionId;
+        for (let index = 0; index < events.length; index++) {
+          const sequence = sequences[index];
+          if (revision.effectiveFromSequence <= sequence &&
+            (!revision.effectiveUntilSequence || revision.effectiveUntilSequence > sequence)) {
+            effective.set(events[index].id, revision);
+          }
+        }
+      }
+      if (revisions.length < 128) break;
+      const last = revisions[revisions.length - 1];
+      cursor = { subscriptionId: last.subscriptionId, version: last.version };
     }
-    event.dispatchState = 'materialized';
-    event.dispatchLeaseOwner = null as any;
-    event.dispatchLeaseUntil = null as any;
-    await eventRepository.save(event);
-    return { created };
+    await emitSubscription();
+    await flush();
+    const materializedIds = events.map(event => event.id);
+    await eventRepository.update({ id: In(materializedIds) }, {
+      dispatchState: 'materialized', dispatchLeaseOwner: null as any, dispatchLeaseUntil: null as any,
+    });
+    return { created, eventIds: materializedIds };
   }
 
   private matches(event: RuntimeObservabilityEventEntity, config: SubscriptionConfig): boolean {

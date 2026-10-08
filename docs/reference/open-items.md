@@ -1,5 +1,5 @@
 ---
-doc-version: 1.20.0
+doc-version: 1.21.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
@@ -27,11 +27,11 @@ ENV-01按“完整通过或限制有证据”原合同限定完成；MCP失联�
 | OBS-16-04 | 源批写和采集/outbox批事务已实现；业务数据库竞争、完整投影/投递吞吐是首要阻断；之后完整容量查询与采集A/B，最终目标签收；本机完整PG冷备恢复已验 |
 | OPS-01 | 消费上述安全与可观测结果，完成生产权限、TLS/反代、日志目录与告警触达的统一签收 |
 
-用户已确认本轮暂用本机隔离环境，生产签收保留待办。可观测TLS信任正反补验已2/2通过；完整PG数据库/正文/配置及独立秘密的冷备恢复已7/7通过，见[恢复演练](../audits/2026-10-08-observability-backup-restore.md)；单调用旧指标原子事务已交付；宽等待重试后SQLite3000完整响应、源无缺口并正常关停，但观测/投递仅334/3000，原延迟和查询仍失败；最终PG响应p95 49.163ms，可见2883/3000、投递2873/3000，查询通过但完整终态/投递与原延迟仍未达。下一步先优化source→终态批量SQL/扫描，再减少outbox重复查询及跨模块整库持久化，再验完整容量和等价采集A/B。[最新宽等待证据](../audits/2026-10-08-observability-relaxed-timeouts.md)。[可观测签收矩阵与外部输入](../audits/2026-10-08-observability-signoff-readiness.md)。
+用户已确认本轮暂用本机隔离环境，生产签收保留待办。可观测TLS信任正反补验已2/2通过；完整PG数据库/正文/配置及独立秘密的冷备恢复已7/7通过，见[恢复演练](../audits/2026-10-08-observability-backup-restore.md)；批量采集/投递与调度修复已交付，同候选两库3000完整响应、源完整、正常关停。PG3000/3000终态可见及投递、完整容量查询p95≤235ms已限定通过，但可见/投递p95约267/268秒仍未达3/5秒；SQLite479/3000，约318GB累计整库导出仍形成阻断。下一步减少SQL.js只读/跨模块导出和生产投影/事务成本，再验参考硬件与等价采集A/B。[本轮联合验收](../audits/2026-10-08-observability-bulk-pipeline.md)。[可观测签收矩阵与外部输入](../audits/2026-10-08-observability-signoff-readiness.md)。
 
 默认关闭的host网络路径、Verified许可、受管IPC、清理/投递worker等必须按各自部署合同显式安装或启用。已有本地和容器验证不自动等于生产可用。真实邮件外发、目标SMTP和第三方接收端仅在明确范围下执行。
 
-Nest实际上传/解析器旧链已迁移，审计21→15节点（0 critical/2 high/13 moderate）；双npm干净安装、消费者解析门禁、上传/Gateway/Socket.IO专项23/23通过。剩余chokidar/braces、Nest SSE/file-type及uuid仍需本地风险处置；单workspace独立安装不继承根overrides，交付方式须单独核对。[当前安全证据](../audits/2026-10-08-security-parser-chain-migration.md)。
+Nest实际上传/解析器旧链及Chokidar4字面文件监听已迁移，生产审计21→15→13节点（0 critical/0 high/13 moderate）；双npm干净安装、消费者解析门禁、上传/Gateway/Socket.IO专项23/23通过。监听真实文件7/7及server完整测试链通过；剩余Nest SSE/file-type及uuid仍需本地风险处置；单workspace独立安装不继承根overrides，交付方式须单独核对。[当前安全证据](../audits/2026-10-08-security-file-watch-migration.md)。
 
 ## 已交付能力的复用边界
 

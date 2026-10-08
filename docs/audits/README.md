@@ -3,13 +3,15 @@
 > 2026-09-08: 数据库与持久化清理、43 表 PG/SQLite 空库及完整回归结果见 [本轮清理审查记录](./2026-09-08-persistence-cleanup.md)。旧报告中的 38/40 表与环境阻塞结论保留为历史证据。
 
 ---
-doc-version: 1.71.0
+doc-version: 1.72.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
 # ApiNova 审查报告索引
 
-本轮超时重试：[放宽等待与联合测量](./2026-10-08-observability-relaxed-timeouts.md)、[旧Runtime指标事务合并](./2026-10-08-runtime-observability-write-transaction.md)。
+本轮按计划推进：[批量采集与投递联合验收](./2026-10-08-observability-bulk-pipeline.md)、[采集批量SQL](./2026-10-08-observability-ingest-bulk-sql.md)、[目录扫描与统计预算](./2026-10-08-observability-collector-fairness.md)、[安全监听迁移](./2026-10-08-security-file-watch-migration.md)。
+
+此前超时重试：[放宽等待与联合测量](./2026-10-08-observability-relaxed-timeouts.md)、[旧Runtime指标事务合并](./2026-10-08-runtime-observability-write-transaction.md)。
 
 本轮能力推进：[实际安全解析器链迁移](./2026-10-08-security-parser-chain-migration.md)、[源writer批处理](./2026-10-08-observability-source-writer.md)、[采集批事务](./2026-10-08-observability-ingest-batching.md)、[SQL.js持久化与事务隔离](./2026-10-08-sqljs-persistence-concurrency.md)、[联合吞吐与剩余验收](./2026-10-08-observability-throughput-closure.md)。
 

@@ -1,9 +1,11 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
 # SEC-F4-02 上传与解析器依赖链迁移
+
+> 本文保留第三批的 15 节点时点证据。后续已将生产文件监听迁移至无 glob 的 Chokidar 4，当前为 13 个 moderate、0 high/critical；见[监听迁移验收](./2026-10-08-security-file-watch-migration.md)。
 
 本批承接[第二批风险处置](./2026-10-08-security-dependency-closure.md)，实际替换 Nest 消费的旧 multer、Express/body-parser/qs 和 Swagger/Config 的 YAML/lodash 依赖。SEC-F4-02 仍为 IN_PROGRESS；生产环境签收继续待办。
 

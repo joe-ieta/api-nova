@@ -1,5 +1,5 @@
 ---
-doc-version: 1.7.0
+doc-version: 1.8.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
@@ -92,7 +92,7 @@ Current progress:
 
 Next order:
 
-1. Continue watcher/framework security risk remediation in parallel with observability throughput closure. The actual Nest parser dependency migration, source batching, ingestion transactions and outbox batching are implemented; full-load visibility and delivery targets remain unmet. SQL.js persistence correctness and single-call legacy metric/state atomic transactions pass isolated tests. The user-authorized relaxed wait profile lets all 3000 SQLite responses complete and the service shut down normally, but terminal visibility/delivery and query targets still fail. A PostgreSQL regression exposed connection-pool starvation while waiting for an asset lock; admission now precedes connection acquisition, with six isolated PostgreSQL checks. The final PostgreSQL run completes 3000 valid responses with business p95 49.163ms, but only 2883/3000 terminal records are visible and 2873/3000 delivered at cutoff. API regression passes all 181 suites / 1901 tests. Prioritize reducing cross-request/cross-module persistence and completing database projection/delivery, using actual queue and SQL.js export measurements. Original performance targets remain unchanged. Complete-cohort capacity and equivalent capture-overhead A/B follow throughput closure; see the active work-package breakdown and execution status.
+1. Continue Nest/uuid risk remediation in parallel with observability latency and SQL.js persistence work. The production parser and literal file watcher migrations leave 13 moderate dependency nodes, with no high or critical nodes. Bounded bulk fact SQL, paged outbox materialization and cost-aware maintenance scheduling are implemented; final API regression passes 184 suites / 1918 tests. The same candidate returns all 3000 valid responses on both databases, with complete source records and graceful shutdown. PostgreSQL now exposes and delivers all 3000 terminal calls and passes the full-cohort local query checks, but visibility/delivery p95 remains about 267/268 seconds. SQLite exposes/delivers only 479/3000; cumulative whole-database exports remain expensive. Prioritize read-only/cross-module persistence costs and production projector/transaction overhead while preserving durability. Reference-hardware capacity and equivalent capture-overhead A/B remain open; see the active breakdown and latest bulk-pipeline evidence.
 2. Consolidate the results on one candidate version and finish target-environment sign-off (SEC-F4-02, OBS-16-04, OPS-01). The user selected local isolated validation for now; production sign-off remains open.
 
 PROD-04C is complete within local Windows/isolated PostgreSQL scope: 16 real-HTTP lifecycle checks plus related regression coverage; production identity/ACL, Linux semantics and real MCP binary outbound remain outside this run. See [binary lifecycle evidence](../audits/2026-10-08-prod-04c-binary-lifecycle.md).

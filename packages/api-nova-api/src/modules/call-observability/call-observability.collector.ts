@@ -26,6 +26,8 @@ export interface CollectorLimits {
   maxRecords?: number;
   maxReadBytes?: number;
   maxLineBytes?: number;
+  /** Internal opt-in: the known callers projector does not read/write core facts. */
+  batchFacts?: boolean;
 }
 export interface CollectionReport {
   checkpointId: string;
@@ -111,7 +113,8 @@ export class CallObservabilityCollector implements OnModuleDestroy {
         const identity = this.identity(opened);
         if (!await matchesOpenedSource(file, expected, opened, process.platform, handle)) throw new ObservabilityStorageError('SOURCE_FILE_CHANGED');
         const id = contentHash(canonicalJson([this.sourceDirectory, identity]));
-        const state = await this.store.transaction(async tx => ({
+        const state = await this.store.readSnapshot(async tx => ({
+          snapshotSeq: tx.snapshotSeq,
           checkpoint: await tx.manager.getRepository(RuntimeIngestCheckpointEntity).findOneBy({ id }),
           boundary: await tx.manager.getRepository(RuntimePipelineStateEntity)
             .findOneBy({ id: checkpointBoundaryId(id) }),
@@ -144,13 +147,13 @@ export class CallObservabilityCollector implements OnModuleDestroy {
         const report: CollectionReport = {
           checkpointId: id, byteOffset: String(offset), bytesRead: 0, processedRecords: 0,
           quarantinedRecords: 0, duplicateRecords: 0, partialBytes: 0,
-          pendingFileBytes: opened.size - offset, hasMore: false, snapshotSeq: await this.store.watermark(),
+          pendingFileBytes: opened.size - offset, hasMore: false, snapshotSeq: state.snapshotSeq,
           sourceState: 'unknown', sourceStateReason: 'not_observed', closedPartialRecords: 0, closedPartialBytes: 0,
         };
         const pending: IngestBatchEntry[] = [];
         const flush = async () => {
           if (!pending.length) return;
-          const results = await this.store.ingestBatch(pending, project, { coalesceBuckets: true });
+          const results = await this.store.ingestBatch(pending, project, { coalesceBuckets: true, batchFacts: limits.batchFacts === true });
           session.committedOffset = Number(pending[pending.length - 1].context.checkpoint!.byteOffset);
           for (const result of results) {
             report.quarantinedRecords += Number(result.status === 'quarantined');

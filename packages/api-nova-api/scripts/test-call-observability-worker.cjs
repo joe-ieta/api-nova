@@ -367,3 +367,59 @@ test('opt-in background lifecycle collects and waits for its active batch on shu
   assert.equal(count, 1);
   await assert.rejects(f.worker.runOnce(), code('COLLECTOR_STOPPED'));
 });
+
+test('worker drains complete-line backlog without sixteen-record directory rescans and advances buckets before source EOF', async t => {
+  const f = await fixture(t);
+  const rows = Array.from({ length: 160 }, () => evidence({ origin: 'internal' }));
+  await fs.writeFile(f.file, rows.map(encode).join(''));
+  const calls = []; const collect = f.worker.collector.collectFile.bind(f.worker.collector);
+  f.worker.collector.collectFile = async (...args) => { calls.push(args[1]); return collect(...args); };
+  const first = await f.worker.runOnce();
+  assert.equal(first.processedRecords, 128);
+  assert.equal(first.scanComplete, false);
+  assert.equal(first.reconciledInvocations, 0);
+  assert.ok(first.recomputedBuckets > 0 && first.recomputedBuckets <= 1);
+  assert.deepEqual(calls.map(item => item.maxRecords), [64, 64]);
+  assert.ok(calls.every(item => item.batchFacts === true));
+  await sweep(f.worker);
+  await sweep(f.worker);
+  assert.equal(await f.repository(entities.RuntimeInvocationEntity).count(), 160);
+  const receipts = await f.repository(entities.RuntimeIngestReceiptEntity).count();
+  assert.equal(receipts, 160);
+});
+
+test('one-bucket maintenance alternates metric and caller work across busy turns', async t => {
+  const f = await fixture(t);
+  await f.store.ingest(evidence(), {}, f.callers.project);
+  const metrics = f.repository(entities.RuntimeMetricBucketEntity);
+  const callers = f.repository(entities.RuntimeCallerBucketEntity);
+  const complete = async repository => (await repository.find()).filter(row => !row.metrics.recompute).length;
+  assert.equal(await complete(metrics), 0); assert.equal(await complete(callers), 0);
+  assert.deepEqual(await f.store.recomputePendingBuckets(1), { recomputed: 1, failed: 0 });
+  assert.equal(await complete(metrics), 1); assert.equal(await complete(callers), 0);
+  assert.deepEqual(await f.store.recomputePendingBuckets(1), { recomputed: 1, failed: 0 });
+  assert.equal(await complete(metrics), 1); assert.equal(await complete(callers), 1);
+});
+
+test('bounded recompute shares work between metric/caller markers and backs off malformed rows without losing them', async t => {
+  const f = await fixture(t);
+  const start = evidence(); await f.store.ingest(start, {}, f.callers.project);
+  const metrics = f.repository(entities.RuntimeMetricBucketEntity);
+  const callers = f.repository(entities.RuntimeCallerBucketEntity);
+  const metric = (await metrics.find())[0], caller = (await callers.find())[0];
+  assert.ok(metric && caller);
+  await metrics.save({ ...metric, id: '0'.repeat(64), metrics: { recompute: { state: 'pending', action: 'invalid' } } });
+  await callers.save({ ...caller, id: '0'.repeat(64), metrics: { recompute: { state: 'pending', action: 'invalid' } } });
+  const first = await f.store.recomputePendingBuckets(2);
+  assert.deepEqual(first, { recomputed: 0, failed: 2 });
+  const second = await f.store.recomputePendingBuckets(2);
+  assert.deepEqual(second, { recomputed: 2, failed: 0 });
+  assert.ok((await metrics.find()).some(row => row.id !== '0'.repeat(64) && !row.metrics.recompute));
+  assert.ok((await callers.find()).some(row => row.id !== '0'.repeat(64) && !row.metrics.recompute));
+  assert.equal((await metrics.findOneByOrFail({ id: '0'.repeat(64) })).metrics.recompute.state, 'pending');
+  assert.equal((await callers.findOneByOrFail({ id: '0'.repeat(64) })).metrics.recompute.state, 'pending');
+  const full = await f.store.recomputePendingBuckets();
+  assert.equal(full.failed, 2); // The existing explicit full repair still sees deferred failures.
+  await assert.rejects(f.store.recomputePendingBuckets(0), code('INVALID_RECOMPUTE_LIMIT'));
+  await assert.rejects(f.store.recomputePendingBuckets(129), code('INVALID_RECOMPUTE_LIMIT'));
+});

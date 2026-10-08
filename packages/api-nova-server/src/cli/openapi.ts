@@ -69,6 +69,7 @@ export function watchOpenAPIFile(filePath: string, callback: () => void) {
     console.log(CliDesign.info('文件监控已启用'));
     console.log(CliDesign.brand.muted(`  ${CliDesign.icons.eye} 监控文件: ${resolvedPath}`));
     
+    // Chokidar 4 treats this exact source filename literally, including braces/brackets.
     const watcher = chokidar.watch(resolvedPath, {
       persistent: true,
       ignoreInitial: true,
@@ -87,7 +88,7 @@ export function watchOpenAPIFile(filePath: string, callback: () => void) {
     });
 
     watcher.on('error', (error) => {
-      console.log(CliDesign.error(`文件监控错误: ${error.message}`));
+      console.log(CliDesign.error(`文件监控错误: ${error instanceof Error ? error.message : String(error)}`));
     });
   }
 }
