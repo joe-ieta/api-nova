@@ -224,6 +224,7 @@ export class AssetCatalogService {
       endpoint.metadata = {
         ...(endpoint.metadata || {}),
         ...input.metadata,
+        ...(Object.prototype.hasOwnProperty.call(input.metadata, 'probeUrl') ? { probeUrlMode: 'custom' } : {}),
       };
     }
 
@@ -256,10 +257,14 @@ export class AssetCatalogService {
       sourceType === 'imported'
         ? runtimeBaseUrl
         : `${runtimeBaseUrl.replace(/\/+$/, '')}${endpoint.path}`;
-    const rawProbeUrl =
-      typeof metadata.probeUrl === 'string' && metadata.probeUrl
-        ? metadata.probeUrl
-        : defaultProbeUrl;
+    // Generated probe addresses follow the selected runtime instance. Legacy
+    // records stored that generated address in the same field as user overrides.
+    const configuredProbeUrl = typeof metadata.probeUrl === 'string' ? metadata.probeUrl : '';
+    const legacyDefault = sourceType === 'imported' ? sourceServiceAsset.sourceKey
+      : sourceServiceAsset.sourceKey?.replace(/\/+$/, '') + endpoint.path;
+    const legacyGenerated = metadata.probeUrlMode === undefined && this.sameHttpUrl(configuredProbeUrl, legacyDefault);
+    const generated = !configuredProbeUrl || metadata.probeUrlMode === 'instance' || legacyGenerated;
+    const rawProbeUrl = generated ? defaultProbeUrl : configuredProbeUrl;
     const probeUrl = this.substitutePathParameters(rawProbeUrl, endpoint);
     if (!probeUrl) {
       throw new BadRequestException(`Probe URL cannot be resolved for endpoint '${id}'`);
@@ -280,6 +285,8 @@ export class AssetCatalogService {
       lastProbeError: result.errorMessage,
       lastProbeHttpStatus: result.httpStatus,
       probeUrl: rawProbeUrl,
+      probeUrlMode: generated ? 'instance' : 'custom',
+      lastProbeInstanceId: sourceServiceInstance.id,
       probeScope: sourceType === 'imported' ? 'source_service' : 'endpoint',
     };
 
@@ -546,6 +553,7 @@ export class AssetCatalogService {
       displayName: input.name,
       baseUrl: input.baseUrl,
       probeUrl: `${input.baseUrl.replace(/\/+$/, '')}${this.normalizeBasePath(input.path)}`,
+      probeUrlMode: 'instance',
       lastProbeStatus: undefined,
       lastProbeAt: undefined,
       lastProbeHttpStatus: undefined,
@@ -626,6 +634,7 @@ export class AssetCatalogService {
     const descriptor = this.resolveSourceDescriptor(input.spec, input.metadata);
     const sourceServiceAsset = await this.upsertSourceServiceAsset({
       ...descriptor,
+      createImportedInstance: this.hasUsableServer(input.spec, input.metadata),
       displayName: input.documentName,
       description: input.description,
       metadata: {
@@ -717,6 +726,7 @@ export class AssetCatalogService {
         source: 'manual-registration',
         displayName: input.name,
         probeUrl: `${input.baseUrl.replace(/\/+$/, '')}${this.normalizeBasePath(input.path)}`,
+        probeUrlMode: Object.prototype.hasOwnProperty.call(input.metadata || {}, 'probeUrl') ? 'custom' : 'instance',
         testStatus: 'untested',
         qualificationState: 'registered',
         ...(input.metadata || {}),
@@ -730,6 +740,7 @@ export class AssetCatalogService {
   }
 
   private async upsertSourceServiceAsset(input: {
+    createImportedInstance?: boolean;
     scheme: string;
     host: string;
     port: number;
@@ -760,7 +771,7 @@ export class AssetCatalogService {
     }
 
     const saved = await this.sourceServiceRepository.save(asset);
-    if (input.host.toLowerCase() !== 'unknown-host') {
+    if (input.createImportedInstance !== false && input.host.toLowerCase() !== 'unknown-host') {
       await this.sourceServiceInstancesService.ensureImportedInstance(saved.id, {
         scheme: input.scheme.toLowerCase(),
         host: input.host.toLowerCase(),
@@ -1290,6 +1301,20 @@ export class AssetCatalogService {
       port: 80,
       normalizedBasePath: '/',
     };
+  }
+
+  private sameHttpUrl(left: string, right?: string): boolean {
+    if (!left || !right) return false;
+    try { return new URL(left).href === new URL(right).href; } catch { return false; }
+  }
+
+  private hasUsableServer(spec: any, metadata?: Record<string, any>): boolean {
+    const server = spec?.servers?.[0]?.url;
+    if (typeof server !== 'string' || !server.trim() || /[{}]/.test(server)) return false;
+    try {
+      const resolved = new URL(server, metadata?.originalUrl);
+      return resolved.protocol === 'http:' || resolved.protocol === 'https:';
+    } catch { return false; }
   }
 
   private resolveServerUrl(spec: any, metadata?: Record<string, any>) {

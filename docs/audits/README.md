@@ -3,11 +3,13 @@
 > 2026-09-08: 数据库与持久化清理、43 表 PG/SQLite 空库及完整回归结果见 [本轮清理审查记录](./2026-09-08-persistence-cleanup.md)。旧报告中的 38/40 表与环境阻塞结论保留为历史证据。
 
 ---
-doc-version: 1.68.0
+doc-version: 1.69.0
 doc-status: active
-doc-updated: 2026-09-26
+doc-updated: 2026-10-08
 ---
 # ApiNova 审查报告索引
+
+当前能力交付：[EXT-01～05 注册到Gateway消费者闭环](./2026-10-08-ext-01-05-gateway-lifecycle.md)，Windows本地真实HTTP限定完成；生产签收范围保持独立。
 
 > 最新调度审核：[全范围任务审核与重拆](./2026-09-15-work-package-replan.md)，任务划分与执行状态已独立维护。
 

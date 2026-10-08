@@ -1,8 +1,19 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-10-08
+---
 # Runtime Publication Acceptance Cases
 
 > Document status: Active
-> Last reviewed: 2026-09-08
+> Last reviewed: 2026-10-08
 > Release gate: Required together with `docs/guides/release-readiness-checklist.md`
+
+## Current execution scope (2026-10-08)
+
+EXT-01 through EXT-05 passed as one Windows local real-HTTP application workflow: 11/11 stages, final runner exit 0 and EXT_01_05_VERIFY_OK, independent 94 suites/1312 tests, and API build. [Recorded evidence](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md) identifies isolated SQLite, loopback A/B, stable endpoint identities, instance migration, aggregate routes, and consumer credential rejection/revocation. PostgreSQL, Linux, production identity, browser interaction, and MCP transport are not covered; public deployment remains separate.
+
+EXT-06/07/08/09 have scoped evidence in the [execution ledger](../guides/active-work-package-execution-status.md). Older test counts and database sizes below remain historical, not the current schema or an instruction to rerun completed work.
 
 ## Evidence Header
 
@@ -57,26 +68,26 @@ For every manual execution record:
 
 | ID | Required behavior | Current status |
 | --- | --- | --- |
-| GAP-01 | operator configures MCP port, transport, and validated endpoint path before activation | open-gap `DEV-01` |
-| GAP-02 | binding/instance change immediately marks affected runtime asset verification-required | open-gap `DEV-02` |
-| GAP-03 | readiness becomes false when qualifying instance is archived/changed or endpoint revision is obsolete | open-gap `DEV-03` |
-| GAP-04 | oversized JSON is truncated/rejected by policy; binary bodies store metadata/hash only | open-gap `DEV-04` |
-| GAP-05 | retention cleanup differs by manual/deploy success/deploy failure classes | open-gap `DEV-04` |
-| GAP-06 | instance and binding mutations record actor, reason, before/after revision | open-gap `DEV-05` |
+| GAP-01 | operator configures MCP port, transport, and validated endpoint path before activation | scoped DONE: PROD-02A/B/C |
+| GAP-02 | binding/instance change immediately marks affected runtime asset verification-required | scoped DONE: EXT-04 Windows real-HTTP migration |
+| GAP-03 | readiness becomes false when qualifying instance is archived/changed or endpoint revision is obsolete | scoped DONE: EXT-04 Windows real-HTTP migration |
+| GAP-04 | oversized JSON is truncated/rejected by policy; binary bodies store metadata/hash only | object lifecycle implemented; full retention acceptance in PROD-04C |
+| GAP-05 | retention cleanup differs by manual/deploy success/deploy failure classes | object lifecycle implemented; full retention acceptance in PROD-04C |
+| GAP-06 | instance and binding mutations record actor, reason, before/after revision | scoped DONE: PROD-05; deployment sign-off remains |
 
 ## External-Environment Cases
 
 | ID | Procedure | Pass criteria | Status |
 | --- | --- | --- | --- |
-| EXT-01 | import a real OpenAPI URL whose server is reachable | import creates provisional instance; live probe/test succeeds; sample is stored | environment-blocked |
-| EXT-02 | import a spec without a usable server, then attach a live instance | same endpoint IDs become testable without re-import | environment-blocked |
-| EXT-03 | manually register an API against a live upstream | registration, test, governance, publication, deployment, and consumer call close successfully | environment-blocked |
-| EXT-04 | test against host A, retire A, attach host B, switch binding, redeploy | endpoint identity is unchanged; new candidate verifies against B; evidence identifies B | environment-blocked |
-| EXT-05 | publish at least two endpoints under one Gateway prefix | consumer calls resolve through the advertised aggregate-service URLs | environment-blocked |
-| EXT-06 | deploy MCP with runtime credentials and invoke from a real MCP client | advertised endpoint works and secrets are absent from persisted evidence | environment-blocked |
-| EXT-07 | activate revision N, introduce a failing N+1, redeploy | N remains callable; N+1 failure and rollback/retention evidence are visible | environment-blocked |
-| EXT-08 | install/start API and UI on Windows; run basic import/conversion | documented commands and browser workflow pass without undocumented steps | manual-required |
-| EXT-09 | repeat install/build/start/parser/session workflow on Ubuntu | all documented Ubuntu commands and core workflow pass | environment-blocked |
+| EXT-01 | import a real OpenAPI URL whose server is reachable | import creates provisional instance; live probe/test succeeds; sample is stored | DONE: Windows local real-HTTP, joint 11/11 |
+| EXT-02 | import a spec without a usable server, then attach a live instance | same endpoint IDs become testable without re-import | DONE: Windows local real-HTTP, joint 11/11 |
+| EXT-03 | manually register an API against a live upstream | registration, test, governance, publication, deployment, and consumer call close successfully | DONE: Windows local real-HTTP, joint 11/11 |
+| EXT-04 | test against host A, retire A, attach host B, switch binding, redeploy | endpoint identity is unchanged; new candidate verifies against B; evidence identifies B | DONE: Windows local real-HTTP, joint 11/11 |
+| EXT-05 | publish at least two endpoints under one Gateway prefix | consumer calls resolve through the advertised aggregate-service URLs | DONE: Windows local real-HTTP, joint 11/11 |
+| EXT-06 | deploy MCP with runtime credentials and invoke from a real MCP client | advertised endpoint works and secrets are absent from persisted evidence | DONE within recorded scope; see execution ledger |
+| EXT-07 | activate revision N, introduce a failing N+1, redeploy | N remains callable; N+1 failure and rollback/retention evidence are visible | DONE within recorded scope; see execution ledger |
+| EXT-08 | install/start API and UI on Windows; run basic import/conversion | documented commands and browser workflow pass without undocumented steps | DONE within recorded scope; see execution ledger |
+| EXT-09 | repeat install/build/start/parser/session workflow on Ubuntu | all documented Ubuntu commands and core workflow pass | DONE within recorded scope; see execution ledger |
 
 ## Latest Automated Evidence
 

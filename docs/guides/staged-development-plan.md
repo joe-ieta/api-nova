@@ -1,12 +1,12 @@
 ---
-doc-version: 1.1.0
+doc-version: 1.2.0
 doc-status: active
-doc-updated: 2026-09-15
+doc-updated: 2026-10-08
 ---
 # Staged Development Plan
 
 > Document status: Active
-> Last reviewed: 2026-07-22
+> Last reviewed: 2026-10-08
 
 > 2026-09-15 调度重排：父包原退出条件不变；当前细分、跨计划归属和下一队列见[工作包划分](./active-work-package-breakdown.md)，逐项状态见[子任务执行台账](./active-work-package-execution-status.md)。父包 IN_PROGRESS 不表示正在同时执行；文档子项完成不计为代码完成。
 
@@ -70,17 +70,17 @@ Remaining work:
 - compatibility cleanup and deeper monitoring correlation continue in Phase 3
 - these follow-ups do not reopen Phase 2
 
-## Phase 3: Engineering Polish And Release Hardening
+## Phase 3: Product Workflow Acceptance And Release Sign-off
 
 Status: active
 
-Scope:
+Scope and completion criteria:
 
-1. remove or quarantine residual quick-publish, endpoint-direct, and server-first compatibility contracts
-2. harden runtime-asset-first observability and publication-to-monitoring correlation
-3. clean user-visible and high-maintenance i18n or encoding drift
-4. keep Windows and Ubuntu operational paths aligned
-5. defer large frontend structural refactors until release behavior is stable
+1. close the registration-to-Gateway workflow through the existing EXT-01 through EXT-05 acceptance cases
+2. complete binary-sample retention acceptance using existing implementations and original PROD-04C criteria
+3. finish environment and release sign-off against named targets, including runtime switches, audit retention, health, and rollback evidence
+4. preserve scoped Windows/Ubuntu, security, and observability results; fix only defects that block these acceptance outcomes or have clear material impact
+5. keep completed frontend/i18n work in regression maintenance; do not expand this phase into open-ended polish or structural refactoring
 
 Current progress:
 
@@ -92,21 +92,16 @@ Current progress:
 
 Next order:
 
-1. close or explicitly defer `DEV-01` through `DEV-05` in `docs/reference/open-items.md`
-2. execute `EXT-01` through `EXT-09` in `docs/testing/runtime-publication-acceptance-cases.md` when environments are available
-3. broaden runtime-asset-first audit, system-log, and metrics projections
-4. continue targeted encoding cleanup only where it affects operators or future maintenance
-5. avoid a large `EndpointRegistry` split until release behavior is stable
+1. Complete the remaining binary-sample retention acceptance (PROD-04C) using the existing capture, download, revocation, cleanup, and recovery implementation.
+2. Complete target-environment health and release sign-off (ENV-01, SEC-F4-02, OBS-16-04, OPS-01). Local validation does not establish production availability.
+
+EXT-01 through EXT-05 are now complete within Windows local real-HTTP scope: 11/11 workflow stages, 94 suites/1312 tests, and the final API build passed. The workflow exposed and fixed incorrect instance creation for unbound imports, authenticated candidate replay, and stale probe addresses after instance migration. See [acceptance evidence](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md). PostgreSQL, Linux, browser interaction, production identity, and MCP transport are outside this run.
+
+F3 host assembly, managed-child lifecycle and revocation, F1 evidence/permit integration, EXT-06 through EXT-09, controlled mail delivery, delivery i18n, and measured frontend chunking already have scoped acceptance records. Reuse those results; only fix defects that block the current workflow or have a clear material impact. Current details and remaining boundaries are maintained in [open items](../reference/open-items.md) and the [execution ledger](./active-work-package-execution-status.md).
 
 ## Deferred Topic
 
-Email delivery remains deferred:
-
-- email verification delivery
-- password reset email delivery
-- email notification delivery
-
-This work is intentionally outside the current product-spine closure line.
+OAuth2, additional token adapters, and cross-protocol QoS remain outside the current milestone. Controlled mail delivery has been implemented and validated; actual external delivery and production activation remain deployment acceptance, not an unimplemented mail feature.
 
 ## Archived Context
 

@@ -51,7 +51,8 @@
     "verify:f1-02c3g6": "node scripts/verify-f1-02c3g6.cjs",
     "verify:ext-06": "node scripts/verify-ext-06.cjs",
     "verify:ext-07": "node scripts/verify-ext-07.cjs",
-    "verify:ext-08": "node scripts/verify-ext-08.cjs"
+    "verify:ext-08": "node scripts/verify-ext-08.cjs",
+    "verify:ext-01-05": "node scripts/verify-ext-01-05.cjs"
   },
   "keywords": [
     "mcp",

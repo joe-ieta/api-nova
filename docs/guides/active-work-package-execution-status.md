@@ -1,9 +1,15 @@
 ---
-doc-version: 1.186.0
+doc-version: 1.187.0
 doc-status: active
-doc-updated: 2026-09-26
+doc-updated: 2026-10-08
 ---
 # 活跃子任务执行状态
+
+## 当前能力包（2026-10-08）
+
+EXT-01～05联合产品流程已限定DONE：真实注册/导入→测试→治理→发布→实例迁移→Gateway认证与聚合调用，Windows本地11阶段全部通过。修复无server导入误建实例、认证候选重放失败、迁移后自动探测旧地址三项产品阻塞；独立94 suites/1312 tests及最终API构建通过，见[本轮证据](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md)。未覆盖PG/Linux/外部生产身份/浏览器/MCP，不宣称生产完成。下一能力包PROD-04C仍待验收；当前无在途叶。
+
+以下逐轮记录属于历史证据；当前调度以本节、叶子状态表和[能力交付队列](./active-work-package-breakdown.md)为准。
 
 D2b3c2 限定 DONE：5份源码/测试文件完成私有品牌 host 与同一真实 issuer、固定 Snapshot/source/epoch 的一次性 consumeProof；协调器只接受 exact committed catalog、route 真对象与当前版本，逐 route 核对编译 policy 和 Registry Site 的 source/endpoint/origin。reload/removed、issuer/generation 终态先同步失效再 abort，不复用旧 proof；proof/策略到期关闭、clone/跨 source/epoch/错误 origin 拒绝。专项2 suites/20 tests、Gateway48 suites/707 tests、API build、diff-check通过；隔离PG41 warm+4 cold检查组（本叶新增27组）通过，schema零漂移且集群已停止/清理。SQL.js boot仍拒绝，仅以真实SQL.js路由负例验收；PG正向使用真实已迁移数据库，首次混用enum夹具和异步deployed等待失败均已修正为明确reload完成事件后复验。D2b3d拆为d1限定DONE/d2a限定DONE/d2b限定DONE；生产DI/default-on、旧watch/admin、网络发送或外部目标部署未交付。
 
@@ -106,14 +112,14 @@ EXT-06 加固 + EXT-07 限定 DONE：①运行时受权抓取自身 spec——`R
 
 | 状态 | 数量 | 含义 |
 | --- | --- | --- |
-| DONE | 197 | 限定出口已完成；父包仍按独立退出条件核对 |
+| DONE | 202 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 0 | 当前无 READY；剩余为 WAIT_DEP/环境与签收项 |
-| IN_PROGRESS | 0 | 当前无在途叶；D2b3d2a/d2b已限定完成，不外推生产启用 |
-| WAIT_DEP | 3 | 等待列明子任务/条件 |
-| NEED_ENV | 8 | 需要核实目标环境，不是假定工具阻塞 |
+| IN_PROGRESS | 0 | EXT-01～05已限定验收；下一能力包尚未登记开工 |
+| WAIT_DEP | 2 | 等待列明子任务/条件 |
+| NEED_ENV | 3 | 需要核实目标环境，不是假定工具阻塞 |
 | SCOPE_REVIEW | 0 | PROD-06 核定后无待判范围项 |
 | DEFERRED | 2 | 不属于当前里程碑 |
-近期已完成C2B1/B2/B3、C2C1、B2B1/B2/C、B3A/C、SEC-A1-01跨层矩阵及当前版本SQLite空库验证A4-01的限定出口。C2C1证实旧预留无法在崩溃后唯一反查文件，原C2C2已进一步拆为保守降级A、持久发布意图B和可证明结算C；A已完成，B再细分为双方言模型B1、写入接线B2和崩溃验收B3；B1/B2/B3已完成限定出口，C已完成关联、文件证明与安全结算原语，C2C3本地恢复故障验收亦已完成，05C3的Windows隔离PG多写者/进程及PG重启出口已完成，Linux/生产验收仍独立登记。B3B已限定完成；无sample行的staged墓碑再细分为互斥E1、整理E2和故障验收E3，E1/E2/E3已完成限定出口，B3D本地限定验收已完成，真实环境仍归04C。READY不表示已开工。SEC-E1-02C1仍等待明确生产生命周期授权；事件物理删除E2B仍等待明确永久删除授权。
+近期已完成C2B1/B2/B3、C2C1、B2B1/B2/C、B3A/C、SEC-A1-01跨层矩阵及当前版本SQLite空库验证A4-01的限定出口。C2C1证实旧预留无法在崩溃后唯一反查文件，原C2C2已进一步拆为保守降级A、持久发布意图B和可证明结算C；A已完成，B再细分为双方言模型B1、写入接线B2和崩溃验收B3；B1/B2/B3已完成限定出口，C已完成关联、文件证明与安全结算原语，C2C3本地恢复故障验收亦已完成，05C3的Windows隔离PG多写者/进程及PG重启出口已完成，Linux/生产验收仍独立登记。B3B已限定完成；无sample行的staged墓碑再细分为互斥E1、整理E2和故障验收E3，E1/E2/E3已完成限定出口，B3D本地限定验收已完成，真实环境仍归04C。READY不表示已开工。SEC-E1-02C1及事件物理删除E2B已在后续授权后完成限定出口，见下方状态与证据；此处早期审批等待不再作为当前阻塞。
 
 最新收尾见[额度中断恢复审计](../audits/2026-09-17-interruption-recovery-evidence.md)。本次修复迁移测试滞后、关联结果类型缺项及台账计数不一致，并完成三个在执行切片。
 
@@ -316,11 +322,11 @@ EXT-06 加固 + EXT-07 限定 DONE：①运行时受权抓取自身 spec——`R
 | PROD-04C | NEED_ENV | B3D本机出口已完成；完整留存、跨进程PG/平台权限、生产身份及真实候选外发需要明确隔离目标环境 |
 | PROD-05 | DONE | 限定操作者透传与检索完成：实例/绑定变更actor已透传，`resource+resourceId+userId`可通过后续`audit:read`检索（DTO与findLogs/export接线），权限拒绝403记录action/level/status/requiredPermissions；4套22项（含SQL.js真实审计检索）；不新增审计存储/权限/UI，PG与UI检索另验 |
 | PROD-06 | DONE | 核定完成（[记录](../audits/2026-09-26-prod-06-cas-scope-determination.md)）：原WP70出口为同语句归属/发布读取、跨源校验、旧候选读取时点guard（§26~29），完整/跨进程CAS与整体一致事务属并发强化候选、未批准不排期；唯一原包剩余为EXT-07环境验收 |
-| EXT-01 | NEED_ENV | 不当成代码未实现 |
-| EXT-02 | NEED_ENV | 环境待核实 |
-| EXT-03 | NEED_ENV | 环境待核实 |
-| EXT-04 | NEED_ENV | 环境待核实 |
-| EXT-05 | NEED_ENV | 环境待核实 |
+| EXT-01 | DONE | 限定Windows本地真实HTTP：[联合证据](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md)；真实URL导入产生实例、探测/测试成功并留存样例。联合11/11、独立94 suites/1312 tests及API build通过；PG/Linux/生产身份/浏览器/MCP未覆盖 |
+| EXT-02 | DONE | 限定Windows本地真实HTTP：[联合证据](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md)；无server导入保持未绑定，绑定后保留原端点身份且无需重导入。联合11/11、独立94 suites/1312 tests及API build通过；PG/Linux/生产身份/浏览器/MCP未覆盖 |
+| EXT-03 | DONE | 限定Windows本地真实HTTP：[联合证据](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md)；手工注册经测试/治理/发布/部署后真实调用成功。联合11/11、独立94 suites/1312 tests及API build通过；PG/Linux/生产身份/浏览器/MCP未覆盖 |
+| EXT-04 | DONE | 限定Windows本地真实HTTP：[联合证据](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md)；关闭A后切B，原端点身份不变、自动探测与验证使用B、重新激活成功。联合11/11、独立94 suites/1312 tests及API build通过；PG/Linux/生产身份/浏览器/MCP未覆盖 |
+| EXT-05 | DONE | 限定Windows本地真实HTTP：[联合证据](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md)；同一前缀多端点API Key消费者调用成功，缺失/错误/撤销拒绝且凭据不上游。联合11/11、独立94 suites/1312 tests及API build通过；PG/Linux/生产身份/浏览器/MCP未覆盖 |
 | EXT-06 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)、[加固](../audits/2026-09-28-ext-06-hardening-and-ext-07.md)）：`verify:ext-06` `EXT_06_VERIFY_OK` 25/25（独立复跑，**已无 shim**）——真实SDK1.29 Streamable+SSE+受信managed child 端到端、凭据/会话/撤销矩阵、秘密全渠道扫描；两项发现已修复：运行时受权spec获取（HMAC授权+专用Guard，管理JWT不变、异资产403、审计）与`API_NOVA_MANAGED_MCP_CONFIG`受校验信封；外部网络/Linux/生产启用为notCovered |
 | EXT-07 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-06-hardening-and-ext-07.md)）：`verify:ext-07` `EXT_07_VERIFY_OK` 51/51 gating（连续两次，隔离9013/9034/9035）——有效候选激活服务→注入失败候选409`RUNTIME_VERIFICATION_FAILED`/`retained_previous`、旧revision与快照继续服务且恢复后无需重部署→重试激活切换；MCP同理含API重启后SDK复读；匿名+external网关路由与runner规格代理shim记录为notCovered（产品缺口已由EXT-06无shim证明修复） |
 | EXT-08 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)）：`verify:ext-08` `EXT_08_VERIFY_OK` 26/26 gating——隔离9011/5181真实启动API/UI、ready、SPA 10/11路由、超管登录、上传/URL导入/文档转换、治理probe/test/sample/readiness、发布至MCP候选并deploy-mcp激活（candidateRevision与activeRevision一致）；浏览器点击/截图与受管child会话归EXT-06/手工 |

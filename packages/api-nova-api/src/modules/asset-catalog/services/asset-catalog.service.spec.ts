@@ -129,6 +129,48 @@ describe('AssetCatalogService', () => {
     ] });
   });
 
+  it.each([undefined, '', '/{tenant}', 'ftp://files.example.com/api'])('keeps URL-imported assets unbound for unusable server %s', async server => {
+    await service.syncDocumentToAssets({ documentId: 'document-unbound', documentName: 'Unbound API',
+      spec: { openapi: '3.0.3', ...(server === undefined ? {} : { servers: [{ url: server }] }), paths: {} },
+      metadata: { importSource: 'url', originalUrl: 'https://docs.example.com/openapi.json' } });
+    expect(sourceServiceRepository.save).toHaveBeenCalled();
+    expect(sourceServiceInstancesService.ensureImportedInstance).not.toHaveBeenCalled();
+  });
+
+  it.each(['https://upstream.example.com/api', '/api'])('creates a provisional instance for explicit usable server %s', async server => {
+    await service.syncDocumentToAssets({ documentId: 'document-bound', documentName: 'Bound API',
+      spec: { openapi: '3.0.3', servers: [{ url: server }], paths: {} },
+      metadata: { importSource: 'url', originalUrl: 'https://docs.example.com/openapi.json' } });
+    expect(sourceServiceInstancesService.ensureImportedInstance).toHaveBeenCalledWith('source-1',
+      expect.objectContaining({ scheme: 'https', host: server.startsWith('https:') ? 'upstream.example.com' : 'docs.example.com', basePath: '/api' }));
+  });
+
+  it.each(['instance', undefined])('rebuilds generated probe URLs after instance replacement (mode=%s)', async mode => {
+    sourceServiceRepository.findOne.mockResolvedValue({ ...sourceServiceAsset, sourceKey: 'https://old.example.com:443/api' });
+    endpointDefinitionRepository.findOne.mockResolvedValue({ ...endpointDefinition,
+      metadata: { ...endpointDefinition.metadata, probeUrl: 'https://old.example.com/api', probeUrlMode: mode } });
+    httpService.head.mockReturnValue(of({ status: 200 }));
+    const result = await service.probeEndpointDefinition('endpoint-1');
+    expect(httpService.head).toHaveBeenCalledWith('https://runtime.example.com/api', expect.any(Object));
+    expect(result.endpoint.metadata).toMatchObject({ probeUrlMode: 'instance', lastProbeInstanceId: 'instance-1' });
+  });
+
+  it('preserves explicit custom governance probe URLs after instance replacement', async () => {
+    endpointDefinitionRepository.findOne.mockResolvedValue({ ...endpointDefinition,
+      metadata: { ...endpointDefinition.metadata, probeUrl: 'https://health.example.com/ready', probeUrlMode: 'custom' } });
+    httpService.head.mockReturnValue(of({ status: 200 }));
+    await service.probeEndpointDefinition('endpoint-1');
+    expect(httpService.head).toHaveBeenCalledWith('https://health.example.com/ready', expect.any(Object));
+  });
+
+  it('retains a caller-provided manual registration probe override', async () => {
+    endpointDefinitionRepository.findOne.mockResolvedValue(null);
+    endpointDefinitionRepository.create.mockImplementation(value => ({ ...value, id: 'manual-custom' }));
+    const result = await service.registerManualEndpointAsset({ name: 'Custom health', baseUrl: 'https://upstream.example.com',
+      method: 'GET', path: '/orders', metadata: { probeUrl: 'https://health.example.com/ready' } });
+    expect(result.endpoint.metadata).toMatchObject({ probeUrl: 'https://health.example.com/ready', probeUrlMode: 'custom' });
+  });
+
   it('returns governance readiness using the shared endpoint rules', async () => {
     const result = await service.getEndpointDefinitionReadiness('endpoint-1');
 
