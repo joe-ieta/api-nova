@@ -159,7 +159,7 @@ describe('binary deletion recovery (local JWT HTTP, SQL.js export, temporary fil
     const verifier = new RuntimeVerificationService(
       runtimeAssets as any, {} as any, db.getRepository(EndpointTestSampleEntity),
       runs as any, results as any, {} as any, snapshot as any,
-      candidate as any, {} as any, new RuntimeResponseAssertionService(),
+      candidate as any, {} as any, new RuntimeResponseAssertionService(), service,
     );
     return { verifier, run, result, snapshot, candidate, asset };
   }

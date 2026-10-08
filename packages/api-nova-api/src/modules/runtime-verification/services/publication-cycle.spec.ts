@@ -44,7 +44,7 @@ describe('bounded SQL.js registered fixture -> binding -> verification -> activa
   let status=200;
   // No real upstream: replay outcome is injected for the state-machine test, not claimed as HTTP evidence.
   const gatewayReplay:any={replay:async()=>({statusCode:status,body:{ok:status===200},headers:{},bodyBytes:2,truncated:false,durationMs:1,routePath:'/fixture/ping',method:'GET'})};
-  const verify=new RuntimeVerificationService(repo(RuntimeAssetEntity),repo(RuntimeAssetEndpointBindingEntity),repo(EndpointTestSampleEntity),repo(RuntimeVerificationRunEntity),repo(RuntimeVerificationResultEntity),bindings,snapshot,gatewayReplay,new McpCandidateReplayService(),new RuntimeResponseAssertionService());
+  const verify=new RuntimeVerificationService(repo(RuntimeAssetEntity),repo(RuntimeAssetEndpointBindingEntity),repo(EndpointTestSampleEntity),repo(RuntimeVerificationRunEntity),repo(RuntimeVerificationResultEntity),bindings,snapshot,gatewayReplay,new McpCandidateReplayService(),new RuntimeResponseAssertionService(),{} as any);
   const context:any={mcpEndpointConfig:{port:9044,transport:'streamable',endpointPath:'/mcp'}};
   const plan=()=>verify.planCandidate(id(3),{},context);
   const execute=async(run:any)=>{

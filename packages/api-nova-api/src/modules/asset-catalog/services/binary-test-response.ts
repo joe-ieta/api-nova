@@ -163,7 +163,15 @@ export async function readBoundedTestResponse(
     drain();
   });
   if (!binary) {
-    if (!mediaType) return { captureState: 'unavailable', reason: 'untrusted_media_type', observedBytes, isComplete: complete };
+    // An unrecognized response to a binary-declared operation is not evidence of
+    // text. Decoding its bytes can leak arbitrary contents and insert NUL into
+    // PostgreSQL JSONB. Preserve only bounded measurement metadata instead.
+    const textual = /^text\//.test(mediaType) || mediaType === 'application/json' ||
+      mediaType.endsWith('+json') || mediaType === 'application/xml' || mediaType.endsWith('+xml');
+    if (!textual) return {
+      captureState: 'unavailable', reason: 'untrusted_media_type', mediaType,
+      observedBytes, isComplete: complete,
+    };
     if (!complete) return {
       captureState: 'unavailable', reason: 'non_binary_response_over_limit', mediaType,
       observedBytes, isComplete: false,

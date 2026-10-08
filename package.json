@@ -55,7 +55,8 @@
     "verify:ext-01-05": "node scripts/verify-ext-01-05.cjs",
     "verify:env-01": "node scripts/verify-env-01.cjs",
     "verify:proxy-trust": "node scripts/verify-proxy-trust.cjs",
-    "verify:obs-16-04-tls-trust": "node scripts/verify-obs-16-04-tls-trust.cjs"
+    "verify:obs-16-04-tls-trust": "node scripts/verify-obs-16-04-tls-trust.cjs",
+    "verify:prod-04c": "node scripts/verify-prod-04c.cjs"
   },
   "keywords": [
     "mcp",

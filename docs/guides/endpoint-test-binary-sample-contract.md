@@ -1,8 +1,8 @@
 ---
-doc-version: 0.8.0
+doc-version: 0.9.0
 doc-status: active
 implementation-status: partial
-doc-updated: 2026-09-17
+doc-updated: 2026-10-08
 ---
 # 端点测试二进制样例合同
 
@@ -134,3 +134,9 @@ E1使受信二进制发布、撤销和显式整理共用同一对象围栏：SQL
 Gateway/MCP在回放前及判定结果前鲜读样例启用/撤销状态；二进制status-only还须对应同一样例的ready对象及一致描述符，失效立即BLOCKED并保留旧版本。本地真实JWT HTTP下载200、DELETE后410、SQL.js重启/重复删除、unlink失败墓碑保留和再次整理404均通过；active/archived留存与回放期间撤销纳入11套148/148。
 
 候选外发使用mock；真实PostgreSQL、跨平台权限、生产身份/留存仍由04C验收。未新增binary-exact或生产定时器。详见[恢复审计](../audits/2026-09-17-interruption-recovery-evidence.md)。
+
+## 14. PROD-04C本机联合验收（2026-10-08）
+
+当前限定结果：真实Windows/PG/HTTP 16项与相关故障专项通过，PROD-04C按本机范围DONE。补齐未知类型/回放证据的PG JSONB拒绝及候选物理文件鲜读校验；文件读取后再次核对ACTIVE/enabled，失效阻断保旧。具体范围、复跑方式和证据见[二进制联合证据](../audits/2026-10-08-prod-04c-binary-lifecycle.md)。
+
+第1–13节的阶段“尚未完成”是历史快照。生产运行身份/对象目录ACL、Linux文件语义及MCP真实二进制外发尚未由本轮证明，保留在SEC-F4-02/OPS-01目标矩阵；binary-exact仍明确unsupported，未启用后台清理或放宽存储开关。

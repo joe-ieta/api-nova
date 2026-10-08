@@ -1,5 +1,5 @@
 ---
-doc-version: 1.3.0
+doc-version: 1.4.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
@@ -92,8 +92,10 @@ Current progress:
 
 Next order:
 
-1. Complete the remaining binary-sample retention acceptance (PROD-04C) using the existing capture, download, revocation, cleanup, and recovery implementation.
-2. Continue local dependency remediation, observability performance and complete backup/restore preparation; then finish target-environment sign-off (SEC-F4-02, OBS-16-04, OPS-01). The user selected local isolated validation for now; production sign-off remains open.
+1. Run security dependency remediation and observability performance/complete backup-restore acceptance in parallel.
+2. Consolidate the results on one candidate version and finish target-environment sign-off (SEC-F4-02, OBS-16-04, OPS-01). The user selected local isolated validation for now; production sign-off remains open.
+
+PROD-04C is complete within local Windows/isolated PostgreSQL scope: 16 real-HTTP lifecycle checks plus related regression coverage; production identity/ACL, Linux semantics and real MCP binary outbound remain outside this run. See [binary lifecycle evidence](../audits/2026-10-08-prod-04c-binary-lifecycle.md).
 
 ENV-01 is complete under its original pass-or-evidenced-limitation criterion: the real MCP health failure is now propagated, while full health still reports the host system-disk threshold. Monitoring SPA routing is repaired in packaged and Vite startup modes. See [health evidence](../audits/2026-10-08-env-01-health-and-monitoring.md). A completed diagnostic task is not a claim that full health is green.
 
