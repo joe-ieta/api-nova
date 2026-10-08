@@ -1,9 +1,11 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.0.1
 doc-status: active
 doc-updated: 2026-10-08
 ---
 # OBS-16-04 只读持久化与生产身份投影联合验收
+
+> 历史候选结果保留；最新跨调用批处理和双库测量见[后续验收](2026-10-08-observability-runtime-write-batching.md)，当前剩余按任务状态页执行。
 
 本轮基于 oc_dev / 5f5e2d2，按现有任务划分并行处理数据库持久化、生产调用方投影以及安全依赖。沿用用户确认的本机隔离环境；生产签收仍待办，SEC-F4-02、OBS-16-04 和 OPS-01 的原退出条件不变。
 

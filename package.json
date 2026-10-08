@@ -60,7 +60,8 @@
     "verify:obs-16-04-backup-restore": "node scripts/verify-obs-16-04-backup-restore.cjs",
     "verify:obs-16-04-performance": "node scripts/verify-obs-16-04-performance.cjs",
     "verify:security-parser-dependencies": "node scripts/verify-security-parser-dependencies.cjs",
-    "verify:security-residual-dependencies": "node --test scripts/test-security-residual-dependencies.cjs"
+    "verify:security-residual-dependencies": "node --test scripts/test-security-residual-dependencies.cjs",
+    "verify:security-nest-sse": "node --test scripts/test-security-nest-sse-backport.cjs"
   },
   "keywords": [
     "mcp",
@@ -89,7 +90,8 @@
     "@nestjs/config": "3.3.0",
     "@nestjs/common": "10.4.22",
     "@nestjs/schedule": "4.1.2",
-    "@nestjs/typeorm": "10.0.2"
+    "@nestjs/typeorm": "10.0.2",
+    "@nestjs/core": "file:vendor/nestjs-core-10.4.22-apinova-sse.1.tgz"
   },
   "overrides": {
     "@nestjs/platform-express": {
@@ -119,6 +121,7 @@
     },
     "@nestjs/typeorm": {
       "uuid": "11.1.1"
-    }
+    },
+    "@nestjs/core": "$@nestjs/core"
   }
 }

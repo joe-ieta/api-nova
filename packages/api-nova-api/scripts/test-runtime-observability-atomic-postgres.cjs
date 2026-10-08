@@ -17,7 +17,7 @@ const { EndpointDefinitionEntity: Endpoint } = require('../src/database/entities
 const { RuntimeMetricSeriesEntity: Metric } = require('../src/database/entities/runtime-metric-series.entity.ts');
 const { RuntimeObservabilityEventEntity: Event } = require('../src/database/entities/runtime-observability-event.entity.ts');
 const { RuntimeObservabilityStateEntity: State } = require('../src/database/entities/runtime-observability-state.entity.ts');
-const entities = [Metric, Event, State];
+const entities = [Metric, Event, State, Binding, Endpoint];
 const safeEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^PG|^DATABASE_URL$/i.test(key)));
 const run = (name, args) => new Promise((resolve, reject) => {
   const executable = process.env.API_NOVA_TEST_PG_BIN ? path.join(process.env.API_NOVA_TEST_PG_BIN, name + (process.platform === 'win32' ? '.exe' : '')) : name;
@@ -29,7 +29,6 @@ const run = (name, args) => new Promise((resolve, reject) => {
 const deferred = () => { let resolve; const promise = new Promise(yes => { resolve = yes; }); return { promise, resolve }; };
 const makeService = manager => new Service(manager.getRepository(Asset), manager.getRepository(Binding), manager.getRepository(Endpoint),
   manager.getRepository(Event), manager.getRepository(Metric), manager.getRepository(State));
-Service.prototype.resolveRuntimeRefs = async (runtimeAssetId, runtimeAssetEndpointBindingId) => ({ runtimeAssetId, runtimeAssetEndpointBindingId });
 Service.prototype.toMinuteWindow = () => ({ startedAt: new Date('2026-10-08T12:00:00Z'), endedAt: new Date('2026-10-08T12:01:00Z') });
 (async () => {
   const root = path.resolve(__dirname, '../../../.tmp'); await fs.mkdir(root, { recursive: true });
@@ -48,6 +47,8 @@ Service.prototype.toMinuteWindow = () => ({ startedAt: new Date('2026-10-08T12:0
     const first = await new DataSource({ ...options, synchronize: true }).initialize(); databases.push(first);
     const second = await new DataSource({ ...options, synchronize: false }).initialize(); databases.push(second);
     const services = databases.map(db => makeService(db.manager)); const asset = randomUUID(), membership = randomUUID();
+    const endpoint = await first.getRepository(Endpoint).save({ sourceServiceAssetId: randomUUID(), method: 'GET', path: '/sample' });
+    await first.getRepository(Binding).save({ id: membership, runtimeAssetId: asset, endpointDefinitionId: endpoint.id });
     const input = extra => ({ runtimeAssetId: asset, runtimeMembershipId: membership, routePath: '/sample', routeMethod: 'GET',
       latencyMs: 10, statusCode: 200, success: true, ...extra });
     await Promise.all(Array.from({ length: 20 }, (_, index) => services[index % 2].recordGatewayRequestResult(input({

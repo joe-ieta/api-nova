@@ -13,6 +13,7 @@ import { RuntimeObservabilityStateEntity, RuntimeObservabilityScopeType, Runtime
 import { RuntimeObservabilityService } from './runtime-observability.service';
 
 const entities = [RuntimeMetricSeriesEntity, RuntimeObservabilityEventEntity, RuntimeObservabilityStateEntity];
+const metadataEntities = [...entities, RuntimeAssetEndpointBindingEntity, EndpointDefinitionEntity];
 const createService = (manager: EntityManager) => new RuntimeObservabilityService(
   manager.getRepository(RuntimeAssetEntity), manager.getRepository(RuntimeAssetEndpointBindingEntity),
   manager.getRepository(EndpointDefinitionEntity), manager.getRepository(RuntimeObservabilityEventEntity),
@@ -32,9 +33,10 @@ describe('legacy runtime observability atomic projection', () => {
   beforeEach(async () => {
     const root = resolve(process.cwd(), '../../.tmp/runtime-observability-atomic');
     await fs.mkdir(root, { recursive: true }); const directory = await fs.mkdtemp(join(root, 'run-')); location = join(directory, 'db.sqlite');
-    db = await createApplicationDataSource({ type: 'sqljs', location, autoSave: true, entities, synchronize: true }).initialize();
+    db = await createApplicationDataSource({ type: 'sqljs', location, autoSave: true, entities: metadataEntities, synchronize: true }).initialize();
     service = createService(db.manager);
-    jest.spyOn(RuntimeObservabilityService.prototype as any, 'resolveRuntimeRefs').mockImplementation(async (runtimeAssetId: string, binding?: string) => ({ runtimeAssetId, runtimeAssetEndpointBindingId: binding }));
+    const endpoint = await db.getRepository(EndpointDefinitionEntity).save({ sourceServiceAssetId: randomUUID(), method: 'GET', path: '/sample' });
+    await db.getRepository(RuntimeAssetEndpointBindingEntity).save({ id: membership, runtimeAssetId: asset, endpointDefinitionId: endpoint.id });
     jest.spyOn(RuntimeObservabilityService.prototype as any, 'toMinuteWindow').mockReturnValue({ startedAt: new Date('2026-10-08T12:00:00Z'), endedAt: new Date('2026-10-08T12:01:00Z') });
   });
   afterEach(async () => { jest.restoreAllMocks(); if (db?.isInitialized) await db.destroy(); });

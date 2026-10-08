@@ -1,6 +1,14 @@
 import { AsyncLocalStorage } from 'async_hooks';
 import { DataSource, DataSourceOptions } from 'typeorm';
 
+const sqljsWriteOwners = new WeakMap<DataSource, () => boolean>();
+
+/** Read-only ownership check for services that otherwise enqueue root-manager
+ * work. A stale inherited ALS token is not ownership of the current operation. */
+export function isCurrentSqljsWriteOwner(source: DataSource): boolean {
+  return sqljsWriteOwners.get(source)?.() === true;
+}
+
 /** Only known non-persistent statements are exempt. Unknown SQL, including
  * PRAGMA setters and WITH statements, remains conservatively dirty. The complete
  * control statement must match; a leading keyword alone is not a write classifier. */
@@ -23,6 +31,7 @@ export function createApplicationDataSource(options: DataSourceOptions): DataSou
   // retain TypeORM's savepoint behavior. Keep the entire operation in this lane.
   const context = new AsyncLocalStorage<object>();
   let owner: object | undefined;
+  sqljsWriteOwners.set(source, () => !!owner && context.getStore() === owner);
   let tail = Promise.resolve();
   const exclusive = <T>(operation: () => Promise<T>): Promise<T> => {
     if (owner && context.getStore() === owner) return operation();

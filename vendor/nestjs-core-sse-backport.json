@@ -1,0 +1,17 @@
+{
+  "package": "@nestjs/core",
+  "version": "10.4.22",
+  "localPatch": "apinova-sse.1",
+  "advisory": "GHSA-36xv-jgw5-4q75",
+  "upstreamFixCommit": "0f962c75a474b08fbc1bdf072b89eda14151c856",
+  "upstreamFixUrl": "https://github.com/nestjs/nest/commit/0f962c75a474b08fbc1bdf072b89eda14151c856",
+  "upstreamPatchedVersion": "11.1.18",
+  "upstreamArchive": "https://registry.npmjs.org/@nestjs/core/-/core-10.4.22.tgz",
+  "upstreamIntegrity": "sha512-6IX9+VwjiKtCjx+mXVPncpkQ5ZjKfmssOZPFexmT+6T9H9wZ3svpYACAo7+9e7Nr9DZSoRZw3pffkJP7Z0UjaA==",
+  "archive": "vendor/nestjs-core-10.4.22-apinova-sse.1.tgz",
+  "archiveSha256": "bb256b476e4db0f7b933ca90e3028235f17742593b0c03d11226842f606bdf32",
+  "patchedFileSha256": "fccdab632a969e74dc33c27c360c9bdba1292ed71b9764f0c585048df4288563",
+  "license": "MIT",
+  "builder": "scripts/build-nest-sse-backport.cjs",
+  "scope": "Only router/sse-stream.js _transform is changed; package version, other files and original license are preserved."
+}

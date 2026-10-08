@@ -1,5 +1,5 @@
 ---
-doc-version: 1.9.0
+doc-version: 1.10.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
@@ -92,7 +92,7 @@ Current progress:
 
 Next order:
 
-1. Continue Nest SSE framework remediation in parallel with bounded multi-call legacy metric transactions and SQL batching. File-type/UUID migration leaves 10 moderate dependency nodes from one Nest SSE advisory, with no high/critical findings. Read-only SQL.js transactions no longer export, production identity projection is batched, and productive backlog EOF no longer adds a one-second idle delay. Final regression passes 184 suites / 1932 tests plus 67 pipeline checks. PostgreSQL observes/delivers all 3000 terminal calls, but p95 is 155.5/156.4 seconds; SQLite observes and delivers only 517 of 3000 terminal calls. Preserve original latency targets and record regressions. Full reference-hardware capacity and equivalent capture A/B remain open; use the active breakdown and latest persistence/projector audit.
+1. Multi-call legacy metric persistence and the official Nest SSE backport are locally validated. API regression passes 184 suites / 1932 tests, plus 67 pipeline checks. PostgreSQL observes/delivers all 3000 calls, but p95 remains 148.2/149.9 seconds. SQLite business completion improves from 182.3 to 57.1 seconds, while only 818/3000 terminal calls are visible and 671/3000 delivered at cutoff. Next, implement ingestion lease/retention transaction coalescing and delivery claim/completion batching in parallel, then run one frozen-candidate dual-database acceptance. Keep original latency, reference-hardware and equivalent capture A/B requirements. The SSE code path is patched; npm audit still lists 10 moderate version-range nodes, and target security sign-off remains open.
 2. Consolidate the results on one candidate version and finish target-environment sign-off (SEC-F4-02, OBS-16-04, OPS-01). The user selected local isolated validation for now; production sign-off remains open.
 
 PROD-04C is complete within local Windows/isolated PostgreSQL scope: 16 real-HTTP lifecycle checks plus related regression coverage; production identity/ACL, Linux semantics and real MCP binary outbound remain outside this run. See [binary lifecycle evidence](../audits/2026-10-08-prod-04c-binary-lifecycle.md).

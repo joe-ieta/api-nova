@@ -3,13 +3,15 @@
 > 2026-09-08: 数据库与持久化清理、43 表 PG/SQLite 空库及完整回归结果见 [本轮清理审查记录](./2026-09-08-persistence-cleanup.md)。旧报告中的 38/40 表与环境阻塞结论保留为历史证据。
 
 ---
-doc-version: 1.73.0
+doc-version: 1.74.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
 # ApiNova 审查报告索引
 
-最新联合验收：[只读持久化、身份批投影与EOF调度](./2026-10-08-observability-persistence-and-projector.md)、[SQL.js只读事务](./2026-10-08-sqljs-readonly-transaction-persistence.md)、[生产身份批投影](./2026-10-08-observability-caller-batch-projection.md)、[file-type/UUID迁移与Nest SSE剩余](./2026-10-08-security-residual-dependency-migration.md)。
+最新联合验收：[跨调用指标批量持久化与双库性能](./2026-10-08-observability-runtime-write-batching.md)、[Nest SSE官方回移与安装交付校验](./2026-10-08-security-nest-sse-backport.md)。
+
+前轮联合验收：[只读持久化、身份批投影与EOF调度](./2026-10-08-observability-persistence-and-projector.md)、[SQL.js只读事务](./2026-10-08-sqljs-readonly-transaction-persistence.md)、[生产身份批投影](./2026-10-08-observability-caller-batch-projection.md)、[file-type/UUID迁移](./2026-10-08-security-residual-dependency-migration.md)。
 
 前轮按计划推进：[批量采集与投递联合验收](./2026-10-08-observability-bulk-pipeline.md)、[采集批量SQL](./2026-10-08-observability-ingest-bulk-sql.md)、[目录扫描与统计预算](./2026-10-08-observability-collector-fairness.md)、[安全监听迁移](./2026-10-08-security-file-watch-migration.md)。
 

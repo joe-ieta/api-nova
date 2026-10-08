@@ -17,7 +17,7 @@ for (const [module, type, methods] of [
   ['call-observability-payload.store', 'CallObservabilityPayloadStore', ['prepare']],
   ['call-observability-outbox.service', 'CallObservabilityOutboxService', ['runOnce']],
   ['call-observability-delivery.worker', 'CallObservabilityDeliveryWorker', ['runOnce']],
-  ['../runtime-observability/services/runtime-observability.service', 'RuntimeObservabilityService', ['recordGatewayRequestResult', 'recordGatewayCacheResult']],
+  ['../runtime-observability/services/runtime-observability.service', 'RuntimeObservabilityService', ['recordGatewayRequestResult', 'recordGatewayCacheResult', 'executeRuntimeWriteBatch', 'prefetchRuntimeRefs', 'flushRuntimeWriteBatch']],
 ]) {
   const prototype = require(path.join(built, module + '.js'))[type].prototype;
   for (const method of methods) {

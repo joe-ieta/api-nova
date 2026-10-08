@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, MoreThanOrEqual, Repository } from 'typeorm';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
+import { isCurrentSqljsWriteOwner } from '../../../database/sqljs-persistence';
+import { createRuntimeWriteScheduler, RuntimeWriteJob } from './runtime-observability-write-lane';
 import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
 import {
   RuntimeMetricAggregationWindow,
@@ -26,23 +28,27 @@ import {
 import { RuntimeAssetEndpointBindingEntity } from '../../../database/entities/runtime-asset-endpoint-binding.entity';
 import { RuntimeAssetEntity } from '../../../database/entities/runtime-asset.entity';
 
-// Local admission happens before PostgreSQL checks out a connection. The database
-// advisory lock remains authoritative across processes and DataSource instances.
-const postgresAssetWrites = new WeakMap<DataSource, Map<string, Promise<void>>>();
-
-function admitPostgresAssetWrite<T>(connection: DataSource, asset: string, operation: () => Promise<T>): Promise<T> {
-  let assets = postgresAssetWrites.get(connection);
-  if (!assets) { assets = new Map(); postgresAssetWrites.set(connection, assets); }
-  const result = (assets.get(asset) || Promise.resolve()).then(operation);
-  const completed = result.then(() => undefined, () => undefined);
-  assets.set(asset, completed);
-  void completed.then(() => {
-    if (assets!.get(asset) === completed) {
-      assets!.delete(asset);
-      if (!assets!.size) postgresAssetWrites.delete(connection);
-    }
-  });
-  return result;
+export interface GatewayRequestResultInput {
+  runtimeAssetId: string;
+  runtimeMembershipId: string;
+  routePath: string;
+  routeMethod: string;
+  requestId?: string;
+  correlationId?: string;
+  latencyMs: number;
+  statusCode?: number;
+  success: boolean;
+  errorMessage?: string;
+}
+const enqueueRuntimeWrite = createRuntimeWriteScheduler<RuntimeObservabilityService, GatewayRequestResultInput>();
+type RuntimeJob = RuntimeWriteJob<RuntimeObservabilityService, GatewayRequestResultInput>;
+interface RuntimeWriteBatch {
+  metricQueries: Map<string, RuntimeMetricSeriesEntity | null>;
+  metrics: Map<string, RuntimeMetricSeriesEntity>;
+  stateQueries: Map<string, RuntimeObservabilityStateEntity | null>;
+  states: Map<string, RuntimeObservabilityStateEntity>;
+  refs: Map<string, ResolvedRuntimeRefs>;
+  events: RuntimeObservabilityEventEntity[];
 }
 
 type ResolvedRuntimeRefs = {
@@ -56,6 +62,7 @@ type ResolvedRuntimeRefs = {
 export class RuntimeObservabilityService {
   private readonly logger = new Logger(RuntimeObservabilityService.name);
   private writeManager?: EntityManager;
+  private writeBatch?: RuntimeWriteBatch;
 
   constructor(
     @InjectRepository(RuntimeAssetEntity)
@@ -72,20 +79,9 @@ export class RuntimeObservabilityService {
     private readonly stateRepository: Repository<RuntimeObservabilityStateEntity>,
   ) {}
 
-  async recordGatewayRequestResult(input: {
-    runtimeAssetId: string;
-    runtimeMembershipId: string;
-    routePath: string;
-    routeMethod: string;
-    requestId?: string;
-    correlationId?: string;
-    latencyMs: number;
-    statusCode?: number;
-    success: boolean;
-    errorMessage?: string;
-  }): Promise<void> {
+  async recordGatewayRequestResult(input: GatewayRequestResultInput): Promise<void> {
     if (!this.writeManager) return this.withRuntimeWrite(input.runtimeAssetId,
-      scoped => scoped.recordGatewayRequestResult(input));
+      scoped => scoped.recordGatewayRequestResult(input), input);
     const refs = await this.resolveRuntimeRefs(
       input.runtimeAssetId,
       input.runtimeMembershipId,
@@ -635,15 +631,25 @@ export class RuntimeObservabilityService {
     );
   }
 
-  /** One input is a bounded durable unit: all legacy counters, means, states and
-   * its event commit together. No singleton repositories are swapped between requests. */
-  private async withRuntimeWrite<T>(runtimeAssetId: string,
-    operation: (scoped: RuntimeObservabilityService) => Promise<T>): Promise<T> {
+  /** Adjacent root request results share one durable transaction and SQL flush.
+   * Bound managers and cache/control barriers keep their immediate semantics. */
+  private async withRuntimeWrite(runtimeAssetId: string,
+    operation: (scoped: RuntimeObservabilityService) => Promise<void>, request?: GatewayRequestResultInput): Promise<void> {
     const originalManager = this.eventRepository.manager;
-    const execute = () => originalManager.transaction(async manager => {
+    const job: RuntimeJob = { kind: request ? 'request' : 'barrier', operation, request };
+    // Bound managers and root-manager calls reentering the current SQL.js owner
+    // must not join outsiders or wait behind callers blocked by that owner.
+    // Checking global isTransactionActive alone would incorrectly admit outsiders.
+    if (originalManager.queryRunner || isCurrentSqljsWriteOwner(originalManager.connection)) {
+      return this.executeRuntimeWriteBatch(runtimeAssetId, [job], false);
+    }
+    return enqueueRuntimeWrite(originalManager.connection, runtimeAssetId, job,
+      jobs => this.executeRuntimeWriteBatch(runtimeAssetId, jobs, jobs[0].kind === 'request'));
+  }
+
+  private executeRuntimeWriteBatch(runtimeAssetId: string, jobs: readonly RuntimeJob[], batch: boolean): Promise<void> {
+    return this.eventRepository.manager.transaction(async manager => {
       if (manager.connection.options.type === 'postgres') {
-        // Lock before any projection reads, including absent-row creation. All
-        // request/cache/control writers for this asset use the same transaction lock.
         const key = createHash('sha256').update('api-nova.runtime-observability.v1:')
           .update(runtimeAssetId).digest();
         await manager.query('SELECT pg_advisory_xact_lock($1, $2)', [key.readInt32BE(0), key.readInt32BE(4)]);
@@ -654,14 +660,85 @@ export class RuntimeObservabilityService {
         manager.getRepository(RuntimeMetricSeriesEntity), manager.getRepository(RuntimeObservabilityStateEntity),
       );
       scoped.writeManager = manager;
-      return operation(scoped);
+      if (batch) {
+        scoped.writeBatch = { metricQueries: new Map(), metrics: new Map(), stateQueries: new Map(),
+          states: new Map(), refs: new Map(), events: [] };
+        await scoped.prefetchRuntimeRefs(jobs.map(job => job.request!));
+      }
+      for (const job of jobs) await job.operation(scoped);
+      if (batch) await scoped.flushRuntimeWriteBatch();
     });
-    // A bound manager already owns its connection/outer transaction. Waiting on
-    // a root admission lane here could wait behind a caller blocked by that owner.
-    if (originalManager.connection.options.type === 'postgres' && !originalManager.queryRunner) {
-      return admitPostgresAssetWrite(originalManager.connection, runtimeAssetId, execute);
+  }
+
+  private async prefetchRuntimeRefs(inputs: readonly GatewayRequestResultInput[]): Promise<void> {
+    const ids = [...new Set(inputs.map(input => input.runtimeMembershipId).filter(Boolean))];
+    const bindings = ids.length ? await this.runtimeBindingRepository.findBy({ id: In(ids) }) : [];
+    const endpoints = [...new Set(bindings.map(binding => binding.endpointDefinitionId).filter(Boolean))];
+    const definitions = endpoints.length ? await this.endpointDefinitionRepository.findBy({ id: In(endpoints) }) : [];
+    const byBinding = new Map(bindings.map(row => [row.id, row]));
+    const byEndpoint = new Map(definitions.map(row => [row.id, row]));
+    for (const input of inputs) {
+      const refs: ResolvedRuntimeRefs = { runtimeAssetId: input.runtimeAssetId,
+        runtimeAssetEndpointBindingId: input.runtimeMembershipId };
+      const binding = byBinding.get(input.runtimeMembershipId);
+      if (binding) {
+        refs.endpointDefinitionId = binding.endpointDefinitionId;
+        refs.sourceServiceAssetId = byEndpoint.get(binding.endpointDefinitionId)?.sourceServiceAssetId;
+      } else if (input.runtimeMembershipId) {
+        this.logger.warn(`Runtime observability membership '${input.runtimeMembershipId}' not found`);
+      }
+      this.writeBatch!.refs.set(JSON.stringify([input.runtimeAssetId, input.runtimeMembershipId || null]), refs);
     }
-    return execute();
+  }
+
+  private async flushRuntimeWriteBatch(): Promise<void> {
+    const batch = this.writeBatch!;
+    // No natural-key migration: update the actual row IDs selected by legacy
+    // findOne semantics, including aliases produced by NULL/undefined predicates.
+    const save = async (repository: Repository<any>, rows: any[]) => {
+      for (let offset = 0; offset < rows.length; offset += 16) await repository.upsert(rows.slice(offset, offset + 16), ['id']);
+    };
+    await save(this.metricSeriesRepository, [...batch.metrics.values()]);
+    // SQLite upsert does not synthesize @UpdateDateColumn conflict updates.
+    // Explicit SQL time preserves save's database-clock behavior on both dialects;
+    // retaining loaded createdAt preserves the original row age.
+    await save(this.stateRepository, [...batch.states.values()].map(state => ({
+      ...state, updatedAt: () => 'CURRENT_TIMESTAMP',
+    })));
+    for (let offset = 0; offset < batch.events.length; offset += 16) {
+      await this.eventRepository.insert(batch.events.slice(offset, offset + 16));
+    }
+  }
+
+  /** Match TypeORM's existing ignored null/undefined where fields. Exact database
+   * selection is retained on first lookup; only missing rows consult staged creates. */
+  private batchLookupKey(where: Record<string, unknown>): string {
+    return JSON.stringify(Object.entries(where).filter(([, value]) => value !== null && value !== undefined));
+  }
+
+  private matchesBatchWhere(row: any, where: Record<string, unknown>): boolean {
+    return Object.entries(where).every(([key, value]) => value === null || value === undefined ||
+      (value instanceof Date ? row[key]?.getTime() === value.getTime() : row[key] === value));
+  }
+
+  private async findBatchRow<T extends { id: string }>(repository: Repository<any>, where: Record<string, unknown>,
+    queries: Map<string, T | null>, rows: Map<string, T>): Promise<T | null> {
+    const key = this.batchLookupKey(where);
+    if (queries.has(key)) return queries.get(key)!;
+    let found = await repository.findOne({ where }) as T | null;
+    if (found) found = rows.get(found.id) || found;
+    else found = [...rows.values()].find(row => this.matchesBatchWhere(row, where)) || null;
+    queries.set(key, found);
+    return found;
+  }
+
+  private async saveMetric(metric: RuntimeMetricSeriesEntity): Promise<RuntimeMetricSeriesEntity> {
+    if (!this.writeBatch) return this.metricSeriesRepository.save(metric);
+    if (!metric.id) metric.id = randomUUID();
+    this.writeBatch.metrics.set(metric.id, metric);
+    // Previously absent query aliases must discover this newly staged row.
+    for (const [key, value] of this.writeBatch.metricQueries) if (!value) this.writeBatch.metricQueries.delete(key);
+    return metric;
   }
 
   private async persistSequentially(operations: Array<() => Promise<unknown>>): Promise<void> {
@@ -674,6 +751,8 @@ export class RuntimeObservabilityService {
     runtimeAssetId: string,
     runtimeMembershipId?: string,
   ): Promise<ResolvedRuntimeRefs> {
+    const cached = this.writeBatch?.refs.get(JSON.stringify([runtimeAssetId, runtimeMembershipId || null]));
+    if (cached) return cached;
     const refs: ResolvedRuntimeRefs = {
       runtimeAssetId,
       runtimeAssetEndpointBindingId: runtimeMembershipId,
@@ -720,6 +799,9 @@ export class RuntimeObservabilityService {
       actorType: RuntimeObservabilityActorType.RUNTIME,
       occurredAt: new Date(),
     });
+    if (this.writeBatch) {
+      entity.id = randomUUID(); this.writeBatch.events.push(entity); return entity;
+    }
     return this.eventRepository.save(entity);
   }
 
@@ -735,10 +817,10 @@ export class RuntimeObservabilityService {
     if (metric) {
       metric.value += incrementBy;
       metric.sampleCount += 1;
-      return this.metricSeriesRepository.save(metric);
+      return this.saveMetric(metric);
     }
 
-    return this.metricSeriesRepository.save(
+    return this.saveMetric(
       this.metricSeriesRepository.create({
         ...refs,
         metricScope: scope,
@@ -768,10 +850,10 @@ export class RuntimeObservabilityService {
       const nextCount = metric.sampleCount + 1;
       metric.value = metric.value + (nextValue - metric.value) / nextCount;
       metric.sampleCount = nextCount;
-      return this.metricSeriesRepository.save(metric);
+      return this.saveMetric(metric);
     }
 
-    return this.metricSeriesRepository.save(
+    return this.saveMetric(
       this.metricSeriesRepository.create({
         ...refs,
         metricScope: scope,
@@ -794,8 +876,7 @@ export class RuntimeObservabilityService {
     metricName: string,
     window: { startedAt: Date; endedAt: Date },
   ) {
-    return this.metricSeriesRepository.findOne({
-      where: {
+    const where = {
         runtimeAssetId: refs.runtimeAssetId,
         runtimeAssetEndpointBindingId: refs.runtimeAssetEndpointBindingId,
         metricScope: scope,
@@ -803,8 +884,10 @@ export class RuntimeObservabilityService {
         aggregationWindow: RuntimeMetricAggregationWindow.MINUTE,
         windowStartedAt: window.startedAt,
         windowEndedAt: window.endedAt,
-      },
-    });
+    };
+    if (this.writeBatch) return this.findBatchRow(this.metricSeriesRepository, where,
+      this.writeBatch.metricQueries, this.writeBatch.metrics);
+    return this.metricSeriesRepository.findOne({ where });
   }
 
   private async upsertState(input: {
@@ -834,7 +917,8 @@ export class RuntimeObservabilityService {
             runtimeAssetEndpointBindingId: input.refs.runtimeAssetEndpointBindingId,
           };
 
-    let state = await this.stateRepository.findOne({ where });
+    let state = this.writeBatch ? await this.findBatchRow(this.stateRepository, where,
+      this.writeBatch.stateQueries, this.writeBatch.states) : await this.stateRepository.findOne({ where });
     if (!state) {
       state = this.stateRepository.create({
         scopeType: input.scopeType,
@@ -882,6 +966,12 @@ export class RuntimeObservabilityService {
       ...(input.dimensionsPatch || {}),
     };
 
+    if (this.writeBatch) {
+      if (!state.id) state.id = randomUUID();
+      this.writeBatch.states.set(state.id, state);
+      for (const [key, value] of this.writeBatch.stateQueries) if (!value) this.writeBatch.stateQueries.delete(key);
+      return state;
+    }
     return this.stateRepository.save(state);
   }
 

@@ -1,9 +1,11 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
 doc-updated: 2026-10-08
 ---
 # SEC-F4-02 file-type、UUID 迁移与 Nest SSE 剩余边界
+
+> 后续进展：Nest SSE 实际编码器已完成[官方补丁回移及交付校验](./2026-10-08-security-nest-sse-backport.md)。以下是本批迁移时的证据；版本审计仍为 10 moderate，不能将本地回移混称为上游版本升级或整体 SEC 签收。
 
 本批从 `5f5e2d2` 后继续[文件监听风险处置](./2026-10-08-security-file-watch-migration.md)，修复真实安装链中的 file-type 和 UUID。生产 npm 审计从 **13 个 moderate 节点降至 10 个 moderate，high / critical 仍为 0**。剩余 10 个是同一 Nest SSE 公告传播到的受影响包节点，不是 10 个独立漏洞。SEC-F4-02 仍为 IN_PROGRESS，生产签收继续待办。
 

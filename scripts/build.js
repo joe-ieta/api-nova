@@ -160,6 +160,7 @@ class MonorepoBuildManager {
 
 // 执行构建
 if (require.main === module) {
+  require('./verify-nest-sse-backport.cjs').verifyNestSseBackport(path.resolve(__dirname, '..'));
   const args = process.argv.slice(2);
   const manager = new MonorepoBuildManager();
   
