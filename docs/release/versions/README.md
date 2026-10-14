@@ -19,4 +19,4 @@ docs/release/versions/<tag>/
 
 - [v1.7.5-rc.2](./v1.7.5-rc.2/RELEASE_NOTES.md)：用户批准的 Windows x64 单平台本地预发布；实际发布物不上传远端，不代表三平台正式发布。
 
-- [v1.7.6-rc.3](./v1.7.6-rc.3/RELEASE_NOTES.md)：2026-10-14三平台离线预发布候选，目标生产签收仍待办；完整交付结果以发布清单和远端Release为准。
+- [v1.7.6-rc.3](./v1.7.6-rc.3/RELEASE_NOTES.md)：2026-10-14三平台离线预发布已完成，[远端Release](https://github.com/joe-ieta/api-nova/releases/tag/v1.7.6-rc.3)与[交付证据](../../audits/2026-10-14-release-v1.7.6-rc.3.md)可查；目标生产签收仍待办。

@@ -15,6 +15,7 @@
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
 | [ApiNova 开发审查与后续线程交接（2026-10-14）](./guides/development-handoff-2026-10-14.md) | 1.2.0 | active | 2026-10-14 |
+| [v1.7.6-rc.3 发布复核与交付证据](./audits/2026-10-14-release-v1.7.6-rc.3.md) | 1.0.0 | active | 2026-10-14 |
 | [ENV-01 空闲5GiB健康门槛及完整健康复验](./audits/2026-10-14-health-free-space-policy.md) | 1.0.0 | active | 2026-10-14 |
 | [OPS-01 浏览器 OpenAPI URL 导入到 Gateway 消费限定验收](./audits/2026-10-14-ops-browser-openapi-import.md) | 1.0.0 | active | 2026-10-14 |
 | [OPS-01 打包浏览器 Gateway 主流程限定验收](./audits/2026-10-14-ops-browser-workflow.md) | 1.0.0 | active | 2026-10-14 |
@@ -152,7 +153,7 @@
 | [docs/reference/management-permission-matrix.md](./reference/management-permission-matrix.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/mcp-jsonrpc-relationship.md](./reference/mcp-jsonrpc-relationship.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/nodejs-module-systems-guide.md](./reference/nodejs-module-systems-guide.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/reference/open-items.md](./reference/open-items.md) | 1.29.0 | active | 2026-10-14 |
+| [docs/reference/open-items.md](./reference/open-items.md) | 1.30.0 | active | 2026-10-14 |
 | [docs/reference/README.md](./reference/README.md) | 1.3.0 | active | 2026-09-14 |
 | [docs/reference/versioning-policy.md](./reference/versioning-policy.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/release/api-nova-release-requirements.md](./release/api-nova-release-requirements.md) | 1.1.0 | active | 2026-09-08 |

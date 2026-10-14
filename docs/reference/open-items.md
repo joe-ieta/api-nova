@@ -1,5 +1,5 @@
 ---
-doc-version: 1.29.0
+doc-version: 1.30.0
 doc-status: active
 doc-updated: 2026-10-14
 ---
@@ -43,7 +43,7 @@ Nest解析器、监听、file-type及UUID实际依赖链已迁移；[官方SSE�
 
 ## 2026-10-14 发布前再次复核
 
-拟从当前oc_dev准备v1.7.6-rc.3预发布；正式历史任务仍为204 DONE、2 IN_PROGRESS、1 WAIT_DEP、2 DEFERRED，共209条，不因打标签或产物发布关闭目标签收。
+v1.7.6-rc.3已完成三平台离线预发布、不可变归档、latest切换、注释标签及远端七附件核验，见[发布证据](../audits/2026-10-14-release-v1.7.6-rc.3.md)。正式历史任务仍为204 DONE、2 IN_PROGRESS、1 WAIT_DEP、2 DEFERRED，共209条，不因打标签或产物发布关闭目标签收。
 
 | 未完成事项 | 归属与处置 |
 | --- | --- |
@@ -54,10 +54,9 @@ Nest解析器、监听、file-type及UUID实际依赖链已迁移；[官方SSE�
 | 部署与长期运行 | 真实SMTP/Webhook、证书/反代/出站、裸机/systemd、持续负载、多主机水位和真实业务存活仍未全量签收 |
 | 独立workspace安装 | 脱离根manifest/lock的API安装不保证；本版本按根锁文件和完整离线包交付 |
 | SQLite容量 | 既有3000样本有限窗口未全量，继续保留非阻断诊断，不声明生产容量保证 |
-| Lint维护 | 6个历史error已修复，相关UI测试49/49和type-check通过；本机lint为0 error、273 warnings（API127、parser68、UI78），warning技术债继续保留，完整发布门禁另由候选CI执行 |
-| 三平台与发布交付 | 当前仅准备候选；须全部门禁、原生三平台离线包、新解压验证、清单/哈希、标签与Release齐备后才计发布完成；生产签收仍是独立待办 |
+| Lint维护 | 6个历史error已修复，相关UI测试49/49和type-check通过；本机lint为0 error、273 warnings（API127、parser68、UI78），最终CI为0 error、272 warnings（API127、parser67、UI78），所有发布门禁通过；warning技术债继续保留 |
 
-旧平铺E:/CodexDev/api-nova-release含data/api-nova.db，不能用打包脚本覆盖。新版本先在独立staging构建；正式迁移latest前需备份旧运行数据并按发布规范确认。
+经用户明确批准，旧平铺目录已完整保留于E:/CodexDev/api-nova-release-legacy-20261014065727，数据库哈希保持一致。api-nova-release现为同版本三平台镜像；旧数据未自动迁入新版本，后续升级仍按已知迁移链和目标环境策略执行。
 
 源码中注释掉的旧服务/权限接口TODO及ProgrammaticAdapter要求调用者提供handler的错误，不据字符串命中重新生成开发任务。以上真实缺口和原延期事项共同构成本次发布限制。
 
