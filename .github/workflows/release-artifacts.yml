@@ -80,6 +80,9 @@ jobs:
       - name: Verify runtime closure
         run: npm run verify:runtime-closure
 
+      - name: Verify release database initialization
+        run: node --test scripts/test-release-database.cjs
+
       - name: Run tests
         run: npm run test
 

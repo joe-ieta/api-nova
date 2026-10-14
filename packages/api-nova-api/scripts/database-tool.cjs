@@ -25,6 +25,9 @@ process.env.DB_TYPE = dialect;
 process.env.DB_DATABASE = databaseName;
 process.env.DB_SQLITE_PATH = sqlitePath;
 process.env.DB_SYNCHRONIZE = 'false';
+// This tool creates an isolated database; clean CI must not require developer JWT credentials.
+process.env.JWT_SECRET ??= randomBytes(32).toString('hex');
+process.env.JWT_REFRESH_SECRET ??= randomBytes(32).toString('hex');
 
 let options;
 let dataSource;
