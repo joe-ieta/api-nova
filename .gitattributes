@@ -1,0 +1,2 @@
+# Release metadata hashes the source lock identically on every native builder.
+/package-lock.json text eol=lf

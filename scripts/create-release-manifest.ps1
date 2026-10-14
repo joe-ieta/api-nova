@@ -39,6 +39,7 @@ if (Test-Path -LiteralPath $outputPath) {
 }
 New-Item -ItemType Directory -Force -Path $outputPath | Out-Null
 
+$expectedLockHash = (Get-FileHash -LiteralPath (Join-Path $repoRoot 'package-lock.json') -Algorithm SHA256).Hash.ToLowerInvariant()
 $manifestArtifacts = @()
 $nodeVersions = [Collections.Generic.HashSet[string]]::new()
 foreach ($platform in $platforms) {
@@ -85,6 +86,9 @@ foreach ($platform in $platforms) {
     }
   }
 
+  if ($verification.packageLockSha256 -ne $expectedLockHash) {
+    throw "Source lock SHA-256 mismatch for $($platform.platformId)"
+  }
   [void]$nodeVersions.Add($verification.nodeVersion)
   Copy-Item -LiteralPath $matches[0].FullName -Destination (Join-Path $outputPath $filename) -Force
 
@@ -118,6 +122,7 @@ $manifest = [ordered]@{
   artifactDistribution = if ($WindowsPreview) { 'local-only' } else { 'remote-release' }
   releaseDate = [DateTime]::UtcNow.ToString('yyyy-MM-dd')
   nodeVersion = @($nodeVersions)[0]
+  packageLockSha256 = $expectedLockHash
   artifacts = $manifestArtifacts
 }
 $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $outputPath 'RELEASE_MANIFEST.json') -Encoding UTF8
