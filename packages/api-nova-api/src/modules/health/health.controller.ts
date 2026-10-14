@@ -4,10 +4,10 @@ import {
   HealthCheckService,
   HttpHealthIndicator,
   MemoryHealthIndicator,
-  DiskHealthIndicator,
 } from '@nestjs/terminus';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AppConfigService } from '../../config/app-config.service';
+import { DiskFreeSpaceHealthIndicator } from './disk-free-space.health';
 import { Public } from '../security/decorators/public.decorator';
 
 @ApiTags('Health')
@@ -20,7 +20,7 @@ export class HealthController {
     private readonly health: HealthCheckService,
     private readonly http: HttpHealthIndicator,
     private readonly memory: MemoryHealthIndicator,
-    private readonly disk: DiskHealthIndicator,
+    private readonly disk: DiskFreeSpaceHealthIndicator,
     private readonly configService: AppConfigService,
   ) {}
 
@@ -56,11 +56,8 @@ export class HealthController {
         () => this.memory.checkHeap('memory_heap', 300 * 1024 * 1024), // 300MB
         () => this.memory.checkRSS('memory_rss', 300 * 1024 * 1024), // 300MB
 
-        // Disk check
-        () => this.disk.checkStorage('disk', { 
-          thresholdPercent: 0.9, // 90% disk usage threshold
-          path: process.platform === 'win32' ? 'C:\\' : '/'
-        }),
+        // Require at least 5 GiB available to the runtime account.
+        () => this.disk.checkStorage('disk', process.platform === 'win32' ? 'C:\\' : '/'),
 
         // MCP Server health check
         async () => {

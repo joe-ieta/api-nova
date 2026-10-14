@@ -1,5 +1,5 @@
 ---
-doc-version: 1.200.0
+doc-version: 1.201.0
 doc-status: active
 doc-updated: 2026-10-14
 ---
@@ -27,7 +27,7 @@ doc-updated: 2026-10-14
 | 二进制样例完整留存 | **本机联合验收完成，转回归维护** | PROD-04C：真实PG/HTTP 16项及相关专项通过，采集→授权读取→撤销/到期→清理→重启恢复闭环 | 目标运行账户/ACL、Linux和MCP二进制真实外发覆盖归SEC-F4-02/OPS-01；见[二进制联合证据](../audits/2026-10-08-prod-04c-binary-lifecycle.md) |
 | 安全发布 | **本地SSE修复完成，目标签收待办** | 凭据/权限、策略、许可、撤销、局部跨平台矩阵及官方SSE回移已有证据 | SEC-F4-02：目标平台/DB、身份、网络、依赖与有效开关核验 |
 | 可观测与审计运维 | **工程及限定专项已完成；目标签收待办** | A采集/B投递改造完成；双库43组、API1940项通过。PG3000全流程通过；SQLite大样本仍有积压，按调整后口径保留非阻断诊断 | OBS-16-04：目标账户/开关/平台、容量和回退签收；[证据与未覆盖范围](../audits/2026-10-08-observability-functional-closure.md) |
-| 安装、健康与用户操作 | **本机Gateway浏览器闭环完成；目标签收待办** | 打包UI正常登录、手工注册、测试/治理、smoke样本、Registry v1配置、发布/部署、消费凭证、401/200真实消费与同请求监控刷新已验；[证据](../audits/2026-10-14-ops-browser-workflow.md) | ENV-01磁盘限制仍有历史证据；OPS-01等待同版本目标部署、权限/TLS、告警与回退签收；带绝对server URL的浏览器导入已补验；文件/无server导入、MCP/迁移分支仍未证明 |
+| 安装、健康与用户操作 | **本机Gateway浏览器闭环完成；目标签收待办** | 打包UI正常登录、手工注册、测试/治理、smoke样本、Registry v1配置、发布/部署、消费凭证、401/200真实消费与同请求监控刷新已验；[证据](../audits/2026-10-14-ops-browser-workflow.md) | ENV-01按新5GiB门槛已实测完整健康通过；OPS-01等待同版本目标部署、权限/TLS、告警与回退签收；带绝对server URL的浏览器导入已补验；文件/无server导入、MCP/迁移分支仍未证明 |
 | 最终发布交付 | **未完成：等待签收汇总** | 各能力包的实现与限定证据可复用 | OPS-01依赖安全与可观测签收，汇总留存/健康与整体操作结果，形成可复现部署、回退及发布结论 |
 | 邮件、前端分块与国际化 | **已限定交付，转回归维护** | MAIL-01/02、MAINT-01/02已有受控投递、构建及相关回归 | 生产SMTP/告警触达归目标部署验收；仅修交付阻断或重大问题，不重新扩展整理任务 |
 
@@ -46,11 +46,13 @@ doc-updated: 2026-10-14
 
 推进安排：停止因本机时间指标追加数据库优化。OPS打包浏览器主流程已完成；SEC/OBS准备同候选目标签收资料，环境具备后并行执行，OPS汇总交付结论。每包同步证据并提交推送。
 
-当前环境限制：2026-10-14只读磁盘复核C盘可用9,854,779,392字节，约90.769%已用，距90%阈值约差0.77GiB；需人工释放至少2GiB并留余量，再复跑完整health。本轮未重测完整health，既有503证据作为限制保留，不能以ready或SPA响应签收部署。
+当前磁盘策略：用户于2026-10-14明确调整为至少空闲5GiB（5,368,709,120字节）。新构建已完成隔离API+真实MCP完整health复验，返回200，四项均up；当时可用约9.000GiB。原90%规则下的失败保留为历史，不再要求先释放2GiB；见[5GiB门槛与健康复验](../audits/2026-10-14-health-free-space-policy.md)。目标环境仍待签收。
 
 明确延期：**DEFER-01（OAuth2）**、**DEFER-02（额外令牌适配与跨协议QoS）**。不计入上述三项，也不作为本里程碑发布的新增开发前置条件。
 
 ## 最近完成的能力包
+
+2026-10-14用户调整磁盘门槛：[5GiB门槛与健康复验](../audits/2026-10-14-health-free-space-policy.md)完成至少空闲5GiB实现、8项健康回归及API构建；真实API+MCP完整health200、两种监控入口8项HTTP通过。生产签收状态不变。
 
 2026-10-14交接续接：[OpenAPI导入浏览器证据](../audits/2026-10-14-ops-browser-openapi-import.md)完成URL导入分支19/19和同构建手工注册回归19/19。修复治理页缺少运行实例入口，按点击端点的源资产打开现有弹窗；40/40专项、2150条文案编译及UI构建通过。仅关闭本机有界覆盖缺口，209条历史任务状态不变。
 
@@ -62,7 +64,7 @@ doc-updated: 2026-10-14
 
 PROD-04C已限定完成：真实PG/HTTP 16项通过，并结合事务/路径/权限专项完成留存流程；修复未知类型与回放证据导致的PG500，以及物理样本失效未阻断候选的问题。[二进制联合证据](../audits/2026-10-08-prod-04c-binary-lifecycle.md)。这不等于生产账户/跨平台与完整部署签收。
 
-ENV-01已限定完成：完整health实测及限制留证，修复MCP异常汇总；运行MCP后仅系统盘90%阈值失败。2026-10-08磁盘样本距90%阈值约差1.35GiB；本日样本见上方当前限制，需释放空间后复跑完整health。两种部署方式的监控页入口已修复，8项HTTP通过；浏览器Gateway主流程已在2026-10-14另外补验。[健康与入口证据](../audits/2026-10-08-env-01-health-and-monitoring.md)。
+ENV-01已限定完成：旧90%门槛下磁盘受限记录保留；2026-10-14按用户批准的空闲5GiB门槛复测完整health通过（[5GiB门槛与健康复验](../audits/2026-10-14-health-free-space-policy.md)），MCP失联仍返回503。打包UI/Vite监控入口8项HTTP回归通过，目标环境与业务流程仍按各自证据签收。
 
 用户环境选择已确认：暂用本机隔离环境，生产签收待办。TLS2/2、完整PG冷备7/7复用。SQLite长观察保留为不完整诊断，A/B工程不据本机耗时反复重开；具体分母、关停后积压及未覆盖范围见[本轮证据](../audits/2026-10-08-observability-functional-closure.md)。
 
@@ -293,7 +295,7 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | EXT-07 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-06-hardening-and-ext-07.md)）：`verify:ext-07` `EXT_07_VERIFY_OK` 51/51 gating（连续两次，隔离9013/9034/9035）——有效候选激活服务→注入失败候选409`RUNTIME_VERIFICATION_FAILED`/`retained_previous`、旧revision与快照继续服务且恢复后无需重部署→重试激活切换；MCP同理含API重启后SDK复读；匿名+external网关路由与runner规格代理shim记录为notCovered（产品缺口已由EXT-06无shim证明修复） |
 | EXT-08 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)）：`verify:ext-08` `EXT_08_VERIFY_OK` 26/26 gating——隔离9011/5181真实启动API/UI、ready、SPA 10/11路由、超管登录、上传/URL导入/文档转换、治理probe/test/sample/readiness、发布至MCP候选并deploy-mcp激活（candidateRevision与activeRevision一致）；浏览器点击/截图与受管child会话归EXT-06/手工 |
 | EXT-09 | DONE | 限定容器完成（[证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:ext-09` `EXT_09_VERIFY_OK`——ubuntu:24.04/容器Node v24.15.0同版本、npm ci+三包构建+迁移+启动ready+Streamable E2E（managed-runtime 14/14、publication-endpoints 3/3）+优雅停止；裸机/systemd/PG/UI/长时为notCovered |
-| ENV-01 | DONE | [限定证据](../audits/2026-10-08-env-01-health-and-monitoring.md)：原合同“完整通过或限制有证据”已完成；修复MCP异常被吞掉，Terminus回归1/1，完整health仅系统盘阈值失败；当前非健康全绿，建议释放至少1GB并留余量后复跑。监控入口两部署方式8项HTTP通过归OPS本地准备 |
+| ENV-01 | DONE | [5GiB门槛与健康复验](../audits/2026-10-14-health-free-space-policy.md)：用户批准至少空闲5GiB，健康专项8/8、API构建及真实API+MCP完整health200通过；监控入口两种方式8项HTTP通过。旧磁盘受限结果归历史，目标部署仍待签收 |
 | OPS-01 | WAIT_DEP | 本机打包UI Gateway主流程限定完成：[浏览器证据](../audits/2026-10-14-ops-browser-workflow.md)；真实手工注册→测试/治理→样本→发布/部署→UI凭证→HTTP消费→同请求监控刷新。最终仍直接依赖SEC-F4-02/OBS-16-04目标环境权限/TLS、告警、备份与回退签收；带绝对server URL的浏览器导入已补验（[OpenAPI导入浏览器证据](../audits/2026-10-14-ops-browser-openapi-import.md)）；文件/无server导入、MCP/迁移仍未覆盖，不重复计数 |
 | MAIL-01 | DONE | [邮件投递范围与受控验收合同](./mail-delivery-scope-and-acceptance.md)冻结三类接口、模板、测试邮箱与证据合同；仅DOC，不改变当前运行默认 |
 | MAIL-02 | DONE | 限定受控投递完成（[证据](../audits/2026-09-26-mail-02-controlled-delivery.md)）：配置/模块/认证/通知/失败恢复/测试/UI全部落地，sink端到端6套件30例+双构建+SQLite drift 0；PG运行时装迁移已由隔离PG实测通过（8迁移/drift 0/API启动）；真实外发、生产启用与队列化另需授权/另立任务 |

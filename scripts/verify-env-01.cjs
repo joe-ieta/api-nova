@@ -16,6 +16,7 @@ const workDir = fs.mkdtempSync(path.join(root, '.tmp/env-01-'));
 const evidence = { startedAt: new Date().toISOString(), platform: process.platform, release: os.release(), node: process.version,
   commit: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true }).stdout.trim(),
   workDir, limits: ['Local Windows only; no deployment signoff', 'Readiness only measures process uptime', 'MCP health does not prove tool business correctness'] };
+const minimumFreeBytes = 5 * 1024 ** 3;
 const children = [];
 const secrets = [];
 const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -28,7 +29,9 @@ function launch(name, args, env, cwd) { const fd = fs.openSync(path.join(workDir
 async function main() {
   assert.equal(process.platform, 'win32', 'ENV-01 is a Windows host verification');
   for (const file of [entry, mcpEntry]) assert.ok(fs.existsSync(file), `Build missing: ${file}`);
-  evidence.artifacts = [__filename, entry, mcpEntry, path.join(apiDir, 'dist/src/modules/health/health.controller.js')].map(file => ({ path: path.relative(root, file), sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex') }));
+  evidence.workingTree = spawnSync('git', ['status', '--short', '--untracked-files=no'], { cwd: root, encoding: 'utf8', windowsHide: true }).stdout.trim();
+  evidence.diskPolicy = { minimumFreeBytes, unit: 'GiB', minimumFreeGiB: 5 };
+  evidence.artifacts = [__filename, entry, mcpEntry, path.join(apiDir, 'dist/src/modules/health/disk-free-space.health.js'), path.join(apiDir, 'dist/src/modules/health/health.controller.js')].map(file => ({ path: path.relative(root, file), sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex') }));
   const apiPort = await port(); let mcpPort = await port(); while (mcpPort === apiPort) mcpPort = await port();
   evidence.ports = { api: apiPort, mcp: mcpPort };
   const jwt = randomBytes(32).toString('hex'); const password = `Env01!${randomBytes(18).toString('hex')}`; secrets.push(jwt, password);
@@ -66,16 +69,23 @@ async function main() {
   evidence.fullIdle = await get(`${base}/health`); assert.equal((evidence.fullIdle.body.details || evidence.fullIdle.body.error?.details?.details).mcp_server.status, 'down');
   const policies = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-ExecutionPolicy -List | ConvertTo-Json -Compress'], { windowsHide: true, encoding: 'utf8', timeout: 15000 });
   evidence.executionPolicies = { status: policies.status, output: policies.stdout?.trim(), error: policies.stderr?.trim() };
-  try { const disk = await require('check-disk-space').default('C:\\'); evidence.systemDisk = { ...disk, usedRatio: (disk.size - disk.free) / disk.size, requiredFreeBytes: Math.ceil(disk.size * 0.1), additionalFreeBytesNeeded: Math.max(0, Math.ceil(disk.size * 0.1 - disk.free)) }; }
-  catch (error) { evidence.systemDisk = { error: error.message }; }
+  try {
+    const stat = await fs.promises.statfs('C:/');
+    const free = stat.bavail * stat.bsize, size = stat.blocks * stat.bsize;
+    evidence.systemDisk = { free, size, usedRatio: (size - free) / size, requiredFreeBytes: minimumFreeBytes,
+      additionalFreeBytesNeeded: Math.max(0, minimumFreeBytes - free), source: 'filesystem_statfs' };
+  } catch (error) { evidence.systemDisk = { error: error.message }; }
+
   const mcp = launch('mcp', [mcpEntry, '--transport', 'streamable', '--host', '127.0.0.1', '--port', String(mcpPort)], env, workDir);
   evidence.mcpDirect = await wait(`http://127.0.0.1:${mcpPort}/health`, mcp, r => r.status === 200);
   evidence.fullRunning = await get(`${base}/health`); assert.equal((evidence.fullRunning.body.details || evidence.fullRunning.body.error?.details?.details).mcp_server.status, 'up');
   for (const check of ['memory_heap', 'memory_rss']) assert.equal((evidence.fullRunning.body.details || evidence.fullRunning.body.error?.details?.details)[check].status, 'up', `${check} is not healthy`);
   const failures = Object.entries(evidence.fullRunning.body.details || evidence.fullRunning.body.error?.details?.details).filter(([, value]) => value.status !== 'up').map(([key]) => key);
   evidence.remainingFailures = failures;
-  if (failures.length) { assert.deepEqual(failures, ['disk']); assert.equal(evidence.fullRunning.status, 503); assert.ok(evidence.systemDisk.error || evidence.systemDisk.usedRatio > 0.9); evidence.outcome = 'LIMITED_HOST_DISK'; }
-  else { assert.equal(evidence.fullRunning.status, 200); evidence.outcome = 'FULL_HEALTH_PASSED'; }
+  const diskResult = (evidence.fullRunning.body.details || evidence.fullRunning.body.error?.details?.details).disk;
+  assert.equal(diskResult.requiredFreeBytes, minimumFreeBytes, 'Unexpected runtime disk policy');
+  if (failures.length) { assert.deepEqual(failures, ['disk']); assert.equal(evidence.fullRunning.status, 503); assert.ok(diskResult.message || diskResult.freeBytes < minimumFreeBytes); evidence.outcome = 'LIMITED_HOST_DISK'; }
+  else { assert.ok(diskResult.freeBytes >= minimumFreeBytes); assert.equal(evidence.fullRunning.status, 200); evidence.outcome = 'FULL_HEALTH_PASSED'; }
   evidence.contractSatisfied = true;
 }
 async function finish() {

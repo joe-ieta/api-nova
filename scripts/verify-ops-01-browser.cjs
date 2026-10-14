@@ -79,7 +79,7 @@ async function main() {
     path.join(apiDir, 'dist/src/modules/gateway-runtime/services/gateway-candidate-replay-authority.js'),
     path.join(apiDir, 'dist/src/modules/runtime-verification/services/gateway-candidate-replay.service.js')];
   evidence.artifacts = artifactPaths.map(file => ({ path: path.relative(root, file), sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex') }));
-  try { const d=await require('check-disk-space').default(process.platform==='win32' ? 'C:/' : '/'); evidence.systemDisk={size:d.size,free:d.free,usedRatio:(d.size-d.free)/d.size,additionalFreeBytesNeeded:Math.max(0,Math.ceil(d.size*.1-d.free))}; } catch(e) {evidence.systemDisk={error:e.message};}
+  try { const d=await require('check-disk-space').default(process.platform==='win32' ? 'C:/' : '/'); evidence.systemDisk={size:d.size,free:d.free,usedRatio:(d.size-d.free)/d.size,requiredFreeBytes:5*1024**3,additionalFreeBytesNeeded:Math.max(0,5*1024**3-d.free)}; } catch(e) {evidence.systemDisk={error:e.message};}
   evidence.workingTree = spawnSync('git', ['status', '--short', '--untracked-files=no'], { cwd: root, encoding: 'utf8', windowsHide: true }).stdout.trim();
   const a = await upstream('A'); const apiPort = await port(); const mcpPort = await port(); apiBase = `http://127.0.0.1:${apiPort}`;
   evidence.ports = { api: apiPort, mcp: mcpPort, upstreamA: a.port };
