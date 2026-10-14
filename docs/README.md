@@ -1,12 +1,12 @@
 ---
-doc-version: 1.3.1
+doc-version: 1.4.0
 doc-status: active
-doc-updated: 2026-09-16
+doc-updated: 2026-10-14
 ---
 # ApiNova Documentation Index
 
 > Document status: Active canonical index
-> Last reviewed: 2026-09-16
+> Last reviewed: 2026-10-14
 
 ## Documentation Classes
 
@@ -28,6 +28,10 @@ doc-updated: 2026-09-16
 - [Merge Review And Verification](./audits/2026-09-07-reviewed-merge.md)
 
 ## Current Product Closure
+
+- [开发审查与后续线程交接（2026-10-14）](./guides/development-handoff-2026-10-14.md)
+- [Current Work Package Status And Next Actions](./guides/active-work-package-execution-status.md)
+- [Current Work Package Contracts And Dependencies](./guides/active-work-package-breakdown.md)
 
 - [Security Development Task Plan](./guides/security-development-task-plan.md)
 - [Security Development Execution Status](./guides/security-development-execution-status.md)
@@ -59,9 +63,9 @@ doc-updated: 2026-09-16
 
 ## Runtime Observability Enhancement
 
-The remote-first integration is complete for the verified HTTP/event/Webhook scope. Remaining product and environment work is tracked separately; verified code does not imply deployed availability. Start with the current completion review, not archived stage counts.
+The remote-first integration is complete for the verified HTTP/event/Webhook scope. Remaining product and environment work is tracked separately; verified code does not imply deployed availability. Start with the current work-package ledger and dated development handoff above. Specialist reviews retain historical stage counts and contract details; they do not define the current dispatch queue.
 
-- [Current Observability Completion And Remaining Work](./guides/runtime-observability-completion-review.md)
+- [Observability Stage Review And Evidence](./guides/runtime-observability-completion-review.md)
 - [Observability Integration Guide](./guides/runtime-observability-integration.md)
 - [Subscription Integration](./guides/runtime-observability-subscription-integration.md)
 - [External Validation Handoff](./guides/runtime-observability-external-validation-handoff.md)

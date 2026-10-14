@@ -1,20 +1,26 @@
 ---
-doc-version: 1.3.1
+doc-version: 1.4.0
 doc-status: active
-doc-updated: 2026-09-16
+doc-updated: 2026-10-14
 ---
 # Guides
 
 > Document status: Active index
-> Last reviewed: 2026-09-16
+> Last reviewed: 2026-10-14
 
 Only currently supported product paths, durable architecture contracts, and active execution plans belong here.
 
 ## Active Execution And Release
 
-- [Current Observability Completion And Remaining Work](./runtime-observability-completion-review.md)
+- [开发审查与后续线程交接（2026-10-14）](./development-handoff-2026-10-14.md)
+- [Current Work Package Status And Next Actions](./active-work-package-execution-status.md)
+- [Current Work Package Contracts And Dependencies](./active-work-package-breakdown.md)
 
-- [Observability Development Task Plan](./runtime-observability-development-task-plan.md) (current task definitions and remaining exit criteria)
+Use these entries for current dispatch. The specialist ledgers below retain historical stage evidence and original contracts; their older counts do not define unfinished work.
+
+- [Observability Stage Review And Evidence](./runtime-observability-completion-review.md)
+
+- [Observability Development Task Plan](./runtime-observability-development-task-plan.md) (specialist task definitions and original exit criteria; current status follows the unified ledger)
 - [Observability Development Execution Status](./runtime-observability-development-execution-status.md)
 
 - [Security Development Task Plan](./security-development-task-plan.md)
@@ -26,7 +32,7 @@ Only currently supported product paths, durable architecture contracts, and acti
 
 ## Product And Architecture Baselines
 
-- [Unified Call Logging And Observability Requirements](./runtime-observability-requirements.md) (approved requirements; implementation in progress)
+- [Unified Call Logging And Observability Requirements](./runtime-observability-requirements.md) (approved requirements; scoped implementation and deployment status follow the unified ledger)
 
 - [Security Functional Requirements](./security-functional-requirements.md)
 - [Asset Model And Runtime Assets](./asset-model-and-runtime-assets.md)

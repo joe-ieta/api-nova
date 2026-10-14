@@ -1,12 +1,14 @@
 ---
-doc-version: 1.130.0
+doc-version: 1.131.0
 doc-status: active
-doc-updated: 2026-09-26
+doc-updated: 2026-10-14
 ---
 # ApiNova 安全开发执行与状态记录
 
+> **2026-10-14调度口径更新：本页保留专题阶段证据和原验收合同，以下历史计数/“当前未完成”文字不是现行待开发队列。** 当前能力状态、未关闭事项与并发依赖以[统一执行台账](./active-work-package-execution-status.md)、[任务划分](./active-work-package-breakdown.md)及[开发交接](./development-handoff-2026-10-14.md)为准。现保留SEC-F4-02、OBS-16-04、OPS-01三项目标签收和两项延期；已完成工程不重开，旧快照不能作为生产可用证明。
+
 > Document status: Active execution ledger
-> Last updated: 2026-09-21
+> 原阶段摘要日期：2026-09-21；2026-10-14仅更新调度入口。
 > 范围：JWT/API Key/显式 Anonymous；MCP SDK 1.29 的 2025 Session 基线。OAuth2 与后续无状态协议升级延期。
 > 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置现支持主机显式Watch及manual，受权管理Reload/状态API已验证；MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；可信资产快照生成与提交整理见第24节；装配接线见第25节；单语句归属读取见第26节；发布信息并入同语句见第27节；上游跨源核验见第28节；最新激活版本防护见第29节。
 

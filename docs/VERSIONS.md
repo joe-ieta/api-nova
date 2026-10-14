@@ -14,6 +14,7 @@
 
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
+| [ApiNova 开发审查与后续线程交接（2026-10-14）](./guides/development-handoff-2026-10-14.md) | 1.0.0 | active | 2026-10-14 |
 | [OPS-01 打包浏览器 Gateway 主流程限定验收](./audits/2026-10-14-ops-browser-workflow.md) | 1.0.0 | active | 2026-10-14 |
 | [OBS-16-04 采集与投递限定验收及时间诊断](./audits/2026-10-08-observability-functional-closure.md) | 1.0.0 | active | 2026-10-08 |
 | [SEC-F4-02 Nest SSE 官方补丁回移与交付校验](./audits/2026-10-08-security-nest-sse-backport.md) | 1.0.0 | active | 2026-10-08 |
@@ -110,11 +111,11 @@
 | [额度中断恢复证据](./audits/2026-09-17-interruption-recovery-evidence.md) | 1.0.0 | active | 2026-09-17 |
 | [重拆第五批限定证据](./audits/2026-09-16-replanned-batch-5-evidence.md) | 1.0.0 | active | 2026-09-16 |
 | [端点测试二进制样例合同](./guides/endpoint-test-binary-sample-contract.md) | 0.9.0 | active | 2026-10-08 |
-| [活跃工作包划分](./guides/active-work-package-breakdown.md) | 1.100.0 | active | 2026-10-14 |
+| [活跃工作包划分](./guides/active-work-package-breakdown.md) | 1.101.0 | active | 2026-10-14 |
 | [安全交付验收证据索引](./guides/security-delivery-evidence-index.md) | 1.120.0 | active | 2026-09-28 |
 | [邮件投递范围与受控验收合同](./guides/mail-delivery-scope-and-acceptance.md) | 1.1.0 | active | 2026-09-26 |
 | [MCP发布端点合同](./guides/mcp-publication-endpoint-contract.md) | 0.2.0 | active | 2026-09-21 |
-| [开发任务包总览与执行状态](./guides/active-work-package-execution-status.md) | 1.198.0 | active | 2026-10-14 |
+| [开发任务包总览与执行状态](./guides/active-work-package-execution-status.md) | 1.199.0 | active | 2026-10-14 |
 | [受管MCP启动交付设计](./guides/managed-mcp-credential-handoff-plan.md) | 0.4.0 | reviewed-slice | 2026-09-21 |
 | [候选激活与GC重试](./audits/2026-09-15-activation-gc-wave.md) | 1.0.0 | active | 2026-09-15 |
 | [上游归属交叉核验](./audits/2026-09-15-upstream-ownership-wave.md) | 1.0.0 | active | 2026-09-15 |
@@ -139,17 +140,17 @@
 | [docs/guides/local-setup-and-run.md](./guides/local-setup-and-run.md) | 1.1.0 | active | 2026-09-08 |
 | [docs/guides/parser-change-verification.md](./guides/parser-change-verification.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/guides/publication-resource-baseline.md](./guides/publication-resource-baseline.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/guides/README.md](./guides/README.md) | 1.3.1 | active | 2026-09-16 |
+| [docs/guides/README.md](./guides/README.md) | 1.4.0 | active | 2026-10-14 |
 | [docs/guides/release-readiness-checklist.md](./guides/release-readiness-checklist.md) | 1.1.0 | active | 2026-09-08 |
-| [docs/guides/staged-development-plan.md](./guides/staged-development-plan.md) | 1.12.0 | active | 2026-10-14 |
-| [docs/README.md](./README.md) | 1.3.1 | active | 2026-09-16 |
+| [docs/guides/staged-development-plan.md](./guides/staged-development-plan.md) | 1.13.0 | active | 2026-10-14 |
+| [docs/README.md](./README.md) | 1.4.0 | active | 2026-10-14 |
 | [docs/reference/changelog-field-guide.md](./reference/changelog-field-guide.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/esm-commonjs-quick-reference.md](./reference/esm-commonjs-quick-reference.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/management-observability-baseline.md](./reference/management-observability-baseline.md) | 1.1.0 | active | 2026-09-14 |
 | [docs/reference/management-permission-matrix.md](./reference/management-permission-matrix.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/mcp-jsonrpc-relationship.md](./reference/mcp-jsonrpc-relationship.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/nodejs-module-systems-guide.md](./reference/nodejs-module-systems-guide.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/reference/open-items.md](./reference/open-items.md) | 1.25.0 | active | 2026-10-14 |
+| [docs/reference/open-items.md](./reference/open-items.md) | 1.26.0 | active | 2026-10-14 |
 | [docs/reference/README.md](./reference/README.md) | 1.3.0 | active | 2026-09-14 |
 | [docs/reference/versioning-policy.md](./reference/versioning-policy.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/release/api-nova-release-requirements.md](./release/api-nova-release-requirements.md) | 1.1.0 | active | 2026-09-08 |
@@ -168,7 +169,7 @@
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
 | [安全任务计划](./guides/security-development-task-plan.md) | 1.100.0 | active | 2026-09-26 |
-| [安全执行状态](./guides/security-development-execution-status.md) | 1.130.0 | active | 2026-09-26 |
+| [安全执行状态](./guides/security-development-execution-status.md) | 1.131.0 | active | 2026-10-14 |
 | [安全功能需求](./guides/security-functional-requirements.md) | 1.1.0 | active | 2026-09-15 |
 | [安全设计](./reference/security-design-and-implementation.md) | 1.2.0 | active | 2026-09-14 |
 | [Gateway 文件激活](./guides/gateway-upstream-credential-file-activation.md) | 1.1.0 | active | 2026-09-14 |
@@ -181,7 +182,7 @@
 
 ## 可观测性增强文档
 
-`active` 表示文档正在维护，不表示已部署。当前完成情况、剩余任务及实现边界以[完成情况复核](./guides/runtime-observability-completion-review.md)为统一入口；验收结果和环境范围以[执行状态](./guides/runtime-observability-development-execution-status.md)为准。需求和设计保留规范目标，不能代替代码或验收证据。
+`active` 表示文档正在维护，不表示已部署。当前完成情况、剩余任务及实现边界以[统一执行台账](./guides/active-work-package-execution-status.md)及[开发交接](./guides/development-handoff-2026-10-14.md)为入口；专题复核和执行记录保留阶段证据，旧计数不代表当前调度。需求和设计保留规范目标，不能代替代码或验收证据。
 
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
@@ -189,15 +190,15 @@
 | [可观测性设计](./reference/runtime-observability-design.md) | 2.2.0 | active | 2026-09-14 |
 | [可观测性 API Endpoint](./reference/runtime-observability-api-endpoints.md) | 2.7.0 | active | 2026-09-14 |
 | [可观测性开发任务计划](./guides/runtime-observability-development-task-plan.md) | 2.12.0 | active | 2026-09-26 |
-| [可观测性执行与完成状态](./guides/runtime-observability-development-execution-status.md) | 2.35.0 | active | 2026-09-26 |
-| [任务完成情况复核](./guides/runtime-observability-completion-review.md) | 2.29.0 | active | 2026-09-26 |
+| [可观测性执行与完成状态](./guides/runtime-observability-development-execution-status.md) | 2.36.0 | active | 2026-10-14 |
+| [任务完成情况复核](./guides/runtime-observability-completion-review.md) | 2.30.0 | active | 2026-10-14 |
 | [可观测性契约与接入映射](./reference/runtime-observability-contract-mapping.md) | 2.1.0 | active | 2026-09-14 |
 | [可观测性存储基础](./reference/runtime-observability-storage-foundation.md) | 2.1.0 | active | 2026-09-14 |
 | [可观测性生命周期合同](./reference/runtime-observability-lifecycle-contract.md) | 1.0.0 | active | 2026-09-15 |
 | [可观测性容量配额合同](./reference/runtime-observability-capacity-quota-contract.md) | 1.10.0 | active | 2026-09-21 |
 | [运行集成指南](./guides/runtime-observability-integration.md) | 2.7.0 | active | 2026-09-14 |
 | [订阅集成指南](./guides/runtime-observability-subscription-integration.md) | 2.4.0 | active | 2026-09-14 |
-| [外部验收交接](./guides/runtime-observability-external-validation-handoff.md) | 2.4.0 | active | 2026-09-28 |
+| [外部验收交接](./guides/runtime-observability-external-validation-handoff.md) | 2.5.0 | active | 2026-10-14 |
 
 ### 2026-09-14 可观测性历史归档
 

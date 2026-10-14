@@ -1,16 +1,18 @@
 ---
-doc-version: 2.35.0
+doc-version: 2.36.0
 doc-status: active
-doc-updated: 2026-09-26
+doc-updated: 2026-10-14
 ---
 # 可观测性开发执行与验收状态
 
+> **2026-10-14调度口径更新：本页保留专题阶段证据和原验收合同，以下历史计数/“当前未完成”文字不是现行待开发队列。** 当前能力状态、未关闭事项与并发依赖以[统一执行台账](./active-work-package-execution-status.md)、[任务划分](./active-work-package-breakdown.md)及[开发交接](./development-handoff-2026-10-14.md)为准。现保留SEC-F4-02、OBS-16-04、OPS-01三项目标签收和两项延期；已完成工程不重开，旧快照不能作为生产可用证明。
+
 > Document status: Active evidence register
-> 当前任务包计数、实现边界与未完成清单统一见[完成情况复核](./runtime-observability-completion-review.md)。本页登记最新有效证据，不再混排不同开发阶段的“当前状态”。
+> 当前任务包计数与未完成清单见[统一执行台账](./active-work-package-execution-status.md)。本页与[专题复核](./runtime-observability-completion-review.md)保留历史阶段证据。
 
 > 2026-09-15 调度重排：父包原退出条件不变；当前细分、跨计划归属和下一队列见[工作包划分](./active-work-package-breakdown.md)，逐项状态见[子任务执行台账](./active-work-package-execution-status.md)。父包 IN_PROGRESS 不表示正在同时执行；文档子项完成不计为代码完成。
 
-## 1. 当前快照
+## 1. 原阶段快照
 
 早期整合提交 `950e150` 以远端 `7a7fc44` 为主链；后续当前进展见第7节起的逐轮验证，不将该历史提交视为最新实现。TP11/TP12 的远端持久事件、Outbox、订阅/投递管理和签名发送闭环予以保留；没有第二套聚合、物化或发送消费者。
 

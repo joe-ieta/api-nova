@@ -1,13 +1,15 @@
 ---
-doc-version: 1.198.0
+doc-version: 1.199.0
 doc-status: active
 doc-updated: 2026-10-14
 ---
 # 开发任务包总览与执行状态
 
+> 2026-10-14总体审查与跨线程续接见[开发交接文档](./development-handoff-2026-10-14.md)：已完成能力、全部未关闭事项、证据边界、并发依赖及人工要求。本轮为文档复核，不新增任务或产品验收。
+
 > 2026-10-08 用户调整验收规则：未关闭事项的时间门禁不再作为不能关闭的硬条件。可见3秒、投递5秒、查询2秒及采集A/B开销目标保留为诊断指标；本机耗时不再单独阻断任务关闭。完整数据/投递、持久化、权限与恢复正确性仍为验收条件，生产签收仍待办。历史性能记录保留当时口径。
 
-> 最近复核：2026-10-14；代码基线：`oc_dev / 60bf65f`加本轮OPS浏览器闭环修复。**打包UI手工注册→治理→Gateway发布/部署→凭证→真实消费→监控终态本机限定完成；生产签收仍待办**。详见[浏览器证据](../audits/2026-10-14-ops-browser-workflow.md)。
+> 最近复核：2026-10-14；代码基线：`oc_dev / 23d0bcc`（已推送；本次交接仅更新文档）。**打包UI手工注册→治理→Gateway发布/部署→凭证→真实消费→监控终态本机限定完成；生产签收仍待办**。详见[浏览器证据](../audits/2026-10-14-ops-browser-workflow.md)。
 >
 > 当前保留 **3项签收任务、2项延期**。OBS本机工程A/B及专项已完成，SEC本地SSE修复已完成；SEC/OBS父项保留目标签收，OPS本地Gateway浏览器流程已限定验收，最终汇总仍等待目标环境。时间指标与SQLite未完成的大样本观察单列为非阻断诊断，不再形成反复开发的门禁。
 
@@ -36,7 +38,7 @@ doc-updated: 2026-10-14
 
 | 顺序与原任务 | 当前状态 / 可并行关系 | 下一步具体工作 | 完成标准 |
 | --- | --- | --- | --- |
-| 1A · SEC-F4-02 安全发布签收 | **IN_PROGRESS，本地SSE补丁已完成；目标签收待办**；与OBS独立 | 已回移官方SSE修复，真实HTTP、干净安装和发布布局合同6/6；构建/打包/启动校验实际补丁。npm审计仍10 moderate版本范围节点、0 high/critical；后续维护迁移与目标身份/网络/开关签收 | 原安全出口有可追溯结果，残余版本范围风险有明确处置；本地修复不代替目标或生产签收 |
+| 1A · SEC-F4-02 安全发布签收 | **IN_PROGRESS，本地SSE补丁已完成；目标签收待办**；与OBS独立 | 已回移官方SSE修复，真实HTTP、干净安装和发布布局合同6/6；构建/打包/启动校验实际补丁。10-08的npm审计为10 moderate版本范围节点、0 high/critical；后续维护迁移与目标身份/网络/开关签收 | 原安全出口有可追溯结果，残余版本范围风险有明确处置；本地修复不代替目标或生产签收 |
 | 1B · OBS-16-04 可观测部署签收 | **工程/功能专项DONE；父项IN_PROGRESS，目标签收待办** | 本机不再继续时间优化。以同候选核对目标账户/ACL、平台/DB、有效开关、保留、恢复和回退；参考硬件及采集A/B仅诊断 | 已验范围可追溯，部署出口有实际目标证据；SQLite3000全量未证明，不作该容量的生产保证 |
 | 2 · OPS-01 最终交付签收 | **WAIT_DEP，最终签收待前置**；本机Gateway浏览器闭环限定完成 | 在同一候选版本与目标环境汇总健康、安全和可观测结果；部署重启、权限/TLS、告警及回退仍待核验；[本机浏览器证据](../audits/2026-10-14-ops-browser-workflow.md) | 交付步骤可复现，必要证据齐备，给出发布/不发布结论；本机流程通过不能代替生产签收 |
 
@@ -75,7 +77,7 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | DONE | 204 | 限定出口已完成；父包仍按独立退出条件核对 |
 | READY | 0 | 没有已登记READY的原子项；本地准备可按后续清单开展 |
 | IN_PROGRESS | 2 | SEC-F4-02与OBS-16-04目标签收；本机工程完成，时间/压力观察非开发硬门禁 |
-| WAIT_DEP | 1 | OPS-01等待安全/可观测签收；本地入口与重复部署已验证；完整操作/部署待签收 |
+| WAIT_DEP | 1 | OPS-01等待安全/可观测签收；本机Gateway浏览器主流程已限定验收；目标操作/部署待签收 |
 | NEED_ENV | 0 | 环境调查已开工；未确定的生产条件在各进行中任务内明确登记 |
 | SCOPE_REVIEW | 0 | PROD-06 核定后无待判范围项 |
 | DEFERRED | 2 | 不属于当前里程碑 |
@@ -211,7 +213,7 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | SEC-F3-03 | DONE | 限定全渠道扫描完成（[证据](../audits/2026-09-28-f3-03-secret-leak-matrix.md)）：真实child+回环上游+SQL.js，9合成秘密跨15渠道、904项检查0泄露、检测器非空洞自测；含OS级argv/spawn与实际env/stdio/错误面/静态码/持久行/状态事件/日志投影/管理审计检索；notCovered=部署级HTTP审计sink/ProcessInfo/观测事件sink/Linux argv |
 | SEC-F3a-01 | DONE | 限定在线审计完成（[证据](../audits/2026-09-26-dependency-reachability-audit.md)）：首轮生产32项（0C/10H/21M/1L）；授权后补丁批已执行：主版本内12包+UI echarts6/vue-echarts8，生产降至19（0C/4H/15M/0L），残余全部归Nest12族；Parser 49/1196、API 148/1623与三包构建回归通过 |
 | SEC-F4-01 | DONE | 当前112个SEC叶子以逐项或明确聚合旧ID维护，D2b1/b2/b3a–d及C2b1/b2a/b2b1/b2b2/b3依赖已登记；区分历史/本地限定/未运行环境，不代表F4-02签收 |
-| SEC-F4-02 | IN_PROGRESS | [官方SSE补丁回移](../audits/2026-10-08-security-nest-sse-backport.md)修复实际编码器，vendor/lock可追溯，正常/注入HTTP、干净安装和发布布局6/6通过；构建/打包/启动拒绝旧字节。npm审计仍10 moderate版本节点、0 high/critical；原解析/file-type/UUID门禁和API184套/1932项通过。维护版本迁移与目标身份/网络/开关及生产签收继续待办 |
+| SEC-F4-02 | IN_PROGRESS | [官方SSE补丁回移](../audits/2026-10-08-security-nest-sse-backport.md)修复实际编码器，vendor/lock可追溯，正常/注入HTTP、干净安装和发布布局6/6通过；构建/打包/启动拒绝旧字节。10-08的npm审计为10 moderate版本节点、0 high/critical；原解析/file-type/UUID门禁和API184套/1932项通过。维护版本迁移与目标身份/网络/开关及生产签收继续待办 |
 | OBS-06-01 | DONE | 限定矩阵完成：新增`verify:mcp-observability-matrix`聚合4个server脚本（11+17+15+12）与Parser上游失败74项，输出`MCP_OBSERVABILITY_MATRIX_OK`；success/cancel/发送中断/大响应三transport有结果（16MiB Tool省略/8MiB完整），Windows原生对照复现双方timeout；Linux/OBS-06-02、AC-02 retry与MCP调用超时仍归TP06/16 |
 | OBS-06-02 | DONE | 限定跨平台完成（[证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:obs-06-02` `OBS_06_02_VERIFY_OK`——Ubuntu24.04/容器Node v24.15.0与Windows同版本矩阵22行21匹配（server 11/17/15/12、parser 74/74、15 transport单元一致）；1项记录差异=16MiB cork/uncork Linux completed vs Windows timeout（字节相同、两侧native/audited自洽）；裸机内核/PG/负载与生产启用未覆盖 |
 | OBS-10-01 | DONE | 受管业务子进程start/stop/unexpected_exit/lost已进入独立持久投影；runtimeAssetId+serverId+generation绑定，旧generation迟到终止不能覆盖新start，管理心跳不作为业务存活。SQL.js重开4/4、真实child/事件hook 3/3、状态投影1/1、ProcessManager相邻5 suites/32及API type-check/build通过 |

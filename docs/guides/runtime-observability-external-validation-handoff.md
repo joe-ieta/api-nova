@@ -1,15 +1,17 @@
 ---
-doc-version: 2.4.0
+doc-version: 2.5.0
 doc-status: active
-doc-updated: 2026-09-26
+doc-updated: 2026-10-14
 ---
 # Runtime observability external validation handoff
 
+> **2026-10-14调度口径更新：本页保留专题阶段证据和原验收合同，以下历史计数/“当前未完成”文字不是现行待开发队列。** 当前能力状态、未关闭事项与并发依赖以[统一执行台账](./active-work-package-execution-status.md)、[任务划分](./active-work-package-breakdown.md)及[开发交接](./development-handoff-2026-10-14.md)为准。现保留SEC-F4-02、OBS-16-04、OPS-01三项目标签收和两项延期；已完成工程不重开，旧快照不能作为生产可用证明。
+
 ## Document status
 
-Active, version 2.2.0, updated 2026-09-15. OBS-16-01 calibrates this handoff against the maintained [completion review](runtime-observability-completion-review.md), [execution evidence register](runtime-observability-development-execution-status.md), and [latest recorded GC integration audit](../audits/2026-09-15-activation-gc-wave.md). This is a documentation-only subtask, not completion of TP16.
+Historical handoff snapshot originally version 2.2.0, dated 2026-09-15; current document metadata is in the front matter. OBS-16-01 calibrates this handoff against the maintained [completion review](runtime-observability-completion-review.md), [execution evidence register](runtime-observability-development-execution-status.md), and [latest recorded GC integration audit](../audits/2026-09-15-activation-gc-wave.md). This is a documentation-only subtask, not completion of TP16.
 
-Current status: **DONE 10, IN_PROGRESS 5, BACKLOG 1; HTTP OBS-API-01~28 VERIFIED within their documented contracts; AVAILABLE=0.** OBS-API-27/28 are retention-policy read/update contracts for new events and payloads. Socket.IO is OBS-PUSH-01: bounded authorized event pages and the call-fact snapshot/UI bridge exist; complete global-state snapshots and the remaining consumers are unfinished. TP11/TP12 remain DONE within their agreed package scope. Do not rebuild their existing subscription, signed delivery, destination validation, outbox or manual-redelivery capabilities.
+Historical snapshot status: **DONE 10, IN_PROGRESS 5, BACKLOG 1; HTTP OBS-API-01~28 VERIFIED within their documented contracts; AVAILABLE=0.** OBS-API-27/28 are retention-policy read/update contracts for new events and payloads. Socket.IO is OBS-PUSH-01: bounded authorized event pages and the call-fact snapshot/UI bridge exist; complete global-state snapshots and the remaining consumers are unfinished. TP11/TP12 remain DONE within their agreed package scope. Do not rebuild their existing subscription, signed delivery, destination validation, outbox or manual-redelivery capabilities.
 
 ## Baseline and evidence status
 

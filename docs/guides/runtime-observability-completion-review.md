@@ -1,12 +1,14 @@
 ---
-doc-version: 2.29.0
+doc-version: 2.30.0
 doc-status: active
-doc-updated: 2026-09-26
+doc-updated: 2026-10-14
 ---
-# 统一调用可观测性：当前完成情况与剩余工作
+# 统一调用可观测性：专题阶段完成情况与证据
+
+> **2026-10-14调度口径更新：本页保留专题阶段证据和原验收合同，以下历史计数/“当前未完成”文字不是现行待开发队列。** 当前能力状态、未关闭事项与并发依赖以[统一执行台账](./active-work-package-execution-status.md)、[任务划分](./active-work-package-breakdown.md)及[开发交接](./development-handoff-2026-10-14.md)为准。现保留SEC-F4-02、OBS-16-04、OPS-01三项目标签收和两项延期；已完成工程不重开，旧快照不能作为生产可用证明。
 
 > Document status: Active implementation review
-> 核对日期：2026-09-24。这里是任务完成情况的当前汇总，不是历史开发流水。
+> 原阶段核对日期：2026-09-24。下文计数与“当前”均指原阶段；10-14仅更新调度入口，不重写历史验收。
 
 > 2026-09-15 调度重排：父包原退出条件不变；当前细分、跨计划归属和下一队列见[工作包划分](./active-work-package-breakdown.md)，逐项状态见[子任务执行台账](./active-work-package-execution-status.md)。父包 IN_PROGRESS 不表示正在同时执行；文档子项完成不计为代码完成。
 
@@ -18,7 +20,7 @@ ApiNova 的主线是 API 资产导入、注册、测试、治理和发布，以�
 
 以远端 `7a7fc44` 的持久聚合、采集、事件历史、Outbox、订阅/投递管理及签名发送闭环为基础。保留本地独有的根模块接入、总览/依赖/服务器状态/pipeline 查询、缓存三态、内部 origin 隔离与 MCP 发送边界修复。不恢复已被替代的本地双重聚合、物化或发送消费者。实时流只是同一 EventsService 的有界读取者。
 
-## 2. 当前任务包状态
+## 2. 原阶段任务包状态
 
 **DONE=11，IN_PROGRESS=4，BACKLOG=1，共 16 包；READY=0。**
 
