@@ -2,7 +2,7 @@
 
 > 文档状态：Active，项目发布唯一规范
 > 生效范围：本规范合入后创建的新版本
-> 最后复核：2026-09-04
+> 最后复核：2026-10-14
 
 ## 1. 目的与效力
 
@@ -15,7 +15,7 @@
 - 一个产品标签对应一套不可变的三平台发布物；
 - 每个正式产物完全离线，解压后可直接运行；
 - 历史版本只追加留存，不静默覆盖；
-- `api-nova-release` 始终保存同一最新版本的三个运行目录；
+- `api-nova-release/latest` 始终保存同一最新版本的三个运行目录；
 - 每个版本携带发布说明和快速运行手册；
 - 缺少任一平台时，不得宣称为完整版本。
 
@@ -66,69 +66,42 @@ Linux AMD64 在发布文件名中统一为 `linux-x64`。禁止混用 `amd64`、
 
 ## 4. 发布目录
 
+2026-10-14按用户要求，E:/CodexDev顶层只保留两个ApiNova目录：开发代码在api-nova，发布相关内容统一在api-nova-release。历史发布物不改字节，只调整本地存放位置。
+
+```text
+E:/CodexDev/
+├── api-nova/                       # 开发仓库
+└── api-nova-release/               # 发布容器，禁止整体替换或作为打包输出
+    ├── latest/                    # 当前三平台运行镜像
+    │   ├── CURRENT_RELEASE.json
+    │   ├── win-x64/
+    │   ├── linux-x64/
+    │   └── linux-arm64/
+    ├── archive/<tag>/             # 不可变七文件版本归档
+    ├── backups/                   # 旧运行目录和历史手工测试包
+    ├── evidence/<tag>/            # 验证记录、构建日志
+    └── .staging/<tag>/<platform>/  # 临时构建/解压，完成后清理
+```
+
+Linux可采用/opt/api-nova-release下的同构目录。
+
 ### 4.1 不可变版本归档
 
-Windows 默认归档根目录：
-
-```text
-E:\CodexDev\api-nova-release-archive
-```
-
-Linux 可使用 `/opt/api-nova-release-archive` 或明确配置的其他存储目录。
-
-```text
-api-nova-release-archive/
-└── <tag>/
-    ├── RELEASE_NOTES.md
-    ├── QUICK_START.md
-    ├── RELEASE_MANIFEST.json
-    ├── SHA256SUMS.txt
-    ├── api-nova-release-<tag>-win-x64.zip
-    ├── api-nova-release-<tag>-linux-x64.tar.gz
-    └── api-nova-release-<tag>-linux-arm64.tar.gz
-```
-
-七个文件齐全且三个归档校验通过后，版本归档才算完整。归档目录只允许追加，禁止覆盖或删除已有版本。
+默认根目录为E:/CodexDev/api-nova-release/archive。每个tag目录保留RELEASE_NOTES.md、QUICK_START.md、RELEASE_MANIFEST.json、SHA256SUMS.txt和三个平台归档，共七文件。归档只允许追加，禁止重建、覆盖或删除已发布版本；清理.staging前核对已发布副本及SHA。
 
 ### 4.2 最新三个运行目录
 
-固定最新目录：
+固定最新目录为E:/CodexDev/api-nova-release/latest。三个平台RELEASE_INFO.json必须记录同一标签和commit。latest是可替换的分发镜像；其中产生的data/logs/pids需要保留时先完整备份至同级backups，不把用户数据与可清理暂存混放。
 
-```text
-E:\CodexDev\api-nova-release
-```
+三平台全部验证通过后，在.staging下准备完整新镜像，停止旧进程，将旧latest完整保留到backups/previous-<UTC时间戳>，再一次性替换latest并最后写入CURRENT_RELEASE.json。任一平台失败时现有latest保持不变。禁止晋升脚本替换整个api-nova-release容器，否则会连同archive和backups一起移动。
 
-```text
-api-nova-release/
-├── CURRENT_RELEASE.json
-├── win-x64/
-├── linux-x64/
-└── linux-arm64/
-```
+### 4.3 构建与清理
 
-三个目录的 `RELEASE_INFO.json` 必须记录同一标签和 commit，禁止混合版本。
+构建使用E:/CodexDev/api-nova-release/.staging/<tag>/<platform-id>/。禁止把发布容器、latest、archive、backups或evidence作为打包输出；打包脚本会重建输出目录。
 
-`api-nova-release` 是可替换的最新分发镜像，不是历史归档或生产数据目录。在其中运行产生的 `data/`、`logs/`、`pids/` 在晋升新版本时视为可丢弃数据；需要保留时必须先备份到目录外。
+发布后将有价值的验证JSON/日志收集到evidence/<tag>，再清理下载残片、重复压缩包、失败构建和解压预检副本。临时Git worktree须先确认没有未提交工作、提交已有保留引用，再通过git worktree remove注销，不能直接删除其父目录留下失效注册。
 
-最新版本必须原子晋升：
-
-1. 三个平台归档全部验证通过；
-2. 解压到带版本号的临时目录并分别验证；
-3. 停止旧运行进程；
-4. 同一次操作替换三个平台目录；
-5. 最后写入 `CURRENT_RELEASE.json`。
-
-任一平台失败时，现有最新目录保持不变。
-
-### 4.3 构建暂存目录
-
-构建和解压验证使用独立目录，例如：
-
-```text
-E:\CodexDev\api-nova-release-staging/<tag>/<platform-id>/
-```
-
-禁止把 `api-nova-release` 直接作为打包脚本 `OutputDir`。打包脚本会重建输出目录，可能删除运行数据。
+已于2026-10-14保留的旧运行目录位于backups/legacy-20261014065727；旧Windows手工测试包位于backups/v1.7.5-rc.1-win-x64。它们不代表新的三平台正式归档。
 
 ## 5. 解压目录契约
 
@@ -320,7 +293,9 @@ Linux 必须在匹配架构上运行验证，跨平台文件检查不能替代�
 - 回退时选择完整历史版本，先验校验和，再解压三个 latest 目录，最后更新 `CURRENT_RELEASE.json`；
 - latest 不承诺数据迁移，版本特定数据策略写入 `RELEASE_NOTES.md`。
 
-## 12. 现有目录迁移
+## 12. 历史平铺目录迁移
+
+2026-10-14已完成首次迁移，旧目录完整保留于api-nova-release/backups/legacy-20261014065727，数据库哈希已验证。以下是历史迁移的保留要求。
 
 本规范之前，`E:\CodexDev\api-nova-release` 是平铺的 Windows 运行目录，并可能包含 `data/api-nova.db`，不得自动删除或改造。
 
@@ -329,7 +304,7 @@ Linux 必须在匹配架构上运行验证，跨平台文件检查不能替代�
 1. 停止旧目录进程；
 2. 明确丢弃还是备份运行数据；
 3. 获得用户授权后才移动或归档旧目录；
-4. 创建 `win-x64`、`linux-x64`、`linux-arm64` 结构；
+4. 在latest内创建 `win-x64`、`linux-x64`、`linux-arm64` 结构；
 5. 一次性晋升完整三平台版本。
 
 `v1.7.5-rc.1` 及以前属于过渡版本，不追溯要求满足新结构。禁止移动已推送标签来伪装历史版本合规。

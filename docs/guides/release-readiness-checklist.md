@@ -1,18 +1,20 @@
 ---
-doc-version: 1.1.0
+doc-version: 1.2.0
 doc-status: active
-doc-updated: 2026-09-08
+doc-updated: 2026-10-14
 ---
 # Release Readiness Checklist
 
 > Document status: Active
-> Last reviewed: 2026-09-08
+> Last reviewed: 2026-10-14
 
 Use this checklist before cutting a release or calling the current baseline publishable.
 
 The goal is to validate the real supported path, not to create an aspirational checklist for features that are still incomplete.
 
 ## 1. Baseline Confirmation
+
+Use the consolidated release container: latest for runtime mirrors, archive for immutable versions, backups for retained runtime data, evidence for verification records, and .staging for disposable builds. Never replace the container itself; promote latest only.
 
 Confirm the release still matches the current baseline:
 
@@ -149,7 +151,7 @@ Verify:
 - startup logs clearly report `Database mode: postgres`
 - schema initialization and migrations succeed
 
-Current target on September 8, 2026: 43 domain tables plus the migration ledger, including the configuration and three process/health tables. Both isolated SQLite and PostgreSQL migration, persistence and complete API-startup checks passed with zero schema drift and automatic synchronization disabled. See [Persistence Cleanup Review](../audits/2026-09-08-persistence-cleanup.md).
+Current target on September 8, 2026: 43 domain tables plus the migration ledger, including the configuration and three process/health tables. Both isolated SQLite and PostgreSQL migration, persistence and complete API-startup checks passed with zero schema drift and automatic synchronization disabled. See [Persistence Cleanup Review](../audits/2026-10-14-persistence-cleanup.md).
 
 Historical clean-schema verification on July 21, 2026:
 

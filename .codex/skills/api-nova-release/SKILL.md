@@ -23,15 +23,17 @@ Never create a Linux artifact by copying Windows `node_modules`, or an ARM64 art
 
 ## Output Roots
 
-Use separate roots:
+Keep only the development repository and one release container at the workspace parent. Under api-nova-release, use:
 
-- immutable versions: `api-nova-release-archive/<tag>/`;
-- latest extracted mirrors: `api-nova-release/{win-x64,linux-x64,linux-arm64}/`;
-- disposable builds: `api-nova-release-staging/<tag>/<platform-id>/`.
+- immutable versions: `archive/<tag>/`;
+- latest extracted mirrors: `latest/{win-x64,linux-x64,linux-arm64}/`;
+- preserved old runtime directories: `backups/`;
+- durable verification records: `evidence/<tag>/`;
+- disposable builds: `.staging/<tag>/<platform-id>/`.
 
-Never pass the latest root directly to the packaging script. It recreates its output and can delete runtime data.
+Never pass the release container, latest, archive, backups, or evidence to the packaging script. Promote only latest; replacing the container would also move preserved archives and databases.
 
-Do not restructure the historical flat `E:\CodexDev\api-nova-release` directory without explicit approval. It may contain a live SQLite database.
+The user approved consolidating the historical directories on 2026-10-14. The old SQLite runtime is preserved at `E:\CodexDev\api-nova-release\backups\legacy-20261014065727`. Preserve that data during future cleanup; do not request the same migration approval again. Remove disposable worktrees through Git only after checking for unpublished work and preserving needed evidence.
 
 ## Workflow
 

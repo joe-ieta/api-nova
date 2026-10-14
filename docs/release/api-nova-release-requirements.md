@@ -1,13 +1,15 @@
 ---
-doc-version: 1.1.0
+doc-version: 1.2.0
 doc-status: active
-doc-updated: 2026-09-08
+doc-updated: 2026-10-14
 ---
 # ApiNova Release Requirements
 
 > Document status: Active release operations
-> Last reviewed: 2026-09-08
+> Last reviewed: 2026-10-14
 > Canonical packaging contract: [ApiNova Version Release Standard](../../RELEASE_STANDARD.md)
+
+发布目录统一为E:/CodexDev/api-nova-release：latest保存当前运行镜像，archive保存不可变版本，backups保存旧运行数据，evidence保存验证记录，.staging只用于临时构建。禁止把发布容器或其持久目录作为打包输出。
 
 ## Run From A Source Checkout
 
@@ -159,12 +161,12 @@ The `Portable` script mode remains available for development transfer, but it is
 
 ### Staging Output
 
-Never package directly into `E:\CodexDev\api-nova-release`. That path is the latest three-platform mirror and may contain runtime data.
+Never package directly into `E:\CodexDev\api-nova-release`. That path is the release container, including immutable archives and backups. The current runtime mirrors are under latest/.
 
 Use a disposable versioned staging path:
 
 ```text
-E:\CodexDev\api-nova-release-staging\<tag>\<platform-id>\
+E:\CodexDev\api-nova-release\.staging\<tag>\<platform-id>\
 ```
 
 The final uncompressed package directory is named:
@@ -190,7 +192,7 @@ Windows x64, run on Windows x64:
 
 ```powershell
 $tag = 'vX.Y.Z'
-$output = "E:\CodexDev\api-nova-release-staging\$tag\win-x64\api-nova-release-$tag-win-x64"
+$output = "E:\CodexDev\api-nova-release\.staging\$tag\win-x64\api-nova-release-$tag-win-x64"
 
 powershell -ExecutionPolicy Bypass -File .\scripts\package-release.ps1 `
   -Mode OfflineCurrentPlatform `
@@ -202,7 +204,7 @@ Linux x64, run on Ubuntu x64:
 
 ```bash
 tag='vX.Y.Z'
-output="/opt/api-nova-release-staging/${tag}/linux-x64/api-nova-release-${tag}-linux-x64"
+output="/opt/api-nova-release/.staging/${tag}/linux-x64/api-nova-release-${tag}-linux-x64"
 
 pwsh ./scripts/package-release.ps1 \
   -Mode OfflineCurrentPlatform \
@@ -214,7 +216,7 @@ Linux ARM64, run on Ubuntu ARM64:
 
 ```bash
 tag='vX.Y.Z'
-output="/opt/api-nova-release-staging/${tag}/linux-arm64/api-nova-release-${tag}-linux-arm64"
+output="/opt/api-nova-release/.staging/${tag}/linux-arm64/api-nova-release-${tag}-linux-arm64"
 
 pwsh ./scripts/package-release.ps1 \
   -Mode OfflineCurrentPlatform \

@@ -20,8 +20,13 @@ $outputSeparators = [char[]]@(
   [System.IO.Path]::AltDirectorySeparatorChar
 )
 $outputLeaf = [System.IO.Path]::GetFileName($outputPath.TrimEnd($outputSeparators))
-if ($outputLeaf -ieq 'api-nova-release') {
-  throw 'Refusing to package directly into the api-nova-release latest mirror. Use a versioned staging directory.'
+$releaseContainer = [IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $repoRoot) 'api-nova-release'))
+$containerPrefix = $releaseContainer + [IO.Path]::DirectorySeparatorChar
+$stagingPrefix = (Join-Path $releaseContainer '.staging') + [IO.Path]::DirectorySeparatorChar
+$insideContainer = $outputPath.StartsWith($containerPrefix, [StringComparison]::OrdinalIgnoreCase)
+$insideStaging = $outputPath.StartsWith($stagingPrefix, [StringComparison]::OrdinalIgnoreCase)
+if ($outputLeaf -ieq 'api-nova-release' -or $outputPath -ieq $releaseContainer -or ($insideContainer -and -not $insideStaging)) {
+  throw 'Refusing to package into a persistent release directory. Use api-nova-release/.staging/<tag>/<platform>/ instead.'
 }
 $runtimePlatform = node -p "process.platform + '-' + process.arch"
 $npmCommand = if ($IsWindows -or $env:OS -eq 'Windows_NT') { 'npm.cmd' } else { 'npm' }

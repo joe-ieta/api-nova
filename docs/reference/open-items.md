@@ -1,5 +1,5 @@
 ---
-doc-version: 1.30.0
+doc-version: 1.31.0
 doc-status: active
 doc-updated: 2026-10-14
 ---
@@ -56,7 +56,7 @@ v1.7.6-rc.3已完成三平台离线预发布、不可变归档、latest切换、
 | SQLite容量 | 既有3000样本有限窗口未全量，继续保留非阻断诊断，不声明生产容量保证 |
 | Lint维护 | 6个历史error已修复，相关UI测试49/49和type-check通过；本机lint为0 error、273 warnings（API127、parser68、UI78），最终CI为0 error、272 warnings（API127、parser67、UI78），所有发布门禁通过；warning技术债继续保留 |
 
-经用户明确批准，旧平铺目录已完整保留于E:/CodexDev/api-nova-release-legacy-20261014065727，数据库哈希保持一致。api-nova-release现为同版本三平台镜像；旧数据未自动迁入新版本，后续升级仍按已知迁移链和目标环境策略执行。
+经用户明确批准，旧平铺目录已完整保留于E:/CodexDev/api-nova-release/backups/legacy-20261014065727，数据库哈希保持一致。api-nova-release/latest现为同版本三平台镜像；旧数据未自动迁入新版本，后续升级仍按已知迁移链和目标环境策略执行。
 
 源码中注释掉的旧服务/权限接口TODO及ProgrammaticAdapter要求调用者提供handler的错误，不据字符串命中重新生成开发任务。以上真实缺口和原延期事项共同构成本次发布限制。
 
