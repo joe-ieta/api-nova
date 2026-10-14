@@ -41,7 +41,7 @@ export default {
       lastTestAt: "Last Test At",
       parameters: "Parameters",
       parametersPlaceholder:
-        "Enter JSON object parameters for this endpoint test, for example {\"id\": 1}",
+        "Enter JSON object parameters for this endpoint test, for example {'{'}\"id\": 1{'}'}",
       result: "Test Result",
       loadFailed: "Failed to load endpoint test context",
       executeFailed: "Endpoint test failed",

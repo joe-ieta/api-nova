@@ -61,7 +61,8 @@
     "verify:obs-16-04-performance": "node scripts/verify-obs-16-04-performance.cjs",
     "verify:security-parser-dependencies": "node scripts/verify-security-parser-dependencies.cjs",
     "verify:security-residual-dependencies": "node --test scripts/test-security-residual-dependencies.cjs",
-    "verify:security-nest-sse": "node --test scripts/test-security-nest-sse-backport.cjs"
+    "verify:security-nest-sse": "node --test scripts/test-security-nest-sse-backport.cjs",
+    "verify:ops-01-browser": "node scripts/verify-ops-01-browser.cjs"
   },
   "keywords": [
     "mcp",

@@ -40,7 +40,7 @@ export default {
       lastTestAt: "最近测试时间",
       parameters: "测试参数",
       parametersPlaceholder:
-        "请输入用于该 Endpoint 测试的 JSON 对象，例如 {\"id\": 1}",
+        "请输入用于该 Endpoint 测试的 JSON 对象，例如 {'{'}\"id\": 1{'}'}",
       result: "测试结果",
       loadFailed: "加载 Endpoint 测试上下文失败",
       executeFailed: "Endpoint 测试失败",

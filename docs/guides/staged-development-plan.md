@@ -1,7 +1,7 @@
 ---
-doc-version: 1.11.0
+doc-version: 1.12.0
 doc-status: active
-doc-updated: 2026-10-08
+doc-updated: 2026-10-14
 ---
 # Staged Development Plan
 
@@ -94,7 +94,9 @@ Current progress:
 
 Next order:
 
-1. Ingestion coordination and delivery batching are complete within the tested scope: 43 dual-database groups and 186 API suites / 1940 tests pass. PostgreSQL passes the complete 3000-call flow. SQLite returns all 3000 business responses with intact source records, but the 30-minute observation does not cover every terminal projection/delivery; it is not claimed as full acceptance. Per the user decision, timing and bounded load observations remain non-blocking diagnostics, not a reason to keep reopening implementation work. Continue the OPS browser workflow and target-environment sign-off. See [scoped acceptance and diagnostics](../audits/2026-10-08-observability-functional-closure.md).
+The 2026-10-14 packaged-browser run closes the local manual-registration Gateway journey through test/governance, smoke samples, publication/deployment, UI-created credentials, real HTTP consumption and correlated terminal monitoring after reload. Registry v1 policy selection, production i18n JSON rendering, draft-member visibility and upstream source identity blockers were fixed. Browser OpenAPI-import/MCP/migration branches and production sign-off are not implied. See [browser evidence](../audits/2026-10-14-ops-browser-workflow.md).
+
+1. Ingestion coordination and delivery batching are complete within the tested scope: 43 dual-database groups and 186 API suites / 1940 tests pass. PostgreSQL passes the complete 3000-call flow. SQLite returns all 3000 business responses with intact source records, but the 30-minute observation does not cover every terminal projection/delivery; it is not claimed as full acceptance. Per the user decision, timing and bounded load observations remain non-blocking diagnostics, not a reason to keep reopening implementation work. The local packaged-UI Gateway browser workflow is now accepted within its stated scope; continue target-environment sign-off. See [scoped acceptance and diagnostics](../audits/2026-10-08-observability-functional-closure.md).
 2. Consolidate the results on one candidate version and finish target-environment sign-off (SEC-F4-02, OBS-16-04, OPS-01). The user selected local isolated validation for now; production sign-off remains open.
 
 PROD-04C is complete within local Windows/isolated PostgreSQL scope: 16 real-HTTP lifecycle checks plus related regression coverage; production identity/ACL, Linux semantics and real MCP binary outbound remain outside this run. See [binary lifecycle evidence](../audits/2026-10-08-prod-04c-binary-lifecycle.md).
