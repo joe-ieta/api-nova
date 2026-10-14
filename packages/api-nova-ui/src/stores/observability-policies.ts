@@ -16,7 +16,7 @@ export const useObservabilityPoliciesStore = defineStore("observability-policies
     JSON.stringify([auth.currentUser.id, auth.accessToken]) : null;
   const canSave = computed(() => canEdit.value && !!policy.value && !loading.value && !saving.value &&
     [eventDays.value, payloadDays.value].every(n => Number.isSafeInteger(n) && Number(n) >= 1 && Number(n) <= 365) &&
-    !!reason.value.trim() && reason.value.length <= 500 && !/[\u0000-\u001f\u007f]/.test(reason.value));
+    !!reason.value.trim() && reason.value.length <= 500 && !Array.from(reason.value).some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127));
   function clear() {
     generation++;
     controller?.abort(); controller = null;

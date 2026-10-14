@@ -18,3 +18,5 @@ docs/release/versions/<tag>/
 ## 版本索引
 
 - [v1.7.5-rc.2](./v1.7.5-rc.2/RELEASE_NOTES.md)：用户批准的 Windows x64 单平台本地预发布；实际发布物不上传远端，不代表三平台正式发布。
+
+- [v1.7.6-rc.3](./v1.7.6-rc.3/RELEASE_NOTES.md)：2026-10-14三平台离线预发布候选，目标生产签收仍待办；完整交付结果以发布清单和远端Release为准。

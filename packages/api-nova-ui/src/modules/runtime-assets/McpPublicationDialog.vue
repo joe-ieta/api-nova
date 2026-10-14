@@ -8,7 +8,7 @@
       </el-form-item>
       <el-alert v-if="form.authBlock()" :title="t('monitoring.mcpPublication.' + form.authBlock() + 'Error')" type="warning" :closable="false" />
       <p v-if="state.inboundAuthMode === 'anonymous'">{{ t('monitoring.mcpPublication.anonymousHint') }}</p>
-      <TemporaryAnonymousEditor v-if="state.inboundAuthMode === 'anonymous'" :draft="state.temporaryAnonymous" />
+      <TemporaryAnonymousEditor v-if="state.inboundAuthMode === 'anonymous'" v-model:draft="state.temporaryAnonymous" />
       <el-form-item :label="t('monitoring.mcpPublication.transport')"><el-select v-model="state.transport"><el-option label="Streamable HTTP" value="streamable" /><el-option label="SSE" value="sse" /></el-select></el-form-item>
       <el-form-item :label="t('monitoring.mcpPublication.port')"><el-input-number v-model="state.port" :min="1024" :max="65535" :precision="0" /></el-form-item>
       <p>{{ t('monitoring.mcpPublication.automatic') }}</p>

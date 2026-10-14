@@ -1,5 +1,5 @@
 ---
-doc-version: 1.28.0
+doc-version: 1.29.0
 doc-status: active
 doc-updated: 2026-10-14
 ---
@@ -39,7 +39,27 @@ ENV-01按用户2026-10-14新要求采用至少空闲5GiB门槛。健康专项8/8
 
 默认关闭的host网络路径、Verified许可、受管IPC、清理/投递worker等必须按各自部署合同显式安装或启用。已有本地和容器验证不自动等于生产可用。真实邮件外发、目标SMTP和第三方接收端仅在明确范围下执行。
 
-Nest解析器、监听、file-type及UUID实际依赖链已迁移；[官方SSE补丁回移](../audits/2026-10-08-security-nest-sse-backport.md)已修复实际编码器，真实HTTP/clean ci/发布布局6/6和原安全门禁通过，构建/打包/启动验证实际补丁字节。10-08的npm审计为10 moderate版本范围节点、0 high/critical（本次文档复核未重新审计），维护版本迁移及目标身份/网络/开关签收继续待办。API构建与184套/1932项通过；脱离根manifest/lock的独立workspace安装须另核对。
+Nest解析器、监听、file-type及UUID实际依赖链已迁移；[官方SSE补丁回移](../audits/2026-10-08-security-nest-sse-backport.md)已修复实际编码器，真实HTTP/clean ci/发布布局6/6和原安全门禁通过，构建/打包/启动验证实际补丁字节。10-08的npm审计为10 moderate版本范围节点、0 high/critical（10-14发布前复审结果相同），维护版本迁移及目标身份/网络/开关签收继续待办。API构建与184套/1932项通过；脱离根manifest/lock的独立workspace安装须另核对。
+
+## 2026-10-14 发布前再次复核
+
+拟从当前oc_dev准备v1.7.6-rc.3预发布；正式历史任务仍为204 DONE、2 IN_PROGRESS、1 WAIT_DEP、2 DEFERRED，共209条，不因打标签或产物发布关闭目标签收。
+
+| 未完成事项 | 归属与处置 |
+| --- | --- |
+| UI顶部健康及通用刷新仍为模拟数据 | 本次源码核实app store的checkSystemHealth使用Math.random，MainLayout读取其状态并调用refreshData；刷新也未实际刷新其他数据。列为UI维护剩余，发布说明披露；真实健康以/health及专门监控接口为准，不重开已验后端ENV-01 |
+| Nest维护迁移/残余依赖风险 | 2026-10-14重新执行npm audit --omit=dev：10 moderate、0 high/critical；仍由SEC-F4-02跟进。保留SSE字节补丁门禁，不能将审计范围报警隐藏或直接强制跨大版本升级 |
+| 浏览器未覆盖组合 | 文件/无server导入、认证规范、多端点、A/B迁移、MCP、多角色；按实际支持范围执行，现有HTTP/SDK证据继续有效 |
+| 二进制目标矩阵 | 目标运行账户ACL、Linux文件语义、MCP真实二进制外发仍待SEC/OPS目标验证 |
+| 部署与长期运行 | 真实SMTP/Webhook、证书/反代/出站、裸机/systemd、持续负载、多主机水位和真实业务存活仍未全量签收 |
+| 独立workspace安装 | 脱离根manifest/lock的API安装不保证；本版本按根锁文件和完整离线包交付 |
+| SQLite容量 | 既有3000样本有限窗口未全量，继续保留非阻断诊断，不声明生产容量保证 |
+| Lint维护 | 6个历史error已修复，相关UI测试49/49和type-check通过；本机lint为0 error、273 warnings（API127、parser68、UI78），warning技术债继续保留，完整发布门禁另由候选CI执行 |
+| 三平台与发布交付 | 当前仅准备候选；须全部门禁、原生三平台离线包、新解压验证、清单/哈希、标签与Release齐备后才计发布完成；生产签收仍是独立待办 |
+
+旧平铺E:/CodexDev/api-nova-release含data/api-nova.db，不能用打包脚本覆盖。新版本先在独立staging构建；正式迁移latest前需备份旧运行数据并按发布规范确认。
+
+源码中注释掉的旧服务/权限接口TODO及ProgrammaticAdapter要求调用者提供handler的错误，不据字符串命中重新生成开发任务。以上真实缺口和原延期事项共同构成本次发布限制。
 
 ## 已交付能力的复用边界
 

@@ -31,7 +31,7 @@ export class UpstreamCredentialPanel {
   async reload() {
     if (!this.canReload()) return;
     const reason = this.state.reason.trim();
-    if (!reason || reason.length > 500 || /[\u0000-\u001f\u007f]/.test(reason)) { this.state.error = 'reason'; return; }
+    if (!reason || reason.length > 500 || Array.from(reason).some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) { this.state.error = 'reason'; return; }
     await this.run('reload', { expectedGeneration: this.state.status!.generation, reason });
   }
   private async run(operation: 'status' | 'reload', input?: { expectedGeneration: number; reason: string }) {

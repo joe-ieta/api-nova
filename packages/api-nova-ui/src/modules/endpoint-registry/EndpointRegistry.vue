@@ -1796,7 +1796,7 @@
               <p>仅采用管理员配置的 Registry 策略；消费者凭证不会自动转发给上游。未配置或未授权时部署会拒绝。已保存的 v1 策略不会因取消勾选降级。</p>
             </div>
           </el-form-item>
-          <TemporaryAnonymousEditor v-if="publicationForm.routeVisibility === 'external' && /^anonymous(?:[-_:].+)?$/i.test(publicationForm.authPolicyRef.trim())" :draft="publicationForm.temporaryAnonymous" />
+          <TemporaryAnonymousEditor v-if="publicationForm.routeVisibility === 'external' && /^anonymous(?:[-_:].+)?$/i.test(publicationForm.authPolicyRef.trim())" v-model:draft="publicationForm.temporaryAnonymous" />
           <el-form-item :label="t('endpointRegistry.form.trafficPolicyRef')">
             <el-input v-model="publicationForm.trafficPolicyRef" clearable />
           </el-form-item>
