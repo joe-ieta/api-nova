@@ -171,7 +171,7 @@
             <span class="count">{{
               t("endpointRegistry.groupCount", { count: selectedManualGroup.endpoints.length })
             }}</span>
-            <el-button size="small" type="primary" plain @click="openInstanceManager">
+            <el-button size="small" type="primary" plain @click="openInstanceManager(selectedManualGroup.endpoints[0])">
               运行实例
             </el-button>
           </div>
@@ -422,6 +422,15 @@
             <el-table-column :label="t('endpointRegistry.table.actions')" :width="actionColumnWidth" fixed="right">
               <template #default="{ row }">
                 <div class="row-actions governance-row-actions">
+                  <el-button
+                    size="small"
+                    type="primary"
+                    plain
+                    class="action-btn governance-instances-btn"
+                    @click="openInstanceManager(row)"
+                  >
+                    运行实例
+                  </el-button>
                   <el-button
                     size="small"
                     type="warning"
@@ -1900,7 +1909,7 @@
     <SourceServiceInstancesDialog
       v-model="showInstanceManager"
       :source-service-asset-id="selectedInstanceSourceAssetId"
-      :source-service-name="selectedManualGroup?.groupName"
+      :source-service-name="selectedInstanceSourceName"
     />
     <EndpointTestSamplesDialog
       v-model="showSampleLibrary"
@@ -3475,14 +3484,16 @@ const selectedManualGroup = computed(
       (group) => group.groupKey === effectiveSelectedManualGroupKey.value,
     ) || null,
 );
-const selectedInstanceSourceAssetId = computed(
-  () => selectedManualGroup.value?.endpoints[0]?.sourceServiceAssetId || "",
-);
-const openInstanceManager = () => {
-  if (!selectedInstanceSourceAssetId.value) {
+// Capture the clicked endpoint's source, even when several sources share a URL.
+const selectedInstanceSourceAssetId = ref("");
+const selectedInstanceSourceName = ref("");
+const openInstanceManager = (row?: EndpointRow) => {
+  if (!row?.sourceServiceAssetId) {
     ElMessage.warning("当前 API 分组缺少源服务资产标识");
     return;
   }
+  selectedInstanceSourceAssetId.value = row.sourceServiceAssetId;
+  selectedInstanceSourceName.value = row.groupName || row.name;
   showInstanceManager.value = true;
 };
 const effectiveSelectedGovernanceGroupKey = computed(() => {

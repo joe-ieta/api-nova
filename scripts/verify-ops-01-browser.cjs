@@ -10,6 +10,7 @@ const http = require('node:http');
 const { spawn, spawnSync } = require('node:child_process');
 const { randomBytes, createHash } = require('node:crypto');
 const root = path.resolve(__dirname, '..');
+const importScenario = process.argv.includes('--import');
 const apiDir = path.join(root, 'packages/api-nova-api');
 const apiEntry = path.join(apiDir, 'dist/src/main.js');
 fs.mkdirSync(path.join(root, '.tmp'), { recursive: true });
@@ -23,7 +24,8 @@ const upstreams = [];
 const evidence = { marker: 'OPS_01_BROWSER_LOCAL_HTTP_V1', startedAt: new Date().toISOString(),
   commit: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true }).stdout.trim(),
   platform: process.platform, node: process.version, database: { type: 'sqlite', path: dbPath, isolated: true }, steps: [],
-  notCovered: ['external deployed upstreams', 'PostgreSQL', 'production identity providers', 'MCP transport', 'browser OpenAPI import and migration branches', 'production deployment signoff'], timings:'diagnostic only'  };
+  scenario: importScenario ? 'openapi-url-import' : 'manual-registration',
+  notCovered: ['external deployed upstreams', 'PostgreSQL', 'production identity providers', 'MCP transport', ...(importScenario ? ['browser manual registration', 'browser file import and unbound import'] : ['browser OpenAPI import']), 'browser migration branches', 'production deployment signoff'], timings:'diagnostic only'  };
 let apiBase, token, apiProcess;
 function redact(value) { let text = String(value); for (const s of secrets) if (s) text = text.split(s).join('[redacted]'); return text; }
 function save() { fs.writeFileSync(evidencePath, redact(JSON.stringify(evidence, null, 2))); }
@@ -71,7 +73,7 @@ async function instances(source) { return (await api('GET', `/v1/assets/source-s
 async function main() {
   const { chromium } = require(process.env.OPS_PLAYWRIGHT_MODULE || 'playwright');
   assert.ok(fs.existsSync(apiEntry), 'Build api-nova-api first');
-  const artifactPaths = [__filename, path.join(__dirname,'ops-browser-scenario.cjs'), path.join(__dirname,'ops-browser-publication.cjs'), path.join(__dirname,'ops-browser-consumption.cjs'), path.join(root,'packages/api-nova-ui/src/modules/endpoint-registry/EndpointRegistry.vue'), path.join(root,'packages/api-nova-ui/src/modules/runtime-assets/RuntimeAssetDetail.vue'), apiEntry,
+  const artifactPaths = [__filename, path.join(__dirname,'ops-browser-import.cjs'), path.join(root,'packages/api-nova-ui/src/modules/openapi/OpenAPIManager.vue'), path.join(__dirname,'ops-browser-scenario.cjs'), path.join(__dirname,'ops-browser-publication.cjs'), path.join(__dirname,'ops-browser-consumption.cjs'), path.join(root,'packages/api-nova-ui/src/modules/endpoint-registry/EndpointRegistry.vue'), path.join(root,'packages/api-nova-ui/src/modules/runtime-assets/RuntimeAssetDetail.vue'), apiEntry,
     path.join(apiDir, 'dist/src/modules/asset-catalog/services/asset-catalog.service.js'),
     path.join(apiDir, 'dist/src/modules/gateway-runtime/services/gateway-security.service.js'),
     path.join(apiDir, 'dist/src/modules/gateway-runtime/services/gateway-candidate-replay-authority.js'),
@@ -124,7 +126,7 @@ async function main() {
   page.on('pageerror',e=>evidence.browser.pageErrors.push(redact(e.message)));
   page.on('response',async r=>{if(r.url().endsWith('/auth/login')&&r.ok()) {try {const b=await r.json();secrets.push(b.accessToken,b.refreshToken);}catch{}}});
   try {
-    await require('./ops-browser-scenario.cjs')({page,context,uiBase,apiBase,password,username:'extclosureadmin',upstream:a,step,api,request,evidence,workDir,redact,secrets,
+    await require('./ops-browser-scenario.cjs')({page,context,uiBase,apiBase,password,username:'extclosureadmin',upstream:a,step,api,request,evidence,workDir,redact,secrets,importScenario,
       managementLogin:async()=>{const r=await api('POST','/auth/login',{username:'extclosureadmin',password},200); token=r.accessToken; secrets.push(token,r.refreshToken);},
       reloadRegistry,instances});
     assert.deepEqual(evidence.browser.pageErrors,[], 'Browser uncaught errors');

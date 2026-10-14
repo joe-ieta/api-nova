@@ -10,7 +10,8 @@ module.exports=async (ctx)=>{
   await page.waitForURL('**/registration/batch');
   return {route:new URL(page.url()).pathname};
  });
- await step('browser.manual_registration',async()=>{
+ if (ctx.importScenario) await require('./ops-browser-import.cjs')(ctx);
+ else await step('browser.manual_registration',async()=>{
   await page.goto(uiBase+'/registration/manual');
   await page.getByRole('button',{name:'添加 Endpoint'}).first().click();
   const dialog=page.getByRole('dialog');
@@ -27,7 +28,8 @@ module.exports=async (ctx)=>{
  await managementLogin();
  await step('fixture.controlled_upstream_registry',()=>reloadRegistry([evidence.endpoint],upstream,'ops-browser-upstream'));
  await step('browser.instance_probe',async()=>{
-  await page.getByRole('button',{name:'运行实例',exact:true}).click();
+  const scope=ctx.importScenario ? page.locator('.governance-group-detail-card .el-table__body tr').filter({hasText:evidence.endpoint.path}) : page;
+  await scope.getByRole('button',{name:'运行实例',exact:true}).click();
   const dialog=page.locator('.el-dialog:visible');
   const list=await api('GET','/v1/assets/source-services/'+evidence.endpoint.source+'/instances');
   const instance=list.data.find(i=>i.port===upstream.port&&i.enabled);assert.ok(instance);
@@ -43,7 +45,7 @@ module.exports=async (ctx)=>{
   const result=page.waitForResponse(r=>r.url().endsWith('/'+evidence.endpoint.id+'/test')&&r.request().method()==='POST');
   const [response]=await Promise.all([result,dialog.getByRole('button',{name:'测试',exact:true}).click()]); assert.equal(response.status(),201); const body=await response.json(); assert.equal(body.test.passed,true);
   await page.locator('.test-result-pre').waitFor();
-  assert.match(await page.locator('.test-result-pre').innerText(),/manual/);
+  assert.ok((await page.locator('.test-result-pre').innerText()).includes(evidence.endpoint.path));
   await dialog.getByRole('button',{name:'取消',exact:true}).click();
   return {passed:true,httpStatus:body.test.httpStatus,sourceCalls:upstream.received.length};
  });

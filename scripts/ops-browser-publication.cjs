@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
  * assertions; no evaluate/store injection or request interception substitutes UI.
  * Requires a Chinese UI session and one already-ready endpoint plus its smoke sample.
  */
-module.exports = async function publishGatewayInBrowser({ page, uiBase, api, step, evidence, endpoint, upstream }) {
+module.exports = async function publishGatewayInBrowser({ page, uiBase, api, step, evidence, endpoint, upstream, importScenario }) {
   assert.ok(endpoint?.id && endpoint?.source && endpoint?.path, 'Ready endpoint id/source/path required');
   assert.ok(upstream?.url, 'Upstream URL required');
   const suffix = Date.now().toString(36);
@@ -47,7 +47,7 @@ module.exports = async function publishGatewayInBrowser({ page, uiBase, api, ste
   const stage = (id, fn) => step(`OPS01.browser.${id}`, fn);
 
   await stage('mark_smoke_sample', async () => {
-    await page.goto(new URL('/registration/manual', uiBase).href, { waitUntil: 'domcontentloaded' });
+    await page.goto(new URL(importScenario ? '/governance' : '/registration/manual', uiBase).href, { waitUntil: 'domcontentloaded' });
     const row = page.locator('.manual-group-detail-card .el-table__body tr').filter({ hasText: endpoint.path });
     await row.getByRole('button', { name: '测试', exact: true }).click();
     await dialog().getByRole('button', { name: '样本库', exact: true }).click();

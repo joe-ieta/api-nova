@@ -1,15 +1,15 @@
 ---
-doc-version: 1.199.0
+doc-version: 1.200.0
 doc-status: active
 doc-updated: 2026-10-14
 ---
 # 开发任务包总览与执行状态
 
-> 2026-10-14总体审查与跨线程续接见[开发交接文档](./development-handoff-2026-10-14.md)：已完成能力、全部未关闭事项、证据边界、并发依赖及人工要求。本轮为文档复核，不新增任务或产品验收。
+> 2026-10-14总体审查与跨线程续接见[开发交接文档](./development-handoff-2026-10-14.md)：已完成能力、全部未关闭事项、证据边界、并发依赖及人工要求。交接快照之后的本机导入补验见下方最新记录，原任务计数与生产签收边界保持不变。
 
 > 2026-10-08 用户调整验收规则：未关闭事项的时间门禁不再作为不能关闭的硬条件。可见3秒、投递5秒、查询2秒及采集A/B开销目标保留为诊断指标；本机耗时不再单独阻断任务关闭。完整数据/投递、持久化、权限与恢复正确性仍为验收条件，生产签收仍待办。历史性能记录保留当时口径。
 
-> 最近复核：2026-10-14；代码基线：`oc_dev / 23d0bcc`（已推送；本次交接仅更新文档）。**打包UI手工注册→治理→Gateway发布/部署→凭证→真实消费→监控终态本机限定完成；生产签收仍待办**。详见[浏览器证据](../audits/2026-10-14-ops-browser-workflow.md)。
+> 最近复核：2026-10-14；本轮验收基线：`oc_dev / 0e7763c`加治理实例入口修复及验收脚本，随本包提交。**打包UI手工注册与OpenAPI URL导入→治理→Gateway发布/部署→凭证→真实消费→监控终态本机限定完成；生产签收仍待办**。[OpenAPI导入浏览器证据](../audits/2026-10-14-ops-browser-openapi-import.md)记录本次导入19/19、手工回归19/19及40项UI回归。
 >
 > 当前保留 **3项签收任务、2项延期**。OBS本机工程A/B及专项已完成，SEC本地SSE修复已完成；SEC/OBS父项保留目标签收，OPS本地Gateway浏览器流程已限定验收，最终汇总仍等待目标环境。时间指标与SQLite未完成的大样本观察单列为非阻断诊断，不再形成反复开发的门禁。
 
@@ -27,7 +27,7 @@ doc-updated: 2026-10-14
 | 二进制样例完整留存 | **本机联合验收完成，转回归维护** | PROD-04C：真实PG/HTTP 16项及相关专项通过，采集→授权读取→撤销/到期→清理→重启恢复闭环 | 目标运行账户/ACL、Linux和MCP二进制真实外发覆盖归SEC-F4-02/OPS-01；见[二进制联合证据](../audits/2026-10-08-prod-04c-binary-lifecycle.md) |
 | 安全发布 | **本地SSE修复完成，目标签收待办** | 凭据/权限、策略、许可、撤销、局部跨平台矩阵及官方SSE回移已有证据 | SEC-F4-02：目标平台/DB、身份、网络、依赖与有效开关核验 |
 | 可观测与审计运维 | **工程及限定专项已完成；目标签收待办** | A采集/B投递改造完成；双库43组、API1940项通过。PG3000全流程通过；SQLite大样本仍有积压，按调整后口径保留非阻断诊断 | OBS-16-04：目标账户/开关/平台、容量和回退签收；[证据与未覆盖范围](../audits/2026-10-08-observability-functional-closure.md) |
-| 安装、健康与用户操作 | **本机Gateway浏览器闭环完成；目标签收待办** | 打包UI正常登录、手工注册、测试/治理、smoke样本、Registry v1配置、发布/部署、消费凭证、401/200真实消费与同请求监控刷新已验；[证据](../audits/2026-10-14-ops-browser-workflow.md) | ENV-01磁盘限制仍有历史证据；OPS-01等待同版本目标部署、权限/TLS、告警与回退签收；浏览器导入/MCP/迁移分支未由本轮证明 |
+| 安装、健康与用户操作 | **本机Gateway浏览器闭环完成；目标签收待办** | 打包UI正常登录、手工注册、测试/治理、smoke样本、Registry v1配置、发布/部署、消费凭证、401/200真实消费与同请求监控刷新已验；[证据](../audits/2026-10-14-ops-browser-workflow.md) | ENV-01磁盘限制仍有历史证据；OPS-01等待同版本目标部署、权限/TLS、告警与回退签收；带绝对server URL的浏览器导入已补验；文件/无server导入、MCP/迁移分支仍未证明 |
 | 最终发布交付 | **未完成：等待签收汇总** | 各能力包的实现与限定证据可复用 | OPS-01依赖安全与可观测签收，汇总留存/健康与整体操作结果，形成可复现部署、回退及发布结论 |
 | 邮件、前端分块与国际化 | **已限定交付，转回归维护** | MAIL-01/02、MAINT-01/02已有受控投递、构建及相关回归 | 生产SMTP/告警触达归目标部署验收；仅修交付阻断或重大问题，不重新扩展整理任务 |
 
@@ -51,6 +51,8 @@ doc-updated: 2026-10-14
 明确延期：**DEFER-01（OAuth2）**、**DEFER-02（额外令牌适配与跨协议QoS）**。不计入上述三项，也不作为本里程碑发布的新增开发前置条件。
 
 ## 最近完成的能力包
+
+2026-10-14交接续接：[OpenAPI导入浏览器证据](../audits/2026-10-14-ops-browser-openapi-import.md)完成URL导入分支19/19和同构建手工注册回归19/19。修复治理页缺少运行实例入口，按点击端点的源资产打开现有弹窗；40/40专项、2150条文案编译及UI构建通过。仅关闭本机有界覆盖缺口，209条历史任务状态不变。
 
 2026-10-14 OPS本机打包UI Gateway流程19/19通过，修复Registry v1配置入口、生产JSON文案编译、源实例标识和草稿成员隐藏四处阻塞；UI回归38/38、2150条生产文案编译和构建通过。注册→实例探测/测试治理→发布部署→UI凭证→真实HTTP消费→同请求监控刷新已闭合，见[浏览器证据](../audits/2026-10-14-ops-browser-workflow.md)。
 
@@ -292,7 +294,7 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | EXT-08 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)）：`verify:ext-08` `EXT_08_VERIFY_OK` 26/26 gating——隔离9011/5181真实启动API/UI、ready、SPA 10/11路由、超管登录、上传/URL导入/文档转换、治理probe/test/sample/readiness、发布至MCP候选并deploy-mcp激活（candidateRevision与activeRevision一致）；浏览器点击/截图与受管child会话归EXT-06/手工 |
 | EXT-09 | DONE | 限定容器完成（[证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:ext-09` `EXT_09_VERIFY_OK`——ubuntu:24.04/容器Node v24.15.0同版本、npm ci+三包构建+迁移+启动ready+Streamable E2E（managed-runtime 14/14、publication-endpoints 3/3）+优雅停止；裸机/systemd/PG/UI/长时为notCovered |
 | ENV-01 | DONE | [限定证据](../audits/2026-10-08-env-01-health-and-monitoring.md)：原合同“完整通过或限制有证据”已完成；修复MCP异常被吞掉，Terminus回归1/1，完整health仅系统盘阈值失败；当前非健康全绿，建议释放至少1GB并留余量后复跑。监控入口两部署方式8项HTTP通过归OPS本地准备 |
-| OPS-01 | WAIT_DEP | 本机打包UI Gateway主流程限定完成：[浏览器证据](../audits/2026-10-14-ops-browser-workflow.md)；真实手工注册→测试/治理→样本→发布/部署→UI凭证→HTTP消费→同请求监控刷新。最终仍直接依赖SEC-F4-02/OBS-16-04目标环境权限/TLS、告警、备份与回退签收；未覆盖浏览器导入/MCP/迁移分支，不重复计数 |
+| OPS-01 | WAIT_DEP | 本机打包UI Gateway主流程限定完成：[浏览器证据](../audits/2026-10-14-ops-browser-workflow.md)；真实手工注册→测试/治理→样本→发布/部署→UI凭证→HTTP消费→同请求监控刷新。最终仍直接依赖SEC-F4-02/OBS-16-04目标环境权限/TLS、告警、备份与回退签收；带绝对server URL的浏览器导入已补验（[OpenAPI导入浏览器证据](../audits/2026-10-14-ops-browser-openapi-import.md)）；文件/无server导入、MCP/迁移仍未覆盖，不重复计数 |
 | MAIL-01 | DONE | [邮件投递范围与受控验收合同](./mail-delivery-scope-and-acceptance.md)冻结三类接口、模板、测试邮箱与证据合同；仅DOC，不改变当前运行默认 |
 | MAIL-02 | DONE | 限定受控投递完成（[证据](../audits/2026-09-26-mail-02-controlled-delivery.md)）：配置/模块/认证/通知/失败恢复/测试/UI全部落地，sink端到端6套件30例+双构建+SQLite drift 0；PG运行时装迁移已由隔离PG实测通过（8迁移/drift 0/API启动）；真实外发、生产启用与队列化另需授权/另立任务 |
 | MAINT-01 | DONE | 限定整理完成（[证据](../audits/2026-09-28-maint-01-frontend-chunking.md)）：首屏预载2113.02→1776.71 kB raw（gzip 619.66→531.98）、CSS 360.15→266.92、vendor-misc 416.06→172.95与循环chunk告警消除；feature-editor/openapi/servers与charts/monitoring/testing退出首屏；仅改vite.config.ts+main.ts；type-check/build/i18n(8/8)通过、lint仅6个既有错误、预览4路由200与懒chunk可用；无路由/接口/依赖变更 |

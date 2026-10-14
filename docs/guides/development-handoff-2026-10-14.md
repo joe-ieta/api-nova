@@ -1,9 +1,11 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
 doc-updated: 2026-10-14
 ---
 # ApiNova 开发审查与后续线程交接（2026-10-14）
+
+> 2026-10-14后续进展：本机带绝对server URL的OpenAPI浏览器导入分支19/19、同构建手工注册回归19/19已通过；修复治理页缺少运行实例入口，40项UI专项及构建通过。见[OpenAPI导入浏览器证据](../audits/2026-10-14-ops-browser-openapi-import.md)及更新后的执行台账。下文保留原交接快照，原“浏览器导入未覆盖”现仅适用于本次限定范围之外的分支；SEC/OBS/OPS生产签收仍待办。
 
 ## 1. 交接结论与阅读顺序
 
