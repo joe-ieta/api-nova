@@ -10,6 +10,7 @@ module.exports=async (ctx)=>{
   await page.waitForURL('**/registration/batch');
   return {route:new URL(page.url()).pathname};
  });
+ if (process.argv.includes('--health-refresh')) await require('./ops-browser-health-refresh.cjs')(ctx);
  if (ctx.importScenario) await require('./ops-browser-import.cjs')(ctx);
  else await step('browser.manual_registration',async()=>{
   await page.goto(uiBase+'/registration/manual');

@@ -5061,6 +5061,11 @@ const handleOffline = async (row: EndpointRow) => {
   }
 };
 
+defineExpose({ refresh: async () => {
+  await loadOverview();
+  if (errorMessage.value) throw new Error(errorMessage.value);
+} });
+
 onMounted(async () => {
   const sourceType = route.query.sourceType;
   const keyword = route.query.q;

@@ -1,13 +1,13 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import type { GlobalSettings, Notification, SystemHealth } from "@/types";
+import type { GlobalSettings, Notification } from "@/types";
+import { fetchSystemHealth, type HealthSnapshot } from "@/services/system-health";
 
 export const useAppStore = defineStore("app", () => {
   // 状态
   const loading = ref(false);
   const error = ref<string | null>(null);
   const notifications = ref<Notification[]>([]);
-  const startTime = Date.now(); // 应用启动时间
 
   const globalSettings = ref<GlobalSettings>({
     theme: "light",
@@ -22,17 +22,10 @@ export const useAppStore = defineStore("app", () => {
   });
 
   // 系统健康状态
-  const systemHealth = ref<SystemHealth>({
-    status: "healthy",
+  const systemHealth = ref<HealthSnapshot>({
+    status: "unknown",
     errorCount: 0,
-    uptime: 0,
-    version: "1.0.0",
-    lastCheck: new Date(),
-    services: {
-      api: "online",
-      database: "online",
-      websocket: "connected",
-    },
+    lastCheck: null,
   });
 
   // 计算属性
@@ -136,60 +129,32 @@ export const useAppStore = defineStore("app", () => {
     }
   };
 
-  // 系统健康检查
-  const updateSystemHealth = (health: Partial<SystemHealth>) => {
-    systemHealth.value = {
-      ...systemHealth.value,
-      ...health,
-      lastCheck: new Date(),
-    };
+  let healthRequest: Promise<boolean> | null = null;
+  const checkSystemHealth = (): Promise<boolean> => {
+    if (healthRequest) return healthRequest;
+    healthRequest = fetchSystemHealth().then(snapshot => {
+      systemHealth.value = snapshot;
+      return true;
+    }).catch(() => {
+      systemHealth.value = { status: "unknown", errorCount: 0, lastCheck: new Date() };
+      return false;
+    }).finally(() => { healthRequest = null; });
+    return healthRequest;
   };
 
-  const checkSystemHealth = async () => {
-    try {
-      // TODO: 实际的健康检查逻辑
-      // const healthData = await api.checkHealth()
-
-      // 模拟健康检查
-      const isHealthy = Math.random() > 0.1; // 90% 概率健康
-      const errorCount = isHealthy ? 0 : Math.floor(Math.random() * 3) + 1;
-
-      updateSystemHealth({
-        status: isHealthy ? "healthy" : "error",
-        errorCount,
-        uptime: Date.now() - startTime,
-        services: {
-          api: isHealthy ? "online" : "offline",
-          database: "online",
-          websocket: "connected",
-        },
-      });
-    } catch (error) {
-      updateSystemHealth({
-        status: "error",
-        errorCount: systemHealth.value.errorCount + 1,
-        services: {
-          ...systemHealth.value.services,
-          api: "offline",
-        },
-      });
-    }
-  };
-
-  // 数据刷新
-  const refreshData = async () => {
+  // Refresh only the current page's registered data loader, without remounting
+  // the page or erasing an open form. Wait for both requests on partial failure.
+  const refreshData = async (refreshPage?: () => Promise<void>) => {
     setLoading(true);
     try {
-      await checkSystemHealth();
-      // TODO: 刷新其他数据
-      addNotification({
-        type: "success",
-        title: "刷新成功",
-        message: "系统数据已更新",
-        duration: 2000,
-      });
-    } catch (error) {
-      setError("数据刷新失败");
+      const results = await Promise.allSettled([
+        checkSystemHealth().then(available => {
+          if (!available) throw new Error("Health unavailable");
+        }),
+        Promise.resolve().then(() => refreshPage?.()),
+      ]);
+      const failure = results.find(result => result.status === "rejected");
+      if (failure?.status === "rejected") throw failure.reason;
     } finally {
       setLoading(false);
     }
@@ -226,7 +191,6 @@ export const useAppStore = defineStore("app", () => {
     clearAllNotifications,
     updateGlobalSettings,
     loadGlobalSettings,
-    updateSystemHealth,
     checkSystemHealth,
     refreshData,
     initialize,

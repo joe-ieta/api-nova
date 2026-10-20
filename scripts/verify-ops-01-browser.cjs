@@ -10,7 +10,7 @@ const http = require('node:http');
 const { spawn, spawnSync } = require('node:child_process');
 const { randomBytes, createHash } = require('node:crypto');
 const root = path.resolve(__dirname, '..');
-const importScenario = process.argv.includes('--import');
+const importScenario = process.argv.includes('--import') || process.argv.includes('--import-file');
 const apiDir = path.join(root, 'packages/api-nova-api');
 const apiEntry = path.join(apiDir, 'dist/src/main.js');
 fs.mkdirSync(path.join(root, '.tmp'), { recursive: true });
@@ -24,8 +24,8 @@ const upstreams = [];
 const evidence = { marker: 'OPS_01_BROWSER_LOCAL_HTTP_V1', startedAt: new Date().toISOString(),
   commit: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true }).stdout.trim(),
   platform: process.platform, node: process.version, database: { type: 'sqlite', path: dbPath, isolated: true }, steps: [],
-  scenario: importScenario ? 'openapi-url-import' : 'manual-registration',
-  notCovered: ['external deployed upstreams', 'PostgreSQL', 'production identity providers', 'MCP transport', ...(importScenario ? ['browser manual registration', 'browser file import and unbound import'] : ['browser OpenAPI import']), 'browser migration branches', 'production deployment signoff'], timings:'diagnostic only'  };
+  scenario: process.argv.includes('--import-file') ? 'openapi-file-import' : importScenario ? 'openapi-url-import' : 'manual-registration',
+  notCovered: ['external deployed upstreams', 'PostgreSQL', 'production identity providers', 'MCP transport', ...(importScenario ? ['browser manual registration', 'browser unbound import', process.argv.includes('--import-file') ? 'browser URL import' : 'browser file import'] : ['browser OpenAPI import']), 'browser migration branches', 'production deployment signoff'], timings:'diagnostic only'  };
 let apiBase, token, apiProcess;
 function redact(value) { let text = String(value); for (const s of secrets) if (s) text = text.split(s).join('[redacted]'); return text; }
 function save() { fs.writeFileSync(evidencePath, redact(JSON.stringify(evidence, null, 2))); }

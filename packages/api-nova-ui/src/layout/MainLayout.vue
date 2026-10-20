@@ -106,25 +106,24 @@
             class="status-badge"
           >
             <el-button
+              data-testid="system-health"
+              :data-status="appStore.systemHealth.status"
               :icon="systemStatus.isHealthy ? SuccessFilled : WarningFilled"
-              :type="systemStatus.isHealthy ? 'success' : 'warning'"
+              :type="appStore.systemHealth.status === 'unknown' ? 'info' : systemStatus.isHealthy ? 'success' : 'warning'"
               text
               @click="showSystemStatus"
-              :title="
-                systemStatus.isHealthy
-                  ? $t('common.healthy')
-                  : $t('common.unhealthy')
-              "
+              :title="healthLabel"
             />
           </el-badge>
 
           <!-- 刷新按钮 -->
           <el-button
+            data-testid="page-refresh"
             :icon="Refresh"
             @click="refreshData"
             text
             :loading="isRefreshing"
-            :title="$t('common.refresh')"
+            :title="pageView?.refresh ? t('common.refreshPage') : t('common.refreshHealth')"
           />
 
           <!-- 语言切换 -->
@@ -192,7 +191,7 @@
       <el-main class="main-content">
         <router-view v-slot="{ Component, route }">
           <transition name="fade-slide" mode="out-in">
-            <component :is="Component" :key="route.path" />
+            <component :is="Component" :key="route.path" ref="pageView" />
           </transition>
         </router-view>
       </el-main>
@@ -286,13 +285,15 @@ const authStore = useAuthStore();
 const sidebarCollapsed = ref(false);
 const isMobile = ref(false);
 const isRefreshing = ref(false);
+const pageView = ref<{ refresh?: () => Promise<void> } | null>(null);
 
 // 系统状态
-const systemStatus = ref({
-  isHealthy: true,
-  errorCount: 0,
-  lastUpdate: new Date(),
-});
+const systemStatus = computed(() => ({
+  isHealthy: appStore.isHealthy,
+  errorCount: appStore.systemHealth.errorCount,
+}));
+const healthLabel = computed(() => t(appStore.systemHealth.status === "unknown"
+  ? "common.healthUnknown" : appStore.isHealthy ? "common.healthy" : "common.unhealthy"));
 
 // 计算属性
 const activeRoute = computed(() => {
@@ -397,22 +398,24 @@ const goHome = () => {
 };
 
 const refreshData = async () => {
+  if (isRefreshing.value) return;
   isRefreshing.value = true;
+  const refreshPage = pageView.value?.refresh;
   try {
     await measureFunction(
       async () => {
-        await appStore.refreshData();
+        await appStore.refreshData(refreshPage);
       },
       "layout-refresh-data",
       { currentRoute: route.path },
     );
-    ElMessage.success(t("common.refreshSuccess"));
+    if (appStore.isHealthy) {
+      ElMessage.success(t(refreshPage ? "common.refreshSuccess" : "common.healthRefreshed"));
+    } else {
+      ElMessage.warning(t("common.refreshUnhealthy"));
+    }
   } catch (error: any) {
-    globalErrorHandler?.captureError(error, {
-      context: "layout-refresh-data",
-      currentRoute: route.path,
-      action: "refresh_app_data",
-    });
+    console.error("Current page refresh failed", error);
     ElMessage.error(t("common.refreshFailed"));
   } finally {
     isRefreshing.value = false;
@@ -466,6 +469,10 @@ const handleLanguageChange = (locale: Locale) => {
 
 const showSystemStatus = () => {
   try {
+    if (appStore.systemHealth.status === "unknown") {
+      ElMessage.info(healthLabel.value);
+      return;
+    }
     if (systemStatus.value.isHealthy) {
       ElMessage.success(
         t("dashboard.systemStatus") + ": " + t("common.healthy"),
@@ -519,32 +526,21 @@ const checkScreenSize = () => {
   }
 };
 
-// 更新系统状态
-const updateSystemStatus = () => {
-  // 这里可以从store或API获取实际的系统状态
-  systemStatus.value = {
-    isHealthy: appStore.isHealthy,
-    errorCount: appStore.systemHealth.errorCount,
-    lastUpdate: new Date(),
-  };
-};
-
 // 生命周期
+let statusInterval: ReturnType<typeof setInterval> | undefined;
 onMounted(() => {
   checkScreenSize();
-  updateSystemStatus();
+  void appStore.checkSystemHealth();
 
   // 监听窗口大小变化
   window.addEventListener("resize", checkScreenSize);
 
   // 定期更新系统状态
-  const statusInterval = setInterval(updateSystemStatus, 30000); // 30秒更新一次
-
-  // 清理函数
-  onUnmounted(() => {
-    window.removeEventListener("resize", checkScreenSize);
-    clearInterval(statusInterval);
-  });
+  statusInterval = setInterval(() => { void appStore.checkSystemHealth(); }, 30000);
+});
+onUnmounted(() => {
+  window.removeEventListener("resize", checkScreenSize);
+  clearInterval(statusInterval);
 });
 </script>
 

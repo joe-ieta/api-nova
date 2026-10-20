@@ -13,13 +13,20 @@ module.exports = async function ({page, uiBase, upstream, step, api, evidence, m
       responses: {'200': {description: 'Success', content: {'application/json': {schema: {type: 'object'}}}}}}}},
   };
   await managementLogin();
-  await step('browser.openapi_url_import', async () => {
-    await page.getByRole('button', {name: '从 URL 导入', exact: true}).click();
+  const fileImport = process.argv.includes('--import-file');
+  await step(fileImport ? 'browser.openapi_file_import' : 'browser.openapi_url_import', async () => {
+    await page.getByRole('button', {name: fileImport ? '上传文件' : '从 URL 导入', exact: true}).first().click();
     const dialog = page.getByRole('dialog');
-    await dialog.getByPlaceholder('请输入文档 URL', {exact: true}).fill(upstream.url + documentPath);
+    if (fileImport) {
+      await dialog.locator('input[type=file]').setInputFiles({
+        name:'ops-browser-file.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(upstream.documents[documentPath])),
+      });
+    } else {
+      await dialog.getByPlaceholder('请输入文档 URL', {exact: true}).fill(upstream.url + documentPath);
+    }
     await dialog.getByPlaceholder('请输入文档名称', {exact: true}).fill(name);
     const pending = page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname.endsWith('/documents'));
-    const [response] = await Promise.all([pending, dialog.getByRole('button', {name: '开始导入', exact: true}).click()]);
+    const [response] = await Promise.all([pending, dialog.getByRole('button', {name: fileImport ? '确认上传' : '开始导入', exact: true}).click()]);
     assert.equal(response.status(), 201);
     const document = await response.json();
     assert.ok(document.id);
@@ -36,7 +43,7 @@ module.exports = async function ({page, uiBase, upstream, step, api, evidence, m
     assert.equal(instances.length, 1);
     assert.equal(instances[0].port, upstream.port);
     assert.equal(instances[0].enabled, true);
-    assert.ok(upstream.received.some(r => r.path === documentPath), 'Import must fetch the real upstream document');
+    if (!fileImport) assert.ok(upstream.received.some(r => r.path === documentPath), 'Import must fetch the real upstream document');
     await page.reload({waitUntil: 'domcontentloaded'});
     await page.locator('.document-item').filter({hasText: name}).waitFor();
     return {...evidence.endpoint, provisionalInstanceId: instances[0].id, persistedAfterRefresh: true, operation: 'UI'};

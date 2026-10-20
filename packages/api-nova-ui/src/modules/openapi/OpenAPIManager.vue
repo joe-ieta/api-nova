@@ -1284,6 +1284,7 @@ const loadDocuments = async () => {
     console.log(docs);
 
     documents.value = docs;
+    return true;
 
     //console.log(`Successfully loaded ${docs.length} documents:`, docs.map(d => ({ id: d.id, name: d.name })))
   } catch (error: any) {
@@ -1297,6 +1298,7 @@ const loadDocuments = async () => {
 
     ElMessage.error(t("openapi.loadDocumentsFailed"));
     documents.value = [];
+    return false;
   } finally {
     loading.value = false;
     console.log("Document loading completed");
@@ -1569,8 +1571,7 @@ const refreshDocuments = async () => {
   }
 
   try {
-    await loadDocuments();
-    ElMessage.success(t("openapi.refreshSuccess"));
+    if (await loadDocuments()) ElMessage.success(t("openapi.refreshSuccess"));
   } catch (error) {
     console.error("Failed to refresh documents:", error);
     ElMessage.error(
@@ -1581,6 +1582,10 @@ const refreshDocuments = async () => {
     );
   }
 };
+
+defineExpose({ refresh: async () => {
+  if (!await loadDocuments()) throw new Error(t("openapi.loadDocumentsFailed"));
+} });
 
 const getStatusText = (status: string) => {
   const statusMap: Record<string, string> = {

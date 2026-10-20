@@ -669,6 +669,8 @@ function resetAutoRefresh() {
   }
 }
 
+defineExpose({ refresh: () => refreshDashboard("manual") });
+
 onMounted(async () => {
   await websocketStore.initialize();
   await refreshDashboard("mount");

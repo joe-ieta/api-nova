@@ -1,5 +1,10 @@
 export default {
   common: {
+    refreshPage: "Refresh current page data and health",
+    refreshHealth: "Refresh health",
+    healthUnknown: "Health unknown or unavailable",
+    healthRefreshed: "Health updated",
+    refreshUnhealthy: "Data refreshed; system health checks report a problem",
     all: "All",
     confirm: "Confirm",
     cancel: "Cancel",
