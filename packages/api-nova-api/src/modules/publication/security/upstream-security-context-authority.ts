@@ -1,10 +1,11 @@
 import { createHmac, randomBytes } from 'node:crypto';
+import type { EntityManager } from 'typeorm';
 import { resolveUpstreamCredential, type UpstreamCredentialRegistrySnapshot } from 'api-nova-parser';
 import { createUpstreamSecurityBindingEvaluator } from './upstream-security-binding-evaluator';
 import { reconcileUpstreamSecurity, securityDigest, type SecurityDeclaration } from './upstream-security-reconciliation';
 /** Repository is a host capability, never a request DTO or metadata adapter. */
 export interface TrustedBindingRepository {
-  read(ids: { sourceServiceAssetId: string; endpointDefinitionId: string }): Promise<Readonly<{
+  read(ids: { sourceServiceAssetId: string; endpointDefinitionId: string }, manager?: EntityManager): Promise<Readonly<{
     sourceServiceAssetId: string; endpointDefinitionId: string; bindingId: string; bindingRevision: string;
     declaration: SecurityDeclaration; selectedBranch?: number; target: string; method: 'GET' | 'HEAD';
   }> | undefined>;
@@ -23,8 +24,8 @@ export function createUpstreamSecurityContextAuthority(repository: TrustedBindin
   const tokens = new WeakMap<ChallengeTarget, { context: ChallengeContext; material: string }>();
   const digest = (headers: Readonly<Record<string, string>>) => createHmac('sha256', key).update(JSON.stringify(Object.entries(headers).sort(([a], [b]) => a.localeCompare(b)))).digest('hex');
   const failed = () => new Error('CHALLENGE_CONTEXT_UNAVAILABLE');
-  async function read(ids: { sourceServiceAssetId: string; endpointDefinitionId: string }) {
-    const row = await repository.read(Object.freeze({ ...ids }));
+  async function read(ids: { sourceServiceAssetId: string; endpointDefinitionId: string }, manager?: EntityManager) {
+    const row = await repository.read(Object.freeze({ ...ids }), manager);
     if (!row || row.sourceServiceAssetId !== ids.sourceServiceAssetId || row.endpointDefinitionId !== ids.endpointDefinitionId || !row.bindingRevision || typeof row.bindingId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(row.bindingId)) throw failed();
     const captured = structuredClone(row), url = new URL(captured.target);
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.hash || !['GET', 'HEAD'].includes(captured.method)) throw failed();
@@ -37,13 +38,18 @@ export function createUpstreamSecurityContextAuthority(repository: TrustedBindin
     const credentials = await resolveUpstreamCredential(snapshot, input);
     const after = await evaluator.evaluate(input);
     if (captureSnapshot() !== snapshot || after.reason || after.providerEpoch !== binding.providerEpoch || credentials.mode !== 'reference') throw failed();
-    const currentRow = await repository.read(Object.freeze({ ...ids }));
+    const currentRow = await repository.read(Object.freeze({ ...ids }), manager);
     if (captureSnapshot() !== snapshot || securityDigest(currentRow) !== securityDigest(captured)) throw failed();
     return { context: Object.freeze({ ...ids, contextDigest: securityDigest({ decision: decision.contextDigest, bindingId: captured.bindingId, bindingRevision: captured.bindingRevision, registryRevision: binding.revision, generation: binding.generation }),
       bindingId: captured.bindingId, bindingRevision: captured.bindingRevision, registryRevision: binding.revision, generation: binding.generation,
       providerEpoch: binding.providerEpoch, target: url.href, method: captured.method, credentialType: binding.credential!.type }), headers: credentials.headers };
   }
   return Object.freeze({
+    /** A fresh context observation, not a proof. Transaction consumers pass their
+     * actual manager so repository reads cannot silently leave the transaction. */
+    async currentContext(ids: { sourceServiceAssetId: string; endpointDefinitionId: string }, manager?: EntityManager): Promise<ChallengeContext> {
+      try { return (await read({ ...ids }, manager)).context; } catch { throw failed(); }
+    },
     async issue(ids: { sourceServiceAssetId: string; endpointDefinitionId: string }): Promise<ChallengeTarget> {
       try {
         if (!ids || Object.keys(ids).sort().join(',') !== 'endpointDefinitionId,sourceServiceAssetId' ||

@@ -1,12 +1,12 @@
 ---
-doc-version: 1.3.1
+doc-version: 1.4.0
 doc-status: active
-doc-updated: 2026-09-16
+doc-updated: 2026-10-20
 ---
 # ApiNova Documentation Index
 
 > Document status: Active canonical index
-> Last reviewed: 2026-09-16
+> Last reviewed: 2026-10-20
 
 ## Documentation Classes
 
@@ -29,8 +29,12 @@ doc-updated: 2026-09-16
 
 ## Current Product Closure
 
+- [统一开发计划](./guides/unified-development-plan.md)
+- [统一工作包与任务映射](./guides/unified-work-packages.md)
+- [统一开发状态（唯一调度入口）](./guides/unified-development-status.md)
+
 - [Security Development Task Plan](./guides/security-development-task-plan.md)
-- [Security Development Execution Status](./guides/security-development-execution-status.md)
+- [Security Development Evidence](./guides/security-development-execution-status.md) (historical)
 - [Security Delivery Evidence Index](./guides/security-delivery-evidence-index.md)
 - [Staged Development Plan](./guides/staged-development-plan.md)
 - [Runtime Instance And Regression Closure Plan](./guides/runtime-instance-and-regression-closure-plan.md)

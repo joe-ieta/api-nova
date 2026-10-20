@@ -43,9 +43,9 @@
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "=10.0.3",
-    "axios": "^1.6.0",
+    "axios": "^1.20.0",
     "jose": "^5.10.0",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^4.3.2",
     "swagger2openapi": "^7.0.8",
     "zod": "^3.25.28"
   },

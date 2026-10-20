@@ -30,6 +30,12 @@ describe('bounded batch executor semantics with injected future readiness and re
       authorization: { authorize: jest.fn(async (proof, _session, selector) => proofs.get(selector.runtimeMembershipId) === proof) },
       // Explicit fixture capability, NOT the production G2 decision (which is always false).
       readiness: { readiness: jest.fn(async () => ({ canPublish: true, proofCurrent: true })) },
+      // Fixture-only future host seam; production has no authority installed.
+      validateTransaction: jest.fn(async (_session, _selector, capability, context) => {
+        const row = await context.manager.findOneByOrFail(Evidence, { id: capability.evidenceId });
+        if (row.id !== context.evidence.id || row.revokedAt) throw Error('fixture evidence rejected');
+        return 'fixture-current';
+      }),
       afterCommit: jest.fn(async () => {}),
       audit: jest.fn(async item => { await db.query('INSERT INTO batch_fixture_audit VALUES (?,?)', [item.membershipId, item.status]); }),
     };
@@ -59,6 +65,27 @@ describe('bounded batch executor semantics with injected future readiness and re
     expect(await Promise.all(['one', 'two'].map(rowsFor))).toEqual(before); expect(dependencies.afterCommit).not.toHaveBeenCalled();
     expect(prepare).not.toHaveBeenCalled(); expect(commit).not.toHaveBeenCalled();
     expect(await db.query('SELECT * FROM batch_fixture_audit')).toHaveLength(2);
+  });
+  it('rejects future readiness without an independent transaction authority before preparing or writing', async () => {
+    delete dependencies.validateTransaction;
+    const prepare = jest.spyOn(PublicationMemberTransactionWriter.prototype, 'prepare');
+    const before = await rowsFor('one');
+    const report = await createPublicationBatchCandidateExecutor(dependencies).executeBatch({}, [select('one')]);
+    expect(report.items[0]).toMatchObject({ committed: false, status: 'failed' });
+    expect(prepare).not.toHaveBeenCalled();
+    expect(await rowsFor('one')).toEqual(before);
+    expect(dependencies.afterCommit).not.toHaveBeenCalled();
+  });
+  it('rolls back if the transaction authority sees a changed context while preserving other members', async () => {
+    const before = await rowsFor('two');
+    dependencies.validateTransaction = jest.fn(async (_session, selector, _capability, context) => {
+      if (context.manager.queryRunner?.isTransactionActive && selector.runtimeMembershipId === 'two') return 'new-provider-epoch';
+      return 'fixture-current';
+    });
+    const report = await createPublicationBatchCandidateExecutor(dependencies).executeBatch({}, ['one', 'two', 'three'].map(select));
+    expect(report.items.map(item => item.committed)).toEqual([true, false, true]);
+    expect(await rowsFor('two')).toEqual(before);
+    expect(dependencies.afterCommit).toHaveBeenCalledTimes(2);
   });
   it('reports a committed after-effect failure accurately and continues without undoing prior publication', async () => {
     dependencies.afterCommit = jest.fn(async result => { if (result.membershipId === 'one') throw Error('private deployment details'); });

@@ -1,9 +1,11 @@
 ---
-doc-version: 1.88.0
-doc-status: active
-doc-updated: 2026-09-24
+doc-version: 1.89.0
+doc-status: deprecated
+doc-updated: 2026-10-20
 ---
 # 活跃工作包划分与验收子任务
+
+> 2026-10-20：旧编号和退出条件保留为合同来源；调度与依赖以[统一工作包](./unified-work-packages.md)为准，状态仅更新[新台账](./unified-development-status.md)。下文旧统计不代表当前项目进度。
 
 ## 1. 口径与权限边界
 

@@ -1,5 +1,6 @@
 import { GatewayHeaderLegacyRuntimeGuard } from './gateway-header-legacy-runtime.guard';
-import { BadGatewayException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadGatewayException, HttpException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { GatewayNetworkBootstrap } from './gateway-network-bootstrap';
 import { Request, Response } from 'express';
 import { GatewayAccessLogService } from './gateway-access-log.service';
 import { GatewayRuntimeMetricsService } from './gateway-runtime-metrics.service';
@@ -26,9 +27,11 @@ export class GatewayRuntimeService {
     private readonly gatewayAccessLogService: GatewayAccessLogService,
     private readonly gatewayRuntimeMetricsService: GatewayRuntimeMetricsService,
     private readonly gatewayHeaderLegacyRuntimeGuard?: GatewayHeaderLegacyRuntimeGuard,
+    @Optional() private readonly networkBootstrap?: GatewayNetworkBootstrap,
   ) {}
 
   async forwardRequest(routePath: string, req: Request, res: Response): Promise<void> {
+    this.networkBootstrap?.assertTrafficAllowed();
     const startedAt = Date.now();
     const requestId = this.resolveRequestId(req, res);
     const target = this.gatewayRouteSnapshotService.resolve(req.headers.host, req.method, routePath);
@@ -60,6 +63,7 @@ export class GatewayRuntimeService {
     startedAt = Date.now(),
     options: { bypassCache?: boolean } = {},
   ): Promise<void> {
+    this.networkBootstrap?.assertTrafficAllowed(target);
     const bypassCache = options.bypassCache;
     const requestId = this.resolveRequestId(req, res);
     const audit = beginGatewayRequestAudit(req, res, requestId, target);
@@ -84,7 +88,7 @@ export class GatewayRuntimeService {
             historicalAuthenticationHeaderNames: prepared.historicalAuthenticationHeaderNames,
           } } };
         }
-        const cacheLookup = bypassCache || prepared?.networkLease
+        const cacheLookup = bypassCache || prepared?.networkLease || prepared?.securityProofBound
           ? null
           : this.gatewayCacheService.resolve(target, req, authContext, prepared?.requestPolicy);
 
@@ -129,7 +133,7 @@ export class GatewayRuntimeService {
         }
 
         const upstreamResponse = await this.forwardWithRetry(target, req, res, prepared, publishedTarget);
-        if (!bypassCache && !prepared?.networkLease) {
+        if (!bypassCache && !prepared?.networkLease && !prepared?.securityProofBound) {
           this.gatewayCacheService.store(target, req, authContext, upstreamResponse, prepared?.requestPolicy);
         }
         const latencyMs = Date.now() - startedAt;

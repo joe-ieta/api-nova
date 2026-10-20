@@ -11,6 +11,7 @@ import { MCPServerEntity, TransportType } from '../../../database/entities/mcp-s
 import { assertTemporaryAnonymousPolicy } from 'api-nova-parser';
 import { RuntimeCredentialResolverService } from './runtime-credential-resolver.service';
 import { persistedMcpInboundMode } from './mcp-inbound-process-env';
+import { assertTrustedMcp, usesTrustedMcp, TRUSTED_MCP_MODE, MANAGED_LIFECYCLE_REJECTED, MANAGED_START_CANCELLED } from './managed-mcp-mode';
 import { ServerInstance } from './server-manager.service';
 import { ProcessManagerService } from './process-manager.service';
 import { ProcessHealthService } from './process-health.service';
@@ -93,6 +94,11 @@ export class ServerLifecycleService {
    * 启动MCP服务器（使用CLI spawn方式实现进程隔离）
    */
   preflightInboundAuth(serverEntity: MCPServerEntity) {
+    if (usesTrustedMcp(serverEntity)) {
+      assertTrustedMcp(serverEntity);
+      return this.processManager.preflightTrustedProcess(serverEntity.config.runtimeAssetId, serverEntity.id)
+        .then(() => 'api_key' as const);
+    }
     const mode = persistedMcpInboundMode(serverEntity);
     if (mode === 'anonymous' && serverEntity.config?.temporaryAnonymous !== undefined)
       assertTemporaryAnonymousPolicy(serverEntity.config.temporaryAnonymous);
@@ -103,19 +109,28 @@ export class ServerLifecycleService {
     return mode;
   }
 
-  async startServer(serverEntity: MCPServerEntity): Promise<ServerStartResult> {
+  async startServer(serverEntity: MCPServerEntity, signal?: AbortSignal): Promise<ServerStartResult> {
     this.logger.log(`Starting server '${serverEntity.name}' on port ${serverEntity.port} using CLI spawn`);
 
     try {
       const inboundAuthMode = await this.preflightInboundAuth(serverEntity);
-      // 验证OpenAPI数据
-      await this.validateOpenApiData(serverEntity.openApiData);
+      let processConfig: ProcessConfig;
+      if (usesTrustedMcp(serverEntity)) {
+        // Only identifiers cross into the manager. The preparation service rereads
+        // persisted ownership, candidate, mode and protected sources before spawn.
+        processConfig = {
+          id: serverEntity.id, name: serverEntity.id, scriptPath: '', args: [],
+          managedLaunch: { mode: TRUSTED_MCP_MODE, runtimeAssetId: serverEntity.config.runtimeAssetId },
+        };
+      } else {
+        // 验证OpenAPI数据
+        await this.validateOpenApiData(serverEntity.openApiData);
 
       // 构建CLI参数
       const cliArgs = this.buildCliArgs(serverEntity);
       
       // 准备进程配置
-      const processConfig: ProcessConfig = {
+      processConfig = {
         ...DEFAULT_PROCESS_CONFIG,
         id: serverEntity.id,
         name: serverEntity.name,
@@ -168,17 +183,25 @@ export class ServerLifecycleService {
           retryDelay: serverEntity.config?.retryDelay || 1000,
         },
       };
+      }
 
       // 启动进程管理器进程
-      const processInfo = await this.processManager.startProcess(processConfig);
+      if (signal?.aborted) throw new Error(MANAGED_START_CANCELLED);
+      const processInfo = signal
+        ? await this.processManager.startProcess(processConfig, signal)
+        : await this.processManager.startProcess(processConfig);
 
       // 确定端点URL
       const endpoint = this.getServerEndpoint(serverEntity);
 
       // 启动健康检查
-      if (processConfig.healthCheck?.enabled) {
+      // Trusted launches (including automatic recovery) start health checks from
+      // the READY-gated process.started listener, once for every new generation.
+      if (!processConfig.managedLaunch && processConfig.healthCheck?.enabled) {
         await this.processHealth.startHealthCheck(serverEntity.id);
       }
+      if (processConfig.managedLaunch && !this.processManager.isProcessRunning(serverEntity.id))
+        throw new Error(MANAGED_LIFECYCLE_REJECTED);
 
       // 发送启动事件
       this.eventEmitter.emit('server.lifecycle.started', {
@@ -210,6 +233,11 @@ export class ServerLifecycleService {
         endpoint,
       };
     } catch (error) {
+      if (serverEntity.config?.managedMcpMode !== undefined) {
+        this.processHealth.stopHealthCheck(serverEntity.id);
+        error = new Error(signal?.aborted || error.message === MANAGED_START_CANCELLED ?
+          MANAGED_START_CANCELLED : MANAGED_LIFECYCLE_REJECTED);
+      }
       this.logger.error(`Failed to start server '${serverEntity.name}':`, error);
       
       this.eventEmitter.emit('server.lifecycle.start_failed', {

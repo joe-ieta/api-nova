@@ -24,7 +24,7 @@ import {
   ApiQuery,
   ApiParam,
 } from '@nestjs/swagger';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { OpenAPIUploadInterceptor } from './openapi-upload.interceptor';
 import { Express } from 'express';
 import { LoggingInterceptor } from '../../common/interceptors/logging.interceptor';
 import { OpenAPIService } from './services/openapi.service';
@@ -209,7 +209,7 @@ export class OpenAPIController {
 
   @Post('upload')
   @HttpCode(HttpStatus.OK)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(OpenAPIUploadInterceptor)
   @ApiOperation({
     summary: 'Upload and parse OpenAPI/Swagger specification file',
     description: 'Upload a JSON or YAML file containing OpenAPI/Swagger specification',
@@ -289,7 +289,7 @@ export class OpenAPIController {
 
   @Post('validate-upload')
   @HttpCode(HttpStatus.OK)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(OpenAPIUploadInterceptor)
   @ApiOperation({
     summary: 'Upload and validate OpenAPI/Swagger specification file',
     description: 'Upload a JSON or YAML file for validation only',

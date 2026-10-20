@@ -1,13 +1,14 @@
 ---
-doc-version: 2.9.0
+doc-version: 2.10.0
 doc-status: active
-doc-updated: 2026-09-15
+doc-updated: 2026-10-20
 approval-status: approved
 implementation-status: in-progress
 ---
 # 可观测性开发任务计划
 
-> Document status: Maintained execution plan; approved, active execution
+> Document status: Approved scope contract; scheduling superseded
+> 2026-10-20：原OBS需求、契约和退出条件继续有效；后续执行统一由[新工作包](./unified-work-packages.md)和[新状态台账](./unified-development-status.md)驱动，下文状态为历史口径。
 > Scope decision (2026-09-08, approved): 统一采用新格式、新 Endpoint 和新数据库初始化结构；移除旧格式导入、兼容查询和历史迁移链。任务编号不变，OBS-TP-15 改为全链路集成与旧能力收敛。
 > 需求、设计与建议默认值已于 2026-09-08 获得用户同意。任务计划已获用户确认，按依赖持续编码和验证。
 > 关联：[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[执行状态](./runtime-observability-development-execution-status.md)。

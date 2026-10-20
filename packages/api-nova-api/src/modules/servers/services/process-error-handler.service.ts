@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -15,14 +15,19 @@ import {
   ProcessManagerConfig,
   DEFAULT_PROCESS_CONFIG
 } from '../interfaces/process.interface';
+import { ProcessStatus } from '../interfaces/process.interface';
+import { TRUSTED_MCP_MODE } from './managed-mcp-mode';
 import { ProcessManagerService } from './process-manager.service';
 
 @Injectable()
-export class ProcessErrorHandlerService {
+export class ProcessErrorHandlerService implements OnModuleDestroy {
   private readonly logger = new Logger(ProcessErrorHandlerService.name);
   private readonly config: ProcessManagerConfig;
   private readonly restartAttempts = new Map<string, number>();
   private readonly restartTimers = new Map<string, NodeJS.Timeout>();
+  private readonly restartEpochs = new Map<string, number>();
+  private readonly activeRecoveries = new Set<Promise<void>>();
+  private shuttingDown = false;
 
   constructor(
     @InjectRepository(ProcessLogEntity)
@@ -126,6 +131,8 @@ export class ProcessErrorHandlerService {
       this.logger.warn(`No process info found for server ${serverId}, skipping restart logic`);
       return;
     }
+    if (this.shuttingDown || (processInfo.config?.managedLaunch &&
+      (processInfo.status !== ProcessStatus.ERROR || processInfo.config.managedLaunch.autoRestart === false))) return;
 
     const restartPolicy = RestartPolicyType.ON_FAILURE; // 默认使用ON_FAILURE策略
     
@@ -187,6 +194,8 @@ export class ProcessErrorHandlerService {
    * 安排重启
    */
   private async scheduleRestart(serverId: string, attemptNumber: number): Promise<void> {
+    if (this.shuttingDown) return;
+    const epoch = this.restartEpochs.get(serverId) || 0;
     // 清除之前的重启定时器
     const existingTimer = this.restartTimers.get(serverId);
     if (existingTimer) {
@@ -204,14 +213,19 @@ export class ProcessErrorHandlerService {
       serverId,
       `Scheduling restart attempt ${attemptNumber}/${this.config.maxRestartAttempts} in ${delay}ms`
     );
+    if (this.shuttingDown || epoch !== (this.restartEpochs.get(serverId) || 0)) return;
 
     // 设置重启定时器
     const timer = setTimeout(async () => {
+      const recovery = this.executeRestart(serverId, attemptNumber, epoch);
+      this.activeRecoveries.add(recovery);
       try {
         this.restartTimers.delete(serverId);
-        await this.executeRestart(serverId, attemptNumber);
+        await recovery;
       } catch (error) {
         this.logger.error(`Failed to execute restart for server ${serverId}:`, error);
+      } finally {
+        this.activeRecoveries.delete(recovery);
       }
     }, delay);
 
@@ -235,8 +249,12 @@ export class ProcessErrorHandlerService {
   /**
    * 执行重启
    */
-  private async executeRestart(serverId: string, attemptNumber: number): Promise<void> {
+  private async executeRestart(serverId: string, attemptNumber: number, epoch = this.restartEpochs.get(serverId) || 0): Promise<void> {
     try {
+      const current = this.processManager.getProcessInfo(serverId);
+      const managed = current?.config?.managedLaunch?.mode === TRUSTED_MCP_MODE;
+      if (this.shuttingDown || epoch !== (this.restartEpochs.get(serverId) || 0) ||
+        (managed && (current.status !== ProcessStatus.ERROR || current.config.managedLaunch.autoRestart === false))) return;
       this.logger.log(`Executing restart for server ${serverId} (attempt ${attemptNumber})`);
       
       // 更新重启尝试次数
@@ -278,18 +296,23 @@ export class ProcessErrorHandlerService {
       };
 
       // 执行重启
-      const processInfo = await this.processManager.restartProcess(serverId, processConfig);
+      if (this.shuttingDown || epoch !== (this.restartEpochs.get(serverId) || 0)) return;
+      const processInfo = managed
+        ? await this.processManager.restartProcess(serverId, current.config, true)
+        : await this.processManager.restartProcess(serverId, processConfig);
       
       if (processInfo) {
         this.logger.log(`Successfully restarted server ${serverId}`);
         await this.logInfo(serverId, `Server restarted successfully on attempt ${attemptNumber}`);
         
         // 重启成功，重置重启计数器
-        this.restartAttempts.delete(serverId);
+        if (!managed) this.restartAttempts.delete(serverId);
         
         // 发送重启成功事件
         this.eventEmitter.emit('process.restart_success', {
           serverId,
+          processId: serverId,
+          data: { attemptNumber, managedMode: managed ? TRUSTED_MCP_MODE : undefined },
           attemptNumber,
           timestamp: new Date()
         });
@@ -315,7 +338,10 @@ export class ProcessErrorHandlerService {
       });
       
       // 如果还有重启机会，继续尝试
-      if (attemptNumber < this.config.maxRestartAttempts) {
+      if (!this.shuttingDown && epoch === (this.restartEpochs.get(serverId) || 0) &&
+        attemptNumber < this.config.maxRestartAttempts &&
+        (!this.processManager.getProcessInfo(serverId)?.config?.managedLaunch ||
+          this.processManager.getProcessInfo(serverId)?.status === ProcessStatus.ERROR)) {
         await this.scheduleRestart(serverId, attemptNumber + 1);
       } else {
         this.logger.error(`All restart attempts exhausted for server ${serverId}`);
@@ -368,6 +394,7 @@ export class ProcessErrorHandlerService {
    * 取消重启
    */
   cancelRestart(serverId: string): void {
+    this.restartEpochs.set(serverId, (this.restartEpochs.get(serverId) || 0) + 1);
     const timer = this.restartTimers.get(serverId);
     if (timer) {
       clearTimeout(timer);
@@ -377,6 +404,14 @@ export class ProcessErrorHandlerService {
     
     // 重置重启计数器
     this.restartAttempts.delete(serverId);
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    this.shuttingDown = true;
+    for (const id of this.restartTimers.keys()) this.cancelRestart(id);
+    await Promise.allSettled([...this.activeRecoveries]);
+    this.restartAttempts.clear();
+    this.restartEpochs.clear();
   }
 
   /**

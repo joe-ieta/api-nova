@@ -12,6 +12,7 @@ import { readMcpOwnership } from '../../runtime-assets/services/mcp-ownership-re
 import { createMcpTrustedOperationBindings } from '../../runtime-assets/services/mcp-trusted-operation-bindings';
 import { resolveMcpEndpoint } from '../../runtime-assets/services/mcp-endpoint-config';
 import { buildManagedEnvironment, startManagedMcpChannel } from './managed-mcp-channel';
+import { assertTrustedMcp } from './managed-mcp-mode';
 
 export const MANAGED_MCP_SOURCES_CONFIG_KEY = 'managedMcp.handoffSources';
 export const MANAGED_MCP_PREPARATION_REJECTED = 'MANAGED_MCP_PREPARATION_REJECTED';
@@ -56,7 +57,7 @@ function exact(value: any, keys: string[]) {
 }
 
 /** Internal preparation only. The caller must already authorize these IDs.
- * No lifecycle/controller calls this service. A DB snapshot is rechecked after
+ * A DB snapshot is rechecked after
  * file I/O; this is not a cross-process activation lease or a revocation system.
  */
 @Injectable()
@@ -77,7 +78,7 @@ export class ManagedMcpHandoffPreparationService {
     return source;
   }
 
-  private async snapshot(runtimeAssetId: string, serverId: string) {
+  private async snapshot(runtimeAssetId: string, serverId: string, purpose: 'experiment' | 'start' | 'preflight' = 'experiment') {
     const isolation = ['postgres', 'mysql', 'mariadb'].includes(this.db.options.type) ? 'REPEATABLE READ' : 'SERIALIZABLE';
     return this.db.transaction(isolation, async manager => {
       const ownership = await readMcpOwnership(manager, runtimeAssetId);
@@ -86,8 +87,11 @@ export class ManagedMcpHandoffPreparationService {
         server.inboundAuthMode !== McpInboundAuthMode.PRIVATE_API_KEY) return reject();
       const { asset, rows } = ownership;
       const metadata = asset.metadata || {}, config = server.config || {};
+      if (purpose !== 'experiment') assertTrustedMcp(server, runtimeAssetId);
+      const allowedStatuses = purpose === 'experiment' ? ['stopped', 'error'] :
+        purpose === 'start' ? ['stopped', 'error', 'starting'] : ['stopped', 'error', 'starting', 'running'];
       if (metadata.managedServerId !== serverId || config.runtimeAssetId !== runtimeAssetId || config.managedByRuntimeAsset !== true ||
-        metadata.verificationRequired !== false || !['stopped', 'error'].includes(server.status) ||
+        metadata.verificationRequired !== false || !allowedStatuses.includes(server.status) ||
         typeof config.verificationRunId !== 'string' || !config.verificationRunId || typeof config.verifiedCandidateRevision !== 'string' || !config.verifiedCandidateRevision) reject();
       const run = await manager.getRepository(RuntimeVerificationRunEntity).findOne({ where: { id: config.verificationRunId } });
       const fingerprint = digest(serialized(server.openApiData));
@@ -120,7 +124,7 @@ export class ManagedMcpHandoffPreparationService {
     });
   }
 
-  private async capture(runtimeAssetId: string, serverId: string) {
+  private async capture(runtimeAssetId: string, serverId: string, purpose: 'experiment' | 'start' | 'preflight' = 'experiment') {
     try {
       const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
       if (!uuid.test(runtimeAssetId) || !uuid.test(serverId)) reject();
@@ -134,7 +138,7 @@ export class ManagedMcpHandoffPreparationService {
       }
       buildManagedEnvironment(source.approvedEnvironmentNames, environmentValues);
       if (environmentValues.API_NOVA_RUNTIME_AUTH_MODE !== 'api_key') reject();
-      const first = await this.snapshot(runtimeAssetId, serverId);
+      const first = await this.snapshot(runtimeAssetId, serverId, purpose);
       const text = await readStableUpstreamCredentialText(source.registrySource.path);
       const candidate = parseUpstreamCredentialBindings(text, source.registrySource.format);
       // Digest is explicitly SHA256 of stable decoded UTF-8 text (not a second
@@ -155,14 +159,15 @@ export class ManagedMcpHandoffPreparationService {
           if (candidate.secretProviders[provider].type === 'env' && !source.approvedEnvironmentNames.includes(key)) reject();
         }
       }
-      const second = await this.snapshot(runtimeAssetId, serverId);
+      const second = await this.snapshot(runtimeAssetId, serverId, purpose);
       if (serialized(first) !== serialized(second) || serialized(source) !== serialized(this.source(runtimeAssetId))) reject();
       const payload = captureManagedHandoff({ version: 1, launchId: randomUUID(), managedServerId: serverId, runtimeAssetId,
         inboundAuthMode: second.server.inboundAuthMode!,
         candidateRevision: second.run.candidateRevision, verificationRunId: second.run.id, behaviorFingerprint: second.fingerprint,
         transport: { type: second.endpoint.transport, host: '127.0.0.1', port: second.endpoint.port, endpoint: second.endpoint.endpointPath },
         openApiData: second.server.openApiData, trustedOperationBindings: second.bindings, registrySource: source.registrySource });
-      return { payload, approvedEnvironmentNames: source.approvedEnvironmentNames, environmentValues };
+      return { payload, approvedEnvironmentNames: source.approvedEnvironmentNames, environmentValues,
+        autoRestart: second.server.config?.autoRestart !== false };
     } catch { return reject(); }
   }
 
@@ -176,5 +181,26 @@ export class ManagedMcpHandoffPreparationService {
   async startInternal(runtimeAssetId: string, serverId: string) {
     const captured = await this.capture(runtimeAssetId, serverId);
     return startManagedMcpChannel({ ...captured, launchId: captured.payload.launchId, serverId });
+  }
+
+  /** Read-only preflight before stopping an existing instance. No envelope is cached. */
+  async preflightLifecycle(runtimeAssetId: string, serverId: string): Promise<void> {
+    await this.capture(runtimeAssetId, serverId, 'preflight');
+  }
+
+  async lifecycleAutoRestart(runtimeAssetId: string, serverId: string): Promise<boolean> {
+    try {
+      const server = await this.db.getRepository(MCPServerEntity).findOneByOrFail({ id: serverId });
+      assertTrustedMcp(server, runtimeAssetId);
+      return server.config?.autoRestart !== false;
+    } catch { return reject(); }
+  }
+
+  /** Fresh capture on every attempt, including recovery. No caller-supplied argv/env. */
+  async startLifecycle(runtimeAssetId: string, serverId: string, signal: AbortSignal, automatic = false) {
+    const captured = await this.capture(runtimeAssetId, serverId, 'start');
+    if (automatic && !captured.autoRestart) return reject();
+    const handle = await startManagedMcpChannel({ ...captured, launchId: captured.payload.launchId, serverId, signal });
+    return Object.freeze({ ...handle, autoRestart: captured.autoRestart, get state() { return handle.state; } });
   }
 }

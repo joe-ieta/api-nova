@@ -1,5 +1,8 @@
 import { gatewayHeaderLegacyRuntimeGuardProvider } from './services/gateway-header-legacy-runtime.providers';
+import { gatewayNetworkBootstrapProvider, gatewayBootstrapNetworkProvider } from './services/gateway-network-bootstrap';
+import { GatewayNetworkInstallationService } from './services/gateway-network-installation.service';
 import { GatewayUpstreamSecurityRuntimeGuard } from './services/gateway-upstream-security-runtime.guard';
+import { PublicationAuthorityModule } from '../publication/security/publication-authority.module';
 import { CallObservabilityModule } from '../call-observability/call-observability.module';
 import { GatewayRoutingObservationWorker } from './services/gateway-routing-observation.worker';
 import { GatewayUpstreamCredentialAdminController } from './gateway-upstream-credential-admin.controller';
@@ -37,6 +40,7 @@ import { GatewayTrafficControlService } from './services/gateway-traffic-control
 
 @Module({
   imports: [
+    PublicationAuthorityModule,
     CallObservabilityModule,
     ConfigModule,
     TypeOrmModule.forFeature([
@@ -56,6 +60,9 @@ import { GatewayTrafficControlService } from './services/gateway-traffic-control
   ],
   controllers: [GatewayUpstreamCredentialAdminController, GatewayRuntimeController],
   providers: [
+    gatewayNetworkBootstrapProvider,
+    gatewayBootstrapNetworkProvider,
+    GatewayNetworkInstallationService,
     gatewayHeaderLegacyRuntimeGuardProvider,
     GatewayUpstreamSecurityRuntimeGuard,
     GatewayRoutingObservationWorker,

@@ -1,6 +1,8 @@
 import { Optional } from '@nestjs/common';
 import { GatewayPolicyService } from '../../gateway-runtime/services/gateway-policy.service';
-import { PublicationMemberTransactionWriter } from './publication-member-transaction-writer';
+import { PublicationMemberTransactionWriter, PublicationMemberAfterCommitError, PublicationMemberReadinessError, type PublicationMemberCommitResult } from './publication-member-transaction-writer';
+import { evaluatePublicationMemberReadiness, type PublicationMemberRows } from './publication-member-readiness';
+import { securityDigest } from '../security/upstream-security-reconciliation';
 import { assertGatewayHeaderMigrationTransition } from '../../gateway-runtime/services/gateway-header-migration';
 import { newGatewayHeaderPolicyDraft } from '../../gateway-runtime/services/gateway-header-migration';
 import { endpointUpstreamSecurityReadiness } from '../security/endpoint-upstream-security-readiness';
@@ -462,6 +464,31 @@ export class PublicationService {
     return this.buildMembershipPublicationState(context);
   }
 
+  /** Read-only preview. Never creates profiles/bindings, issues proofs or deploys. */
+  async previewRuntimeMembership(membershipId: string) {
+    const read = async (): Promise<PublicationMemberRows> => {
+      const context = await this.resolveMembershipPublicationContext(membershipId);
+      const where = { runtimeAssetEndpointBindingId: membershipId };
+      const [profile, binding, routes] = await Promise.all([
+        this.profileRepository.findOne({ where, order: { version: 'DESC' } }),
+        this.bindingRepository.findOne({ where }),
+        this.routeBindingRepository.find({ where, order: { id: 'ASC' }, take: 2 }),
+      ]);
+      return { membership: context.membership, runtime: context.runtimeAsset, endpoint: context.endpointDefinition,
+        profile, binding, routes };
+    };
+    const before = await read();
+    const after = await read();
+    const readiness = evaluatePublicationMemberReadiness(after, route => this.gatewayPolicyService?.assertHeaderV1Ready(route));
+    if (securityDigest(before) !== securityDigest(after)) {
+      readiness.ready = false;
+      readiness.reasons.push('PREVIEW_CONTEXT_CHANGED');
+    }
+    return { membershipId, publicationRevision: after.membership.publicationRevision, phase: 'preview_only' as const,
+      canPublish: readiness.ready, readiness,
+      deployment: { status: 'not_attempted', attempted: false, autoTriggered: false } };
+  }
+
   async upsertRuntimeMembershipProfile(
     membershipId: string,
     dto: UpdatePublicationProfileDto,
@@ -675,11 +702,13 @@ export class PublicationService {
       { actorId },
       publicationOptions,
     );
-    this.emitGatewaySnapshotRefresh({
-      reason: 'publication.membership_published',
-      runtimeAssetId: context.runtimeAsset.id,
-      runtimeMembershipId: membershipId,
-    });
+    if (dto.publishToHttp !== false) {
+      this.emitGatewaySnapshotRefresh({
+        reason: 'publication.membership_published',
+        runtimeAssetId: context.runtimeAsset.id,
+        runtimeMembershipId: membershipId,
+      });
+    }
     return {
       ...result,
       deployment: await this.buildPostPublishDeploymentState(context, publicationOptions),
@@ -743,6 +772,14 @@ export class PublicationService {
         .filter(item => item.status === 'success')
         .map(item => item.membershipId),
     );
+    // Deployment replaces a whole runtime, while publication commits each member.
+    // A partial batch must not auto-deploy a mixture or disturb the running version.
+    const hasFailures = result.items.some(item => item.status !== 'success');
+    if (hasFailures) {
+      return { ...result, deployments: [],
+        deployment: { status: 'blocked', attempted: false, autoTriggered: false,
+          code: 'BATCH_PUBLICATION_INCOMPLETE', message: 'Runtime deployment blocked because publication did not complete for every member' } };
+    }
     const eligibleContexts = contexts.filter(context =>
       successfulMembershipIds.has(context.membership.id) &&
       (context.runtimeAsset.type === RuntimeAssetType.MCP_SERVER
@@ -766,10 +803,12 @@ export class PublicationService {
         ? { status: 'multiple', attempted: true, autoTriggered: true,
             message: 'See deployments for each runtime result' }
         : this.buildDeploymentHintFromContexts(eligibleContexts, successfulMembershipIds);
-    this.emitGatewaySnapshotRefresh({
-      reason: 'publication.batch_memberships_published',
-      runtimeAssetId: result.batchRun.runtimeAssetId,
-    });
+    if (eligibleContexts.some(context => context.runtimeAsset.type === RuntimeAssetType.GATEWAY_SERVICE)) {
+      this.emitGatewaySnapshotRefresh({
+        reason: 'publication.batch_memberships_published',
+        runtimeAssetId: result.batchRun.runtimeAssetId,
+      });
+    }
     return {
       ...result,
       deployment,
@@ -939,7 +978,10 @@ export class PublicationService {
     const items: Array<{
       membershipId: string;
       endpointDefinitionId: string;
-      status: 'success' | 'failed';
+      status: 'success' | 'failed' | 'committed_side_effect_failed';
+      committed?: boolean;
+      publicationRevision?: number;
+      auditFailed?: boolean;
       message?: string;
     }> = [];
 
@@ -952,7 +994,9 @@ export class PublicationService {
           status: 'success',
         });
       } catch (error: any) {
-        await this.recordAuditEvent({
+        const committed = error instanceof PublicationMemberAfterCommitError;
+        let auditFailed = false;
+        try { await this.recordAuditEvent({
           action:
             action === PublicationBatchAction.PUBLISH
               ? PublicationAuditAction.MEMBERSHIP_PUBLISHED
@@ -969,11 +1013,14 @@ export class PublicationService {
             action,
             error: error?.message || 'Unknown error',
           },
-        });
+        }); } catch { auditFailed = true; }
         items.push({
           membershipId: context.membership.id,
           endpointDefinitionId: context.endpointDefinition.id,
-          status: 'failed',
+          status: committed ? 'committed_side_effect_failed' : 'failed',
+          ...(action === PublicationBatchAction.PUBLISH ? { committed } : {}),
+          ...(committed ? { publicationRevision: error.result.publicationRevision } : {}),
+          ...(auditFailed ? { auditFailed: true } : {}),
           message: error?.message || 'Unknown error',
         });
       }
@@ -1067,15 +1114,14 @@ export class PublicationService {
 
   private async buildMembershipPublicationState(
     context: MembershipPublicationContext,
+    readOnly = false,
   ) {
-    const profile = await this.ensureProfile(
-      context.membership,
-      context.endpointDefinition,
-    );
-    const publishBinding = await this.ensurePublishBinding(
-      context.membership,
-      context.endpointDefinition.id,
-    );
+    const profile = readOnly
+      ? await this.profileRepository.findOneOrFail({ where: { runtimeAssetEndpointBindingId: context.membership.id }, order: { version: 'DESC' } })
+      : await this.ensureProfile(context.membership, context.endpointDefinition);
+    const publishBinding = readOnly
+      ? await this.bindingRepository.findOneOrFail({ where: { runtimeAssetEndpointBindingId: context.membership.id } })
+      : await this.ensurePublishBinding(context.membership, context.endpointDefinition.id);
     const routeBinding =
       context.runtimeAsset.type === RuntimeAssetType.GATEWAY_SERVICE
         ? await this.findGatewayRouteBinding(context.membership.id)
@@ -1337,6 +1383,17 @@ export class PublicationService {
       throw new BadRequestException('Publish blocked: upstream_security:' + security.reason);
     }
 
+    if (context.runtimeAsset.type === RuntimeAssetType.MCP_SERVER) {
+      const writer = new PublicationMemberTransactionWriter(this.bindingRepository.manager.connection, async () => { throw new Error('proof_path_disabled'); });
+      let committed: PublicationMemberCommitResult;
+      try { committed = await writer.commitUnsecuredMcp(context.membership.id, context.runtimeAsset.id, context.endpointDefinition.id); }
+      catch (error) {
+        if (error instanceof PublicationMemberReadinessError) throw new BadRequestException(error.message);
+        throw error;
+      }
+      return this.finishCommittedMembership(context, committed, auditContext);
+    }
+
     const markedRoute = context.runtimeAsset.type === RuntimeAssetType.GATEWAY_SERVICE ? await this.findGatewayRouteBinding(context.membership.id) : null;
     if (markedRoute && markedRoute.upstreamConfig?.headerPolicyMigration === undefined) throw new BadRequestException({ code: 'GATEWAY_HEADER_POLICY_NOT_READY' });
     if (markedRoute?.upstreamConfig?.headerPolicyMigration !== undefined) {
@@ -1349,17 +1406,7 @@ export class PublicationService {
         if (!readiness.ready) throw new BadRequestException(`Publish blocked: ${readiness.reasons.join('; ')}`);
         return version;
       });
-      context.membership.publicationRevision = committed.publicationRevision;
-      context.membership.status = RuntimeAssetEndpointBindingStatus.ACTIVE;
-      context.runtimeAsset.status = RuntimeAssetStatus.ACTIVE;
-      const savedProfile = await this.profileRepository.findOneByOrFail({ id: committed.profileId });
-      await this.writeHistory(savedProfile, 'profile.published');
-      await this.recordAuditEvent({ action: PublicationAuditAction.MEMBERSHIP_PUBLISHED, status: PublicationAuditStatus.SUCCESS,
-        summary: `Membership '${context.membership.id}' published`, publicationBatchRunId: auditContext.batchRunId,
-        runtimeAssetId: context.runtimeAsset.id, runtimeAssetEndpointBindingId: context.membership.id,
-        endpointDefinitionId: context.endpointDefinition.id, sourceServiceAssetId: context.sourceServiceAsset.id,
-        operatorId: auditContext.actorId, details: { publicationRevision: committed.publicationRevision, runtimeAssetType: context.runtimeAsset.type } });
-      return this.buildMembershipPublicationState(context);
+      return this.finishCommittedMembership(context, committed, auditContext);
     }
     const profile = await this.ensureProfile(
       context.membership,
@@ -1405,7 +1452,7 @@ export class PublicationService {
       publicationRevision: binding.publicationRevision + 1,
       reviewStatus: PublicationReviewStatus.REVIEWED,
       publishStatus: PublicationBindingStatus.ACTIVE,
-      publishedToMcp: context.runtimeAsset.type === RuntimeAssetType.MCP_SERVER,
+      publishedToMcp: false,
       publishedToHttp: context.runtimeAsset.type === RuntimeAssetType.GATEWAY_SERVICE,
       publishedAt: new Date(),
       offlineAt: null,
@@ -1442,6 +1489,23 @@ export class PublicationService {
     });
 
     return this.buildMembershipPublicationState(context);
+  }
+
+  private async finishCommittedMembership(context: MembershipPublicationContext, committed: PublicationMemberCommitResult,
+    auditContext: PublicationAuditContext) {
+    context.membership.publicationRevision = committed.publicationRevision;
+    context.membership.status = RuntimeAssetEndpointBindingStatus.ACTIVE;
+    context.runtimeAsset.status = RuntimeAssetStatus.ACTIVE;
+    try {
+      const savedProfile = await this.profileRepository.findOneByOrFail({ id: committed.profileId });
+      await this.writeHistory(savedProfile, 'profile.published');
+      await this.recordAuditEvent({ action: PublicationAuditAction.MEMBERSHIP_PUBLISHED, status: PublicationAuditStatus.SUCCESS,
+        summary: `Membership '${context.membership.id}' published`, publicationBatchRunId: auditContext.batchRunId,
+        runtimeAssetId: context.runtimeAsset.id, runtimeAssetEndpointBindingId: context.membership.id,
+        endpointDefinitionId: context.endpointDefinition.id, sourceServiceAssetId: context.sourceServiceAsset.id,
+        operatorId: auditContext.actorId, details: { publicationRevision: committed.publicationRevision, runtimeAssetType: context.runtimeAsset.type } });
+      return await this.buildMembershipPublicationState(context, true);
+    } catch { throw new PublicationMemberAfterCommitError(Object.freeze({ ...committed })); }
   }
 
   private async offlineMembershipContext(

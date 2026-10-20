@@ -14,6 +14,7 @@ import { GatewayPolicyService } from '../../gateway-runtime/services/gateway-pol
 import { GatewayRouteSnapshotService } from '../../gateway-runtime/services/gateway-route-snapshot.service';
 import { ConfigureGatewayRouteBindingDto } from '../dto/publication.dto';
 import { PublicationService } from './publication.service';
+import { PublicationMemberTransactionWriter } from './publication-member-transaction-writer';
 
 describe('PublicationService', () => {
   const endpointDefinitionRepository = {
@@ -38,6 +39,8 @@ describe('PublicationService', () => {
   };
   const profileRepository = {
     findOne: jest.fn(),
+    findOneOrFail: jest.fn(),
+    findOneByOrFail: jest.fn(),
     save: jest.fn(),
     create: jest.fn(),
   };
@@ -57,6 +60,8 @@ describe('PublicationService', () => {
   };
   const bindingRepository = {
     findOne: jest.fn(),
+    findOneOrFail: jest.fn(),
+    manager: { connection: {} },
     save: jest.fn(),
     create: jest.fn(),
   };
@@ -140,6 +145,14 @@ describe('PublicationService', () => {
     }));
     runtimeBindingRepository.save.mockImplementation(async (value: unknown) => value);
     profileRepository.findOne.mockResolvedValue(null);
+    profileRepository.findOneOrFail.mockImplementation(async () => profileRepository.findOne());
+    profileRepository.findOneByOrFail.mockImplementation(async () => profileRepository.findOne());
+    bindingRepository.findOneOrFail.mockImplementation(async () => bindingRepository.findOne());
+    // These unit tests cover orchestration/deployment. Real transactions are covered
+    // by publication-production-slice.spec.ts against SQL.js.
+    jest.spyOn(PublicationMemberTransactionWriter.prototype, 'commitUnsecuredMcp').mockImplementation(async membershipId => ({
+      membershipId, publicationRevision: 1, profileId: 'profile-1', bindingId: 'binding-1',
+    }));
     profileRepository.create.mockImplementation((value: Record<string, unknown>) => ({
       id: 'profile-1',
       ...value,

@@ -3,13 +3,15 @@
 > 2026-09-08: 数据库与持久化清理、43 表 PG/SQLite 空库及完整回归结果见 [本轮清理审查记录](./2026-09-08-persistence-cleanup.md)。旧报告中的 38/40 表与环境阻塞结论保留为历史证据。
 
 ---
-doc-version: 1.44.0
+doc-version: 1.47.0
 doc-status: active
-doc-updated: 2026-09-22
+doc-updated: 2026-10-20
 ---
 # ApiNova 审查报告索引
 
-> 最新调度审核：[全范围任务审核与重拆](./2026-09-15-work-package-replan.md)，任务划分与执行状态已独立维护。
+> 最新调度审核与开发证据：[统一任务迁移与Gateway启动隔离](./2026-10-20-unified-planning-np10.md)。后续工作由[统一台账](../guides/unified-development-status.md)驱动；[2026-09-15重拆记录](./2026-09-15-work-package-replan.md)保留为历史。
+
+最新并行交付：[依赖整改、生命周期收口与发布授权接线](./2026-10-20-security-lifecycle-authority-batch.md)。NP-20本机出口完成，NP-02及NP-31仍有剩余工作。前批证据：[Gateway MCP与发布入口验收](./2026-10-20-parallel-runtime-delivery.md)；整改前基线：[在线依赖审计分诊](./2026-10-20-dependency-audit-triage.md)。审计报告不等于漏洞清零或生产发布验收完成。
 
 最新恢复收尾：[额度中断完整性复核与现阶段交付](./2026-09-17-interruption-recovery-evidence.md)。历史报告保留原时点结论。
 

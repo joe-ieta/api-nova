@@ -1,24 +1,28 @@
 ---
-doc-version: 1.3.1
+doc-version: 1.4.0
 doc-status: active
-doc-updated: 2026-09-16
+doc-updated: 2026-10-20
 ---
 # Guides
 
 > Document status: Active index
-> Last reviewed: 2026-09-16
+> Last reviewed: 2026-10-20
 
 Only currently supported product paths, durable architecture contracts, and active execution plans belong here.
 
 ## Active Execution And Release
 
-- [Current Observability Completion And Remaining Work](./runtime-observability-completion-review.md)
+- [统一分阶段开发计划](./unified-development-plan.md)
+- [统一工作包与旧任务映射](./unified-work-packages.md)
+- [统一开发状态（当前唯一调度入口）](./unified-development-status.md)
+
+- [Observability Completion Review](./runtime-observability-completion-review.md) (historical migration snapshot)
 
 - [Observability Development Task Plan](./runtime-observability-development-task-plan.md) (current task definitions and remaining exit criteria)
-- [Observability Development Execution Status](./runtime-observability-development-execution-status.md)
+- [Observability Development Evidence](./runtime-observability-development-execution-status.md) (historical)
 
 - [Security Development Task Plan](./security-development-task-plan.md)
-- [Security Development Execution Status](./security-development-execution-status.md)
+- [Security Development Evidence](./security-development-execution-status.md) (historical)
 - [Security Delivery Evidence Index](./security-delivery-evidence-index.md)
 - [Staged Development Plan](./staged-development-plan.md)
 - [Runtime Instance And Regression Closure Plan](./runtime-instance-and-regression-closure-plan.md)

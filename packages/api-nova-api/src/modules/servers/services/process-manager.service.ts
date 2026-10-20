@@ -26,6 +26,8 @@ import { AppConfigService } from '../../../config/app-config.service';
 import { auditDirectory, assertTemporaryAnonymousPolicy } from 'api-nova-parser';
 import { RuntimeCredentialResolverService } from './runtime-credential-resolver.service';
 import { managedMcpJwtPolicyEnv, mcpInboundSpawnEnv } from './mcp-inbound-process-env';
+import { ManagedMcpProcessService } from './managed-mcp-process.service';
+import { MANAGED_LIFECYCLE_REJECTED, TRUSTED_MCP_MODE } from './managed-mcp-mode';
 import {
   ManagedProcessLifecycleEvidenceService,
   ManagedProcessLifecycleIdentity,
@@ -78,6 +80,7 @@ export class ProcessManagerService implements OnModuleDestroy {
   // MCP事件去重缓存 - 存储最近的事件哈希值
   private readonly mcpEventCache = new Map<string, string>();
   private readonly mcpEventCacheTimeout = 5000; // 5秒缓存超时
+  private resourceUpdateListener?: (...args: any[]) => void;
 
   constructor(
     @InjectRepository(ProcessInfoEntity)
@@ -91,6 +94,7 @@ export class ProcessManagerService implements OnModuleDestroy {
     private readonly logMonitor: ProcessLogMonitorService,
     @Optional() private readonly credentialResolver?: RuntimeCredentialResolverService,
     @Optional() private readonly lifecycleEvidence?: ManagedProcessLifecycleEvidenceService,
+    @Optional() private readonly trustedProcesses?: ManagedMcpProcessService,
   ) {
     this.config = {
       ...DEFAULT_PROCESS_CONFIG,
@@ -123,11 +127,16 @@ export class ProcessManagerService implements OnModuleDestroy {
   }
 
   async onModuleDestroy() {
+    await this.trustedProcesses?.onModuleDestroy();
     this.logger.log('Shutting down all processes...');
     const shutdownPromises = Array.from(this.processes.keys()).map(serverId => 
       this.stopProcess(serverId, true)
     );
     await Promise.allSettled(shutdownPromises);
+    if (this.resourceUpdateListener) {
+      this.eventEmitter.removeListener('process.resource_update', this.resourceUpdateListener);
+      this.resourceUpdateListener = undefined;
+    }
   }
 
   /** Check controlled mode and credentials without changing process state. */
@@ -166,7 +175,13 @@ export class ProcessManagerService implements OnModuleDestroy {
   }
 
   /** 启动进程（支持CLI spawn） */
-  async startProcess(config: ProcessConfig): Promise<ProcessInfo> {
+  async startProcess(config: ProcessConfig, signal?: AbortSignal): Promise<ProcessInfo> {
+    if (config.managedLaunch !== undefined) {
+      if (config.managedLaunch.mode !== TRUSTED_MCP_MODE || !this.trustedProcesses)
+        throw new Error(MANAGED_LIFECYCLE_REJECTED);
+      return this.trustedProcesses.start(config.id, config.managedLaunch.runtimeAssetId, 0, signal);
+    }
+    if (this.trustedProcesses?.owns(config.id)) throw new Error(MANAGED_LIFECYCLE_REJECTED);
     await this.preflightProcessEnvironment(config);
     this.config.processTimeout = this.appConfigService.processTimeout;
     this.config.defaultMaxRetries = this.appConfigService.processMaxRetries;
@@ -286,6 +301,7 @@ export class ProcessManagerService implements OnModuleDestroy {
    * 停止进程
    */
   async stopProcess(serverId: string, force = false): Promise<void> {
+    if (this.trustedProcesses?.owns(serverId)) return this.trustedProcesses.stop(serverId);
     this.config.processTimeout = this.appConfigService.processTimeout;
     const childProcess = this.processes.get(serverId);
     const processInfo = this.processInfo.get(serverId);
@@ -430,7 +446,9 @@ export class ProcessManagerService implements OnModuleDestroy {
   /**
    * 重启进程
    */
-  async restartProcess(serverId: string, config: ProcessConfig): Promise<ProcessInfo> {
+  async restartProcess(serverId: string, config: ProcessConfig, automatic = false): Promise<ProcessInfo> {
+    if (this.trustedProcesses?.owns(serverId)) return this.trustedProcesses.restart(serverId, automatic);
+    if (config.managedLaunch !== undefined) throw new Error(MANAGED_LIFECYCLE_REJECTED);
     // Reject unusable recovery configuration before stopping a healthy process.
     await this.preflightProcessEnvironment(config);
     this.config.defaultRestartDelay = this.appConfigService.processRestartDelay;
@@ -469,6 +487,7 @@ export class ProcessManagerService implements OnModuleDestroy {
    * 获取进程信息
    */
   getProcessInfo(serverId: string): ProcessInfo | undefined {
+    if (this.trustedProcesses?.owns(serverId)) return this.trustedProcesses.get(serverId);
     return this.processInfo.get(serverId);
   }
 
@@ -476,15 +495,20 @@ export class ProcessManagerService implements OnModuleDestroy {
    * 获取所有进程信息
    */
   getAllProcessInfo(): ProcessInfo[] {
-    return Array.from(this.processInfo.values());
+    return [...this.processInfo.values(), ...(this.trustedProcesses?.all() || [])];
   }
 
   /**
    * 检查进程是否运行
    */
   isProcessRunning(serverId: string): boolean {
-    const processInfo = this.processInfo.get(serverId);
+    const processInfo = this.getProcessInfo(serverId);
     return processInfo?.status === ProcessStatus.RUNNING;
+  }
+
+  async preflightTrustedProcess(runtimeAssetId: string, serverId: string): Promise<void> {
+    if (!this.trustedProcesses) throw new Error(MANAGED_LIFECYCLE_REJECTED);
+    await this.trustedProcesses.preflight(runtimeAssetId, serverId);
   }
 
   /**
@@ -961,7 +985,7 @@ export class ProcessManagerService implements OnModuleDestroy {
     */
    private setupEventListeners(): void {
      // 监听资源更新事件并转换为进程信息更新事件
-     this.eventEmitter.on('process.resource_update', async (data: {
+     this.resourceUpdateListener = async (data: {
        serverId: string;
        metrics: ProcessResourceMetrics;
        timestamp: Date;
@@ -1017,7 +1041,8 @@ export class ProcessManagerService implements OnModuleDestroy {
            this.logger.error(`Failed to save process info for ${processInfo.id}:`, error);
          }
        }
-     });
+     };
+     this.eventEmitter.on('process.resource_update', this.resourceUpdateListener);
    }
 
   /**

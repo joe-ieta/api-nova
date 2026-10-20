@@ -1,15 +1,15 @@
 ---
-doc-version: 1.14.0
+doc-version: 1.15.0
 doc-status: active
-doc-updated: 2026-09-15
+doc-updated: 2026-10-20
 ---
 # 未完成事项
 
 > 文档状态：Active
-> 最近复核：2026-09-15
+> 最近复核：2026-10-20（执行队列迁移）
 > 负责人：产品闭环与发布治理
 
-> 当前执行入口：[工作包划分](../guides/active-work-package-breakdown.md)与[子任务台账](../guides/active-work-package-execution-status.md)。39仅为OBS/SEC专项父包，不是全部项目活跃工作。
+> 2026-10-20统一入口：[新工作包](../guides/unified-work-packages.md)与[开发状态](../guides/unified-development-status.md)。以下为历史问题视图，DEV-01端点配置、DEV-04二进制本地实现、D1 Header等已交付切片以新映射的BASE-150为准，不重新作为待开发项。39仅为OBS/SEC父包，不能作为全项目完成率。
 
 ## 目的
 

@@ -93,6 +93,14 @@ export class PublicationController {
     return this.publicationService.getRuntimeMembershipPublicationState(membershipId);
   }
 
+  @Get('runtime-memberships/:membershipId/preview')
+  @SkipThrottle()
+  @RequirePermissions('server:read')
+  @ApiOperation({ summary: 'Preview current publication gates without writes or deployment' })
+  async previewRuntimeMembership(@Param('membershipId') membershipId: string) {
+    return this.publicationService.previewRuntimeMembership(membershipId);
+  }
+
   @Put('runtime-memberships/:membershipId/profile')
   @RequirePermissions('server:update')
   @ApiOperation({ summary: 'Upsert runtime membership publication profile' })

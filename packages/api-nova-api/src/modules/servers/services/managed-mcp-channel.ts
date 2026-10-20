@@ -32,6 +32,7 @@ export function buildManagedEnvironment(approvedNames: readonly string[], values
 export interface ManagedChannelInput {
   launchId: string; serverId: string; payload: ManagedMcpHandoffV1;
   approvedEnvironmentNames: readonly string[]; environmentValues: Readonly<Record<string, string>>;
+  signal?: AbortSignal;
 }
 export interface ManagedChannelResult { code: ManagedFailureCode | 'STOPPED'; }
 export interface ManagedChannelHandle {
@@ -40,8 +41,9 @@ export interface ManagedChannelHandle {
   readonly closed: Promise<ManagedChannelResult>;
   close(): Promise<void>;
 }
-/** Internal opt-in channel only. Never called by legacy lifecycle or persisted in ProcessInfo. */
+/** Internal opt-in channel. Payload and handle must never enter ProcessInfo. */
 export async function startManagedMcpChannel(input: ManagedChannelInput): Promise<ManagedChannelHandle> {
+  if (input.signal?.aborted) throw new ManagedChannelError('MANAGED_CHANNEL_FAILED');
   const payload = captureManagedHandoff(input.payload);
   if (input.launchId !== payload.launchId || input.serverId !== payload.managedServerId) throw new ManagedChannelError('INVALID_MANAGED_HANDOFF');
   const outbound = parseManagedParentMessage({ type: 'handoff', version: 1, launchId: payload.launchId, payload });
@@ -50,8 +52,9 @@ export async function startManagedMcpChannel(input: ManagedChannelInput): Promis
   try { entry = require.resolve('api-nova-server/dist/managed/entry.js'); }
   catch { throw new ManagedChannelError('MANAGED_ENTRY_UNAVAILABLE'); }
   // No caller script path/argv/execArgv and no shell. NODE_* cannot enter env.
+  if (input.signal?.aborted) throw new ManagedChannelError('MANAGED_CHANNEL_FAILED');
   let child: ChildProcess;
-  try { child = spawn(process.execPath, [entry], { env: environment, shell: false, detached: false, stdio: ['pipe', 'pipe', 'pipe', 'ipc'] }); }
+  try { child = spawn(process.execPath, [entry], { env: environment, shell: false, windowsHide: true, detached: false, stdio: ['pipe', 'pipe', 'pipe', 'ipc'] }); }
   catch { throw new ManagedChannelError('MANAGED_CHANNEL_FAILED'); }
   child.stdout?.resume(); child.stderr?.resume(); child.stdin?.end();
   let readyState = false;
@@ -70,6 +73,7 @@ export async function startManagedMcpChannel(input: ManagedChannelInput): Promis
     settled = true; clearTimeout(handshake); if (forceTimer) clearTimeout(forceTimer);
     child.removeListener('message', onMessage); child.removeListener('error', onError); child.removeListener('close', onClose);
     child.removeListener('exit', onClose); child.removeListener('disconnect', onDisconnect);
+    input.signal?.removeEventListener('abort', onAbort);
     child.stdout?.destroy(); child.stderr?.destroy(); child.stdin?.destroy();
     if (!readyState) rejectReady(new ManagedChannelError(failure || 'MANAGED_CHILD_EXITED'));
     if (!accepted) rejectStarted(new ManagedChannelError(failure || 'MANAGED_CHILD_EXITED'));
@@ -88,6 +92,7 @@ export async function startManagedMcpChannel(input: ManagedChannelInput): Promis
     return stopPromise;
   };
   const fail = (code: ManagedFailureCode) => { if (!failure) failure = code; void stop(); };
+  const onAbort = () => { void stop(); };
   const onError = () => { fail('MANAGED_CHANNEL_FAILED'); if (!child.pid) finish(); };
   const onClose = () => finish();
   const onDisconnect = () => { if (!stopping && !settled) fail('MANAGED_CHANNEL_FAILED'); };
@@ -110,6 +115,11 @@ export async function startManagedMcpChannel(input: ManagedChannelInput): Promis
   };
   const handshake = setTimeout(() => fail('MANAGED_HANDSHAKE_TIMEOUT'), MANAGED_HANDOFF_LIMITS.handshakeMs);
   child.on('message', onMessage); child.on('error', onError); child.on('close', onClose); child.on('exit', onClose); child.on('disconnect', onDisconnect);
+  input.signal?.addEventListener('abort', onAbort, { once: true });
+  if (input.signal?.aborted) {
+    onAbort();
+    return started;
+  }
   try {
     child.send(outbound, error => { if (error) fail('MANAGED_CHANNEL_FAILED'); });
   } catch { fail('MANAGED_CHANNEL_FAILED'); }

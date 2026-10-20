@@ -2,7 +2,7 @@ import type { EndpointDefinitionEntity } from '../../../database/entities/endpoi
 import { normalizeUpstreamSecurity, reconcileUpstreamSecurity, type SecurityDeclaration } from './upstream-security-reconciliation';
 
 /** Readiness never trusts a caller-written metadata.state/evidence as Verified. */
-export function endpointUpstreamSecurityReadiness(endpoint: Pick<EndpointDefinitionEntity, 'id' | 'sourceServiceAssetId' | 'method' | 'rawOperation' | 'metadata'>) {
+export function endpointUpstreamSecurityDeclaration(endpoint: Pick<EndpointDefinitionEntity, 'rawOperation' | 'metadata'>) {
   const stored = endpoint.metadata?.upstreamSecurityDeclaration as SecurityDeclaration | undefined;
   const root: Record<string, unknown> = {};
   if (stored?.version === 1) {
@@ -11,6 +11,11 @@ export function endpointUpstreamSecurityReadiness(endpoint: Pick<EndpointDefinit
   }
   let declaration = normalizeUpstreamSecurity(root, endpoint.rawOperation);
   if (stored?.version === 1 && stored.reason && !Object.prototype.hasOwnProperty.call(endpoint.rawOperation || {}, 'security')) declaration = { ...declaration, reason: stored.reason };
+  return declaration;
+}
+
+export function endpointUpstreamSecurityReadiness(endpoint: Pick<EndpointDefinitionEntity, 'id' | 'sourceServiceAssetId' | 'method' | 'rawOperation' | 'metadata'>) {
+  const declaration = endpointUpstreamSecurityDeclaration(endpoint);
   const selected = endpoint.metadata?.upstreamSecuritySelectedBranch;
   return reconcileUpstreamSecurity({ declaration,
     selectedBranch: typeof selected === 'number' ? selected : undefined,

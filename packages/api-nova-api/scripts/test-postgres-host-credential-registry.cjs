@@ -29,6 +29,59 @@ function fixture(document = candidate(), missing = false, initial = 'old') {
   const input = { capability: controller.capability, text: JSON.stringify(document), format: 'json', environment: 'test', expectedGeneration: store.describe(generation).generationId };
   return { store, generation, issuer, controller, input, material, token: () => attest(input) };
 }
+async function bootstrapChecks(db) {
+  const { ConfigService } = require('@nestjs/config');
+  const { Controller, Get } = require('@nestjs/common');
+  const request = require('supertest');
+  const { GatewayRuntimeController } = require('../dist/src/modules/gateway-runtime/gateway-runtime.controller');
+  const { GatewayRuntimeService } = require('../dist/src/modules/gateway-runtime/services/gateway-runtime.service');
+  const { GatewayNetworkBootstrap, gatewayNetworkBootstrapProvider, GATEWAY_HOST_CANDIDATE_ATTESTATION } = require('../dist/src/modules/gateway-runtime/services/gateway-network-bootstrap');
+  const { gatewayUpstreamCredentialRegistryProvider, GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY } = require('../dist/src/modules/gateway-runtime/services/gateway-upstream-credential.providers');
+  const { GatewayPolicyService } = require('../dist/src/modules/gateway-runtime/services/gateway-policy.service');
+  const document = candidate(); document.sites.forEach(site => { site.headerPolicy = { version: 1 }; });
+  const f = fixture(document);
+  class Health { health() { return { ok: true }; } }
+  Controller('np10-health')(Health);
+  Get()(Health.prototype, 'health', Object.getOwnPropertyDescriptor(Health.prototype, 'health'));
+  const module = await Test.createTestingModule({ controllers: [Health, GatewayRuntimeController], providers: [
+    { provide: ConfigService, useValue: new ConfigService() }, { provide: DataSource, useValue: db },
+    { provide: GATEWAY_HOST_CANDIDATE_ATTESTATION, useValue: f.token() },
+    gatewayNetworkBootstrapProvider, gatewayUpstreamCredentialRegistryProvider, GatewayPolicyService,
+    { provide: GatewayRuntimeService, inject: [GatewayNetworkBootstrap], useFactory: state =>
+      new GatewayRuntimeService(undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, state) },
+  ] }).compile();
+  const app = module.createNestApplication();
+  try {
+    await app.init();
+    const state = module.get(GatewayNetworkBootstrap);
+    assert.equal(state.hostMode, true);
+    assert.equal(module.get(GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY), null);
+    const snapshot = state.captureSnapshot(); assert.equal(state.captureSnapshot(), snapshot);
+    const route = { id: 'bootstrap-route', endpointDefinitionId: endpointA, authPolicyRef: 'jwt-default',
+      upstreamConfig: { headerPolicyMigration: { version: 1, mode: 'v1', source: 'registry' } } };
+    const policy = module.get(GatewayPolicyService);
+    assert.equal(JSON.parse(policy.assertHeaderV1Ready(route))[0], snapshot.generation);
+    assert.equal(policy.compileForRoute(route).auth.mode, 'jwt');
+    assert.throws(() => state.assertTrafficAllowed(), /GATEWAY_NETWORK_HOST_NOT_READY/);
+    assert.equal(JSON.stringify(state), '{}');
+    await request(app.getHttpServer()).get('/np10-health').expect(200, { ok: true });
+    const denied = await request(app.getHttpServer()).get('/v1/gateway/items').expect(503);
+    assert.equal(denied.body.message, 'GATEWAY_NETWORK_HOST_NOT_READY');
+    f.store.revoke(f.generation);
+    assert.throws(() => policy.assertHeaderV1Ready(route), /GATEWAY_NETWORK_HOST_NOT_READY/);
+    assert.throws(() => state.assertTrafficAllowed(), /GATEWAY_NETWORK_HOST_NOT_READY/);
+    await request(app.getHttpServer()).get('/np10-health').expect(200, { ok: true });
+    await request(app.getHttpServer()).get('/v1/gateway/items').expect(503);
+  } finally { await app.close(); }
+  // A second real composition verifies that Nest teardown closes the host/issuer.
+  const next = fixture(document);
+  const state = await GatewayNetworkBootstrap.create(new ConfigService(), db, next.token());
+  assert.ok(state.captureSnapshot()); state.onModuleDestroy(); state.onModuleDestroy();
+  assert.throws(() => state.captureSnapshot(), /GATEWAY_NETWORK_HOST_NOT_READY/);
+  assert.throws(() => next.issuer.issue({}, sourceA));
+  console.log(JSON.stringify({ marker: 'NP10_POSTGRES_BOOTSTRAP_OK', checks: 8 }));
+  return 8;
+}
 async function main() {
   assert.equal(process.env.DB_HOST, '127.0.0.1'); assert.equal(process.env.DB_USERNAME, 'host_registry_fixture'); assert.notEqual(Number(process.env.DB_PORT), 5432);
   assert.match(process.env.API_NOVA_ISOLATED_HOST_REGISTRY || '', /^[a-f0-9]{48}$/); assert.equal(process.env.DATABASE_URL, undefined);
@@ -44,6 +97,8 @@ async function main() {
       await db.getRepository('EndpointDefinitionEntity').save([{ id: endpointA, sourceServiceAssetId: sourceA, method: 'GET', path: '/items' }, { id: endpointB, sourceServiceAssetId: sourceB, method: 'GET', path: '/items' }]);
       checks += await registrationChecks(db);
       checks += await facadeChecks(db);
+      checks += await bootstrapChecks(db);
+      checks += await require('./test-postgres-network-bootstrap.cjs')(db, fixture, candidate, sourceA, endpointA);
       const f = fixture(), module = await Test.createTestingModule({ providers: [{ provide: 'host', useFactory: () => boot(f.token(), db) }] }).compile();
       const host = module.get('host'); dispose.push(() => host.close()); const snapshot = host.captureSnapshot();
       assert.equal(host.readEpoch(sourceA), f.input.expectedGeneration); assert.equal(host.readEpoch(sourceB), f.input.expectedGeneration);

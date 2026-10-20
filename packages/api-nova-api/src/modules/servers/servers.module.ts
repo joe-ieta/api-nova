@@ -1,6 +1,7 @@
 import { RuntimeCredentialResolverService } from './services/runtime-credential-resolver.service';
 import { Module } from '@nestjs/common';
 import { ManagedMcpHandoffPreparationService } from './services/managed-mcp-handoff-preparation.service';
+import { ManagedMcpProcessService } from './services/managed-mcp-process.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { HttpModule } from '@nestjs/axios';
@@ -75,6 +76,7 @@ import { CallObservabilityModule } from '../call-observability/call-observabilit
   providers: [
     RuntimeCredentialResolverService,
     ManagedMcpHandoffPreparationService,
+    ManagedMcpProcessService,
     ServerManagerService,
     ServerLifecycleService,
     ServerHealthService,

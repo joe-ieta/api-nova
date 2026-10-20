@@ -1,6 +1,8 @@
 import { GATEWAY_TRUSTED_NETWORK_PROVIDER, assertGatewayTrustedNetworkProvider, type GatewayTrustedNetworkProvider, type GatewayNetworkLease } from './gateway-trusted-network.provider';
+import { GatewayNetworkBootstrap } from './gateway-network-bootstrap';
 import { forwardGatewayNetworkStream } from './gateway-network-stream';
 import { GatewayUpstreamSecurityRuntimeGuard, assertGatewayUpstreamDeclaration } from './gateway-upstream-security-runtime.guard';
+import { endpointUpstreamSecurityReadiness } from '../../publication/security/endpoint-upstream-security-readiness';
 import {
   BadGatewayException,
   GatewayTimeoutException,
@@ -30,6 +32,7 @@ import {
 } from './gateway-upstream-credential-resolver';
 
 export type GatewayPreparedProxyRequest = {
+  securityProofBound?: true;
   networkLease?: GatewayNetworkLease;
   url: URL;
   credentials: GatewayUpstreamCredentialHeaders;
@@ -49,12 +52,14 @@ export class GatewayProxyEngineService {
     @Optional() private readonly gatewayRuntimeMetricsService?: GatewayRuntimeMetricsService,
     @Optional() private readonly upstreamSecurityGuard?: GatewayUpstreamSecurityRuntimeGuard,
     @Optional() @Inject(GATEWAY_TRUSTED_NETWORK_PROVIDER) private readonly networkProvider?: GatewayTrustedNetworkProvider,
+    @Optional() private readonly networkBootstrap?: GatewayNetworkBootstrap,
   ) { if (networkProvider) assertGatewayTrustedNetworkProvider(networkProvider); }
 
   async forward(
     resolvedRoute: GatewayResolvedRoute, req: Request, res: Response,
     options?: { captureResponseBodyMaxBytes?: number; attemptIndex?: number; upstreamOperationId?: string; preparedRequest?: GatewayPreparedProxyRequest },
   ): Promise<GatewayProxyResult & { targetUrl: string }> {
+    this.networkBootstrap?.assertTrafficAllowed(resolvedRoute);
     const prior = options?.preparedRequest;
     if (prior) {
       const ownership = this.preparations.get(prior);
@@ -75,6 +80,15 @@ export class GatewayProxyEngineService {
       throw new ServiceUnavailableException('gateway_upstream_security_context_changed');
     }
     const { url, credentials, requestPolicy, compiledHeaderPolicy: policy, historicalAuthenticationHeaderNames } = current;
+    // Includes the pinned-network path, which deliberately does not prepare twice.
+    // The proof must still be live after asynchronous credential resolution.
+    if (current.securityProofBound) {
+      try { await this.upstreamSecurityGuard!.assertCurrent(resolvedRoute, req, url.href); }
+      catch (failure) {
+        if (current.networkLease) this.networkProvider?.close(current.networkLease);
+        throw failure;
+      }
+    }
     if (current.networkLease) return forwardGatewayNetworkStream(this.networkProvider!, current, resolvedRoute, req, res, this.gatewayRequestCaptureService, {
       attemptIndex: options?.attemptIndex, upstreamOperationId: options?.upstreamOperationId,
       discardedTrailers: direction => this.auditDiscardedTrailers(resolvedRoute, req, direction),
@@ -262,13 +276,15 @@ export class GatewayProxyEngineService {
 
   /** Validate current declaration and credentials before every cache lookup. */
   async prepareRequest(resolvedRoute: GatewayResolvedRoute, req: Request): Promise<GatewayPreparedProxyRequest> {
+    this.networkBootstrap?.assertTrafficAllowed(resolvedRoute);
     const deadline = Date.now() + (resolvedRoute.policies?.traffic?.timeoutMs ?? resolvedRoute.routeBinding.timeoutMs ?? 30000);
-    assertGatewayUpstreamDeclaration(resolvedRoute.endpointDefinition);
-    await this.upstreamSecurityGuard?.assertCurrent(resolvedRoute);
     const url = new URL(this.buildTargetUrl(resolvedRoute.upstreamBaseUrl,
       resolvedRoute.routeBinding.upstreamPath, req.originalUrl, resolvedRoute.params));
     const consumerQueryKey = resolvedRoute.policies?.auth?.apiKeyQueryParamName;
     if (consumerQueryKey) url.searchParams.delete(consumerQueryKey);
+    if (this.upstreamSecurityGuard) await this.upstreamSecurityGuard.assertCurrent(resolvedRoute, req, url.href);
+    else assertGatewayUpstreamDeclaration(resolvedRoute.endpointDefinition);
+    const securityProofBound = !endpointUpstreamSecurityReadiness(resolvedRoute.endpointDefinition).canPublish;
     const usesNetwork = this.networkProvider?.requires(resolvedRoute) ?? false;
     const controller = new AbortController();
     let networkLease: GatewayNetworkLease | undefined;
@@ -306,7 +322,8 @@ export class GatewayProxyEngineService {
 
       if (networkLease && requestPolicy) requestPolicy.cacheBypass = true;
       if (networkLease && requestPolicy) { Object.freeze(requestPolicy.headers); Object.freeze(requestPolicy); }
-      const prepared = Object.freeze({ networkLease, url, credentials, requestPolicy, compiledHeaderPolicy: policy, historicalAuthenticationHeaderNames });
+      const prepared = Object.freeze({ ...(securityProofBound ? { securityProofBound: true as const } : {}),
+        networkLease, url, credentials, requestPolicy, compiledHeaderPolicy: policy, historicalAuthenticationHeaderNames });
       keepCancellation = Boolean(networkLease);
       this.preparations.set(prepared, { detach, request: req, route: this.preparationRoute(resolvedRoute), url: url.href, resolver: this.upstreamCredentialResolver, used: false });
       return prepared;

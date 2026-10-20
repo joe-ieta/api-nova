@@ -28,6 +28,8 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
   private readonly healthCheckRetentionDays: number;
   private readonly healthCheckPersistIntervalMs: number;
   private readonly lastHealthCheckPersistedAt = new Map<string, number>();
+  private readonly pendingHealthStarts = new Map<string, symbol>();
+  private readonly activeHealthChecks = new Set<Promise<HealthCheckResult>>();
   private isShuttingDown = false;
 
   constructor(
@@ -72,6 +74,8 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
       this.logger.log(`Cleared health check interval for server ${serverId}`);
     }
     this.healthCheckIntervals.clear();
+    this.pendingHealthStarts.clear();
+    await Promise.allSettled([...this.activeHealthChecks]);
   }
 
   /**
@@ -96,6 +100,7 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
    * 开始健康检查
    */
   async startHealthCheck(serverId: string): Promise<void> {
+    if (this.isShuttingDown || this.pendingHealthStarts.has(serverId)) return;
     this.config.healthCheckInterval = this.appConfigService.healthCheckInterval;
     this.config.healthCheckTimeout = this.appConfigService.healthCheckTimeout;
     if (this.healthCheckIntervals.has(serverId)) {
@@ -105,29 +110,38 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
 
     this.logger.log(`Starting health check for server ${serverId}`);
 
-    // 立即执行一次健康检查
-    const initialResult = await this.performHealthCheck(serverId);
-    if (!this.shouldKeepHealthCheckRunning(initialResult)) {
-      this.logger.warn(
-        `Skipping recurring health checks for server ${serverId} because the process is unavailable`,
-      );
-      return;
-    }
-
-    // 设置定期健康检查
-    const interval = setInterval(async () => {
-      if (!this.isShuttingDown) {
-        await this.performHealthCheck(serverId);
+    // A stop/shutdown while the initial HTTP request is pending wins over its
+    // late result. Also fence two simultaneous starts for the same generation.
+    const pending = Symbol(serverId);
+    this.pendingHealthStarts.set(serverId, pending);
+    try {
+      const initialResult = await this.performHealthCheck(serverId);
+      if (this.isShuttingDown || this.pendingHealthStarts.get(serverId) !== pending) return;
+      if (!this.shouldKeepHealthCheckRunning(initialResult)) {
+        this.logger.warn(
+          `Skipping recurring health checks for server ${serverId} because the process is unavailable`,
+        );
+        return;
       }
-    }, this.config.healthCheckInterval);
 
-    this.healthCheckIntervals.set(serverId, interval);
+      // 设置定期健康检查
+      const interval = setInterval(async () => {
+        if (!this.isShuttingDown) {
+          await this.performHealthCheck(serverId);
+        }
+      }, this.config.healthCheckInterval);
+
+      this.healthCheckIntervals.set(serverId, interval);
+    } finally {
+      if (this.pendingHealthStarts.get(serverId) === pending) this.pendingHealthStarts.delete(serverId);
+    }
   }
 
   /**
    * 停止健康检查
    */
   stopHealthCheck(serverId: string): void {
+    this.pendingHealthStarts.delete(serverId);
     const interval = this.healthCheckIntervals.get(serverId);
     if (interval) {
       clearInterval(interval);
@@ -139,7 +153,14 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
   /**
    * 执行健康检查
    */
-  async performHealthCheck(serverId: string): Promise<HealthCheckResult> {
+  performHealthCheck(serverId: string): Promise<HealthCheckResult> {
+    const check = this.performHealthCheckInternal(serverId);
+    this.activeHealthChecks.add(check);
+    void check.finally(() => this.activeHealthChecks.delete(check)).catch(() => undefined);
+    return check;
+  }
+
+  private async performHealthCheckInternal(serverId: string): Promise<HealthCheckResult> {
     this.config.healthCheckTimeout = this.appConfigService.healthCheckTimeout;
     const startTime = Date.now();
     let result: HealthCheckResult;
@@ -204,6 +225,8 @@ export class ProcessHealthService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
+    // Shutdown drains in-flight checks without emitting late recovery work.
+    if (this.isShuttingDown) return result;
     // 保存健康检查结果
     await this.saveHealthCheckResult(serverId, result);
 

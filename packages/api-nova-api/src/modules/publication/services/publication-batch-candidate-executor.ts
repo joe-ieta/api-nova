@@ -1,7 +1,7 @@
 import type { DataSource } from 'typeorm';
 import type { SecurityProof } from '../security/upstream-security-proof-authority';
 import type { PublicationPreviewAuthorization, PublicationPreviewSelector } from './publication-security-preview-adapter';
-import { PublicationMemberTransactionWriter, PublicationMemberAfterCommitError, type PublicationMemberCommitResult } from './publication-member-transaction-writer';
+import { PublicationMemberTransactionWriter, PublicationMemberAfterCommitError, type PublicationMemberCommitResult, type PublicationMemberValidationContext } from './publication-member-transaction-writer';
 export interface FreshPublicationCapability { proof: SecurityProof; evidenceId: string; contextVersion: string }
 export interface PublicationBatchDependencies {
   database: DataSource;
@@ -10,6 +10,10 @@ export interface PublicationBatchDependencies {
   authorization: PublicationPreviewAuthorization;
   /** Actual G2 currently returns canPublish:false, which this executor must preserve. */
   readiness: { readiness(session: unknown, selector: PublicationPreviewSelector, proof: SecurityProof): Promise<{ readonly canPublish: boolean; readonly proofCurrent: boolean }> };
+  /** Required before writes: host binds this exact evidence to the proof and rereads
+   * ownership/context using context.manager. Absence stays closed pending production authority. */
+  validateTransaction?(session: unknown, selector: PublicationPreviewSelector, capability: Readonly<FreshPublicationCapability>,
+    context: PublicationMemberValidationContext): Promise<string>;
   afterCommit?(result: Readonly<PublicationMemberCommitResult>): Promise<void>;
   audit?(item: Readonly<PublicationBatchItem>): Promise<void>;
 }
@@ -51,9 +55,14 @@ export function createPublicationBatchCandidateExecutor(dependencies: Publicatio
           const raw = await dependencies.fresh(session, selector);
           const capability = Object.freeze({ proof: raw.proof, evidenceId: raw.evidenceId, contextVersion: raw.contextVersion });
           await ready(session, selector, capability);
+          const validateTransaction = dependencies.validateTransaction;
+          if (!validateTransaction) throw Error('publication_member_rejected');
           const writer = new PublicationMemberTransactionWriter(dependencies.database, async context => {
             if (context.membershipId !== selector.runtimeMembershipId || context.runtimeAssetId !== selector.runtimeAssetId || context.evidence.id !== capability.evidenceId) throw Error('publication_member_rejected');
-            await current(session, selector, capability); return capability.contextVersion;
+            await current(session, selector, capability);
+            const version = await validateTransaction(session, selector, capability, context);
+            if (version !== capability.contextVersion) throw Error('publication_member_rejected');
+            return version;
           });
           const ticket = await writer.prepare({ membershipId: selector.runtimeMembershipId, evidenceId: capability.evidenceId });
           await ready(session, selector, capability);

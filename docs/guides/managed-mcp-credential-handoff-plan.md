@@ -1,11 +1,11 @@
 ---
-doc-version: 0.4.0
+doc-version: 0.6.0
 doc-status: reviewed-slice
-doc-updated: 2026-09-21
+doc-updated: 2026-10-20
 ---
 # 托管 MCP 凭据交付设计与验收契约
 
-SEC-E1-01 为草案交付；SEC-E1-01R 已完成代码链技术审查。第2–8节保留当时的总体设计与建议，第9节记录02A技术冻结；已完成02A/B1/B2的实际范围、后续边界以第10节和[统一子任务台账](./active-work-package-execution-status.md)为准。本文不表示整个方案获产品批准或受管生命周期已接入。关联 TP-E1/C4、F3；OAuth2、协议升级和完整 SSRF 不在本切片内。
+SEC-E1-01 为草案交付；SEC-E1-01R 已完成代码链技术审查。第2–8节保留当时的总体设计与建议，第9节记录02A技术冻结，第10–11节为历史证据。2026-10-20生命周期接线与本机收口进展见第12–13节；当前调度以[统一开发状态](./unified-development-status.md)为准，原子任务台账已冻结。本文不表示整个方案或生产部署验收完成。关联 TP-E1/C4、F3；OAuth2、协议升级和完整 SSRF 不在本切片内。
 
 ## 1. 已核对的实际调用链
 
@@ -246,3 +246,17 @@ SEC-E1-02C1的本地未验收生命周期接线草稿已撤回；自动审批要
 持久private_api_key映射实验运行时api_key；准备阶段双次数据库快照和受控环境模式一致性检查，交付包携带必填inboundAuthMode，child监听前核对，父端READY对照捕获模式。缺失/未知以及暂不支持的private_jwt、anonymous明确拒绝。未发布实验性v1严格新增字段，旧无字段包拒绝，不默认api_key。
 
 API父端/SQL.js/真实IPC46/46，真实child Streamable与SSE正例和监听前负例13/13通过；Server构建、API类型检查通过。READY证据只属于实验性handle，现行CLI effective仍unknown；不接生产生命周期、不宣称支持JWT/匿名受管运行时。详见[本批证据](../audits/2026-09-21-managed-inbound-mode-evidence.md)。
+
+## 12. 已授权生命周期接线进展（2026-10-20）
+
+用户批准统一计划并要求继续开发后，原02C1/02C2归入NP-20；第10节的历史审批阻塞不再是当前阻塞。持久`trusted_ipc_v1`记录现在通过ServerManager、ServerLifecycle、ProcessManager接B1/B2，缺省和旧模式不自动迁移。READY前不投影RUNNING，重启重新准备，进程投影不包含env/argv/handoff，停止覆盖预检和READY等待窗口。
+
+本机SQL.js与真实产品child生命周期24项、既有通道/准备47项通过，含真实崩溃自动恢复和新代健康检查续接；详见[并行验收](../audits/2026-10-20-parallel-runtime-delivery.md)。健康检查仍用替身，超时强杀仅在受控通道验证，完整Nest关停及真实超时联动待补证，故NP-20保持IN_PROGRESS。单跳业务上游、运行中更新撤销、PG/Linux和生产部署没有因此完成，仍按NP-21/22及后续环境包推进。
+
+## 13. 生命周期本机出口完成（2026-10-20）
+
+本批补齐完整Nest容器关闭、真实HTTP健康检查及停止竞态、排队/执行中的自动恢复取消、预检取消，以及真实30秒握手超时和5秒强制终止。生命周期32/32、既有通道/准备47/47通过；最终API全量140套1630项通过。详见[依赖、生命周期与授权并行验收](../audits/2026-10-20-security-lifecycle-authority-batch.md)。
+
+正常路径使用真实产品child；超时路径仅由测试局部加载器替换为真实故障child，以真实时钟验证强杀及资源收回，没有增加生产测试入口、环境开关或HTTP绕行。关停后核对数据库、进程投影、健康/恢复计时器、事件监听、stdio/IPC和PID，无迟到RUNNING，测试自然退出。
+
+第12节所述C1/C2本机剩余出口现已补齐，NP-20记DONE，NP-21进入READY。该结论不关闭E1父包：真实业务上游矩阵、运行中更新撤销、PostgreSQL/Linux与目标部署仍由后续工作包承接。

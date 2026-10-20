@@ -91,6 +91,13 @@ export function createUpstreamAuthenticationChallengeOrchestrator(options: {
       } finally { if (scope) active.delete(scope); }
     },
     hasProof(proof: SecurityProof): boolean { const result = proofResults.get(proof); return Boolean(result && results.has(result)); },
+    /** Match a transaction-local row to this issuer's original durable evidence.
+     * A matching row alone is never sufficient: consumers must also authorizeProof. */
+    matchesEvidence(proof: SecurityProof, row: Evidence): boolean {
+      const result = proofResults.get(proof), tracked = result && results.get(result);
+      return Boolean(tracked && row && row.id === result!.evidenceId && !row.revokedAt &&
+        Date.now() < +row.expiresAt && evidenceFingerprint(row) === tracked.evidenceFingerprint);
+    },
     async authorizeProof(proof: SecurityProof, expected: TrustedProofBindingContext): Promise<boolean> {
       const result = proofResults.get(proof), tracked = result && results.get(result);
       if (!result || !tracked) return false;

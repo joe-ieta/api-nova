@@ -1,4 +1,6 @@
-import { createHash } from 'node:crypto';
+import { GatewayNetworkBootstrap } from './gateway-network-bootstrap';
+import { GATEWAY_UPSTREAM_CREDENTIAL_CONFIG, GATEWAY_HEADER_HISTORY_NAMESPACE, GATEWAY_HEADER_HISTORY_PROVENANCE } from './gateway-upstream-credential.config';
+export { GATEWAY_UPSTREAM_CREDENTIAL_CONFIG, GATEWAY_HEADER_HISTORY_NAMESPACE, GATEWAY_HEADER_HISTORY_PROVENANCE } from './gateway-upstream-credential.config';
 import { GatewayHeaderHistoryLedgerService } from '../../../database/gateway-header-history-ledger.service';
 import { DataSource } from 'typeorm';
 import { validateGatewayCredentialOwnership } from './gateway-upstream-credential-ownership';
@@ -13,18 +15,6 @@ import {
 
 export const GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY =
   Symbol('GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY');
-
-export const GATEWAY_UPSTREAM_CREDENTIAL_CONFIG = Object.freeze({
-  file: 'API_NOVA_UPSTREAM_CREDENTIAL_FILE',
-  reloadMode: 'API_NOVA_UPSTREAM_CREDENTIAL_RELOAD_MODE',
-  format: 'API_NOVA_UPSTREAM_CREDENTIAL_FORMAT',
-  environment: 'API_NOVA_UPSTREAM_CREDENTIAL_ENVIRONMENT',
-});
-
-/** One host-owned Registry role per database. Never partition by mutable candidate or file path. */
-export const GATEWAY_HEADER_HISTORY_NAMESPACE = 'gateway:upstream-credential-registry:v1';
-export const GATEWAY_HEADER_HISTORY_PROVENANCE = createHash('sha256')
-  .update('api-nova:gateway:database-owned-upstream-credential-registry:v1').digest('hex');
 
 /**
  * Opt-in durable activation. Nest awaits this factory before constructing
@@ -73,14 +63,16 @@ export async function createConfiguredGatewayCredentialRegistry(
 export const gatewayUpstreamCredentialRegistryProvider:
 FactoryProvider<UpstreamCredentialRegistry | null> = {
   provide: GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY,
-  inject: [ConfigService, DataSource],
-  useFactory: createConfiguredGatewayCredentialRegistry,
+  inject: [ConfigService, DataSource, { token: GatewayNetworkBootstrap, optional: true }],
+  useFactory: (config: ConfigService, database: DataSource, bootstrap?: GatewayNetworkBootstrap) =>
+    bootstrap?.hostMode ? null : createConfiguredGatewayCredentialRegistry(config, database),
 };
 
 export const gatewayUpstreamCredentialResolverProvider:
 FactoryProvider<GatewayUpstreamCredentialResolver | null> = {
   provide: GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER,
-  inject: [GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY],
-  useFactory: (registry: UpstreamCredentialRegistry | null) =>
-    registry ? createGatewayUpstreamCredentialResolver(() => registry.captureSnapshot(), { enableHeaderPolicy: true, requirePersistedV1: true }) : null,
+  inject: [GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY, { token: GatewayNetworkBootstrap, optional: true }],
+  useFactory: (registry: UpstreamCredentialRegistry | null, bootstrap?: GatewayNetworkBootstrap) =>
+    bootstrap?.hostMode ? bootstrap.credentialResolver
+      : registry ? createGatewayUpstreamCredentialResolver(() => registry.captureSnapshot(), { enableHeaderPolicy: true, requirePersistedV1: true }) : null,
 };

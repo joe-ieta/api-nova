@@ -16,9 +16,11 @@ import { SecurityModule } from '../security/security.module';
 import { PublicationController } from './publication.controller';
 import { PublicationService } from './services/publication.service';
 import { RuntimeUpstreamBindingsModule } from '../runtime-upstream-bindings/runtime-upstream-bindings.module';
+import { PublicationAuthorityModule } from './security/publication-authority.module';
 
 @Module({
   imports: [
+    PublicationAuthorityModule,
     GatewayRuntimeModule,
     TypeOrmModule.forFeature([
       EndpointDefinitionEntity,

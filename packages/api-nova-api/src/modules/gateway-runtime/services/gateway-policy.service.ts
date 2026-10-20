@@ -1,4 +1,5 @@
 import { UpstreamCredentialRegistry } from 'api-nova-parser';
+import { GatewayNetworkBootstrap } from './gateway-network-bootstrap';
 import { GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY } from './gateway-upstream-credential.providers';
 import { requireGatewayRegistryHeaderV1 } from './gateway-header-v1-readiness';
 import { assertGatewayHeaderPolicyReady } from './gateway-header-policy';
@@ -12,9 +13,14 @@ import {
 
 @Injectable()
 export class GatewayPolicyService {
-  constructor(@Optional() @Inject(GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY) private readonly registry?: UpstreamCredentialRegistry | null) {}
+  constructor(
+    @Optional() @Inject(GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY) private readonly registry?: UpstreamCredentialRegistry | null,
+    @Optional() private readonly networkBootstrap?: GatewayNetworkBootstrap,
+  ) {}
   assertHeaderV1Ready(route: GatewayRouteBindingEntity): string {
-    const snapshot = this.registry?.captureSnapshot();
+    const snapshot = this.networkBootstrap?.hostMode
+      ? this.networkBootstrap.captureSnapshot()
+      : this.registry?.captureSnapshot();
     const policy = requireGatewayRegistryHeaderV1(route, snapshot);
     return JSON.stringify([snapshot!.generation, snapshot!.candidate.metadata.revision, policy.identity]);
   }

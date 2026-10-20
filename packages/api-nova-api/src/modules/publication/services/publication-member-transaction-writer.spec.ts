@@ -55,6 +55,39 @@ describe('independent single-member transaction writer (not production registere
     expect(await snapshot()).toEqual(before);
     expect((await db.getRepository(Evidence).findOneByOrFail({ id: ids.evidenceId })).revokedAt).toBeNull();
   });
+  it.each(['profile', 'binding', 'route', 'runtime', 'membership'])('rejects %s drift across the final authority await and restores the previous publication', async kind => {
+    await writer.commit(await writer.prepare(ids));
+    const before = await snapshot(), ticket = await writer.prepare(ids);
+    validate.mockResolvedValueOnce('trusted-context-version').mockImplementationOnce(async context => {
+      expect(context.manager.queryRunner.isTransactionActive).toBe(true);
+      if (kind === 'profile') await context.manager.update(Profile, { runtimeAssetEndpointBindingId: 'member' }, { descriptionForLlm: 'changed' });
+      if (kind === 'binding') await context.manager.update(Binding, { runtimeAssetEndpointBindingId: 'member' }, { publishedToHttp: false });
+      if (kind === 'route') await context.manager.update(Route, 'route', { upstreamPath: '/changed' });
+      if (kind === 'runtime') await context.manager.update(Runtime, 'runtime', { name: 'changed' });
+      if (kind === 'membership') await context.manager.update(Membership, 'member', { bindingConfig: { changed: true } });
+      return 'trusted-context-version';
+    });
+    await expect(writer.commit(ticket)).rejects.toThrow('publication_transaction_context_changed');
+    expect(await snapshot()).toEqual(before);
+  });
+  it('rejects mutation during the pre-write authority await before overwriting any row', async () => {
+    const before = await snapshot(), ticket = await writer.prepare(ids);
+    validate.mockImplementationOnce(async context => {
+      await context.manager.update(Route, 'route', { upstreamPath: '/changed' });
+      return 'trusted-context-version';
+    });
+    await expect(writer.commit(ticket)).rejects.toThrow('publication_transaction_context_changed');
+    expect(await snapshot()).toEqual(before);
+  });
+  it('rejects a database hook changing route configuration during writes and preserves the old version', async () => {
+    await writer.commit(await writer.prepare(ids));
+    // Advance the publication time so the second route save emits an UPDATE.
+    writer = new Writer(db, validate, () => new Date(now.getTime() + 1000));
+    const before = await snapshot(), ticket = await writer.prepare(ids);
+    await db.query("CREATE TRIGGER change_route AFTER UPDATE ON gateway_route_bindings BEGIN UPDATE gateway_route_bindings SET upstreamPath='/changed' WHERE id='route'; END");
+    await expect(writer.commit(ticket)).rejects.toThrow('publication_transaction_context_changed');
+    expect(await snapshot()).toEqual(before);
+  });
   it('rolls back a mid-write database failure including the membership revision claim', async () => {
     const ticket = await writer.prepare(ids), before = await snapshot(), hook = jest.fn();
     await db.query(`CREATE TRIGGER reject_publish BEFORE INSERT ON endpoint_publish_bindings BEGIN SELECT RAISE(ABORT, 'fixture failure'); END`);

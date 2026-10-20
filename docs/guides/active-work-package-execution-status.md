@@ -1,9 +1,11 @@
 ---
-doc-version: 1.147.0
-doc-status: active
-doc-updated: 2026-09-24
+doc-version: 1.148.0
+doc-status: deprecated
+doc-updated: 2026-10-20
 ---
 # 活跃子任务执行状态
+
+> 2026-10-20：本页冻结为 `2f49534` 的209条迁移快照，保留原始证据与当时状态。当前调度改由[统一开发状态](./unified-development-status.md)维护；全部旧任务归属见[新工作包映射](./unified-work-packages.md)。下文“当前/下一步”均为历史口径，不再新增执行记录。
 
 D2b3c2 限定 DONE：5份源码/测试文件完成私有品牌 host 与同一真实 issuer、固定 Snapshot/source/epoch 的一次性 consumeProof；协调器只接受 exact committed catalog、route 真对象与当前版本，逐 route 核对编译 policy 和 Registry Site 的 source/endpoint/origin。reload/removed、issuer/generation 终态先同步失效再 abort，不复用旧 proof；proof/策略到期关闭、clone/跨 source/epoch/错误 origin 拒绝。专项2 suites/20 tests、Gateway48 suites/707 tests、API build、diff-check通过；隔离PG41 warm+4 cold检查组（本叶新增27组）通过，schema零漂移且集群已停止/清理。SQL.js boot仍拒绝，仅以真实SQL.js路由负例验收；PG正向使用真实已迁移数据库，首次混用enum夹具和异步deployed等待失败均已修正为明确reload完成事件后复验。D2b3d拆为d1限定DONE/d2a IN_PROGRESS/d2b WAIT_DEP；生产DI/default-on、旧watch/admin、网络发送或外部目标部署未交付。
 

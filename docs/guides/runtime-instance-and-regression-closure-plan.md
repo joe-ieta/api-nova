@@ -1,6 +1,7 @@
 # Runtime Instance And Regression Closure Development Plan
 
-> Document status: Active
+> Document status: Approved scope contract; scheduling superseded
+> 2026-10-20: WP00–90 remains the original scope and evidence baseline. All subsequent scheduling uses the [unified packages](./unified-work-packages.md) and [single status ledger](./unified-development-status.md). Historical implementation and environment counts below are not current release acceptance.
 > Last reviewed: 2026-09-08 (governance and sample-retention amendment; earlier work-package evidence remains dated)
 
 

@@ -2,6 +2,8 @@ import { TelemetryModeMap } from './observability.interface';
 
 // 进程配置接口
 export interface ProcessConfig {
+  /** Non-secret restart descriptor. Never carries a handoff, environment or child. */
+  managedLaunch?: { mode: 'trusted_ipc_v1'; runtimeAssetId: string; autoRestart?: boolean };
   id: string; // 改名为id以保持一致性
   name: string; // 改名为name以保持一致性
   scriptPath: string; // CLI可执行文件路径

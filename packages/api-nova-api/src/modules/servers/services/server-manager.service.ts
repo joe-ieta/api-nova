@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, ConflictException, BadRequestException, OnModuleInit, OnApplicationShutdown } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ConflictException, BadRequestException, OnModuleInit, OnModuleDestroy, OnApplicationShutdown } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -10,6 +10,7 @@ import { ServerLifecycleService } from './server-lifecycle.service';
 import { ProcessManagerService } from './process-manager.service';
 import { ProcessHealthService } from './process-health.service';
 import { ProcessErrorHandlerService } from './process-error-handler.service';
+import { usesTrustedMcp, TRUSTED_MCP_MODE, MANAGED_START_CANCELLED, MANAGED_LIFECYCLE_REJECTED } from './managed-mcp-mode';
 import { CreateServerDto, UpdateServerDto, ServerQueryDto, ServerResponseDto, PaginatedResponseDto } from '../dto/server.dto';
 import { ServerMapper } from '../utils/server-mapper.util';
 import { DocumentsService } from '../../documents/services/documents.service';
@@ -32,10 +33,14 @@ export interface ServerInstance {
 }
 
 @Injectable()
-export class ServerManagerService implements OnModuleInit, OnApplicationShutdown {
+export class ServerManagerService implements OnModuleInit, OnModuleDestroy, OnApplicationShutdown {
   private readonly logger = new Logger(ServerManagerService.name);
   private readonly serverInstances = new Map<string, ServerInstance>();
   private readonly startingServers = new Set<string>(); // 启动锁机制
+  private readonly trustedStarts = new Map<string, AbortController>();
+  private readonly trustedStartCompletions = new Map<string, Promise<void>>();
+  private shuttingDown = false;
+  private readonly processListeners: Array<{ name: string; listener: (...args: any[]) => void }> = [];
   
   // 防止并发初始化的锁机制
   private static initializationLock = false;
@@ -61,28 +66,32 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
    * 设置进程事件监听器
    */
   private setupProcessEventListeners(): void {
+    const listen = (name: string, listener: (...args: any[]) => void) => {
+      this.processListeners.push({ name, listener });
+      this.eventEmitter.on(name, listener);
+    };
     // 监听进程启动事件
-    this.eventEmitter.on('process.started', async (event: ProcessEvent) => {
+    listen('process.started', async (event: ProcessEvent) => {
       await this.handleProcessStarted(event);
     });
 
     // 监听进程停止事件
-    this.eventEmitter.on('process.stopped', async (event: ProcessEvent) => {
+    listen('process.stopped', async (event: ProcessEvent) => {
       await this.handleProcessStopped(event);
     });
 
     // 监听进程错误事件
-    this.eventEmitter.on('process.error', async (event: ProcessErrorEvent) => {
+    listen('process.error', async (event: ProcessErrorEvent) => {
       await this.handleProcessError(event);
     });
 
     // 监听进程重启事件
-    this.eventEmitter.on('process.restart_success', async (event: ProcessEvent) => {
+    listen('process.restart_success', async (event: ProcessEvent) => {
       await this.handleProcessRestarted(event);
     });
 
     // 监听健康检查失败事件
-    this.eventEmitter.on('process.health_check_failed', async (event: ProcessEvent) => {
+    listen('process.health_check_failed', async (event: ProcessEvent) => {
       await this.handleHealthCheckFailed(event);
     });
   }
@@ -94,6 +103,11 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
     try {
       await this.updateServerStatus(event.processId, ServerStatus.RUNNING);
       await this.logInfo(event.processId, `Process started successfully (PID: ${event.data?.pid})`);
+      if (event.data?.managedMode === TRUSTED_MCP_MODE && this.processManager.isProcessRunning(event.processId)) {
+        const server = await this.serverRepository.findOne({ where: { id: event.processId } });
+        if (server?.config?.healthCheckEnabled !== false)
+          await this.processHealth.startHealthCheck(event.processId);
+      }
     } catch (error) {
       this.logger.error(`Failed to handle process started event for ${event.processId}:`, error);
     }
@@ -104,6 +118,7 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
    */
   private async handleProcessStopped(event: ProcessEvent): Promise<void> {
     try {
+      if (event.data?.managedMode === TRUSTED_MCP_MODE) this.processHealth.stopHealthCheck(event.processId);
       await this.updateServerStatus(event.processId, ServerStatus.STOPPED);
       await this.logInfo(event.processId, 'Process stopped');
     } catch (error) {
@@ -116,8 +131,11 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
    */
   private async handleProcessError(event: ProcessErrorEvent): Promise<void> {
     try {
+      if (event.context?.managedMode === TRUSTED_MCP_MODE) this.processHealth.stopHealthCheck(event.processId);
       await this.updateServerStatus(event.processId, ServerStatus.ERROR);
       await this.logError(event.processId, `Process error: ${event.errorType}`, event.error);
+      if (event.context?.managedMode === TRUSTED_MCP_MODE)
+        await this.processErrorHandler.handleProcessError(event);
     } catch (error) {
       this.logger.error(`Failed to handle process error event for ${event.processId}:`, error);
     }
@@ -128,6 +146,8 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
    */
   private async handleProcessRestarted(event: ProcessEvent): Promise<void> {
     try {
+      // Managed recovery is already projected by the READY-gated process.started.
+      if (event.data?.managedMode === TRUSTED_MCP_MODE) return;
       await this.updateServerStatus(event.processId, ServerStatus.RUNNING);
       await this.logInfo(event.processId, `Process restarted successfully (attempt ${event.data?.attemptNumber})`);
     } catch (error) {
@@ -611,7 +631,9 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
     id: string,
     verifiedRuntimeAsset?: { runtimeAssetId: string; candidateRevision: string },
   ): Promise<void> {
+    if (this.shuttingDown) throw new Error(MANAGED_LIFECYCLE_REJECTED);
     const server = await this.getServerEntityById(id);
+    if (this.shuttingDown) throw new Error(MANAGED_LIFECYCLE_REJECTED);
     this.assertVerifiedRuntimeAssetControl(server, verifiedRuntimeAsset);
     
     // 检查启动锁
@@ -627,21 +649,38 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
       throw new ConflictException('Server is already starting');
     }
 
-    await this.lifecycleService.preflightInboundAuth(server);
-
-    // 检查端口是否真正可用
-    const isPortAvailable = await this.lifecycleService.isPortAvailable(server.port);
-    if (!isPortAvailable) {
-      throw new ConflictException(`Port ${server.port} is not available`);
+    const trustedStart = usesTrustedMcp(server) ? new AbortController() : undefined;
+    let completeTrustedStart: (() => void) | undefined;
+    if (trustedStart) {
+      // Reserve cancellation before the first asynchronous preflight. Until now
+      // a stop during that read saw STOPPED and could not cancel the later spawn.
+      this.trustedStarts.set(id, trustedStart);
+      this.startingServers.add(id);
+      this.trustedStartCompletions.set(id, new Promise<void>(resolve => { completeTrustedStart = resolve; }));
     }
+    let enteredStarting = false;
+    let ownsStartLock = !!trustedStart;
 
-    // 添加到启动锁
-    this.startingServers.add(id);
-
-    await this.updateServerStatus(id, ServerStatus.STARTING);
-    
     try {
-      const instance = await this.lifecycleService.startServer(server);
+      await this.lifecycleService.preflightInboundAuth(server);
+      if (trustedStart?.signal.aborted) throw new Error(MANAGED_START_CANCELLED);
+
+      // 检查端口是否真正可用
+      const isPortAvailable = await this.lifecycleService.isPortAvailable(server.port);
+      if (trustedStart?.signal.aborted) throw new Error(MANAGED_START_CANCELLED);
+      if (!isPortAvailable) {
+        throw new ConflictException(`Port ${server.port} is not available`);
+      }
+
+      this.startingServers.add(id);
+      ownsStartLock = true;
+      enteredStarting = true;
+      await this.updateServerStatus(id, ServerStatus.STARTING);
+      const instance = trustedStart
+        ? await this.lifecycleService.startServer(server, trustedStart.signal)
+        : await this.lifecycleService.startServer(server);
+      if (trustedStart && (trustedStart.signal.aborted || !this.processManager.isProcessRunning(id)))
+        throw new Error(trustedStart.signal.aborted ? MANAGED_START_CANCELLED : MANAGED_LIFECYCLE_REJECTED);
       
       // 更新内存中的实例
       const currentInstance = this.serverInstances.get(id);
@@ -655,7 +694,13 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
         lastActivity: new Date(),
       });
 
-      await this.updateServerStatus(id, ServerStatus.RUNNING, instance.endpoint);
+      if (trustedStart) {
+        // The awaited READY event already projected RUNNING. Do not resurrect a
+        // child that exited while lifecycle logging/health checks were pending.
+        await this.serverRepository.update(id, { endpoint: instance.endpoint });
+      } else {
+        await this.updateServerStatus(id, ServerStatus.RUNNING, instance.endpoint);
+      }
       await this.logInfo(id, `Server '${server.name}' started successfully on ${instance.endpoint}`);
       
       // 记录系统日志
@@ -682,6 +727,12 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
         endpoint: instance.endpoint,
       });
     } catch (error) {
+      if (trustedStart?.signal.aborted || error.message === MANAGED_START_CANCELLED) {
+        await this.updateServerStatus(id, ServerStatus.STOPPED);
+        throw new Error(MANAGED_START_CANCELLED);
+      }
+      // Preflight failures never changed persistent state on the legacy path.
+      if (!enteredStarting) throw error;
       await this.updateServerStatus(id, ServerStatus.ERROR, undefined, error.message);
       await this.logError(id, `Failed to start server '${server.name}'`, error);
       
@@ -706,7 +757,12 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
       throw error;
     } finally {
       // 从启动锁中移除
-      this.startingServers.delete(id);
+      if (ownsStartLock) this.startingServers.delete(id);
+      if (trustedStart && this.trustedStarts.get(id) === trustedStart) this.trustedStarts.delete(id);
+      if (trustedStart) {
+        this.trustedStartCompletions.delete(id);
+        completeTrustedStart?.();
+      }
     }
   }
 
@@ -714,6 +770,9 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
    * 停止服务器
    */
   async stopServer(id: string): Promise<void> {
+    const trustedStart = this.trustedStarts.get(id);
+    trustedStart?.abort();
+    this.processErrorHandler.cancelRestart?.(id);
     this.logger.log(`🛑 [DEBUG] stopServer called for ID: ${id}`);
     
     // 先调用调试方法查看当前状态
@@ -723,6 +782,7 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
     this.logger.log(`🛑 [DEBUG] Found server in database: ${server.name} - Status: ${server.status}`);
     
     if (server.status === ServerStatus.STOPPED) {
+      if (trustedStart) return; // Cancelled the reserved preflight; no child yet.
       this.logger.warn(`🛑 [DEBUG] Server ${server.name} is already stopped`);
       throw new ConflictException('Server is already stopped');
     }
@@ -736,7 +796,7 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
     await this.updateServerStatus(id, ServerStatus.STOPPING);
     
     try {
-      const instance = this.serverInstances.get(id);
+      const instance = this.serverInstances.get(id) || (usesTrustedMcp(server) ? { id, entity: server } : undefined);
       if (instance && !instance.entity) {
         instance.entity = server;
       }
@@ -972,7 +1032,7 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
         status,
         endpoint,
         errorMessage,
-        healthy: status === ServerStatus.RUNNING,
+        healthy: status === ServerStatus.RUNNING && !usesTrustedMcp(currentServer),
         lastHealthCheck: new Date(),
         metrics: updatedMetrics,
       });
@@ -996,7 +1056,7 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
         instance.entity.status = status;
         instance.entity.endpoint = endpoint;
         instance.entity.errorMessage = errorMessage;
-        instance.entity.healthy = status === ServerStatus.RUNNING;
+        instance.entity.healthy = status === ServerStatus.RUNNING && !usesTrustedMcp(currentServer);
         instance.entity.lastHealthCheck = new Date();
         instance.entity.metrics = updatedMetrics;
         this.logger.log(`💾 [DEBUG] Memory instance updated for server ${id}`);
@@ -1065,6 +1125,14 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
   /**
    * 应用关闭时调用，停止所有运行中的服务器
    */
+  async onModuleDestroy(): Promise<void> {
+    // Cancel preflight as well as READY waits before application-shutdown hooks
+    // and database disposal. No late persisted preparation may spawn a child.
+    this.shuttingDown = true;
+    for (const start of this.trustedStarts.values()) start.abort();
+    await Promise.all([...this.trustedStartCompletions.values()]);
+  }
+
   async onApplicationShutdown(signal?: string): Promise<void> {
     this.logger.log(`Application shutdown initiated with signal: ${signal || 'unknown'}`);
     
@@ -1126,6 +1194,8 @@ export class ServerManagerService implements OnModuleInit, OnApplicationShutdown
     } finally {
       // 重置初始化锁状态，允许下次启动时重新初始化
       ServerManagerService.initializationLock = false;
+      for (const { name, listener } of this.processListeners) this.eventEmitter.removeListener(name, listener);
+      this.processListeners.length = 0;
       this.logger.log('Reset initialization lock state');
     }
   }

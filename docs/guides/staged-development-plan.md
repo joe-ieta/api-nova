@@ -1,9 +1,11 @@
 ---
-doc-version: 1.1.0
+doc-version: 1.2.0
 doc-status: active
-doc-updated: 2026-09-15
+doc-updated: 2026-10-20
 ---
 # Staged Development Plan
+
+> 2026-10-20：Phase1/2保持已交接；Phase3的后续执行按[统一开发计划](./unified-development-plan.md)、[工作包](./unified-work-packages.md)与[唯一状态台账](./unified-development-status.md)推进。原阶段边界继续有效。
 
 > Document status: Active
 > Last reviewed: 2026-07-22

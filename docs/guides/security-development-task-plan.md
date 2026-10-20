@@ -1,11 +1,12 @@
 ---
-doc-version: 1.94.0
+doc-version: 1.95.0
 doc-status: active
-doc-updated: 2026-09-24
+doc-updated: 2026-10-20
 ---
 # ApiNova 安全开发任务规划
 
-> Document status: Approved, active execution
+> Document status: Approved scope contract; scheduling superseded
+> 2026-10-20：原需求和退出条件保留，执行队列统一迁入[新工作包](./unified-work-packages.md)和[新状态台账](./unified-development-status.md)。下文的旧实现摘要仅供追溯，不再独立调度或更新状态。
 > Last reviewed: 2026-09-14
 > Scope: 完善现有安全方案；OAuth2 保留为后续产品能力，当前里程碑不开发、不启用
 > Implementation status: 已按当前实现复核；区分基础实现、未闭环条件和待验证开发。执行状态与证据见 [安全开发执行与状态记录](./security-development-execution-status.md)

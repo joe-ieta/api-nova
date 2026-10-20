@@ -5,7 +5,7 @@ import { GatewayHeaderHistoryLedgerService } from '../../../database/gateway-hea
 import { SourceServiceAssetEntity } from '../../../database/entities/source-service-asset.entity';
 import { EndpointDefinitionEntity } from '../../../database/entities/endpoint-definition.entity';
 import { validateGatewayCredentialOwnership } from './gateway-upstream-credential-ownership';
-import { GATEWAY_HEADER_HISTORY_NAMESPACE, GATEWAY_HEADER_HISTORY_PROVENANCE } from './gateway-upstream-credential.providers';
+import { GATEWAY_HEADER_HISTORY_NAMESPACE, GATEWAY_HEADER_HISTORY_PROVENANCE } from './gateway-upstream-credential.config';
 import { consumeGatewayHostCredentialGenerationIssuer, resolveGatewayHostCredentialGenerationCapability, type GatewayHostCredentialGenerationCapability } from './gateway-host-credential-generation.capability';
 
 export interface GatewayHostCandidateAttestation { readonly kind: 'gateway-host-candidate-attestation' }
