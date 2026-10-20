@@ -10,7 +10,8 @@ const http = require('node:http');
 const { spawn, spawnSync } = require('node:child_process');
 const { randomBytes, createHash } = require('node:crypto');
 const root = path.resolve(__dirname, '..');
-const importScenario = process.argv.includes('--import') || process.argv.includes('--import-file');
+const lifecycleScenario = process.argv.includes('--lifecycle');
+const importScenario = lifecycleScenario || process.argv.includes('--import') || process.argv.includes('--import-file');
 const apiDir = path.join(root, 'packages/api-nova-api');
 const apiEntry = path.join(apiDir, 'dist/src/main.js');
 fs.mkdirSync(path.join(root, '.tmp'), { recursive: true });
@@ -73,7 +74,15 @@ async function instances(source) { return (await api('GET', `/v1/assets/source-s
 async function main() {
   const { chromium } = require(process.env.OPS_PLAYWRIGHT_MODULE || 'playwright');
   assert.ok(fs.existsSync(apiEntry), 'Build api-nova-api first');
-  const artifactPaths = [__filename, path.join(__dirname,'ops-browser-import.cjs'), path.join(root,'packages/api-nova-ui/src/modules/openapi/OpenAPIManager.vue'), path.join(__dirname,'ops-browser-scenario.cjs'), path.join(__dirname,'ops-browser-publication.cjs'), path.join(__dirname,'ops-browser-consumption.cjs'), path.join(root,'packages/api-nova-ui/src/modules/endpoint-registry/EndpointRegistry.vue'), path.join(root,'packages/api-nova-ui/src/modules/runtime-assets/RuntimeAssetDetail.vue'), apiEntry,
+  if (lifecycleScenario) {
+    evidence.scenario = 'openapi-no-server-multi-endpoint-migration';
+    evidence.notCovered = evidence.notCovered.filter(x => !['browser unbound import', 'browser migration branches'].includes(x));
+  }
+  const artifactPaths = [__filename, path.join(__dirname,'ops-browser-lifecycle.cjs'), path.join(__dirname,'ops-browser-logs.cjs'), path.join(root,'packages/api-nova-ui/src/services/runtime-logs.ts'), path.join(root,'packages/api-nova-ui/src/modules/logs/LogViewer.vue'), path.join(__dirname,'ops-browser-import.cjs'), path.join(root,'packages/api-nova-ui/src/modules/openapi/OpenAPIManager.vue'), path.join(__dirname,'ops-browser-scenario.cjs'), path.join(__dirname,'ops-browser-publication.cjs'), path.join(__dirname,'ops-browser-consumption.cjs'), path.join(root,'packages/api-nova-ui/src/modules/endpoint-registry/EndpointRegistry.vue'), path.join(root,'packages/api-nova-ui/src/modules/runtime-assets/RuntimeAssetDetail.vue'), apiEntry,
+    path.join(root, 'packages/api-nova-ui/src/modules/endpoint-registry/SourceServiceInstancesDialog.vue'),
+    path.join(root, 'packages/api-nova-ui/src/modules/endpoint-registry/RuntimeUpstreamBindingDialog.vue'),
+    path.join(root, 'packages/api-nova-parser/dist/core/normalizer.js'),
+    path.join(apiDir, 'dist/src/modules/openapi/services/parser.service.js'),
     path.join(apiDir, 'dist/src/modules/asset-catalog/services/asset-catalog.service.js'),
     path.join(apiDir, 'dist/src/modules/gateway-runtime/services/gateway-security.service.js'),
     path.join(apiDir, 'dist/src/modules/gateway-runtime/services/gateway-candidate-replay-authority.js'),
@@ -81,8 +90,8 @@ async function main() {
   evidence.artifacts = artifactPaths.map(file => ({ path: path.relative(root, file), sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex') }));
   try { const d=await require('check-disk-space').default(process.platform==='win32' ? 'C:/' : '/'); evidence.systemDisk={size:d.size,free:d.free,usedRatio:(d.size-d.free)/d.size,requiredFreeBytes:5*1024**3,additionalFreeBytesNeeded:Math.max(0,5*1024**3-d.free)}; } catch(e) {evidence.systemDisk={error:e.message};}
   evidence.workingTree = spawnSync('git', ['status', '--short', '--untracked-files=no'], { cwd: root, encoding: 'utf8', windowsHide: true }).stdout.trim();
-  const a = await upstream('A'); const apiPort = await port(); const mcpPort = await port(); apiBase = `http://127.0.0.1:${apiPort}`;
-  evidence.ports = { api: apiPort, mcp: mcpPort, upstreamA: a.port };
+  const a = await upstream('A'); const b = lifecycleScenario ? await upstream('B') : null; const apiPort = await port(); const mcpPort = await port(); apiBase = `http://127.0.0.1:${apiPort}`;
+  evidence.ports = { api: apiPort, mcp: mcpPort, upstreamA: a.port, ...(b ? { upstreamB: b.port } : {}) };
   const password = `ExtClosure!${randomBytes(18).toString('hex')}`; const jwt = randomBytes(32).toString('hex'); secrets.push(password, jwt);
   const env = { ...process.env }; for (const k of Object.keys(env)) if (/^(API_NOVA_|DB_|SUPER_ADMIN_|JWT_|MAIL_|MCP_)/i.test(k)) delete env[k];
   Object.assign(env, { NODE_ENV: 'test', PORT: String(apiPort), MCP_PORT: String(mcpPort), MCP_SERVER_PORT: String(mcpPort), DB_TYPE: 'sqlite', DB_SQLITE_PATH: dbPath, DB_SYNCHRONIZE: 'false', DB_LOGGING: 'false', JWT_SECRET: jwt, JWT_REFRESH_SECRET: jwt,
@@ -126,7 +135,7 @@ async function main() {
   page.on('pageerror',e=>evidence.browser.pageErrors.push(redact(e.message)));
   page.on('response',async r=>{if(r.url().endsWith('/auth/login')&&r.ok()) {try {const b=await r.json();secrets.push(b.accessToken,b.refreshToken);}catch{}}});
   try {
-    await require('./ops-browser-scenario.cjs')({page,context,uiBase,apiBase,password,username:'extclosureadmin',upstream:a,step,api,request,evidence,workDir,redact,secrets,importScenario,
+    await require('./ops-browser-scenario.cjs')({page,context,uiBase,apiBase,password,username:'extclosureadmin',upstream:a,replacement:b,lifecycleScenario,step,api,request,evidence,workDir,redact,secrets,importScenario,
       managementLogin:async()=>{const r=await api('POST','/auth/login',{username:'extclosureadmin',password},200); token=r.accessToken; secrets.push(token,r.refreshToken);},
       reloadRegistry,instances});
     assert.deepEqual(evidence.browser.pageErrors,[], 'Browser uncaught errors');

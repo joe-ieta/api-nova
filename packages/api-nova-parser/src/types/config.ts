@@ -5,6 +5,8 @@
 import type { ValidationRule } from './input';
 
 export interface ParserConfig {
+  /** Preserve missing/empty servers when importing a catalog document without a runtime binding. */
+  preserveMissingServers?: boolean;
   validateSchema?: boolean;
   resolveReferences?: boolean;
   allowEmptyPaths?: boolean;

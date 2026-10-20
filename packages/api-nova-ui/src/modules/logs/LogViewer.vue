@@ -16,6 +16,7 @@
 
         <el-select
           v-model="selectedLevel"
+          @change="readPage(1)"
           :placeholder="t('logs.logLevel')"
           style="width: 120px"
         >
@@ -44,20 +45,22 @@
 
         <el-button type="danger" plain @click="clearLogs">
           <el-icon><Delete /></el-icon>
-          {{ t("logs.clearLogs") }}
+          {{ t("logs.clearDisplay") }}
         </el-button>
-        <el-button type="primary" plain @click="refreshLogs">
+        <el-button type="primary" plain :loading="state.loading" @click="readPage(state.page)">
           <el-icon><Refresh /></el-icon>
           {{ t("logs.refresh") }}
         </el-button>
       </div>
     </div>
 
-    <div class="log-content">
-      <div v-if="filteredLogs.length === 0" class="empty-logs">
+    <p>{{ t("logs.scope") }}</p>
+    <el-alert v-if="state.error" :title="t(`logs.failures.${state.error}`)" type="error" :closable="false" />
+    <div class="log-content" v-loading="state.loading">
+      <div v-if="!state.error && !state.loading && filteredLogs.length === 0" class="empty-logs">
         <el-empty :description="t('logs.noLogs')" />
       </div>
-      <div v-else class="log-list">
+      <div v-else-if="!state.error" class="log-list">
         <LogEntry
           v-for="log in filteredLogs"
           :key="log.id"
@@ -67,24 +70,32 @@
         />
       </div>
     </div>
+    <div class="log-pagination">
+      <el-button :disabled="state.loading || !state.hasPrev" @click="readPage(state.page - 1)">{{ t("logs.previous") }}</el-button>
+      <span>{{ t("logs.pageSummary", { page: state.page, total: state.total }) }}</span>
+      <el-button :disabled="state.loading || !state.hasNext" @click="readPage(state.page + 1)">{{ t("logs.next") }}</el-button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { Delete, Refresh, Search } from "@element-plus/icons-vue";
 import LogEntry from "./components/LogEntry.vue";
-import type { LogEntry as LogEntryType, LogLevel } from "@/stores/log";
+import type { LogEntry as LogEntryType } from "@/stores/log";
 
+import { useAuthStore } from "@/stores/auth";
+import { RuntimeLogPager, runtimeLogState } from "@/services/runtime-logs";
 const { t } = useI18n();
+const auth = useAuthStore();
+const state = reactive(runtimeLogState());
+const pager = new RuntimeLogPager(state, () => auth.accessToken);
+const rawLogs = computed(() => state.items);
 
 const selectedLevel = ref("all");
 const selectedSource = ref("all");
 const searchText = ref("");
-const rawLogs = ref<LogEntryType[]>([]);
-
-const logs = computed(() => rawLogs.value);
 
 const availableSources = computed(() => {
   const sources = new Set(rawLogs.value.map((log) => log.source));
@@ -92,18 +103,18 @@ const availableSources = computed(() => {
 });
 
 const filteredLogs = computed(() => {
-  let filtered = logs.value;
+  let filtered = rawLogs.value;
 
   if (selectedLevel.value !== "all") {
     filtered = filtered.filter((log) => log.level === selectedLevel.value);
   }
 
-  if (selectedSource.value !== "all") {
+  if (selectedSource.value && selectedSource.value !== "all") {
     filtered = filtered.filter((log) => log.source === selectedSource.value);
   }
 
   if (searchText.value.trim()) {
-    const searchTerm = searchText.value.toLowerCase();
+    const searchTerm = searchText.value.trim().toLowerCase();
     filtered = filtered.filter(
       (log) =>
         log.message.toLowerCase().includes(searchTerm) ||
@@ -113,118 +124,27 @@ const filteredLogs = computed(() => {
     );
   }
 
-  return filtered.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  return [...filtered].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 });
 
-const clearLogs = () => {
-  rawLogs.value = [];
+const clearLogs = () => pager.reset();
+const readPage = (page: number) => pager.read(page, selectedLevel.value);
+const refresh = async () => {
+  await readPage(state.page);
+  if (state.error) throw new Error(t(`logs.failures.${state.error}`));
 };
-
-const refreshLogs = () => {
-  loadLogs();
-};
-
 const handleSearchRelated = (log: LogEntryType) => {
   selectedSource.value = log.source;
-  if (log.level === "error" || log.level === "fatal") {
-    selectedLevel.value = "error";
-  }
+  searchText.value = "";
 };
-
-const loadLogs = () => {
-  const mockLogs: LogEntryType[] = [
-    {
-      id: "1",
-      timestamp: new Date(Date.now() - 60000),
-      level: "info" as LogLevel,
-      source: "mcp-server",
-      message: "MCP服务器启动成功",
-      tags: ["startup", "server"],
-    },
-    {
-      id: "2",
-      timestamp: new Date(Date.now() - 45000),
-      level: "info" as LogLevel,
-      source: "swagger-parser",
-      message: "正在解析OpenAPI规范文件",
-      context: {
-        file: "test-openapi.json",
-        endpoints: 15,
-      },
-      tags: ["parsing", "openapi"],
-    },
-    {
-      id: "3",
-      timestamp: new Date(Date.now() - 30000),
-      level: "warn" as LogLevel,
-      source: "swagger-parser",
-      message: "OpenAPI规范解析警告：部分端点缺少响应模式定义",
-      context: {
-        endpoint: "/api/users",
-        issue: "Missing response schema",
-        severity: "medium",
-      },
-      tags: ["parsing", "validation", "warning"],
-    },
-    {
-      id: "4",
-      timestamp: new Date(Date.now() - 15000),
-      level: "debug" as LogLevel,
-      source: "api-client",
-      message: "发送API请求",
-      context: {
-        method: "GET",
-        url: "/api/users",
-        headers: { "Content-Type": "application/json" },
-      },
-      tags: ["api", "request"],
-    },
-    {
-      id: "5",
-      timestamp: new Date(Date.now() - 10000),
-      level: "error" as LogLevel,
-      source: "api-client",
-      message: "API调用失败：网络超时",
-      context: {
-        url: "https://api.example.com/users",
-        timeout: 5000,
-        retryCount: 3,
-      },
-      stack: `Error: Network timeout
-    at ApiClient.request (/path/to/api-client.js:45:12)
-    at async UserService.getUsers (/path/to/user-service.js:23:18)
-    at async UserController.handleGetUsers (/path/to/user-controller.js:67:25)`,
-      tags: ["api", "error", "network"],
-    },
-    {
-      id: "6",
-      timestamp: new Date(Date.now() - 5000),
-      level: "fatal" as LogLevel,
-      source: "database",
-      message: "数据库连接失败",
-      context: {
-        host: "localhost",
-        port: 5432,
-        database: "mcp_swagger",
-        error: "Connection refused",
-      },
-      stack: `Error: Connection refused
-    at Database.connect (/path/to/database.js:78:15)
-    at DatabaseManager.initialize (/path/to/db-manager.js:34:22)
-    at Server.start (/path/to/server.js:56:18)`,
-      tags: ["database", "fatal", "connection"],
-    },
-  ];
-
-  rawLogs.value = mockLogs;
-};
-
-onMounted(() => {
-  loadLogs();
-});
+watch(() => auth.accessToken, () => { pager.reset(); void readPage(1); }, { flush: "sync" });
+onMounted(() => { void readPage(1); });
+onBeforeUnmount(() => pager.reset());
+defineExpose({ refresh });
 </script>
 
 <style scoped>
+.log-pagination { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
 .log-viewer {
   padding: 20px;
   height: 100%;

@@ -11,6 +11,7 @@ module.exports=async (ctx)=>{
   return {route:new URL(page.url()).pathname};
  });
  if (process.argv.includes('--health-refresh')) await require('./ops-browser-health-refresh.cjs')(ctx);
+ if (ctx.lifecycleScenario) { await require('./ops-browser-lifecycle.cjs')(ctx); return; }
  if (ctx.importScenario) await require('./ops-browser-import.cjs')(ctx);
  else await step('browser.manual_registration',async()=>{
   await page.goto(uiBase+'/registration/manual');
@@ -60,4 +61,5 @@ module.exports=async (ctx)=>{
  });
  const published=await require('./ops-browser-publication.cjs')({...ctx,endpoint:evidence.endpoint});
  await require('./ops-browser-consumption.cjs')({...ctx,...published});
+ if (process.argv.includes('--logs')) await require('./ops-browser-logs.cjs')(ctx);
 };

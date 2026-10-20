@@ -7,15 +7,15 @@ const assert = require('node:assert/strict');
  * assertions; no evaluate/store injection or request interception substitutes UI.
  * Requires a Chinese UI session and one already-ready endpoint plus its smoke sample.
  */
-module.exports = async function publishGatewayInBrowser({ page, uiBase, api, step, evidence, endpoint, upstream, importScenario }) {
+module.exports = async function publishGatewayInBrowser({ page, uiBase, api, step, evidence, endpoint, upstream, importScenario, existingAsset, rebind, deferDeploy }) {
   assert.ok(endpoint?.id && endpoint?.source && endpoint?.path, 'Ready endpoint id/source/path required');
   assert.ok(upstream?.url, 'Upstream URL required');
   const suffix = Date.now().toString(36);
-  const name = upstream.assetName || `ops-browser-${suffix}`;
-  const servicePrefix = upstream.servicePrefix || `ops-${suffix}`;
+  const name = existingAsset?.name || upstream.assetName || `ops-browser-${suffix}`;
+  const servicePrefix = existingAsset?.servicePrefix || upstream.servicePrefix || `ops-${suffix}`;
   const routePath = endpoint.path;
   const timeout = 30000;
-  let assetId, membershipId, routeId;
+  let assetId = existingAsset?.assetId, membershipId = rebind?.membershipId, routeId = rebind?.routeId;
   const read = path => api('GET', path);
   const dialog = () => page.locator('.el-dialog:visible').last();
   const field = (scope, label) => scope.locator('.el-form-item').filter({
@@ -46,7 +46,7 @@ module.exports = async function publishGatewayInBrowser({ page, uiBase, api, ste
   }
   const stage = (id, fn) => step(`OPS01.browser.${id}`, fn);
 
-  await stage('mark_smoke_sample', async () => {
+  if (!rebind) await stage('mark_smoke_sample', async () => {
     await page.goto(new URL(importScenario ? '/governance' : '/registration/manual', uiBase).href, { waitUntil: 'domcontentloaded' });
     const row = page.locator('.manual-group-detail-card .el-table__body tr').filter({ hasText: endpoint.path });
     await row.getByRole('button', { name: '测试', exact: true }).click();
@@ -62,7 +62,7 @@ module.exports = async function publishGatewayInBrowser({ page, uiBase, api, ste
     return { sampleId: active[0].id, tag: 'smoke', operation: 'UI' };
   });
 
-  await stage('create_gateway', async () => {
+  if (!existingAsset) await stage('create_gateway', async () => {
     await page.goto(new URL('/publication', uiBase).href, { waitUntil: 'domcontentloaded' });
     const builder = page.locator('.publication-builder-card');
     await builder.getByText('Gateway', { exact: true }).first().click();
@@ -82,8 +82,17 @@ module.exports = async function publishGatewayInBrowser({ page, uiBase, api, ste
     return { assetId, name, servicePrefix, operation: 'UI' };
   });
 
-  await stage('add_gateway_member', async () => {
+  if (existingAsset) {
+    await page.goto(new URL('/publication', uiBase).href, { waitUntil: 'domcontentloaded' });
+    await selectAsset();
+  }
+  if (!rebind) await stage('add_gateway_member', async () => {
     const builder = page.locator('.publication-builder-card');
+    if (existingAsset) {
+      await builder.getByText('Gateway', { exact: true }).first().click();
+      await builder.locator('.publication-target-select').click();
+      await page.locator('.el-select-dropdown:visible').getByRole('option', {name, exact:true}).click();
+    }
     // Registration fixture has a single ready endpoint. Still match its path so
     // the runner fails rather than silently publishing a different candidate.
     const groups = builder.locator('.publication-candidate-group-item');
@@ -107,7 +116,11 @@ module.exports = async function publishGatewayInBrowser({ page, uiBase, api, ste
     return { assetId, membershipId, endpointId: endpoint.id, operation: 'UI' };
   });
 
-  await stage('configure_gateway_profile_route', async () => {
+  // The fixed action column can overlap the center of the name cell at 1440px.
+  // Click its visible left edge, without forcing through an overlay.
+  await page.locator('.publication-group-detail-card .el-table__body tr').filter({ hasText: routePath })
+    .locator('td').nth(1).click({position:{x:5,y:10}});
+  if (!rebind) await stage('configure_gateway_profile_route', async () => {
     await page.locator('.publication-workbench-actions').getByRole('button', { name: '配置', exact: true }).click();
     await fill(dialog(), '意图名称', `ops_browser_${suffix}`);
     await fill(dialog(), '面向 LLM 的描述', 'OPS browser acceptance: isolated local endpoint');
@@ -143,6 +156,8 @@ module.exports = async function publishGatewayInBrowser({ page, uiBase, api, ste
     await select(dialog(), '选择策略', '固定主实例');
     const row = dialog().locator('.el-table__body tr').filter({ hasText: upstream.url });
     assert.equal(await row.count(), 1, 'Expected exactly one local upstream instance row');
+    const checked = dialog().locator('.el-table__body tr').filter({ has: page.locator('input[type="checkbox"]:checked') });
+    for (const other of await checked.all()) if (!(await other.innerText()).includes(upstream.url)) await other.locator('label.el-checkbox').click();
     await checkVisibleCheckbox(row);
     await field(dialog(), '主实例').locator('.el-select').click();
     await page.locator('.el-select-dropdown:visible').getByRole('option').filter({ hasText: instance.name }).click();
@@ -157,7 +172,7 @@ module.exports = async function publishGatewayInBrowser({ page, uiBase, api, ste
     return { membershipId, instanceId: instance.id, environment: instance.environment, operation: 'UI' };
   });
 
-  await stage('publish_gateway_member', async () => {
+  if (!rebind) await stage('publish_gateway_member', async () => {
     const before = await read(`/v1/publication/endpoints/runtime-memberships/${membershipId}`);
     const migration = before.routeBinding?.upstreamConfig?.headerPolicyMigration;
     assert.deepEqual(migration, { version: 1, mode: 'v1', source: 'registry' },
@@ -171,7 +186,7 @@ module.exports = async function publishGatewayInBrowser({ page, uiBase, api, ste
     return { membershipId, operation: 'UI' };
   });
 
-  const deployment = await stage('deploy_gateway', async () => {
+  const deployment = deferDeploy ? null : await stage('deploy_gateway', async () => {
     const result = await mutation('POST', `/v1/runtime-assets/${assetId}/deploy-gateway`, () =>
       page.locator('.publication-group-detail-card').getByRole('button', { name: '部署', exact: true }).click());
     assert.equal(result.verification?.run?.status, 'passed', 'Candidate verification must pass');

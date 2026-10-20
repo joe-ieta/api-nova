@@ -29,7 +29,7 @@ export class ParserService {
   async parseFromUrl(url: string, options: ParserOptions = {}): Promise<ParseResult> {
     try {
       this.logger.log(`Parsing OpenAPI spec from URL: ${url}`);
-      const result = await parserParseFromUrl(url, options);
+      const result = await parserParseFromUrl(url, { ...options, preserveMissingServers: true });
       this.logger.log(`Successfully parsed OpenAPI spec from URL: ${url}`);
       return result;
     } catch (error) {
@@ -41,7 +41,7 @@ export class ParserService {
   async parseFromFile(filePath: string, options: ParserOptions = {}): Promise<ParseResult> {
     try {
       this.logger.log(`Parsing OpenAPI spec from file: ${filePath}`);
-      const result = await parserParseFromFile(filePath, options);
+      const result = await parserParseFromFile(filePath, { ...options, preserveMissingServers: true });
       this.logger.log(`Successfully parsed OpenAPI spec from file: ${filePath}`);
       return result;
     } catch (error) {
@@ -53,7 +53,7 @@ export class ParserService {
   async parseFromString(content: string, options: ParserOptions = {}): Promise<ParseResult> {
     try {
       this.logger.log('Parsing OpenAPI spec from string content');
-      const result = await parserParseFromString(content, options);
+      const result = await parserParseFromString(content, { ...options, preserveMissingServers: true });
       this.logger.log('Successfully parsed OpenAPI spec from string content');
       return result;
     } catch (error) {
@@ -168,7 +168,7 @@ export class ParserService {
       const specWithDefaults = this.applyCompatibilityDefaults(spec);
       const parseResult = await parserParseFromString(
         JSON.stringify(specWithDefaults),
-        options,
+        { ...options, preserveMissingServers: true },
       );
       const normalized = parseResult.spec;
 

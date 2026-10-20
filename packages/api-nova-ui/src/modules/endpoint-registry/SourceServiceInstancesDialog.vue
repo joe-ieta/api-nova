@@ -66,7 +66,7 @@
     <el-dialog
       v-model="showEditor"
       :title="editingId ? '编辑运行实例' : '新增运行实例'"
-      width="620px"
+      width="720px"
       append-to-body
       destroy-on-close
     >
@@ -82,7 +82,7 @@
               <el-input v-model="form.environment" placeholder="production" />
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+          <el-col :span="12">
             <el-form-item label="协议" prop="scheme">
               <el-select v-model="form.scheme" style="width: 100%">
                 <el-option label="HTTP" value="http" />
@@ -90,17 +90,17 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="10">
+          <el-col :span="12">
             <el-form-item label="主机" prop="host">
               <el-input v-model="form.host" placeholder="api.internal" />
             </el-form-item>
           </el-col>
-          <el-col :span="6">
+          <el-col :span="12">
             <el-form-item label="端口" prop="port">
-              <el-input-number v-model="form.port" :min="1" :max="65535" controls-position="right" />
+              <el-input-number v-model="form.port" :min="1" :max="65535" controls-position="right" style="width: 100%" />
             </el-form-item>
           </el-col>
-          <el-col :span="16">
+          <el-col :span="12">
             <el-form-item label="基础路径" prop="basePath">
               <el-input v-model="form.basePath" placeholder="/api" />
             </el-form-item>
@@ -117,9 +117,9 @@
               </div>
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+          <el-col :span="12">
             <el-form-item label="优先级" prop="priority">
-              <el-input-number v-model="form.priority" :min="0" controls-position="right" />
+              <el-input-number v-model="form.priority" :min="0" controls-position="right" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">

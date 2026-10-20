@@ -200,6 +200,8 @@ const load = async () => {
   resolution.value = null;
   revision.value = null;
   loadedCandidates.value = [];
+  instances.value = [];
+  candidateRows.value = [];
   try {
     const instanceResult = await serverAPI.listSourceServiceInstances(
       props.sourceServiceAssetId,
@@ -215,7 +217,8 @@ const load = async () => {
       form.status = result.binding.status;
       loadedCandidates.value = result.candidates || [];
     } catch (error: any) {
-      if (error?.response?.status !== 404) throw error;
+      // The shared HTTP interceptor exposes status on its normalized error.
+      if ((error?.status ?? error?.response?.status) !== 404) throw error;
       form.environment = environments.value.includes("production")
         ? "production"
         : environments.value[0] || "production";

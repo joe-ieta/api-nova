@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 // UI performs the credential mutation; API reads only verify results. Requests
 // to consumerUrl are a real auxiliary consumer, not management API mutations.
-module.exports = async function ({page,uiBase,apiBase,api,request,step,evidence,assetId,upstream,secrets,workDir}) {
+module.exports = async function ({page,uiBase,apiBase,api,request,step,evidence,assetId,upstream,secrets,workDir,afterConsumption}) {
   const read = url => api('GET',url);
   const stage = (id,fn) => step(`OPS01.browser.${id}`,fn);
   const publication = evidence.browserPublication || {};
@@ -103,5 +103,6 @@ module.exports = async function ({page,uiBase,apiBase,api,request,step,evidence,
     return {assetId,requestId:successRequestId,invocationId,lifecycle:'finished',outcome:'success',httpStatus:200,navigation:'publication UI association',renderedAfterReload:true};
   });
   evidence.browserConsumption={assetId,credentialId,consumerUrl,successRequestId,deniedRequestId,invocationId};
+  if (afterConsumption) await afterConsumption({ key, consumerUrl, assetId });
   return evidence.browserConsumption;
 };

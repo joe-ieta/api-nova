@@ -89,8 +89,8 @@ jobs:
       - name: Run type checks
         run: npm run type-check
 
-      - name: Verify UI health and current-page refresh
-        run: node --test packages/api-nova-ui/scripts/test-system-health.cjs
+      - name: Verify UI health, runtime logs and current-page refresh
+        run: node --test packages/api-nova-ui/scripts/test-system-health.cjs packages/api-nova-ui/scripts/test-runtime-logs.cjs
 
       - name: Run lint
         run: npm run lint
