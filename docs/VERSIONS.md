@@ -12,7 +12,7 @@
 
 ## 活跃文档
 
-本轮续接：[真实运行事件日志与浏览器生命周期补验](./audits/2026-10-20-runtime-logs-browser-lifecycle.md)，1.0.0，active，2026-10-20。
+本轮续接：[真实运行事件日志与浏览器生命周期补验](./audits/2026-10-20-runtime-logs-browser-lifecycle.md)，1.0.1，active，2026-10-20。
 
 本轮新增：[顶部健康、页面刷新及文件导入补验](./audits/2026-10-20-ui-health-refresh.md)，1.0.1，active，2026-10-20；[v1.7.6-rc.4人工测试预发布](./audits/2026-10-20-release-v1.7.6-rc.4.md)，1.0.0，active，2026-10-20。
 
@@ -157,7 +157,7 @@
 | [docs/reference/management-permission-matrix.md](./reference/management-permission-matrix.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/mcp-jsonrpc-relationship.md](./reference/mcp-jsonrpc-relationship.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/reference/nodejs-module-systems-guide.md](./reference/nodejs-module-systems-guide.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/reference/open-items.md](./reference/open-items.md) | 1.33.0 | active | 2026-10-20 |
+| [docs/reference/open-items.md](./reference/open-items.md) | 1.33.1 | active | 2026-10-20 |
 | [docs/reference/README.md](./reference/README.md) | 1.3.0 | active | 2026-09-14 |
 | [docs/reference/versioning-policy.md](./reference/versioning-policy.md) | 1.0.0 | active | 2026-09-07 |
 | [docs/release/api-nova-release-requirements.md](./release/api-nova-release-requirements.md) | 1.2.0 | active | 2026-10-14 |

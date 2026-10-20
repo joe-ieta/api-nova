@@ -1,5 +1,5 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.0.1
 doc-status: active
 doc-updated: 2026-10-20
 ---
@@ -34,6 +34,22 @@ doc-updated: 2026-10-20
 首轮发现和修复保留在 `.tmp/ops-01-browser-*/evidence.json`：无 server 被填为 localhost（lWzdDV）、端口输入不可操作（zulGOc）、production 首次绑定 404 处理错误（g37BPc）。日志首次联调发现合法事件摘要可为空（iruc7U），已支持事件名回退。脚本调试阶段还修正了测试结果显示范围、表格点击位置和确认按钮语言匹配；API 首轮新增参数化测试类型错误修正后，最终完整 186 套通过。失败轮次不计为通过。
 
 证据记录当时父提交 `0d7f203`、工作树、关键源码/构建哈希、Node/Edge 版本、独立数据库路径及清理状态。37 阶段通过后，审查又收紧了日志未知级别校验，拒绝 `constructor` 等继承属性名；新增畸形响应断言并重新运行 UI 回归和构建，最终打包 UI 文件导入/日志回归 22/22：`.tmp/ops-01-browser-WvWFvx/evidence.json`，无浏览器未捕获错误且端口全部清理。没有借此改变有效事件、解析器或迁移逻辑。
+
+复验入口（先完成根目录依赖安装和生产构建，并配置本机 `OPS_PLAYWRIGHT_MODULE`、`OPS_BROWSER_PATH`）：
+
+```text
+node scripts/verify-ops-01-browser.cjs --lifecycle --logs
+node scripts/verify-ops-01-browser.cjs --import-file --logs
+node scripts/verify-ops-01-browser.cjs --import-file --logs --vite
+```
+
+## 远端验证流程修复
+
+功能源码提交为 `c9d33f0`。该提交触发的[双库 CI](https://github.com/joe-ieta/api-nova/actions/runs/39430401243)复现了[rc.4 源码同一工作流](https://github.com/joe-ieta/api-nova/actions/runs/39418015842)已有的缺陷：直接运行 API 测试前未构建 parser/server，导致找不到工作区包。rc.4 独立发布工作流此前成功，不等于这条旧数据库工作流也通过。
+
+`18cfdca` 首次修正共享包构建和启动前置条件；[该轮运行](https://github.com/joe-ieta/api-nova/actions/runs/39431269178)进一步暴露环境耦合：PostgreSQL 的 enum 配置被传给固定 SQL.js 测试夹具，临时 JWT 环境变量覆盖了测试内部的签名配置。两者分别造成类型错误及认证失败，未以跳过测试或放宽断言处理。
+
+`e8e59f8` 将单元测试配置与启动检查环境分开。最终工作流固定 Ubuntu24.04、Node24.15.0/npm10.9.2，先构建共享包并运行完整 API/UI 回归，再生成和遮蔽临时 JWT/管理员口令。两个矩阵分别运行 `db:smoke sqlite` / `db:smoke postgres` 的真实建库、迁移、持久化及启动验证，并对主测试库执行迁移和正确的 `/api/system/initialization` 探测。单元测试本身仍使用其原定 SQL.js 夹具，不宣称 1950 项全部在 PostgreSQL 上执行。数据库及账号均在 GitHub 临时作业环境中创建，不接触生产库。[最终验证运行](https://github.com/joe-ieta/api-nova/actions/runs/39432759635)两组均为 success。每组 API 186套/1950项、UI 95项及构建通过；实际 SQLite/PostgreSQL 各验证73张业务表、8次迁移、重启后零新增迁移、schemaDrift=0、持久化、认证证据存储及API启动。主测试库初始化回读均为isInitialized=true、33个权限、5个角色和超级管理员存在。
 
 ## 人工测试接续
 
