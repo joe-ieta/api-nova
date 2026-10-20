@@ -1,9 +1,11 @@
 ---
-doc-version: 1.202.0
+doc-version: 1.202.1
 doc-status: active
 doc-updated: 2026-10-20
 ---
 # 开发任务包总览与执行状态
+
+> v1.7.6-rc.4人工测试预发布已完成：三平台原生离线验证、完整CI、latest切换和远端7附件均核验通过，详见[发布审计](../audits/2026-10-20-release-v1.7.6-rc.4.md)。源码提交afc7954；本轮不改变生产签收状态。
 
 > 2026-10-20：修复顶部模拟健康及无效刷新，补齐带绝对server的JSON文件导入浏览器闭环，URL导入/手工注册与Vite代理回归通过，见[本轮审计](../audits/2026-10-20-ui-health-refresh.md)。rc.4作为人工测试候选推进；剩余工作顺序以[open-items最新整理](../reference/open-items.md)为准。209条计数与3项目标签收/2项延期保持不变；下方较早的“文件导入未覆盖”不再包含此次已验组合。
 

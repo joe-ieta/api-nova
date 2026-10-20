@@ -1,11 +1,13 @@
 ---
-doc-version: 1.32.0
+doc-version: 1.32.1
 doc-status: active
 doc-updated: 2026-10-20
 ---
 # 未完成事项
 
 ## 2026-10-20 本轮整理与执行顺序
+
+v1.7.6-rc.4已完成三平台人工测试预发布、latest切换、注释标签和远端七附件哈希核验，见[发布审计](../audits/2026-10-20-release-v1.7.6-rc.4.md)。10-20依赖复审仍为10 moderate、0 high/critical；CI lint为0 error、272 warnings。预发布不关闭目标生产签收。
 
 本轮修复顶部模拟健康与无效通用刷新，并补验文件导入分支；验收证据见[本轮审计](../audits/2026-10-20-ui-health-refresh.md)。历史209条任务维持204 DONE、2 IN_PROGRESS、1 WAIT_DEP、2 DEFERRED，修复和补验不另增叶子任务。
 

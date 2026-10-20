@@ -1,5 +1,5 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.0.1
 doc-status: active
 doc-updated: 2026-10-20
 ---
@@ -21,6 +21,7 @@ doc-updated: 2026-10-20
 - 打包UI手工注册：19/19，`.tmp/ops-01-browser-0oTjDz/evidence.json`。
 - 打包UIURL导入：19/19，`.tmp/ops-01-browser-gYi8BN/evidence.json`。
 - Vite文件导入+健康刷新：22/22，`.tmp/ops-01-browser-RB9Xmu/evidence.json`。
+- 最终UI构建修正监控手动刷新原因后，打包文件导入+健康刷新再次22/22：`.tmp/ops-01-browser-ZtAKEp/evidence.json`，增加顶部刷新保留搜索筛选的断言。该轮记录的commit为当时5295fe4父提交，并包含后续提交为afc7954的工作树；最终发布CI在afc7954执行完整门禁，见[发布审计](./2026-10-20-release-v1.7.6-rc.4.md)。
 - 健康集成用真实后端503对照徽标；另用浏览器响应注入验证200→503→断网→200，不能将注入视为实际MCP启停证据。列表500故障不报刷新成功，恢复后重新请求列表。
 - 首轮`.tmp/ops-01-browser-jsXitL`失败，原因是未识别后端503封装及错误处理器方法不存在；修复后以上重跑通过，不将失败轮计为通过。
 - 10-20生产依赖审计：10 moderate、0 high/critical；保留原SEC维护事项。
