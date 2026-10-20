@@ -1,13 +1,15 @@
 ---
-doc-version: 1.33.1
+doc-version: 1.34.0
 doc-status: active
 doc-updated: 2026-10-20
 ---
 # 未完成事项
 
+> 最新发布：v1.7.6-rc.5已完成三平台原生离线验证、不可变归档、latest晋升、注释标签和远端七附件核验。详见[rc.5发布审计](../audits/2026-10-20-release-v1.7.6-rc.5.md)及[人工测试指南](../release/versions/v1.7.6-rc.5/QUICK_START.md)。本机C盘发布前约3.1GiB，低于5GiB完整健康门槛；目标生产签收与人工反馈仍待办。
+
 ## 2026-10-20 后续推进结果
 
-rc.4之后的开发分支已接入真实运行事件日志，并修复无server URL导入错误生成localhost实例、实例编辑框端口不可操作、首次production绑定候选列表为空三处问题。无server双端点导入、同一Gateway发布及A/B实例迁移已完成本机浏览器补验；证据和待人工反馈检查单见[日志与生命周期审计](../audits/2026-10-20-runtime-logs-browser-lifecycle.md)。本轮未重新发布rc.4，其原包仍保留旧行为；新增修复须使用包含本次提交的开发构建或后续新版本验证。
+rc.4之后的开发分支已接入真实运行事件日志，并修复无server URL导入错误生成localhost实例、实例编辑框端口不可操作、首次production绑定候选列表为空三处问题。无server双端点导入、同一Gateway发布及A/B实例迁移已完成本机浏览器补验；证据和待人工反馈检查单见[日志与生命周期审计](../audits/2026-10-20-runtime-logs-browser-lifecycle.md)。本轮修复现已纳入rc.5；rc.4原包保持历史字节，新增功能按rc.5人工指南验证。
 
 双库CI旧流程的共享包构建缺失、测试/启动环境耦合和启动前置条件已修复，`e8e59f8`对应[SQLite/PostgreSQL运行](https://github.com/joe-ieta/api-nova/actions/runs/39432759635)两组全部通过。单元测试采用原SQL.js夹具；实际双库迁移、持久化、重启和启动分别验证，不外推生产签收。
 
