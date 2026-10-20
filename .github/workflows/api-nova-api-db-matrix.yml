@@ -18,7 +18,7 @@ on:
 
 jobs:
   api-db-matrix:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -60,6 +60,23 @@ jobs:
           npm run build --workspace api-nova-parser
           npm run build --workspace api-nova-server
 
+      - name: Run API unit tests with their isolated SQL.js fixtures
+        env:
+          # Entity decorators must match the SQL.js DataSources constructed by
+          # these tests. The matrix database is exercised by db:smoke below.
+          DB_TYPE: sqlite
+        run: npm run test --workspace api-nova-api -- --runInBand
+
+      - name: Run UI regressions
+        run: node --test packages/api-nova-ui/scripts/test-*.cjs
+
+      - name: Build API package
+        run: npm run build --workspace api-nova-api
+
+      - name: Build UI package
+        run: npm run build --workspace api-nova-ui
+
+      # Runtime database and credentials must not override unit-test fixtures.
       - name: Set database environment
         shell: bash
         run: |
@@ -99,17 +116,8 @@ jobs:
           psql -h 127.0.0.1 -U postgres -d postgres -c "DROP DATABASE IF EXISTS api_nova_api;"
           psql -h 127.0.0.1 -U postgres -d postgres -c "CREATE DATABASE api_nova_api;"
 
-      - name: Run package tests
-        run: npm run test --workspace api-nova-api -- --runInBand
-
-      - name: Run UI regressions
-        run: node --test packages/api-nova-ui/scripts/test-*.cjs
-
-      - name: Build API package
-        run: npm run build --workspace api-nova-api
-
-      - name: Build UI package
-        run: npm run build --workspace api-nova-ui
+      - name: Verify matrix database schema and persistence
+        run: npm run db:smoke --workspace api-nova-api -- ${{ matrix.db_type }}
 
       - name: Initialize isolated database
         run: npm run migration:run --workspace api-nova-api
