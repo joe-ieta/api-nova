@@ -67,6 +67,20 @@ if ($releaseNotes.Contains('@GIT_COMMIT@')) {
 $releaseNotes | Set-Content -LiteralPath (Join-Path $packageDir 'RELEASE_NOTES.md') -Encoding UTF8
 Copy-Item -LiteralPath (Join-Path $versionDocs 'QUICK_START.md') -Destination (Join-Path $packageDir 'QUICK_START.md') -Force
 
+# The offline manual also contains the current source release record. Materialize
+# its self-referential commit placeholder and refresh the exported content hash.
+$embeddedNotesRelative = "docs/release/versions/$VersionTag/RELEASE_NOTES.md"
+$embeddedNotesPath = Join-Path $packageDir $embeddedNotesRelative
+$documentationManifestPath = Join-Path $packageDir 'DOCUMENTATION_MANIFEST.json'
+$documentationManifest = Get-Content -LiteralPath $documentationManifestPath -Raw | ConvertFrom-Json
+$embeddedNotesEntry = @($documentationManifest.documents | Where-Object path -eq $embeddedNotesRelative)
+if ($documentationManifest.sourceCommit -ne $normalizedCommit -or $embeddedNotesEntry.Count -ne 1) {
+  throw 'Offline documentation release identity is inconsistent'
+}
+$releaseNotes | Set-Content -LiteralPath $embeddedNotesPath -Encoding UTF8
+$embeddedNotesEntry[0].sha256 = (Get-FileHash -LiteralPath $embeddedNotesPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$documentationManifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $documentationManifestPath -Encoding UTF8
+
 $packageLockHash = (Get-FileHash -LiteralPath (Join-Path $repoRoot 'package-lock.json') -Algorithm SHA256).Hash.ToLowerInvariant()
 $bundledNode = if ($PlatformId -eq 'win-x64') {
   Join-Path $packageDir 'runtime\node\node.exe'
