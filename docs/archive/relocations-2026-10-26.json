@@ -1,0 +1,1160 @@
+{
+  "baselineCommit": "1b9d7c8ff895223229d445d5b33ad2c4c23748c7",
+  "date": "2026-10-26",
+  "hashSemantics": "SHA-256 of original Git blob bytes at baselineCommit; historical Markdown receives reference repairs only.",
+  "documents": [
+    {
+      "source": "docs/audits/2026-09-04-manual-registration-publication.md",
+      "archive": "docs/archive/audits/2026-09-04-manual-registration-publication.md",
+      "operation": "move",
+      "originalGitBlobSha256": "5d8deaddb92a6bac1624fd265581daf76970890fbf0ef5e7c5704cfcefb8bfcc"
+    },
+    {
+      "source": "docs/audits/2026-09-07-reviewed-merge.md",
+      "archive": "docs/archive/audits/2026-09-07-reviewed-merge.md",
+      "operation": "move",
+      "originalGitBlobSha256": "d7ef3200dee61e20dd864096da335e09aba37c3feafa3788d0035f1f4f48eb14"
+    },
+    {
+      "source": "docs/audits/2026-09-08-persistence-cleanup.md",
+      "archive": "docs/archive/audits/2026-09-08-persistence-cleanup.md",
+      "operation": "move",
+      "originalGitBlobSha256": "726da0498ceec3b46c1d75c62ab76e90e990416196565552dfd3c450c02bbf37"
+    },
+    {
+      "source": "docs/audits/2026-09-14-active-task-dependencies.md",
+      "archive": "docs/archive/audits/2026-09-14-active-task-dependencies.md",
+      "operation": "move",
+      "originalGitBlobSha256": "9d42d35a97d922af7762b86abda8109cfe3450a6984a3d5f297a75c03d7ff3e3"
+    },
+    {
+      "source": "docs/audits/2026-09-14-commit-ownership-wave.md",
+      "archive": "docs/archive/audits/2026-09-14-commit-ownership-wave.md",
+      "operation": "move",
+      "originalGitBlobSha256": "4d446ee9c057b5c8194c4c2f5450553f36c59f308254535a35fea04ba4095dd1"
+    },
+    {
+      "source": "docs/audits/2026-09-14-heartbeat-header-consumer-wave.md",
+      "archive": "docs/archive/audits/2026-09-14-heartbeat-header-consumer-wave.md",
+      "operation": "move",
+      "originalGitBlobSha256": "944269ae5a39d05284a5332315016246fe0225db2f0d1d900b385118cba2e01e"
+    },
+    {
+      "source": "docs/audits/2026-09-14-planned-next-wave.md",
+      "archive": "docs/archive/audits/2026-09-14-planned-next-wave.md",
+      "operation": "move",
+      "originalGitBlobSha256": "2a9badf3d771cbd5480892c13c25dbf346d6c04bb2e5093f2edc4dead5e6763c"
+    },
+    {
+      "source": "docs/audits/2026-09-14-retention-consumer-wave.md",
+      "archive": "docs/archive/audits/2026-09-14-retention-consumer-wave.md",
+      "operation": "move",
+      "originalGitBlobSha256": "1293c9e11965e160c3e472de7ce5d53670e7b2dead974d439d17b0b4f2867fac"
+    },
+    {
+      "source": "docs/audits/2026-09-14-routing-policy-mapping-wave.md",
+      "archive": "docs/archive/audits/2026-09-14-routing-policy-mapping-wave.md",
+      "operation": "move",
+      "originalGitBlobSha256": "f60f9083474462b5a13bcfda20f152c448933cdae25e5cfa444ae5a83823a9a7"
+    },
+    {
+      "source": "docs/audits/2026-09-14-single-hop-capacity-diagnostics-wave.md",
+      "archive": "docs/archive/audits/2026-09-14-single-hop-capacity-diagnostics-wave.md",
+      "operation": "move",
+      "originalGitBlobSha256": "227b3fcb2dbc2cddefb919cac0ed5b536d059304ce68f9fbab88327e48575f49"
+    },
+    {
+      "source": "docs/audits/2026-09-15-activation-gc-wave.md",
+      "archive": "docs/archive/audits/2026-09-15-activation-gc-wave.md",
+      "operation": "move",
+      "originalGitBlobSha256": "4ac27c84e41a8c6d0dfaafe620b4633b921ed5ec1cbb8d711a3b4fb977bfc76f"
+    },
+    {
+      "source": "docs/audits/2026-09-15-mcp-assembly-ownership-wave.md",
+      "archive": "docs/archive/audits/2026-09-15-mcp-assembly-ownership-wave.md",
+      "operation": "move",
+      "originalGitBlobSha256": "3e40c9696cc25084f94c6088c693c58992c7a1576e7e52da4d90038aceb3aa04"
+    },
+    {
+      "source": "docs/audits/2026-09-15-ownership-recovery-wave.md",
+      "archive": "docs/archive/audits/2026-09-15-ownership-recovery-wave.md",
+      "operation": "move",
+      "originalGitBlobSha256": "e1d66a76db4abf22b168fc183c75f4ba81e6b9f69b8fc9f11692d845f345a7c2"
+    },
+    {
+      "source": "docs/audits/2026-09-15-prod-03-local-publication-cycle.md",
+      "archive": "docs/archive/audits/2026-09-15-prod-03-local-publication-cycle.md",
+      "operation": "move",
+      "originalGitBlobSha256": "0f81b7b0a0238e071c114d8adb4a4385b23831185b4365b11533bd55c1d09a78"
+    },
+    {
+      "source": "docs/audits/2026-09-15-publication-shutdown-wave.md",
+      "archive": "docs/archive/audits/2026-09-15-publication-shutdown-wave.md",
+      "operation": "move",
+      "originalGitBlobSha256": "794daf2c5e5544259386778dad1d454dfb5ac84f1efde38da99dc1a37e80c2a5"
+    },
+    {
+      "source": "docs/audits/2026-09-15-upstream-ownership-wave.md",
+      "archive": "docs/archive/audits/2026-09-15-upstream-ownership-wave.md",
+      "operation": "move",
+      "originalGitBlobSha256": "ed8f3040ccd03a3e7bf12004df02db4220a9720d6de75dd20f5a6ad4df3e6077"
+    },
+    {
+      "source": "docs/audits/2026-09-15-work-package-replan.md",
+      "archive": "docs/archive/audits/2026-09-15-work-package-replan.md",
+      "operation": "move",
+      "originalGitBlobSha256": "00e72a78b9473fd3fdf7e5346d4616a8f65e9c5267d692d219acdf13b9d5619d"
+    },
+    {
+      "source": "docs/audits/2026-09-16-replanned-batch-2-evidence.md",
+      "archive": "docs/archive/audits/2026-09-16-replanned-batch-2-evidence.md",
+      "operation": "move",
+      "originalGitBlobSha256": "6755b730d6328881d430fe739731e56eb96d14d3b53f7c221cfd8c61f3cf2448"
+    },
+    {
+      "source": "docs/audits/2026-09-16-replanned-batch-3-evidence.md",
+      "archive": "docs/archive/audits/2026-09-16-replanned-batch-3-evidence.md",
+      "operation": "move",
+      "originalGitBlobSha256": "dd9c776b340bfc044b09b1b68273efe9b8de12b22676e86f0849681a067f0f6c"
+    },
+    {
+      "source": "docs/audits/2026-09-16-replanned-batch-4-evidence.md",
+      "archive": "docs/archive/audits/2026-09-16-replanned-batch-4-evidence.md",
+      "operation": "move",
+      "originalGitBlobSha256": "ab15ae47e2bac78268404a5d0629f637baa788898286fee2fd1dfd49edd6304e"
+    },
+    {
+      "source": "docs/audits/2026-09-16-replanned-batch-5-evidence.md",
+      "archive": "docs/archive/audits/2026-09-16-replanned-batch-5-evidence.md",
+      "operation": "move",
+      "originalGitBlobSha256": "460843f2d2293405c6a169f234802019fd99a963773d35db8f280cc3e25d3c0f"
+    },
+    {
+      "source": "docs/audits/2026-09-17-interruption-recovery-evidence.md",
+      "archive": "docs/archive/audits/2026-09-17-interruption-recovery-evidence.md",
+      "operation": "move",
+      "originalGitBlobSha256": "2bd7b89b663d64c867301654629b9d1417a95fe564f510ee7f6e26cb40df3384"
+    },
+    {
+      "source": "docs/audits/2026-09-21-auth-publication-loop.md",
+      "archive": "docs/archive/audits/2026-09-21-auth-publication-loop.md",
+      "operation": "move",
+      "originalGitBlobSha256": "dbbaedb69e6d0612192536f45a850d8f4e114024f4efbf6b00c919c3c2cee134"
+    },
+    {
+      "source": "docs/audits/2026-09-21-header-policy-compilation.md",
+      "archive": "docs/archive/audits/2026-09-21-header-policy-compilation.md",
+      "operation": "move",
+      "originalGitBlobSha256": "065faa77b0bb831811f6c3ec4e9898e36ceeea28acbd035bb97ec35820180a93"
+    },
+    {
+      "source": "docs/audits/2026-09-21-header-wire-execution.md",
+      "archive": "docs/archive/audits/2026-09-21-header-wire-execution.md",
+      "operation": "move",
+      "originalGitBlobSha256": "a23621b6627774e5d9bbf0b638b2b578a098bcfef01c3500460eaea9184f1028"
+    },
+    {
+      "source": "docs/audits/2026-09-21-independent-rate-limits.md",
+      "archive": "docs/archive/audits/2026-09-21-independent-rate-limits.md",
+      "operation": "move",
+      "originalGitBlobSha256": "b4f8cb2170e69c55370b5a1e6d2ae8a5b106c3385a499c3dbb9d60ffe00cb6fd"
+    },
+    {
+      "source": "docs/audits/2026-09-21-isolated-postgres-schema.md",
+      "archive": "docs/archive/audits/2026-09-21-isolated-postgres-schema.md",
+      "operation": "move",
+      "originalGitBlobSha256": "bbfdf54e471c1278b3d620e65b4d01d071f7a3a30a3392d1e22a7354158751e6"
+    },
+    {
+      "source": "docs/audits/2026-09-21-jwt-policy-lifecycle.md",
+      "archive": "docs/archive/audits/2026-09-21-jwt-policy-lifecycle.md",
+      "operation": "move",
+      "originalGitBlobSha256": "f244306d619653e6f25070cb04a8e81f7972eff282b9fdf5671bce79cd6ad472"
+    },
+    {
+      "source": "docs/audits/2026-09-21-layered-rate-limit-composition.md",
+      "archive": "docs/archive/audits/2026-09-21-layered-rate-limit-composition.md",
+      "operation": "move",
+      "originalGitBlobSha256": "19b4c8da43bb44cd8dc12d2dabbaf29ec3e62be857acb7a118cac963f4924e0a"
+    },
+    {
+      "source": "docs/audits/2026-09-21-live-rotation-temporary-anonymous.md",
+      "archive": "docs/archive/audits/2026-09-21-live-rotation-temporary-anonymous.md",
+      "operation": "move",
+      "originalGitBlobSha256": "e2bca4fd4b5c687389458373bb3fc462fda9a3c11fa673c0af377ddcb79c9062"
+    },
+    {
+      "source": "docs/audits/2026-09-21-managed-inbound-mode-evidence.md",
+      "archive": "docs/archive/audits/2026-09-21-managed-inbound-mode-evidence.md",
+      "operation": "move",
+      "originalGitBlobSha256": "286f90d271461a2d635bf179c4d24693b631bdb1635288b76285b41672486932"
+    },
+    {
+      "source": "docs/audits/2026-09-21-mcp-adapter-contract.md",
+      "archive": "docs/archive/audits/2026-09-21-mcp-adapter-contract.md",
+      "operation": "move",
+      "originalGitBlobSha256": "6f49cedee660db5180a5a53e9e8456723c96ebf1df6cc69a04fbb21926aac393"
+    },
+    {
+      "source": "docs/audits/2026-09-21-mcp-mode-ui-evidence.md",
+      "archive": "docs/archive/audits/2026-09-21-mcp-mode-ui-evidence.md",
+      "operation": "move",
+      "originalGitBlobSha256": "e2c90b34462539b26f9646c734663a7cf516eb6268a26693c3c7b9aba47ab913"
+    },
+    {
+      "source": "docs/audits/2026-09-21-mcp-rejection-matrix.md",
+      "archive": "docs/archive/audits/2026-09-21-mcp-rejection-matrix.md",
+      "operation": "move",
+      "originalGitBlobSha256": "da5fa1ee8412738cf195f9527db4c72835abe7cafc7fb4a4035faba911422cae"
+    },
+    {
+      "source": "docs/audits/2026-09-21-payload-recovery-acceptance.md",
+      "archive": "docs/archive/audits/2026-09-21-payload-recovery-acceptance.md",
+      "operation": "move",
+      "originalGitBlobSha256": "e4d3dac847b85f7be0e2f0bd1902e9b7fa0f024e34174368c5f174629e4fb9ae"
+    },
+    {
+      "source": "docs/audits/2026-09-21-persistent-session-revocation.md",
+      "archive": "docs/archive/audits/2026-09-21-persistent-session-revocation.md",
+      "operation": "move",
+      "originalGitBlobSha256": "082d8cb677ec4b51fd1253ded08cb05c22a790d19da577e1d3cf4469dcc36f84"
+    },
+    {
+      "source": "docs/audits/2026-09-21-pg-quota-multiwriter-evidence.md",
+      "archive": "docs/archive/audits/2026-09-21-pg-quota-multiwriter-evidence.md",
+      "operation": "move",
+      "originalGitBlobSha256": "07928ceed1c4cd2a84c0c5e197ce4c34cafb63215d74b3232590b6ade0d9b610"
+    },
+    {
+      "source": "docs/audits/2026-09-21-registry-db-ownership.md",
+      "archive": "docs/archive/audits/2026-09-21-registry-db-ownership.md",
+      "operation": "move",
+      "originalGitBlobSha256": "0de1ae4d84a36dbd9e59d593a7f342c3ccee1c11cf127e61538b891b90c5b3dd"
+    },
+    {
+      "source": "docs/audits/2026-09-21-registry-watch.md",
+      "archive": "docs/archive/audits/2026-09-21-registry-watch.md",
+      "operation": "move",
+      "originalGitBlobSha256": "005378232c44cf72474ac2cb64f4f1d33dc1d859c79ad73b8191d2aa10b07d26"
+    },
+    {
+      "source": "docs/audits/2026-09-21-sdk-session-contract.md",
+      "archive": "docs/archive/audits/2026-09-21-sdk-session-contract.md",
+      "operation": "move",
+      "originalGitBlobSha256": "c2e3fe51fe728e37d8877ae44e2d5f53fb8de76a8c401ae1e96062ca55852146"
+    },
+    {
+      "source": "docs/audits/2026-09-21-temporary-anonymous-ui.md",
+      "archive": "docs/archive/audits/2026-09-21-temporary-anonymous-ui.md",
+      "operation": "move",
+      "originalGitBlobSha256": "f8bd608ef25f400ef8904a688b335ae9cc475deee6ce33879d59920c0833f9e9"
+    },
+    {
+      "source": "docs/audits/2026-09-21-unified-consumer-credentials.md",
+      "archive": "docs/archive/audits/2026-09-21-unified-consumer-credentials.md",
+      "operation": "move",
+      "originalGitBlobSha256": "afd4ed44affb9e6afc975239a22fb749cccc8cb8b6ca00fb0447a3d2c1940988"
+    },
+    {
+      "source": "docs/audits/2026-09-21-upstream-credential-management-ui.md",
+      "archive": "docs/archive/audits/2026-09-21-upstream-credential-management-ui.md",
+      "operation": "move",
+      "originalGitBlobSha256": "9e46cdd6eed13ceebfa3fcd2eb92fe3f4414540141da5c58b8e4d428020ff007"
+    },
+    {
+      "source": "docs/audits/2026-09-21-windows-secret-acl.md",
+      "archive": "docs/archive/audits/2026-09-21-windows-secret-acl.md",
+      "operation": "move",
+      "originalGitBlobSha256": "24bdb068d00f25fea147729f4795625bb74c53ad4f0ee030428275200fcd14b9"
+    },
+    {
+      "source": "docs/audits/2026-09-22-credential-types-scope.md",
+      "archive": "docs/archive/audits/2026-09-22-credential-types-scope.md",
+      "operation": "move",
+      "originalGitBlobSha256": "a7f1c844d32384de215d115c4be42374abf837694ee7748b65e05c0656d17a10"
+    },
+    {
+      "source": "docs/audits/2026-09-22-header-cache-isolation.md",
+      "archive": "docs/archive/audits/2026-09-22-header-cache-isolation.md",
+      "operation": "move",
+      "originalGitBlobSha256": "0d41bf5d504bce2f93c4947bdde346b8df8520a8ffb9fd255e02419bca80079b"
+    },
+    {
+      "source": "docs/audits/2026-09-26-dependency-reachability-audit.md",
+      "archive": "docs/archive/audits/2026-09-26-dependency-reachability-audit.md",
+      "operation": "move",
+      "originalGitBlobSha256": "3ad922c45dcb65e0d17966e2c0f1f048071ed6e275333437f495a7bae5159a0c"
+    },
+    {
+      "source": "docs/audits/2026-09-26-f3-n-matrix-local.md",
+      "archive": "docs/archive/audits/2026-09-26-f3-n-matrix-local.md",
+      "operation": "move",
+      "originalGitBlobSha256": "9a0919ca33e59deb979583e90339f3e2d3da8f4e503f538fc471f10dc0a723ef"
+    },
+    {
+      "source": "docs/audits/2026-09-26-mail-02-controlled-delivery.md",
+      "archive": "docs/archive/audits/2026-09-26-mail-02-controlled-delivery.md",
+      "operation": "move",
+      "originalGitBlobSha256": "e89df8cab8c43e86b032931ef6f9476e0892d9160aa2cd92ecb63bb4fa76f72f"
+    },
+    {
+      "source": "docs/audits/2026-09-26-mcp-observability-matrix.md",
+      "archive": "docs/archive/audits/2026-09-26-mcp-observability-matrix.md",
+      "operation": "move",
+      "originalGitBlobSha256": "6c676983333c4eccd93da80beacb5f2328e6e865ec92b054df2f135f650c634f"
+    },
+    {
+      "source": "docs/audits/2026-09-26-obs-13-02-long-transport.md",
+      "archive": "docs/archive/audits/2026-09-26-obs-13-02-long-transport.md",
+      "operation": "move",
+      "originalGitBlobSha256": "fa0b9fa5bc41c3bf5c03aaf715899d74e0d6f89e8cb07935047d7cdf0e120ca5"
+    },
+    {
+      "source": "docs/audits/2026-09-26-obs-14-03d-lifecycle-retention.md",
+      "archive": "docs/archive/audits/2026-09-26-obs-14-03d-lifecycle-retention.md",
+      "operation": "move",
+      "originalGitBlobSha256": "90874f7c43cd5cad3e14969e70b321cb42fc430cb5b3915c3c0ab28d59ccedd8"
+    },
+    {
+      "source": "docs/audits/2026-09-26-obs-14-03e3-physical-cleanup.md",
+      "archive": "docs/archive/audits/2026-09-26-obs-14-03e3-physical-cleanup.md",
+      "operation": "move",
+      "originalGitBlobSha256": "2853b4db6fa4eaf266d4d7f36d867b283ac5bd7b0af1a810283554d381fe4fd6"
+    },
+    {
+      "source": "docs/audits/2026-09-26-obs-15-full-chain.md",
+      "archive": "docs/archive/audits/2026-09-26-obs-15-full-chain.md",
+      "operation": "move",
+      "originalGitBlobSha256": "1737d66c856191cfb857763a17f4c88df81922aefbbd70f79f47341a832db377"
+    },
+    {
+      "source": "docs/audits/2026-09-26-obs-16-local-unit.md",
+      "archive": "docs/archive/audits/2026-09-26-obs-16-local-unit.md",
+      "operation": "move",
+      "originalGitBlobSha256": "a3819b11987a12e9e085078ac3c74d85977a71ca33a0952f50ee93863b34de2f"
+    },
+    {
+      "source": "docs/audits/2026-09-26-prod-06-cas-scope-determination.md",
+      "archive": "docs/archive/audits/2026-09-26-prod-06-cas-scope-determination.md",
+      "operation": "move",
+      "originalGitBlobSha256": "722308e4ffa28c643abce81d4928d3de9daf12cf1a933529e5cc81113b23f6f5"
+    },
+    {
+      "source": "docs/audits/2026-09-27-c3-03-multi-process-registry.md",
+      "archive": "docs/archive/audits/2026-09-27-c3-03-multi-process-registry.md",
+      "operation": "move",
+      "originalGitBlobSha256": "8f47704d1aed6c274b42905676201f5190764b1e1a91e3079b15b8e22b9bb29d"
+    },
+    {
+      "source": "docs/audits/2026-09-27-e1-02c1-managed-lifecycle.md",
+      "archive": "docs/archive/audits/2026-09-27-e1-02c1-managed-lifecycle.md",
+      "operation": "move",
+      "originalGitBlobSha256": "cd544fac971bef21276affb6ecd0923779c07037b8a07aa4e3f0a8eb1da33c99"
+    },
+    {
+      "source": "docs/audits/2026-09-27-e1-02c2-restart-failure-legacy.md",
+      "archive": "docs/archive/audits/2026-09-27-e1-02c2-restart-failure-legacy.md",
+      "operation": "move",
+      "originalGitBlobSha256": "d55b42a6a0a155ad610cb414cf922b56ccd4866dfcb5c978fb034f91c833f4a5"
+    },
+    {
+      "source": "docs/audits/2026-09-27-e1-03-real-child-matrix.md",
+      "archive": "docs/archive/audits/2026-09-27-e1-03-real-child-matrix.md",
+      "operation": "move",
+      "originalGitBlobSha256": "aa4294220aab4525e56e166f03372267230658d59fd405eec8cebc785e0fb693"
+    },
+    {
+      "source": "docs/audits/2026-09-27-linux-container-platform-validation.md",
+      "archive": "docs/archive/audits/2026-09-27-linux-container-platform-validation.md",
+      "operation": "move",
+      "originalGitBlobSha256": "7b37365feb0378902084a34b0efba3ce2b3063be8318ccd1bfc3fb34d119ff72"
+    },
+    {
+      "source": "docs/audits/2026-09-27-obs-14-05d-quota-state-joint.md",
+      "archive": "docs/archive/audits/2026-09-27-obs-14-05d-quota-state-joint.md",
+      "operation": "move",
+      "originalGitBlobSha256": "6334c5b2bc0ff0b219616145d52507a087b9691bb0c78c5616488c99a81d8f7f"
+    },
+    {
+      "source": "docs/audits/2026-09-28-c4-01-resolver-semantics.md",
+      "archive": "docs/archive/audits/2026-09-28-c4-01-resolver-semantics.md",
+      "operation": "move",
+      "originalGitBlobSha256": "c4b967c03df414579538ef8c1ec0fc935834222446adf676c9ca645d6b5595e2"
+    },
+    {
+      "source": "docs/audits/2026-09-28-e1-04-runtime-change-revocation.md",
+      "archive": "docs/archive/audits/2026-09-28-e1-04-runtime-change-revocation.md",
+      "operation": "move",
+      "originalGitBlobSha256": "a3c226453227b6ad6b5070ded33db9355dd870d06ddddd835621efc1f1a5d9cc"
+    },
+    {
+      "source": "docs/audits/2026-09-28-e2-01-security-joint-matrix.md",
+      "archive": "docs/archive/audits/2026-09-28-e2-01-security-joint-matrix.md",
+      "operation": "move",
+      "originalGitBlobSha256": "80736b53511890a4be5f15a691254c928374886c18e2fc20144439d12c700fac"
+    },
+    {
+      "source": "docs/audits/2026-09-28-e2-02-dual-platform-matrix.md",
+      "archive": "docs/archive/audits/2026-09-28-e2-02-dual-platform-matrix.md",
+      "operation": "move",
+      "originalGitBlobSha256": "5a34fe791b8edafaea51be8c250f3a4b371ea12e9cf376c6406c165e2c63a918"
+    },
+    {
+      "source": "docs/audits/2026-09-28-ext-06-hardening-and-ext-07.md",
+      "archive": "docs/archive/audits/2026-09-28-ext-06-hardening-and-ext-07.md",
+      "operation": "move",
+      "originalGitBlobSha256": "5dc69f945fc56f6309ce64dd1d93a67323baf5fab7c8aa578a171a3c5dac0def"
+    },
+    {
+      "source": "docs/audits/2026-09-28-ext-08-ext-06-windows-validation.md",
+      "archive": "docs/archive/audits/2026-09-28-ext-08-ext-06-windows-validation.md",
+      "operation": "move",
+      "originalGitBlobSha256": "2cb07e63dea85b6ce8971b52f98ab8185599f8ac579f46671baaa487a2b912dd"
+    },
+    {
+      "source": "docs/audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md",
+      "archive": "docs/archive/audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md",
+      "operation": "move",
+      "originalGitBlobSha256": "d1c9c3194449d1c591954dd58aca3414c5027e74e842f42d672150513be45bdd"
+    },
+    {
+      "source": "docs/audits/2026-09-28-f1-02c3g5-gateway-proof-guard.md",
+      "archive": "docs/archive/audits/2026-09-28-f1-02c3g5-gateway-proof-guard.md",
+      "operation": "move",
+      "originalGitBlobSha256": "cffa45d7c56ae466153894806ca9b0a11df54258815325f1f533dcdd133abae0"
+    },
+    {
+      "source": "docs/audits/2026-09-28-f1-02c3g6-realtime-permits.md",
+      "archive": "docs/archive/audits/2026-09-28-f1-02c3g6-realtime-permits.md",
+      "operation": "move",
+      "originalGitBlobSha256": "9ee0d77da33b7568447f3003147cd5f1984bf2a6011dbd9d49702f025583fe4b"
+    },
+    {
+      "source": "docs/audits/2026-09-28-f1-02e3b-realtime-authorization.md",
+      "archive": "docs/archive/audits/2026-09-28-f1-02e3b-realtime-authorization.md",
+      "operation": "move",
+      "originalGitBlobSha256": "a0fabbf91945d24bb258f93a7abaf74de479122e70d4454e7091532f7a42a28e"
+    },
+    {
+      "source": "docs/audits/2026-09-28-f1-02f-dual-runtime-reopen.md",
+      "archive": "docs/archive/audits/2026-09-28-f1-02f-dual-runtime-reopen.md",
+      "operation": "move",
+      "originalGitBlobSha256": "2a8806601d28b7213b1c8b82662fdc4a58d7a5c8707d01ecded28255cd954ef7"
+    },
+    {
+      "source": "docs/audits/2026-09-28-f3-03-secret-leak-matrix.md",
+      "archive": "docs/archive/audits/2026-09-28-f3-03-secret-leak-matrix.md",
+      "operation": "move",
+      "originalGitBlobSha256": "5561b9adaa275e0e7cfa4326503f4e9529d9cc7524f60ed06bb98542edd88b8f"
+    },
+    {
+      "source": "docs/audits/2026-09-28-maint-01-frontend-chunking.md",
+      "archive": "docs/archive/audits/2026-09-28-maint-01-frontend-chunking.md",
+      "operation": "move",
+      "originalGitBlobSha256": "619dfaf86ba959edd28d022e26953e1f56c966ab4090eb7298a28681bd32f74c"
+    },
+    {
+      "source": "docs/audits/2026-09-28-obs-16-03-environment-lane.md",
+      "archive": "docs/archive/audits/2026-09-28-obs-16-03-environment-lane.md",
+      "operation": "move",
+      "originalGitBlobSha256": "b501356551e4956be69368f7a71b5bfd517305ac9fe0075a34c62929f1774868"
+    },
+    {
+      "source": "docs/audits/2026-10-08-env-01-health-and-monitoring.md",
+      "archive": "docs/archive/audits/2026-10-08-env-01-health-and-monitoring.md",
+      "operation": "move",
+      "originalGitBlobSha256": "78f31cebbdeda47f5676f2fce2fcbbe16a77d67f86174157e7931d62e6186f90"
+    },
+    {
+      "source": "docs/audits/2026-10-08-ext-01-05-gateway-lifecycle.md",
+      "archive": "docs/archive/audits/2026-10-08-ext-01-05-gateway-lifecycle.md",
+      "operation": "move",
+      "originalGitBlobSha256": "1b7308eb4becc1d8eafdbbc2ea1b4e7142522a44c5c09a3a0d34c04540a6fc08"
+    },
+    {
+      "source": "docs/audits/2026-10-08-gateway-repeat-deployment.md",
+      "archive": "docs/archive/audits/2026-10-08-gateway-repeat-deployment.md",
+      "operation": "move",
+      "originalGitBlobSha256": "6c61fd52e7df4e1a72ebeba0503ab8f7fb4f4a9b347876a313dac48af8ea76ac"
+    },
+    {
+      "source": "docs/audits/2026-10-08-observability-backup-restore.md",
+      "archive": "docs/archive/audits/2026-10-08-observability-backup-restore.md",
+      "operation": "move",
+      "originalGitBlobSha256": "1c281a018ebf43b66d8d5e203f1c4554d0c7016ddcfc944b91ae0ff5b3a2ef08"
+    },
+    {
+      "source": "docs/audits/2026-10-08-observability-bulk-pipeline.md",
+      "archive": "docs/archive/audits/2026-10-08-observability-bulk-pipeline.md",
+      "operation": "move",
+      "originalGitBlobSha256": "877923b4be1e5c721da4f87aadb58bae90c9900c4779f3598c27dc424340eb9e"
+    },
+    {
+      "source": "docs/audits/2026-10-08-observability-caller-batch-projection.md",
+      "archive": "docs/archive/audits/2026-10-08-observability-caller-batch-projection.md",
+      "operation": "move",
+      "originalGitBlobSha256": "8c836d3c1aa5fa4d03f3ac7b5e944d09a9c73fc746fcc30d72c13a8d1e53bbd6"
+    },
+    {
+      "source": "docs/audits/2026-10-08-observability-collector-fairness.md",
+      "archive": "docs/archive/audits/2026-10-08-observability-collector-fairness.md",
+      "operation": "move",
+      "originalGitBlobSha256": "ae07aac24cebee1c7957dc8db53edba083cc5931f55d7f618291e06419776c82"
+    },
+    {
+      "source": "docs/audits/2026-10-08-observability-functional-closure.md",
+      "archive": "docs/archive/audits/2026-10-08-observability-functional-closure.md",
+      "operation": "move",
+      "originalGitBlobSha256": "77700e8746e1d002f42da1876cd8d126eed82ccafe01892712f60e14f0a1d4d7"
+    },
+    {
+      "source": "docs/audits/2026-10-08-observability-ingest-batching.md",
+      "archive": "docs/archive/audits/2026-10-08-observability-ingest-batching.md",
+      "operation": "move",
+      "originalGitBlobSha256": "614ca1804b791a067a939c66c48d6f56270f95e867d185df9c9d3307ee249201"
+    },
+    {
+      "source": "docs/audits/2026-10-08-observability-ingest-bulk-sql.md",
+      "archive": "docs/archive/audits/2026-10-08-observability-ingest-bulk-sql.md",
+      "operation": "move",
+      "originalGitBlobSha256": "c54bd6c39b1212cb01e87b6b763ebee4b2c928aa14a5ee6c77368cd737d3c3ba"
+    },
+    {
+      "source": "docs/audits/2026-10-08-observability-performance.md",
+      "archive": "docs/archive/audits/2026-10-08-observability-performance.md",
+      "operation": "move",
+      "originalGitBlobSha256": "c3ca4c42dc88d3733086e460811176f924ce56901cf02aa3b61f8b6077d4468f"
+    },
+    {
+      "source": "docs/audits/2026-10-08-observability-persistence-and-projector.md",
+      "archive": "docs/archive/audits/2026-10-08-observability-persistence-and-projector.md",
+      "operation": "move",
+      "originalGitBlobSha256": "e217b26ccb0dd49f56e8ff030e9e3c2aad6a7d04fd1ca6c26d19e4500037863d"
+    },
+    {
+      "source": "docs/audits/2026-10-08-observability-relaxed-timeouts.md",
+      "archive": "docs/archive/audits/2026-10-08-observability-relaxed-timeouts.md",
+      "operation": "move",
+      "originalGitBlobSha256": "d55a97f8b38b6802b8045e640726beaa8fd40b66e953376f4afaae34ade8576b"
+    },
+    {
+      "source": "docs/audits/2026-10-08-observability-runtime-write-batching.md",
+      "archive": "docs/archive/audits/2026-10-08-observability-runtime-write-batching.md",
+      "operation": "move",
+      "originalGitBlobSha256": "1ce5a688e15624e6495aa6dd2b9f81cf36d3d8ca5ccfa9f05607ac51ff1ba720"
+    },
+    {
+      "source": "docs/audits/2026-10-08-observability-signoff-readiness.md",
+      "archive": "docs/archive/audits/2026-10-08-observability-signoff-readiness.md",
+      "operation": "move",
+      "originalGitBlobSha256": "01eb647aeae46edf68b493166f4dc7fa6c4dc4fb7b603afde683249dc870cd0f"
+    },
+    {
+      "source": "docs/audits/2026-10-08-observability-source-writer.md",
+      "archive": "docs/archive/audits/2026-10-08-observability-source-writer.md",
+      "operation": "move",
+      "originalGitBlobSha256": "05c92532f43ee99dffe1450672641bedbe083156dbdab97e6e820e10730e4a97"
+    },
+    {
+      "source": "docs/audits/2026-10-08-observability-throughput-closure.md",
+      "archive": "docs/archive/audits/2026-10-08-observability-throughput-closure.md",
+      "operation": "move",
+      "originalGitBlobSha256": "c1ed309683d29965c98fff31c19f6cb41f8d562e20cff32ad71a90579e7d81ad"
+    },
+    {
+      "source": "docs/audits/2026-10-08-prod-04c-binary-lifecycle.md",
+      "archive": "docs/archive/audits/2026-10-08-prod-04c-binary-lifecycle.md",
+      "operation": "move",
+      "originalGitBlobSha256": "6314424720235beac565ab7145ba5d2ee4cb2da5916cbecf1f4c213f95ddb953"
+    },
+    {
+      "source": "docs/audits/2026-10-08-runtime-observability-write-transaction.md",
+      "archive": "docs/archive/audits/2026-10-08-runtime-observability-write-transaction.md",
+      "operation": "move",
+      "originalGitBlobSha256": "ebf961911e6178870f81b30f6dab5d92c7f8ba60fb525a35d3145dea3c8aefc5"
+    },
+    {
+      "source": "docs/audits/2026-10-08-security-dependency-closure.md",
+      "archive": "docs/archive/audits/2026-10-08-security-dependency-closure.md",
+      "operation": "move",
+      "originalGitBlobSha256": "16f21f217bdfdefb245abaa0b184ae608ad59b5bad01e536f6bc694481257c8a"
+    },
+    {
+      "source": "docs/audits/2026-10-08-security-file-watch-migration.md",
+      "archive": "docs/archive/audits/2026-10-08-security-file-watch-migration.md",
+      "operation": "move",
+      "originalGitBlobSha256": "2f6b3761872b6a0b284974cb17d31b5681ea46951a27b407d20647d9dfb92e5e"
+    },
+    {
+      "source": "docs/audits/2026-10-08-security-nest-sse-backport.md",
+      "archive": "docs/archive/audits/2026-10-08-security-nest-sse-backport.md",
+      "operation": "move",
+      "originalGitBlobSha256": "d33f61f98d7e06dd2837df74ffb7cb110719d43abf1dfba90d3c349618a22975"
+    },
+    {
+      "source": "docs/audits/2026-10-08-security-parser-chain-migration.md",
+      "archive": "docs/archive/audits/2026-10-08-security-parser-chain-migration.md",
+      "operation": "move",
+      "originalGitBlobSha256": "1dffc40c249f1174a293f4b9260cf3c07be4c5f3ca69ac7e3e1baf80600269b2"
+    },
+    {
+      "source": "docs/audits/2026-10-08-security-residual-dependency-migration.md",
+      "archive": "docs/archive/audits/2026-10-08-security-residual-dependency-migration.md",
+      "operation": "move",
+      "originalGitBlobSha256": "4dc6e8ce6bb06336d1b73842835de325ded6523f02838963535c6315fd6dd29a"
+    },
+    {
+      "source": "docs/audits/2026-10-08-security-signoff-readiness.md",
+      "archive": "docs/archive/audits/2026-10-08-security-signoff-readiness.md",
+      "operation": "move",
+      "originalGitBlobSha256": "b3a1ceae577970a8e87ca44cd3e7ca50a8da18256d13a5732bc9330e233de105"
+    },
+    {
+      "source": "docs/audits/2026-10-08-sqljs-persistence-concurrency.md",
+      "archive": "docs/archive/audits/2026-10-08-sqljs-persistence-concurrency.md",
+      "operation": "move",
+      "originalGitBlobSha256": "d1961c2fe51158e7308735cd81979d5da43945319373004322448bd00efdaacc"
+    },
+    {
+      "source": "docs/audits/2026-10-08-sqljs-readonly-transaction-persistence.md",
+      "archive": "docs/archive/audits/2026-10-08-sqljs-readonly-transaction-persistence.md",
+      "operation": "move",
+      "originalGitBlobSha256": "f08a17a2262ea6927b1d66602fb1a2f4aa3cb30bf01c93280f6a1bf6bb53639c"
+    },
+    {
+      "source": "docs/audits/2026-10-14-health-free-space-policy.md",
+      "archive": "docs/archive/audits/2026-10-14-health-free-space-policy.md",
+      "operation": "move",
+      "originalGitBlobSha256": "6ba656977f62e56839d06db5878837d5573a3368aa0bace7c57303ad30640440"
+    },
+    {
+      "source": "docs/audits/2026-10-14-ops-browser-openapi-import.md",
+      "archive": "docs/archive/audits/2026-10-14-ops-browser-openapi-import.md",
+      "operation": "move",
+      "originalGitBlobSha256": "858ec1859069f345c9503670f5f3035aa5cf2de5489625315099d2dc1c927adf"
+    },
+    {
+      "source": "docs/audits/2026-10-14-ops-browser-workflow.md",
+      "archive": "docs/archive/audits/2026-10-14-ops-browser-workflow.md",
+      "operation": "move",
+      "originalGitBlobSha256": "e8a57ce89c4d72ae9a7b61f6fe1e98b2f4cc39a1aa34acb31f38985297438a6e"
+    },
+    {
+      "source": "docs/audits/2026-10-14-release-v1.7.6-rc.3.md",
+      "archive": "docs/archive/audits/2026-10-14-release-v1.7.6-rc.3.md",
+      "operation": "move",
+      "originalGitBlobSha256": "9aff026a9f413f9e7a15b54da2568cad89b05b8f959fb4c03280674ff093a8a0"
+    },
+    {
+      "source": "docs/audits/2026-10-20-release-v1.7.6-rc.4.md",
+      "archive": "docs/archive/audits/2026-10-20-release-v1.7.6-rc.4.md",
+      "operation": "move",
+      "originalGitBlobSha256": "8f9d9285ef5efe53b3e3e1ec76d77a8e5e8b1a4987efd8732a8a12300b88a690"
+    },
+    {
+      "source": "docs/audits/2026-10-20-release-v1.7.6-rc.5.md",
+      "archive": "docs/archive/audits/2026-10-20-release-v1.7.6-rc.5.md",
+      "operation": "move",
+      "originalGitBlobSha256": "6dbba450a5cf439b036af0a0fe911524f87d764cc84f6ddb5c9320718b2eca76"
+    },
+    {
+      "source": "docs/audits/2026-10-20-runtime-logs-browser-lifecycle.md",
+      "archive": "docs/archive/audits/2026-10-20-runtime-logs-browser-lifecycle.md",
+      "operation": "move",
+      "originalGitBlobSha256": "049b8a219f16f47e272af8eb13ca03831ec5cc85d04ed5014161a7925e577967"
+    },
+    {
+      "source": "docs/audits/2026-10-20-ui-health-refresh.md",
+      "archive": "docs/archive/audits/2026-10-20-ui-health-refresh.md",
+      "operation": "move",
+      "originalGitBlobSha256": "4cc610f00e09d70b7cd53c65693a208a123bd998cc04038d5fe6131fc87bd3f0"
+    },
+    {
+      "source": "docs/audits/2026-10-26-existing-scope-closure.md",
+      "archive": "docs/archive/audits/2026-10-26-existing-scope-closure.md",
+      "operation": "move",
+      "originalGitBlobSha256": "3ecb8e316bee4215228767423e91a8fa55474ff1ba50a1f90993eb9105301ef6"
+    },
+    {
+      "source": "docs/audits/README.md",
+      "archive": "docs/archive/audits/README.md",
+      "operation": "move",
+      "originalGitBlobSha256": "d707ea829ab73219ff0322851338f34941819eefd0a8ee358914034f0a7c69e9"
+    },
+    {
+      "source": "docs/audits/evidence/2026-10-26-existing-scope-closure/acceptance-summary.json",
+      "archive": "docs/archive/audits/evidence/2026-10-26-existing-scope-closure/acceptance-summary.json",
+      "operation": "move",
+      "originalGitBlobSha256": "02dc76996841dc23f901d9ed4422265a310a89bbeea9b1853575a1c25126d3ae"
+    },
+    {
+      "source": "docs/audits/evidence/2026-10-26-existing-scope-closure/dependency-audit-summary.json",
+      "archive": "docs/archive/audits/evidence/2026-10-26-existing-scope-closure/dependency-audit-summary.json",
+      "operation": "move",
+      "originalGitBlobSha256": "6e127301d6dcfc15734836036abe0d3b864820c7d62480cdfd6b1f5aaec25a7a"
+    },
+    {
+      "source": "docs/audits/evidence/2026-10-26-existing-scope-closure/doc-validation.json",
+      "archive": "docs/archive/audits/evidence/2026-10-26-existing-scope-closure/doc-validation.json",
+      "operation": "move",
+      "originalGitBlobSha256": "bf870f9fc5fb3aebb7bd8c45381b76a490564dbff475285a9fb6574ab288a6b5"
+    },
+    {
+      "source": "docs/guides/api-gateway-architecture-and-requirements.md",
+      "archive": "docs/archive/guides/2026-10-26/api-gateway-architecture-and-requirements.md",
+      "operation": "move",
+      "originalGitBlobSha256": "cbb7ce58aa892f6510a745953808f518d90d419446c01ecbd23b1177a32740c8"
+    },
+    {
+      "source": "docs/guides/asset-model-and-runtime-assets.md",
+      "archive": "docs/archive/guides/2026-10-26/asset-model-and-runtime-assets.md",
+      "operation": "move",
+      "originalGitBlobSha256": "a6ef13d8e52eeba05ed11f95351799d3c3acaba358da2e1fb88c157413469ba8"
+    },
+    {
+      "source": "docs/guides/database-mode-quickstart.md",
+      "archive": "docs/archive/guides/2026-10-26/database-mode-quickstart.md",
+      "operation": "move",
+      "originalGitBlobSha256": "42b358379b7079879c424ee5218cf202a713ac0a00b94152350034c9fcee5d38"
+    },
+    {
+      "source": "docs/guides/development-handoff-2026-10-14.md",
+      "archive": "docs/archive/plans/2026-10-26/development-handoff-2026-10-14.md",
+      "operation": "move",
+      "originalGitBlobSha256": "5cf89914deb0181e787ee181862721be2176f3773b1e982a9a7f1c82703972ea"
+    },
+    {
+      "source": "docs/guides/endpoint-semantic-layer-requirements.md",
+      "archive": "docs/archive/guides/2026-10-26/endpoint-semantic-layer-requirements.md",
+      "operation": "move",
+      "originalGitBlobSha256": "87ddfa5da55dfcc2e12d737e095d943dea91bd1fe2d2c5a3a8aab7f7228bde61"
+    },
+    {
+      "source": "docs/guides/endpoint-test-binary-sample-contract.md",
+      "archive": "docs/archive/contracts/2026-10-26/endpoint-test-binary-sample-contract.md",
+      "operation": "move",
+      "originalGitBlobSha256": "b89c573d05a6f34099929609775a7b029503b010393791fa6a7af1632300af12"
+    },
+    {
+      "source": "docs/guides/fork-origin-and-independence.md",
+      "archive": "docs/archive/guides/2026-10-26/fork-origin-and-independence.md",
+      "operation": "move",
+      "originalGitBlobSha256": "da6444a0f026b351d512c90405bb24360e4eb28aa38027df52330d96724c3343"
+    },
+    {
+      "source": "docs/guides/github-collaboration-workflow.md",
+      "archive": "docs/archive/guides/2026-10-26/github-collaboration-workflow.md",
+      "operation": "move",
+      "originalGitBlobSha256": "702e1e5c4a3af73d59c2996c4ed8e043c305832597b2b6c56c8e67dd1fbd645a"
+    },
+    {
+      "source": "docs/guides/local-setup-and-run.md",
+      "archive": "docs/archive/guides/2026-10-26/local-setup-and-run.md",
+      "operation": "move",
+      "originalGitBlobSha256": "e049927721b433516235e800daaf97eed4341aa950e8828935c7d2c538ae7c90"
+    },
+    {
+      "source": "docs/guides/mail-delivery-scope-and-acceptance.md",
+      "archive": "docs/archive/guides/2026-10-26/mail-delivery-scope-and-acceptance.md",
+      "operation": "move",
+      "originalGitBlobSha256": "d8d0308a4fc3d60994f33b03d9d49b0ce8edd8fb3ce07cc46d5b0cb5c3733fb1"
+    },
+    {
+      "source": "docs/guides/managed-mcp-credential-handoff-plan.md",
+      "archive": "docs/archive/plans/2026-10-26/managed-mcp-credential-handoff-plan.md",
+      "operation": "move",
+      "originalGitBlobSha256": "f94333fbb4988dc06cc2fb684ed0fb66790585ddbe8ea903e00a39597fd13ab5"
+    },
+    {
+      "source": "docs/guides/mcp-publication-endpoint-contract.md",
+      "archive": "docs/archive/contracts/2026-10-26/mcp-publication-endpoint-contract.md",
+      "operation": "move",
+      "originalGitBlobSha256": "fa69e33d81199580337d667013d9ab840539c20b119a45e1c851708dcb1b0d8d"
+    },
+    {
+      "source": "docs/guides/mcp-trusted-operation-bindings.md",
+      "archive": "docs/archive/contracts/2026-10-26/mcp-trusted-operation-bindings.md",
+      "operation": "move",
+      "originalGitBlobSha256": "2acbeb814108a257a0c5cd31a7366e552e1b9d5acefa1199cd0962a19198e5fe"
+    },
+    {
+      "source": "docs/guides/publication-resource-baseline.md",
+      "archive": "docs/archive/guides/2026-10-26/publication-resource-baseline.md",
+      "operation": "move",
+      "originalGitBlobSha256": "c4e34081894c568046f953b500c7d57a0d09eaf512ad50d7e0ebf8a2834af6d4"
+    },
+    {
+      "source": "docs/guides/runtime-instance-and-regression-closure-plan.md",
+      "archive": "docs/archive/plans/2026-10-26/runtime-instance-and-regression-closure-plan.md",
+      "operation": "move",
+      "originalGitBlobSha256": "d098ea663a3f1a27048ea47b97295423385ecab3d518dde9611afdba326ec678"
+    },
+    {
+      "source": "docs/guides/runtime-observability-completion-review.md",
+      "archive": "docs/archive/plans/2026-10-26/runtime-observability-completion-review.md",
+      "operation": "move",
+      "originalGitBlobSha256": "d19f17727f40208df7fc66e16e69296683ef0db3dd228bf05e0e4fce1867b812"
+    },
+    {
+      "source": "docs/guides/runtime-observability-development-execution-status.md",
+      "archive": "docs/archive/plans/2026-10-26/runtime-observability-development-execution-status.md",
+      "operation": "move",
+      "originalGitBlobSha256": "d6d19e43845b46e265b47793d468ba37c58b54d50c4c30994d91198f82f5f57d"
+    },
+    {
+      "source": "docs/guides/runtime-observability-development-task-plan.md",
+      "archive": "docs/archive/plans/2026-10-26/runtime-observability-development-task-plan.md",
+      "operation": "move",
+      "originalGitBlobSha256": "aa64812ea2e40e304a82aae388e605955bebb5baddac09f0fdc36da3dad8a819"
+    },
+    {
+      "source": "docs/guides/runtime-observability-external-validation-handoff.md",
+      "archive": "docs/archive/plans/2026-10-26/runtime-observability-external-validation-handoff.md",
+      "operation": "move",
+      "originalGitBlobSha256": "434e359427294981a17d55995dddc04a9d4ac72c68b47ffc41f39d628d7cba46"
+    },
+    {
+      "source": "docs/guides/runtime-observability-integration.md",
+      "archive": "docs/archive/guides/2026-10-26/runtime-observability-integration.md",
+      "operation": "move",
+      "originalGitBlobSha256": "9637b6f5022031db236f05df1da41c2cfd62313b2984610082d60cc06e2a1bcb"
+    },
+    {
+      "source": "docs/guides/runtime-observability-requirements.md",
+      "archive": "docs/archive/guides/2026-10-26/runtime-observability-requirements.md",
+      "operation": "move",
+      "originalGitBlobSha256": "375b6a2031860ca7b429bb3409f7d8dbbdd88500e929a6dcf730226205995ab4"
+    },
+    {
+      "source": "docs/guides/runtime-observability-subscription-integration.md",
+      "archive": "docs/archive/guides/2026-10-26/runtime-observability-subscription-integration.md",
+      "operation": "move",
+      "originalGitBlobSha256": "2baf6cfc6f9abc216255bc835663cd3899791c45bb4f914fae64aab0a61fd3f5"
+    },
+    {
+      "source": "docs/guides/runtime-security-and-call-audit.md",
+      "archive": "docs/archive/guides/2026-10-26/runtime-security-and-call-audit.md",
+      "operation": "move",
+      "originalGitBlobSha256": "91fc45b7b6672d07a6aa8308181eaf5a02ea6eb79d9244dd3ac37e63fdd39d62"
+    },
+    {
+      "source": "docs/guides/security-delivery-evidence-index.md",
+      "archive": "docs/archive/guides/2026-10-26/security-delivery-evidence-index.md",
+      "operation": "move",
+      "originalGitBlobSha256": "7ca4d2b1f76ce751f32af7a7fc4775db1063b3907db2b95373d355157eaeb40f"
+    },
+    {
+      "source": "docs/guides/security-development-execution-status.md",
+      "archive": "docs/archive/plans/2026-10-26/security-development-execution-status.md",
+      "operation": "move",
+      "originalGitBlobSha256": "b84a06eb4b9526cdc194ea7c4bcabf9efd5bb8e7cb7ad0f3e79193c907d79ff7"
+    },
+    {
+      "source": "docs/guides/security-development-task-plan.md",
+      "archive": "docs/archive/plans/2026-10-26/security-development-task-plan.md",
+      "operation": "move",
+      "originalGitBlobSha256": "3d95d39930c387c8813e72da9aafd49bec371cc74891c38feaf15affd18a30d0"
+    },
+    {
+      "source": "docs/guides/security-functional-requirements.md",
+      "archive": "docs/archive/guides/2026-10-26/security-functional-requirements.md",
+      "operation": "move",
+      "originalGitBlobSha256": "c225970c1c46acf71738a3bcec24f266228bc01ad1ea2a3b52c6da514c78cade"
+    },
+    {
+      "source": "docs/guides/security-header-network-boundary-contract.md",
+      "archive": "docs/archive/contracts/2026-10-26/security-header-network-boundary-contract.md",
+      "operation": "move",
+      "originalGitBlobSha256": "4dafc3bced0c83d2ba99942644f35fa8823e8ad0fa49ff1d4ed0cb4d0f119771"
+    },
+    {
+      "source": "docs/guides/staged-development-plan.md",
+      "archive": "docs/archive/plans/2026-10-26/staged-development-plan.md",
+      "operation": "move",
+      "originalGitBlobSha256": "82495ead679687643745c43c33c6c22eec6b7c33e597a5a155b8558e797a8d3d"
+    },
+    {
+      "source": "docs/guides/upstream-credential-types-contract.md",
+      "archive": "docs/archive/contracts/2026-10-26/upstream-credential-types-contract.md",
+      "operation": "move",
+      "originalGitBlobSha256": "eee40d875d82fa44fcd133391c7cd467486df603fc8bac84dba2a58c394a975b"
+    },
+    {
+      "source": "docs/guides/upstream-security-reconciliation-contract.md",
+      "archive": "docs/archive/contracts/2026-10-26/upstream-security-reconciliation-contract.md",
+      "operation": "move",
+      "originalGitBlobSha256": "c5667139c6049ae7802c075bad080f0679bbd81cb36abef2c6986227ee7e13b5"
+    },
+    {
+      "source": "docs/reference/changelog-field-guide.md",
+      "archive": "docs/archive/reference/2026-10-26/changelog-field-guide.md",
+      "operation": "move",
+      "originalGitBlobSha256": "cc80dd0dd0b06ffdcf18f0589ccb975a3c3697d4b72e708c65f8a0a974cc81c3"
+    },
+    {
+      "source": "docs/reference/esm-commonjs-quick-reference.md",
+      "archive": "docs/archive/reference/2026-10-26/esm-commonjs-quick-reference.md",
+      "operation": "move",
+      "originalGitBlobSha256": "7ca65f5a1ccc72208a8498934b080d7942a9639e6f9a3d6df8f5951360bff588"
+    },
+    {
+      "source": "docs/reference/management-observability-baseline.md",
+      "archive": "docs/archive/reference/2026-10-26/management-observability-baseline.md",
+      "operation": "move",
+      "originalGitBlobSha256": "33f2919efe3c0ad3720d6b657fa05a572cd41f73ea352a65f3119a15831a4e81"
+    },
+    {
+      "source": "docs/reference/mcp-jsonrpc-relationship.md",
+      "archive": "docs/archive/reference/2026-10-26/mcp-jsonrpc-relationship.md",
+      "operation": "move",
+      "originalGitBlobSha256": "1782666d5d8bad23a70e2ae2ae1bb8b4087943c7ad9de7e4011504ca027df88f"
+    },
+    {
+      "source": "docs/reference/nodejs-module-systems-guide.md",
+      "archive": "docs/archive/reference/2026-10-26/nodejs-module-systems-guide.md",
+      "operation": "move",
+      "originalGitBlobSha256": "4e1bb012527a47f2cc64d1061064543edede46677cad273698f3f50020dd2d85"
+    },
+    {
+      "source": "docs/reference/runtime-closure-design-implementation-review.md",
+      "archive": "docs/archive/reference/2026-10-26/runtime-closure-design-implementation-review.md",
+      "operation": "move",
+      "originalGitBlobSha256": "bcf6d9f7bbc032e60cf1a27b17c2ef4493f587fe5a96787160d58d2afeb6a688"
+    },
+    {
+      "source": "docs/reference/runtime-observability-api-endpoints.md",
+      "archive": "docs/api/observability.md",
+      "operation": "move",
+      "originalGitBlobSha256": "087a057a9e0825b7c0e47261b2375346193e6a88a8588bd08fe67e545b5b68bc"
+    },
+    {
+      "source": "docs/reference/runtime-observability-capacity-quota-contract.md",
+      "archive": "docs/archive/reference/2026-10-26/runtime-observability-capacity-quota-contract.md",
+      "operation": "move",
+      "originalGitBlobSha256": "0d756a5968ae3d038cd575438f926b5e8677b1e257d461f57921e2d7dca3996b"
+    },
+    {
+      "source": "docs/reference/runtime-observability-contract-mapping.md",
+      "archive": "docs/archive/reference/2026-10-26/runtime-observability-contract-mapping.md",
+      "operation": "move",
+      "originalGitBlobSha256": "100a7a9b6a5f1faae2fb381d73b8e7268e954db35b7580b1efbd6046f961880a"
+    },
+    {
+      "source": "docs/reference/runtime-observability-design.md",
+      "archive": "docs/archive/reference/2026-10-26/runtime-observability-design.md",
+      "operation": "move",
+      "originalGitBlobSha256": "d07939d4cfbf6a4554c75fbe9e097a81c0c9c0e753e2429d5ba6141e73e266aa"
+    },
+    {
+      "source": "docs/reference/runtime-observability-lifecycle-contract.md",
+      "archive": "docs/archive/reference/2026-10-26/runtime-observability-lifecycle-contract.md",
+      "operation": "move",
+      "originalGitBlobSha256": "05d6b46c4fff4c8e05ad72edcba3339b6bf71e1ae7a102dc6d855e0fc1f5b3a0"
+    },
+    {
+      "source": "docs/reference/runtime-observability-storage-foundation.md",
+      "archive": "docs/archive/reference/2026-10-26/runtime-observability-storage-foundation.md",
+      "operation": "move",
+      "originalGitBlobSha256": "6b86080bc33baf547e6bc650db833e69205314e39e659f50a229c6d5650945ed"
+    },
+    {
+      "source": "docs/reference/security-design-and-implementation.md",
+      "archive": "docs/archive/reference/2026-10-26/security-design-and-implementation.md",
+      "operation": "move",
+      "originalGitBlobSha256": "fefee2994834b43c8e7933a30f5867cb4bc2c5305c285842af249a00669fbe44"
+    },
+    {
+      "source": "docs/reference/versioning-policy.md",
+      "archive": "docs/archive/reference/2026-10-26/versioning-policy.md",
+      "operation": "move",
+      "originalGitBlobSha256": "d326fdf66ba91fa3653394c85a8110613675497049d0878e8c206df99171f8c0"
+    },
+    {
+      "source": "docs/release/offline-dependency-migration.md",
+      "archive": "docs/archive/guides/2026-10-26/offline-dependency-migration.md",
+      "operation": "move",
+      "originalGitBlobSha256": "f28269eaee322e6167850cb345ab251b547cf5182933d0b90f8fb517be5f5604"
+    },
+    {
+      "source": "docs/release/versions/v1.7.5-rc.2/QUICK_START.md",
+      "archive": "docs/archive/releases/versions/v1.7.5-rc.2/QUICK_START.md",
+      "operation": "move",
+      "originalGitBlobSha256": "55ff17680bed0ffe9122c55e25c614c8410192d2a3de001f2f213e93e2bc5dae"
+    },
+    {
+      "source": "docs/release/versions/v1.7.5-rc.2/RELEASE_NOTES.md",
+      "archive": "docs/archive/releases/versions/v1.7.5-rc.2/RELEASE_NOTES.md",
+      "operation": "move",
+      "originalGitBlobSha256": "fee136fb0fee10f3b42b34807f78475bb1e008fc8822439afc06c16f66bbc019"
+    },
+    {
+      "source": "docs/release/versions/v1.7.6-rc.3/QUICK_START.md",
+      "archive": "docs/archive/releases/versions/v1.7.6-rc.3/QUICK_START.md",
+      "operation": "move",
+      "originalGitBlobSha256": "e679e4f2f21d8a2930ab8e990fcc11d098a066f28189e427c22bf2aae5c494cf"
+    },
+    {
+      "source": "docs/release/versions/v1.7.6-rc.3/RELEASE_NOTES.md",
+      "archive": "docs/archive/releases/versions/v1.7.6-rc.3/RELEASE_NOTES.md",
+      "operation": "move",
+      "originalGitBlobSha256": "8a437041fe4604e1461c30a0bd9ed8cca3cba0cefa486aeb6c9fdfa1b8566773"
+    },
+    {
+      "source": "docs/release/versions/v1.7.6-rc.4/QUICK_START.md",
+      "archive": "docs/archive/releases/versions/v1.7.6-rc.4/QUICK_START.md",
+      "operation": "move",
+      "originalGitBlobSha256": "9bbece44d4e2456c7be6239e51cc33cb8df17c4e0b8607a377dbe60df414a7d4"
+    },
+    {
+      "source": "docs/release/versions/v1.7.6-rc.4/RELEASE_NOTES.md",
+      "archive": "docs/archive/releases/versions/v1.7.6-rc.4/RELEASE_NOTES.md",
+      "operation": "move",
+      "originalGitBlobSha256": "3113abb1e53e98647519d1fb4bf7cbbc3b5ef84fe914fbfbf95778caf304c891"
+    },
+    {
+      "source": "docs/testing/sec-a1-01-auth-mode-cross-layer-matrix.md",
+      "archive": "docs/archive/audits/sec-a1-01-auth-mode-cross-layer-matrix.md",
+      "operation": "move",
+      "originalGitBlobSha256": "9af4f89f0548d1aaf04988b5e93fa5360ae795fc4d59f7ada9098708e235360f"
+    },
+    {
+      "source": "packages/api-nova-parser/docs/API_DOCUMENTATION.md",
+      "archive": "docs/archive/packages/api-nova-parser/2026-10-26/API_DOCUMENTATION.md",
+      "operation": "move",
+      "originalGitBlobSha256": "8e3923e011a68fe1f7e0b6a58cfed0e1eb4eaabd01997ecd49a10cf4dc1d0c8a"
+    },
+    {
+      "source": "packages/api-nova-parser/docs/ARCHITECTURE_DECISIONS.md",
+      "archive": "docs/archive/packages/api-nova-parser/2026-10-26/ARCHITECTURE_DECISIONS.md",
+      "operation": "move",
+      "originalGitBlobSha256": "ef25acc0e525f8491bc935df0d9a9104790afe7f653c495e335363b16ab80dcf"
+    },
+    {
+      "source": "packages/api-nova-parser/docs/TECHNICAL_DOCUMENTATION.md",
+      "archive": "docs/archive/packages/api-nova-parser/2026-10-26/TECHNICAL_DOCUMENTATION.md",
+      "operation": "move",
+      "originalGitBlobSha256": "99927edc228a3d85a8f66ea2620c3cb4350e951d6ce29681120dee36e795ab4a"
+    },
+    {
+      "source": "packages/api-nova-server/ARCHITECTURE.md",
+      "archive": "docs/archive/packages/api-nova-server/2026-10-26/ARCHITECTURE.md",
+      "operation": "move",
+      "originalGitBlobSha256": "2170c01edcc0ca75a78c21329bcb8c8f210ad5b39062f108891478816edfc276"
+    },
+    {
+      "source": "RELEASE_STANDARD.md",
+      "archive": "docs/archive/releases/2026-10-26/RELEASE_STANDARD.md",
+      "operation": "snapshot-before-consolidation",
+      "originalGitBlobSha256": "e89465bf06d7e54d077c4680e887caa63f6175fc9f76a73289d07ddce07df578"
+    },
+    {
+      "source": "docs/baseline/PROJECT_BASELINE.md",
+      "archive": "docs/archive/consolidated/2026-10-26/PROJECT_BASELINE.md",
+      "operation": "snapshot-before-consolidation",
+      "originalGitBlobSha256": "ac5f0bd574cb5dee6a4c1b03910facf39509a3f8e6a33cf87b66e6dfa7244fed"
+    },
+    {
+      "source": "docs/guides/active-work-package-breakdown.md",
+      "archive": "docs/archive/plans/2026-10-26/active-work-package-breakdown.md",
+      "operation": "snapshot-before-consolidation",
+      "originalGitBlobSha256": "c0baa5cd3d50ffc3ec9757c0a754857b9f77db0e35236d5c1ac6341cda2df2a2"
+    },
+    {
+      "source": "docs/guides/active-work-package-execution-status.md",
+      "archive": "docs/archive/plans/2026-10-26/active-work-package-execution-status.md",
+      "operation": "snapshot-before-consolidation",
+      "originalGitBlobSha256": "e52db72ecfb5c82f493e82637829fa4bd01cbef78c370bb72e16c176bf1bfed1"
+    },
+    {
+      "source": "docs/guides/database-strategy.md",
+      "archive": "docs/archive/consolidated/2026-10-26/database-strategy.md",
+      "operation": "snapshot-before-consolidation",
+      "originalGitBlobSha256": "f9405c3cf84fd6c1a2cde5278eb6a30822468faa16432974607c4f9470bcf44f"
+    },
+    {
+      "source": "docs/reference/management-permission-matrix.md",
+      "archive": "docs/archive/consolidated/2026-10-26/management-permission-matrix.md",
+      "operation": "snapshot-before-consolidation",
+      "originalGitBlobSha256": "5f625facd4a4d18cf8a2d6f4a320ab0a73ff3b2a52eed9022dbabe1e462bb2b2"
+    },
+    {
+      "source": "docs/reference/runtime-observability-api-endpoints.md",
+      "archive": "docs/archive/reference/2026-10-26/runtime-observability-api-endpoints.md",
+      "operation": "snapshot-before-consolidation",
+      "originalGitBlobSha256": "087a057a9e0825b7c0e47261b2375346193e6a88a8588bd08fe67e545b5b68bc"
+    },
+    {
+      "source": "docs/testing/runtime-publication-acceptance-cases.md",
+      "archive": "docs/archive/testing/2026-10-26/runtime-publication-acceptance-cases.md",
+      "operation": "snapshot-before-consolidation",
+      "originalGitBlobSha256": "415942f329a62c495198f1a2c37ab1836b5dd64f8657b3c3b8860f88493a2ea6"
+    },
+    {
+      "source": "docs/testing/runtime-security-audit-cases.md",
+      "archive": "docs/archive/testing/2026-10-26/runtime-security-audit-cases.md",
+      "operation": "snapshot-before-consolidation",
+      "originalGitBlobSha256": "707db3bd4f679dd8c72d74d457c60b6799df6a139a59dbc049e21b600114647a"
+    },
+    {
+      "source": "docs/testing/upstream-secret-provider-linux.md",
+      "archive": "docs/archive/testing/2026-10-26/upstream-secret-provider-linux.md",
+      "operation": "snapshot-before-consolidation",
+      "originalGitBlobSha256": "697677224195eb1f41fb13476a59216c8eea69a4d5e375c75f41aa1e7e46947c"
+    }
+  ],
+  "referenceRepairs": {
+    "retargeted": 149,
+    "explicitlyUnavailable": 7,
+    "unavailableReferences": [
+      {
+        "file": "docs/archive/packages/api-nova-server/bearer-token-quickstart.md",
+        "target": "docs/api.md",
+        "reason": "missing file",
+        "action": "mark-unavailable",
+        "replacement": null
+      },
+      {
+        "file": "docs/archive/packages/api-nova-server/bearer-token-quickstart.md",
+        "target": "docs/configuration.md",
+        "reason": "missing file",
+        "action": "mark-unavailable",
+        "replacement": null
+      },
+      {
+        "file": "docs/archive/summaries/complete-upgrade-summary.md",
+        "target": "docs/api-nova-ui-upgrade-summary.md",
+        "reason": "missing file",
+        "action": "mark-unavailable",
+        "replacement": null
+      },
+      {
+        "file": "docs/archive/summaries/complete-upgrade-summary.md",
+        "target": "docs/DEVELOPMENT_GUIDE.md",
+        "reason": "missing file",
+        "action": "mark-unavailable",
+        "replacement": null
+      },
+      {
+        "file": "docs/archive/summaries/complete-upgrade-summary.md",
+        "target": "docs/DEPLOYMENT_GUIDE.md",
+        "reason": "missing file",
+        "action": "mark-unavailable",
+        "replacement": null
+      },
+      {
+        "file": "docs/archive/summaries/complete-upgrade-summary.md",
+        "target": "docs/CONTRIBUTING.md",
+        "reason": "missing file",
+        "action": "mark-unavailable",
+        "replacement": null
+      },
+      {
+        "file": "docs/archive/summaries/mcp-response-fix-summary.md",
+        "target": "../packages/api-nova-parser/test-mcp-compliance.ts",
+        "reason": "missing file",
+        "action": "mark-unavailable",
+        "replacement": null
+      }
+    ]
+  }
+}

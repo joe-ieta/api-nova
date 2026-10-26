@@ -91,7 +91,7 @@ SQLite 使用 SQL.js，当前存储提供 DataSource 级的本地写通道；仍
 
 用户允许修复后，计数器初始化改为先构造带类型的实体再调用 insert.values，API build 已通过。本轮 48 项存储/GC 测试和 PostgreSQL 四进程调用仓储验证通过；此前 SQLite/PostgreSQL 隔离烟测均为 63 表、零结构漂移，并通过通用持久化/回滚和测试 API 启动。按存储包退出条件 TP-02=DONE；全系统 SQL.js 并发集成与 Linux 完整矩阵仍分别在 TP-15/16 未完成，不外推验收范围。
 
-参见[唯一执行台账](../guides/runtime-observability-development-execution-status.md)和[对外 API 契约](./runtime-observability-api-endpoints.md)。
+参见[唯一执行台账](runtime-observability-development-execution-status.md)和[对外 API 契约](runtime-observability-api-endpoints.md)。
 
 ## 8. 已补充的测试脚本
 
@@ -270,4 +270,4 @@ B01 不保存计数，不触发重算任务或事件，不改变当前明细保�
 
 入库及数据库修订当前明确受 2147483647 版本上限保护；B01 的 uint64 表示能力不是数据库范围变更。规划输入必须遵守已接受修订和既有不可变身份，不能用通用测试中的资产/时间修正能力开放历史事实任意修改。
 
-未完成项、依赖与验收条件见[任务完成情况复核与未完成清单](../guides/runtime-observability-completion-review.md)。本次无结构调整、数据清理、部署或新增运行验证。
+未完成项、依赖与验收条件见[任务完成情况复核与未完成清单](runtime-observability-completion-review.md)。本次无结构调整、数据清理、部署或新增运行验证。

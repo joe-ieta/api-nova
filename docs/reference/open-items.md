@@ -1,5 +1,5 @@
 ---
-doc-version: 1.35.0
+doc-version: 1.36.0
 doc-status: active
 doc-updated: 2026-10-26
 ---
@@ -7,7 +7,7 @@ doc-updated: 2026-10-26
 
 本页只列现有批准范围内的剩余出口；任务状态以[统一执行台账](../guides/active-work-package-execution-status.md)为准，合同和依赖见[工作包划分](../guides/active-work-package-breakdown.md)。历史阶段记录不另算待开发任务。
 
-当前候选为 **v1.7.6-rc.5**，源提交 `a2639ce8d20d0709a3088e9de7e59bbd5dee8159`；三平台离线包、不可变归档、latest、注释标签和远端七附件已完成，见[发布审计](../audits/2026-10-20-release-v1.7.6-rc.5.md)。本轮只做文档归一和既有能力的隔离验收，不新增功能、不修改已发布包。执行结果见[2026-10-26收口审计](../audits/2026-10-26-existing-scope-closure.md)。
+当前候选为 **v1.7.6-rc.5**，源提交 `a2639ce8d20d0709a3088e9de7e59bbd5dee8159`；三平台离线包、不可变归档、latest、注释标签和远端七附件已完成，见[发布审计](../archive/audits/2026-10-20-release-v1.7.6-rc.5.md)。10-26前轮已完成台账归一和隔离验收；本轮进一步整理发布文档，不新增功能或修改已发布包。前轮结果见[2026-10-26收口审计](../archive/audits/2026-10-26-existing-scope-closure.md)。
 
 ## 正式未关闭任务
 
@@ -36,7 +36,7 @@ doc-updated: 2026-10-26
 
 ## 非阻断诊断
 
-SQLite3000样本的源响应/终态完整，但30分钟内仅1799条终态可见、1615条对应投递；关停后1943条完成、1057条待采集，1617条投递成功、246条待发，无死信/隔离且数据库完整。见[原证据](../audits/2026-10-08-observability-functional-closure.md)。不能写成全量通过或生产容量保证，也不因本机耗时重开优化。
+SQLite3000样本的源响应/终态完整，但30分钟内仅1799条终态可见、1615条对应投递；关停后1943条完成、1057条待采集，1617条投递成功、246条待发，无死信/隔离且数据库完整。见[原证据](../archive/audits/2026-10-08-observability-functional-closure.md)。不能写成全量通过或生产容量保证，也不因本机耗时重开优化。
 
 可见3秒、投递5秒、查询2秒、参考硬件及等价采集A/B保留为诊断；完整性、持久化、权限与恢复仍按原合同验收。局部管理心跳/状态不证明真实业务存活，全局多实例水位和未证明的live指标继续保持unknown/null语义。
 
@@ -48,7 +48,7 @@ SQLite3000样本的源响应/终态完整，但30分钟内仅1799条终态可见
 - 状态流、配额及有界留存清理、F1许可链、F3 host装配、受控邮件投递、前端分块和交付国际化已有对应子项证据；不按旧专题表重新开工。
 - 双库CI环境耦合修复、73张业务表/8次迁移/零漂移及三平台离线交付已完成。
 
-证据入口：[rc.5发布](../audits/2026-10-20-release-v1.7.6-rc.5.md)、[日志及浏览器生命周期](../audits/2026-10-20-runtime-logs-browser-lifecycle.md)、[健康/刷新及文件导入](../audits/2026-10-20-ui-health-refresh.md)、[完整任务台账](../guides/active-work-package-execution-status.md#task-ledger)。限定DONE不外推生产可用或未验平台组合。
+证据入口：[rc.5发布](../archive/audits/2026-10-20-release-v1.7.6-rc.5.md)、[日志及浏览器生命周期](../archive/audits/2026-10-20-runtime-logs-browser-lifecycle.md)、[健康/刷新及文件导入](../archive/audits/2026-10-20-ui-health-refresh.md)、[完整任务台账](../guides/active-work-package-execution-status.md#task-ledger)。限定DONE不外推生产可用或未验平台组合。
 
 ## 收口顺序与范围控制
 
@@ -57,6 +57,6 @@ SQLite3000样本的源响应/终态完整，但30分钟内仅1799条终态可见
 3. 根据实际结果处理现有流程阻塞；人工反馈、未验组合和目标条件如实保留。默认关闭的host/许可/受管IPC/worker能力只按原部署合同显式装配，不为收口全开开关。
 4. 目标环境明确后SEC与OBS并行签收，OPS最后汇总。用户此前确认暂用本机隔离环境，生产签收继续待办。
 
-OAuth2、额外令牌适配和跨协议QoS继续延期。完整跨进程/多主机首次激活CAS按[PROD-06核定](../audits/2026-09-26-prod-06-cas-scope-determination.md)属于未批准强化范围。UI独立化仅有方案讨论，不进入本轮批准任务。注释TODO、调用者须提供handler等不自动生成新功能欠账。
+OAuth2、额外令牌适配和跨协议QoS继续延期。完整跨进程/多主机首次激活CAS按[PROD-06核定](../archive/audits/2026-09-26-prod-06-cas-scope-determination.md)属于未批准强化范围。UI独立化仅有方案讨论，不进入本轮批准任务。注释TODO、调用者须提供handler等不自动生成新功能欠账。
 
-旧运行目录及legacy数据库保留在`E:/CodexDev/api-nova-release/backups/`；归档和已发布字节不修改，升级只按已知迁移链与数据备份策略执行。旧阶段事实见[10-14交接快照](../guides/development-handoff-2026-10-14.md)、各日期审计及Git历史，不再在本页叠加多份“当前待办”。
+旧运行目录及legacy数据库保留在`E:/CodexDev/api-nova-release/backups/`；归档和已发布字节不修改，升级只按已知迁移链与数据备份策略执行。旧阶段事实见[10-14交接快照](../archive/plans/2026-10-26/development-handoff-2026-10-14.md)、各日期审计及Git历史，不再在本页叠加多份“当前待办”。

@@ -3,7 +3,7 @@
 > Document status: Active implementation contract
 > Last reviewed: 2026-09-08
 
-> Scope note (2026-09-07): Runtime Auth 已收敛为 JWT、API Key、显式 Anonymous；OAuth2 与 MCP 2026-07 无状态协议均不在当前范围。实施状态以 [安全开发执行与状态记录](./security-development-execution-status.md) 为准。
+> Scope note (2026-09-07): Runtime Auth 已收敛为 JWT、API Key、显式 Anonymous；OAuth2 与 MCP 2026-07 无状态协议均不在当前范围。实施状态以 [安全开发执行与状态记录](security-development-execution-status.md) 为准。
 
 ## 目标与本次范围
 
@@ -140,7 +140,7 @@ npm run verify:parser-chain
 
 实际身份提供方、TLS 反向代理与外部 MCP 客户端的联调记录在 open-items 中；本地测试不能替代这些环境验收。
 
-可追溯用例与本次执行结果见 [安全调用与日志审计验收用例](../testing/runtime-security-audit-cases.md)。本轮未新增调用日志分析/展示页面，未修改 `docs/archive`，未清理业务数据库。
+可追溯用例与本次执行结果见 [安全调用与日志审计验收用例](runtime-security-audit-cases.md)。本轮未新增调用日志分析/展示页面，未修改 `docs/archive`，未清理业务数据库。
 
 ## 2026-09-06 多进程联调补充
 
@@ -148,6 +148,6 @@ npm run verify:parser-chain
 
 联调修复两项入口缺口：关闭 Nest 自动追加的正文解析器，防止其提前消费 Gateway 请求流；普通请求日志跳过 Gateway 流式响应，由统一审计器负责采集。管理 API 仍保留 JSON/表单解析。HTTP 异常日志中的敏感 Query 同样脱敏。
 
-`config_overrides`、`config_backups` 及三张进程/健康检查表均纳入 PG/SQLite 单一初始迁移，当前为 43 张业务表。`DB_SYNCHRONIZE=true` 被拒绝；应先构建、确认配置指向全新空库、执行 `npm run migration:run --workspace api-nova-api`，再启动 API。应用与迁移 CLI 统一加载 API 包内 `.env` 系列文件，进程环境优先，也可用 `API_NOVA_ENV_FILE` 指定文件。隔离建库与冒烟入口见 [数据库策略](database-strategy.md)。本地 PG/SQLite 已完成真实初始化、持久化与 API 启动验证；不提供历史数据迁移，也未操作现有业务库。
+`config_overrides`、`config_backups` 及三张进程/健康检查表均纳入 PG/SQLite 单一初始迁移，当前为 43 张业务表。`DB_SYNCHRONIZE=true` 被拒绝；应先构建、确认配置指向全新空库、执行 `npm run migration:run --workspace api-nova-api`，再启动 API。应用与迁移 CLI 统一加载 API 包内 `.env` 系列文件，进程环境优先，也可用 `API_NOVA_ENV_FILE` 指定文件。隔离建库与冒烟入口见 [数据库策略](../../consolidated/2026-10-26/database-strategy.md)。本地 PG/SQLite 已完成真实初始化、持久化与 API 启动验证；不提供历史数据迁移，也未操作现有业务库。
 
-测试只信任本次生成的临时证书，不关闭 TLS 验证，不修改系统证书库。Windows 默认使用 Git 附带的 OpenSSL，也可通过 `API_NOVA_TEST_OPENSSL` 指定路径；Linux 使用 PATH 中的 OpenSSL。运行前先执行 `npm run build:packages`。测试夹具直接构造已部署路由快照，不代表注册、治理、发布全过程验收；本地 JWKS 服务不代表外部 OAuth 登录/用户同意流程。外部身份提供方与生产运维验收仍在 open-items 中，本地隔离 PostgreSQL 验证结果见 [清理审查记录](../audits/2026-09-08-persistence-cleanup.md)。
+测试只信任本次生成的临时证书，不关闭 TLS 验证，不修改系统证书库。Windows 默认使用 Git 附带的 OpenSSL，也可通过 `API_NOVA_TEST_OPENSSL` 指定路径；Linux 使用 PATH 中的 OpenSSL。运行前先执行 `npm run build:packages`。测试夹具直接构造已部署路由快照，不代表注册、治理、发布全过程验收；本地 JWKS 服务不代表外部 OAuth 登录/用户同意流程。外部身份提供方与生产运维验收仍在 open-items 中，本地隔离 PostgreSQL 验证结果见 [清理审查记录](../../audits/2026-09-08-persistence-cleanup.md)。

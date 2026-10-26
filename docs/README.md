@@ -1,89 +1,35 @@
 ---
-doc-version: 1.5.0
+doc-version: 1.6.0
 doc-status: active
 doc-updated: 2026-10-26
 ---
-# ApiNova Documentation Index
+# 项目文档与阅读指引
 
-> Document status: Active canonical index
-> Last reviewed: 2026-10-26
+本页是当前文档的唯一阅读入口，复核日期2026-10-26。当前候选v1.7.6-rc.5仍为人工测试预发布；文档整理不覆盖旧发布物或代签生产。
 
-## Documentation Classes
+## 按角色阅读
 
-| Directory | Purpose | May define current behavior? |
-| --- | --- | --- |
-| repository root | product constraints and current project/release baseline | yes |
-| `docs/guides` | current architecture, setup, operations, and active execution plans | yes |
-| `docs/reference` | durable contracts, review records, permission matrices, and open items | yes |
-| `docs/testing` | executable acceptance cases and evidence requirements | yes |
-| `docs/archive` | completed, superseded, exploratory, or historical material | no |
-| `packages/*/docs` | package-owned current API/architecture documentation only | package scope only |
+| 读者/目标 | 建议顺序 |
+| --- | --- |
+| 项目使用者、产品评估 | [项目概览](./overview/PRODUCT.md) → [使用手册](./guides/USER_GUIDE.md) → [当前限制](./reference/open-items.md) |
+| 架构和二次开发 | [总体设计](./architecture/OVERALL_DESIGN.md) → [开发手册](./development/DEVELOPER_GUIDE.md) → [API手册](./api/README.md) |
+| 安装与运维 | [部署](./guides/DEPLOYMENT.md) → [数据库](./guides/database-strategy.md) → [可观测性](./guides/OBSERVABILITY.md) |
+| API/自定义UI接入 | [接入约定](./api/README.md) → [完整接口清单](./api/ENDPOINTS.md) → [OpenAPI快照](./api/openapi.json) |
+| 发布与验收 | [项目基线](./baseline/PROJECT_BASELINE.md) → [open-items](./reference/open-items.md) → [发布规范](../RELEASE_STANDARD.md) → [检查表](./guides/release-readiness-checklist.md) |
 
-## Canonical Governance
+## 当前文档分工
 
-- [Product Constraints](./baseline/PRODUCT_CONSTRAINTS.md)
-- [Project Baseline](./baseline/PROJECT_BASELINE.md)
-- [Version Release Standard](../RELEASE_STANDARD.md)
-- [Document Versions](./VERSIONS.md)
-- [Merge Review And Verification](./audits/2026-09-07-reviewed-merge.md)
+- **总体与能力**：概览负责定位/功能边界，总体设计负责分层/数据流；不再维护并行的旧总体方案。
+- **使用与部署**：使用手册负责业务操作；部署手册负责运行、配置、健康、升级和回退；数据库仅维护持久合同。
+- **开发API**：接入手册负责认证/响应/主流程；生成清单和JSON对应当前控制器；MCP、Parser、可观测性分别维护自己的协议。
+- **技术合同**：[发布/样例](./reference/publication-contract.md)、[安全](./reference/security-contract.md)、[观察/留存](./reference/observability-contract.md)、[权限](./reference/management-permission-matrix.md)保留详细边界。
+- **当前状态**：[统一台账](./guides/active-work-package-execution-status.md)是唯一任务状态来源，[合同表](./guides/active-work-package-breakdown.md)保留209项原出口及245依赖，open-items只汇总未关闭事项。
+- **版本交付**：[release入口](./release/README.md)区分当前候选、版本记录、模板和打包步骤。
 
-## Current Product Closure
+## 完整清单与历史
 
-- [现有范围收口与限定验收（2026-10-26）](./audits/2026-10-26-existing-scope-closure.md)
-- [开发交接快照（2026-10-14，历史范围）](./guides/development-handoff-2026-10-14.md)
-- [Current Work Package Status And Next Actions](./guides/active-work-package-execution-status.md)
-- [Current Work Package Contracts And Dependencies](./guides/active-work-package-breakdown.md)
+[现行文档版本清单](./VERSIONS.md)穷举当前文档并标明类型；[机器清单](./documentation-manifest.json)供链接检查和发布文档导出使用。目录索引不再重复列出全部技术正文。
 
-- [Security Development Task Plan](./guides/security-development-task-plan.md)
-- [Security Development Execution Status](./guides/security-development-execution-status.md)
-- [Security Delivery Evidence Index](./guides/security-delivery-evidence-index.md)
-- [Staged Development Plan](./guides/staged-development-plan.md)
-- [Runtime Instance And Regression Closure Plan](./guides/runtime-instance-and-regression-closure-plan.md)
-- [Runtime Closure Design And Implementation Review](./reference/runtime-closure-design-implementation-review.md)
-- [Open Items](./reference/open-items.md)
-- [Runtime Publication Acceptance Cases](./testing/runtime-publication-acceptance-cases.md)
-- [Release Readiness Checklist](./guides/release-readiness-checklist.md)
-- [Release Requirements](./release/api-nova-release-requirements.md)
+历史审计、旧计划、阶段完成说明和被合并的技术文档已移入[归档](./archive/README.md)，详细条目在[历史目录](./archive/INDEX.md)。原批准条款和证据保留，不把归档中的旧状态/统计当作当前待开发队列。
 
-## Current Architecture And Operations
-
-- [安全调用与日志审计](./guides/runtime-security-and-call-audit.md)
-- [Security Functional Requirements](./guides/security-functional-requirements.md)
-- [Security Design And Implementation](./reference/security-design-and-implementation.md)
-- [Package Management Policy](./guides/package-management-policy.md)
-- [Release Requirements And Source Startup](./release/api-nova-release-requirements.md)
-- [Product Release Documents](./release/versions/README.md)
-- [Guides Index](./guides/README.md)
-- [Reference Index](./reference/README.md)
-- [Testing Index](./testing/README.md)
-- [Fork Origin And Independence](./guides/fork-origin-and-independence.md)
-- [Endpoint Semantic Layer Requirements](./guides/endpoint-semantic-layer-requirements.md)
-- [API Gateway Architecture And Requirements](./guides/api-gateway-architecture-and-requirements.md)
-- [Versioning Policy](./reference/versioning-policy.md)
-- [GitHub Collaboration Workflow](./guides/github-collaboration-workflow.md)
-
-## Runtime Observability Enhancement
-
-The remote-first integration is complete for the verified HTTP/event/Webhook scope. Remaining product and environment work is tracked separately; verified code does not imply deployed availability. Start with the current work-package ledger and dated development handoff above. Specialist reviews retain historical stage counts and contract details; they do not define the current dispatch queue.
-
-- [Observability Stage Review And Evidence](./guides/runtime-observability-completion-review.md)
-- [Observability Integration Guide](./guides/runtime-observability-integration.md)
-- [Subscription Integration](./guides/runtime-observability-subscription-integration.md)
-- [External Validation Handoff](./guides/runtime-observability-external-validation-handoff.md)
-- [Unified Call Logging And Observability Requirements](./guides/runtime-observability-requirements.md)
-- [Unified Call Logging And Observability Design](./reference/runtime-observability-design.md)
-- [Observability Public API Endpoints](./reference/runtime-observability-api-endpoints.md)
-- [Observability Development Task Plan](./guides/runtime-observability-development-task-plan.md)
-- [Observability Development Execution Status](./guides/runtime-observability-development-execution-status.md)
-- [Observability Contract And Source Mapping](./reference/runtime-observability-contract-mapping.md)
-- [Observability Storage Foundation](./reference/runtime-observability-storage-foundation.md)
-
-## Archive
-
-- [Archive Index](./archive/README.md)
-
-Archived material is retained for traceability and must not be used as the current source of truth. If an archived decision becomes current again, extract it into a new active document and review it against the checkout.
-
-## Status Convention
-
-Every active central document carries a `Document status` marker. A document without an active marker must be classified through this index before it is used for product or release decisions.
+本套文档与现有能力一致；依赖风险、人工反馈、SEC/OBS/OPS目标签收和延期事项继续保留。最新整理和校验范围见[文档交付说明](./release/DOCUMENTATION.md)。

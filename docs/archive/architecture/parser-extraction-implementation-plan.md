@@ -6,7 +6,7 @@
 **创建日期**: 2025-06-17  
 **版本**: v1.0  
 **状态**: 实施规划  
-**关联文档**: [Monorepo 重构方案](./monorepo-refactoring-proposal.md)
+**关联文档**: [Monorepo 重构方案](monorepo-refactoring-proposal.md)
 
 ---
 

@@ -195,5 +195,5 @@ const somePackage = require('commonjs-only-package');
 
 ## 相关文档
 
-- [Node.js 模块系统详解](./nodejs-module-systems-guide.md)
-- [ESM vs CommonJS 快速参考](./esm-commonjs-quick-reference.md)
+- [Node.js 模块系统详解](2026-10-26/nodejs-module-systems-guide.md)
+- [ESM vs CommonJS 快速参考](2026-10-26/esm-commonjs-quick-reference.md)

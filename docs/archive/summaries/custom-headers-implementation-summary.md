@@ -296,10 +296,10 @@ bash run-tests.sh
 
 ## 📚 相关文档
 
-- [自定义请求头设计文档](./docs/custom-headers-design.md)
-- [实现指南](./docs/custom-headers-implementation.md)
-- [快速上手指南](./docs/custom-headers-quickstart.md)
-- [API 认证指南](./docs/api-authentication-guide.md)
+- [自定义请求头设计文档](../plans/custom-headers-design.md)
+- [实现指南](../plans/custom-headers-implementation.md)
+- [快速上手指南](../guides/custom-headers-quickstart.md)
+- [API 认证指南](../guides/api-authentication-guide.md)
 
 ## 🤝 贡献
 
@@ -311,7 +311,7 @@ bash run-tests.sh
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证。详情请参阅 [LICENSE](./LICENSE) 文件。
+本项目采用 MIT 许可证。详情请参阅 [LICENSE](../../../LICENSE) 文件。
 
 ---
 

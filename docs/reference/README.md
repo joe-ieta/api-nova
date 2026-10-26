@@ -1,36 +1,16 @@
 ---
-doc-version: 1.3.0
+doc-version: 1.4.0
 doc-status: active
-doc-updated: 2026-09-14
+doc-updated: 2026-10-26
 ---
-# Reference
+# 当前技术合同与剩余事项
 
-> Document status: Active index
-> Last reviewed: 2026-09-14
+| 主题 | 当前权威文档 |
+| --- | --- |
+| 资产/实例/成员、验证与二进制样例 | [发布合同](./publication-contract.md) |
+| 三类认证、凭据/网络、邮件与风险 | [安全合同](./security-contract.md) |
+| 数据链、配额、留存、引用与恢复 | [可观测性合同](./observability-contract.md) |
+| 管理权限与资源范围 | [权限矩阵](./management-permission-matrix.md) |
+| 尚未关闭的签收、维护与延期 | [open-items](./open-items.md) |
 
-## Product Governance
-
-Current observability status and remaining work: [completion review](../guides/runtime-observability-completion-review.md). Requirements/design are normative baselines, not proof that every target is implemented.
-
-- [Unified Call Logging And Observability Design](./runtime-observability-design.md) (approved design; implementation in progress)
-- [Observability Public API Endpoints](./runtime-observability-api-endpoints.md) (current verified contracts and explicitly planned endpoints)
-- [Observability Contract And Source Mapping](./runtime-observability-contract-mapping.md)
-- [Observability Storage Foundation](./runtime-observability-storage-foundation.md) (current storage implementation and bounded validation evidence)
-
-- [Security Design And Implementation](./security-design-and-implementation.md)
-- [Open Items](./open-items.md)
-- [Runtime Closure Design And Implementation Review](./runtime-closure-design-implementation-review.md)
-- [Management Observability Baseline](./management-observability-baseline.md)
-- [Management Permission Matrix](./management-permission-matrix.md)
-- [Versioning Policy](./versioning-policy.md)
-
-## Engineering Reference
-
-- [Changelog Field Guide](./changelog-field-guide.md)
-- [ESM And CommonJS Quick Reference](./esm-commonjs-quick-reference.md)
-- [MCP And JSON-RPC Relationship](./mcp-jsonrpc-relationship.md)
-- [MCP Tool Response Validation](../archive/reference/mcp-tool-response-validation.md)
-- [Node.js Module Systems Guide](./nodejs-module-systems-guide.md)
-- [NPM Publication Guide](../archive/reference/npm-publication-guide.md)
-
-Temporary plans, milestone logs, and completed implementation notes do not belong here; move them to `docs/archive`.
+接口参数转到[API手册](../api/README.md)，总体分层转到[设计](../architecture/OVERALL_DESIGN.md)。原需求、设计、审批及阶段证据在[历史索引](../archive/INDEX.md)保留；原合同归档不撤销其未完成退出条件，旧状态不覆盖当前台账。

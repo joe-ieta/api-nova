@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-10-26
+---
 # Nest SSE security backport
 
 This directory contains the MIT-licensed `@nestjs/core@10.4.22` npm archive with only the SSE field sanitization from upstream commit [0f962c75a474b08fbc1bdf072b89eda14151c856](https://github.com/nestjs/nest/commit/0f962c75a474b08fbc1bdf072b89eda14151c856) backported. The original `package/LICENSE`, version, metadata, and every other file are unchanged. This local archive is **not an upstream Nest release**.

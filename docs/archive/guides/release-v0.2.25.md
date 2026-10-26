@@ -36,5 +36,5 @@ This release focuses on UI runtime stability, operator-facing warning cleanup, a
 
 ## Related Guides
 
-- [Versioning Policy](../../reference/versioning-policy.md)
-- [GitHub Collaboration Workflow](../../guides/github-collaboration-workflow.md)
+- [Versioning Policy](../reference/2026-10-26/versioning-policy.md)
+- [GitHub Collaboration Workflow](2026-10-26/github-collaboration-workflow.md)

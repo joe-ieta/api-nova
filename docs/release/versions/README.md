@@ -1,22 +1,17 @@
-# Product Release Documents
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-10-26
+---
+# 版本文档索引
 
-> Document status: Active release history location
+每个新产品标签创建`docs/release/versions/<tag>/RELEASE_NOTES.md`和QUICK_START.md，标签前提交；已发布说明保留原版事实，不原地改写。当前手册与风险以[文档中心](../../README.md)及open-items为准。
 
-每个产品 Git 标签创建一个目录：
+| 版本 | 定位 | 文档 |
+| --- | --- | --- |
+| v1.7.6-rc.5 | 当前人工测试预发布，三平台交付，生产签收未完成 | [说明](./v1.7.6-rc.5/RELEASE_NOTES.md)、[快速指南](./v1.7.6-rc.5/QUICK_START.md) |
+| v1.7.6-rc.4 | 历史三平台预发布 | [归档说明](../../archive/releases/versions/v1.7.6-rc.4/RELEASE_NOTES.md) |
+| v1.7.6-rc.3 | 历史三平台预发布 | [归档说明](../../archive/releases/versions/v1.7.6-rc.3/RELEASE_NOTES.md) |
+| v1.7.5-rc.2 | 经批准的历史Windows-only本地预发布 | [归档说明](../../archive/releases/versions/v1.7.5-rc.2/RELEASE_NOTES.md) |
 
-```text
-docs/release/versions/<tag>/
-├── RELEASE_NOTES.md
-└── QUICK_START.md
-```
-
-从 `docs/release/templates/` 中的模板开始，完成后必须在创建版本标签前提交。这些文件是版本归档目录和远端 Release 描述的长期事实来源。
-
-发布后不要重写历史版本文档。会改变包行为或使用方式的修正应发布新标签；纯文字修正必须明确标注为发布后的文档更正。
-
-
-## 版本索引
-
-- [v1.7.5-rc.2](./v1.7.5-rc.2/RELEASE_NOTES.md)：用户批准的 Windows x64 单平台本地预发布；实际发布物不上传远端，不代表三平台正式发布。
-
-- [v1.7.6-rc.3](./v1.7.6-rc.3/RELEASE_NOTES.md)：2026-10-14三平台离线预发布已完成，[远端Release](https://github.com/joe-ieta/api-nova/releases/tag/v1.7.6-rc.3)与[交付证据](../../audits/2026-10-14-release-v1.7.6-rc.3.md)可查；目标生产签收仍待办。
+旧版本在当前开发树归档，原发布tag中仍保有发布时路径；外部已发布七文件、备份和标签不变。下一次交付使用新版本，不能重建旧tag来覆盖说明或包。

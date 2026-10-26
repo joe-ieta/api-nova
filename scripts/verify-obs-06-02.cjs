@@ -4,7 +4,7 @@
 // server node:test suites plus the three Parser Jest upstream-failure suites) inside
 // the locally present ubuntu:24.04 image with the same Node runtime as the recorded
 // Windows baseline, then maps per-suite, per-transport and native/audited A/B results
-// against docs/audits/2026-09-26-mcp-observability-matrix.md and a fresh Windows
+// against docs/archive/audits/2026-09-26-mcp-observability-matrix.md and a fresh Windows
 // re-run at this commit. Real deltas are printed, never hidden; any Linux suite
 // failure, count change, coverage difference or A/B mismatch gates the exit code.
 // An alternate Windows matrix JSON can be ingested with OBS0602_WINDOWS_REPORT.
@@ -21,7 +21,7 @@ const logRoot = process.env.OBS0602_LOG_DIR
 
 const windowsRecorded = {
   source: 'recorded',
-  doc: 'docs/audits/2026-09-26-mcp-observability-matrix.md',
+  doc: 'docs/archive/audits/2026-09-26-mcp-observability-matrix.md',
   recordedCommit: '765408a',
   verifiedCommit: '113b342ddec5e671df34675a76808fcc38b6a9ea',
   verifiedNote: 'fresh Windows re-run of scripts/verify-mcp-observability-matrix.cjs at this commit reproduced the recorded per-suite counts, transport coverage and native/audited state',

@@ -5,9 +5,9 @@
 
 | 历史文件 | 原始位置 | 当前入口 |
 | --- | --- | --- |
-| [原安全任务计划](./security-development-task-plan.md) | docs/guides/security-development-task-plan.md | [当前计划](../../../guides/security-development-task-plan.md) |
-| [原安全执行状态](./security-development-execution-status.md) | docs/guides/security-development-execution-status.md | [当前状态](../../../guides/security-development-execution-status.md) |
-| [原安全调用说明](./runtime-security-and-call-audit.md) | docs/guides/runtime-security-and-call-audit.md | [当前契约](../../../guides/runtime-security-and-call-audit.md) |
-| [原安全验收记录](./runtime-security-audit-cases.md) | docs/testing/runtime-security-audit-cases.md | [当前验收入口](../../../testing/runtime-security-audit-cases.md) |
+| [原安全任务计划](security-development-task-plan.md) | docs/guides/security-development-task-plan.md | [当前计划](../../plans/2026-10-26/security-development-task-plan.md) |
+| [原安全执行状态](security-development-execution-status.md) | docs/guides/security-development-execution-status.md | [当前状态](../../plans/2026-10-26/security-development-execution-status.md) |
+| [原安全调用说明](runtime-security-and-call-audit.md) | docs/guides/runtime-security-and-call-audit.md | [当前契约](../../guides/2026-10-26/runtime-security-and-call-audit.md) |
+| [原安全验收记录](runtime-security-audit-cases.md) | docs/testing/runtime-security-audit-cases.md | [当前验收入口](../../../testing/runtime-security-audit-cases.md) |
 
 本轮纠正已被后续证据覆盖的 PG 阻塞、统一 BACKLOG、OAuth Metadata 表述和阶段范围。批准需求与设计继续维护，不改变 OAuth2/后续协议延期决策，不把历史测试等同于新开发验收。

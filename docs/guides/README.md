@@ -1,61 +1,21 @@
 ---
-doc-version: 1.5.0
+doc-version: 1.6.0
 doc-status: active
 doc-updated: 2026-10-26
 ---
-# Guides
+# 操作与运维文档
 
-> Document status: Active index
-> Last reviewed: 2026-10-26
+按用途选择当前入口；完整清单只在[VERSIONS](../VERSIONS.md)维护。
 
-Only currently supported product paths, durable architecture contracts, and active execution plans belong here.
+| 用途 | 文档 |
+| --- | --- |
+| 安装/源码启动/健康/升级回退 | [部署手册](./DEPLOYMENT.md) |
+| 注册/测试/治理/发布/消费 | [使用手册](./USER_GUIDE.md) |
+| SQLite/PostgreSQL配置与迁移 | [数据库](./database-strategy.md) |
+| 调用、事件、Webhook、保留与目标运维 | [可观测性](./OBSERVABILITY.md) |
+| 上游凭据文件激活 | [专项步骤](./gateway-upstream-credential-file-activation.md) |
+| 开发依赖/Parser变更 | [包管理政策](./package-management-policy.md)、[Parser验证](./parser-change-verification.md) |
+| 当前任务状态/原合同 | [统一台账](./active-work-package-execution-status.md)、[合同与依赖](./active-work-package-breakdown.md) |
+| 发布复核 | [检查表](./release-readiness-checklist.md) |
 
-## Active Execution And Release
-
-- [现有范围收口与限定验收（2026-10-26）](../audits/2026-10-26-existing-scope-closure.md)
-- [开发交接快照（2026-10-14，历史范围）](./development-handoff-2026-10-14.md)
-- [Current Work Package Status And Next Actions](./active-work-package-execution-status.md)
-- [Current Work Package Contracts And Dependencies](./active-work-package-breakdown.md)
-
-Use these entries for current dispatch. The specialist ledgers below retain historical stage evidence and original contracts; their older counts do not define unfinished work.
-
-- [Observability Stage Review And Evidence](./runtime-observability-completion-review.md)
-
-- [Observability Development Task Plan](./runtime-observability-development-task-plan.md) (specialist task definitions and original exit criteria; current status follows the unified ledger)
-- [Observability Development Execution Status](./runtime-observability-development-execution-status.md)
-
-- [Security Development Task Plan](./security-development-task-plan.md)
-- [Security Development Execution Status](./security-development-execution-status.md)
-- [Security Delivery Evidence Index](./security-delivery-evidence-index.md)
-- [Staged Development Plan](./staged-development-plan.md)
-- [Runtime Instance And Regression Closure Plan](./runtime-instance-and-regression-closure-plan.md)
-- [Release Readiness Checklist](./release-readiness-checklist.md)
-
-## Product And Architecture Baselines
-
-- [Unified Call Logging And Observability Requirements](./runtime-observability-requirements.md) (approved requirements; scoped implementation and deployment status follow the unified ledger)
-
-- [Security Functional Requirements](./security-functional-requirements.md)
-- [Asset Model And Runtime Assets](./asset-model-and-runtime-assets.md)
-- [Publication Resource Baseline](./publication-resource-baseline.md)
-- [Endpoint Publication Profile Requirements](./endpoint-semantic-layer-requirements.md)
-- [API Gateway Architecture And Requirements](./api-gateway-architecture-and-requirements.md)
-- [安全调用与日志审计](./runtime-security-and-call-audit.md)
-
-## Setup And Engineering Workflows
-
-- [Observability Integration Guide](./runtime-observability-integration.md)
-- [Observability Subscription Integration](./runtime-observability-subscription-integration.md)
-- [Observability External Validation Handoff](./runtime-observability-external-validation-handoff.md)
-
-- [Package Management Policy](./package-management-policy.md)
-- [Database Mode Quickstart](./database-mode-quickstart.md)
-- [Database Strategy](./database-strategy.md)
-- [Local Setup And Run](./local-setup-and-run.md)
-- [Parser Change Verification](./parser-change-verification.md)
-- [GitHub Collaboration Workflow](./github-collaboration-workflow.md)
-- [Fork Origin And Independence](./fork-origin-and-independence.md)
-
-## Inclusion Rule
-
-A guide stays active only while it describes a supported product contract, an executable operational path, or unfinished approved work. Completed task breakdowns, milestone designs, dated audits, release notes, and superseded plans move to `docs/archive`.
+架构、开发API与历史材料从[文档中心](../README.md)进入；旧专题执行流水已归档，不再作为另一套当前计划。

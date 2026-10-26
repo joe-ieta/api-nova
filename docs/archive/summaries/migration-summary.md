@@ -132,9 +132,9 @@ export async function transformOpenApiToMcpTools(
 
 ## 📖 相关文档
 
-- [解析器架构设计](../packages/api-nova-parser/docs/ARCHITECTURE_DECISIONS.md)
-- [API 文档](../packages/api-nova-parser/docs/API_DOCUMENTATION.md)
-- [解析器对比分析](../packages/api-nova-parser/docs/PARSER_COMPARISON.md)
+- [解析器架构设计](../packages/api-nova-parser/2026-10-26/ARCHITECTURE_DECISIONS.md)
+- [API 文档](../packages/api-nova-parser/2026-10-26/API_DOCUMENTATION.md)
+- [解析器对比分析](../packages/api-nova-parser/PARSER_COMPARISON.md)
 
 ---
 

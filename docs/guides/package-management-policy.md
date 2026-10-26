@@ -1,7 +1,12 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-10-26
+---
 # Package Management Policy
 
 > Document status: Active canonical policy
-> Last reviewed: 2026-07-22
+> Last reviewed: 2026-10-26
 
 ## Decision
 

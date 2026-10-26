@@ -1,48 +1,12 @@
-# api-nova-parser
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-10-26
+---
+# ApiNova Parser
 
-> OpenAPI / Swagger specification parser for ApiNova and AI-ready API workflows
+OpenAPI/Swagger解析、校验、归一化及工具转换的共享内核。
 
-## Overview
+[当前接入手册](../../docs/api/parser.md) · [文档中心](../../docs/README.md)
 
-A TypeScript library for parsing, validating, normalizing, and extracting information from OpenAPI / Swagger specifications. This package serves as the parser foundation for the ApiNova workspace.
-
-## Features
-
-- Multi-format support: JSON, YAML, URL, and local file inputs
-- Specification validation: OpenAPI 3.x and Swagger 2.0 compatibility handling
-- Metadata extraction: endpoints, schemas, security schemes, and document metadata
-- Type-safe usage: comprehensive TypeScript type definitions
-- Reusable parser chain: shared by runtime, API, and UI packages
-
-## Installation
-
-```bash
-npm install api-nova-parser
-```
-
-## Quick Start
-
-```typescript
-import { OpenApiParser } from 'api-nova-parser';
-
-const parser = new OpenApiParser();
-
-const spec = await parser.parseFromUrl('https://petstore.swagger.io/v2/swagger.json');
-
-console.log('API Info:', spec.info);
-console.log('Endpoints:', spec.metadata.endpointCount);
-```
-
-## Contributing
-
-This package is part of the ApiNova monorepo. See the [main repository](../../README.md) for contribution guidelines and active product constraints.
-
-## License
-
-MIT License. See [LICENSE](../../LICENSE).
-
-## Related Packages
-
-- [api-nova-server](../api-nova-server/) - MCP runtime package
-- [api-nova-api](../api-nova-api/) - management backend
-- [api-nova-ui](../api-nova-ui/) - operator interface
+开发从仓库根目录安装根锁依赖并构建：`npm ci`、`npm run build`。具体启动、配置、权限及示例只在统一手册维护。产品Git标签与workspace package.json版本不同，不以本README推定公共npm发行版本或生产签收。

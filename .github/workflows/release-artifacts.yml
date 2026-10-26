@@ -98,6 +98,12 @@ jobs:
       - name: Build production assets
         run: npm run build
 
+      - name: Verify current and archived documentation
+        run: node scripts/verify-docs.cjs
+
+      - name: Verify API snapshot and integration examples
+        run: node scripts/export-api-docs.cjs --check
+
   build-platform-artifacts:
     needs: release-gates
     strategy:

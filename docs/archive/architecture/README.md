@@ -10,7 +10,7 @@
 
 ### 🏗️ 核心架构文档
 
-#### 1. [Monorepo 重构方案](./monorepo-refactoring-proposal.md)
+#### 1. [Monorepo 重构方案](monorepo-refactoring-proposal.md)
 **状态**: ✅ 完成  
 **概要**: 将项目重构为 monorepo 架构的完整设计方案
 
@@ -26,7 +26,7 @@
 - 建立清晰的职责分工和依赖关系
 - 采用 workspace 管理策略实现 monorepo
 
-#### 2. [解析库抽离实施计划](./parser-extraction-implementation-plan.md)
+#### 2. [解析库抽离实施计划](parser-extraction-implementation-plan.md)
 **状态**: ✅ 完成  
 **概要**: `api-nova-parser` 库抽离的详细实施计划
 

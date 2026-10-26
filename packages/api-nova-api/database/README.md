@@ -1,43 +1,10 @@
-# Initial Database Schemas
+---
+doc-version: 1.1.0
+doc-status: active
+doc-updated: 2026-10-26
+---
+# 数据库结构导出
 
-These exports are generated from the application's shared entity registry. Both engines contain 43 domain tables; the exports contain no seed records and no TypeORM migration ledger.
+当前初始化、配置、迁移和隔离检查统一见[数据库手册](../../../docs/guides/database-strategy.md)。本目录的sqlite-schema.sql、postgres-schema.sql是开发schema导出，不包含业务seed或迁移账本，不能导入后再无判断重复执行初始迁移。
 
-- `sqlite-schema.sql`: standalone SQLite schema-only DDL.
-- `postgres-schema.sql`: standalone PostgreSQL schema-only DDL, including required enum/UUID support.
-
-For application initialization, use the matching initial TypeORM migration against a deliberately selected NEW empty database. Do not apply an SQL export and then run the initial migration again on the same schema. Existing business databases are not upgrade targets.
-
-## Safe Isolated Creation
-
-Run from the repository root:
-
-```bash
-npm run build --workspace api-nova-api
-npm run db:create-empty --workspace api-nova-api -- sqlite
-npm run db:create-empty --workspace api-nova-api -- postgres
-```
-
-The commands retain a uniquely named empty database/file and print its location. PostgreSQL connection credentials are loaded from the API package environment files; the account needs database-creation permission. The configured business database is not reset.
-
-## Persistence And Startup Smoke
-
-```bash
-npm run db:smoke --workspace api-nova-api -- sqlite --keep
-npm run db:smoke --workspace api-nova-api -- postgres --keep
-```
-
-Each smoke verifies schema equality, emptiness, transactions and complete API startup, then removes only its own test rows and verifies the blank schema again. Omit `--keep` to remove the owned database entirely.
-
-## Regenerate After Entity Changes
-
-```bash
-npm run build --workspace api-nova-api
-npm run db:generate-schema --workspace api-nova-api -- sqlite
-npm run db:generate-schema --workspace api-nova-api -- postgres
-npm run build --workspace api-nova-api
-npm run verify:runtime-closure
-```
-
-Generation replaces the initial migration and export for each dialect using isolated new databases. It does not generate a historical upgrade chain. Runtime automatic synchronization remains disabled.
-
-See [Database Strategy](../../../docs/guides/database-strategy.md) and [Cleanup Review](../../../docs/audits/2026-09-08-persistence-cleanup.md) for configuration precedence, actual retained targets, test evidence and operational limits.
+当前rc.5验证基线为73张业务表、每方言8项迁移；实际迁移入口在src/database/database-options.ts。修改模型后按开发验证流程重生成导出并复验，不将生成器作为已有业务库升级或重置命令。

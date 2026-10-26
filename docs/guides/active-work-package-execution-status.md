@@ -1,15 +1,15 @@
 ---
-doc-version: 1.204.0
+doc-version: 1.205.0
 doc-status: active
 doc-updated: 2026-10-26
 ---
 # 开发任务包总览与执行状态
 
-> 当前收口基线（2026-10-26）：v1.7.6-rc.5已完成三平台离线预发布；产品代码与发布源提交a2639ce一致。见[发布审计](../audits/2026-10-20-release-v1.7.6-rc.5.md)、[本轮收口验收](../audits/2026-10-26-existing-scope-closure.md)和[去重剩余清单](../reference/open-items.md)。本轮只统一文档并复用已有隔离验收，不新增功能、任务ID或退出门槛。
+> 当前收口基线（2026-10-26）：v1.7.6-rc.5已完成三平台离线预发布；产品代码与发布源提交a2639ce一致。见[发布审计](../archive/audits/2026-10-20-release-v1.7.6-rc.5.md)、[本轮收口验收](../archive/audits/2026-10-26-existing-scope-closure.md)和[去重剩余清单](../reference/open-items.md)。本轮只统一文档并复用已有隔离验收，不新增功能、任务ID或退出门槛。
 >
 > 当前保留3项签收（SEC-F4-02、OBS-16-04、OPS-01）及2项延期。人工反馈与生产签收不由自动化代签；3/5/2秒及大样本时间观察仍为非阻断诊断，完整性、持久化、权限和恢复合同不变。
 
-阅读入口：[任务包总览](#package-overview) · [后续执行清单](#next-work) · [子任务统计与明细](#task-ledger) · [历史记录](#history)。原任务合同与依赖见[任务划分](./active-work-package-breakdown.md)。
+阅读入口：[任务包总览](#package-overview) · [后续执行清单](#next-work) · [子任务统计与明细](#task-ledger) · [历史记录](#history)。原任务合同与依赖见[任务划分](active-work-package-breakdown.md)。
 
 <a id="package-overview"></a>
 ## 当前任务包总览
@@ -20,11 +20,11 @@ doc-updated: 2026-10-26
 | --- | --- | --- | --- |
 | API注册、治理与Gateway消费 | **已限定验收，转回归维护** | EXT-01～05：URL导入、无server绑定、手工注册、测试治理、认证聚合发布、A→B迁移及撤销；Windows真实HTTP闭环通过 | 本机手工注册Gateway浏览器主流程已由OPS-01补验，目标环境继续归OPS-01；不重新打开已通过的EXT子项 |
 | MCP发布与消费者 | **已限定验收，转回归维护** | MCP端点配置、真实SDK/Streamable/SSE、受管进程、会话与撤销已有证据；失败候选保旧已验 | 实际身份、外部网络和部署开关的组合签收归SEC-F4-02/OPS-01 |
-| 二进制样例完整留存 | **本机联合验收完成，转回归维护** | PROD-04C：真实PG/HTTP 16项及相关专项通过，采集→授权读取→撤销/到期→清理→重启恢复闭环 | 目标运行账户/ACL、Linux和MCP二进制真实外发覆盖归SEC-F4-02/OPS-01；见[二进制联合证据](../audits/2026-10-08-prod-04c-binary-lifecycle.md) |
+| 二进制样例完整留存 | **本机联合验收完成，转回归维护** | PROD-04C：真实PG/HTTP 16项及相关专项通过，采集→授权读取→撤销/到期→清理→重启恢复闭环 | 目标运行账户/ACL、Linux和MCP二进制真实外发覆盖归SEC-F4-02/OPS-01；见[二进制联合证据](../archive/audits/2026-10-08-prod-04c-binary-lifecycle.md) |
 | 安全发布 | **本地SSE修复完成，目标签收待办** | 凭据/权限、策略、许可、撤销、局部跨平台矩阵及官方SSE回移已有证据 | SEC-F4-02：目标平台/DB、身份、网络、依赖与有效开关核验 |
-| 可观测与审计运维 | **工程及限定专项已完成；目标签收待办** | A采集/B投递改造完成；双库43组、API1940项通过。PG3000全流程通过；SQLite大样本仍有积压，按调整后口径保留非阻断诊断 | OBS-16-04：目标账户/开关/平台、容量和回退签收；[证据与未覆盖范围](../audits/2026-10-08-observability-functional-closure.md) |
-| 安装、健康与用户操作 | **本机限定验收完成；目标签收待办** | 手工/URL/文件/无server双端点导入、探测测试、发布部署、凭证消费、A/B迁移、真实日志及关联监控已有限定浏览器证据；见[rc.5验收](../audits/2026-10-20-runtime-logs-browser-lifecycle.md) | 人工反馈、MCP浏览器/认证规范/多角色等原定组合及目标权限/TLS/健康/回退仍归OPS-01；不重新打开已验分支 |
-| 最终发布交付 | **rc.5预发布交付完成；生产签收待办** | 三平台原生离线包、门禁、归档、latest、标签及远端七附件已核验，见[发布审计](../audits/2026-10-20-release-v1.7.6-rc.5.md) | OPS-01仍依赖SEC/OBS的目标签收，预发布不等于生产交付完成 |
+| 可观测与审计运维 | **工程及限定专项已完成；目标签收待办** | A采集/B投递改造完成；双库43组、API1940项通过。PG3000全流程通过；SQLite大样本仍有积压，按调整后口径保留非阻断诊断 | OBS-16-04：目标账户/开关/平台、容量和回退签收；[证据与未覆盖范围](../archive/audits/2026-10-08-observability-functional-closure.md) |
+| 安装、健康与用户操作 | **本机限定验收完成；目标签收待办** | 手工/URL/文件/无server双端点导入、探测测试、发布部署、凭证消费、A/B迁移、真实日志及关联监控已有限定浏览器证据；见[rc.5验收](../archive/audits/2026-10-20-runtime-logs-browser-lifecycle.md) | 人工反馈、MCP浏览器/认证规范/多角色等原定组合及目标权限/TLS/健康/回退仍归OPS-01；不重新打开已验分支 |
+| 最终发布交付 | **rc.5预发布交付完成；生产签收待办** | 三平台原生离线包、门禁、归档、latest、标签及远端七附件已核验，见[发布审计](../archive/audits/2026-10-20-release-v1.7.6-rc.5.md) | OPS-01仍依赖SEC/OBS的目标签收，预发布不等于生产交付完成 |
 | 邮件、前端分块与国际化 | **已限定交付，转回归维护** | MAIL-01/02、MAINT-01/02已有受控投递、构建及相关回归 | 生产SMTP/告警触达归目标部署验收；仅修交付阻断或重大问题，不重新扩展整理任务 |
 
 <a id="next-work"></a>
@@ -36,38 +36,38 @@ doc-updated: 2026-10-26
 | --- | --- | --- | --- |
 | 1A · SEC-F4-02 安全发布签收 | **IN_PROGRESS，本地SSE补丁已完成；目标签收待办**；与OBS独立 | 已回移官方SSE修复，真实HTTP、干净安装和发布布局合同6/6；构建/打包/启动校验实际补丁。10-26复审为11 moderate、6 high、0 critical，较10-20历史基线变化，处置仍待SEC签收；后续维护迁移与目标身份/网络/开关签收 | 原安全出口有可追溯结果，残余版本范围风险有明确处置；本地修复不代替目标或生产签收 |
 | 1B · OBS-16-04 可观测部署签收 | **工程/功能专项DONE；父项IN_PROGRESS，目标签收待办** | 本机不再继续时间优化。以同候选核对目标账户/ACL、平台/DB、有效开关、保留、恢复和回退；参考硬件及采集A/B仅诊断 | 已验范围可追溯，部署出口有实际目标证据；SQLite3000全量未证明，不作该容量的生产保证 |
-| 2 · OPS-01 最终交付签收 | **WAIT_DEP，最终签收待前置**；本机Gateway浏览器闭环限定完成 | 在同一候选版本与目标环境汇总健康、安全和可观测结果；部署重启、权限/TLS、告警及回退仍待核验；[本机浏览器证据](../audits/2026-10-14-ops-browser-workflow.md) | 交付步骤可复现，必要证据齐备，给出发布/不发布结论；本机流程通过不能代替生产签收 |
+| 2 · OPS-01 最终交付签收 | **WAIT_DEP，最终签收待前置**；本机Gateway浏览器闭环限定完成 | 在同一候选版本与目标环境汇总健康、安全和可观测结果；部署重启、权限/TLS、告警及回退仍待核验；[本机浏览器证据](../archive/audits/2026-10-14-ops-browser-workflow.md) | 交付步骤可复现，必要证据齐备，给出发布/不发布结论；本机流程通过不能代替生产签收 |
 
 并发依赖：A采集与B投递已完成，C统一回归及诊断已执行（PG全量通过；SQLite专项通过，大样本未全量）。SEC-F4-02与OBS-16-04的目标签收独立；OPS-01本地Gateway浏览器主流程已限定完成，最终签收依赖二者。
 
 推进安排：停止因本机时间指标追加数据库优化。OPS打包浏览器主流程已完成；SEC/OBS准备同候选目标签收资料，环境具备后并行执行，OPS汇总交付结论。每包同步证据并提交推送。
 
-当前磁盘策略仍为至少空闲5GiB（5,368,709,120字节）。10-14完整health200及10-20发布时空间不足均为当时事实；本轮主机观察与实际启动结果见[收口审计](../audits/2026-10-26-existing-scope-closure.md)，不以磁盘空间单独代替完整健康验收。
+当前磁盘策略仍为至少空闲5GiB（5,368,709,120字节）。10-14完整health200及10-20发布时空间不足均为当时事实；本轮主机观察与实际启动结果见[收口审计](../archive/audits/2026-10-26-existing-scope-closure.md)，不以磁盘空间单独代替完整健康验收。
 
 明确延期：**DEFER-01（OAuth2）**、**DEFER-02（额外令牌适配与跨协议QoS）**。不计入上述三项，也不作为本里程碑发布的新增开发前置条件。
 
 ## 最近完成的能力包
 
-rc.5已交付真实运行事件日志、导入/绑定修复、完整浏览器生命周期补验及双库CI修复；API186套/1950项、Parser51套/1213项、UI95项及三平台发布证据见[rc.5审计](../audits/2026-10-20-release-v1.7.6-rc.5.md)。以下日期记录保留各轮当时范围和数字，不作为新待办。
+rc.5已交付真实运行事件日志、导入/绑定修复、完整浏览器生命周期补验及双库CI修复；API186套/1950项、Parser51套/1213项、UI95项及三平台发布证据见[rc.5审计](../archive/audits/2026-10-20-release-v1.7.6-rc.5.md)。以下日期记录保留各轮当时范围和数字，不作为新待办。
 
-2026-10-14用户调整磁盘门槛：[5GiB门槛与健康复验](../audits/2026-10-14-health-free-space-policy.md)完成至少空闲5GiB实现、8项健康回归及API构建；真实API+MCP完整health200、两种监控入口8项HTTP通过。生产签收状态不变。
+2026-10-14用户调整磁盘门槛：[5GiB门槛与健康复验](../archive/audits/2026-10-14-health-free-space-policy.md)完成至少空闲5GiB实现、8项健康回归及API构建；真实API+MCP完整health200、两种监控入口8项HTTP通过。生产签收状态不变。
 
-2026-10-14交接续接：[OpenAPI导入浏览器证据](../audits/2026-10-14-ops-browser-openapi-import.md)完成URL导入分支19/19和同构建手工注册回归19/19。修复治理页缺少运行实例入口，按点击端点的源资产打开现有弹窗；40/40专项、2150条文案编译及UI构建通过。仅关闭本机有界覆盖缺口，209条历史任务状态不变。
+2026-10-14交接续接：[OpenAPI导入浏览器证据](../archive/audits/2026-10-14-ops-browser-openapi-import.md)完成URL导入分支19/19和同构建手工注册回归19/19。修复治理页缺少运行实例入口，按点击端点的源资产打开现有弹窗；40/40专项、2150条文案编译及UI构建通过。仅关闭本机有界覆盖缺口，209条历史任务状态不变。
 
-2026-10-14 OPS本机打包UI Gateway流程19/19通过，修复Registry v1配置入口、生产JSON文案编译、源实例标识和草稿成员隐藏四处阻塞；UI回归38/38、2150条生产文案编译和构建通过。注册→实例探测/测试治理→发布部署→UI凭证→真实HTTP消费→同请求监控刷新已闭合，见[浏览器证据](../audits/2026-10-14-ops-browser-workflow.md)。
+2026-10-14 OPS本机打包UI Gateway流程19/19通过，修复Registry v1配置入口、生产JSON文案编译、源实例标识和草稿成员隐藏四处阻塞；UI回归38/38、2150条生产文案编译和构建通过。注册→实例探测/测试治理→发布部署→UI凭证→真实HTTP消费→同请求监控刷新已闭合，见[浏览器证据](../archive/audits/2026-10-14-ops-browser-workflow.md)。
 
-2026-10-08 A采集协调与B投递批处理完成：双库43组专项、API186套/1940项、流水线114项、本地查询/故障94项及重启3项通过；时间策略4项、会话续期5项通过。[本轮限定验收与诊断](../audits/2026-10-08-observability-functional-closure.md)保留PG完整结果、SQLite30分钟大样本未完整及关停后持久数据核对。前轮跨调用指标批写和官方SSE回移成果继续有效。
+2026-10-08 A采集协调与B投递批处理完成：双库43组专项、API186套/1940项、流水线114项、本地查询/故障94项及重启3项通过；时间策略4项、会话续期5项通过。[本轮限定验收与诊断](../archive/audits/2026-10-08-observability-functional-closure.md)保留PG完整结果、SQLite30分钟大样本未完整及关停后持久数据核对。前轮跨调用指标批写和官方SSE回移成果继续有效。
 
-此前单调用旧Runtime指标/状态原子事务、SQL.js7项与独立PG6组验证继续有效；当轮宽等待测量仅作为[历史对照](../audits/2026-10-08-observability-relaxed-timeouts.md)，最新双库结果以上述本轮联合验收为准。此前解析器迁移、源writer/采集/outbox批处理与SQL.js正确性修复继续有效。此前完整PG冷备恢复、响应断连、Worker调度及同revision重复部署冲突已修复（[重复部署证据](../audits/2026-10-08-gateway-repeat-deployment.md)，真实PG/HTTP17/17）。这些成果分别归SEC-F4-02、OBS-16-04、OPS-01，不新增历史细叶，也不自动关闭生产签收。
+此前单调用旧Runtime指标/状态原子事务、SQL.js7项与独立PG6组验证继续有效；当轮宽等待测量仅作为[历史对照](../archive/audits/2026-10-08-observability-relaxed-timeouts.md)，最新双库结果以上述本轮联合验收为准。此前解析器迁移、源writer/采集/outbox批处理与SQL.js正确性修复继续有效。此前完整PG冷备恢复、响应断连、Worker调度及同revision重复部署冲突已修复（[重复部署证据](../archive/audits/2026-10-08-gateway-repeat-deployment.md)，真实PG/HTTP17/17）。这些成果分别归SEC-F4-02、OBS-16-04、OPS-01，不新增历史细叶，也不自动关闭生产签收。
 
-PROD-04C已限定完成：真实PG/HTTP 16项通过，并结合事务/路径/权限专项完成留存流程；修复未知类型与回放证据导致的PG500，以及物理样本失效未阻断候选的问题。[二进制联合证据](../audits/2026-10-08-prod-04c-binary-lifecycle.md)。这不等于生产账户/跨平台与完整部署签收。
+PROD-04C已限定完成：真实PG/HTTP 16项通过，并结合事务/路径/权限专项完成留存流程；修复未知类型与回放证据导致的PG500，以及物理样本失效未阻断候选的问题。[二进制联合证据](../archive/audits/2026-10-08-prod-04c-binary-lifecycle.md)。这不等于生产账户/跨平台与完整部署签收。
 
-ENV-01已限定完成：旧90%门槛下磁盘受限记录保留；2026-10-14按用户批准的空闲5GiB门槛复测完整health通过（[5GiB门槛与健康复验](../audits/2026-10-14-health-free-space-policy.md)），MCP失联仍返回503。打包UI/Vite监控入口8项HTTP回归通过，目标环境与业务流程仍按各自证据签收。
+ENV-01已限定完成：旧90%门槛下磁盘受限记录保留；2026-10-14按用户批准的空闲5GiB门槛复测完整health通过（[5GiB门槛与健康复验](../archive/audits/2026-10-14-health-free-space-policy.md)），MCP失联仍返回503。打包UI/Vite监控入口8项HTTP回归通过，目标环境与业务流程仍按各自证据签收。
 
-用户环境选择已确认：暂用本机隔离环境，生产签收待办。TLS2/2、完整PG冷备7/7复用。SQLite长观察保留为不完整诊断，A/B工程不据本机耗时反复重开；具体分母、关停后积压及未覆盖范围见[本轮证据](../audits/2026-10-08-observability-functional-closure.md)。
+用户环境选择已确认：暂用本机隔离环境，生产签收待办。TLS2/2、完整PG冷备7/7复用。SQLite长观察保留为不完整诊断，A/B工程不据本机耗时反复重开；具体分母、关停后积压及未覆盖范围见[本轮证据](../archive/audits/2026-10-08-observability-functional-closure.md)。
 
 
-EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试治理→发布部署→上游A/B迁移→认证聚合消费。修复无server误建实例、认证候选无法重放、自动探测旧地址三项阻塞；11/11阶段、94 suites/1312 tests及API构建通过，已提交推送`ad6793d`。[完整证据](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md)。本轮未覆盖PG/Linux/外部生产身份/浏览器/MCP，不等于生产签收。
+EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试治理→发布部署→上游A/B迁移→认证聚合消费。修复无server误建实例、认证候选无法重放、自动探测旧地址三项阻塞；11/11阶段、94 suites/1312 tests及API构建通过，已提交推送`ad6793d`。[完整证据](../archive/audits/2026-10-08-ext-01-05-gateway-lifecycle.md)。本轮未覆盖PG/Linux/外部生产身份/浏览器/MCP，不等于生产签收。
 
 <a id="task-ledger"></a>
 ## 历史子任务统计与当前明细
@@ -89,10 +89,12 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 
 ## 2. 子任务状态与证据
 
-| 子任务 | 状态 | 当前证据/剩余边界 |
+DONE行保存各子项验收时的限定快照，其中“仍未接/后续”等描述是当时边界；后续子项成果及页首当前剩余清单优先，不据旧行重开开发。未完成行继续列当前退出边界。
+
+| 子任务 | 状态 | 阶段限定证据 / 未完成项当前边界 |
 | --- | --- | --- |
 | GOV-01 | DONE | 本轮三路审计 |
-| SEC-A1-01 | DONE | [七模式跨层矩阵](../testing/sec-a1-01-auth-mode-cross-layer-matrix.md)逐路径标实现与缺口；API97/97、Parser23/23、stdio12/12及MCP HTTP安全冒烟；不等于A1-02功能完成 |
+| SEC-A1-01 | DONE | [七模式跨层矩阵](../archive/audits/sec-a1-01-auth-mode-cross-layer-matrix.md)逐路径标实现与缺口；API97/97、Parser23/23、stdio12/12及MCP HTTP安全冒烟；不等于A1-02功能完成 |
 | SEC-A1-02A | DONE | Gateway UI/DTO旧public安全归一internal，显式external才匿名；空ref阻断新候选并保留旧active。API三套34/34、UI2/2、API/UI typecheck |
 | SEC-A1-02B1 | DONE | 独立入站模式DTO/列/摘要；旧行unknown、新部署须显式选择，运行中旧行不改停；SQLite旧库升级/空库/重启零漂移、专项37/37；PG静态核对，effective仍unknown |
 | SEC-A1-02B2 | DONE | 持久模式接入现行CLI启动/重启，停机前预检、spawn临时环境不回存新凭证；4套13/13、真实CLI HTTP三模式3/3；effective仍unknown，远端JWKS仅URL预检 |
@@ -110,18 +112,18 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | SEC-B2-01 | DONE | 共享algorithms/requiredClaims/skew保存与执行；真实SQLite重开/CLI/Gateway一致、运行中修改须先停止、SSE有效截止17项，见JWT参数证据 |
 | SEC-B3-01 | DONE | 真实Streamable/SSE长连接2/2：scope收窄、持久撤销、旧session/新连接/重连拒绝、SQLite重开及同PID有效Key对照；见会话撤销证据 |
 | SEC-B3-02 | DONE | SDK1.29.0 dispatcher/双传输Session/同主体换钥/跨主体拒绝/通知边界11项，统一入口71/71；scope不自动通知，目录变更阳性对照，见SDK证据 |
-| SEC-C1-01 | DONE | [类型合同](./upstream-credential-types-contract.md)冻结四类目标、拒绝类型、生命周期/Scope与F1兼容；DOC完成，非实现 |
-| SEC-C1-02 | DONE | [四类凭据证据](../audits/2026-09-22-credential-types-scope.md)：类型/双引用/生命周期/Scope、Gateway与显式single-hop真实27项、DB归属、533 Parser/428 API联合通过 |
-| SEC-C2-01 | DONE | 限定Linux权限矩阵完成（[证据](../audits/2026-09-27-linux-container-platform-validation.md)）：node:24-alpine(v24.21.0/musl)按操作说明加固运行，83项=82过/0败/1按设计跳过；私有根/祖先可写/链接/编码/边界与读中变更覆盖；Windows ACL归C2-02，未覆盖glibc/内核竞态 |
+| SEC-C1-01 | DONE | [类型合同](../archive/contracts/2026-10-26/upstream-credential-types-contract.md)冻结四类目标、拒绝类型、生命周期/Scope与F1兼容；DOC完成，非实现 |
+| SEC-C1-02 | DONE | [四类凭据证据](../archive/audits/2026-09-22-credential-types-scope.md)：类型/双引用/生命周期/Scope、Gateway与显式single-hop真实27项、DB归属、533 Parser/428 API联合通过 |
+| SEC-C2-01 | DONE | 限定Linux权限矩阵完成（[证据](../archive/audits/2026-09-27-linux-container-platform-validation.md)）：node:24-alpine(v24.21.0/musl)按操作说明加固运行，83项=82过/0败/1按设计跳过；私有根/祖先可写/链接/编码/边界与读中变更覆盖；Windows ACL归C2-02，未覆盖glibc/内核竞态 |
 | SEC-C2-02 | DONE | Windows原生句柄ACL验证；真实NTFS28/28主任务独立复跑，越权/链接/替换/并发写入均通过；依赖系统PowerShell与Add-Type，Linux另验 |
 | SEC-C3-01 | DONE | 固定文件Watch/debounce、坏文件保旧、admin锁内代次检查和Nest关闭已通过；Windows真实监听8/8、Parser252/252、Gateway31/31；见2026-09-21-registry-watch证据 |
 | SEC-C3-02 | DONE | Gateway启动/manual/watch激活均强制真实DB Source/Endpoint归属校验，未知/跨源/查询失败保旧；Parser46/46、Gateway46/46；见2026-09-21-registry-db-ownership |
-| SEC-C3-03 | DONE | 限定多进程协调完成（[证据](../audits/2026-09-27-c3-03-multi-process-registry.md)）：真实PG双进程共享库——CAS单赢家/败者零变更、外来start/stop/event失败关闭、世代+Registry revision/digest跨进程可读（`currentVerified`+只读reader）、陈旧包不入current、崩溃需显式reconcile接管；18项检查`C3_03_VERIFY_OK`；并修复PG下uuid/varchar连接缺陷；watcher/推送（E1-04）与Linux/部署未覆盖 |
-| SEC-C4-01 | DONE | 限定联合验证完成（[证据](../audits/2026-09-28-c4-01-resolver-semantics.md)）：`verify:c4-01` `C4_01_VERIFY_OK`（反向门控）聚合API 8套/92项、Parser 5套/110项、handoff 32/32+channel 15/15与E1-03矩阵；新增1套/10项真实HTTP：Gateway/MCP同绑定继承/覆盖/None一致、非选中凭据不上线、None无回退、Unresolved在秘密读取/网络/cache前固定码拒绝且可恢复、激活期拒绝保旧快照；未改生产源码、未重写Resolver |
+| SEC-C3-03 | DONE | 限定多进程协调完成（[证据](../archive/audits/2026-09-27-c3-03-multi-process-registry.md)）：真实PG双进程共享库——CAS单赢家/败者零变更、外来start/stop/event失败关闭、世代+Registry revision/digest跨进程可读（`currentVerified`+只读reader）、陈旧包不入current、崩溃需显式reconcile接管；18项检查`C3_03_VERIFY_OK`；并修复PG下uuid/varchar连接缺陷；watcher/推送（E1-04）与Linux/部署未覆盖 |
+| SEC-C4-01 | DONE | 限定联合验证完成（[证据](../archive/audits/2026-09-28-c4-01-resolver-semantics.md)）：`verify:c4-01` `C4_01_VERIFY_OK`（反向门控）聚合API 8套/92项、Parser 5套/110项、handoff 32/32+channel 15/15与E1-03矩阵；新增1套/10项真实HTTP：Gateway/MCP同绑定继承/覆盖/None一致、非选中凭据不上线、None无回退、Unresolved在秘密读取/网络/cache前固定码拒绝且可恢复、激活期拒绝保旧快照；未改生产源码、未重写Resolver |
 | SEC-D1-01 | DONE | Header政策1.0.0定稿：双向精确allowlist、多值/framing、保留字段、缓存和限时迁移；H01–H12待实现，N01–N17仍F3提案 |
 | SEC-D1-02A | DONE | Parser v1编译/不可变快照/继承/摘要/冲突294项；Gateway双源及未就绪激活拒绝、真实固定文件保旧/SQL.js冷恢复拒绝；仅准备 |
-| SEC-D1-02B | DONE | [双向真实流证据](../audits/2026-09-21-header-wire-execution.md)：纯字段60、入口TCP15、proxy真实21及联合353通过；仅显式compiled路径，生产门禁保持 |
-| SEC-D1-02C | DONE | [缓存隔离证据](../audits/2026-09-22-header-cache-isolation.md)：命中前预检、必需vary/策略及材料代次、原始禁存信号、真实HTTP32项；生产仍门禁 |
+| SEC-D1-02B | DONE | [双向真实流证据](../archive/audits/2026-09-21-header-wire-execution.md)：纯字段60、入口TCP15、proxy真实21及联合353通过；仅显式compiled路径，生产门禁保持 |
+| SEC-D1-02C | DONE | [缓存隔离证据](../archive/audits/2026-09-22-header-cache-isolation.md)：命中前预检、必需vary/策略及材料代次、原始禁存信号、真实HTTP32项；生产仍门禁 |
 | SEC-D1-02D1 | DONE | 同一Registry快照的策略/凭据/代次/历史名接入不可变Prepared Exchange；5 suites/118通过；生产v1仍等D2/D3/D4 |
 | SEC-D1-02D2A | DONE | 纯迁移契约/校验器覆盖具名legacy期限、未知字段与来源变更拒绝；3 suites/57通过；未接生产创建入口或持久化 |
 | SEC-D1-02D2B | DONE | PublicationService两新建入口持久写入v1草稿+来源，旧路由不回填；先NOT_READY再任何ACTIVE写；SQL.js重开，6 suites/65通过 |
@@ -140,17 +142,17 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | SEC-D2-01 | DONE | 真实HTTP独立IP/Anonymous桶、peer可信边界、缓存命中仍限流；Gateway全套201/201、主任务联合复验42/42；见2026-09-21-independent-rate-limits证据 |
 | SEC-D2-02 | DONE | 六层真实HTTP组合19项、四套73/73；共享窗口冲突503且到期恢复、24并发精确7准入；见六层限流组合证据 |
 | SEC-E0-01 | DONE | 锁SDK1.29.0原始HTTP/Session/错误及真实stdio矩阵60/60；修复已知Streamable端点不支持方法405+Allow；见Adapter证据 |
-| SEC-E1-01 | DONE | managed-mcp-credential-handoff-plan.md 0.1.0 draft；无代码交付；[草案](./managed-mcp-credential-handoff-plan.md) |
-| SEC-E1-01R | DONE | [交付设计第9节](./managed-mcp-credential-handoff-plan.md)，02A通道与真实child验收冻结；仅DOC |
+| SEC-E1-01 | DONE | managed-mcp-credential-handoff-plan.md 0.1.0 draft；无代码交付；[草案](../archive/plans/2026-10-26/managed-mcp-credential-handoff-plan.md) |
+| SEC-E1-01R | DONE | [交付设计第9节](../archive/plans/2026-10-26/managed-mcp-credential-handoff-plan.md)，02A通道与真实child验收冻结；仅DOC |
 | SEC-E1-02A | DONE | 真实Node IPC、精确环境、ACK后固定拒绝、断连/超时/幂等关闭；专项11/11，ProcessManager 3/3 |
 | SEC-E1-02B1 | DONE | 固定Config源、双DB快照、稳定Registry摘要、候选/绑定/环境核验；专项23/23 |
 | SEC-E1-02B2 | DONE | 真实child稳定重读Registry、single-hop Resolver、API key认证与监听后READY；三脚本47例 |
-| SEC-E1-02C1 | DONE | 授权后限定完成（[证据](../audits/2026-09-27-e1-02c1-managed-lifecycle.md)）：持久单调世代CAS（复用runtime_pipeline_state）、每次启动B1快照、受保护配置逐次审批与失败关闭、旧世代拒绝、停止幂等与遗留对账、trusted_ipc_v1显式路由（默认关闭）；新增21项、servers 18 suites/108 tests、`verify:e1-02c1`真实child 6/6、E1旧脚本61/61及构建通过；PG/Linux/部署与C2重启边界未覆盖 |
-| SEC-E1-02C2 | DONE | 限定边界完成（[证据](../audits/2026-09-27-e1-02c2-restart-failure-legacy.md)）：崩溃→记录终结+ERROR投影（无假RUNNING）、重启必重准备新世代+逐次审批、legacy自动重启抑制且不重建秘密argv、bootstrap失败清理不保留旧实例、父断开停子进程、陈旧包拒绝、可信模式legacy凭据spawn前失败关闭、版本不匹配无回退；servers 20 suites/127 tests、`verify:e1-02c2`真实child 10/10；启动时自动reconcile按共享DB风险不做（未拥有世代报告current:false） |
-| SEC-E1-03 | DONE | 限定闭环完成（[证据](../audits/2026-09-27-e1-03-real-child-matrix.md)）：真实构建产物child按§7矩阵1–13逐行映射，聚合既有77/77+新增10场景/31检查，Linux容器4项；全量API 154 suites/1678 tests；notCovered=30s真实握手等待/受管JWT匿名/ProcessInfo/File Provider权限 |
-| SEC-E1-04 | DONE | 限定实施完成（[证据](../audits/2026-09-28-e1-04-runtime-change-revocation.md)）：显式`checkRevision`（版本变化→终止旧世代→重准备新世代；快照失效fail-closed）与`revoke`（`security_revoked`终态、不自动重启、start需重准备+审批）；重复/并发幂等、在途有界终止无重放；真实child 5/5 exit 0（marker exit-code门控），单测23、servers 21 suites/140 tests；watcher/推送与在途上游abort（F3）未覆盖 |
-| SEC-E2-01 | DONE | 限定联合矩阵完成（[证据](../audits/2026-09-28-e2-01-security-joint-matrix.md)）：`verify:e2-01` 聚合12套件153/153 + 新增5场景/19检查，覆盖Streamable/SSE/stdio/managed IPC的取消/超时/重放/关闭；idle超时、在途上游abort、SSE游标重放等为notCovered |
-| SEC-E2-02 | DONE | 限定双平台完成（[证据](../audits/2026-09-28-e2-02-dual-platform-matrix.md)）：同一提交Windows(v24.15.0)与node:24-alpine(v24.21.0/musl, --network none)复跑E2-01矩阵，17行映射双平台各153/153+19检查，retries=0、0结果差异；容器配方与Node补丁/musl差异已记录；glibc/macOS/部署/长浸泡未覆盖 |
+| SEC-E1-02C1 | DONE | 授权后限定完成（[证据](../archive/audits/2026-09-27-e1-02c1-managed-lifecycle.md)）：持久单调世代CAS（复用runtime_pipeline_state）、每次启动B1快照、受保护配置逐次审批与失败关闭、旧世代拒绝、停止幂等与遗留对账、trusted_ipc_v1显式路由（默认关闭）；新增21项、servers 18 suites/108 tests、`verify:e1-02c1`真实child 6/6、E1旧脚本61/61及构建通过；PG/Linux/部署与C2重启边界未覆盖 |
+| SEC-E1-02C2 | DONE | 限定边界完成（[证据](../archive/audits/2026-09-27-e1-02c2-restart-failure-legacy.md)）：崩溃→记录终结+ERROR投影（无假RUNNING）、重启必重准备新世代+逐次审批、legacy自动重启抑制且不重建秘密argv、bootstrap失败清理不保留旧实例、父断开停子进程、陈旧包拒绝、可信模式legacy凭据spawn前失败关闭、版本不匹配无回退；servers 20 suites/127 tests、`verify:e1-02c2`真实child 10/10；启动时自动reconcile按共享DB风险不做（未拥有世代报告current:false） |
+| SEC-E1-03 | DONE | 限定闭环完成（[证据](../archive/audits/2026-09-27-e1-03-real-child-matrix.md)）：真实构建产物child按§7矩阵1–13逐行映射，聚合既有77/77+新增10场景/31检查，Linux容器4项；全量API 154 suites/1678 tests；notCovered=30s真实握手等待/受管JWT匿名/ProcessInfo/File Provider权限 |
+| SEC-E1-04 | DONE | 限定实施完成（[证据](../archive/audits/2026-09-28-e1-04-runtime-change-revocation.md)）：显式`checkRevision`（版本变化→终止旧世代→重准备新世代；快照失效fail-closed）与`revoke`（`security_revoked`终态、不自动重启、start需重准备+审批）；重复/并发幂等、在途有界终止无重放；真实child 5/5 exit 0（marker exit-code门控），单测23、servers 21 suites/140 tests；watcher/推送与在途上游abort（F3）未覆盖 |
+| SEC-E2-01 | DONE | 限定联合矩阵完成（[证据](../archive/audits/2026-09-28-e2-01-security-joint-matrix.md)）：`verify:e2-01` 聚合12套件153/153 + 新增5场景/19检查，覆盖Streamable/SSE/stdio/managed IPC的取消/超时/重放/关闭；idle超时、在途上游abort、SSE游标重放等为notCovered |
+| SEC-E2-02 | DONE | 限定双平台完成（[证据](../archive/audits/2026-09-28-e2-02-dual-platform-matrix.md)）：同一提交Windows(v24.15.0)与node:24-alpine(v24.21.0/musl, --network none)复跑E2-01矩阵，17行映射双平台各153/153+19检查，retries=0、0结果差异；容器配方与Node补丁/musl差异已记录；glibc/macOS/部署/长浸泡未覆盖 |
 | SEC-F1-01 | DONE | 四态、OpenAPI继承/OR-AND、Binding兼容及验证失效合同定稿；同revision秘密变更须重新验证；F1-02仍依赖C1-02 |
 | SEC-F1-02A | DONE | 声明保留、OR/AND显式选择、四态纯对账及发布/装配写入前拒绝；17 suites/234与API build通过；不含可信Registry/耐久验证 |
 | SEC-F1-02B | DONE | 可信Registry/Resolver Binding评估与opaque Provider epoch接入；5 suites/57与API build通过；不替代C的耐久验证ledger |
@@ -166,17 +168,17 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | SEC-F1-02C3G2 | DONE | 只读preview/readiness adapter限定完成：2 files、2 suites/43及API build通过；SQL日志仅SELECT、实体/evidence零变更且无新增loopback；canPublish恒false、未接生产入口 |
 | SEC-F1-02C3G3 | DONE | 单成员DB事务writer限定完成：2个publication-member-transaction-writer文件，1 suite/10项SQL.js及API build通过；未注册生产入口、未验PostgreSQL |
 | SEC-F1-02C3G4 | DONE | 有界executor切片限定完成：3 suites/30 tests及API build通过；生产G2默认false且验证G3零调用，仅显式future-readiness fixture证明部分提交/后续继续；candidate仅host-owned同步swap且无await，未接异步Registry生产链，不代表production batch/candidate activation完整 |
-| SEC-F1-02C3G5 | DONE | 限定补全完成（[证据](../audits/2026-09-28-f1-02c3g5-gateway-proof-guard.md)）：同进程issuer lifecycle（创建/TTL/单次/撤销/epoch复核，无schema）+request-bound capability（scope/method/target/context/epoch绑定、消费一次、不可序列化）；guard在Resolver/cache前执行并以null默认注册；5套件58测试+真实Nest HTTP、gateway-runtime 55 suites/784 tests；Verified保持关闭，PG/生产安装未覆盖 |
-| SEC-F1-02C3G6 | DONE | 限定实时许可链完成（[证据](../audits/2026-09-28-f1-02c3g6-realtime-permits.md)）：host G1 capability逐执行消费+child有界IPC permit（拒绝固定码零上游）、撤销0网络有界终止无重放、幂等/失败关闭、proof不序列化扫描全清；runner 54检查、servers 27 suites/173 tests；在途abort归F3、watcher与Linux未覆盖 |
+| SEC-F1-02C3G5 | DONE | 限定补全完成（[证据](../archive/audits/2026-09-28-f1-02c3g5-gateway-proof-guard.md)）：同进程issuer lifecycle（创建/TTL/单次/撤销/epoch复核，无schema）+request-bound capability（scope/method/target/context/epoch绑定、消费一次、不可序列化）；guard在Resolver/cache前执行并以null默认注册；5套件58测试+真实Nest HTTP、gateway-runtime 55 suites/784 tests；Verified保持关闭，PG/生产安装未覆盖 |
+| SEC-F1-02C3G6 | DONE | 限定实时许可链完成（[证据](../archive/audits/2026-09-28-f1-02c3g6-realtime-permits.md)）：host G1 capability逐执行消费+child有界IPC permit（拒绝固定码零上游）、撤销0网络有界终止无重放、幂等/失败关闭、proof不序列化扫描全清；runner 54检查、servers 27 suites/173 tests；在途abort归F3、watcher与Linux未覆盖 |
 | SEC-F1-02D | DONE | 限定统一结果完成：新增`publication-security-evaluation.ts`冻结selector/preview/proof/evidenceFingerprint/contextVersion/membershipRevision，preview、G3单成员发布（toValidator）与G4批量/激活共用同一结果；G4 activateCandidate新增recheck并在await后重比epoch，激活前`assertTransactionCurrent`复核context与证据；生产G2 canPublish:false与现有发布路径不变。专项1 suite/5 tests、publication 20 suites/245 tests、API build；未注册生产DI，PG并发归F1-02F |
 | SEC-F1-02E1 | DONE | Gateway每次调用重评guard，6 files；39 suites/556及13项真实HTTP SQL.js重校、API build通过；不声称生产Verified |
 | SEC-F1-02E2 | DONE | Parser唯一声明规则与标准HTTP transformer门禁；6 files，Parser28/545、API102/1116、三构建及扩例7/7通过；不含Verified/custom handlers/E3 managed传播 |
 | SEC-F1-02E3a | DONE | 受限ManagedChildSecurityLeaseCoordinator纯协调原语；2 files/7 tests通过；未注册、未接handoff |
-| SEC-F1-02E3b | DONE | 限定实施完成（[证据](../audits/2026-09-28-f1-02e3b-realtime-authorization.md)）：E3a租约接入lifecycle（默认关闭/trusted-only）；`isolateSourceForUpdate`运行中更新前阻断、IPC `authorization/authorizationAck`实时授权（allow/deny/revoke，fail-closed、幂等）、在线撤销挂起调用0网络有界终止；runner 5场景/49检查`F1_02E3B_VERIFY_OK`，servers 24 suites/156 tests；生产更新调用方/逐工具许可/watcher与Linux未覆盖 |
-| SEC-F1-02F | DONE | 限定双运行时验收完成（[证据](../audits/2026-09-28-f1-02f-dual-runtime-reopen.md)）：`verify:f1-02f` 18/18套件165/165测试`F1_02F_VERIFY_OK`（含反向注入门控）+隔离PG 16.10（73表/8迁移、重开零漂移、撤销持久、双连接并发1胜1负revision+1、集群清理）；Gateway/MCP端到端与default-off对照、迟到拒绝、同revision Provider变化在toValidator/assertTransactionCurrent边界重新授权（生产+14行无schema）；跨进程竞态归c3-03、child IPC归G6/E3b |
+| SEC-F1-02E3b | DONE | 限定实施完成（[证据](../archive/audits/2026-09-28-f1-02e3b-realtime-authorization.md)）：E3a租约接入lifecycle（默认关闭/trusted-only）；`isolateSourceForUpdate`运行中更新前阻断、IPC `authorization/authorizationAck`实时授权（allow/deny/revoke，fail-closed、幂等）、在线撤销挂起调用0网络有界终止；runner 5场景/49检查`F1_02E3B_VERIFY_OK`，servers 24 suites/156 tests；生产更新调用方/逐工具许可/watcher与Linux未覆盖 |
+| SEC-F1-02F | DONE | 限定双运行时验收完成（[证据](../archive/audits/2026-09-28-f1-02f-dual-runtime-reopen.md)）：`verify:f1-02f` 18/18套件165/165测试`F1_02F_VERIFY_OK`（含反向注入门控）+隔离PG 16.10（73表/8迁移、重开零漂移、撤销持久、双连接并发1胜1负revision+1、集群清理）；Gateway/MCP端到端与default-off对照、迟到拒绝、同revision Provider变化在toValidator/assertTransactionCurrent边界重新授权（生产+14行无schema）；跨进程竞态归c3-03、child IPC归G6/E3b |
 | SEC-F2-01 | DONE | Consumer/Upstream分区、真实binding revision/Registry generation与reload恢复；UI12/12、实际UI适配器到Nest/Registry HTTP1/1、后端21/21；进程范围明确，浏览器点击未验 |
 | SEC-F2-02 | DONE | Gateway/MCP临时匿名原因/到期/生产风险和actor回显，保存重开及拒绝反馈；UI构建、表单/真实模板26/26，浏览器点击未验，见UI证据 |
-| SEC-F3-01 | DONE | [网络合同§4](./security-header-network-boundary-contract.md)冻结public/direct、限期例外、DNS/peer/TLS、safe-read及撤销；仅DOC |
+| SEC-F3-01 | DONE | [网络合同§4](../archive/contracts/2026-10-26/security-header-network-boundary-contract.md)冻结public/direct、限期例外、DNS/peer/TLS、safe-read及撤销；仅DOC |
 | SEC-F3-02A | DONE | 限定纯compiler完成：严格v1配置/URL/origin、IPv4/IPv6完整分类、IPv4-mapped归一与精确private-exception；静态表版本iana-2025-10-09-conservative-v1，更新表时必须复核IANA差异并重跑边界回归。network专项165项、Parser 30 suites/722 tests及typecheck/build通过；不接DNS、真实发送或host续期/撤销，不关闭父F3 |
 | SEC-F3-02B1 | DONE | 限定受控DNS批准结果完成：真实UDP 26/26、Parser 31 suites/748 tests及typecheck/build通过；覆盖A/AAAA/CNAME有界全集、规范化去重、逐地址政策授权及混合/未分类/截断失败关闭。仅产出DNS批准结果，无上游socket、peer或TLS证据 |
 | SEC-F3-02B2 | DONE | 限定≤8MiB Buffer单跳transport primitive完成：31专项、Parser 32 suites/779 tests、typecheck/build通过；真实HTTP/TLS/peer/代理陷阱与Windows Node24已有证据。无Gateway/Transformer host接线、Readable/大体积流或逐跳撤销 |
@@ -211,13 +213,13 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | SEC-F3-02C5a | DONE | 限定纯失败/审计模块完成：新4文件/专项42，品牌失败、502/503/504/cancel、null-prototype审计白名单及sink失败不改变拒绝；统一Parser 37 suites/907 tests及typecheck/build通过。未接生产双运行时 |
 | SEC-F3-02C5b | DONE | 限定双运行时接线完成：Gateway provider在prepare/send/completed单点emit `upstream.network_failure`（operationId/policy/revision/site/endpoint/revocationEpoch/attempt/hop/stage），stream未知错误固定503不回传原始DNS/TLS细节；Parser single-hop与host bridge显式failureAudit透传并按阶段emit。真实HTTP/TLS负测（sink故障不改拒绝、秘密扫描）；Parser 49 suites/1196 tests、Gateway 51 suites/735 tests、两包构建；未持久化事件（归C6/F3D）、无child/E3b、生产默认关闭 |
 | SEC-F3-02C6 | DONE | 限定联合矩阵完成：新增`scripts/verify-f3-dual-runtime.cjs`（npm run verify:f3-dual-runtime）聚合重跑Parser 4 suites/78 tests与Gateway 3 suites/95 tests并输出clause矩阵`F3_DUAL_RUNTIME_MATRIX_OK`；仅本地回环DNS/HTTP/TLS，不代表生产默认启用/PG/F3D平台验收 |
-| SEC-F3-02D | DONE | 限定本地 N 矩阵完成（[证据](../audits/2026-09-26-f3-n-matrix-local.md)）：隔离回环 DNS/HTTP/TLS/代理上 N01–N17 逐项映射，parser 17套件/573例+gateway 84例全绿（`verify:f3-n-matrix`，含新增N01单跳302用例）；生产默认启用、公网与Windows/Linux跨平台矩阵仍为环境项 |
-| SEC-F3-03 | DONE | 限定全渠道扫描完成（[证据](../audits/2026-09-28-f3-03-secret-leak-matrix.md)）：真实child+回环上游+SQL.js，9合成秘密跨15渠道、904项检查0泄露、检测器非空洞自测；含OS级argv/spawn与实际env/stdio/错误面/静态码/持久行/状态事件/日志投影/管理审计检索；notCovered=部署级HTTP审计sink/ProcessInfo/观测事件sink/Linux argv |
-| SEC-F3a-01 | DONE | 限定在线审计完成（[证据](../audits/2026-09-26-dependency-reachability-audit.md)）：首轮生产32项（0C/10H/21M/1L）；授权后补丁批已执行：主版本内12包+UI echarts6/vue-echarts8，生产降至19（0C/4H/15M/0L），残余全部归Nest12族；Parser 49/1196、API 148/1623与三包构建回归通过 |
+| SEC-F3-02D | DONE | 限定本地 N 矩阵完成（[证据](../archive/audits/2026-09-26-f3-n-matrix-local.md)）：隔离回环 DNS/HTTP/TLS/代理上 N01–N17 逐项映射，parser 17套件/573例+gateway 84例全绿（`verify:f3-n-matrix`，含新增N01单跳302用例）；生产默认启用、公网与Windows/Linux跨平台矩阵仍为环境项 |
+| SEC-F3-03 | DONE | 限定全渠道扫描完成（[证据](../archive/audits/2026-09-28-f3-03-secret-leak-matrix.md)）：真实child+回环上游+SQL.js，9合成秘密跨15渠道、904项检查0泄露、检测器非空洞自测；含OS级argv/spawn与实际env/stdio/错误面/静态码/持久行/状态事件/日志投影/管理审计检索；notCovered=部署级HTTP审计sink/ProcessInfo/观测事件sink/Linux argv |
+| SEC-F3a-01 | DONE | 限定在线审计完成（[证据](../archive/audits/2026-09-26-dependency-reachability-audit.md)）：首轮生产32项（0C/10H/21M/1L）；授权后补丁批已执行：主版本内12包+UI echarts6/vue-echarts8，生产降至19（0C/4H/15M/0L），残余全部归Nest12族；Parser 49/1196、API 148/1623与三包构建回归通过 |
 | SEC-F4-01 | DONE | 当前112个SEC叶子以逐项或明确聚合旧ID维护，D2b1/b2/b3a–d及C2b1/b2a/b2b1/b2b2/b3依赖已登记；区分历史/本地限定/未运行环境，不代表F4-02签收 |
-| SEC-F4-02 | IN_PROGRESS | [官方SSE补丁回移](../audits/2026-10-08-security-nest-sse-backport.md)修复实际编码器，vendor/lock可追溯，正常/注入HTTP、干净安装和发布布局6/6通过；构建/打包/启动拒绝旧字节。10-26复审为11 moderate、6 high、0 critical，较10-20历史基线变化，处置仍待SEC签收；原解析/file-type/UUID门禁和API184套/1932项通过。维护版本迁移与目标身份/网络/开关及生产签收继续待办 |
+| SEC-F4-02 | IN_PROGRESS | [官方SSE补丁回移](../archive/audits/2026-10-08-security-nest-sse-backport.md)修复实际编码器，vendor/lock可追溯，正常/注入HTTP、干净安装和发布布局6/6通过；构建/打包/启动拒绝旧字节。10-26复审为11 moderate、6 high、0 critical，较10-20历史基线变化，处置仍待SEC签收；原解析/file-type/UUID门禁和API184套/1932项通过。维护版本迁移与目标身份/网络/开关及生产签收继续待办 |
 | OBS-06-01 | DONE | 限定矩阵完成：新增`verify:mcp-observability-matrix`聚合4个server脚本（11+17+15+12）与Parser上游失败74项，输出`MCP_OBSERVABILITY_MATRIX_OK`；success/cancel/发送中断/大响应三transport有结果（16MiB Tool省略/8MiB完整），Windows原生对照复现双方timeout；Linux/OBS-06-02、AC-02 retry与MCP调用超时仍归TP06/16 |
-| OBS-06-02 | DONE | 限定跨平台完成（[证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:obs-06-02` `OBS_06_02_VERIFY_OK`——Ubuntu24.04/容器Node v24.15.0与Windows同版本矩阵22行21匹配（server 11/17/15/12、parser 74/74、15 transport单元一致）；1项记录差异=16MiB cork/uncork Linux completed vs Windows timeout（字节相同、两侧native/audited自洽）；裸机内核/PG/负载与生产启用未覆盖 |
+| OBS-06-02 | DONE | 限定跨平台完成（[证据](../archive/audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:obs-06-02` `OBS_06_02_VERIFY_OK`——Ubuntu24.04/容器Node v24.15.0与Windows同版本矩阵22行21匹配（server 11/17/15/12、parser 74/74、15 transport单元一致）；1项记录差异=16MiB cork/uncork Linux completed vs Windows timeout（字节相同、两侧native/audited自洽）；裸机内核/PG/负载与生产启用未覆盖 |
 | OBS-10-01 | DONE | 受管业务子进程start/stop/unexpected_exit/lost已进入独立持久投影；runtimeAssetId+serverId+generation绑定，旧generation迟到终止不能覆盖新start，管理心跳不作为业务存活。SQL.js重开4/4、真实child/事件hook 3/3、状态投影1/1、ProcessManager相邻5 suites/32及API type-check/build通过 |
 | OBS-10-02A | DONE | 限定retained读模型完成：5100条保留历史有界聚合、revision水位、资产隔离、legacy坏行与SQL.js重开均覆盖，4 suites/15 tests通过。retained unfinished=0只表示保留事实中无未完成项；coverage仍为unknown，live active保持null；只投影最新generation而非全历史 |
 | OBS-10-02B1 | DONE | managed start/terminal与最新generation投影在同一Store事务写入server.state_changed并分配sequence；4 suites/21 tests及API build通过。只证明同一DataSource内并发与耐久delta，不接Realtime，不证明跨实例全局水位或实时liveness |
@@ -227,14 +229,14 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | OBS-13-01B2 | DONE | 限定state realtime接线完成：新service/spec及module/gateway接线共4文件，真实Socket.IO 3 suites/23 tests、旧Realtime脚本11/11及API build通过；两真实连接以独立room隔离，无跨协议帧、旧broadcast或initial snapshot泄漏，并覆盖ACK精确、断线重放、gap、撤权和过期。过期测试首轮全局时间跃迁误触Engine.IO heartbeat，改为仅同步grant.resolve内控时，生产TTL未变；旧invocation_facts_only保持不变 |
 | OBS-13-01C | DONE | 限定本地协议矩阵完成：3文件，真实Socket.IO+SQL.js 4 suites/41 tests、旧realtime+events脚本27/27及API build通过；新增18项验收，未知evidenceScope由skip改为EVENT_CURSOR_EXPIRED，并以两处合法过滤外fixture保持旧reader断言。撤权/锁定/asset缩窄、grant TTL/重启、ACK前重放/后续传、scoped gap和旧协议隔离通过；正版本乱序只发refreshRequired，DB唯一约束拒绝durable重复sequence，未ACK重放仍为合法语义。无UI reducer/exactly-once、多实例grant或跨部署证据；OBS-13-01聚合限定完成 |
 | OBS-13-02 | DONE | 限定慢客户端/恢复验收完成：新增`verify:obs-13-02`覆盖调用事实流12项（慢ACK限制单在途页并从确认游标续传、序号无重复缺口）与状态流10项（另一订阅不受影响、断线重放/SLOW_CONSUMER）；长时soak、跨平台/多实例/跨部署恢复与真实接收端仍归OBS-16/平台项 |
-| OBS-14-01 | DONE | [生命周期合同](../reference/runtime-observability-lifecycle-contract.md)冻结引用、保留、墓碑与重放边界；仅DOC |
+| OBS-14-01 | DONE | [生命周期合同](../archive/reference/2026-10-26/runtime-observability-lifecycle-contract.md)冻结引用、保留、墓碑与重放边界；仅DOC |
 | OBS-14-02 | DONE | 持久keyset分页、同GC fence、修复与cursor同事务；真实SQL.js连接重建恢复；新增7项专项，联合67/67 |
 | OBS-14-03E1 | DONE | 持久非连续gap、授权查询与afterSequence 410；SQL/schema/migration同步，专项6/6 |
 | OBS-14-03E2A | DONE | 默认关闭的只读候选分类、授权/TTL/lease/delivery保护；无写入，专项4/4 |
-| OBS-14-03E2B | DONE | 限定物理删除完成（[证据](../audits/2026-09-26-obs-14-03e3-physical-cleanup.md)）：过期事件默认关闭的有界物理删除，同Store事务内gap+delete+持久cursor+报告；E2A分类/03D三阶段复用，租约/未完成attempt/有效幂等/投递引用保护与失败回滚、重启续扫幂等；专项8/8 |
-| OBS-14-03E3 | DONE | 限定整体验收完成（[证据](../audits/2026-09-26-obs-14-03e3-physical-cleanup.md)）：`verify:obs-14-03e3` 模块12 suites/102 tests与8脚本回归全绿、10项验收检查通过、sqlite 73表零漂移；PG运行时/多进程/长时/Linux与生产启用仍为平台项 |
+| OBS-14-03E2B | DONE | 限定物理删除完成（[证据](../archive/audits/2026-09-26-obs-14-03e3-physical-cleanup.md)）：过期事件默认关闭的有界物理删除，同Store事务内gap+delete+持久cursor+报告；E2A分类/03D三阶段复用，租约/未完成attempt/有效幂等/投递引用保护与失败回滚、重启续扫幂等；专项8/8 |
+| OBS-14-03E3 | DONE | 限定整体验收完成（[证据](../archive/audits/2026-09-26-obs-14-03e3-physical-cleanup.md)）：`verify:obs-14-03e3` 模块12 suites/102 tests与8脚本回归全绿、10项验收检查通过、sqlite 73表零漂移；PG运行时/多进程/长时/Linux与生产启用仍为平台项 |
 | OBS-14-03D | DONE | 限定保留清理完成：新增receipt墓碑实体+读取门禁（同hash重放不增计数、异hash仍隔离），三阶段有界事务清理（幂等/墓碑化/投递+尝试，30/32天/24小时边界、租约与未完成attempt保护、有效幂等结果保护、回滚与重启游标）；专项12项、模块11 suites/94 tests、5脚本回归与sqlite 73表零漂移；物理删除默认关闭、墓碑不退休，PG并发归平台项 |
-| OBS-14-04 | DONE | [容量配额合同](../reference/runtime-observability-capacity-quota-contract.md)冻结计量、水位、并发预留、恢复与05A~D；仅DOC |
+| OBS-14-04 | DONE | [容量配额合同](../archive/reference/2026-10-26/runtime-observability-capacity-quota-contract.md)冻结计量、水位、并发预留、恢复与05A~D；仅DOC |
 | OBS-14-05A | DONE | 独立ledger/reservation、epoch/CAS、幂等预留结算与严格配置；联合18/18，未接写入 |
 | OBS-14-05B | DONE | 默认关闭的payload prepare/publish门禁；专项11/11、旧六脚本81/81、API类型检查/构建通过；外围元数据失败孤儿计费留05C2 |
 | OBS-14-05C1 | DONE | 只读有界正文盘点、跨会话完整shard前缀复核；专项6/6、旧GC/容量27/27、API typecheck；writerFenceRequired=true、baselineReady=false，不改账本/schema/删除 |
@@ -252,23 +254,23 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | OBS-14-05C2C2C2A | DONE | 同一inventory围栏内完整扫描、final digest/长度与temp缺失只读证明，返回file_proof_uncommitted；SQL.js 8/8、相关回归，不结算 |
 | OBS-14-05C2C2C2B | DONE | 同inventory围栏最终事务复核意图/receipt/元数据/预留和完整扫描、精确文件字节后安全结算；专项10/10、相邻55/55；不确定保守持有、quotaEnforced=false |
 | OBS-14-05C2C3 | DONE | 实际ingest/发布故障、关闭并重建SQL.js连接、缺receipt/元数据回滚/残留temp、重复恢复与重放5/5；每次确认reserved+committed覆盖实际路径字节；仅Windows隔离验收 |
-| OBS-14-05C3 | DONE | 限定双平台完成（[证据](../audits/2026-09-27-linux-container-platform-validation.md)）：Windows PostgreSQL16.10 9/9 + Linux（node:24-alpine, PostgreSQL 16.15+contrib）9/9；四进程预算/幂等、四个ingest中断窗口、文件链并发与PG重启重放守恒；PG掉电/长时压力未验 |
-| OBS-14-05D | DONE | 限定联调完成（[证据](../audits/2026-09-27-obs-14-05d-quota-state-joint.md)）：新增`verify:obs-14-05d`（`OBS_14_05D_OK`），水位迟滞/物理余量statfs守卫（新默认关闭开关）/版本与禁用状态/权限旁路/压力故障结算/业务降级声明；模块13 suites/105 tests、聚合19脚本/179项与17项检查全绿；长时压力、Linux-PG联合、多进程与生产启用未覆盖 |
+| OBS-14-05C3 | DONE | 限定双平台完成（[证据](../archive/audits/2026-09-27-linux-container-platform-validation.md)）：Windows PostgreSQL16.10 9/9 + Linux（node:24-alpine, PostgreSQL 16.15+contrib）9/9；四进程预算/幂等、四个ingest中断窗口、文件链并发与PG重启重放守恒；PG掉电/长时压力未验 |
+| OBS-14-05D | DONE | 限定联调完成（[证据](../archive/audits/2026-09-27-obs-14-05d-quota-state-joint.md)）：新增`verify:obs-14-05d`（`OBS_14_05D_OK`），水位迟滞/物理余量statfs守卫（新默认关闭开关）/版本与禁用状态/权限旁路/压力故障结算/业务降级声明；模块13 suites/105 tests、聚合19脚本/179项与17项检查全绿；长时压力、Linux-PG联合、多进程与生产启用未覆盖 |
 | OBS-14-06A | DONE | 限定本功能管理审计有界清理完成：按明确resource归属（observability_caller/delivery/policy/subscription/payload/audit）仅选本功能记录，30天最小窗口；delete/checkpoint/单条管理记录同一Store事务；无法归属与更新记录保留；默认off。专项1 suite/7 tests、call-observability 9 suites/73 tests、API build；不含全产品安全审计/配额治理与平台多进程 |
 | OBS-14-06T | DONE | 限定暂存源文件有界恢复完成：仅身份/已提交offset/边界/seal/closed退出证明/完整行全部复核且超48小时才删除；活动、半行、未导入、身份不明与不匹配名保留；持久游标恢复；不触碰checkpoint/receipt/事件且不分配业务sequence。专项1 suite/8 tests、call-observability 10 suites/81 tests、API build；不含平台/多进程与旧schema |
 | OBS-15-01 | DONE | 限定迁移完成：旧`/api/v1/monitoring/management/external-callers`文件扫描入口与parser `listObservedRuntimeCallers`已删除（无别名/回退），消费者改用统一`/api/monitoring/observability/callers`或原始`callers-*.jsonl`证据；结构/404/原始记录断言与parser 23项通过。Gateway旧后端删除与部署切换归OBS-15-02 |
 | OBS-15-02 | DONE | 限定全链路身份验收完成：新增`verify:obs-15-full-chain`聚合gateway 21+events16+deliveries9+invocations38+realtime11+overview20共115项并输出`OBS_15_FULL_CHAIN_OK`（身份边、拒绝审计、旧端点与回退步骤）；修复gateway脚本夹具缺失update导致的2项失败；PG/外部接收端/部署切换仍属环境项 |
-| OBS-16-01 | DONE | 交接文档2.2.0；AC01~20与脚本入口静态核对，未运行新全量矩阵；[交接](./runtime-observability-external-validation-handoff.md) |
+| OBS-16-01 | DONE | 交接文档2.2.0；AC01~20与脚本入口静态核对，未运行新全量矩阵；[交接](../archive/plans/2026-10-26/runtime-observability-external-validation-handoff.md) |
 | OBS-16-02 | DONE | 限定本地故障单元完成：新增`verify:obs-16-local-unit`冻结规模（500调用/200事件/50正文）运行6套（94项+新故障单元3项）并输出`OBS_16_LOCAL_UNIT_OK`；重开/重复重放无双计数、冲突隔离、关闭store拒绝；Linux/PG/多进程/负载与部署仍归OBS-16-03/04 |
-| OBS-16-03 | DONE | 限定环境车道完成（[证据](../audits/2026-09-28-obs-16-03-environment-lane.md)）：`verify:obs-16-03` `OBS_16_03_VERIFY_OK`——Windows/隔离PG16.10与Linux/Alpine PG16.15双平台多进程（skip_locked+租约+SIGKILL恢复无丢失无重复，10/10×2）+受控接收端矩阵（2xx/408/429/5xx+Retry-After秒与日期/终态4xx与3xx/缺秘密/DNS/metadata/自签与不可达TLS，8/8×2）；2格blocked（自签TLS成功需部署信任配置；容器--network none需预装PG包）；部署签收/长时/glibc归OBS-16-04与平台项 |
-| OBS-16-04 | IN_PROGRESS | **本机工程/限定专项DONE，目标签收待办**。[本轮证据](../audits/2026-10-08-observability-functional-closure.md)：双库43组、API186/1940、流水线114、本地94+重启3通过；PG3000全流程通过；SQLite30分钟1799可见/1615对应投递，源3000完整但全量未验，列非阻断诊断。TLS2/2、冷备7/7复用；保留目标账户/开关/平台及回退签收 |
-| PROD-01 | DONE | [发布端点合同](./mcp-publication-endpoint-contract.md)，后端/监听/UI边界冻结；仅DOC |
+| OBS-16-03 | DONE | 限定环境车道完成（[证据](../archive/audits/2026-09-28-obs-16-03-environment-lane.md)）：`verify:obs-16-03` `OBS_16_03_VERIFY_OK`——Windows/隔离PG16.10与Linux/Alpine PG16.15双平台多进程（skip_locked+租约+SIGKILL恢复无丢失无重复，10/10×2）+受控接收端矩阵（2xx/408/429/5xx+Retry-After秒与日期/终态4xx与3xx/缺秘密/DNS/metadata/自签与不可达TLS，8/8×2）；2格blocked（自签TLS成功需部署信任配置；容器--network none需预装PG包）；部署签收/长时/glibc归OBS-16-04与平台项 |
+| OBS-16-04 | IN_PROGRESS | **本机工程/限定专项DONE，目标签收待办**。[本轮证据](../archive/audits/2026-10-08-observability-functional-closure.md)：双库43组、API186/1940、流水线114、本地94+重启3通过；PG3000全流程通过；SQLite30分钟1799可见/1615对应投递，源3000完整但全量未验，列非阻断诊断。TLS2/2、冷备7/7复用；保留目标账户/开关/平台及回退签收 |
+| PROD-01 | DONE | [发布端点合同](../archive/contracts/2026-10-26/mcp-publication-endpoint-contract.md)，后端/监听/UI边界冻结；仅DOC |
 | PROD-02A1 | DONE | DTO、统一解析、授权preview、更新保留、归属/运行态保护及summary；专项与部署回归49/49 |
 | PROD-02A2 | DONE | 实际端点三项进入候选哈希/metadata并在激活事务复核；四套81/81 |
 | PROD-02B | DONE | 三入口共享typed表单、preview/回填/部署/重部署、会话代次与失败保稿；45/45及typecheck |
 | PROD-02C | DONE | 真实Streamable/SSE自定义路径、/messages、health、bind失败与配置一致；3/3及联合84/84 |
 | PROD-03 | DONE | Gateway/MCP本地失效→重验→再发布循环；修Gateway stale激活，七套76/76；真实入口仍归EXT |
-| PROD-04A | DONE | [二进制样例合同](./endpoint-test-binary-sample-contract.md)冻结采集/存储/权限/TTL与回放边界；仅DOC |
+| PROD-04A | DONE | [二进制样例合同](../archive/contracts/2026-10-26/endpoint-test-binary-sample-contract.md)冻结采集/存储/权限/TTL与回放边界；仅DOC |
 | PROD-04B1 | DONE | 专用对象原语、默认关闭私有根、staged→ready及有界内部读取；rename后DB失败幂等恢复；9/9、API构建、SQLite空库67表零漂移；无采集/HTTP读取/删除 |
 | PROD-04B2A | DONE | 显式开关下真实loopback响应字节有界descriptor；未声明二进制只unavailable，JSON/text/HTTP失败与默认off回归；27/27、API typecheck；不落盘/下载 |
 | PROD-04B2B1 | DONE | 受信HTTP流字节接样例/对象同事务；SQL.js文件故障和删除围栏、四组54/54、API typecheck；默认关闭，无下载/回收 |
@@ -281,23 +283,23 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | PROD-04B3E2 | DONE | 无引用staged满5分钟后围栏内复查并持久CAS至delete_pending，再按受控key有界整理；失败保ORPHAN墓碑，SQL.js隔离验证 |
 | PROD-04B3E3 | DONE | SQL.js临时目录双服务排队、旧写者、CAS/文件/DB失败与重启矩阵；四套75/75、API typecheck；不代表PG跨进程/生产验收 |
 | PROD-04B3D | DONE | 本地JWT HTTP删除→410→重启/失败墓碑重试→404，回放前/中撤销鲜读BLOCKED且旧版本保留；11套148/148；候选外发为mock、PG/平台待04C |
-| PROD-04C | DONE | 本机限定联合验收：[二进制联合证据](../audits/2026-10-08-prod-04c-binary-lifecycle.md)；真实PG/HTTP 16/16，15 suites/237 tests通过及API构建通过；实际采集/授权读取/撤销到期/双进程清理/重启与孤儿恢复，物理样本失效阻断保旧；生产账户/ACL、Linux和MCP二进制真实外发归SEC-F4-02/OPS-01，不外推生产签收 |
+| PROD-04C | DONE | 本机限定联合验收：[二进制联合证据](../archive/audits/2026-10-08-prod-04c-binary-lifecycle.md)；真实PG/HTTP 16/16，15 suites/237 tests通过及API构建通过；实际采集/授权读取/撤销到期/双进程清理/重启与孤儿恢复，物理样本失效阻断保旧；生产账户/ACL、Linux和MCP二进制真实外发归SEC-F4-02/OPS-01，不外推生产签收 |
 | PROD-05 | DONE | 限定操作者透传与检索完成：实例/绑定变更actor已透传，`resource+resourceId+userId`可通过后续`audit:read`检索（DTO与findLogs/export接线），权限拒绝403记录action/level/status/requiredPermissions；4套22项（含SQL.js真实审计检索）；不新增审计存储/权限/UI，PG与UI检索另验 |
-| PROD-06 | DONE | 核定完成（[记录](../audits/2026-09-26-prod-06-cas-scope-determination.md)）：原WP70出口为同语句归属/发布读取、跨源校验、旧候选读取时点guard（§26~29），完整/跨进程CAS与整体一致事务属并发强化候选、未批准不排期；唯一原包剩余为EXT-07环境验收 |
-| EXT-01 | DONE | 限定Windows本地真实HTTP：[联合证据](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md)；真实URL导入产生实例、探测/测试成功并留存样例。联合11/11、独立94 suites/1312 tests及API build通过；PG/Linux/生产身份/浏览器/MCP未覆盖 |
-| EXT-02 | DONE | 限定Windows本地真实HTTP：[联合证据](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md)；无server导入保持未绑定，绑定后保留原端点身份且无需重导入。联合11/11、独立94 suites/1312 tests及API build通过；PG/Linux/生产身份/浏览器/MCP未覆盖 |
-| EXT-03 | DONE | 限定Windows本地真实HTTP：[联合证据](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md)；手工注册经测试/治理/发布/部署后真实调用成功。联合11/11、独立94 suites/1312 tests及API build通过；PG/Linux/生产身份/浏览器/MCP未覆盖 |
-| EXT-04 | DONE | 限定Windows本地真实HTTP：[联合证据](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md)；关闭A后切B，原端点身份不变、自动探测与验证使用B、重新激活成功。联合11/11、独立94 suites/1312 tests及API build通过；PG/Linux/生产身份/浏览器/MCP未覆盖 |
-| EXT-05 | DONE | 限定Windows本地真实HTTP：[联合证据](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md)；同一前缀多端点API Key消费者调用成功，缺失/错误/撤销拒绝且凭据不上游。联合11/11、独立94 suites/1312 tests及API build通过；PG/Linux/生产身份/浏览器/MCP未覆盖 |
-| EXT-06 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)、[加固](../audits/2026-09-28-ext-06-hardening-and-ext-07.md)）：`verify:ext-06` `EXT_06_VERIFY_OK` 25/25（独立复跑，**已无 shim**）——真实SDK1.29 Streamable+SSE+受信managed child 端到端、凭据/会话/撤销矩阵、秘密全渠道扫描；两项发现已修复：运行时受权spec获取（HMAC授权+专用Guard，管理JWT不变、异资产403、审计）与`API_NOVA_MANAGED_MCP_CONFIG`受校验信封；外部网络/Linux/生产启用为notCovered |
-| EXT-07 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-06-hardening-and-ext-07.md)）：`verify:ext-07` `EXT_07_VERIFY_OK` 51/51 gating（连续两次，隔离9013/9034/9035）——有效候选激活服务→注入失败候选409`RUNTIME_VERIFICATION_FAILED`/`retained_previous`、旧revision与快照继续服务且恢复后无需重部署→重试激活切换；MCP同理含API重启后SDK复读；匿名+external网关路由与runner规格代理shim记录为notCovered（产品缺口已由EXT-06无shim证明修复） |
-| EXT-08 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)）：`verify:ext-08` `EXT_08_VERIFY_OK` 26/26 gating——隔离9011/5181真实启动API/UI、ready、SPA 10/11路由、超管登录、上传/URL导入/文档转换、治理probe/test/sample/readiness、发布至MCP候选并deploy-mcp激活（candidateRevision与activeRevision一致）；浏览器点击/截图与受管child会话归EXT-06/手工 |
-| EXT-09 | DONE | 限定容器完成（[证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:ext-09` `EXT_09_VERIFY_OK`——ubuntu:24.04/容器Node v24.15.0同版本、npm ci+三包构建+迁移+启动ready+Streamable E2E（managed-runtime 14/14、publication-endpoints 3/3）+优雅停止；裸机/systemd/PG/UI/长时为notCovered |
-| ENV-01 | DONE | [5GiB门槛与健康复验](../audits/2026-10-14-health-free-space-policy.md)：用户批准至少空闲5GiB，健康专项8/8、API构建及真实API+MCP完整health200通过；监控入口两种方式8项HTTP通过。旧磁盘受限结果归历史，目标部署仍待签收 |
-| OPS-01 | WAIT_DEP | rc.5已完成手工/URL/文件/无server双端点→测试治理→发布部署→凭证消费→监控与A/B迁移的限定浏览器验证，见[现有证据](../audits/2026-10-20-runtime-logs-browser-lifecycle.md)。目标权限/TLS、告警、恢复/回退和生产签收仍直接依赖SEC-F4-02/OBS-16-04；人工反馈、MCP浏览器/认证规范/多角色及其他原定组合保留未验，不重复计数 |
-| MAIL-01 | DONE | [邮件投递范围与受控验收合同](./mail-delivery-scope-and-acceptance.md)冻结三类接口、模板、测试邮箱与证据合同；仅DOC，不改变当前运行默认 |
-| MAIL-02 | DONE | 限定受控投递完成（[证据](../audits/2026-09-26-mail-02-controlled-delivery.md)）：配置/模块/认证/通知/失败恢复/测试/UI全部落地，sink端到端6套件30例+双构建+SQLite drift 0；PG运行时装迁移已由隔离PG实测通过（8迁移/drift 0/API启动）；真实外发、生产启用与队列化另需授权/另立任务 |
-| MAINT-01 | DONE | 限定整理完成（[证据](../audits/2026-09-28-maint-01-frontend-chunking.md)）：首屏预载2113.02→1776.71 kB raw（gzip 619.66→531.98）、CSS 360.15→266.92、vendor-misc 416.06→172.95与循环chunk告警消除；feature-editor/openapi/servers与charts/monitoring/testing退出首屏；仅改vite.config.ts+main.ts；type-check/build/i18n(8/8)通过、lint仅6个既有错误、预览4路由200与懒chunk可用；无路由/接口/依赖变更 |
+| PROD-06 | DONE | 核定完成（[记录](../archive/audits/2026-09-26-prod-06-cas-scope-determination.md)）：原WP70出口为同语句归属/发布读取、跨源校验、旧候选读取时点guard（§26~29），完整/跨进程CAS与整体一致事务属并发强化候选、未批准不排期；唯一原包剩余为EXT-07环境验收 |
+| EXT-01 | DONE | 限定Windows本地真实HTTP：[联合证据](../archive/audits/2026-10-08-ext-01-05-gateway-lifecycle.md)；真实URL导入产生实例、探测/测试成功并留存样例。联合11/11、独立94 suites/1312 tests及API build通过；PG/Linux/生产身份/浏览器/MCP未覆盖 |
+| EXT-02 | DONE | 限定Windows本地真实HTTP：[联合证据](../archive/audits/2026-10-08-ext-01-05-gateway-lifecycle.md)；无server导入保持未绑定，绑定后保留原端点身份且无需重导入。联合11/11、独立94 suites/1312 tests及API build通过；PG/Linux/生产身份/浏览器/MCP未覆盖 |
+| EXT-03 | DONE | 限定Windows本地真实HTTP：[联合证据](../archive/audits/2026-10-08-ext-01-05-gateway-lifecycle.md)；手工注册经测试/治理/发布/部署后真实调用成功。联合11/11、独立94 suites/1312 tests及API build通过；PG/Linux/生产身份/浏览器/MCP未覆盖 |
+| EXT-04 | DONE | 限定Windows本地真实HTTP：[联合证据](../archive/audits/2026-10-08-ext-01-05-gateway-lifecycle.md)；关闭A后切B，原端点身份不变、自动探测与验证使用B、重新激活成功。联合11/11、独立94 suites/1312 tests及API build通过；PG/Linux/生产身份/浏览器/MCP未覆盖 |
+| EXT-05 | DONE | 限定Windows本地真实HTTP：[联合证据](../archive/audits/2026-10-08-ext-01-05-gateway-lifecycle.md)；同一前缀多端点API Key消费者调用成功，缺失/错误/撤销拒绝且凭据不上游。联合11/11、独立94 suites/1312 tests及API build通过；PG/Linux/生产身份/浏览器/MCP未覆盖 |
+| EXT-06 | DONE | 限定本机完成（[证据](../archive/audits/2026-09-28-ext-08-ext-06-windows-validation.md)、[加固](../archive/audits/2026-09-28-ext-06-hardening-and-ext-07.md)）：`verify:ext-06` `EXT_06_VERIFY_OK` 25/25（独立复跑，**已无 shim**）——真实SDK1.29 Streamable+SSE+受信managed child 端到端、凭据/会话/撤销矩阵、秘密全渠道扫描；两项发现已修复：运行时受权spec获取（HMAC授权+专用Guard，管理JWT不变、异资产403、审计）与`API_NOVA_MANAGED_MCP_CONFIG`受校验信封；外部网络/Linux/生产启用为notCovered |
+| EXT-07 | DONE | 限定本机完成（[证据](../archive/audits/2026-09-28-ext-06-hardening-and-ext-07.md)）：`verify:ext-07` `EXT_07_VERIFY_OK` 51/51 gating（连续两次，隔离9013/9034/9035）——有效候选激活服务→注入失败候选409`RUNTIME_VERIFICATION_FAILED`/`retained_previous`、旧revision与快照继续服务且恢复后无需重部署→重试激活切换；MCP同理含API重启后SDK复读；匿名+external网关路由与runner规格代理shim记录为notCovered（产品缺口已由EXT-06无shim证明修复） |
+| EXT-08 | DONE | 限定本机完成（[证据](../archive/audits/2026-09-28-ext-08-ext-06-windows-validation.md)）：`verify:ext-08` `EXT_08_VERIFY_OK` 26/26 gating——隔离9011/5181真实启动API/UI、ready、SPA 10/11路由、超管登录、上传/URL导入/文档转换、治理probe/test/sample/readiness、发布至MCP候选并deploy-mcp激活（candidateRevision与activeRevision一致）；浏览器点击/截图与受管child会话归EXT-06/手工 |
+| EXT-09 | DONE | 限定容器完成（[证据](../archive/audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:ext-09` `EXT_09_VERIFY_OK`——ubuntu:24.04/容器Node v24.15.0同版本、npm ci+三包构建+迁移+启动ready+Streamable E2E（managed-runtime 14/14、publication-endpoints 3/3）+优雅停止；裸机/systemd/PG/UI/长时为notCovered |
+| ENV-01 | DONE | [5GiB门槛与健康复验](../archive/audits/2026-10-14-health-free-space-policy.md)：用户批准至少空闲5GiB，健康专项8/8、API构建及真实API+MCP完整health200通过；监控入口两种方式8项HTTP通过。旧磁盘受限结果归历史，目标部署仍待签收 |
+| OPS-01 | WAIT_DEP | rc.5已完成手工/URL/文件/无server双端点→测试治理→发布部署→凭证消费→监控与A/B迁移的限定浏览器验证，见[现有证据](../archive/audits/2026-10-20-runtime-logs-browser-lifecycle.md)。目标权限/TLS、告警、恢复/回退和生产签收仍直接依赖SEC-F4-02/OBS-16-04；人工反馈、MCP浏览器/认证规范/多角色及其他原定组合保留未验，不重复计数 |
+| MAIL-01 | DONE | [邮件投递范围与受控验收合同](../archive/guides/2026-10-26/mail-delivery-scope-and-acceptance.md)冻结三类接口、模板、测试邮箱与证据合同；仅DOC，不改变当前运行默认 |
+| MAIL-02 | DONE | 限定受控投递完成（[证据](../archive/audits/2026-09-26-mail-02-controlled-delivery.md)）：配置/模块/认证/通知/失败恢复/测试/UI全部落地，sink端到端6套件30例+双构建+SQLite drift 0；PG运行时装迁移已由隔离PG实测通过（8迁移/drift 0/API启动）；真实外发、生产启用与队列化另需授权/另立任务 |
+| MAINT-01 | DONE | 限定整理完成（[证据](../archive/audits/2026-09-28-maint-01-frontend-chunking.md)）：首屏预载2113.02→1776.71 kB raw（gzip 619.66→531.98）、CSS 360.15→266.92、vendor-misc 416.06→172.95与循环chunk告警消除；feature-editor/openapi/servers与charts/monitoring/testing退出首屏；仅改vite.config.ts+main.ts；type-check/build/i18n(8/8)通过、lint仅6个既有错误、预览4路由200与懒chunk可用；无路由/接口/依赖变更 |
 | MAINT-02 | DONE | 限定本轮交付范围验收：`check-delivery-i18n.cjs` 8个交付面文件严格UTF-8/乱码检查0/8通过；原46行可见硬编码中文的`RuntimeUpstreamBindingDialog.vue`已完成i18n化（新增`runtime-upstream-binding`双语模块47键并注册），复核`visibleCjkLines:0`、8/8通过、type-check与UI构建通过 |
 | DEFER-01 | DEFERRED | OAuth2独立里程碑；不进入当前收口队列 |
 | DEFER-02 | DEFERRED | 额外令牌适配与跨协议QoS；不进入当前收口队列 |
@@ -306,195 +308,6 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 </details>
 
 <a id="history"></a>
-## 历史推进记录（不作为当前待办）
+## 历史推进记录
 
-历史文字中的“当前”“下一步”“未交付”与父包统计仅代表当时状态；最新调度和剩余工作以页首总览及原子任务状态表为准。
-
-<details>
-<summary>展开逐轮记录与原重排背景</summary>
-
-D2b3c2 限定 DONE：5份源码/测试文件完成私有品牌 host 与同一真实 issuer、固定 Snapshot/source/epoch 的一次性 consumeProof；协调器只接受 exact committed catalog、route 真对象与当前版本，逐 route 核对编译 policy 和 Registry Site 的 source/endpoint/origin。reload/removed、issuer/generation 终态先同步失效再 abort，不复用旧 proof；proof/策略到期关闭、clone/跨 source/epoch/错误 origin 拒绝。专项2 suites/20 tests、Gateway48 suites/707 tests、API build、diff-check通过；隔离PG41 warm+4 cold检查组（本叶新增27组）通过，schema零漂移且集群已停止/清理。SQL.js boot仍拒绝，仅以真实SQL.js路由负例验收；PG正向使用真实已迁移数据库，首次混用enum夹具和异步deployed等待失败均已修正为明确reload完成事件后复验。D2b3d拆为d1限定DONE/d2a限定DONE/d2b限定DONE；生产DI/default-on、旧watch/admin、网络发送或外部目标部署未交付。
-
-D2b3d1 限定 DONE：品牌稳定facade把同bundle的Provider与私有Resolver成对原子swap，旧lease/pending固定旧pair，Proxy旧DI callback零调用；bundle/issuer撤销同步abort，proof到期必须host新proof显式重装。已保护runtimeAsset/route/scope保留有界墓碑，route+membership同时更换也不回落legacy；128保留pair超限拒绝，1024墓碑超限后本实例全局fail-closed且不驱逐，恢复需新受信host生命周期。4源码/测试文件、专项2 suites/9 tests、Gateway49 suites/711 tests、API build与diff-check通过；隔离PG53 warm+4 cold检查组（d1新增12组）通过，schema零漂移/重启/stop/cleanup完成。夹具先触发catalog容量、旧host策略拒绝与路由字典序fingerprint检查，均保留门禁并修正真实夹具后复验。未接RuntimeModule、生产DI/default-on、旧watch/admin；d2拆为d2a限定DONE/d2b限定DONE，真实Nest/HTTP装配和外部环境另验。
-
-D2b3d2a 限定 DONE：新增共享host启动依赖GATEWAY_HOST_RUNTIME（仅显式brand；null/undefined即默认off）：legacy凭据Registry工厂在读取任何配置或启动watch前短路为null，admin自动disabled；GatewayPolicyService与legacy guard改读受控只读Snapshot；启动/失败时整Gateway闭锁（固定503 gateway_host_runtime_locked），非Gateway Nest health保持200；无host行为不变。新增专项1 suite/7 tests、Gateway 50 suites/718 tests、API build通过。未接RuntimeModule生产装配/d2b、真实host安装或Nest/PG/HTTP联合；旧watch/admin仍不交付。
-
-SEC-F3-02C1d2b3d2b 限定 DONE：新增默认off的GATEWAY_NETWORK_HOST_SOURCE/FACADE显式host装配；onApplicationBootstrap等待真实committed catalog与host snapshot，以新一次性proof执行c2 bundle与d1稳定facade成对装配；与legacy env/file/watch冲突显式拒绝，装配失败整Gateway保持闭锁；成功路径经GatewayProxyEngineService+facade provider真实HTTP到回环上游200。专项1 suite/8 tests、Gateway 51 suites/726 tests、API build、隔离PG warm 56/cold 4检查（Nest/PG/HTTP正例与冲突/闭锁负例）、零schema漂移并停止清理。未接AppModule生产默认启用/外部Secret Manager/多进程。
-
-OBS-14-06A 限定 DONE：新增按明确resource归属的本功能管理审计有界清理（observability_caller/delivery/policy/subscription/payload/audit；默认off、30天最小窗口；delete/checkpoint/单条管理记录同一Store事务；无法归属与更新记录保留）。专项1 suite/7 tests、call-observability 9 suites/73 tests、API build通过。仅Windows/SQL.js本地，不接管全产品安全审计或配额治理。
-
-MAIL-01 DOC 完成：冻结验证码/重置/通知三类接口、token与失败语义、模板政策、受控测试邮箱与证据合同（[合同](./mail-delivery-scope-and-acceptance.md)）；不改变当前运行默认，不新增依赖，MAIL-02转READY。
-
-OBS-14-06T 限定 DONE：新增默认off的暂存源文件有界恢复（scan/delete上限、稳定排序、持久游标）：仅身份/已提交offset/边界/seal/closed退出证明/完整行全部复核且超过48小时才删除，活动文件、半行、未导入、身份不明与不匹配名一律保留；清理不触碰checkpoint/receipt/事件且不分配业务sequence。专项1 suite/8 tests、call-observability 10 suites/81 tests、API build；仅Windows/SQL.js本地，不含平台/多进程与旧schema。
-
-SEC-F3-02C1d4 限定 DONE：隔离PG真实host/Registry+本地HTTP联合验证facade在途流固定旧pair/旧凭据且新请求见新代次、错误origin装配被拒后当前pair继续服务、在途proof到期主动abort活动流并释放lease、shutdown同步中止全部signal且abort listener清零；隔离PG warm 61（本叶新增5）/cold 4检查、零漂移并停止清理；Gateway 51 suites/726 tests与既有真实TLS专项为邻证。未含外部Secret Manager/多进程E3b/目标环境。
-
-SEC-F3-02C3 限定 DONE：Gateway请求入口锚定唯一绝对deadline并贯通prepare/send/取消（authorize/admit耗时计入），network lease强制单attempt、复用同一prepared lease与host operation且命中热缓存也不读不写；新增运行时3项与真实HTTP/TLS（http/https各一）入口deadline验收；Gateway 51 suites/731 tests、API build通过。redirect仍单跳不跟随（Parser多跳归C2b2b2），生产默认关闭。
-
-PROD-05 限定 DONE：实例/绑定变更actor已透传并可按resource+resourceId+userId检索（AuditLogQueryDto新增resourceId并接入findLogs/export），权限拒绝记录action/level/status/requiredPermissions可验证；4套22项（含SQL.js真实审计检索与actor断言）；不新增审计存储/权限/UI，PG与UI检索另验。
-
-OBS-15-01 限定 DONE：删除旧`/api/v1/monitoring/management/external-callers`文件扫描入口与parser `listObservedRuntimeCallers`（无别名/回退），消费者改用统一callers API或原始记录证据；新增结构/无回退spec、parser 23项与监控9项通过；Gateway旧后端删除与部署切换归OBS-15-02。
-
-SEC-F3-02C5b 限定 DONE：双运行时接入C5a统一失败语义与审计：Gateway provider在prepare/send/completed单点emit `upstream.network_failure`，stream对未知错误固定503且不回传原始DNS/TLS细节；Parser single-hop与host bridge显式failureAudit透传并按阶段emit。真实HTTP/TLS负测覆盖sink故障不改拒绝与秘密扫描；Parser 49 suites/1196 tests、Gateway 51 suites/735 tests、两包构建通过。未持久化事件（归C6/F3D）、无managed child/E3b、生产默认关闭。
-
-SEC-F3-02C6 限定 DONE：新增`scripts/verify-f3-dual-runtime.cjs`（npm run verify:f3-dual-runtime）聚合重跑Parser 4 suites/78 tests（operation epoch、多跳重选/逐跳凭据、host safe-read、failure audit）与Gateway 3 suites/95 tests（单attempt/cache-off、host装配/冲突拒绝、registration/撤销），输出clause矩阵与`F3_DUAL_RUNTIME_MATRIX_OK`；仅本地回环DNS/HTTP/TLS，不代表生产默认启用/PG/F3D平台验收。
-
-MAINT-02 限定 DONE：新增`packages/api-nova-ui/scripts/check-delivery-i18n.cjs`对8个交付面UI文件做严格UTF-8解码与乱码检查，全部通过（0乱码）；`RuntimeUpstreamBindingDialog.vue`可见硬编码中文46行登记为后续维护项，按叶子约束不做无限微修。
-
-OBS-06-01 限定 DONE：新增`scripts/verify-mcp-observability-matrix.cjs`（npm run verify:mcp-observability-matrix）聚合MCP 4脚本55项与Parser上游失败74项，输出transport×场景矩阵；16MiB Tool正文省略不截断、8MiB stdio正文完整；Windows原生/审计16MiB cork对照双方timeout一致（复用既有限制复现，不称恢复）。仅Windows本地，Linux与retry矩阵仍归OBS-06-02/TP16。
-
-SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估结果，preview、G3单成员发布（toValidator）与G4批量/激活共用；G4 activateCandidate新增recheck并在await后重比epoch，激活前以`assertTransactionCurrent`复核context与验证证据；撤销/成员revision漂移被拒绝且零写入，生产G2 canPublish:false保持。专项1 suite/5 tests、publication 20 suites/245 tests、API build；未注册生产DI，PG并发归F1-02F。
-
-OBS-15-02 限定 DONE：新增`verify:obs-15-full-chain`（[证据](../audits/2026-09-26-obs-15-full-chain.md)）聚合gateway/events/deliveries/invocations/realtime/overview共115项并输出`OBS_15_FULL_CHAIN_OK`：外部请求到事件/投递身份边、401/403拒绝审计、旧端点退役清单与回退步骤；修复gateway夹具缺失update；PG/外部接收端/部署切换仍归环境项。
-
-OBS-16-02 限定 DONE：新增`verify:obs-16-local-unit`（[证据](../audits/2026-09-26-obs-16-local-unit.md)）按冻结规模（500调用/200事件/50正文）运行6套94项+新故障单元3项并输出`OBS_16_LOCAL_UNIT_OK`；重开与重复重放无双计数、冲突隔离、关闭store明确拒绝；Linux/PG/多进程/负载与部署仍归OBS-16-03/04。
-
-OBS-13-02 限定 DONE：新增`verify:obs-13-02`（[证据](../audits/2026-09-26-obs-13-02-long-transport.md)）覆盖调用事实流12项与状态流10项：慢ACK限制单在途页、释放后从确认游标续传、另一订阅不受影响、断线重放与SLOW_CONSUMER；长时soak/跨平台/多实例与真实接收端仍归平台项。
-
-OBS-14-03D 限定 DONE：新增receipt墓碑实体与读取门禁、三阶段有界保留清理与默认关闭worker（[证据](../audits/2026-09-26-obs-14-03d-lifecycle-retention.md)）；30/32天与24小时边界、租约/未完成attempt/有效幂等结果保护、事务回滚、重启游标与审计保留均通过；专项12项、模块11 suites/94 tests、5脚本回归，sqlite 73表零漂移；物理删除默认关闭、墓碑不退休，PG并发归平台项。同时修正collector脚本2项因在途delta事件而陈旧的计数断言。
-
-SEC-F3a-01 限定 DONE：在线执行当前锁文件依赖审计（[证据](../audits/2026-09-26-dependency-reachability-audit.md)）：生产32项（0 critical/10 high/21 moderate/1 low，544 prod）、全量59（1 critical/24 high/30 moderate/4 low）；逐包生产链与处置分三类（主版本内可补丁、Nest 12重大升级、UI直接依赖），锁文件SHA-256留证；未应用补丁或重大升级，发布前重跑。
-
-SEC-F3-02D 限定 DONE：新增 `verify:f3-n-matrix` 执行器，在隔离回环 DNS/HTTP/TLS/代理上按 N01–N17 逐项核对（[证据](../audits/2026-09-26-f3-n-matrix-local.md)）；parser 17套件/573例、gateway 84例全绿；补 gateway 单跳302不跟随用例；合同§4.6十七行状态更新为限定本地通过；生产默认启用、公网与Windows/Linux矩阵仍为环境项。
-
-MAIL-02 限定 DONE：按 MAIL-01 合同落地 `MAIL_*` 配置、sink/smtp 传输、三模板、白名单+限流+审计、注册/忘记密码真实投递与 `resend-verification`/公开 `reset-password`、CSPRNG+摘要 token 与 24h/1h 到期双迁移、通知偏好解析与去重退避、UI 忘记密码路径（[证据](../audits/2026-09-26-mail-02-controlled-delivery.md)）；`verify:mail-02` 6套件/30例全绿、API/UI 构建与 SQLite drift 0；真实外发、生产启用、PG运行时装迁移、队列/退信与 UI 偏好开关明确未覆盖。
-
-SEC-F3a-01 补丁批（授权后）：显式受控升级12个主版本内包+UI echarts6/vue-echarts8（未用 audit fix），生产公告32→19（0C/4H/15M/0L），残余全部归Nest12族（含复核改归的@nestjs/common 10.x与file-type 22.x）；Parser 49套件/1196例、API 148套件/1623例及Parser/API/UI构建全绿；全量59→46（1C/18H/24M/3L）。
-
-MAINT-02 遗留闭合：`RuntimeUpstreamBindingDialog.vue` 46行可见中文全部i18n化，新增zh-CN/en-US `runtime-upstream-binding`模块（47键对称）并注册；交付i18n检查8/8、`visibleCjkLines:0`、UI type-check与构建通过。
-
-PROD-06 核定 DONE（DOC）：原WP70出口限定为同语句归属/发布读取（§26/27）、跨源校验（§28）、旧候选读取时点guard（§29，原文明确“不是跨进程CAS”）；完整/跨进程CAS、整体一致事务、标记修改/计划前混读/完整快照属并发强化候选，未批准不排期；WP70唯一剩余为EXT-07环境验收（[记录](../audits/2026-09-26-prod-06-cas-scope-determination.md)）。
-
-OBS-14-03E2B/E3 限定 DONE（授权后）：过期事件有界物理删除接入，同Store事务内 gap+delete+持久cursor，默认关闭开关 `API_NOVA_OBSERVABILITY_LIFECYCLE_RETENTION_EVENTS_ENABLED`；新增 `verify:obs-14-03e3` 与10项验收（默认关闭零删除、仅授权候选、原子回滚、批次/重启恢复、保护与幂等重跑），模块12 suites/102 tests及8脚本回归全绿（[证据](../audits/2026-09-26-obs-14-03e3-physical-cleanup.md)）。
-
-Docker/Linux 平台批（用户启动 Docker 后）：SEC-C2-01 按加固参数在 node:24-alpine 上 83 项=82过/0败/1跳过；OBS-14-05C3 Linux 与 Windows 对齐 9/9（Alpine PG 16.15+contrib、Docker卷数据目录），05C3 双平台限定 DONE、05D 转 READY；MAIL-02 的 PG 运行时装迁移由隔离 PostgreSQL 16 实测（8迁移/drift 0/API启动）；统一证据见 [Linux 容器平台验证](../audits/2026-09-27-linux-container-platform-validation.md)。
-
-OBS-14-05D 限定 DONE：`verify:obs-14-05d` 联调水位迟滞（H=90/L=80/Q硬界）、真实 `fs.statfs` 物理余量守卫（新默认关闭 `API_NOVA_OBSERVABILITY_PAYLOAD_QUOTA_PHYSICAL_ENABLED`，低/过期/缺失显式拒绝）、版本/禁用状态、权限旁路与压力故障结算、业务降级声明；模块13 suites/105 tests、聚合19脚本/179项、17项检查全绿（[证据](../audits/2026-09-27-obs-14-05d-quota-state-joint.md)）；长时压力/Linux-PG联合/多进程/生产启用仍为环境项。
-
-SEC-E1-02C1 限定 DONE（授权后）：重建受管生命周期协调为产品代码——持久单调世代CAS（复用`runtime_pipeline_state`）、每次启动B1快照绑定、受保护配置逐次审批记录与失败关闭、旧世代事件拒绝、停止幂等与遗留子进程对账、`trusted_ipc_v1` 显式路由且默认关闭；新增21项Jest、servers 18 suites/108 tests、`verify:e1-02c1`真实child 6/6、E1旧脚本61/61与构建通过（[证据](../audits/2026-09-27-e1-02c1-managed-lifecycle.md)）；SEC-E1-02C2与SEC-C3-03依赖解除转READY；PG/Linux/部署与C2重启边界未覆盖。
-
-SEC-E1-02C2 限定 DONE：失败/重启/legacy边界落地——崩溃终结+`ERROR`投影（无假RUNNING，owned handle幂等关闭）、可信重启重准备新世代+逐次审批、`process.managed_restart_rejected` 抑制legacy自动重启且不重建秘密argv、bootstrap失败/超时清理不留旧实例、父IPC断开停子进程、Registry漂移后陈旧包拒绝、可信模式legacy bearer/custom-header spawn前失败关闭且无自动迁移/回退、版本不匹配拒绝；servers 20 suites/131 tests、`verify:e1-02c2`真实child 10/10与C1/通道/准备/运行时回归全绿（[证据](../audits/2026-09-27-e1-02c2-restart-failure-legacy.md)）；启动时自动reconcile（共享DB误弃风险）明确不做。
-
-SEC-C3-03 限定 DONE：多进程Registry版本协调——真实隔离PostgreSQL上2个真实API进程共享库，`verify:c3-03` 18项检查（CAS单赢家/败者`MANAGED_LIFECYCLE_CONFLICT`零变更、外来start/stop/event失败关闭`MANAGED_LIFECYCLE_FOREIGN_CURRENT`、世代[1,2,3,5,6]单调且gen4陈旧包从未current、他进程可读状态/世代/Registry revision+digest/审批、崩溃后须显式reconcile接管）；并修复PG下`readMcpOwnership` uuid/varchar连接缺陷（无schema变更）；全量API 154 suites/1678 tests与C1/C2执行器全绿（[证据](../audits/2026-09-27-c3-03-multi-process-registry.md)）；watcher/推送归E1-04，Linux/部署未覆盖。
-
-SEC-E1-03 限定 DONE：`verify:e1-03` 以真实构建产物child逐行验证§7矩阵1–13——聚合既有77/77（channel/preparation/managed-runtime/C1/C2）+新增10场景/31检查（含多runtime同spec隔离、bootstrap失败保留既有实例、父IPC断开、argv/日志/审计合成秘密扫描、入站环境裁剪）+Linux容器4项；全量API 154 suites/1678 tests与三包构建通过（[证据](../audits/2026-09-27-e1-03-real-child-matrix.md)）；30s真实握手等待/受管JWT匿名/ProcessInfo/File Provider权限为notCovered。E1-04、E2-01、F1-02E3b、F3-03依赖解除转READY。
-
-SEC-F3-03 限定 DONE：`verify:f3-03` 在真实child+回环上游+SQL.js上以9个合成秘密跨15渠道扫描（OS级argv、spawn/实际env、stdio、错误面/静态码、持久store/raw行、状态事件、READY telemetry、日志投影、管理审计检索），904项检查0泄露且检测器非空洞自测；回归channel 15/15、E1-02C2 10/10、E1-03全绿（[证据](../audits/2026-09-28-f3-03-secret-leak-matrix.md)）；部署级审计sink/ProcessInfo/观测事件sink/Linux argv为notCovered。
-
-SEC-E1-04 限定 DONE：显式运行中版本/撤销触发器——`checkRevision`（版本变化终止旧世代并重准备新世代、快照失效fail-closed）与`revoke`（`security_revoked`终态、不自动重启、后续start重准备+审批）；重复/并发幂等且在途有界终止无重放；真实child `verify:e1-04` 5/5 exit 0（marker exit-code门控，修复仅限runner：enum `blocked`、先close后await、失败打印FAILED），单测23、servers 21 suites/140 tests（[证据](../audits/2026-09-28-e1-04-runtime-change-revocation.md)）；watcher/推送与在途上游abort（F3）未覆盖。
-
-SEC-E2-01 限定 DONE：`verify:e2-01` 联合矩阵聚合12套件153/153（E0-01 adapter、B3-02 SDK会话、传输/HTTP观测、HTTP/SSE投递、stdio观测、B3-01撤销、managed channel/config/lifecycle、publication endpoints）+新增5场景/19检查，覆盖Streamable/SSE/stdio/managed IPC的取消/超时/重放/关闭（含真实child 30s握手超时exit 1与同端口重启）；idle超时/在途上游abort/SSE游标重放/父端静默child计时为notCovered（[证据](../audits/2026-09-28-e2-01-security-joint-matrix.md)）。E2-02 因Linux容器与Windows均可用转READY。
-
-SEC-E2-02 限定 DONE：`verify:e2-02` 在同一提交2ba8054上分别于Windows(v24.15.0)与node:24-alpine(v24.21.0/musl, --network none, 本地镜像不拉取)复跑E2-01矩阵，17行映射双平台各12套件/153测试+5场景/19检查全绿、retries=0、0结果差异；容器配方（canonical挂载+tar→tmpfs(exec)+NODE_PATH）与Node补丁/musl差异、b3-01间歇及“首证保留+至多一次同平台重跑”策略均已记录（[证据](../audits/2026-09-28-e2-02-dual-platform-matrix.md)）；glibc/macOS/部署/长浸泡为notCovered。
-
-SEC-F1-02E3b 限定 DONE：E3a租约协调接入真实lifecycle（`managedMcp.securityLease.enabled`默认关闭/trusted-only）——`isolateSourceForUpdate`运行中更新前阻断（同步阻断租约→验证终止→持久`security_revoked`/`MANAGED_SECURITY_SOURCE_UPDATED`→再prepare/restart；未启用返回`unenforced`沿用checkRevision）；IPC `authorization`/`authorizationAck`实时授权（allow/deny/revoke、缺失/畸形/冲突fail-closed、重复幂等、拒绝固定码零上游）；挂起调用在线撤销0 HTTP/HTTPS/DNS、0新连接/请求、有界终止无重放；runner 5场景/49检查`F1_02E3B_VERIFY_OK`，servers 24 suites/156 tests（[证据](../audits/2026-09-28-f1-02e3b-realtime-authorization.md)）；生产更新调用方、逐工具许可、watcher/推送与Linux为notCovered。
-
-SEC-F1-02C3G5 限定 DONE：Gateway proof guard 补全并注册（null默认）——同进程issuer lifecycle（创建/TTL/单次/撤销/epoch复核，复用既有存储无schema）+request-bound capability（scope/method/target/context/epoch绑定、消费一次、仅`{kind}`可序列化），guard在Resolver/cache前执行；5套件58测试（含真实Nest HTTP与default-off对照）、gateway-runtime 55 suites/784 tests、type-check/build与verify:e1-04/f3-03全绿，`F1_02C3G5_VERIFY_OK`（[证据](../audits/2026-09-28-f1-02c3g5-gateway-proof-guard.md)）；Verified关闭、PG与生产安装未覆盖。
-
-SEC-F1-02C3G6 限定 DONE：MCP/child实时许可长链——host G1 capability逐执行消费+child有界IPC `permitMode/permitRequest/permitDecision/permitModeAck`逐调用复核（拒绝`MANAGED_TOOL_EXECUTION_DENIED`零上游）、撤销0网络有界终止无重放、幂等/畸形fail-closed、proof/能力不序列化扫描全清、重启需全新许可；runner 54检查`F1_02C3G6_VERIFY_OK`、servers 27 suites/173 tests（[证据](../audits/2026-09-28-f1-02c3g6-realtime-permits.md)）；在途abort（F3）、watcher/推送与Linux为notCovered。SEC-F1-02F依赖解除转READY。
-
-SEC-F1-02F 限定 DONE：`verify:f1-02f` 聚合18/18套件165/165测试`F1_02F_VERIFY_OK`（含`F1_02F_FORCE_FAIL`反向门控）+隔离PostgreSQL 16.10（73表/8迁移、重开零漂移、撤销持久、双连接并发`winners:1,losers:1`revision+1、集群停止删除）；Gateway Nest HTTP与MCP Streamable HTTP双运行时端到端及default-off对照、迟到proof/激活/发布拒绝、同revision Provider秘密轮换在`toValidator`/`assertTransactionCurrent`边界重新授权（生产+14行、无schema）；publication 21/252、gateway-runtime 55/784、servers 27/173及G5/G6/E3b/c3-03/f3-03/e1-04全绿（[证据](../audits/2026-09-28-f1-02f-dual-runtime-reopen.md)）；跨进程发布竞态归c3-03、受管child IPC归G6/E3b。SEC-C4-01依赖解除转READY。
-
-SEC-C4-01 限定 DONE：`verify:c4-01` `C4_01_VERIFY_OK`（反向门控）聚合API 8套/92项、Parser 5套/110项、handoff 32/32+channel 15/15与E1-03真实child矩阵；新增`credential-execution-semantics.c4-01.http.spec.ts` 1套/10项真实HTTP联合：Gateway/MCP同绑定继承/覆盖/None一致、非选中凭据不上游、None无consumer/ambient/legacy回退、removed provider/策略未解析/scope/site未命中在秘密读取/网络/cache前固定码拒绝且无部分状态可恢复、不支持provider引用激活期拒绝保旧快照、default-off parity；gateway-runtime 56/794、publication 21/252、servers 27/173与f1-02f/G5/G6/E3b/f3-03/e1-04全绿（[证据](../audits/2026-09-28-c4-01-resolver-semantics.md)）；未改生产源码、未重写Resolver；真实vault/外网、PG重开与child IPC permit分别归F1-02F/G6-E3b范围。
-
-OBS-16-03 限定 DONE：`verify:obs-16-03` `OBS_16_03_VERIFY_OK`（exit 0）——Stage1真实PG多进程：Windows隔离PG16.10与Linux/Alpine PG16.15各10/10（源码机制pessimistic_write+skip_locked、事件15s/投递30s租约、SIGKILL打断物化与请求后租约回收、无丢失无重复、revision/撤销/暂停/过期边界；容器回退postgres:16.14亦验证）；Stage2受控接收端矩阵各8/8（2xx、408/429/5xx+Retry-After秒与HTTP日期、终态4xx与301/302/303/307/308、缺秘密、DNS、metadata阻断、自签/不可达TLS、socket空闲界）；2格blocked（自签TLS成功无CA注入契约需部署信任配置；容器--network none需预装PG包）；既有obs-16-local-unit/obs-15-full-chain/obs-14-03e3全绿（[证据](../audits/2026-09-28-obs-16-03-environment-lane.md)）；部署签收/长时/glibc/多主机仍为环境项。
-
-MAINT-01 限定 DONE：计划所有者2026-09-28手工确认“接口/发布边界稳定”后解冻；测量驱动整理仅改`vite.config.ts`与`main.ts`——首屏预载2113.02→1776.71 kB raw（gzip −14.1%）、eager CSS 360.15→266.92 kB、vendor-misc 416.06→172.95 kB并消除Circular chunk，feature-editor/openapi/servers与charts/monitoring/testing退出首屏，新增app-core固定boot层；type-check/build/交付i18n(8/8)通过、lint无新增、预览`/`/`/endpoints`/`/runtime-assets`/`/registration/batch` 200且懒chunk可用（[证据](../audits/2026-09-28-maint-01-frontend-chunking.md)）；无路由/接口/依赖变更。
-
-EXT 环境批（三路并行，2026-09-28）：EXT-08 `verify:ext-08` `EXT_08_VERIFY_OK`（Windows隔离9011/5181，26/26：启动/ready/SPA/登录/导入/转换/治理/发布/deploy-mcp激活）；EXT-06 `verify:ext-06` `EXT_06_VERIFY_OK`（25/25，真实SDK1.29 Streamable+SSE+managed child、凭据/会话/撤销与秘密扫描；两个发现已修复）；EXT-09 `verify:ext-09` `EXT_09_VERIFY_OK`（ubuntu:24.04同版本npm ci+构建+迁移+启动+Streamable E2E）；OBS-06-02 `verify:obs-06-02` `OBS_06_02_VERIFY_OK`（Linux/Windows同版本22行21匹配，1项16MiB cork/uncork平台差异记录）。四项均独立复跑通过（[Windows证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)、[Ubuntu证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）。
-
-EXT-06 加固 + EXT-07 限定 DONE：①运行时受权抓取自身 spec——`RuntimeSpecAccessService` HMAC 授权（域分离、TTL≤3600s、常量时间校验）+ 专用 `RuntimeSpecAccessGuard`（管理 JWT 不变；缺失/无效/过期 401、异资产 403、成功脱敏审计），ProcessManager 仅对受管 spawn 注入临时环境 token；`verify:ext-06` 移除代理 shim 后 25/25 通过（server CLI +15 行 header 透传，避免 URL 内嵌凭据泄漏）。②`API_NOVA_MANAGED_MCP_CONFIG` 受校验 JSON 信封（≤64KiB、仅两顶层键、限深/节点、拒原型污染、固定错误、不回显），注入配置优先、缺省失败关闭。验证：新 specs 5套/22项、servers+security 35套/236项、openapi 5/20、runtime-assets 7/128、构建/type-check 与 e1-02c1/c2/03/04、c3-03 全绿。③EXT-07 `verify:ext-07` `EXT_07_VERIFY_OK` 51/51 gating（连续两次、隔离9013/9034/9035）：有效候选激活→失败候选 409 `RUNTIME_VERIFICATION_FAILED`/`retained_previous`，旧 revision/快照继续服务、恢复后无需重部署、重试后切换；MCP 同理含 API 重启后 SDK 复读（[证据](../audits/2026-09-28-ext-06-hardening-and-ext-07.md)）。
-
-## 1. 本次重排快照
-
-依据[任务划分合同](./active-work-package-breakdown.md)，重排首批从本地ace5d02起步，首批API构建与OBS五脚本67/67通过；第二批结果见[上一批审计](../audits/2026-09-16-replanned-batch-2-evidence.md)，围栏、基线、二进制采集与安全索引证据见[第三批审计](../audits/2026-09-16-replanned-batch-3-evidence.md)；恢复降级、样例撤销/整理及当时空库证据见[第四批审计](../audits/2026-09-16-replanned-batch-4-evidence.md)；发布意图、孤儿整理和鉴权语义见[第五批审计](../audits/2026-09-16-replanned-batch-5-evidence.md)。
-父包专项统计仍是OBS 11/4/1、SEC 10/12/0/1（DONE/IN_PROGRESS/BACKLOG/DEFERRED）；两专项合计21/16/1/1。它不表示全项目完成率。
-
-本次登记209个叶子记录，含治理、DOC、CODE、VALIDATION、ENV与延期项，规模不等且跨计划证据复用，因此禁止用记录数计算项目完成率。原PROD-02拆成后端配置、候选绑定、UI和真实监听四个出口；已完成的历史实现切片不重新计为新开发成果。
-
-当前子任务统计见页首；以下保留历史重排背景。
-
-近期已完成C2B1/B2/B3、C2C1、B2B1/B2/C、B3A/C、SEC-A1-01跨层矩阵及当前版本SQLite空库验证A4-01的限定出口。C2C1证实旧预留无法在崩溃后唯一反查文件，原C2C2已进一步拆为保守降级A、持久发布意图B和可证明结算C；A已完成，B再细分为双方言模型B1、写入接线B2和崩溃验收B3；B1/B2/B3已完成限定出口，C已完成关联、文件证明与安全结算原语，C2C3本地恢复故障验收亦已完成，05C3的Windows隔离PG多写者/进程及PG重启出口已完成，Linux/生产验收仍独立登记。B3B已限定完成；无sample行的staged墓碑再细分为互斥E1、整理E2和故障验收E3，E1/E2/E3已完成限定出口，B3D本地限定验收已完成，真实环境仍归04C。READY不表示已开工。SEC-E1-02C1及事件物理删除E2B已在后续授权后完成限定出口，见下方状态与证据；此处早期审批等待不再作为当前阻塞。
-
-最新收尾见[额度中断恢复审计](../audits/2026-09-17-interruption-recovery-evidence.md)。本次修复迁移测试滞后、关联结果类型缺项及台账计数不一致，并完成三个在执行切片。
-
-2026-09-21后续交付：[受管鉴权模式一致性](../audits/2026-09-21-managed-inbound-mode-evidence.md)及[配额恢复故障验收](../audits/2026-09-21-payload-recovery-acceptance.md)。
-
-## 3. 最近轮次审核与纠偏
-
-最近9个提交从c34756f到3eed902均有实际交付或修复，但c34756f后主要聚集SEC-C4/E1管理装配一致性与OBS14扫描恢复。11个父包DONE未增加，不能据此说“没做工作”，也不能据测试数说核心目标已接近完成。
-
-工作偏移表现为：未先冻结一个用户可验收的子任务出口，就连续扩展同一接缝的防御；反复列出受管启动/撤销/配额未完成却未调度它们；各轮只追加台账，父表/交接摘要滞后。工作包过大又混合实现与跨平台/部署验收，造成进度不可见。两类原因并存。
-
-治理动作：已保留严格父包状态，显式冻结已验收切片；新建跨计划去重和子任务出口；将外部环境状态单列；修正陈旧Reload、继承和HTTP/Socket.IO摘要。本轮没有把新的文档DONE计为代码完成。
-
-
-
-
-## 4. 重排后首批实际交付
-
-- SEC-E1-01R：完成真实IPC、权限、精确环境、ACK/READY与legacy边界技术审查；02A实现与必选验收冻结，解锁02A。
-- OBS-14-02：collect实际路径增加每轮最多scanLimit条过期metadata检查。修复和cursor同事务；同租约隔离writer；缺文件且TTL到期才标expired，有效文件和调用/历史引用保留。进度可跨DB连接与服务重建恢复。此项是代码交付，未完成事件/receipt生命周期或配额。
-- PROD-01：冻结port/transport/endpointPath默认、严格校验、更新保留、监听和预览合同，解锁PROD-02；UI及后端实现尚未交付。
-
-验证：`npm run build --workspace api-nova-api`通过；payload-reconciliation、payloads、payload-capacity、retention-worker、pipeline五脚本联合67/67通过（Windows、隔离SQL.js/本地夹具）。日志位于`tmp/replan-batch1-api-build.log`与`tmp/replan-batch1-obs-tests.log`；无生产数据库、真实业务重放或部署。本轮新增7项恢复专项，不把回归总数当开发完成率。
-
-## 5. 三路并行批次收尾（2026-09-21）
-
-C3-01、D2-01、A1-02D三个原有叶子均完成，没有新增拆分记录。经逐条对照原TP-A1“Gateway/MCP三模式、stdio local_process”及禁止旧OAuth策略迁移的退出条件，A1各叶证据已闭合，父包A1提升DONE；未把该结论外推为整套安全或生产交付。62个DONE叶子不代表项目完成百分比。下一组可并行候选为B1-01统一凭证模型、C3-02配置DB归属、C2-02 Windows秘密文件权限，先按各自既定出口实施；D2-02仍依赖B1-02。
-
-## 6. 凭证与权限批次收尾（2026-09-21）
-
-B1-01、C2-02、C3-02三个既有出口完成，DONE从62增至65。B1-02、A3-01、C3-03已满足列明依赖转READY。统一凭证只显式导出摘要配置，受管启动校验Runtime归属；没有宣称运行中的child已收到撤销或轮换。Windows原生权限28/28通过，Linux30项仍未执行。新增模型的SQLite/PostgreSQL当前基线更新为4迁移、零漂移。父包计数不因局部出口自动提升。
-
-## 在线轮换与临时匿名（2026-09-21）
-
-B1-02、A3-01完成，见[真实闭环证据](../audits/2026-09-21-live-rotation-temporary-anonymous.md)。A2历史父状态滞后已按原退出标准修正，与本批B1/A3共同闭合；B3-01、F2-02转READY。C3-03补真实生产接线依赖回WAIT_DEP，不以实验入口假充产品完成。
-
-六层限流组合D2-02完成，见[验收](../audits/2026-09-21-layered-rate-limit-composition.md)。本批3个功能叶子完成，DONE由65升68；132项总量不变。共享生命周期集成已推送4680316，D2随本报告提交单独推送。
-
-## JWT/会话/UI批次（2026-09-21）
-
-B3-01真实双传输通过，见[会话证据](../audits/2026-09-21-persistent-session-revocation.md)。B2-01/F2-02并行实现和集成继续；不重复增加验证子任务。
-
-B2-01完成，见[JWT参数证据](../audits/2026-09-21-jwt-policy-lifecycle.md)，安全父包B2原出口闭合。F2-02界面收尾继续。
-
-F2-02已完成，见[匿名界面证据](../audits/2026-09-21-temporary-anonymous-ui.md)。本批DONE 68→71，132总量不变；B3与B2已分别推送c044ca2、30f6a71，本UI随本报告单独提交推送。当前无遗留IN_PROGRESS叶子，剩余18 READY、23 WAIT_DEP、17 NEED_ENV、1 SCOPE_REVIEW、2 DEFERRED按原条件继续。
-
-## SDK/管理分区/Header批次（2026-09-21）
-
-D1-01已定稿，D1-02转READY；这1项是DOC完成，不计为Header功能实现。B3-02与F2-01独立验收中。
-
-B3-02完成，见[SDK合同](../audits/2026-09-21-sdk-session-contract.md)。B3两叶出口完成但父依赖E0仍缺；不机械提升父状态。
-
-F2-01完成，见[真实管理面板证据](../audits/2026-09-21-upstream-credential-management-ui.md)。本批3叶完成（CODE1/VALIDATION1/DOC1），DONE由71升74；132总量不变，剩余READY16、WAIT_DEP22、NEED_ENV17、SCOPE_REVIEW1、DEFERRED2。D1-02已解锁，Header执行缺口仍真实登记；B3/F2父包只保留原独立依赖。
-
-## Header拆分、Adapter与对账批次（2026-09-21）
-
-原D1-02替换为02A/B/C/D四叶，总量132→135不是新增完成。F1-01[四态合同](./upstream-security-reconciliation-contract.md)已定稿，实际门禁F1-02仍等待C1-02。
-
-D1-02A编译准备完成，02B转READY，见[证据](../audits/2026-09-21-header-policy-compilation.md)。不将未接过滤执行器的候选元数据计为Header保护上线。
-
-E0-01完成，见[Adapter证据](../audits/2026-09-21-mcp-adapter-contract.md)，原E0/B3父包出口与依赖复核DONE。本批实际关闭3叶（DOC1/CODE准备1/VALIDATION含修复1）；当前77DONE/135叶，14READY、24WAIT_DEP、17NEED_ENV、1SCOPE_REVIEW、2DEFERRED。
-
-## 2026-09-21 类型合同与双向流推进
-
-C1-01已完成[合同](./upstream-credential-types-contract.md)与源码静态对照；新增Basic/CustomHeader、生命周期/Scope尚待C1-02执行。DOC不计作新代码或测试，父包C1继续IN_PROGRESS。02B与F3-01并行推进中。
-
-F3-01合同及矩阵同步完成，C1-01/F3-01两项DOC已关闭；当前79DONE、12READY、1IN_PROGRESS、23WAIT_DEP、17NEED_ENV、1SCOPE_REVIEW、2DEFERRED，总量135。02B真实流继续推进，所有父包状态不变。
-
-02B完成，[证据](../audits/2026-09-21-header-wire-execution.md)含双向过滤、真实压缩/分块/取消/重复framing、提前响应/103、Expect入口和连接隔离；生产NOT_READY全部保留，02C READY。最终80DONE、13READY、22WAIT_DEP、17NEED_ENV、1SCOPE_REVIEW、2DEFERRED、0IN_PROGRESS，总量135。两个DOC已分别推送f592deb/e3dd364；本代码包随本记录提交推送。
-
-## 2026-09-22 凭据类型与缓存批次
-
-C1-02及父包C1已按[原出口证据](../audits/2026-09-22-credential-types-scope.md)闭合，F1-02已READY。没有增加叶子；当前81DONE/135，02C缓存接线继续收尾。
-
-02C[缓存隔离](../audits/2026-09-22-header-cache-isolation.md)完成，02D READY；C1包已推送fec02f7，本缓存包随本记录提交推送。最终82DONE、13READY、20WAIT_DEP、17NEED_ENV、1SCOPE_REVIEW、2DEFERRED、0IN_PROGRESS，总数135；安全父包9/11/2/1，跨两专项19/16/3/1。
-## 2026-09-24 F1-02真实交付链拆分
-
-原F1-02从纯声明对账延伸到可信Binding适配、耐久验证证据、发布/激活事务复核、两运行时执行前复核及双数据库/并发验收，不能继续作为单叶推进。现替换为A–F六叶，总量138→143。A已有声明保留、OR/AND纯对账及发布写入前拒绝，限定DONE；B READY；C/D/E/F按前置WAIT_DEP。父TP-F1保持IN_PROGRESS，A完成不代表可信验证、Gateway/MCP零联网或PostgreSQL重开已验收。
-## 2026-09-24 D1与F1首叶完成
-
-SEC-D1-02D1以5套118项完成同一Registry快照到Prepared Exchange的执行材料接线；D3再以2套24项及API构建完成listen前实际HTTP入口事件安装。D2A以3套57项完成纯迁移合同/Schema helper；D2B以6套65项完成两新建入口v1草稿/来源持久写入、旧路由不回填与NOT_READY先行，D2C以3套45项完成显式例外生命周期与持久墓碑，D2D以SQLite/隔离PG迁移冷启动、CAS、撤销及重开4套49项和API构建完成；D4拆为A/B/C：A纯guard与局部HTTP 37项DONE，B以5套68项完成生产503守卫且无cache/Resolver/upstream绕过，C以14套223项及隔离PG完成限定矩阵盘点，acceptanceComplete:false，H07冷启动与membership正式正向未闭环；D4D1与D4D2 DONE；D2以SQLite 4套6项、API build及隔离PG zero-drift完成双库Ledger但不接Provider，D4D3以2 suites/31、API build及SQL.js/隔离PG双进程冷启动路径完成，D4D4以SQL.js/隔离PG双Node真实HTTP、4个API组合37项与Parser契约12项完成H07跨启动历史验收；H11A以16项真实联合用例、strict helper 10项、Gateway+Publication 58 suites/778 tests及API build完成Registry-source v1受控激活；H11B已开工，沿RuntimeAssets deploy→plan/replay→activate→Nest HTTP/cache路径执行生产H01–H12验收；全API首轮116 suites/1293 tests中115 suites/1292 tests通过，唯一process-manager.temporary-anonymous suite超时；该suite单跑4/4在12.09s通过且未改测试，不记录为一次性全API全绿。F1 Verified未接线，inline/legacy/unknown继续fail-closed，无外部部署；父TP-D1仍IN_PROGRESS。SEC-F1-02A以17套234项及API构建完成声明保留、OR/AND纯对账和发布/装配写入前拒绝；B以5套57项及API构建完成可信Binding评估与opaque Provider epoch接入，C1以独立entity/repo、挑战服务、真实挑战与磁盘SQL.js重开14/14完成原型，F1目录6套71项和API构建通过；C2以SQLite+隔离PG 70表/5迁移冷启/重开/回退零漂移、12套83项、迁移9/9及API构建完成生产证据存储注册；C3进一步拆为a上下文authority、b挑战transport、c proof authority、d生产持久evidence kind、e挑战编排、f安全入口、g发布/运行消费者；a/b/c以4 files、27 tests、API security 8 suites/105及build限定完成，d以生产独立evidence表、双库CHECK/迁移/注册、16 suites/120及双库72表/7迁移zero drift限定完成；e以四阶段loopback/SQLite编排、10 suites/123及API build限定完成，f以2 files/24 tests、security 10 suites/146及API build限定完成；G1以30 tests、security 11 suites/176及API build完成消费adapter，G3以2 files、1 suite/10项SQL.js及API build完成单成员事务writer；G2以2 files、2 suites/43及API build完成只读adapter，SQL仅SELECT且实体/evidence零变更、canPublish恒false；G4有界executor切片以3 suites/30 tests及API build限定完成：生产G2默认false/G3零调用，future-readiness fixture仅证明部分提交/后续继续，candidate仅host-owned同步swap无await且未接异步Registry生产链；D READY、G5独立Gateway proof consumer guard实施中、G6等待，不代表production batch/candidate activation完整且全部保护fail-closed；Gateway E1以39套556项、13项真实HTTP SQL.js重校及API构建DONE但不声明生产Verified；E2以Parser28套545项、API102套1116项、三构建与扩例7/7完成唯一声明规则/标准HTTP门禁；Verified/custom handlers及E3 managed在线传播不在该出口，E3a以2 files/7 tests完成受限协调原语但未注册/未接handoff；E3b运行中阻断/实时授权/事件IPC等待，D/F保持依赖。父TP-D1和TP-F1均保持IN_PROGRESS。
-
-</details>
+逐轮执行流水和原快照已保留在[历史台账](../archive/plans/2026-10-26/active-work-package-execution-status.md)。本页仅维护当前状态、209条明细及必要证据；旧日期的父包计数不另算当前任务。

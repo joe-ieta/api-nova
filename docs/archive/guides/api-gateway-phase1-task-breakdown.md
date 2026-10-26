@@ -12,9 +12,9 @@ It is meant to be executable against the current repository, module layout, and 
 
 Related documents:
 
-- [api-gateway-architecture-and-requirements](./api-gateway-architecture-and-requirements.md)
-- [api-gateway-phase1-technical-design](./api-gateway-phase1-technical-design.md)
-- [asset-model-and-runtime-assets](./asset-model-and-runtime-assets.md)
+- [api-gateway-architecture-and-requirements](2026-10-26/api-gateway-architecture-and-requirements.md)
+- [api-gateway-phase1-technical-design](api-gateway-phase1-technical-design.md)
+- [asset-model-and-runtime-assets](2026-10-26/asset-model-and-runtime-assets.md)
 
 ## Phase 1 Outcome
 
@@ -76,9 +76,9 @@ Move gateway route resolution off the database hot path and prepare gateway exec
 
 ### Existing modules impacted
 
-- [gateway-runtime.module.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/gateway-runtime.module.ts)
-- [gateway-runtime.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime.service.ts)
-- [publication.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/publication/services/publication.service.ts)
+- [gateway-runtime.module.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/gateway-runtime.module.ts)
+- [gateway-runtime.service.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime.service.ts)
+- [publication.service.ts](../../../packages/api-nova-api/src/modules/publication/services/publication.service.ts)
 
 ### New files expected
 
@@ -138,9 +138,9 @@ Replace the current buffered JSON forwarding behavior with a true stream-based r
 
 ### Existing modules impacted
 
-- [gateway-runtime.controller.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/gateway-runtime.controller.ts)
-- [gateway-runtime.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime.service.ts)
-- [main.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/main.ts)
+- [gateway-runtime.controller.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/gateway-runtime.controller.ts)
+- [gateway-runtime.service.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime.service.ts)
+- [main.ts](../../../packages/api-nova-api/src/main.ts)
 
 ### New files expected
 
@@ -153,7 +153,7 @@ No database migration required.
 
 Runtime middleware change required:
 
-- update [main.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/main.ts) so `express.json()` and `express.urlencoded()` bypass `/api/v1/gateway/`
+- update [main.ts](../../../packages/api-nova-api/src/main.ts) so `express.json()` and `express.urlencoded()` bypass `/api/v1/gateway/`
 
 ### Exit criteria
 
@@ -290,7 +290,7 @@ Integrate the new proxy path with the existing runtime observability model and p
 ### Tasks
 
 1. Refactor current metrics recording into a gateway observability bridge service.
-2. Keep [gateway-runtime-metrics.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime-metrics.service.ts) as the runtime metrics aggregator or make it an internal dependency of the new bridge.
+2. Keep [gateway-runtime-metrics.service.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime-metrics.service.ts) as the runtime metrics aggregator or make it an internal dependency of the new bridge.
 3. Ensure every request result writes:
    - request count
    - success or failure count
@@ -306,8 +306,8 @@ Integrate the new proxy path with the existing runtime observability model and p
 
 ### Existing modules impacted
 
-- [gateway-runtime-metrics.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime-metrics.service.ts)
-- [runtime-observability.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/runtime-observability/services/runtime-observability.service.ts)
+- [gateway-runtime-metrics.service.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime-metrics.service.ts)
+- [runtime-observability.service.ts](../../../packages/api-nova-api/src/modules/runtime-observability/services/runtime-observability.service.ts)
 
 ### Migration items
 
@@ -354,7 +354,7 @@ Close phase one with explicit test coverage, migration safety, and compatibility
 
 ### Existing modules impacted
 
-- [gateway-runtime.service.spec.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime.service.spec.ts)
+- [gateway-runtime.service.spec.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime.service.spec.ts)
 - test setup under `packages/api-nova-api`
 
 ### Migration items

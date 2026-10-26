@@ -20,10 +20,10 @@ Phase two should not reopen phase-one data path work unless a bug is discovered.
 
 Related documents:
 
-- [api-gateway-architecture-and-requirements](./api-gateway-architecture-and-requirements.md)
-- [api-gateway-phase1-technical-design](./api-gateway-phase1-technical-design.md)
-- [api-gateway-phase1-task-breakdown](./api-gateway-phase1-task-breakdown.md)
-- [asset-model-and-runtime-assets](./asset-model-and-runtime-assets.md)
+- [api-gateway-architecture-and-requirements](2026-10-26/api-gateway-architecture-and-requirements.md)
+- [api-gateway-phase1-technical-design](api-gateway-phase1-technical-design.md)
+- [api-gateway-phase1-task-breakdown](api-gateway-phase1-task-breakdown.md)
+- [asset-model-and-runtime-assets](2026-10-26/asset-model-and-runtime-assets.md)
 
 ## Phase 2 Outcome
 
@@ -82,10 +82,10 @@ Upgrade `gateway_route_bindings` and adjacent runtime metadata so phase-two feat
 
 ### Existing modules impacted
 
-- [gateway-route-binding.entity.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/database/entities/gateway-route-binding.entity.ts)
-- [publication.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/publication/services/publication.service.ts)
-- [gateway-route-snapshot.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/services/gateway-route-snapshot.service.ts)
-- [runtime-assets.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/runtime-assets/services/runtime-assets.service.ts)
+- [gateway-route-binding.entity.ts](../../../packages/api-nova-api/src/database/entities/gateway-route-binding.entity.ts)
+- [publication.service.ts](../../../packages/api-nova-api/src/modules/publication/services/publication.service.ts)
+- [gateway-route-snapshot.service.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-route-snapshot.service.ts)
+- [runtime-assets.service.ts](../../../packages/api-nova-api/src/modules/runtime-assets/services/runtime-assets.service.ts)
 
 ### New files expected
 
@@ -142,10 +142,10 @@ Move Gateway from “transparent published route” to “policy-controlled publ
 
 ### Existing modules impacted
 
-- [security.module.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/security/security.module.ts)
-- [gateway-runtime.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime.service.ts)
-- [gateway-access-log.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/services/gateway-access-log.service.ts)
-- [runtime-observability.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/runtime-observability/services/runtime-observability.service.ts)
+- [security.module.ts](../../../packages/api-nova-api/src/modules/security/security.module.ts)
+- [gateway-runtime.service.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime.service.ts)
+- [gateway-access-log.service.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-access-log.service.ts)
+- [runtime-observability.service.ts](../../../packages/api-nova-api/src/modules/runtime-observability/services/runtime-observability.service.ts)
 
 ### New files expected
 
@@ -211,10 +211,10 @@ Add the first production governance layer for throughput and upstream protection
 
 ### Existing modules impacted
 
-- [gateway-proxy-engine.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/services/gateway-proxy-engine.service.ts)
-- [gateway-runtime.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime.service.ts)
-- [gateway-runtime-metrics.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime-metrics.service.ts)
-- [runtime-observability.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/runtime-observability/services/runtime-observability.service.ts)
+- [gateway-proxy-engine.service.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-proxy-engine.service.ts)
+- [gateway-runtime.service.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime.service.ts)
+- [gateway-runtime-metrics.service.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime-metrics.service.ts)
+- [runtime-observability.service.ts](../../../packages/api-nova-api/src/modules/runtime-observability/services/runtime-observability.service.ts)
 
 ### New files expected
 
@@ -267,9 +267,9 @@ Add a lightweight, route-controlled in-process cache that reuses the existing pu
 
 ### Existing modules impacted
 
-- [gateway-runtime.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime.service.ts)
-- [gateway-proxy-engine.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/services/gateway-proxy-engine.service.ts)
-- [runtime-assets.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/runtime-assets/services/runtime-assets.service.ts)
+- [gateway-runtime.service.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime.service.ts)
+- [gateway-proxy-engine.service.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-proxy-engine.service.ts)
+- [runtime-assets.service.ts](../../../packages/api-nova-api/src/modules/runtime-assets/services/runtime-assets.service.ts)
 
 ### New files expected
 
@@ -320,12 +320,12 @@ Make phase-two governance features operable from the existing control plane inst
 
 ### Existing modules impacted
 
-- [monitoring.controller.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/monitoring/monitoring.controller.ts)
-- [runtime-assets.controller.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/runtime-assets/runtime-assets.controller.ts)
-- [api.ts](/E:/CodexDev/api-nova/packages/api-nova-ui/src/services/api.ts)
-- [monitoring.ts](/E:/CodexDev/api-nova/packages/api-nova-ui/src/stores/monitoring.ts)
-- [Dashboard.vue](/E:/CodexDev/api-nova/packages/api-nova-ui/src/modules/monitoring/monitoring/Dashboard.vue)
-- [RuntimeAssetDetail.vue](/E:/CodexDev/api-nova/packages/api-nova-ui/src/modules/runtime-assets/RuntimeAssetDetail.vue)
+- [monitoring.controller.ts](../../../packages/api-nova-api/src/modules/monitoring/monitoring.controller.ts)
+- [runtime-assets.controller.ts](../../../packages/api-nova-api/src/modules/runtime-assets/runtime-assets.controller.ts)
+- [api.ts](../../../packages/api-nova-ui/src/services/api.ts)
+- [monitoring.ts](../../../packages/api-nova-ui/src/stores/monitoring.ts)
+- [Dashboard.vue](../../../packages/api-nova-ui/src/modules/monitoring/monitoring/Dashboard.vue)
+- [RuntimeAssetDetail.vue](../../../packages/api-nova-ui/src/modules/runtime-assets/RuntimeAssetDetail.vue)
 
 ### Migration items
 

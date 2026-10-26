@@ -1,8 +1,13 @@
+---
+doc-version: 1.1.0
+doc-status: active
+doc-updated: 2026-10-26
+---
 # ApiNova 版本发布规范
 
 > 文档状态：Active，项目发布唯一规范
 > 生效范围：本规范合入后创建的新版本
-> 最后复核：2026-10-14
+> 最后复核：2026-10-26
 
 ## 1. 目的与效力
 
@@ -121,6 +126,8 @@ api-nova-release-<tag>-<platform-id>/
 ├── RELEASE_NOTES.md
 ├── RELEASE_INFO.json
 ├── README_PROJECT.md
+├── docs/                          # 当前手册与OpenAPI快照
+├── DOCUMENTATION_MANIFEST.json   # 文档源提交、摘要与引用检查
 ├── start.bat
 ├── start.sh
 ├── package.json
@@ -196,6 +203,12 @@ Git commit SHA 会形成文档自引用，无法在被该 SHA 覆盖的提交中
 - 配置、数据和日志位置；
 - 停止方式；
 - 简短故障排查。
+
+### 6.3 完整文档集（2026-10-26起的新构建）
+
+新版本包包含docs/README.md、当前设计/功能/使用/运维/开发API手册及OpenAPI快照，入口为README_PROJECT.md。文档清单由docs/documentation-manifest.json维护；打包器调用scripts/export-release-docs.cjs导出，并生成DOCUMENTATION_MANIFEST.json记录精确源commit、各文档SHA256及本地引用检查结果。
+
+当前手册之间使用包内本地链接；未随包复制的归档、模板和源码引用固定到同一源commit的仓库页面。归档不混作现行手册，源码开发命令仍需源码环境。创建标签前校验文档和API快照；历史已发布包、说明和校验和不因本次文档规范更新而改写。
 
 ## 7. 结构化元数据
 

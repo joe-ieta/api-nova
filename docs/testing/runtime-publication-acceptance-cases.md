@@ -1,17 +1,17 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
-doc-updated: 2026-10-08
+doc-updated: 2026-10-26
 ---
 # Runtime Publication Acceptance Cases
 
 > Document status: Active
-> Last reviewed: 2026-10-08
+> Last reviewed: 2026-10-26
 > Release gate: Required together with `docs/guides/release-readiness-checklist.md`
 
-## Current execution scope (2026-10-08)
+## Current execution scope (2026-10-26)
 
-EXT-01 through EXT-05 passed as one Windows local real-HTTP application workflow: 11/11 stages, final runner exit 0 and EXT_01_05_VERIFY_OK, independent 94 suites/1312 tests, and API build. [Recorded evidence](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md) identifies isolated SQLite, loopback A/B, stable endpoint identities, instance migration, aggregate routes, and consumer credential rejection/revocation. PostgreSQL, Linux, production identity, browser interaction, and MCP transport are not covered; public deployment remains separate.
+EXT-01 through EXT-05 passed as one Windows local real-HTTP application workflow: 11/11 stages, final runner exit 0 and EXT_01_05_VERIFY_OK, independent 94 suites/1312 tests, and API build. [Recorded evidence](../archive/audits/2026-10-08-ext-01-05-gateway-lifecycle.md) identifies isolated SQLite, loopback A/B, stable endpoint identities, instance migration, aggregate routes, and consumer credential rejection/revocation. That dated run did not cover PostgreSQL, Linux, production identity, browser or MCP. Later rc.5/local evidence covers bounded browser and SDK paths; target deployment remains separate.
 
 EXT-06/07/08/09 have scoped evidence in the [execution ledger](../guides/active-work-package-execution-status.md). Older test counts and database sizes below remain historical, not the current schema or an instruction to rerun completed work.
 
@@ -58,21 +58,21 @@ For every manual execution record:
 | VR-07 | exact sample has dynamic paths | configure ignored paths and replay | ignored paths do not fail exact comparison; other mismatches do | automated-passed |
 | CR-01 | instance uses valid `env-headers:` reference | deploy and invoke | secret is resolved at execution and not persisted in samples/runs/snapshots | automated-covered |
 | CR-02 | referenced environment variable is missing | deploy or invoke | operation fails closed; candidate is not activated | automated-covered |
-| DB-01 | isolated SQLite available | run `db:smoke -- sqlite` in the API workspace | 43 domain tables, zero rows/pending migrations/drift, persistence and full API startup pass; owned temp file removed | automated-passed |
-| DB-02 | isolated PostgreSQL available | run `db:smoke -- postgres` in the API workspace | same 43-table schema/persistence/startup contract; owned temporary database removed | automated-passed (2026-09-08) |
+| DB-01 | isolated SQLite available | run `db:smoke -- sqlite` in the API workspace | current schema (rc.5: 73 tables/8 migrations), zero rows/pending migrations/drift, persistence and full API startup pass; owned temp file removed | automated-passed |
+| DB-02 | isolated PostgreSQL available | run `db:smoke -- postgres` in the API workspace | same current-schema migration/persistence/startup contract; owned temporary database removed | automated-passed (2026-09-08) |
 | RG-01 | current checkout | run `npm run verify:runtime-closure` | all nine gate stages pass, including both database startup smokes | automated-passed (2026-09-08) |
 | RG-02 | Windows checkout | run root production build | Parser, Server, API, and UI build successfully | automated-passed |
 | RG-03 | Windows checkout | run streamable-session smoke | two MCP sessions remain isolated and disconnect cleanly | automated-passed |
 
-## Open-Gap Cases
+## 原缺口合同与当前限定结果
 
 | ID | Required behavior | Current status |
 | --- | --- | --- |
 | GAP-01 | operator configures MCP port, transport, and validated endpoint path before activation | scoped DONE: PROD-02A/B/C |
 | GAP-02 | binding/instance change immediately marks affected runtime asset verification-required | scoped DONE: EXT-04 Windows real-HTTP migration |
 | GAP-03 | readiness becomes false when qualifying instance is archived/changed or endpoint revision is obsolete | scoped DONE: EXT-04 Windows real-HTTP migration |
-| GAP-04 | oversized JSON is truncated/rejected by policy; binary bodies store metadata/hash only | object lifecycle implemented; full retention acceptance in PROD-04C |
-| GAP-05 | retention cleanup differs by manual/deploy success/deploy failure classes | object lifecycle implemented; full retention acceptance in PROD-04C |
+| GAP-04 | oversized JSON is truncated/rejected by policy; binary capture uses bounded descriptors and protected object storage | scoped DONE: PROD-04C Windows/PG/HTTP; target ACL/Linux/MCP outbound pending |
+| GAP-05 | retention cleanup differs by manual/deploy success/deploy failure classes | scoped DONE: PROD-04C Windows/PG/HTTP; target ACL/Linux/MCP outbound pending |
 | GAP-06 | instance and binding mutations record actor, reason, before/after revision | scoped DONE: PROD-05; deployment sign-off remains |
 
 ## External-Environment Cases
@@ -89,19 +89,8 @@ For every manual execution record:
 | EXT-08 | install/start API and UI on Windows; run basic import/conversion | documented commands and browser workflow pass without undocumented steps | DONE within recorded scope; see execution ledger |
 | EXT-09 | repeat install/build/start/parser/session workflow on Ubuntu | all documented Ubuntu commands and core workflow pass | DONE within recorded scope; see execution ledger |
 
-## Latest Automated Evidence
+## 最近证据与限制
 
-On 2026-09-08, the nine-stage gate passed against both 43-table databases, including transactional persistence, complete API startup, empty-table restoration and zero drift. See [Persistence Cleanup Review](../audits/2026-09-08-persistence-cleanup.md). The PostgreSQL credential blocker below is historical and has been resolved for the local isolated instance.
+10-26隔离Windows复验完整健康/监控8项、Gateway浏览器37项、MCP SDK25项通过；rc.5已有双库73表/8迁移及原生三平台交付证据。全部结果为对应环境限定通过，用户人工反馈与目标生产验收继续保留。见[历史收口取证](../archive/audits/2026-10-26-existing-scope-closure.md)和[当前open-items](../reference/open-items.md)。
 
-Historical September 7 evidence:
-
-On 2026-09-07, isolated SQLite verification passed with 40 domain tables, zero domain rows, no pending migrations and zero TypeORM schema drift; the temporary database was removed. The configuration persistence tables are folded into the single baseline. PostgreSQL baseline execution remains pending `EXT-11` because the configured local PostgreSQL credential was rejected before a temporary database could be created.
-
-Historical evidence from the 2026-07-22 worktree (not current database acceptance):
-
-- `npm run verify:runtime-closure`: 8 stages, 3 Parser tests, 81 API tests
-- isolated SQLite and PostgreSQL verification: 38 domain tables each, zero pending migrations
-- `npm run build`: all four packages
-- `npm run test:streamable-session --workspace api-nova-server`: multi-session smoke
-
-This evidence does not close `EXT-01` through `EXT-09` or `GAP-01` through `GAP-06`.
+原测试表、旧数据库计数和早期阶段证据保留在[历史用例](../archive/testing/2026-10-26/runtime-publication-acceptance-cases.md)。本页不再把已补验的文件/no-server/A-B分支写成未实现，也不将它们外推所有角色/认证组合。

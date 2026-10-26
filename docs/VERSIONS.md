@@ -1,329 +1,85 @@
-# ApiNova 文档版本清单（VERSIONS）
+---
+doc-version: 2.0.0
+doc-status: active
+doc-updated: 2026-10-26
+---
+# 当前文档版本与类型清单
 
-> 本文件登记来源分支已纳入管理的文档及本次合并新增记录；不是当前仓库全部文档的穷举清单。带有 front-matter 的文档应同步维护版本、状态和更新时间。当前较新的工程规范仍以 docs/README.md 的入口为准。
-> 归档区（docs/archive）文档为只读历史记录，不在文件中追加元数据块，仅在此登记其归档状态。
+本表穷举当前仓库文档；由 `node scripts/refresh-doc-catalog.cjs` 根据实际文件及元数据生成。阅读顺序见[文档中心](README.md)，机器清单见[documentation-manifest.json](documentation-manifest.json)。
 
-## 版本规则
-
-- `doc-version`：文档内容版本号，采用语义化 `X.Y.Z`。影响基线/契约/操作步骤的变化递增；纯排版或笔误修复只递增 `patch`。
-- `doc-status`：`active`（活跃）/ `archived`（已归档）/ `deprecated`（废弃待移除）。
-- `doc-updated`：最近一次内容更新日期（YYYY-MM-DD），由维护者在此清单与页头元数据同步更新。
-- 归档规则：文档不再代表当前基线时，将其移入 `docs/archive/<分类>/` 并在本清单标记 `archived`；归档文档只读。
-
-## 活跃文档
-
-本轮收口：[现有范围台账归一与限定验收](./audits/2026-10-26-existing-scope-closure.md)，1.0.0，active，2026-10-26；原任务状态及退出条件保持。
-
-最近预发布（2026-10-20）：[v1.7.6-rc.5人工测试预发布](./audits/2026-10-20-release-v1.7.6-rc.5.md)，1.0.0，active，2026-10-20。
-
-历史验收（2026-10-20）：[真实运行事件日志与浏览器生命周期补验](./audits/2026-10-20-runtime-logs-browser-lifecycle.md)，1.0.1，active，2026-10-20。
-
-历史交付（2026-10-20）：[顶部健康、页面刷新及文件导入补验](./audits/2026-10-20-ui-health-refresh.md)，1.0.1，active，2026-10-20；[v1.7.6-rc.4人工测试预发布](./audits/2026-10-20-release-v1.7.6-rc.4.md)，1.0.0，active，2026-10-20。
+## 当前文档
 
 | 文档 | 版本 | 状态 | 更新时间 |
 | --- | --- | --- | --- |
-| [docs/reference/runtime-closure-design-implementation-review.md](./reference/runtime-closure-design-implementation-review.md) | 1.0.0 | active | 2026-10-26 |
-| [docs/guides/runtime-instance-and-regression-closure-plan.md](./guides/runtime-instance-and-regression-closure-plan.md) | 1.0.0 | active | 2026-10-26 |
-| [docs/audits/2026-10-26-existing-scope-closure.md](./audits/2026-10-26-existing-scope-closure.md) | 1.0.0 | active | 2026-10-26 |
-| [ApiNova 开发审查与后续线程交接（2026-10-14）](./guides/development-handoff-2026-10-14.md) | 1.2.0 | active | 2026-10-14 |
-| [v1.7.6-rc.3 发布复核与交付证据](./audits/2026-10-14-release-v1.7.6-rc.3.md) | 1.1.0 | active | 2026-10-14 |
-| [ENV-01 空闲5GiB健康门槛及完整健康复验](./audits/2026-10-14-health-free-space-policy.md) | 1.0.0 | active | 2026-10-14 |
-| [OPS-01 浏览器 OpenAPI URL 导入到 Gateway 消费限定验收](./audits/2026-10-14-ops-browser-openapi-import.md) | 1.0.0 | active | 2026-10-14 |
-| [OPS-01 打包浏览器 Gateway 主流程限定验收](./audits/2026-10-14-ops-browser-workflow.md) | 1.0.0 | active | 2026-10-14 |
-| [OBS-16-04 采集与投递限定验收及时间诊断](./audits/2026-10-08-observability-functional-closure.md) | 1.0.0 | active | 2026-10-08 |
-| [SEC-F4-02 Nest SSE 官方补丁回移与交付校验](./audits/2026-10-08-security-nest-sse-backport.md) | 1.0.0 | active | 2026-10-08 |
-| [OBS-16-04 跨调用指标批量持久化验收](./audits/2026-10-08-observability-runtime-write-batching.md) | 1.0.0 | active | 2026-10-08 |
-| [OBS-16-04 SQL.js 只读事务持久化减负](./audits/2026-10-08-sqljs-readonly-transaction-persistence.md) | 1.0.0 | active | 2026-10-08 |
-| [SEC-F4-02 file-type、UUID 迁移与 Nest SSE 剩余边界](./audits/2026-10-08-security-residual-dependency-migration.md) | 1.1.0 | active | 2026-10-08 |
-| [OBS-16-04 只读持久化与生产身份投影联合验收](./audits/2026-10-08-observability-persistence-and-projector.md) | 1.0.1 | active | 2026-10-08 |
-| [OBS-16-04 caller/source 事务内批投影](./audits/2026-10-08-observability-caller-batch-projection.md) | 1.0.0 | active | 2026-10-08 |
-| [SEC-F4-02 文件监听依赖迁移](./audits/2026-10-08-security-file-watch-migration.md) | 1.1.0 | active | 2026-10-08 |
-| [OBS-16-04 采集事实批量 SQL](./audits/2026-10-08-observability-ingest-bulk-sql.md) | 1.0.0 | active | 2026-10-08 |
-| [OBS-16-04 文件续读与桶重算公平调度](./audits/2026-10-08-observability-collector-fairness.md) | 1.2.0 | active | 2026-10-08 |
-| [OBS-16-04 批量采集与投递联合验收](./audits/2026-10-08-observability-bulk-pipeline.md) | 1.0.1 | active | 2026-10-08 |
-| [OBS-16-04 旧 Runtime 指标与状态事务合并](./audits/2026-10-08-runtime-observability-write-transaction.md) | 1.0.0 | active | 2026-10-08 |
-| [OBS-16-04 放宽超时重试与运行时指标持久化](./audits/2026-10-08-observability-relaxed-timeouts.md) | 1.0.1 | active | 2026-10-08 |
-| [OBS-16-04 源写入、采集与投递批处理联合证据](./audits/2026-10-08-observability-throughput-closure.md) | 1.0.1 | active | 2026-10-08 |
-| [OBS-16-04 SQL.js 并发持久化放大复现与修复](./audits/2026-10-08-sqljs-persistence-concurrency.md) | 1.0.0 | active | 2026-10-08 |
-| [OBS-16-04 有界采集入库批处理](./audits/2026-10-08-observability-ingest-batching.md) | 1.0.0 | active | 2026-10-08 |
-| [OBS-16-04 源审计合并写与失败诊断](./audits/2026-10-08-observability-source-writer.md) | 1.0.0 | active | 2026-10-08 |
-| [SEC-F4-02 上传与解析器依赖链迁移](./audits/2026-10-08-security-parser-chain-migration.md) | 1.1.0 | active | 2026-10-08 |
-| [Gateway同版本重复部署修复](./audits/2026-10-08-gateway-repeat-deployment.md) | 1.0.0 | active | 2026-10-08 |
-| [第二批安全依赖与上传防护](./audits/2026-10-08-security-dependency-closure.md) | 1.1.0 | active | 2026-10-08 |
-| [可观测完整冷备恢复](./audits/2026-10-08-observability-backup-restore.md) | 1.0.0 | active | 2026-10-08 |
-| [可观测双DB性能与吞吐阻断](./audits/2026-10-08-observability-performance.md) | 1.0.1 | active | 2026-10-08 |
-| [PROD-04C二进制留存联合验收](./audits/2026-10-08-prod-04c-binary-lifecycle.md) | 1.0.1 | active | 2026-10-08 |
-| [ENV-01健康与监控入口](./audits/2026-10-08-env-01-health-and-monitoring.md) | 1.0.0 | active | 2026-10-08 |
-| [SEC-F4-02本地安全签收准备](./audits/2026-10-08-security-signoff-readiness.md) | 1.0.2 | active | 2026-10-08 |
-| [OBS-16-04可观测签收准备](./audits/2026-10-08-observability-signoff-readiness.md) | 1.1.1 | active | 2026-10-08 |
-| [EXT-01～05 Gateway能力闭环](./audits/2026-10-08-ext-01-05-gateway-lifecycle.md) | 1.0.0 | active | 2026-10-08 |
-| [docs/testing/runtime-publication-acceptance-cases.md](./testing/runtime-publication-acceptance-cases.md) | 1.0.0 | active | 2026-10-08 |
-| [OBS-14-03E3 授权物理清理](./audits/2026-09-26-obs-14-03e3-physical-cleanup.md) | 1.0.0 | active | 2026-09-26 |
-| [PROD-06 CAS 范围核定](./audits/2026-09-26-prod-06-cas-scope-determination.md) | 1.0.0 | active | 2026-09-26 |
-| [EXT-06 加固与 EXT-07](./audits/2026-09-28-ext-06-hardening-and-ext-07.md) | 1.0.0 | active | 2026-09-28 |
-| [EXT-09/OBS-06-02 Ubuntu 验证](./audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md) | 1.0.0 | active | 2026-09-28 |
-| [EXT-08/EXT-06 Windows 验证](./audits/2026-09-28-ext-08-ext-06-windows-validation.md) | 1.1.0 | active | 2026-09-28 |
-| [MAINT-01 前端分块](./audits/2026-09-28-maint-01-frontend-chunking.md) | 1.0.0 | active | 2026-09-28 |
-| [OBS-16-03 环境车道](./audits/2026-09-28-obs-16-03-environment-lane.md) | 1.0.0 | active | 2026-09-28 |
-| [SEC-C4-01 Resolver 语义](./audits/2026-09-28-c4-01-resolver-semantics.md) | 1.0.0 | active | 2026-09-28 |
-| [SEC-F1-02F 双运行时重开](./audits/2026-09-28-f1-02f-dual-runtime-reopen.md) | 1.0.0 | active | 2026-09-28 |
-| [SEC-F1-02C3G6 实时许可链](./audits/2026-09-28-f1-02c3g6-realtime-permits.md) | 1.0.0 | active | 2026-09-28 |
-| [SEC-F1-02C3G5 Gateway proof guard](./audits/2026-09-28-f1-02c3g5-gateway-proof-guard.md) | 1.0.0 | active | 2026-09-28 |
-| [SEC-F1-02E3b 实时授权 IPC](./audits/2026-09-28-f1-02e3b-realtime-authorization.md) | 1.0.0 | active | 2026-09-28 |
-| [SEC-E2-02 双平台矩阵](./audits/2026-09-28-e2-02-dual-platform-matrix.md) | 1.0.0 | active | 2026-09-28 |
-| [SEC-E2-01 安全联合矩阵](./audits/2026-09-28-e2-01-security-joint-matrix.md) | 1.0.0 | active | 2026-09-28 |
-| [SEC-E1-04 运行中变更/撤销](./audits/2026-09-28-e1-04-runtime-change-revocation.md) | 1.0.0 | active | 2026-09-28 |
-| [SEC-F3-03 秘密泄露矩阵](./audits/2026-09-28-f3-03-secret-leak-matrix.md) | 1.0.0 | active | 2026-09-28 |
-| [SEC-E1-03 真实 child 矩阵](./audits/2026-09-27-e1-03-real-child-matrix.md) | 1.0.0 | active | 2026-09-27 |
-| [SEC-C3-03 多进程 Registry 协调](./audits/2026-09-27-c3-03-multi-process-registry.md) | 1.0.0 | active | 2026-09-27 |
-| [SEC-E1-02C2 重启/失败/legacy 边界](./audits/2026-09-27-e1-02c2-restart-failure-legacy.md) | 1.0.0 | active | 2026-09-27 |
-| [SEC-E1-02C1 生命周期协调](./audits/2026-09-27-e1-02c1-managed-lifecycle.md) | 1.0.0 | active | 2026-09-27 |
-| [OBS-14-05D 配额状态联调](./audits/2026-09-27-obs-14-05d-quota-state-joint.md) | 1.0.0 | active | 2026-09-27 |
-| [Linux 容器平台验证](./audits/2026-09-27-linux-container-platform-validation.md) | 1.0.0 | active | 2026-09-27 |
-| [MAIL-02 受控邮件投递](./audits/2026-09-26-mail-02-controlled-delivery.md) | 1.1.0 | active | 2026-09-27 |
-| [SEC-F3-02D 本地 N 矩阵](./audits/2026-09-26-f3-n-matrix-local.md) | 1.0.0 | active | 2026-09-26 |
-| [SEC-F3a-01 依赖可达性审计](./audits/2026-09-26-dependency-reachability-audit.md) | 1.1.0 | active | 2026-09-26 |
-| [OBS-13-02 长期传输与慢客户端验收](./audits/2026-09-26-obs-13-02-long-transport.md) | 1.0.0 | active | 2026-09-26 |
-| [OBS-14-03D 投递保留与导入墓碑](./audits/2026-09-26-obs-14-03d-lifecycle-retention.md) | 1.0.0 | active | 2026-09-26 |
-| [OBS-15-02 全链路身份与切换验收](./audits/2026-09-26-obs-15-full-chain.md) | 1.0.0 | active | 2026-09-26 |
-| [OBS-16-02 本地故障与承载单元](./audits/2026-09-26-obs-16-local-unit.md) | 1.0.0 | active | 2026-09-26 |
-| [OBS-06-01 MCP正文与终态矩阵](./audits/2026-09-26-mcp-observability-matrix.md) | 1.0.0 | active | 2026-09-26 |
-| [Header策略缓存隔离与真实命中验收](./audits/2026-09-22-header-cache-isolation.md) | 1.0.0 | active | 2026-09-22 |
-| [四类上游凭据与生命周期作用域验收](./audits/2026-09-22-credential-types-scope.md) | 1.0.0 | active | 2026-09-22 |
-| [Header双向过滤与受控真实流执行](./audits/2026-09-21-header-wire-execution.md) | 1.0.0 | active | 2026-09-21 |
-| [上游凭据类型、生命周期与作用域合同](./guides/upstream-credential-types-contract.md) | 1.1.0 | active | 2026-09-22 |
-| [锁定MCP Adapter协议边界验收](./audits/2026-09-21-mcp-adapter-contract.md) | 1.0.0 | active | 2026-09-21 |
-| [Header策略编译与安全接线准备](./audits/2026-09-21-header-policy-compilation.md) | 1.0.0 | active | 2026-09-21 |
-| [上游安全对账与发布门禁契约](./guides/upstream-security-reconciliation-contract.md) | 1.0.0 | active | 2026-09-21 |
-| [Consumer与Upstream分区和重载恢复](./audits/2026-09-21-upstream-credential-management-ui.md) | 1.0.0 | active | 2026-09-21 |
-| [锁定SDK会话与通知合同验证](./audits/2026-09-21-sdk-session-contract.md) | 1.0.0 | active | 2026-09-21 |
-| [临时匿名管理界面验收](./audits/2026-09-21-temporary-anonymous-ui.md) | 1.0.0 | active | 2026-09-21 |
-| [JWT参数保存与真实运行验收](./audits/2026-09-21-jwt-policy-lifecycle.md) | 1.0.0 | active | 2026-09-21 |
-| [持久撤销与既有会话验证](./audits/2026-09-21-persistent-session-revocation.md) | 1.0.0 | active | 2026-09-21 |
-| [六层限流组合验收](./audits/2026-09-21-layered-rate-limit-composition.md) | 1.0.0 | active | 2026-09-21 |
-| [在线凭证轮换与临时匿名闭环](./audits/2026-09-21-live-rotation-temporary-anonymous.md) | 1.0.0 | active | 2026-09-21 |
-| [SEC-B1-01 统一消费者凭证模型与双入口验收](./audits/2026-09-21-unified-consumer-credentials.md) | 1.0.1 | active | 2026-09-21 |
-| [SEC-C2-02 Windows秘密文件ACL验收](./audits/2026-09-21-windows-secret-acl.md) | 1.0.0 | active | 2026-09-21 |
-| [SEC-C3-02 Registry配置可信数据库归属验收](./audits/2026-09-21-registry-db-ownership.md) | 1.0.0 | active | 2026-09-21 |
-| [SEC-A1-02D 保存、发布、重启与真实请求闭环](./audits/2026-09-21-auth-publication-loop.md) | 1.0.0 | active | 2026-09-21 |
-| [SEC-D2-01 Gateway IP与匿名独立限流验收](./audits/2026-09-21-independent-rate-limits.md) | 1.0.0 | active | 2026-09-21 |
-| [SEC-C3-01 固定凭据文件自动重载验收](./audits/2026-09-21-registry-watch.md) | 1.0.0 | active | 2026-09-21 |
-| [SEC-A4-02当前版本PostgreSQL空库验收](./audits/2026-09-21-isolated-postgres-schema.md) | 1.0.0 | active | 2026-09-21 |
-| [OBS-14-05C3 Windows PostgreSQL多写者验收](./audits/2026-09-21-pg-quota-multiwriter-evidence.md) | 1.0.0 | active | 2026-09-21 |
-| [SEC-A2-01B三入口拒绝矩阵](./audits/2026-09-21-mcp-rejection-matrix.md) | 1.0.0 | active | 2026-09-21 |
-| [SEC-A1-02B4鉴权模式界面交付](./audits/2026-09-21-mcp-mode-ui-evidence.md) | 1.0.0 | active | 2026-09-21 |
-| [docs/audits/2026-09-04-manual-registration-publication.md](./audits/2026-09-04-manual-registration-publication.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/audits/2026-09-07-reviewed-merge.md](./audits/2026-09-07-reviewed-merge.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/audits/README.md](./audits/README.md) | 1.74.0 | active | 2026-10-08 |
-| [全范围审核与重拆](./audits/2026-09-15-work-package-replan.md) | 1.0.0 | active | 2026-09-15 |
-| [PROD-03本地发布循环](./audits/2026-09-15-prod-03-local-publication-cycle.md) | 0.1.0 | active | 2026-09-15 |
-| [重拆第二批限定证据](./audits/2026-09-16-replanned-batch-2-evidence.md) | 1.7.0 | active | 2026-09-16 |
-| [重拆第三批限定证据](./audits/2026-09-16-replanned-batch-3-evidence.md) | 1.0.0 | active | 2026-09-16 |
-| [重拆第四批限定证据](./audits/2026-09-16-replanned-batch-4-evidence.md) | 1.0.0 | active | 2026-09-16 |
-| [配额恢复故障验收](./audits/2026-09-21-payload-recovery-acceptance.md) | 1.0.0 | active | 2026-09-21 |
-| [受管鉴权模式一致性](./audits/2026-09-21-managed-inbound-mode-evidence.md) | 1.0.0 | active | 2026-09-21 |
-| [额度中断恢复证据](./audits/2026-09-17-interruption-recovery-evidence.md) | 1.0.0 | active | 2026-09-17 |
-| [重拆第五批限定证据](./audits/2026-09-16-replanned-batch-5-evidence.md) | 1.0.0 | active | 2026-09-16 |
-| [端点测试二进制样例合同](./guides/endpoint-test-binary-sample-contract.md) | 0.9.0 | active | 2026-10-08 |
-| [活跃工作包划分](./guides/active-work-package-breakdown.md) | 1.106.0 | active | 2026-10-26 |
-| [安全交付验收证据索引](./guides/security-delivery-evidence-index.md) | 1.120.0 | active | 2026-09-28 |
-| [邮件投递范围与受控验收合同](./guides/mail-delivery-scope-and-acceptance.md) | 1.1.0 | active | 2026-09-26 |
-| [MCP发布端点合同](./guides/mcp-publication-endpoint-contract.md) | 0.2.0 | active | 2026-09-21 |
-| [开发任务包总览与执行状态](./guides/active-work-package-execution-status.md) | 1.204.0 | active | 2026-10-26 |
-| [受管MCP启动交付设计](./guides/managed-mcp-credential-handoff-plan.md) | 0.4.0 | reviewed-slice | 2026-09-21 |
-| [候选激活与GC重试](./audits/2026-09-15-activation-gc-wave.md) | 1.0.0 | active | 2026-09-15 |
-| [上游归属交叉核验](./audits/2026-09-15-upstream-ownership-wave.md) | 1.0.0 | active | 2026-09-15 |
-| [发布读取与停机收敛](./audits/2026-09-15-publication-shutdown-wave.md) | 1.0.0 | active | 2026-09-15 |
-| [单查询归属与故障恢复](./audits/2026-09-15-ownership-recovery-wave.md) | 1.0.0 | active | 2026-09-15 |
-| [MCP装配可信映射](./audits/2026-09-15-mcp-assembly-ownership-wave.md) | 1.0.0 | active | 2026-09-15 |
-| [提交整理与可信资产快照](./audits/2026-09-14-commit-ownership-wave.md) | 1.0.0 | active | 2026-09-14 |
-| [单跳凭据、容量样本与诊断UI](./audits/2026-09-14-single-hop-capacity-diagnostics-wave.md) | 1.0.0 | active | 2026-09-14 |
-| [路由观测、可信映射与策略UI](./audits/2026-09-14-routing-policy-mapping-wave.md) | 1.0.0 | active | 2026-09-14 |
-| [MCP可信操作映射](./guides/mcp-trusted-operation-bindings.md) | 1.6.0 | active | 2026-09-15 |
-| [正文保留与消费端推进](./audits/2026-09-14-retention-consumer-wave.md) | 1.0.0 | active | 2026-09-14 |
-| [管理心跳、请求头与Gateway消费者](./audits/2026-09-14-heartbeat-header-consumer-wave.md) | 1.0.0 | active | 2026-09-14 |
-| [docs/baseline/PRODUCT_CONSTRAINTS.md](./baseline/PRODUCT_CONSTRAINTS.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/baseline/PROJECT_BASELINE.md](./baseline/PROJECT_BASELINE.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/guides/api-gateway-architecture-and-requirements.md](./guides/api-gateway-architecture-and-requirements.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/guides/asset-model-and-runtime-assets.md](./guides/asset-model-and-runtime-assets.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/guides/database-mode-quickstart.md](./guides/database-mode-quickstart.md) | 1.1.0 | active | 2026-09-08 |
-| [docs/guides/database-strategy.md](./guides/database-strategy.md) | 1.1.0 | active | 2026-09-08 |
-| [docs/guides/endpoint-semantic-layer-requirements.md](./guides/endpoint-semantic-layer-requirements.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/guides/fork-origin-and-independence.md](./guides/fork-origin-and-independence.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/guides/github-collaboration-workflow.md](./guides/github-collaboration-workflow.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/guides/local-setup-and-run.md](./guides/local-setup-and-run.md) | 1.1.0 | active | 2026-09-08 |
-| [docs/guides/parser-change-verification.md](./guides/parser-change-verification.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/guides/publication-resource-baseline.md](./guides/publication-resource-baseline.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/guides/README.md](./guides/README.md) | 1.5.0 | active | 2026-10-26 |
-| [docs/guides/release-readiness-checklist.md](./guides/release-readiness-checklist.md) | 1.3.0 | active | 2026-10-26 |
-| [docs/guides/staged-development-plan.md](./guides/staged-development-plan.md) | 1.14.0 | active | 2026-10-26 |
-| [docs/README.md](./README.md) | 1.5.0 | active | 2026-10-26 |
-| [docs/reference/changelog-field-guide.md](./reference/changelog-field-guide.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/reference/esm-commonjs-quick-reference.md](./reference/esm-commonjs-quick-reference.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/reference/management-observability-baseline.md](./reference/management-observability-baseline.md) | 1.1.0 | active | 2026-09-14 |
-| [docs/reference/management-permission-matrix.md](./reference/management-permission-matrix.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/reference/mcp-jsonrpc-relationship.md](./reference/mcp-jsonrpc-relationship.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/reference/nodejs-module-systems-guide.md](./reference/nodejs-module-systems-guide.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/reference/open-items.md](./reference/open-items.md) | 1.35.0 | active | 2026-10-26 |
-| [docs/reference/README.md](./reference/README.md) | 1.3.0 | active | 2026-09-14 |
-| [docs/reference/versioning-policy.md](./reference/versioning-policy.md) | 1.0.0 | active | 2026-09-07 |
-| [docs/release/api-nova-release-requirements.md](./release/api-nova-release-requirements.md) | 1.2.0 | active | 2026-10-14 |
-| [docs/release/offline-dependency-migration.md](./release/offline-dependency-migration.md) | 1.0.0 | active | 2026-09-07 |
+| [管理API接口清单](api/ENDPOINTS.md) | 1.0.0 | active | 2026-10-26 |
+| [MCP与Gateway消费接入手册](api/mcp.md) | 1.0.0 | active | 2026-10-26 |
+| [可观测性API与主动消息协议](api/observability.md) | 2.8.0 | active | 2026-10-26 |
+| [Parser开发API手册](api/parser.md) | 1.0.0 | active | 2026-10-26 |
+| [开发API手册与接入约定](api/README.md) | 1.0.0 | active | 2026-10-26 |
+| [总体设计与功能架构](architecture/OVERALL_DESIGN.md) | 1.0.0 | active | 2026-10-26 |
+| [ApiNova Product Constraints](baseline/PRODUCT_CONSTRAINTS.md) | 1.0.1 | active | 2026-10-26 |
+| [项目当前基线](baseline/PROJECT_BASELINE.md) | 1.1.0 | active | 2026-10-26 |
+| [开发与系统集成手册](development/DEVELOPER_GUIDE.md) | 1.0.0 | active | 2026-10-26 |
+| [Offline Development Kit](development/offline-dev-migration.md) | 1.0.0 | active | 2026-10-26 |
+| [活跃工作包划分与验收子任务](guides/active-work-package-breakdown.md) | 1.107.0 | active | 2026-10-26 |
+| [开发任务包总览与执行状态](guides/active-work-package-execution-status.md) | 1.205.0 | active | 2026-10-26 |
+| [数据库配置、初始化与维护](guides/database-strategy.md) | 1.2.0 | active | 2026-10-26 |
+| [安装、部署与运维手册](guides/DEPLOYMENT.md) | 1.0.0 | active | 2026-10-26 |
+| [Gateway上游凭据文件激活](guides/gateway-upstream-credential-file-activation.md) | 1.2.0 | active | 2026-10-26 |
+| [可观测性、投递与留存运维](guides/OBSERVABILITY.md) | 1.0.0 | active | 2026-10-26 |
+| [Package Management Policy](guides/package-management-policy.md) | 1.0.0 | active | 2026-10-26 |
+| [Parser Change Verification](guides/parser-change-verification.md) | 1.0.0 | active | 2026-10-26 |
+| [操作与运维文档](guides/README.md) | 1.6.0 | active | 2026-10-26 |
+| [发布就绪检查表](guides/release-readiness-checklist.md) | 1.4.0 | active | 2026-10-26 |
+| [使用手册：注册到发布与消费](guides/USER_GUIDE.md) | 1.0.0 | active | 2026-10-26 |
+| [项目概览、能力定位与功能范围](overview/PRODUCT.md) | 1.0.0 | active | 2026-10-26 |
+| [项目文档与阅读指引](README.md) | 1.6.0 | active | 2026-10-26 |
+| [管理权限与资源范围](reference/management-permission-matrix.md) | 1.1.0 | active | 2026-10-26 |
+| [可观测性数据、配额与留存合同](reference/observability-contract.md) | 1.0.0 | active | 2026-10-26 |
+| [未完成事项](reference/open-items.md) | 1.36.0 | active | 2026-10-26 |
+| [资产、发布与样例合同](reference/publication-contract.md) | 1.0.0 | active | 2026-10-26 |
+| [当前技术合同与剩余事项](reference/README.md) | 1.4.0 | active | 2026-10-26 |
+| [认证、凭据与网络安全合同](reference/security-contract.md) | 1.0.0 | active | 2026-10-26 |
+| [发布构建操作说明](release/api-nova-release-requirements.md) | 1.3.0 | active | 2026-10-26 |
+| [文档整理与随包交付](release/DOCUMENTATION.md) | 1.0.0 | active | 2026-10-26 |
+| [版本发布文档入口](release/README.md) | 1.0.0 | active | 2026-10-26 |
+| [版本文档索引](release/versions/README.md) | 1.0.0 | active | 2026-10-26 |
+| [验收与证据指引](testing/README.md) | 1.0.0 | active | 2026-10-26 |
+| [Runtime Publication Acceptance Cases](testing/runtime-publication-acceptance-cases.md) | 1.1.0 | active | 2026-10-26 |
+| [安全调用与日志审计验收用例](testing/runtime-security-audit-cases.md) | 1.3.0 | active | 2026-10-26 |
+| [上游凭证 Provider Linux 隔离专项](testing/upstream-secret-provider-linux.md) | 1.2.0 | active | 2026-10-26 |
+| [当前文档版本与类型清单](VERSIONS.md) | 2.0.0 | active | 2026-10-26 |
+| [数据库结构导出](../packages/api-nova-api/database/README.md) | 1.1.0 | active | 2026-10-26 |
+| [ApiNova API](../packages/api-nova-api/README.md) | 1.0.0 | active | 2026-10-26 |
+| [Parser文档](../packages/api-nova-parser/docs/README.md) | 1.0.0 | active | 2026-10-26 |
+| [ApiNova Parser](../packages/api-nova-parser/README.md) | 1.0.0 | active | 2026-10-26 |
+| [Server文档](../packages/api-nova-server/docs/README.md) | 1.0.0 | active | 2026-10-26 |
+| [ApiNova Server](../packages/api-nova-server/README_EN.md) | 1.0.0 | active | 2026-10-26 |
+| [ApiNova Server](../packages/api-nova-server/README.md) | 1.0.0 | active | 2026-10-26 |
+| [ApiNova UI](../packages/api-nova-ui/README.md) | 1.0.0 | active | 2026-10-26 |
+| [ApiNova](../README_EN.md) | 1.0.0 | active | 2026-10-26 |
+| [ApiNova · 达雅](../README.md) | 1.0.0 | active | 2026-10-26 |
+| [ApiNova 版本发布规范](../RELEASE_STANDARD.md) | 1.1.0 | active | 2026-10-26 |
+| [Nest SSE security backport](../vendor/README.md) | 1.0.0 | active | 2026-10-26 |
 
-| [docs/audits/2026-09-08-persistence-cleanup.md](./audits/2026-09-08-persistence-cleanup.md) | 1.0.0 | active | 2026-09-08 |
+## 生成资产、模板与版本记录
 
-| [活跃任务依赖与并发推进](./audits/2026-09-14-active-task-dependencies.md) | 1.0.0 | active | 2026-09-14 |
+| 文件 | 类型 |
+| --- | --- |
+| [docs/api/openapi.json](api/openapi.json) | generated-asset |
+| [docs/release/templates/QUICK_START.template.md](release/templates/QUICK_START.template.md) | template |
+| [docs/release/templates/RELEASE_NOTES.template.md](release/templates/RELEASE_NOTES.template.md) | template |
+| [docs/release/versions/v1.7.6-rc.5/QUICK_START.md](release/versions/v1.7.6-rc.5/QUICK_START.md) | release-record |
+| [docs/release/versions/v1.7.6-rc.5/RELEASE_NOTES.md](release/versions/v1.7.6-rc.5/RELEASE_NOTES.md) | release-record |
+| [packages/api-nova-parser/CHANGELOG.md](../packages/api-nova-parser/CHANGELOG.md) | package-history |
+| [packages/api-nova-server/CHANGELOG.md](../packages/api-nova-server/CHANGELOG.md) | package-history |
 
-| [按规划继续执行](./audits/2026-09-14-planned-next-wave.md) | 1.0.0 | active | 2026-09-14 |
+这些文件不套用普通手册版本号：OpenAPI快照随控制器生成；模板是待填内容；已发布版本说明和package CHANGELOG是不可原地改写的版本记录。它们不是当前任务状态入口。
 
-## 安全开发文档
+## 归档与维护规则
 
-2026-09-14 按依赖完成 C3 稳定文件读取与 Gateway 配置激活：Parser 全量 342/342、Gateway 完整专项 123/123、三包构建通过；旧夹具 4 项失败已修复。新增文件激活手册和 D1/F3 draft 契约（30 项矩阵）。下一关键节点为 MCP 可信绑定到发送链路；Watch/管理 API、Header Allowlist、网络控制和 Linux 权限证据仍未闭环。
-
-| 文档 | 版本 | 状态 | 更新时间 |
-| --- | --- | --- | --- |
-| [安全任务计划](./guides/security-development-task-plan.md) | 1.101.0 | active | 2026-10-26 |
-| [安全执行状态](./guides/security-development-execution-status.md) | 1.132.0 | active | 2026-10-26 |
-| [安全功能需求](./guides/security-functional-requirements.md) | 1.1.0 | active | 2026-09-15 |
-| [安全设计](./reference/security-design-and-implementation.md) | 1.2.0 | active | 2026-09-14 |
-| [Gateway 文件激活](./guides/gateway-upstream-credential-file-activation.md) | 1.1.0 | active | 2026-09-14 |
-| [D1/F3 边界契约](./guides/security-header-network-boundary-contract.md) | 1.78.0 | active | 2026-09-26 |
-| [安全调用与日志审计](./guides/runtime-security-and-call-audit.md) | 1.2.1 | active | 2026-09-26 |
-| [安全验收用例](./testing/runtime-security-audit-cases.md) | 1.2.0 | active | 2026-09-14 |
-| [SEC-A1-01鉴权模式跨层矩阵](./testing/sec-a1-01-auth-mode-cross-layer-matrix.md) | 0.2.0 | validation-evidence | 2026-09-16 |
-
-[安全历史归档](./archive/summaries/security-2026-09-14/README.md)的四份原始快照为 archived，页内旧状态仅供追溯。
-
-## 可观测性增强文档
-
-`active` 表示文档正在维护，不表示已部署。当前完成情况、剩余任务及实现边界以[统一执行台账](./guides/active-work-package-execution-status.md)及[当前剩余事项](./reference/open-items.md)为入口；[10-14交接](./guides/development-handoff-2026-10-14.md)为历史快照；专题复核和执行记录保留阶段证据，旧计数不代表当前调度。需求和设计保留规范目标，不能代替代码或验收证据。
-
-| 文档 | 版本 | 状态 | 更新时间 |
-| --- | --- | --- | --- |
-| [可观测性功能需求](./guides/runtime-observability-requirements.md) | 2.4.0 | active | 2026-09-26 |
-| [可观测性设计](./reference/runtime-observability-design.md) | 2.2.0 | active | 2026-09-14 |
-| [可观测性 API Endpoint](./reference/runtime-observability-api-endpoints.md) | 2.7.0 | active | 2026-09-14 |
-| [可观测性开发任务计划](./guides/runtime-observability-development-task-plan.md) | 2.13.0 | active | 2026-10-26 |
-| [可观测性执行与完成状态](./guides/runtime-observability-development-execution-status.md) | 2.37.0 | active | 2026-10-26 |
-| [任务完成情况复核](./guides/runtime-observability-completion-review.md) | 2.31.0 | active | 2026-10-26 |
-| [可观测性契约与接入映射](./reference/runtime-observability-contract-mapping.md) | 2.1.0 | active | 2026-09-14 |
-| [可观测性存储基础](./reference/runtime-observability-storage-foundation.md) | 2.1.0 | active | 2026-09-14 |
-| [可观测性生命周期合同](./reference/runtime-observability-lifecycle-contract.md) | 1.0.0 | active | 2026-09-15 |
-| [可观测性容量配额合同](./reference/runtime-observability-capacity-quota-contract.md) | 1.10.0 | active | 2026-09-21 |
-| [运行集成指南](./guides/runtime-observability-integration.md) | 2.7.0 | active | 2026-09-14 |
-| [订阅集成指南](./guides/runtime-observability-subscription-integration.md) | 2.4.0 | active | 2026-09-14 |
-| [外部验收交接](./guides/runtime-observability-external-validation-handoff.md) | 2.6.0 | active | 2026-10-26 |
-
-### 2026-09-14 可观测性历史归档
-
-[归档索引](./archive/summaries/runtime-observability-2026-09-14/README.md)说明原始位置和当前替代入口。快照原文只读保留，页内旧状态属于历史上下文；归档状态以本表与索引为准。
-
-| 历史文档 | 状态 | 归档原因 |
-| --- | --- | --- |
-| [合并前未完成工作报告](./archive/summaries/runtime-observability-2026-09-14/runtime-observability-remaining-work-2026-09-14.md) | archived | 过期待办，已移出 guides |
-| [完成情况整理前快照](./archive/summaries/runtime-observability-2026-09-14/runtime-observability-completion-review.md) | archived | 保留相互覆盖的阶段结论 |
-| [执行状态历史流水](./archive/summaries/runtime-observability-2026-09-14/runtime-observability-development-execution-status.md) | archived | 保留旧阶段计数、失败及后续通过证据 |
-| [任务计划整理前快照](./archive/summaries/runtime-observability-2026-09-14/runtime-observability-development-task-plan.md) | archived | 批准任务仍有当前版本，旧进展留作历史 |
-| [API 契约整理前快照](./archive/summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md) | archived | 历史接口状态不再定义当前契约 |
-| [存储基础整理前快照](./archive/summaries/runtime-observability-2026-09-14/runtime-observability-storage-foundation.md) | archived | 保留阶段实现与数据库专项证据 |
-| [契约映射整理前快照](./archive/summaries/runtime-observability-2026-09-14/runtime-observability-contract-mapping.md) | archived | 历史映射由当前实现映射替代 |
-| [设计整理前快照](./archive/summaries/runtime-observability-2026-09-14/runtime-observability-design.md) | archived | 规范基线继续维护，阶段快照只供追溯 |
-
-## 归档文档
-
-归档区各子目录 README 与对应文档见下表。归档文档一律标记 `archived`，表格仅登记状态，不强制记录每个文件的 patch 版本。
-
-| 归档分类 | 文档 | 状态 | 说明 |
-| --- | --- | --- | --- |
-| architecture | [monorepo-refactoring-proposal](./archive/architecture/monorepo-refactoring-proposal.md) | archived | 历史记录，仅回溯用 |
-| architecture | [parser-extraction-implementation-plan](./archive/architecture/parser-extraction-implementation-plan.md) | archived | 历史记录，仅回溯用 |
-| architecture | [README](./archive/architecture/README.md) | archived | 历史记录，仅回溯用 |
-| baselines | [NEXT_DEVELOPMENT_BASELINE](./archive/plans/next-development-baseline.md) | archived | 原始基线，内容已并入合并基线 |
-| baselines | [PROJECT_BASELINE](./archive/baselines/PROJECT_BASELINE.md) | archived | 原始基线，内容已并入合并基线 |
-| baselines | [RELEASE_BASELINE_V1](./archive/baselines/RELEASE_BASELINE_V1.md) | archived | 原始基线，内容已并入合并基线 |
-| guides | [api-authentication-guide](./archive/guides/api-authentication-guide.md) | archived | 历史记录，仅回溯用 |
-| guides | [bearer-token-quickstart](./archive/guides/bearer-token-quickstart.md) | archived | 历史记录，仅回溯用 |
-| guides | [bearer-token-usage-guide](./archive/guides/bearer-token-usage-guide.md) | archived | 历史记录，仅回溯用 |
-| guides | [current-convergence-plan](./archive/guides/current-convergence-plan.md) | archived | 历史记录，仅回溯用 |
-| guides | [custom-headers-quickstart](./archive/guides/custom-headers-quickstart.md) | archived | 历史记录，仅回溯用 |
-| guides | [deployment-guide](./archive/guides/deployment-guide.md) | archived | 历史记录，仅回溯用 |
-| guides | [endpoint-semantic-layer-sprint-breakdown](./archive/guides/endpoint-semantic-layer-sprint-breakdown.md) | archived | 历史记录，仅回溯用 |
-| guides | [lightweight-api-access-management-requirements](./archive/guides/lightweight-api-access-management-requirements.md) | archived | 历史记录，仅回溯用 |
-| guides | [lightweight-api-access-management-sprint-breakdown](./archive/guides/lightweight-api-access-management-sprint-breakdown.md) | archived | 历史记录，仅回溯用 |
-| guides | [next-phase-development-plan](./archive/guides/next-phase-development-plan.md) | archived | 历史记录，仅回溯用 |
-| guides | [product-spine-restructure-plan-2026-04](./archive/guides/product-spine-restructure-plan-2026-04.md) | archived | 历史记录，仅回溯用 |
-| guides | [quick-start-guide](./archive/guides/quick-start-guide.md) | archived | 历史记录，仅回溯用 |
-| guides | [release-convergence-checklist](./archive/guides/release-convergence-checklist.md) | archived | 历史记录，仅回溯用 |
-| guides | [release-v0.2.14](./archive/guides/release-v0.2.14.md) | archived | 历史记录，仅回溯用 |
-| guides | [release-v0.2.17](./archive/guides/release-v0.2.17.md) | archived | 历史记录，仅回溯用 |
-| guides | [release-v0.2.24](./archive/guides/release-v0.2.24.md) | archived | 历史记录，仅回溯用 |
-| guides | [release-v0.2.25](./archive/guides/release-v0.2.25.md) | archived | 历史记录，仅回溯用 |
-| guides | [release-v0.2.26](./archive/guides/release-v0.2.26.md) | archived | 历史记录，仅回溯用 |
-| guides | [restart-guide](./archive/guides/restart-guide.md) | archived | 历史记录，仅回溯用 |
-| guides | [usage-guide](./archive/guides/usage-guide.md) | archived | 历史记录，仅回溯用 |
-| guides | [websocket-troubleshooting](./archive/guides/websocket-troubleshooting.md) | archived | 历史记录，仅回溯用 |
-| plans | [api-gateway-phase1-task-breakdown](./archive/guides/api-gateway-phase1-task-breakdown.md) | archived | 历史记录，仅回溯用 |
-| plans | [api-gateway-phase1-technical-design](./archive/guides/api-gateway-phase1-technical-design.md) | archived | 历史记录，仅回溯用 |
-| plans | [api-gateway-phase2-task-breakdown](./archive/guides/api-gateway-phase2-task-breakdown.md) | archived | 历史记录，仅回溯用 |
-| plans | [architecture-optimization-plan](./archive/plans/architecture-optimization-plan.md) | archived | 历史记录，仅回溯用 |
-| plans | [backend-api-service-implementation-plan](./archive/plans/backend-api-service-implementation-plan.md) | archived | 历史记录，仅回溯用 |
-| plans | [backend-technology-stack-analysis](./archive/plans/backend-technology-stack-analysis.md) | archived | 历史记录，仅回溯用 |
-| plans | [backend-technology-stack-final-recommendation](./archive/plans/backend-technology-stack-final-recommendation.md) | archived | 历史记录，仅回溯用 |
-| plans | [bearer-token-authentication-design](./archive/plans/bearer-token-authentication-design.md) | archived | 历史记录，仅回溯用 |
-| plans | [bearer-token-implementation-plan](./archive/plans/bearer-token-implementation-plan.md) | archived | 历史记录，仅回溯用 |
-| plans | [bearer-token-implementation-plan-revised](./archive/plans/bearer-token-implementation-plan-revised.md) | archived | 历史记录，仅回溯用 |
-| plans | [bearer-token-implementation-steps](./archive/plans/bearer-token-implementation-steps.md) | archived | 历史记录，仅回溯用 |
-| plans | [bearer-token-solution-comparison](./archive/plans/bearer-token-solution-comparison.md) | archived | 历史记录，仅回溯用 |
-| plans | [cli-architecture-analysis](./archive/plans/cli-architecture-analysis.md) | archived | 历史记录，仅回溯用 |
-| plans | [cli-design-showcase](./archive/plans/cli-design-showcase.md) | archived | 历史记录，仅回溯用 |
-| plans | [custom-headers-design](./archive/plans/custom-headers-design.md) | archived | 历史记录，仅回溯用 |
-| plans | [custom-headers-implementation](./archive/plans/custom-headers-implementation.md) | archived | 历史记录，仅回溯用 |
-| plans | [dual-publication-implementation-outline](./archive/guides/dual-publication-implementation-outline.md) | archived | 历史记录，仅回溯用 |
-| plans | [enterprise-token-integration-solution](./archive/plans/enterprise-token-integration-solution.md) | archived | 历史记录，仅回溯用 |
-| plans | [frontend-design-spec](./archive/plans/frontend-design-spec.md) | archived | 历史记录，仅回溯用 |
-| plans | [immediate-tasks-week1](./archive/plans/immediate-tasks-week1.md) | archived | 历史记录，仅回溯用 |
-| plans | [improvement-plan](./archive/plans/improvement-plan.md) | archived | 历史记录，仅回溯用 |
-| plans | [mcp-centered-architecture-design](./archive/plans/mcp-centered-architecture-design.md) | archived | 历史记录，仅回溯用 |
-| plans | [mcp-openapi-auto-testing-feasibility](./archive/plans/mcp-openapi-auto-testing-feasibility.md) | archived | 历史记录，仅回溯用 |
-| plans | [mcp-openapi-auto-testing-implementation](./archive/plans/mcp-openapi-auto-testing-implementation.md) | archived | 历史记录，仅回溯用 |
-| plans | [monorepo-architecture-proposal](./archive/plans/monorepo-architecture-proposal.md) | archived | 历史记录，仅回溯用 |
-| plans | [monorepo-dependency-management](./archive/plans/monorepo-dependency-management.md) | archived | 历史记录，仅回溯用 |
-| plans | [nestjs-implementation-checklist](./archive/plans/nestjs-implementation-checklist.md) | archived | 历史记录，仅回溯用 |
-| plans | [nestjs-implementation-guide](./archive/plans/nestjs-implementation-guide.md) | archived | 历史记录，仅回溯用 |
-| plans | [practical-mcp-ui-architecture](./archive/plans/practical-mcp-ui-architecture.md) | archived | 历史记录，仅回溯用 |
-| plans | [project-analysis-and-v1-plan](./archive/plans/project-analysis-and-v1-plan.md) | archived | 历史记录，仅回溯用 |
-| plans | [project-roadmap-and-planning](./archive/plans/project-roadmap-and-planning.md) | archived | 历史记录，仅回溯用 |
-| plans | [runtime-observability-stage6-model](./archive/guides/runtime-observability-stage6-model.md) | archived | 历史记录，仅回溯用 |
-| plans | [swagger2openapi-integration-plan](./archive/plans/swagger2openapi-integration-plan.md) | archived | 历史记录，仅回溯用 |
-| plans | [technical-architecture](./archive/plans/technical-architecture.md) | archived | 历史记录，仅回溯用 |
-| reference | [changesets-implementation-guide](./archive/reference/changesets-implementation-guide.md) | archived | 历史记录，仅回溯用 |
-| reference | [changesets-integration-guide](./archive/reference/changesets-integration-guide.md) | archived | 历史记录，仅回溯用 |
-| reference | [configuration-audit-2026-04](./archive/summaries/configuration-audit-2026-04.md) | archived | 历史记录，仅回溯用 |
-| reference | [mcp-tool-response-validation](./archive/reference/mcp-tool-response-validation.md) | archived | 历史记录，仅回溯用 |
-| reference | [npm-publication-guide](./archive/reference/npm-publication-guide.md) | archived | 历史记录，仅回溯用 |
-| reference | [npm-tslib-issue-fix](./archive/reference/npm-tslib-issue-fix.md) | archived | 历史记录，仅回溯用 |
-| reference | [why-no-type-module](./archive/reference/why-no-type-module.md) | archived | 历史记录，仅回溯用 |
-| summaries | [bearer-token-completion-summary](./archive/summaries/bearer-token-completion-summary.md) | archived | 历史记录，仅回溯用 |
-| summaries | [bearer-token-implementation-summary](./archive/summaries/bearer-token-implementation-summary.md) | archived | 历史记录，仅回溯用 |
-| summaries | [bearer-token-solution-summary](./archive/summaries/bearer-token-solution-summary.md) | archived | 历史记录，仅回溯用 |
-| summaries | [bearer-token-solution-summary-final](./archive/summaries/bearer-token-solution-summary-final.md) | archived | 历史记录，仅回溯用 |
-| summaries | [complete-upgrade-summary](./archive/summaries/complete-upgrade-summary.md) | archived | 历史记录，仅回溯用 |
-| summaries | [custom-headers-implementation-summary](./archive/summaries/custom-headers-implementation-summary.md) | archived | 历史记录，仅回溯用 |
-| summaries | [implementation-summary](./archive/summaries/implementation-summary.md) | archived | 历史记录，仅回溯用 |
-| summaries | [mcp-response-fix-summary](./archive/summaries/mcp-response-fix-summary.md) | archived | 历史记录，仅回溯用 |
-| summaries | [migration-summary](./archive/summaries/migration-summary.md) | archived | 历史记录，仅回溯用 |
-| summaries | [post-publication-guide](./archive/summaries/post-publication-guide.md) | archived | 历史记录，仅回溯用 |
-| summaries | [swagger2-support-implementation-summary](./archive/summaries/swagger2-support-implementation-summary.md) | archived | 历史记录，仅回溯用 |
-| summaries | [task-5.1-completion-summary](./archive/summaries/task-5.1-completion-summary.md) | archived | 历史记录，仅回溯用 |
-| summaries | [websocket-final-solution](./archive/summaries/websocket-final-solution.md) | archived | 历史记录，仅回溯用 |
-| ui | [mcp-swagger-ui-architecture](./archive/ui/mcp-swagger-ui-architecture.md) | archived | 历史记录，仅回溯用 |
-| ui | [mcp-swagger-ui-development-guide](./archive/ui/mcp-swagger-ui-development-guide.md) | archived | 历史记录，仅回溯用 |
-| ui | [mcp-swagger-ui-technical-documentation](./archive/ui/mcp-swagger-ui-technical-documentation.md) | archived | 历史记录，仅回溯用 |
-| ui | [mcp-swagger-ui-upgrade-summary](./archive/ui/mcp-swagger-ui-upgrade-summary.md) | archived | 历史记录，仅回溯用 |
-| guides | [offline-dependency-migration-pnpm](./archive/guides/offline-dependency-migration-pnpm.md) | archived | 旧 pnpm 迁移记录，当前使用 npm |
-
-## 上游凭证 Linux 专项操作
-
-| 文档 | doc-version | 状态 | 说明 |
-| --- | --- | --- | --- |
-| [upstream-secret-provider-linux.md](testing/upstream-secret-provider-linux.md) | 1.1.0 | active | 2026-09-27 已执行（82过/1跳过），证据见 Linux 容器平台验证 |
+- 历史材料穷举在[归档清单](archive/INDEX.md)，移动前后映射及原始摘要见[归档映射](archive/relocations-2026-10-26.json)。
+- 归档正文保留原日期及原front-matter；即使历史元数据写active，实际状态也由archive路径确定为archived，不覆盖当前手册。只修复引用，不重写历史结论。
+- 原批准合同归档不撤销其未完成退出条件；209项任务状态和245条依赖仍由统一台账/合同表维护。
+- 当前手册使用UTF-8和doc-version/doc-status/doc-updated。实质内容变化递增minor，结构/契约重大变化递增major，纯修正递增patch；相同主题仅保留一个权威入口。
+- 修改后刷新清单，执行 `node scripts/verify-docs.cjs`；控制器/DTO变化构建后生成并检查API快照。发布使用新的版本，不覆盖旧包或旧tag。

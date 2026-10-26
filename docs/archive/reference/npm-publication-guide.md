@@ -3,7 +3,7 @@
 > Document status: Active
 > Last reviewed: 2026-07-22
 
-Repository installation, build, and publication use npm only. See [Package Management Policy](../guides/package-management-policy.md).
+Repository installation, build, and publication use npm only. See [Package Management Policy](../../guides/package-management-policy.md).
 
 ## 🎯 发布状态分析
 

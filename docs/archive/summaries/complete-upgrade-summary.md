@@ -231,20 +231,20 @@ npm audit
 ## 📚 完整的文档体系
 
 ### 技术文档
-- ✅ [架构设计文档](docs/architecture/)
-- ✅ [API 完整文档](packages/api-nova-parser/docs/API_DOCUMENTATION.md)
-- ✅ [技术实现文档](packages/api-nova-parser/docs/TECHNICAL_DOCUMENTATION.md)
-- ✅ [架构决策记录](packages/api-nova-parser/docs/ARCHITECTURE_DECISIONS.md)
+- ✅ [架构设计文档](../../architecture)
+- ✅ [API 完整文档](../packages/api-nova-parser/2026-10-26/API_DOCUMENTATION.md)
+- ✅ [技术实现文档](../packages/api-nova-parser/2026-10-26/TECHNICAL_DOCUMENTATION.md)
+- ✅ [架构决策记录](../packages/api-nova-parser/2026-10-26/ARCHITECTURE_DECISIONS.md)
 
 ### 对比分析
-- ✅ [解析器对比分析](packages/api-nova-parser/docs/PARSER_COMPARISON.md)
-- ✅ [迁移总结报告](docs/migration-summary.md)
-- ✅ [UI 升级总结](docs/api-nova-ui-upgrade-summary.md)
+- ✅ [解析器对比分析](../packages/api-nova-parser/PARSER_COMPARISON.md)
+- ✅ [迁移总结报告](migration-summary.md)
+- ✅ UI 升级总结（历史引用未留存：`docs/api-nova-ui-upgrade-summary.md`）
 
 ### 最佳实践
-- ✅ [开发指南](docs/DEVELOPMENT_GUIDE.md)
-- ✅ [部署指南](docs/DEPLOYMENT_GUIDE.md)
-- ✅ [贡献指南](docs/CONTRIBUTING.md)
+- ✅ 开发指南（历史引用未留存：`docs/DEVELOPMENT_GUIDE.md`）
+- ✅ 部署指南（历史引用未留存：`docs/DEPLOYMENT_GUIDE.md`）
+- ✅ 贡献指南（历史引用未留存：`docs/CONTRIBUTING.md`）
 
 ## 🚀 部署和使用
 

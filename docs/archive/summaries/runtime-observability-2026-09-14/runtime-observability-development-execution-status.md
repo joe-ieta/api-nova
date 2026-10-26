@@ -9,7 +9,7 @@ implementation-status: in-progress
 
 > Document status: Active execution ledger
 > 当前阶段：基线 1c70067 已提交推送；7 个任务包 DONE，2 个 IN_PROGRESS，2 个 READY，5 个 BACKLOG。最新既有联合回归 430/430 PASS，本次为文档/源码入口复核，未重跑测试；9 个任务包尚未完成，详见第 40 节及《任务完成情况复核与未完成清单》。
-> 关联：[任务计划](./runtime-observability-development-task-plan.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)。
+> 关联：[任务计划](runtime-observability-development-task-plan.md)、[对外 API](runtime-observability-api-endpoints.md)、[需求](../../guides/2026-10-26/runtime-observability-requirements.md)、[设计](runtime-observability-design.md)。
 
 ## 1. 当前快照
 
@@ -161,7 +161,7 @@ implementation-status: in-progress
 - 权限基础已完成；查询和推送 Endpoint 仍由后续任务落地，大屏 UI 仍为后续范围。
 - 不自动处理现有开发库。如需重建，必须明确指定允许处理的数据库。
 
-详细实现：[契约映射](../reference/runtime-observability-contract-mapping.md)、[存储基础说明](../reference/runtime-observability-storage-foundation.md)。
+详细实现：[契约映射](runtime-observability-contract-mapping.md)、[存储基础说明](runtime-observability-storage-foundation.md)。
 
 ## 已解决的构建问题
 
@@ -753,7 +753,7 @@ B04 为 IN_PROGRESS。REM-03 授权历史、稳定游标与可恢复分发，以
 
 当前汇总：DONE=7、IN_PROGRESS=2、READY=2、BACKLOG=5；HTTP 12 VERIFIED、16 PLANNED；两类新推送契约 PLANNED；AVAILABLE=0。B01/B02/B03 DONE（B03 新增验收 6/6 通过），B04 PLANNED。任务包完成只覆盖各自既定范围，完整需求闭环仍部分完成。
 
-[复核及未完成清单](./runtime-observability-completion-review.md)为本次主要交付，含逐包标注、FR-01~10 对照、16 个未完成 Endpoint、推送边界、REM-01~13 依赖清单和待验收性能/平台目标。
+[复核及未完成清单](runtime-observability-completion-review.md)为本次主要交付，含逐包标注、FR-01~10 对照、16 个未完成 Endpoint、推送边界、REM-01~13 依赖清单和待验收性能/平台目标。
 
 特别纠偏：聚合/订阅/投递实体已经定义，不能写成没有任何基础；但 Worker 当前调用的是调用者投影，B01 尚未接入持久事务，事件 pending 也不是投递成功。需求页“implementation not started”已更新为实现进行中。
 

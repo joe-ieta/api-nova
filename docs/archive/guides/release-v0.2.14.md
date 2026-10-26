@@ -65,8 +65,8 @@ These do not block the current release, but they should be treated as Phase 6 op
 
 ## Related Guides
 
-- [Local Setup And Run](./local-setup-and-run.md)
-- [Database Mode Quickstart](./database-mode-quickstart.md)
-- [Database Strategy](./database-strategy.md)
-- [Parser Change Verification](./parser-change-verification.md)
-- [Release Readiness Checklist](./release-readiness-checklist.md)
+- [Local Setup And Run](2026-10-26/local-setup-and-run.md)
+- [Database Mode Quickstart](2026-10-26/database-mode-quickstart.md)
+- [Database Strategy](../consolidated/2026-10-26/database-strategy.md)
+- [Parser Change Verification](../../guides/parser-change-verification.md)
+- [Release Readiness Checklist](../../guides/release-readiness-checklist.md)

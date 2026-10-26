@@ -333,7 +333,8 @@ Remove-ReleaseLifecycleScripts `
 Copy-Item -LiteralPath (Join-Path $repoRoot 'vendor') -Destination (Join-Path $outputPath 'vendor') -Recurse
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'initialize-release-database.cjs') -Destination (Join-Path $outputPath 'initialize-database.cjs')
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'verify-nest-sse-backport.cjs') -Destination (Join-Path $outputPath 'verify-nest-sse-backport.cjs')
-Copy-IfExists (Join-Path $repoRoot 'README.md') (Join-Path $outputPath 'README_PROJECT.md')
+& node (Join-Path $PSScriptRoot 'export-release-docs.cjs') --output-dir $outputPath
+if ($LASTEXITCODE -ne 0) { throw 'Release documentation export or link verification failed' }
 
 foreach ($pkg in @('api-nova-api', 'api-nova-parser', 'api-nova-server')) {
   $srcPkg = Join-Path $repoRoot "packages\$pkg"

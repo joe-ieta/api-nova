@@ -188,9 +188,9 @@ content: [createTextContent(fullResponseText, {
 
 ## 📚 相关文档
 
-- [MCP 工具响应验证分析](./mcp-tool-response-validation.md) - 详细分析文档
-- [MCP 与 JSON-RPC 2.0 关系说明](./mcp-jsonrpc-relationship.md) - 协议关系解析
-- [test-mcp-compliance.ts](../packages/api-nova-parser/test-mcp-compliance.ts) - 验证测试代码
+- [MCP 工具响应验证分析](../reference/mcp-tool-response-validation.md) - 详细分析文档
+- [MCP 与 JSON-RPC 2.0 关系说明](../reference/2026-10-26/mcp-jsonrpc-relationship.md) - 协议关系解析
+- test-mcp-compliance.ts（历史引用未留存：`../packages/api-nova-parser/test-mcp-compliance.ts`） - 验证测试代码
 
 ## 🎉 总结
 

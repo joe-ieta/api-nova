@@ -7,9 +7,9 @@ doc-updated: 2026-09-11
 
 > Document status: Approved design baseline; implementation in progress; endpoint integration pending
 > Scope decision (2026-09-08, approved): 用户明确允许统一修改旧接口和数据库结构。新采集仅输出 schemaVersion=2，新查询不导入旧格式、不保留旧接口兼容别名；数据库维护新的初始化基线，不设计旧库升级链。实际旧数据不自动删除。
-> 配套需求：[功能需求文档](../guides/runtime-observability-requirements.md)。
+> 配套需求：[功能需求文档](../../guides/2026-10-26/runtime-observability-requirements.md)。
 > 方案及建议默认值已于 2026-09-08 由用户确认，当前按开发计划实施；实际变更和验收证据以执行状态台账为准，未部署或处理业务库。
-> 实施配套：[对外 API Endpoint](./runtime-observability-api-endpoints.md)、[开发任务计划](../guides/runtime-observability-development-task-plan.md)、[执行状态](../guides/runtime-observability-development-execution-status.md)。
+> 实施配套：[对外 API Endpoint](runtime-observability-api-endpoints.md)、[开发任务计划](runtime-observability-development-task-plan.md)、[执行状态](runtime-observability-development-execution-status.md)。
 
 ## 1. 设计决策
 
@@ -155,7 +155,7 @@ SQLite 首期使用单收集/聚合写入者、短批次事务与现有方言工
 
 begin、progress、finish 是同一 invocationId 的不同版本；每次写入使用独立 eventId。收集器消费专用 v2 文件，未知 schema 隔离并报告格式错误。无历史自动导入，不维护 legacy 查询路径。
 
-共享字段、规范化与统计参考实现收敛在 parser/audit/runtime-observability-contract.ts；API 负责存储、查询和报送，parser 不依赖 NestJS 或数据库。实际核查与验证见 [契约接入映射](./runtime-observability-contract-mapping.md)。
+共享字段、规范化与统计参考实现收敛在 parser/audit/runtime-observability-contract.ts；API 负责存储、查询和报送，parser 不依赖 NestJS 或数据库。实际核查与验证见 [契约接入映射](runtime-observability-contract-mapping.md)。
 
 ### 6.2 增量导入
 
@@ -465,7 +465,7 @@ GET /events 以 sequence 升序补拉。响应 nextCursor 为本批已扫描位�
 
 2026-09-08 已写入当前存储实体、事务仓储、正文对象存储，以及两种数据库的初始基线。调用当前投影与版本历史分开，sequence 使用事务内计数器，既有事件表复用 eventName/details，不再增加第二张同义事件表。非法/冲突证据仅保存哈希及安全原因，不复制正文。
 
-具体结构、默认保留及未完成项见[存储基础实现说明](./runtime-observability-storage-foundation.md)。代码写入不代表初始化或验收通过；本轮没有执行数据库脚本，没有清空已有数据。自动汇集、接口权限、查询与分发仍按后续任务接入。
+具体结构、默认保留及未完成项见[存储基础实现说明](runtime-observability-storage-foundation.md)。代码写入不代表初始化或验收通过；本轮没有执行数据库脚本，没有清空已有数据。自动汇集、接口权限、查询与分发仍按后续任务接入。
 
 ## TP-03 公共安全与 API 原语补充
 
@@ -475,7 +475,7 @@ TP-03 在提交 efb4536 之后实施；2026-09-09 夹具修复后 56 项专项�
 
 公共原语包含局部 AND guard/安全错误 DTO、白名单参数解析、绑定当前授权与归一化过滤的 HMAC 游标、资源绑定强 ETag，以及复用 TP-02 事务的幂等操作记录。管理 JWT、游标与幂等请求摘要使用各自明确的配置，秘密缺失时关闭相关访问，不生成隐式默认秘密。幂等只保留安全操作引用，重入仍检查当前对象授权，不能在事务内执行 Webhook。
 
-具体配置、轮换影响和消费约束同步维护于[对外 API 文档第 10 节](./runtime-observability-api-endpoints.md#10-tp-03-公共-api-基础的实现约束)。TP-03 按公共基础退出条件验收完成；控制器、实际查询授权过滤、读取审计、Swagger 和全局响应封装协作仍待相应接入包验证。
+具体配置、轮换影响和消费约束同步维护于[对外 API 文档第 10 节](runtime-observability-api-endpoints.md#10-tp-03-公共-api-基础的实现约束)。TP-03 按公共基础退出条件验收完成；控制器、实际查询授权过滤、读取审计、Swagger 和全局响应封装协作仍待相应接入包验证。
 
 ## TP-04 单次上游尝试适配器实现
 
@@ -679,7 +679,7 @@ scope 与现有指标一致：Gateway 进入 business/http_ingress，Tool 进入
 
 ### 16.14 计划完成情况复核约束（2026-09-11）
 
-当前实现状态及未完成设计项统一见[任务完成情况复核与未完成清单](../guides/runtime-observability-completion-review.md)。设计中出现的数据表、算法、事件或接口均不自动表示已实现；尤其区分实体骨架、独立纯内核、接入事务、对外接口和部署可用五个层次。
+当前实现状态及未完成设计项统一见[任务完成情况复核与未完成清单](runtime-observability-completion-review.md)。设计中出现的数据表、算法、事件或接口均不自动表示已实现；尤其区分实体骨架、独立纯内核、接入事务、对外接口和部署可用五个层次。
 
 摄取路径已有原子调用事件持久化；聚合/订阅/投递实体基础也存在。但持久贡献投影、长期重算、统一状态和完整事件投递尚未接入。本次不修改生产代码，也不将 B01 通用修正规划视为绕过现有调用身份/终态不可变检查的依据。
 
