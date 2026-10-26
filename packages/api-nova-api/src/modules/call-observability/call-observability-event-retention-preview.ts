@@ -22,6 +22,29 @@ export interface EventRetentionPreview {
   hasMore: boolean;
 }
 
+export type EventRetentionClassification = 'eligible' | 'not_expired' | 'lease_active' | 'invalid';
+
+/** Shared expiry/lease classification behind both the E2A preview and the E2B
+ * delete executor. Callers must still re-read the delivery reference under their
+ * own transaction; neither path may act on a stale snapshot. */
+export function classifyEventRetention(
+  event: Pick<RuntimeObservabilityEventEntity,
+    'expiresAt' | 'dispatchState' | 'dispatchLeaseOwner' | 'dispatchLeaseUntil'>,
+  now: number,
+): EventRetentionClassification {
+  const expiry = event.expiresAt?.getTime();
+  if (!Number.isFinite(expiry)) return 'invalid';
+  if (expiry > now) return 'not_expired';
+  const until = event.dispatchLeaseUntil?.getTime();
+  const owned = typeof event.dispatchLeaseOwner === 'string' && event.dispatchLeaseOwner.length > 0;
+  if (!['pending', 'leased', 'materialized', 'suppressed'].includes(event.dispatchState || '') ||
+    (event.dispatchState === 'leased' && !owned) ||
+    (until !== undefined && !Number.isFinite(until)) ||
+    ((event.dispatchState === 'leased' || owned) && until === undefined)) return 'invalid';
+  if (until !== undefined && until > now) return 'lease_active';
+  return 'eligible';
+}
+
 /** Pure read-only preview. Eligibility is snapshot evidence, never authorization
  * to act later. A future executor must recheck leases/references under its write
  * transaction and commit its own progress; this function writes no progress. */
@@ -52,16 +75,10 @@ export async function previewEventRetention(store: CallObservabilityStore,
     result.hasMore = rows.length > limit;
     for (const event of rows.slice(0, limit)) {
       result.scanned++;
-      const expiry = event.expiresAt?.getTime();
-      if (!Number.isFinite(expiry)) { result.invalid++; continue; }
-      if (expiry > now) { result.notExpired++; continue; }
-      const until = event.dispatchLeaseUntil?.getTime();
-      const owned = typeof event.dispatchLeaseOwner === 'string' && event.dispatchLeaseOwner.length > 0;
-      if (!['pending', 'leased', 'materialized', 'suppressed'].includes(event.dispatchState || '') ||
-        (event.dispatchState === 'leased' && !owned) ||
-        (until !== undefined && !Number.isFinite(until)) ||
-        ((event.dispatchState === 'leased' || owned) && until === undefined)) { result.invalid++; continue; }
-      if (until !== undefined && until > now) { result.protectedByLease++; continue; }
+      const classification = classifyEventRetention(event, now);
+      if (classification === 'invalid') { result.invalid++; continue; }
+      if (classification === 'not_expired') { result.notExpired++; continue; }
+      if (classification === 'lease_active') { result.protectedByLease++; continue; }
       const referenced = await tx.manager.getRepository(RuntimeEventDeliveryEntity).createQueryBuilder('delivery')
         .where('delivery.eventId = :id', { id: event.id }).getExists();
       if (referenced) { result.protectedByDelivery++; continue; }

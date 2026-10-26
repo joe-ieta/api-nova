@@ -211,4 +211,45 @@ describe('RuntimeUpstreamBindingsService', () => {
       resourceId: 'membership-1',
     }));
   });
+
+  it('records the operator actor for binding upsert and remove', async () => {
+    sourceInstanceRepository.find.mockResolvedValue([instance('instance-primary')]);
+    const savedBinding = { ...binding, revision: 5 };
+    const transactionBindingRepository = {
+      findOne: jest.fn().mockResolvedValue(binding),
+      create: jest.fn(value => value),
+      save: jest.fn().mockResolvedValue(savedBinding),
+    };
+    const transactionCandidateRepository = {
+      delete: jest.fn(),
+      create: jest.fn(value => value),
+      save: jest.fn().mockResolvedValue([candidate('instance-primary', 0, 0)]),
+    };
+    dataSource.transaction.mockImplementation(async (callback: (manager: any) => unknown) =>
+      callback({
+        getRepository: (entity: { name: string }) =>
+          entity.name === 'RuntimeUpstreamBindingEntity'
+            ? transactionBindingRepository
+            : transactionCandidateRepository,
+      }),
+    );
+    const context = { actorId: 'user-9', ipAddress: '10.0.0.9', userAgent: 'audit-agent' };
+
+    await service.upsert('membership-1', {
+      sourceServiceAssetId: 'source-1',
+      environment: 'production',
+      selectionMode: RuntimeUpstreamSelectionMode.FIXED_PRIMARY,
+      primaryInstanceId: 'instance-primary',
+      candidates: [{ sourceServiceInstanceId: 'instance-primary' }],
+    }, context);
+
+    expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({
+      resource: 'runtime_upstream_binding',
+      resourceId: 'membership-1',
+      userId: 'user-9',
+      ipAddress: '10.0.0.9',
+      userAgent: 'audit-agent',
+      details: expect.objectContaining({ operation: 'upsert' }),
+    }));
+  });
 });

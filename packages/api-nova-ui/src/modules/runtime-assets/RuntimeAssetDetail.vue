@@ -805,6 +805,11 @@ watch(runtimeAssetId, () => {
   void attachRealtimeSubscriptions();
 });
 
+defineExpose({ refresh: async () => {
+  await loadDetail();
+  if (errorMessage.value) throw new Error(errorMessage.value);
+} });
+
 onMounted(async () => {
   await loadDetail();
   await attachRealtimeSubscriptions();

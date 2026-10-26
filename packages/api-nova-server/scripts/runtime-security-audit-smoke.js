@@ -9,7 +9,7 @@ const { generateKeyPair, exportJWK, SignJWT } = createRequire(require.resolve('a
 const { createMcpServer, startStreamableMcpServer, startSseMcpServer } = require('../dist/index.js');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { SSEClientTransport } = require('@modelcontextprotocol/sdk/client/sse.js');
-const { listObservedRuntimeCallers, flushRuntimeAudit } = require('api-nova-parser');
+const { flushRuntimeAudit } = require('api-nova-parser');
 
 async function main() {
   const directory = await fs.mkdtemp(path.join(tmpdir(), 'api-nova-mcp-audit-'));
@@ -178,8 +178,29 @@ async function main() {
       assert.equal(protocol.rootInvocationId, parent.rootInvocationId);
       assert.notEqual(protocol.parentInvocationId, protocol.invocationId);
     }
-    const inventory = await listObservedRuntimeCallers();
-    assert.equal(inventory.filter(caller => caller.subject === 'caller-a').length, 1);
+    const callerFiles = (await fs.readdir(directory)).filter(name => /^callers-.+\.jsonl$/.test(name));
+    const observations = [];
+    for (const file of callerFiles) {
+      for (const line of (await fs.readFile(path.join(directory, file), 'utf8')).split(/\r?\n/)) {
+        if (line) observations.push(JSON.parse(line));
+      }
+    }
+    // Caller JSONL is an observation journal: one row per authenticated finished
+    // span, not a deduplicated caller catalog. Check exact evidence multiplicity.
+    const authenticated = records.filter(record => record.identitySource === 'authenticated' && record.callerId);
+    const expectedObservations = authenticated.map(record => ({ callerId: record.callerId,
+      issuer: record.callerIssuer, subject: record.callerSubject, clientId: record.clientId,
+      transport: record.transport, observedAt: record.startedAt }));
+    const canonical = rows => rows.map(row => JSON.stringify(row)).sort();
+    assert.deepEqual(canonical(observations), canonical(expectedObservations));
+    const callerA = observations.filter(item => item.subject === 'caller-a');
+    const callerAFinished = authenticated.filter(record => record.callerSubject === 'caller-a');
+    assert.ok(callerAFinished.length > 1, 'fixture must exercise repeated caller observations');
+    assert.equal(callerA.length, callerAFinished.length);
+    assert.equal(new Set(callerA.map(item => item.callerId)).size, 1);
+    assert.ok(callerA.every(item => item.issuer === process.env.API_NOVA_RUNTIME_ISSUER));
+    assert.ok(!JSON.stringify(observations).includes(token));
+    assert.ok(!JSON.stringify(observations).includes(other));
     console.log('RUNTIME_SECURITY_AUDIT_SMOKE_OK');
   } finally {
     if (sseClient) await sseClient.close();

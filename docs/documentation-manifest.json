@@ -1,0 +1,449 @@
+{
+  "schemaVersion": 1,
+  "reviewed": "2026-10-26",
+  "policy": "One current entry per topic. Archive bodies retain historical metadata; archive path determines historical status. Published release records and package changelogs retain their bytes.",
+  "documents": [
+    {
+      "path": "docs/api/ENDPOINTS.md",
+      "title": "管理API接口清单",
+      "kind": "active",
+      "version": "1.1.0",
+      "updated": "2026-10-26",
+      "catalogLink": "api/ENDPOINTS.md"
+    },
+    {
+      "path": "docs/api/mcp.md",
+      "title": "MCP与Gateway消费接入手册",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "api/mcp.md"
+    },
+    {
+      "path": "docs/api/observability.md",
+      "title": "可观测性API与主动消息协议",
+      "kind": "active",
+      "version": "2.8.0",
+      "updated": "2026-10-26",
+      "catalogLink": "api/observability.md"
+    },
+    {
+      "path": "docs/api/openapi.json",
+      "title": "管理API OpenAPI快照",
+      "kind": "generated-asset",
+      "catalogLink": "api/openapi.json"
+    },
+    {
+      "path": "docs/api/parser.md",
+      "title": "Parser开发API手册",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "api/parser.md"
+    },
+    {
+      "path": "docs/api/README.md",
+      "title": "开发API手册与接入约定",
+      "kind": "active",
+      "version": "1.1.0",
+      "updated": "2026-10-26",
+      "catalogLink": "api/README.md"
+    },
+    {
+      "path": "docs/architecture/OVERALL_DESIGN.md",
+      "title": "总体设计与功能架构",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "architecture/OVERALL_DESIGN.md"
+    },
+    {
+      "path": "docs/baseline/PRODUCT_CONSTRAINTS.md",
+      "title": "ApiNova Product Constraints",
+      "kind": "active",
+      "version": "1.0.1",
+      "updated": "2026-10-26",
+      "catalogLink": "baseline/PRODUCT_CONSTRAINTS.md"
+    },
+    {
+      "path": "docs/baseline/PROJECT_BASELINE.md",
+      "title": "项目当前基线",
+      "kind": "active",
+      "version": "1.2.0",
+      "updated": "2026-10-26",
+      "catalogLink": "baseline/PROJECT_BASELINE.md"
+    },
+    {
+      "path": "docs/development/DEVELOPER_GUIDE.md",
+      "title": "开发与系统集成手册",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "development/DEVELOPER_GUIDE.md"
+    },
+    {
+      "path": "docs/development/offline-dev-migration.md",
+      "title": "Offline Development Kit",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "development/offline-dev-migration.md"
+    },
+    {
+      "path": "docs/guides/active-work-package-breakdown.md",
+      "title": "活跃工作包划分与验收子任务",
+      "kind": "active",
+      "version": "1.108.0",
+      "updated": "2026-10-26",
+      "catalogLink": "guides/active-work-package-breakdown.md"
+    },
+    {
+      "path": "docs/guides/active-work-package-execution-status.md",
+      "title": "开发任务包总览与执行状态",
+      "kind": "active",
+      "version": "1.206.0",
+      "updated": "2026-10-26",
+      "catalogLink": "guides/active-work-package-execution-status.md"
+    },
+    {
+      "path": "docs/guides/database-strategy.md",
+      "title": "数据库配置、初始化与维护",
+      "kind": "active",
+      "version": "1.2.0",
+      "updated": "2026-10-26",
+      "catalogLink": "guides/database-strategy.md"
+    },
+    {
+      "path": "docs/guides/DEPLOYMENT.md",
+      "title": "安装、部署与运维手册",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "guides/DEPLOYMENT.md"
+    },
+    {
+      "path": "docs/guides/gateway-upstream-credential-file-activation.md",
+      "title": "Gateway上游凭据文件激活",
+      "kind": "active",
+      "version": "1.2.0",
+      "updated": "2026-10-26",
+      "catalogLink": "guides/gateway-upstream-credential-file-activation.md"
+    },
+    {
+      "path": "docs/guides/OBSERVABILITY.md",
+      "title": "可观测性、投递与留存运维",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "guides/OBSERVABILITY.md"
+    },
+    {
+      "path": "docs/guides/package-management-policy.md",
+      "title": "Package Management Policy",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "guides/package-management-policy.md"
+    },
+    {
+      "path": "docs/guides/parser-change-verification.md",
+      "title": "Parser Change Verification",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "guides/parser-change-verification.md"
+    },
+    {
+      "path": "docs/guides/README.md",
+      "title": "操作与运维文档",
+      "kind": "active",
+      "version": "1.6.0",
+      "updated": "2026-10-26",
+      "catalogLink": "guides/README.md"
+    },
+    {
+      "path": "docs/guides/release-readiness-checklist.md",
+      "title": "发布就绪检查表",
+      "kind": "active",
+      "version": "1.5.0",
+      "updated": "2026-10-26",
+      "catalogLink": "guides/release-readiness-checklist.md"
+    },
+    {
+      "path": "docs/guides/USER_GUIDE.md",
+      "title": "使用手册：注册到发布与消费",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "guides/USER_GUIDE.md"
+    },
+    {
+      "path": "docs/overview/PRODUCT.md",
+      "title": "项目概览、能力定位与功能范围",
+      "kind": "active",
+      "version": "1.1.0",
+      "updated": "2026-10-26",
+      "catalogLink": "overview/PRODUCT.md"
+    },
+    {
+      "path": "docs/README.md",
+      "title": "项目文档与阅读指引",
+      "kind": "active",
+      "version": "1.6.0",
+      "updated": "2026-10-26",
+      "catalogLink": "README.md"
+    },
+    {
+      "path": "docs/reference/management-permission-matrix.md",
+      "title": "管理权限与资源范围",
+      "kind": "active",
+      "version": "1.1.0",
+      "updated": "2026-10-26",
+      "catalogLink": "reference/management-permission-matrix.md"
+    },
+    {
+      "path": "docs/reference/observability-contract.md",
+      "title": "可观测性数据、配额与留存合同",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "reference/observability-contract.md"
+    },
+    {
+      "path": "docs/reference/open-items.md",
+      "title": "未完成事项",
+      "kind": "active",
+      "version": "1.37.0",
+      "updated": "2026-10-26",
+      "catalogLink": "reference/open-items.md"
+    },
+    {
+      "path": "docs/reference/publication-contract.md",
+      "title": "资产、发布与样例合同",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "reference/publication-contract.md"
+    },
+    {
+      "path": "docs/reference/README.md",
+      "title": "当前技术合同与剩余事项",
+      "kind": "active",
+      "version": "1.4.0",
+      "updated": "2026-10-26",
+      "catalogLink": "reference/README.md"
+    },
+    {
+      "path": "docs/reference/security-contract.md",
+      "title": "认证、凭据与网络安全合同",
+      "kind": "active",
+      "version": "1.1.0",
+      "updated": "2026-10-26",
+      "catalogLink": "reference/security-contract.md"
+    },
+    {
+      "path": "docs/release/api-nova-release-requirements.md",
+      "title": "发布构建操作说明",
+      "kind": "active",
+      "version": "1.3.0",
+      "updated": "2026-10-26",
+      "catalogLink": "release/api-nova-release-requirements.md"
+    },
+    {
+      "path": "docs/release/DOCUMENTATION.md",
+      "title": "文档整理与随包交付",
+      "kind": "active",
+      "version": "1.1.0",
+      "updated": "2026-10-26",
+      "catalogLink": "release/DOCUMENTATION.md"
+    },
+    {
+      "path": "docs/release/README.md",
+      "title": "版本发布文档入口",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "release/README.md"
+    },
+    {
+      "path": "docs/release/templates/QUICK_START.template.md",
+      "title": "ApiNova <tag> 快速运行",
+      "kind": "template",
+      "catalogLink": "release/templates/QUICK_START.template.md"
+    },
+    {
+      "path": "docs/release/templates/RELEASE_NOTES.template.md",
+      "title": "ApiNova <tag>",
+      "kind": "template",
+      "catalogLink": "release/templates/RELEASE_NOTES.template.md"
+    },
+    {
+      "path": "docs/release/versions/README.md",
+      "title": "版本文档索引",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "release/versions/README.md"
+    },
+    {
+      "path": "docs/release/versions/v1.7.6-rc.5/QUICK_START.md",
+      "title": "ApiNova v1.7.6-rc.5 人工测试指南",
+      "kind": "release-record",
+      "catalogLink": "release/versions/v1.7.6-rc.5/QUICK_START.md"
+    },
+    {
+      "path": "docs/release/versions/v1.7.6-rc.5/RELEASE_NOTES.md",
+      "title": "ApiNova v1.7.6-rc.5",
+      "kind": "release-record",
+      "catalogLink": "release/versions/v1.7.6-rc.5/RELEASE_NOTES.md"
+    },
+    {
+      "path": "docs/testing/README.md",
+      "title": "验收与证据指引",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "testing/README.md"
+    },
+    {
+      "path": "docs/testing/runtime-publication-acceptance-cases.md",
+      "title": "Runtime Publication Acceptance Cases",
+      "kind": "active",
+      "version": "1.1.0",
+      "updated": "2026-10-26",
+      "catalogLink": "testing/runtime-publication-acceptance-cases.md"
+    },
+    {
+      "path": "docs/testing/runtime-security-audit-cases.md",
+      "title": "安全调用与日志审计验收用例",
+      "kind": "active",
+      "version": "1.3.0",
+      "updated": "2026-10-26",
+      "catalogLink": "testing/runtime-security-audit-cases.md"
+    },
+    {
+      "path": "docs/testing/upstream-secret-provider-linux.md",
+      "title": "上游凭证 Provider Linux 隔离专项",
+      "kind": "active",
+      "version": "1.2.0",
+      "updated": "2026-10-26",
+      "catalogLink": "testing/upstream-secret-provider-linux.md"
+    },
+    {
+      "path": "docs/VERSIONS.md",
+      "title": "当前文档版本与类型清单",
+      "kind": "active",
+      "version": "2.1.0",
+      "updated": "2026-10-26",
+      "catalogLink": "VERSIONS.md"
+    },
+    {
+      "path": "packages/api-nova-api/database/README.md",
+      "title": "数据库结构导出",
+      "kind": "active",
+      "version": "1.1.0",
+      "updated": "2026-10-26",
+      "catalogLink": "../packages/api-nova-api/database/README.md"
+    },
+    {
+      "path": "packages/api-nova-api/README.md",
+      "title": "ApiNova API",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "../packages/api-nova-api/README.md"
+    },
+    {
+      "path": "packages/api-nova-parser/CHANGELOG.md",
+      "title": "api-nova-parser",
+      "kind": "package-history",
+      "catalogLink": "../packages/api-nova-parser/CHANGELOG.md"
+    },
+    {
+      "path": "packages/api-nova-parser/docs/README.md",
+      "title": "Parser文档",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "../packages/api-nova-parser/docs/README.md"
+    },
+    {
+      "path": "packages/api-nova-parser/README.md",
+      "title": "ApiNova Parser",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "../packages/api-nova-parser/README.md"
+    },
+    {
+      "path": "packages/api-nova-server/CHANGELOG.md",
+      "title": "api-nova-server",
+      "kind": "package-history",
+      "catalogLink": "../packages/api-nova-server/CHANGELOG.md"
+    },
+    {
+      "path": "packages/api-nova-server/docs/README.md",
+      "title": "Server文档",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "../packages/api-nova-server/docs/README.md"
+    },
+    {
+      "path": "packages/api-nova-server/README_EN.md",
+      "title": "ApiNova Server",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "../packages/api-nova-server/README_EN.md"
+    },
+    {
+      "path": "packages/api-nova-server/README.md",
+      "title": "ApiNova Server",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "../packages/api-nova-server/README.md"
+    },
+    {
+      "path": "packages/api-nova-ui/README.md",
+      "title": "ApiNova UI",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "../packages/api-nova-ui/README.md"
+    },
+    {
+      "path": "README_EN.md",
+      "title": "ApiNova",
+      "kind": "active",
+      "version": "1.1.0",
+      "updated": "2026-10-26",
+      "catalogLink": "../README_EN.md"
+    },
+    {
+      "path": "README.md",
+      "title": "ApiNova · 达雅",
+      "kind": "active",
+      "version": "1.1.0",
+      "updated": "2026-10-26",
+      "catalogLink": "../README.md"
+    },
+    {
+      "path": "RELEASE_STANDARD.md",
+      "title": "ApiNova 版本发布规范",
+      "kind": "active",
+      "version": "1.1.0",
+      "updated": "2026-10-26",
+      "catalogLink": "../RELEASE_STANDARD.md"
+    },
+    {
+      "path": "vendor/README.md",
+      "title": "Nest SSE security backport",
+      "kind": "active",
+      "version": "1.0.0",
+      "updated": "2026-10-26",
+      "catalogLink": "../vendor/README.md"
+    }
+  ]
+}

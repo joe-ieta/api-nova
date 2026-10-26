@@ -9,6 +9,8 @@ import { compileSingleHopUpstreamCredentials, ResolvedSingleHopCredentials, Sing
 import type { TrustedOperationBinding } from '../credentials/trusted-operation-bindings';
 import { CompiledNetworkPolicy, createNetworkPolicyCompiler, normalizeNetworkUrl } from './network-policy';
 import { ControlledDnsError } from './controlled-dns';
+import { auditNetworkFailure, type NetworkDenialAuditRecord, type NetworkFailureStage } from './network-denial-audit';
+import { toNetworkFailure } from './network-failure-adapter';
 import { createPinnedHttpTransport, PinnedHttpResponse } from './pinned-http-transport';
 import { pinnedRecord, pinnedHeaders } from './pinned-http-connection';
 import { SerializedBoundedRequest, serializeBoundedNetworkRequest } from './bounded-network-serialization';
@@ -39,8 +41,9 @@ export function createTrustedSingleHopNetworkExecution(input: {
   redirect?: { readonly mode: 'safe-read'; readonly providerEvidence: RegistryProviderEvidence; readonly targets: readonly (TrustedRedirectTargetRegistration & { readonly headers?: Readonly<Record<string, string>> })[] };
   credentialPolicy: SingleHopUpstreamCredentialPolicy; compiler: ReturnType<typeof createNetworkPolicyCompiler>;
   servers: readonly string[]; ca?: string; operationLifecycle?: TrustedNetworkOperationLifecycle; registrations: readonly TrustedNetworkRegistration[];
+  failureAudit?: (record: Readonly<NetworkDenialAuditRecord>) => unknown;
 }): TrustedSingleHopNetworkExecution {
-  const options = pinnedRecord(input, ['credentialPolicy', 'compiler', 'servers', 'ca', 'registrations', 'operationLifecycle', 'redirect'], ['credentialPolicy', 'compiler', 'servers', 'registrations']);
+  const options = pinnedRecord(input, ['credentialPolicy', 'compiler', 'servers', 'ca', 'registrations', 'operationLifecycle', 'redirect', 'failureAudit'], ['credentialPolicy', 'compiler', 'servers', 'registrations']);
   const credentialPolicy = options.credentialPolicy as SingleHopUpstreamCredentialPolicy;
   compileSingleHopUpstreamCredentials(credentialPolicy);
   const captureSnapshot = Object.getOwnPropertyDescriptor(credentialPolicy, 'captureSnapshot')!.value as () => UpstreamCredentialRegistrySnapshot;
@@ -49,6 +52,25 @@ export function createTrustedSingleHopNetworkExecution(input: {
   const transport = createPinnedHttpTransport({ compiler, servers, ...(ca === undefined ? {} : { ca }) });
   const lifecycle = options.operationLifecycle === undefined ? undefined : pinnedRecord(options.operationLifecycle, ['readSecurityEpoch', 'readProviderEpoch', 'captureSignal'], ['readSecurityEpoch', 'readProviderEpoch']) as unknown as TrustedNetworkOperationLifecycle;
   if (lifecycle && (typeof lifecycle.readSecurityEpoch !== 'function' || typeof lifecycle.readProviderEpoch !== 'function' || lifecycle.captureSignal !== undefined && typeof lifecycle.captureSignal !== 'function')) return denied();
+  const failureAudit = options.failureAudit as ((record: Readonly<NetworkDenialAuditRecord>) => unknown) | undefined;
+  if (failureAudit !== undefined && typeof failureAudit !== 'function') return denied();
+  /** Single emission point per failed operation; identity comes from the trusted registration only. */
+  const audit = (failure: unknown, stage: NetworkFailureStage, operationId: string,
+    value?: { binding: Readonly<TrustedOperationBinding>; registration?: TrustedNetworkRegistration }, hopIndex = 0) => {
+    if (!failureAudit || !value?.registration) return;
+    auditNetworkFailure(toNetworkFailure(failure), {
+      operationId,
+      sourceServiceAssetId: value.binding.sourceServiceAssetId,
+      siteId: value.registration.siteId,
+      endpointDefinitionId: value.binding.endpointDefinitionId,
+      policyId: value.registration.policy.id,
+      revision: value.registration.policy.revision,
+      revocationEpoch: '0',
+      redirectHopIndex: Math.max(0, Math.min(5, hopIndex)),
+      attemptIndex: 1,
+      stage,
+    }, failureAudit);
+  };
   const redirect = options.redirect === undefined ? undefined : (() => {
     const value = pinnedRecord(options.redirect, ['mode', 'providerEvidence', 'targets'], ['mode', 'providerEvidence', 'targets']);
     if (value.mode !== 'safe-read' || !lifecycle || !Array.isArray(value.targets) || !value.targets.length || value.targets.length > 1024) return denied();
@@ -104,6 +126,7 @@ export function createTrustedSingleHopNetworkExecution(input: {
     async prepare(binding: Readonly<TrustedOperationBinding> | undefined, request: SerializedBoundedRequest, deadline: number) {
       let detach: (() => void) | undefined;
       let preparedHandle: NetworkOperationHandle | undefined;
+      let attempted: Pending | undefined;
       try {
         if (!binding || typeof deadline !== 'number' || !Number.isFinite(deadline)) return denied();
         if (deadline <= Date.now()) { if (authority) throw new ControlledDnsError('ETIMEDOUT'); return denied(); }
@@ -112,6 +135,7 @@ export function createTrustedSingleHopNetworkExecution(input: {
         const capturedBinding = Object.freeze({ ...identity });
         const serialized = serializeBoundedNetworkRequest(request.url, {}, request.body);
         const value: Pending = { binding: capturedBinding, request: serialized };
+        attempted = value;
         let handle: NetworkOperationHandle | undefined;
         let redirects: ReturnType<typeof createTrustedRedirectTargetSelector> | undefined;
         let generationSignal: AbortSignal | undefined;
@@ -153,11 +177,20 @@ export function createTrustedSingleHopNetworkExecution(input: {
         const plan = Object.freeze({ credentials: credentials!, ...(handle ? { signal: handle.signal } : {}) });
         plans.set(plan, { binding: capturedBinding, snapshot: snapshot!, registration: registration!, url: serialized.url, body: serialized.body, deadline, used: false, handle, detach, redirects });
         return plan;
-      } catch (failure) { detach?.(); if (preparedHandle) authority!.close(preparedHandle); if (failure instanceof RegistryProviderEvidenceError) throw trustedFailure(failure); if (authority && failure instanceof ControlledDnsError) throw failure; return denied(); }
+      } catch (failure) {
+        detach?.();
+        if (preparedHandle) authority!.close(preparedHandle);
+        audit(failure, failure instanceof ControlledDnsError && failure.code === 'ETIMEDOUT' ? 'deadline' : 'admission',
+          preparedHandle?.operationId ?? randomUUID(), attempted);
+        if (failure instanceof RegistryProviderEvidenceError) throw trustedFailure(failure);
+        if (authority && failure instanceof ControlledDnsError) throw failure;
+        return denied();
+      }
     },
     async send(plan: TrustedSingleHopNetworkPlan, inputHeaders: Readonly<Record<string, string>>) {
       const context = plans.get(plan); if (!context || context.used) return denied(); context.used = true;
       let guardFailure: ControlledDnsError | undefined;
+      let hopIndex = 0;
       const assertOperation = () => {
         if (!context.handle) return undefined;
         try {
@@ -218,8 +251,14 @@ export function createTrustedSingleHopNetworkExecution(input: {
           outgoingHeaders = { ...context.redirects!.rebuildHeaders(target, template.headers) };
           policy = target.policy; siteId = target.credentials.siteId; url = target.url;
           chain.advance(decision);
+          hopIndex += 1;
         } } finally { chain?.close(); }
       } catch (failure) {
+        const reason = guardFailure ?? (failure instanceof RegistryProviderEvidenceError ? trustedFailure(failure)
+          : context?.handle?.signal.aborted && context.handle.signal.reason instanceof ControlledDnsError
+            ? context.handle.signal.reason : failure);
+        audit(reason, context?.handle?.signal.aborted ? 'revocation' : 'send',
+          context?.handle?.operationId ?? randomUUID(), context, hopIndex);
         if (guardFailure) throw guardFailure;
         if (context?.handle?.signal.aborted && context.handle.signal.reason instanceof ControlledDnsError) throw context.handle.signal.reason;
         if (failure instanceof RegistryProviderEvidenceError) throw trustedFailure(failure);

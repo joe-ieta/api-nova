@@ -1,3 +1,4 @@
+import { gatewayTrustedNetworkProvider } from './gateway-network-host-bootstrap.service';
 import 'reflect-metadata';
 import { Controller, Get } from '@nestjs/common';
 import { MODULE_METADATA } from '@nestjs/common/constants';
@@ -38,7 +39,9 @@ describe('NP-10 Gateway early host exclusion', () => {
   it('production module registers the shared startup dependency', () => {
     const providers = Reflect.getMetadata(MODULE_METADATA.PROVIDERS, GatewayRuntimeModule);
     expect(providers).toContain(gatewayNetworkBootstrapProvider);
-    expect(providers).toContain(gatewayBootstrapNetworkProvider);
+    expect(providers).toContain(gatewayTrustedNetworkProvider);
+    expect(gatewayTrustedNetworkProvider.inject).toContainEqual({ token: GatewayNetworkBootstrap, optional: true });
+    expect(providers.filter((provider: any) => provider?.provide === gatewayTrustedNetworkProvider.provide)).toHaveLength(1);
     expect(providers).toContain(GatewayNetworkInstallationService);
   });
   it.each(Object.values(keys))('rejects host/legacy conflict before load or watch: %s', async key => {
@@ -60,14 +63,14 @@ describe('NP-10 Gateway early host exclusion', () => {
     const state = await GatewayNetworkBootstrap.create(new ConfigService(), {} as DataSource, {} as any);
     const calls = jest.fn(() => { throw new Error('must not reach dependencies'); });
     const dependency = new Proxy({}, { get: calls }) as any;
-    const runtime = new GatewayRuntimeService(dependency, dependency, dependency, dependency, dependency, dependency, dependency, undefined, state);
-    const proxy = new GatewayProxyEngineService(dependency, dependency, undefined, undefined, undefined, state);
+    const runtime = new GatewayRuntimeService(dependency, dependency, dependency, dependency, dependency, dependency, dependency, undefined, undefined, undefined, state);
+    const proxy = new GatewayProxyEngineService(dependency, dependency, undefined, undefined, undefined, undefined, state);
     await expect(runtime.forwardRequest('/', {} as any, {} as any)).rejects.toThrow('GATEWAY_NETWORK_HOST_NOT_READY');
     await expect(runtime.forwardResolvedRoute({} as any, {} as any, {} as any)).rejects.toThrow('GATEWAY_NETWORK_HOST_NOT_READY');
     await expect(proxy.prepareRequest({} as any, {} as any)).rejects.toThrow('GATEWAY_NETWORK_HOST_NOT_READY');
     await expect(proxy.forward({} as any, {} as any, {} as any)).rejects.toThrow('GATEWAY_NETWORK_HOST_NOT_READY');
     const legacyCapture = jest.fn();
-    expect(() => new GatewayPolicyService({ captureSnapshot: legacyCapture } as any, state).assertHeaderV1Ready({} as any)).toThrow('GATEWAY_NETWORK_HOST_NOT_READY');
+    expect(() => new GatewayPolicyService({ captureSnapshot: legacyCapture } as any, undefined, state).assertHeaderV1Ready({} as any)).toThrow('GATEWAY_NETWORK_HOST_NOT_READY');
     expect(legacyCapture).not.toHaveBeenCalled(); expect(calls).not.toHaveBeenCalled();
   });
   it('real Nest HTTP keeps health available with Gateway closed and old admin disabled', async () => {
@@ -77,7 +80,7 @@ describe('NP-10 Gateway early host exclusion', () => {
       { provide: AuditService, useValue: { log: jest.fn() } },
       gatewayNetworkBootstrapProvider, gatewayUpstreamCredentialRegistryProvider, GatewayUpstreamCredentialAdminService,
       { provide: GatewayRuntimeService, inject: [GatewayNetworkBootstrap], useFactory: (state: GatewayNetworkBootstrap) =>
-        new GatewayRuntimeService(undefined!, undefined!, undefined!, undefined!, undefined!, undefined!, undefined!, undefined, state) },
+        new GatewayRuntimeService(undefined!, undefined!, undefined!, undefined!, undefined!, undefined!, undefined!, undefined, undefined, undefined, state) },
     ] }).compile();
     const app = module.createNestApplication();
     try {

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
+import { resolve } from 'path';
 import { Repository } from 'typeorm';
 import { AuditAction, AuditLevel, AuditLog, AuditStatus } from '../database/entities/audit-log.entity';
 import {
@@ -967,6 +968,69 @@ export class AppConfigService implements OnModuleInit {
 
   get debugMode(): boolean {
     return this.getConfigValue('DEBUG_MODE', false);
+  }
+
+  get mailEnabled(): boolean {
+    return this.getConfigValue('MAIL_ENABLED', false);
+  }
+
+  get mailTransport(): 'sink' | 'smtp' {
+    const value = this.getConfigValue<string>('MAIL_TRANSPORT', 'sink');
+    return value === 'smtp' ? 'smtp' : 'sink';
+  }
+
+  get mailSmtpHost(): string | undefined {
+    return this.getConfigValue('MAIL_SMTP_HOST', '') || undefined;
+  }
+
+  get mailSmtpPort(): number {
+    return this.getConfigValue('MAIL_SMTP_PORT', 587);
+  }
+
+  get mailSmtpSecure(): boolean {
+    return this.getConfigValue('MAIL_SMTP_SECURE', false);
+  }
+
+  get mailSmtpUser(): string | undefined {
+    return this.getConfigValue('MAIL_SMTP_USER', '') || undefined;
+  }
+
+  /** Read from the environment only; never returned by the config API. */
+  get mailSmtpPassword(): string | undefined {
+    return this.getConfigValue('MAIL_SMTP_PASSWORD', '') || undefined;
+  }
+
+  get mailFrom(): string {
+    return this.getConfigValue('MAIL_FROM', 'no-reply@api-nova.local');
+  }
+
+  get mailAllowedRecipients(): string[] {
+    return this.getConfigValue('MAIL_ALLOWED_RECIPIENTS', '')
+      .split(',')
+      .map((recipient: string) => recipient.trim())
+      .filter(Boolean);
+  }
+
+  get mailSubjectPrefix(): string {
+    return this.getConfigValue('MAIL_SUBJECT_PREFIX', '[ApiNova] ');
+  }
+
+  get mailRateLimitPerHour(): number {
+    return this.getConfigValue('MAIL_RATE_LIMIT_PER_HOUR', 10);
+  }
+
+  get mailSinkDir(): string {
+    const configured = this.getConfigValue('MAIL_SINK_DIR', '');
+    if (configured) {
+      return resolve(configured);
+    }
+    return resolve(process.cwd(), '.tmp', 'mail-sink');
+  }
+
+  get mailActionBaseUrl(): string {
+    const configured = this.getConfigValue('MAIL_ACTION_BASE_URL', '');
+    const base = configured || this.corsOrigins[0] || 'http://localhost:5173';
+    return base.replace(/\/+$/, '');
   }
 
   getConfigMetadata(): ApplicationConfigMetadataDto {

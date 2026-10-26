@@ -10,6 +10,7 @@ import {
   HttpStatus,
   Logger,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import {
@@ -27,6 +28,9 @@ import {
   LoginDto,
   RegisterDto,
   ForgotPasswordDto,
+  ResetPasswordDto,
+  VerifyEmailDto,
+  ResendVerificationDto,
   LoginResponseDto,
   UserResponseDto,
   OperationResultDto,
@@ -71,7 +75,7 @@ export class AuthController {
   @ApiBody({ type: RegisterDto })
   @ApiResponse({
     status: 201,
-    description: 'Registration accepted. Email delivery is not part of the current baseline, so the account remains pending until verified through an operator-managed flow.',
+    description: 'Registration accepted. The account remains pending until the email verification link is consumed; mail delivery failures do not change this response.',
     type: UserResponseDto,
   })
   @ApiResponse({
@@ -138,7 +142,7 @@ export class AuthController {
   @ApiBody({ type: ForgotPasswordDto })
   @ApiResponse({
     status: 200,
-    description: 'Password reset request accepted. Email delivery is not part of the current baseline, and this endpoint does not confirm that any reset mail was sent.',
+    description: 'Password reset request accepted. The response is generic and does not confirm account existence or delivery.',
     type: OperationResultDto,
   })
   async forgotPassword(
@@ -151,14 +155,70 @@ export class AuthController {
 
     return {
       success: true,
-      message: 'Password reset request accepted. Email delivery is not part of the current baseline.',
+      message: 'Password reset request accepted.',
+    };
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '使用一次性令牌重置密码' })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiResponse({
+    status: 200,
+    description: '密码重置成功',
+  })
+  @ApiResponse({
+    status: 400,
+    description: '重置令牌无效或已过期',
+  })
+  async resetPassword(
+    @Body() resetPasswordDto: ResetPasswordDto,
+    @Req() req: Request,
+  ): Promise<OperationResultDto> {
+    const ipAddress = this.getClientIp(req);
+    const userAgent = req.get('User-Agent') || '';
+
+    await this.authService.resetPassword(resetPasswordDto, ipAddress, userAgent);
+
+    return {
+      success: true,
+      message: '密码重置成功',
+    };
+  }
+
+  @Public()
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '重新发送邮箱验证邮件（通用响应）' })
+  @ApiBody({ type: ResendVerificationDto })
+  @ApiResponse({
+    status: 200,
+    description: '请求已受理，响应不区分账号状态',
+    type: OperationResultDto,
+  })
+  async resendVerification(
+    @Body() resendVerificationDto: ResendVerificationDto,
+    @Req() req: Request,
+  ): Promise<OperationResultDto> {
+    const ipAddress = this.getClientIp(req);
+
+    await this.authService.resendVerification(
+      resendVerificationDto.email,
+      ipAddress,
+    );
+
+    return {
+      success: true,
+      message: 'If the account exists and requires verification, a verification email has been requested.',
     };
   }
 
   @Public()
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: '验证邮箱' })
+  @ApiOperation({ summary: '验证邮箱（body token 为主，query 形式已废弃）' })
+  @ApiBody({ type: VerifyEmailDto })
   @ApiResponse({
     status: 200,
     description: '邮箱验证成功',
@@ -168,10 +228,17 @@ export class AuthController {
     description: '验证令牌无效或已过期',
   })
   async verifyEmail(
-    @Query('token') token: string,
+    @Body() verifyEmailDto: VerifyEmailDto,
+    @Query('token') queryToken: string,
     @Req() req: Request,
   ): Promise<any> {
     const ipAddress = this.getClientIp(req);
+    // body token 为主；query 形式仅为兼容输入并标记 deprecated
+    const token = verifyEmailDto?.token || queryToken;
+
+    if (!token) {
+      throw new BadRequestException('验证令牌无效或已过期');
+    }
 
     return this.authService.verifyEmail(token, ipAddress);
   }

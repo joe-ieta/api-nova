@@ -30,6 +30,7 @@ import {
   type GatewayUpstreamCredentialHeaders,
   type GatewayUpstreamCredentialResolver,
 } from './gateway-upstream-credential-resolver';
+import { GATEWAY_HOST_RUNTIME, resolveGatewayHostRuntime, type GatewayHostRuntime } from './gateway-host-runtime.providers';
 
 export type GatewayPreparedProxyRequest = {
   securityProofBound?: true;
@@ -52,14 +53,16 @@ export class GatewayProxyEngineService {
     @Optional() private readonly gatewayRuntimeMetricsService?: GatewayRuntimeMetricsService,
     @Optional() private readonly upstreamSecurityGuard?: GatewayUpstreamSecurityRuntimeGuard,
     @Optional() @Inject(GATEWAY_TRUSTED_NETWORK_PROVIDER) private readonly networkProvider?: GatewayTrustedNetworkProvider,
+    @Optional() @Inject(GATEWAY_HOST_RUNTIME) private readonly hostRuntime?: GatewayHostRuntime | null,
     @Optional() private readonly networkBootstrap?: GatewayNetworkBootstrap,
   ) { if (networkProvider) assertGatewayTrustedNetworkProvider(networkProvider); }
 
   async forward(
     resolvedRoute: GatewayResolvedRoute, req: Request, res: Response,
-    options?: { captureResponseBodyMaxBytes?: number; attemptIndex?: number; upstreamOperationId?: string; preparedRequest?: GatewayPreparedProxyRequest },
+    options?: { captureResponseBodyMaxBytes?: number; attemptIndex?: number; upstreamOperationId?: string; preparedRequest?: GatewayPreparedProxyRequest; deadline?: number },
   ): Promise<GatewayProxyResult & { targetUrl: string }> {
     this.networkBootstrap?.assertTrafficAllowed(resolvedRoute);
+    resolveGatewayHostRuntime(this.hostRuntime)?.assertOpen();
     const prior = options?.preparedRequest;
     if (prior) {
       const ownership = this.preparations.get(prior);
@@ -70,8 +73,10 @@ export class GatewayProxyEngineService {
       }
       ownership.used = true;
     }
-    // Network leases already pin one authorized operation; legacy cache paths retain their fresh re-resolution.
-    const current = prior?.networkLease ? prior : await this.prepareRequest(resolvedRoute, req);
+    // Network leases already pin one authorized operation; legacy cache paths retain their fresh re-resolution
+    // but keep the single entry-anchored deadline when one is provided.
+    const current = prior?.networkLease ? prior : await this.prepareRequest(resolvedRoute, req,
+      options?.deadline === undefined ? {} : { deadline: options.deadline });
     this.preparations.get(current)!.used = true;
     this.preparations.get(current)!.detach?.();
     if (prior && (prior.url.href !== current.url.href ||
@@ -275,9 +280,16 @@ export class GatewayProxyEngineService {
   }
 
   /** Validate current declaration and credentials before every cache lookup. */
-  async prepareRequest(resolvedRoute: GatewayResolvedRoute, req: Request): Promise<GatewayPreparedProxyRequest> {
+  async prepareRequest(
+    resolvedRoute: GatewayResolvedRoute,
+    req: Request,
+    options: { deadline?: number } = {},
+  ): Promise<GatewayPreparedProxyRequest> {
     this.networkBootstrap?.assertTrafficAllowed(resolvedRoute);
-    const deadline = Date.now() + (resolvedRoute.policies?.traffic?.timeoutMs ?? resolvedRoute.routeBinding.timeoutMs ?? 30000);
+    resolveGatewayHostRuntime(this.hostRuntime)?.assertOpen();
+    const fallbackTimeout = Number(resolvedRoute.policies?.traffic?.timeoutMs ?? resolvedRoute.routeBinding.timeoutMs ?? 30000);
+    const deadline = options.deadline ?? Date.now()
+      + (Number.isFinite(fallbackTimeout) && fallbackTimeout > 0 ? fallbackTimeout : 30000);
     const url = new URL(this.buildTargetUrl(resolvedRoute.upstreamBaseUrl,
       resolvedRoute.routeBinding.upstreamPath, req.originalUrl, resolvedRoute.params));
     const consumerQueryKey = resolvedRoute.policies?.auth?.apiKeyQueryParamName;

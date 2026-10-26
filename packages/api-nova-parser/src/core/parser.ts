@@ -30,6 +30,7 @@ import { parserDebugLog, parserWarnLog } from '../utils/logger';
  * Default parser configuration
  */
 const DEFAULT_CONFIG: Required<ParserConfig> = {
+  preserveMissingServers: false,
   validateSchema: true,
   resolveReferences: true,
   allowEmptyPaths: false,

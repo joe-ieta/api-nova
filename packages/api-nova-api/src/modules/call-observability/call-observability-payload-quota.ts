@@ -4,6 +4,7 @@ import { RuntimePayloadQuotaLedgerEntity as Ledger, RuntimePayloadQuotaReservati
 import { ObservabilityWriteTransaction, ObservabilityReadTransaction } from './call-observability.store';
 import { PAYLOAD_OWNER_ID, PAYLOAD_COORDINATION_ID } from './call-observability-payload.coordinator';
 import { canonicalJson, contentHash, ObservabilityStorageError, publicSequence } from './call-observability-storage';
+import { payloadPhysicalBoundary, PayloadPhysicalSpaceObservation } from './call-observability-payload-physical';
 
 const MAX = BigInt(Number.MAX_SAFE_INTEGER);
 const error = (code: string): never => { throw new ObservabilityStorageError(code); };
@@ -123,7 +124,8 @@ export class PayloadQuotaPrimitives {
     row.baselineKey = baselineKey; row.committedBytes = String(bytes); this.state(row);
     await this.save(tx, row); return this.view(row);
   }
-  async reserve(tx: ObservabilityWriteTransaction, epoch: string, operationId: string, bytes: number): Promise<{ status: PayloadQuotaStatus; replayed: boolean; reservationState: string }> {
+  async reserve(tx: ObservabilityWriteTransaction, epoch: string, operationId: string, bytes: number,
+    physical?: { observation: PayloadPhysicalSpaceObservation | null } | null): Promise<{ status: PayloadQuotaStatus; replayed: boolean; reservationState: string }> {
     operation(operationId); if (typeof bytes !== 'number') return error('INVALID_QUOTA_RESERVATION'); integer(bytes);
     const row = await this.load(tx, epoch), configuration = this.validate(row);
     if (bytes > configuration.maxBodyBytes * 2) return error('INVALID_QUOTA_RESERVATION');
@@ -137,6 +139,11 @@ export class PayloadQuotaPrimitives {
     }
     if (!configuration.enabled || row.state !== 'ready' || !row.baselineKey ||
       amount(row.committedBytes) + amount(row.reservedBytes) >= BigInt(configuration.highWatermarkBytes!)) return error('QUOTA_NOT_READY');
+    if (physical) {
+      const boundary = payloadPhysicalBoundary(configuration, bytes, physical.observation, Date.parse(tx.now));
+      if (boundary.status !== 'allowed') return error(
+        boundary.reason === 'quota_physical_low' ? 'QUOTA_PHYSICAL_LOW' : 'QUOTA_PHYSICAL_UNKNOWN');
+    }
     const total = amount(row.committedBytes) + amount(row.reservedBytes) + BigInt(bytes);
     if (total > MAX || total > BigInt(configuration.quotaBytes!)) return error('QUOTA_EXHAUSTED');
     const coordination = await tx.manager.getRepository(RuntimePipelineStateEntity).findOneBy({ id: PAYLOAD_COORDINATION_ID });

@@ -44,7 +44,7 @@ describe('bounded SQL.js registered fixture -> binding -> verification -> activa
   let status=200;
   // No real upstream: replay outcome is injected for the state-machine test, not claimed as HTTP evidence.
   const gatewayReplay:any={replay:async()=>({statusCode:status,body:{ok:status===200},headers:{},bodyBytes:2,truncated:false,durationMs:1,routePath:'/fixture/ping',method:'GET'})};
-  const verify=new RuntimeVerificationService(repo(RuntimeAssetEntity),repo(RuntimeAssetEndpointBindingEntity),repo(EndpointTestSampleEntity),repo(RuntimeVerificationRunEntity),repo(RuntimeVerificationResultEntity),bindings,snapshot,gatewayReplay,new McpCandidateReplayService(),new RuntimeResponseAssertionService());
+  const verify=new RuntimeVerificationService(repo(RuntimeAssetEntity),repo(RuntimeAssetEndpointBindingEntity),repo(EndpointTestSampleEntity),repo(RuntimeVerificationRunEntity),repo(RuntimeVerificationResultEntity),bindings,snapshot,gatewayReplay,new McpCandidateReplayService(),new RuntimeResponseAssertionService(),{} as any);
   const context:any={mcpEndpointConfig:{port:9044,transport:'streamable',endpointPath:'/mcp'}};
   const plan=()=>verify.planCandidate(id(3),{},context);
   const execute=async(run:any)=>{
@@ -55,6 +55,11 @@ describe('bounded SQL.js registered fixture -> binding -> verification -> activa
   };
   const first=await plan();expect(first.canExecute).toBe(true);await execute(first.run);
   const active=(await repo(RuntimeAssetEntity).findOneByOrFail({id:id(3)})).metadata.activeRevision;expect(active).toBe(first.run.candidateRevision);
+  if(type==='gateway_service') {
+   const repeated=await plan();expect(repeated.run.candidateRevision).toBe(active);
+   expect((await execute(repeated.run)).run.status).toBe('passed');
+   expect(await repo(GatewayRouteSnapshotEntity).count()).toBe(1);
+  }
   context.behaviorFingerprint = 'unpublished-candidate'; const old=await plan();
   await bindings.upsert(id(4),{...dto,expectedRevision:binding.binding.revision},{actorId:'operator-fixture'});
   const changed=await repo(RuntimeAssetEntity).findOneByOrFail({id:id(3)});

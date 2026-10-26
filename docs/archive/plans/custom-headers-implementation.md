@@ -863,8 +863,8 @@ describe('OpenAPIToMCPTransformer with CustomHeaders', () => {
 ### 6.2 API 文档更新
 
 需要更新：
-- `packages/api-nova-parser/docs/API_DOCUMENTATION.md`
-- `packages/api-nova-parser/docs/TECHNICAL_DOCUMENTATION.md`
+- `docs/archive/packages/api-nova-parser/2026-10-26/API_DOCUMENTATION.md`
+- `docs/archive/packages/api-nova-parser/2026-10-26/TECHNICAL_DOCUMENTATION.md`
 
 ## 7. 向后兼容性
 

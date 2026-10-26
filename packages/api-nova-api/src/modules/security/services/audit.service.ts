@@ -95,6 +95,7 @@ export class AuditService {
       status,
       userId,
       resource,
+      resourceId,
       ipAddress,
       startDate,
       endDate,
@@ -132,6 +133,10 @@ export class AuditService {
 
     if (resource) {
       queryBuilder.andWhere('audit.resource = :resource', { resource });
+    }
+
+    if (resourceId) {
+      queryBuilder.andWhere('audit.resourceId = :resourceId', { resourceId });
     }
 
     if (ipAddress) {

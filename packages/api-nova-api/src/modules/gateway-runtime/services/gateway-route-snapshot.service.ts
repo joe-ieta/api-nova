@@ -1,8 +1,10 @@
 import {
+  Inject,
   Injectable,
   Logger,
   OnModuleInit,
   OnModuleDestroy,
+  Optional,
 } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -38,6 +40,11 @@ import {
   type GatewaySnapshotRefreshPayload,
 } from '../gateway-runtime.events';
 import { GatewayPolicyService } from './gateway-policy.service';
+import {
+  GATEWAY_HOST_RUNTIME,
+  resolveGatewayHostRuntime,
+  type GatewayHostRuntime,
+} from './gateway-host-runtime.providers';
 import { RuntimeUpstreamBindingsService } from '../../runtime-upstream-bindings/services/runtime-upstream-bindings.service';
 import {
   GatewayActiveRouteCatalog,
@@ -169,10 +176,27 @@ export class GatewayRouteSnapshotService implements OnModuleInit, OnModuleDestro
     @InjectRepository(SourceServiceAssetEntity)
     private readonly sourceServiceRepository: Repository<SourceServiceAssetEntity>,
     private readonly runtimeUpstreamBindingsService: RuntimeUpstreamBindingsService,
+    @Optional() @Inject(GATEWAY_HOST_RUNTIME) private readonly hostRuntime?: GatewayHostRuntime | null,
   ) {}
 
   async onModuleInit() {
-    await this.reload();
+    try {
+      await this.reload();
+    } catch (error) {
+      const host = resolveGatewayHostRuntime(this.hostRuntime);
+      if (!host) throw error;
+      // Host mode fails closed: lock the whole Gateway and keep unrelated
+      // Nest surfaces healthy instead of aborting application startup.
+      host.lock('gateway_host_snapshot_unavailable');
+      this.snapshot = [];
+      this.snapshotInitialized = true;
+      if (!this.destroyed) {
+        this.activeRouteCatalog.replace([], catalog => {
+          this.activeRouteCaptures.set(catalog, Object.freeze([]));
+        });
+      }
+      this.logger.error('Locked Gateway host runtime after route initialization failure');
+    }
   }
 
   async reload() {
@@ -378,16 +402,34 @@ export class GatewayRouteSnapshotService implements OnModuleInit, OnModuleDestro
       entry => entry.runtimeAsset.id === candidate.runtimeAssetId,
     );
     const repository = manager?.getRepository(GatewayRouteSnapshotEntity) || this.persistedSnapshotRepository;
-    await repository.save(
-      repository.create({
-        runtimeAssetId: candidate.runtimeAssetId,
-        revision: candidateRevision,
-        fingerprint: candidate.snapshotFingerprint,
-        routeCount: candidate.entries.length,
-        payload: this.serializeEntries(candidate.entries),
-        activatedAt: new Date(),
-      }),
-    );
+    const existing = await repository.findOneBy({
+      runtimeAssetId: candidate.runtimeAssetId, revision: candidateRevision,
+    });
+    if (existing) {
+      // Re-verification of unchanged behavior creates a new run, not a second
+      // immutable snapshot. Never overwrite conflicting or corrupt evidence.
+      let valid = false;
+      try {
+        const restored = this.deserializeEntries(existing.payload, candidate.entries[0].runtimeAsset);
+        this.assertSnapshotPolicies(restored);
+        valid = existing.fingerprint === candidate.snapshotFingerprint &&
+          existing.routeCount === candidate.entries.length &&
+          restored.length === existing.routeCount &&
+          this.fingerprintEntries(restored) === existing.fingerprint;
+      } catch { /* A damaged persisted revision must fail closed. */ }
+      if (!valid) throw new Error('GATEWAY_SNAPSHOT_REVISION_CONFLICT');
+    } else {
+      await repository.save(
+        repository.create({
+          runtimeAssetId: candidate.runtimeAssetId,
+          revision: candidateRevision,
+          fingerprint: candidate.snapshotFingerprint,
+          routeCount: candidate.entries.length,
+          payload: this.serializeEntries(candidate.entries),
+          activatedAt: new Date(),
+        }),
+      );
+    }
     this.rollbackSnapshots.set(candidate.runtimeAssetId, previousEntries);
     this.snapshot = this.sortSnapshot([
       ...this.snapshot.filter(entry => entry.runtimeAsset.id !== candidate.runtimeAssetId),

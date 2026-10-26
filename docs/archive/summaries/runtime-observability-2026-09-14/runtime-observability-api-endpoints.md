@@ -10,8 +10,8 @@ implementation-status: in-progress
 > Document status: Maintained consumer contract; approved endpoint contract; implementation in progress
 > Scope decision (2026-09-08, approved): 全新开发版本直接统一旧接口和数据库结构；不提供旧格式导入或旧查询路径兼容。接口的实际状态逐项维护，文档确认不等于上线。
 > 可用性声明：远端优先整合后，API01~26 共 26 个限定契约 VERIFIED；API27/28 与 Socket.IO 待实现。Webhook 保留远端闭环，默认关闭；AVAILABLE=0。
-> 已确认基线：[需求](../guides/runtime-observability-requirements.md)、[设计](./runtime-observability-design.md)。
-> 开发关联：[任务计划](../guides/runtime-observability-development-task-plan.md)、[执行状态](../guides/runtime-observability-development-execution-status.md)。
+> 已确认基线：[需求](../../guides/2026-10-26/runtime-observability-requirements.md)、[设计](runtime-observability-design.md)。
+> 开发关联：[任务计划](runtime-observability-development-task-plan.md)、[执行状态](runtime-observability-development-execution-status.md)。
 
 ## 1. 文档维护与版本演进
 
@@ -418,7 +418,7 @@ OBS-TP-15 将重复调用日志接口和现有调用方直接收敛到本文的�
 
 源 schemaVersion=2 与对外 envelope schemaVersion=1.0 属于不同层级，不是保留两个历史格式。旧日志查询路径及其调用方将在 OBS-TP-15 直接切换，不提供自动降级或兼容别名。数据库结构只维护当前空库基线；已有开发库不会自动升级或删除，需要另行明确处理。
 
-对外 sequence 仍为十进制字符串且允许有间隙；内部补零排序键不对客户端暴露。正文摘要中的 capturedDigest 与对象存储完整性摘要用途不同，客户端不得据此假设脱敏前后内容相同。更多实现边界见[存储基础说明](./runtime-observability-storage-foundation.md)。
+对外 sequence 仍为十进制字符串且允许有间隙；内部补零排序键不对客户端暴露。正文摘要中的 capturedDigest 与对象存储完整性摘要用途不同，客户端不得据此假设脱敏前后内容相同。更多实现边界见[存储基础说明](runtime-observability-storage-foundation.md)。
 
 验证进度更新（2026-09-08）：48 项存储/GC 用例全部通过；PostgreSQL 四进程验证了提交/回滚顺序、未提交不可见、跨进程写入租约和孤立回收，schemaDrift=0、清理退出码 0。Linux 与全链路矩阵尚未执行，pg 非致命弃用警告仍待定位。截至 2026-09-09，TP-03 权限与 API 基础已通过 API 构建及 56 项专项验收；存储模块尚未接入运行时，GC 也没有自动调度。
 
@@ -806,7 +806,7 @@ TP10-B01 已完成桶键/修订规划纯内核及 26 项专项，API build PASS�
 
 OBS-API-01、03~13 为 VERIFIED，共 12 个；OBS-API-02、14~28 仍为 PLANNED，共 16 个。两类新推送契约 PLANNED，所有新接口 AVAILABLE=0。主矩阵状态不因数据库实体定义、旧接口存在或 B01 纯规划通过而升级。
 
-完整待办路径/operationId 清单已同步到[任务完成情况复核与未完成清单](../guides/runtime-observability-completion-review.md)。当前按需统计仍受保留明细、5000 条上限及未知覆盖约束；缓存命中聚合、真实存活统计、长期桶/状态/事件/投递/治理尚未整体完成。
+完整待办路径/operationId 清单已同步到[任务完成情况复核与未完成清单](runtime-observability-completion-review.md)。当前按需统计仍受保留明细、5000 条上限及未知覆盖约束；缓存命中聚合、真实存活统计、长期桶/状态/事件/投递/治理尚未整体完成。
 
 本次只复核文档与实现入口，不改变接口行为，不重跑测试，不启用根应用或部署。
 

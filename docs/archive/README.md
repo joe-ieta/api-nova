@@ -1,37 +1,20 @@
-# Archive
+# 历史文档归档
 
-> Document status: Active archive index
-> Last reviewed: 2026-09-14
+最后整理：2026-10-26。当前手册从[文档中心](../README.md)进入；本目录只用于历史追溯，不是另一套当前设计、任务状态或发布指导。
 
-This directory contains historical documentation that is not the current source of truth.
+## 查找材料
 
-## Structure
+- [完整历史清单](./INDEX.md)：按目录列出所有历史文档。
+- [本次移动与合并映射](./relocations-2026-10-26.json)：原路径、归档路径、起始提交及原始SHA256。
+- audits：原113份日期审计及其证据，保留每轮实际环境、结果、限制。
+- plans、guides、reference、contracts：旧计划/交接/阶段状态、合并前设计和审批合同。
+- releases：旧版本说明与旧发布规范；当前rc.5文档仍在release/versions原位置。
+- packages、architecture、summaries、ui、baselines等：已有更早历史方案、总结和包级文档。
 
-- `architecture`: earlier architecture proposals
-- `guides`: former active guides, completed phase designs, release notes, and superseded workflows
-- `plans`: historical proposals, implementation plans, and roadmaps
-- `summaries`: completion summaries, dated audits, migration notes, and final-solution records
-- `reference`: one-off issue resolutions and historical maintenance rationale
-- `ui`: older UI design and technical material
-- `prototypes`: exploratory HTML artifacts
-- `packages`: completed or superseded package-level implementation plans moved out of current package documentation
-- `baselines`: historical baseline documents consolidated into `docs/baseline`
+## 读取规则
 
-## Rules
+归档正文保留历史日期、原审批和原front-matter；即使旧页写active，当前位置的有效分类也为archived。旧“待开发”或通过计数不覆盖当前台账；原批准的未完成退出条件不因归档撤销。
 
-- archived documents are read-only by default
-- their internal claims may be stale and must not override active documents
-- active documents may link here only when explicitly labeling historical context
-- if archived material becomes current again, extract and review it as a new active document
+不重写历史结论；本次只调整引用。能定位的引用指向实际保留文件；旧仓库未留存的材料显式标记“历史引用未留存”，不伪造文件或证据。已发布rc.5版本说明、外部七文件、标签及legacy数据未修改。
 
-## 2026-07-22 Closure Cleanup
-
-The cleanup archived completed Gateway Phase 1/2 task documents, Stage 4/6 implementation models, the superseded next-development baseline, the dated configuration audit, and historical API/Parser/Server package implementation plans. No content was deleted.
-
-## 2026-09-14 Observability Status Cleanup
-
-[Observability archive index](./summaries/runtime-observability-2026-09-14/README.md): the superseded pre-merge remaining-work report was moved out of active guides; seven pre-cleanup document snapshots preserve the original stage history. Current requirements, design contracts and unfinished work remain active. No historical evidence was deleted.
-
-## 2026-09-14 Security Status Reconciliation
-
-[Security historical snapshots](./summaries/security-2026-09-14/README.md) preserve the previous task ledger, plan and dated audit/acceptance descriptions. Current contracts remain active; historical evidence is not a new validation result.
+需要重新采用旧方案时，应先与现有源码核对，将当前有效约束合入现行文档，不能恢复并行权威入口。

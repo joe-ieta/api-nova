@@ -132,6 +132,22 @@ describe('server_state_v1 explicit realtime protocol', () => {
     expect(f.frames).toHaveLength(1); expect(f.errors[0].code).toBe('SLOW_CONSUMER');
   }, 20000);
 
+  it('bounds a slow ACK state consumer to one in-flight page without affecting another subscriber', async () => {
+    await insert(Array.from({ length: 52 }, () => ({})));
+    const slow = await connect({ ack: () => { /* hold the ACK until disconnect */ } });
+    slow.client.emit('subscribe-observability-state', input);
+    await wait(() => slow.frames.length === 1);
+    const fast = await connect();
+    fast.client.emit('subscribe-observability-state', input);
+    await wait(() => fast.frames.length >= 2);
+    await insert();
+    await new Promise(resolve => setTimeout(resolve, 80));
+    expect(slow.frames).toHaveLength(1);
+    expect(fast.frames.length).toBeGreaterThanOrEqual(2);
+    slow.client.disconnect();
+    await wait(() => !slow.client.connected);
+  }, 20000);
+
   it('freshly revokes an idle real socket from persisted database permission state', async () => {
     await insert(); const f = await connect(); f.client.emit('subscribe-observability-state', input);
     await wait(() => f.frames.length === 1);

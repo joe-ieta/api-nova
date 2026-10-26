@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '..');
-const read = file => fs.readFileSync(path.join(root, 'docs/guides', file), 'utf8');
+const read = file => fs.readFileSync(path.join(root, 'docs/archive/plans/main-2026-10-20', file), 'utf8');
 const rows = text => text.split(/\r?\n/).filter(line => line.startsWith('|')).map(line => line.split('|').slice(1, -1).map(cell => cell.trim()));
 const old = rows(read('active-work-package-execution-status.md')).filter(row => /^(GOV|SEC|OBS|PROD|EXT|ENV|OPS|MAIL|MAINT|DEFER)-/.test(row[0]));
 const packs = rows(read('unified-work-packages.md')).filter(row => /^NP-\d+$/.test(row[0]));

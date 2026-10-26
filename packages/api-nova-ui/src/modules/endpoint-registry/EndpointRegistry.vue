@@ -171,7 +171,7 @@
             <span class="count">{{
               t("endpointRegistry.groupCount", { count: selectedManualGroup.endpoints.length })
             }}</span>
-            <el-button size="small" type="primary" plain @click="openInstanceManager">
+            <el-button size="small" type="primary" plain @click="openInstanceManager(selectedManualGroup.endpoints[0])">
               运行实例
             </el-button>
           </div>
@@ -422,6 +422,15 @@
             <el-table-column :label="t('endpointRegistry.table.actions')" :width="actionColumnWidth" fixed="right">
               <template #default="{ row }">
                 <div class="row-actions governance-row-actions">
+                  <el-button
+                    size="small"
+                    type="primary"
+                    plain
+                    class="action-btn governance-instances-btn"
+                    @click="openInstanceManager(row)"
+                  >
+                    运行实例
+                  </el-button>
                   <el-button
                     size="small"
                     type="warning"
@@ -1781,7 +1790,13 @@
           <el-form-item :label="t('endpointRegistry.form.authPolicyRef')">
             <el-input v-model="publicationForm.authPolicyRef" clearable />
           </el-form-item>
-          <TemporaryAnonymousEditor v-if="publicationForm.routeVisibility === 'external' && /^anonymous(?:[-_:].+)?$/i.test(publicationForm.authPolicyRef.trim())" :draft="publicationForm.temporaryAnonymous" />
+          <el-form-item label="请求头策略">
+            <div>
+              <el-checkbox v-model="publicationForm.registryHeaders" :disabled="usesGatewayRegistryHeaders(publicationForm.upstreamConfig)">使用 Registry v1 请求头策略</el-checkbox>
+              <p>仅采用管理员配置的 Registry 策略；消费者凭证不会自动转发给上游。未配置或未授权时部署会拒绝。已保存的 v1 策略不会因取消勾选降级。</p>
+            </div>
+          </el-form-item>
+          <TemporaryAnonymousEditor v-if="publicationForm.routeVisibility === 'external' && /^anonymous(?:[-_:].+)?$/i.test(publicationForm.authPolicyRef.trim())" v-model:draft="publicationForm.temporaryAnonymous" />
           <el-form-item :label="t('endpointRegistry.form.trafficPolicyRef')">
             <el-input v-model="publicationForm.trafficPolicyRef" clearable />
           </el-form-item>
@@ -1894,7 +1909,7 @@
     <SourceServiceInstancesDialog
       v-model="showInstanceManager"
       :source-service-asset-id="selectedInstanceSourceAssetId"
-      :source-service-name="selectedManualGroup?.groupName"
+      :source-service-name="selectedInstanceSourceName"
     />
     <EndpointTestSamplesDialog
       v-model="showSampleLibrary"
@@ -1940,7 +1955,7 @@ import EndpointTestSamplesDialog from "./EndpointTestSamplesDialog.vue";
 import RuntimeUpstreamBindingDialog from "./RuntimeUpstreamBindingDialog.vue";
 import TemporaryAnonymousEditor from '@/modules/runtime-assets/TemporaryAnonymousEditor.vue';
 import { temporaryAnonymousDraft, temporaryAnonymousError, gatewayTemporaryAnonymousConfig } from '@/services/mcp-publication';
-import { gatewayAuthFieldsForSave, gatewayVisibilityForForm } from "./gateway-route-auth";
+import { gatewayAuthFieldsForSave, gatewayVisibilityForForm, gatewayRegistryHeaderConfig, usesGatewayRegistryHeaders } from "./gateway-route-auth";
 
 const { t } = useI18n();
 const route = useRoute();
@@ -2045,6 +2060,7 @@ type PublicationMembershipRecord = {
   };
   endpointDefinition: {
     id: string;
+    sourceServiceAssetId?: string;
     method: string;
     path: string;
     status: string;
@@ -2282,6 +2298,7 @@ const publicationForm = ref({
   routeVisibility: "internal",
   authPolicyRef: "",
   upstreamConfig: {} as Record<string, any>,
+  registryHeaders: false,
   temporaryAnonymous: temporaryAnonymousDraft(),
   trafficPolicyRef: "",
   timeoutMs: undefined as number | undefined,
@@ -3334,6 +3351,7 @@ const mapPublicationMembershipRow = (item: PublicationMembershipRecord): Endpoin
   return {
     id: item.membership.id,
     runtimeMembershipId: item.membership.id,
+    sourceServiceAssetId: item.endpointDefinition.sourceServiceAssetId || publicationCandidates.value.find(candidate => candidate.endpointDefinitionId === item.endpointDefinition.id)?.sourceServiceAssetId,
     runtimeAssetId: item.runtimeAsset.id,
     runtimeAssetType: runtimeType,
     runtimeAssetName: item.runtimeAsset.displayName || item.runtimeAsset.name,
@@ -3466,14 +3484,16 @@ const selectedManualGroup = computed(
       (group) => group.groupKey === effectiveSelectedManualGroupKey.value,
     ) || null,
 );
-const selectedInstanceSourceAssetId = computed(
-  () => selectedManualGroup.value?.endpoints[0]?.sourceServiceAssetId || "",
-);
-const openInstanceManager = () => {
-  if (!selectedInstanceSourceAssetId.value) {
+// Capture the clicked endpoint's source, even when several sources share a URL.
+const selectedInstanceSourceAssetId = ref("");
+const selectedInstanceSourceName = ref("");
+const openInstanceManager = (row?: EndpointRow) => {
+  if (!row?.sourceServiceAssetId) {
     ElMessage.warning("当前 API 分组缺少源服务资产标识");
     return;
   }
+  selectedInstanceSourceAssetId.value = row.sourceServiceAssetId;
+  selectedInstanceSourceName.value = row.groupName || row.name;
   showInstanceManager.value = true;
 };
 const effectiveSelectedGovernanceGroupKey = computed(() => {
@@ -3843,6 +3863,7 @@ const resetPublicationForm = () => {
     routeVisibility: "internal",
     authPolicyRef: "",
     upstreamConfig: {} as Record<string, any>,
+    registryHeaders: false,
     temporaryAnonymous: temporaryAnonymousDraft(),
     trafficPolicyRef: "",
     timeoutMs: undefined,
@@ -4519,6 +4540,7 @@ const openPublicationEditDialog = async (row: EndpointRow) => {
     routeVisibility: gatewayVisibilityForForm(routeBinding.routeVisibility),
     authPolicyRef: routeBinding.authPolicyRef || "",
     upstreamConfig: routeBinding.upstreamConfig || {},
+    registryHeaders: usesGatewayRegistryHeaders(routeBinding.upstreamConfig || {}),
     temporaryAnonymous: temporaryAnonymousDraft(routeBinding.upstreamConfig?.temporaryAnonymous),
     trafficPolicyRef: routeBinding.trafficPolicyRef || "",
     timeoutMs:
@@ -4554,7 +4576,7 @@ const submitPublicationForm = async () => {
           routeMethod: publicationForm.value.routeMethod || undefined,
           upstreamMethod: publicationForm.value.upstreamMethod || undefined,
           ...gatewayAuthFieldsForSave(publicationForm.value),
-          ...gatewayTemporaryAnonymousConfig(publicationForm.value),
+          upstreamConfig: gatewayRegistryHeaderConfig({ ...publicationForm.value.upstreamConfig, ...gatewayTemporaryAnonymousConfig(publicationForm.value).upstreamConfig }, publicationForm.value.registryHeaders),
           trafficPolicyRef: publicationForm.value.trafficPolicyRef.trim() || undefined,
           timeoutMs: publicationForm.value.timeoutMs,
         },
@@ -5039,10 +5061,12 @@ const handleOffline = async (row: EndpointRow) => {
   }
 };
 
+defineExpose({ refresh: async () => {
+  await loadOverview();
+  if (errorMessage.value) throw new Error(errorMessage.value);
+} });
+
 onMounted(async () => {
-  if (route.meta?.productSurface === "publication") {
-    selectedReadinessState.value = "ready";
-  }
   const sourceType = route.query.sourceType;
   const keyword = route.query.q;
   if (
@@ -5151,9 +5175,6 @@ watch(
         sourceType === "gateway")
     ) {
       selectedFilter.value = sourceType;
-    }
-    if (route.meta?.productSurface === "publication" && selectedReadinessState.value === "all") {
-      selectedReadinessState.value = "ready";
     }
     if (
       route.meta?.productSurface === "registration" &&

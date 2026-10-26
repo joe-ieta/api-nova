@@ -1,3 +1,8 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-10-26
+---
 # Offline Development Kit
 
 This project now uses npm workspaces and a root `package-lock.json`.

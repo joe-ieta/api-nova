@@ -1,5 +1,10 @@
 export default {
   common: {
+    refreshPage: "刷新当前页面数据与健康状态",
+    refreshHealth: "刷新健康状态",
+    healthUnknown: "健康状态未知或暂不可用",
+    healthRefreshed: "健康状态已更新",
+    refreshUnhealthy: "数据已刷新，系统健康检查存在异常",
     all: "\u5168\u90e8",
     confirm: "\u786e\u8ba4",
     cancel: "\u53d6\u6d88",

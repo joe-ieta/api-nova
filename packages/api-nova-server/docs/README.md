@@ -1,13 +1,12 @@
-# ApiNova Server Documentation
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-10-26
+---
+# Server文档
 
-> Document status: Active package index
-> Last reviewed: 2026-07-22
+当前运行时接入统一由MCP手册维护。
 
-Current package behavior is documented in:
+[当前接入手册](../../../docs/api/mcp.md) · [文档中心](../../../docs/README.md)
 
-- [Package README](../README.md)
-- [Package Architecture](../ARCHITECTURE.md)
-- [Parser Change Verification](../../../docs/guides/parser-change-verification.md)
-- [Runtime Publication Acceptance Cases](../../../docs/testing/runtime-publication-acceptance-cases.md)
-
-Earlier refactoring plans, compatibility-layer notes, bearer-token quickstarts, and implementation roadmaps are archived under `docs/archive/packages/api-nova-server`.
+开发从仓库根目录安装根锁依赖并构建：`npm ci`、`npm run build`。具体启动、配置、权限及示例只在统一手册维护。产品Git标签与workspace package.json版本不同，不以本README推定公共npm发行版本或生产签收。

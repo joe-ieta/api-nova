@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { authenticateRuntimeRequest, runtimeChallenge } from './runtime-auth';
 import { auditDigest, beginRuntimeCall, captureAuditBody, createAuditBodyTracker,
-  getRuntimeCallContext, listObservedRuntimeCallers, redactAuditHeaders, redactAuditUrl, withRuntimeCallContext } from './runtime-call-audit';
+  getRuntimeCallContext, redactAuditHeaders, redactAuditUrl, withRuntimeCallContext } from './runtime-call-audit';
 
 describe('runtime authentication and audit contract', () => {
   it('redacts explicitly configured vendor credential headers', () => {
@@ -47,10 +47,12 @@ describe('runtime authentication and audit contract', () => {
         identitySource: 'authenticated', callerIssuer: first.issuer, callerSubject: first.subject }, 'api');
       await call.finish({ outcome: 'success' });
     }
-    const callers = await listObservedRuntimeCallers();
-    expect(callers).toHaveLength(1);
-    expect(callers[0].transports.sort()).toEqual(['gateway', 'mcp']);
-    expect(callers[0].subject).toBe('caller-1');
+    const callerFiles = (await readdir(directory)).filter(name => /^callers-.+\.jsonl$/.test(name));
+    const observations = (await Promise.all(callerFiles.map(async file =>
+      (await readFile(join(directory, file), 'utf8')).split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line)))))
+      .flat().filter(item => item.callerId === first.callerId);
+    expect([...new Set(observations.map(item => item.transport))].sort()).toEqual(['gateway', 'mcp']);
+    expect(observations[0].subject).toBe('caller-1');
   });
 
   it.each([{ aud: 'https://another.example' }, { iss: 'https://untrusted.example' },

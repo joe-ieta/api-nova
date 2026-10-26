@@ -13,7 +13,7 @@ describe('independent production-format challenge evidence storage', () => {
       process.env.DB_TYPE = 'sqlite'; process.env.DB_SQLITE_PATH = join(root, 'fixture.sqlite');
       const proof = createUpstreamSecurityProofAuthority({} as any, {} as any);
       const report = await acceptProductionEvidence(DataSource, buildDatabaseOptions(), async row => !(await proof.isCurrent(row, {} as any)));
-      expect(report).toMatchObject({ migrations: 7, checks: true, reopen: true, expiry: true, revocation: true, prototypeIsolation: true, noProof: true, reversible: true, schemaDrift: 0 });
+      expect(report).toMatchObject({ migrations: 8, checks: true, reopen: true, expiry: true, revocation: true, prototypeIsolation: true, noProof: true, reversible: true, schemaDrift: 0 });
     } finally {
       process.env = original; const target = resolve(root);
       if (dirname(target) !== resolve(tmpdir()) || !basename(target).startsWith('apinova-production-evidence-')) throw Error('Unsafe fixture cleanup');

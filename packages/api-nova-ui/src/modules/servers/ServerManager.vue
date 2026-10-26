@@ -758,8 +758,10 @@ const refreshServers = async () => {
       }
       await serverStore.fetchServers();
     });
+    return true;
   } catch (error) {
     ElMessage.error(`刷新服务器列表失败: ${error}`);
+    return false;
   } finally {
     loading.value = false;
   }
@@ -1175,6 +1177,10 @@ const handleFormSuccess = () => {
 };
 
 // 生命周期
+defineExpose({ refresh: async () => {
+  if (!await refreshServers()) throw new Error("Runtime assets refresh failed");
+} });
+
 onMounted(async () => {
   // 启动性能监控
   startMonitoring();

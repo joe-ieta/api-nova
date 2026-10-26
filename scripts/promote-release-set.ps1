@@ -15,8 +15,13 @@ $ErrorActionPreference = 'Stop'
 $releaseSetPath = (Resolve-Path -LiteralPath $ReleaseSetDir).Path
 $archiveRootPath = [System.IO.Path]::GetFullPath($ArchiveRoot)
 $latestRootPath = [System.IO.Path]::GetFullPath($LatestRoot)
-if ($archiveRootPath -eq $latestRootPath) {
-  throw 'ArchiveRoot and LatestRoot must be different directories'
+if ([IO.Path]::GetFileName($latestRootPath.TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)) -ieq 'api-nova-release') {
+  throw 'LatestRoot must be api-nova-release/latest, not the release container'
+}
+if ($archiveRootPath -eq $latestRootPath -or
+    $archiveRootPath.StartsWith($latestRootPath + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -or
+    $latestRootPath.StartsWith($archiveRootPath + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+  throw 'ArchiveRoot and LatestRoot must be separate, non-nested directories'
 }
 
 $manifestPath = Join-Path $releaseSetPath 'RELEASE_MANIFEST.json'
@@ -54,7 +59,9 @@ New-Item -ItemType Directory -Force -Path $archiveRootPath | Out-Null
 $archiveStage = Join-Path $archiveRootPath ".$version-stage-$([Guid]::NewGuid().ToString('N'))"
 $latestParent = Split-Path -Parent $latestRootPath
 New-Item -ItemType Directory -Force -Path $latestParent | Out-Null
-$latestStage = Join-Path $latestParent ".$([IO.Path]::GetFileName($latestRootPath))-next-$version-$([Guid]::NewGuid().ToString('N'))"
+$latestStagingRoot = Join-Path $latestParent '.staging'
+New-Item -ItemType Directory -Force -Path $latestStagingRoot | Out-Null
+$latestStage = Join-Path $latestStagingRoot ".$([IO.Path]::GetFileName($latestRootPath))-next-$version-$([Guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Force -Path $archiveStage, $latestStage | Out-Null
 
 $archiveFiles = @(
@@ -136,7 +143,9 @@ try {
       throw "LatestRoot already exists. Re-run with -BackupExistingLatest after reviewing its contents."
     }
     $suffix = if (Test-Path -LiteralPath (Join-Path $latestRootPath 'CURRENT_RELEASE.json')) { 'previous' } else { 'legacy' }
-    $backupPath = "$latestRootPath-$suffix-$([DateTime]::UtcNow.ToString('yyyyMMddHHmmss'))"
+    $backupRoot = Join-Path $latestParent 'backups'
+    New-Item -ItemType Directory -Force -Path $backupRoot | Out-Null
+    $backupPath = Join-Path $backupRoot "$suffix-$([DateTime]::UtcNow.ToString('yyyyMMddHHmmss'))"
     if (Test-Path -LiteralPath $backupPath) {
       throw "Latest backup path already exists: $backupPath"
     }

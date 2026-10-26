@@ -52,6 +52,6 @@ The current release confirms multi-session Streamable behavior at the package sm
 
 ## Related Guides
 
-- [Local Setup And Run](./local-setup-and-run.md)
-- [Release Readiness Checklist](./release-readiness-checklist.md)
-- [GitHub Collaboration Workflow](./github-collaboration-workflow.md)
+- [Local Setup And Run](2026-10-26/local-setup-and-run.md)
+- [Release Readiness Checklist](../../guides/release-readiness-checklist.md)
+- [GitHub Collaboration Workflow](2026-10-26/github-collaboration-workflow.md)

@@ -1,5 +1,12 @@
 export default {
   logs: {
+    clearDisplay: "Clear current display",
+    scope: "Persisted runtime events, 50 per page. Search and source filters apply to the current page. Clearing the display does not delete server records.",
+    previous: "Previous", next: "Next", pageSummary: "Page {page} · {total} events",
+    failures: {
+      unauthenticated: "Sign in to view runtime events", forbidden: "You do not have permission to view runtime events",
+      unavailable: "Unable to load runtime events. Please retry", invalid: "Invalid runtime event response. Please retry", timeout: "Runtime event query timed out. Please retry",
+    },
     title: "Log Viewer",
     logLevel: "Log Level",
     logSource: "Log Source",

@@ -7,6 +7,24 @@ describe('ParserService', () => {
     service = new ParserService({} as any);
   });
 
+  it.each([{ servers: undefined }, { servers: [] }])('preserves unbound servers through repeated catalog parsing: %j', async ({ servers }) => {
+    const input = { openapi: '3.0.3', info: { title: 'Unbound', version: '1' },
+      servers, paths: { '/ping': { get: { responses: { '200': { description: 'OK' } } } } } };
+    const parsed = await service.parseFromString(JSON.stringify(input));
+    expect(parsed.spec.servers || []).toEqual([]);
+    const normalized = await service.parseSpecification(parsed.spec);
+    expect(normalized.servers).toEqual([]);
+    expect(normalized.endpoints).toHaveLength(1);
+  });
+
+  it('preserves an explicitly declared localhost instead of guessing that it was generated', async () => {
+    const parsed = await service.normalizeSpecification({
+      openapi: '3.0.3', info: { title: 'Local', version: '1' },
+      servers: [{ url: 'http://localhost', description: 'Default server' }], paths: {},
+    });
+    expect(parsed.servers).toEqual([{ url: 'http://localhost', description: 'Default server' }]);
+  });
+
   it('should normalize swagger 2.0 specs into openapi-compatible structure', async () => {
     const normalized = await service.normalizeSpecification({
       swagger: '2.0',

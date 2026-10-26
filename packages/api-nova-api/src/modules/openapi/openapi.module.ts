@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OpenAPIController } from './openapi.controller';
+import { RuntimeSpecAccessController } from './runtime-spec-access.controller';
+import { RuntimeSpecAccessGuard } from './guards/runtime-spec-access.guard';
 import { OpenAPIService } from './services/openapi.service';
 import { ParserService } from './services/parser.service';
 import { ValidatorService } from './services/validator.service';
@@ -16,11 +18,12 @@ import { RuntimeAssetsModule } from '../runtime-assets/runtime-assets.module';
     RuntimeAssetsModule,
     TypeOrmModule.forFeature([MCPServerEntity]),
   ],
-  controllers: [OpenAPIController],
+  controllers: [OpenAPIController, RuntimeSpecAccessController],
   providers: [
     OpenAPIService,
     ParserService,
     ValidatorService,
+    RuntimeSpecAccessGuard,
   ],
   exports: [
     OpenAPIService,

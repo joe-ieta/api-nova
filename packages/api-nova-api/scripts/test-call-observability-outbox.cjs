@@ -211,3 +211,98 @@ test('delivery history retains 30 days independently of the shorter event lifeti
   assert.ok(Date.parse(delivery.expiresAt) > event.expiresAt.getTime());
   assert.ok(await f.events.findOneBy({ id: event.id }));
 });
+
+test('bounded outbox batches commit jobs and watermark once per 32 events', async t => {
+  const f = await fixture(t);
+  await f.subscription();
+  const events = [];
+  for (let index = 0; index < 65; index++) events.push(await f.event());
+  let transactions = 0;
+  const original = f.store.transaction.bind(f.store);
+  f.store.transaction = async operation => { transactions++; return original(operation); };
+  const report = await f.worker.runOnce(65);
+  assert.equal(report.materializedEvents, 65);
+  assert.equal(report.deliveriesCreated, 65);
+  assert.equal(transactions, 4); // One claim plus three bounded durable materialization commits.
+  assert.equal(report.watermark, '65');
+  assert.equal(await f.deliveries.count(), 65);
+  assert.equal((await f.events.find()).every(row => row.dispatchState === 'materialized'), true);
+  await f.makeWorker().runOnce();
+  assert.equal(await f.deliveries.count(), 65);
+});
+
+test('failure in the middle of an outbox batch rolls back all jobs and its watermark', async t => {
+  const f = await fixture(t);
+  await f.subscription();
+  const events = [];
+  for (let index = 0; index < 16; index++) events.push(await f.event());
+  await f.database.query("CREATE TRIGGER reject_ninth_delivery BEFORE INSERT ON runtime_event_deliveries WHEN NEW.eventId = '" + events[8].id + "' BEGIN SELECT RAISE(ABORT, 'batch fixture failure'); END");
+  await assert.rejects(() => f.worker.runOnce(), /batch fixture failure/);
+  assert.equal(await f.deliveries.count(), 0);
+  assert.equal((await f.events.find()).every(row => row.dispatchState === 'leased'), true);
+  assert.equal(await f.states.findOneBy({ id: OUTBOX_WORKER_STATE_ID }), null);
+  await f.database.query('DROP TRIGGER reject_ninth_delivery');
+  for (const event of events) await f.events.update(event.id, { dispatchLeaseUntil: new Date(Date.now() - 1000) });
+  const report = await f.makeWorker().runOnce();
+  assert.equal(report.recoveredLeases, 16);
+  assert.equal(report.materializedEvents, 16);
+  assert.equal(report.watermark, '16');
+  assert.equal(await f.deliveries.count(), 16);
+});
+
+
+test('revision keyset pages retain per-event intervals and highest-version disable decisions', async t => {
+  const f = await fixture(t);
+  const id = randomUUID();
+  for (let version = 1; version <= 128; version++) await f.subscription({ id, version });
+  await f.subscription({ id, version: 129, from: '2', state: 'disabled' });
+  await f.subscription({ id, version: 130, from: '3' });
+  await f.subscription({ id, version: 131, revoked: true });
+  const first = await f.event(), second = await f.event(), third = await f.event();
+  const report = await f.worker.runOnce();
+  assert.equal(report.materializedEvents, 3);
+  assert.equal((await f.deliveries.findOneByOrFail({ eventId: first.id })).subscriptionRevision, 128);
+  assert.equal(await f.deliveries.countBy({ eventId: second.id }), 0);
+  assert.equal((await f.deliveries.findOneByOrFail({ eventId: third.id })).subscriptionRevision, 130);
+  await f.subscription({ id, version: 132, from: '4', state: 'disabled' });
+  const fourth = await f.event();
+  await f.worker.runOnce();
+  assert.equal(await f.deliveries.countBy({ eventId: fourth.id }), 0);
+  assert.equal((await f.states.findOneByOrFail({ id: OUTBOX_WORKER_STATE_ID })).value.watermark, '4');
+});
+
+test('fanout beyond one job chunk preserves existing delivery attempts and exact deduplication', async t => {
+  const f = await fixture(t);
+  for (let index = 0; index < 40; index++) await f.subscription();
+  const first = await f.event(), second = await f.event();
+  assert.equal((await f.worker.runOnce()).deliveriesCreated, 80);
+  const retained = await f.deliveries.findOneByOrFail({ eventId: first.id });
+  await f.deliveries.update(retained.id, { status: 'delivered', attemptCount: 3 });
+  for (const event of [first, second]) await f.events.update(event.id, { dispatchState: 'pending' });
+  const report = await f.makeWorker().runOnce();
+  assert.equal(report.deliveriesCreated, 0);
+  assert.equal(report.materializedEvents, 2);
+  assert.equal(await f.deliveries.count(), 80);
+  const reread = await f.deliveries.findOneByOrFail({ id: retained.id });
+  assert.equal(reread.status, 'delivered');
+  assert.equal(reread.attemptCount, 3);
+});
+
+test('SQL reads and job inserts are amortized across a full event batch', async t => {
+  const f = await fixture(t);
+  await f.subscription();
+  for (let index = 0; index < 32; index++) await f.event();
+  const queries = [];
+  const logger = f.database.logger;
+  const original = logger.logQuery;
+  logger.logQuery = sql => queries.push(sql);
+  let report;
+  try { report = await f.worker.runOnce(); } finally { logger.logQuery = original; }
+  assert.equal(report.deliveriesCreated, 32);
+  const selects = table => queries.filter(sql => /^SELECT/i.test(sql) && sql.includes(table));
+  assert.ok(selects('runtime_subscription_revisions').length <= 2, 'subscription reads grow per page, not per event');
+  assert.ok(selects('runtime_event_deliveries').length <= 2, 'dedupe reads grow per job chunk, not per delivery');
+  const inserts = queries.filter(sql => /^INSERT INTO "runtime_event_deliveries"/i.test(sql));
+  assert.equal(inserts.length, 1);
+  assert.equal(await f.deliveries.count(), 32);
+});

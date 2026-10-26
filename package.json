@@ -33,7 +33,36 @@
     "verify:runtime-closure": "node scripts/verify-runtime-closure.js",
     "verify:runtime-security-integration": "node scripts/verify-runtime-security-integration.cjs",
     "verify:parser-chain": "node scripts/verify-parser-propagation.js",
-    "verify:parser-chain:full": "node scripts/verify-parser-propagation.js --include-consumer-builds"
+    "verify:parser-chain:full": "node scripts/verify-parser-propagation.js --include-consumer-builds",
+    "verify:f3-dual-runtime": "node scripts/verify-f3-dual-runtime.cjs",
+    "verify:f3-n-matrix": "node scripts/verify-f3-n-matrix.cjs",
+    "verify:mcp-observability-matrix": "node scripts/verify-mcp-observability-matrix.cjs",
+    "verify:obs-06-02": "node scripts/verify-obs-06-02.cjs",
+    "verify:ext-09": "node scripts/verify-ext-09.cjs",
+    "verify:obs-16-03": "node scripts/verify-obs-16-03.cjs",
+    "verify:obs-16-local-unit": "node scripts/verify-obs-16-local-unit.cjs",
+    "verify:obs-15-full-chain": "node scripts/verify-obs-15-full-chain.cjs",
+    "verify:obs-14-03e3": "node scripts/verify-obs-14-03e3.cjs",
+    "verify:obs-14-05d": "node scripts/verify-obs-14-05d.cjs",
+    "verify:obs-13-02": "node scripts/verify-obs-13-02.cjs",
+    "verify:mail-02": "node scripts/test-mail-delivery.cjs",
+    "verify:e2-01": "node scripts/verify-e2-01.cjs",
+    "verify:e2-02": "node scripts/verify-e2-02.cjs",
+    "verify:f1-02c3g6": "node scripts/verify-f1-02c3g6.cjs",
+    "verify:ext-06": "node scripts/verify-ext-06.cjs",
+    "verify:ext-07": "node scripts/verify-ext-07.cjs",
+    "verify:ext-08": "node scripts/verify-ext-08.cjs",
+    "verify:ext-01-05": "node scripts/verify-ext-01-05.cjs",
+    "verify:env-01": "node scripts/verify-env-01.cjs",
+    "verify:proxy-trust": "node scripts/verify-proxy-trust.cjs",
+    "verify:obs-16-04-tls-trust": "node scripts/verify-obs-16-04-tls-trust.cjs",
+    "verify:prod-04c": "node scripts/verify-prod-04c.cjs",
+    "verify:obs-16-04-backup-restore": "node scripts/verify-obs-16-04-backup-restore.cjs",
+    "verify:obs-16-04-performance": "node scripts/verify-obs-16-04-performance.cjs",
+    "verify:security-parser-dependencies": "node scripts/verify-security-parser-dependencies.cjs",
+    "verify:security-residual-dependencies": "node --test scripts/test-security-residual-dependencies.cjs",
+    "verify:security-nest-sse": "node --test scripts/test-security-nest-sse-backport.cjs",
+    "verify:ops-01-browser": "node scripts/verify-ops-01-browser.cjs"
   },
   "keywords": [
     "mcp",
@@ -44,24 +73,6 @@
   ],
   "author": "",
   "license": "MIT",
-  "overrides": {
-    "@nestjs/platform-express": {
-      "multer": "2.4.0"
-    },
-    "@nestjs/swagger": {
-      "js-yaml": "4.3.2",
-      "lodash": "4.18.1"
-    },
-    "@nestjs/config": {
-      "lodash": "4.18.1"
-    },
-    "concurrently": {
-      "shell-quote": "1.12.0"
-    },
-    "@hono/node-server": "1.19.17",
-    "body-parser@^1": "1.20.8",
-    "qs@^6": "6.16.1"
-  },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.1",
     "@changesets/cli": "^2.29.5",
@@ -73,5 +84,52 @@
     "tsconfig-paths": "^4.2.0",
     "tslib": "^2.8.1",
     "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@nestjs/platform-express": "10.4.22",
+    "@nestjs/swagger": "7.4.2",
+    "@nestjs/config": "3.3.0",
+    "@nestjs/common": "10.4.22",
+    "@nestjs/schedule": "4.1.2",
+    "@nestjs/typeorm": "10.0.2",
+    "@nestjs/core": "file:vendor/nestjs-core-10.4.22-apinova-sse.1.tgz"
+  },
+  "overrides": {
+    "@nestjs/platform-express": {
+      "multer": "2.4.0",
+      "express": "4.22.3",
+      "body-parser": "1.20.8"
+    },
+    "express@4": {
+      "body-parser": "1.20.8",
+      "qs": "6.16.1"
+    },
+    "body-parser@1": {
+      "qs": "6.16.1"
+    },
+    "@nestjs/swagger": {
+      "js-yaml": "4.3.2",
+      "lodash": "4.18.1"
+    },
+    "@nestjs/config": {
+      "lodash": "4.18.1"
+    },
+    "@nestjs/common": {
+      "file-type": "21.3.4"
+    },
+    "@nestjs/schedule": {
+      "uuid": "11.1.1"
+    },
+    "@nestjs/typeorm": {
+      "uuid": "11.1.1"
+    },
+    "@nestjs/core": "$@nestjs/core",
+    "concurrently": {
+      "shell-quote": "1.12.0"
+    },
+    "@hono/node-server": "1.19.17",
+    "qs@^6": "6.16.1",
+    "shell-quote": "1.12.0",
+    "handlebars": "4.7.10"
   }
 }

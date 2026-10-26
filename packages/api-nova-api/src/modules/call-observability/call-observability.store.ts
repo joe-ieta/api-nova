@@ -1,14 +1,16 @@
 import { PayloadQuotaPrimitives } from './call-observability-payload-quota';
 import { PayloadPublicationIntentStore } from './call-observability-payload-publication-intent';
+import { payloadPhysicalGuardEnabled } from './call-observability-payload-physical';
 import { Injectable } from '@nestjs/common';
 import { readEventRetentionPolicy } from './call-observability-policy';
 import { DataSource, EntityManager, In } from 'typeorm';
 import { randomUUID } from 'crypto';
 import {
-  CanonicalInvocation, invocationMatchesScope, normalizeRuntimeAuditRecord, redactAuditHeaders, redactAuditUrl,
+  CanonicalInvocation, InvalidRuntimeAuditRecord, invocationMatchesScope, normalizeRuntimeAuditRecord, redactAuditHeaders, redactAuditUrl,
 } from 'api-nova-parser';
 import {
   RuntimeIngestCheckpointEntity, RuntimeIngestQuarantineEntity, RuntimeIngestReceiptEntity,
+  RuntimeIngestReceiptTombstoneEntity,
   RuntimeInvocationEntity, RuntimeInvocationRevisionEntity, RuntimeMetricBucketEntity,
   RuntimeMetricContributionEntity, RuntimeAccessSourceEntity, RuntimeCallerBucketEntity, RuntimePayloadEntity,
   RuntimePipelineStateEntity,
@@ -26,13 +28,34 @@ import {
   canonicalJson, contentHash, expiresAfter, ObservabilityStorageError,
   publicSequence, sequenceKey, SerialStorageLane, ZERO_SEQUENCE,
 } from './call-observability-storage';
-import { calculateObservabilityMetrics } from './call-observability-metrics';
+import { calculateObservabilityMetrics, MAX_METRIC_OBSERVATIONS } from './call-observability-metrics';
+import { ObservabilityApiError } from './call-observability-api.contract';
 
-import { CallObservabilityPayloadCoordinator, PAYLOAD_OWNER_ID } from './call-observability-payload.coordinator';
+import { CallObservabilityPayloadCoordinator, PayloadLease, PAYLOAD_OWNER_ID } from './call-observability-payload.coordinator';
 
 const COUNTER_ID = 'call-observability:commit-sequence';
 const lanes = new WeakMap<DataSource, SerialStorageLane>();
 type ProjectionWriteStatus = 'apply' | 'duplicate' | 'stale';
+
+interface PreparedBatchKeys { invocationId: string; receiptId: string; payloadIds: string[]; }
+interface IngestFactBatch {
+  receipts: Map<string, RuntimeIngestReceiptEntity>;
+  tombstones: Map<string, RuntimeIngestReceiptTombstoneEntity>;
+  invocations: Map<string, RuntimeInvocationEntity>;
+  payloads: Map<string, RuntimePayloadEntity>;
+  checkpoints: Map<string, RuntimeIngestCheckpointEntity>;
+  boundaries: Map<string, RuntimePipelineStateEntity>;
+  newReceipts: RuntimeIngestReceiptEntity[];
+  newPayloads: Map<string, RuntimePayloadEntity>;
+  current: Map<string, RuntimeInvocationEntity>;
+  revisions: Map<string, RuntimeInvocationRevisionEntity>;
+  closeRevisions: Map<string, { invocationId: string; recordVersion: number; sequence: string }>;
+  contributions: Map<string, RuntimeMetricContributionEntity>;
+  changedCheckpoints: Map<string, RuntimeIngestCheckpointEntity>;
+  changedBoundaries: Map<string, RuntimePipelineStateEntity>;
+  events: RuntimeObservabilityEventEntity[];
+  eventDays: number;
+}
 
 interface ProjectionWriteResult {
   status: ProjectionWriteStatus;
@@ -119,11 +142,27 @@ export interface ObservabilityWriteTransaction {
   suppressBucketEvents?: boolean;
 }
 
-export type ProjectionHook = (
+export interface ProjectionBatch {
+  project: ProjectionHook;
+  flush(transaction: ObservabilityWriteTransaction): Promise<void>;
+  dispose(): void;
+}
+
+export type ProjectionHook = ((
   transaction: ObservabilityWriteTransaction,
   before: RuntimeInvocationEntity | null,
   after: RuntimeInvocationEntity,
-) => Promise<void>;
+) => Promise<void>) & {
+  /** Internal bounded collector optimization; default calls retain immediate writes. */
+  createBatch?: () => ProjectionBatch;
+};
+
+export interface IngestBatchEntry {
+  input?: unknown;
+  sourceHash?: string;
+  context: IngestContext;
+  rejection?: { hash: string; reason: string };
+}
 
 export interface IngestResult {
   status: 'inserted' | 'updated' | 'duplicate' | 'stale' | 'quarantined';
@@ -143,8 +182,15 @@ export interface IngestResult {
 export class CallObservabilityStore {
   private readonly lane: SerialStorageLane;
   private readonly ingestion = new SerialStorageLane(8);
+  // Scheduling hints only: pending markers remain the authoritative durable work.
+  private bucketRecomputeCursor = { metric: '', caller: '', preferCaller: false };
+  private readonly bucketRecomputeBackoff = new Map<string, number>();
   readonly payloadCoordination: CallObservabilityPayloadCoordinator;
   private payloadStorage?: Promise<string>;
+  private readonly factBatches = new WeakMap<ObservabilityWriteTransaction, IngestFactBatch>();
+  private readonly batchBuckets = new WeakMap<ObservabilityWriteTransaction, {
+    metrics: Map<string, RuntimeMetricBucketEntity>; callers: Map<string, RuntimeCallerBucketEntity>;
+  }>();
 
   constructor(
     private readonly dataSource: DataSource,
@@ -230,8 +276,168 @@ export class CallObservabilityStore {
   }
 
   async ingest(input: unknown, context: IngestContext = {}, project?: ProjectionHook): Promise<IngestResult> {
-    this.validateCheckpoint(context.checkpoint);
+    return (await this.ingestBatch([{ input, context }], project))[0];
+  }
+
+  /** Bounded atomic source batch. Files are prepared outside the database transaction;
+   * all receipts, facts, projections, events and checkpoints commit together. */
+  async ingestBatch(entries: IngestBatchEntry[], project?: ProjectionHook,
+    options: { coalesceBuckets?: boolean;
+      /** Internal collector opt-in: hook uses before/after and only caller/source tables.
+       * Core facts become queryable after the batch flush, in this same transaction. */
+      batchFacts?: boolean } = {}): Promise<IngestResult[]> {
+    if (entries.length < 1 || entries.length > 16) throw new ObservabilityStorageError('INVALID_INGEST_BATCH');
+    for (const entry of entries) {
+      this.validateCheckpoint(entry.context.checkpoint);
+      if (entry.rejection && (!/^[a-f0-9]{64}$/.test(entry.rejection.hash) ||
+        !/^[A-Z][A-Z0-9_]{0,79}$/.test(entry.rejection.reason))) {
+        throw new ObservabilityStorageError('INVALID_QUARANTINE_REFERENCE');
+      }
+    }
     return this.ingestion.run(async () => {
+      await this.ensurePayloadStorage();
+      return this.payloadCoordination.withPreparedWriter(async tx => {
+          // Acquire the writer lease and its bounded retention view under one
+          // commit-counter lock. Body I/O starts only after this transaction ends.
+          const policy = await readEventRetentionPolicy(tx.manager);
+          const ids = entries.map(entry => (entry.input as any)?.invocationId)
+            .filter((id): id is string => typeof id === 'string' && id.length <= 240);
+          const previous = ids.length ? await tx.manager.getRepository(RuntimeInvocationEntity)
+            .findBy({ invocationId: In(ids) }) : [];
+          const payloadIds = previous.flatMap(row => [row.requestPayloadId, row.responsePayloadId]).filter(Boolean) as string[];
+          const payloads = payloadIds.length ? await tx.manager.getRepository(RuntimePayloadEntity)
+            .findBy({ id: In(payloadIds) }) : [];
+          const expiry = new Map(payloads.map(row => [row.id, row.expiresAt]));
+          return { days: policy.payloadDays, previous: new Map(previous.map(row => [row.invocationId, {
+            request: row.requestPayloadId ? expiry.get(row.requestPayloadId) : undefined,
+            response: row.responsePayloadId ? expiry.get(row.responsePayloadId) : undefined,
+          }])) };
+        }, async session => {
+        const { lease, prepared: retention } = session;
+        const projectionBatch = options.batchFacts ? project?.createBatch?.() : undefined;
+        const activeProject = projectionBatch?.project || project;
+        try {
+          const preparedKeys: PreparedBatchKeys[] = [];
+          const operations: Array<(tx: ObservabilityWriteTransaction) => Promise<IngestResult>> = [];
+          for (const entry of entries) {
+            if (entry.rejection) {
+              const rejected = entry.rejection;
+              operations.push(tx => this.quarantine(tx, entry.context, rejected.hash, rejected.reason));
+            } else {
+              try { operations.push(await this.prepareIngest(entry.input, entry.context, lease, retention, activeProject, preparedKeys)); }
+              catch (error) {
+                const invalid = error instanceof InvalidRuntimeAuditRecord ||
+                  error instanceof ObservabilityStorageError && [
+                    'INVALID_RECORD_VERSION', 'INVALID_ASSET_REFERENCE',
+                    'INVALID_RECORD_DEPTH', 'INVALID_RECORD_VALUE',
+                  ].includes(error.code);
+                if (!invalid || !entry.sourceHash || !/^[a-f0-9]{64}$/.test(entry.sourceHash)) throw error;
+                operations.push(tx => this.quarantine(tx, entry.context, entry.sourceHash!, 'INVALID_SOURCE_SCHEMA'));
+              }
+            }
+          }
+          return await session.commit(async tx => {
+            await this.payloadCoordination.assertWriter(tx, lease);
+            const facts = options.batchFacts ? await this.prepareFactBatch(tx, preparedKeys, entries) : undefined;
+            if (facts) this.factBatches.set(tx, facts);
+            // Collector hooks do not read pending bucket markers. Other callers retain
+            // immediate read-your-writes unless they explicitly opt in to coalescing.
+            const buckets = options.coalesceBuckets ? {
+              metrics: new Map<string, RuntimeMetricBucketEntity>(), callers: new Map<string, RuntimeCallerBucketEntity>(),
+            } : undefined;
+            if (buckets) this.batchBuckets.set(tx, buckets);
+            const results: IngestResult[] = [];
+            for (const operation of operations) {
+              const eventOffset = tx.events.length;
+              const result = await operation(tx);
+              results.push({ ...result, events: tx.events.slice(eventOffset) });
+            }
+            if (projectionBatch) await projectionBatch.flush(tx);
+            if (facts) await this.flushFactBatch(tx, facts);
+            if (buckets) {
+              if (facts) {
+                await this.upsertFactRows(tx, RuntimeMetricBucketEntity, [...buckets.metrics.values()], 'id');
+                await this.upsertFactRows(tx, RuntimeCallerBucketEntity, [...buckets.callers.values()], 'id');
+              } else {
+                if (buckets.metrics.size) await tx.manager.getRepository(RuntimeMetricBucketEntity).save([...buckets.metrics.values()]);
+                if (buckets.callers.size) await tx.manager.getRepository(RuntimeCallerBucketEntity).save([...buckets.callers.values()]);
+              }
+              this.batchBuckets.delete(tx);
+            }
+            this.factBatches.delete(tx);
+            return results;
+          });
+        } finally { projectionBatch?.dispose(); }
+      });
+    });
+  }
+
+  private async prepareFactBatch(tx: ObservabilityWriteTransaction, keys: PreparedBatchKeys[],
+    entries: IngestBatchEntry[]): Promise<IngestFactBatch> {
+    const receiptIds = [...new Set(keys.map(key => key.receiptId))];
+    const invocationIds = [...new Set(keys.map(key => key.invocationId))];
+    const checkpointIds = [...new Set(entries.flatMap(entry => entry.context.checkpoint ? [entry.context.checkpoint.id] : []))];
+    const receipts = receiptIds.length ? await tx.manager.getRepository(RuntimeIngestReceiptEntity).findBy({ id: In(receiptIds) }) : [];
+    const tombstones = receiptIds.length ? await tx.manager.getRepository(RuntimeIngestReceiptTombstoneEntity).findBy({ id: In(receiptIds) }) : [];
+    const query = tx.manager.getRepository(RuntimeInvocationEntity).createQueryBuilder('invocation')
+      .where('invocation.invocationId IN (:...ids)', { ids: invocationIds });
+    if (this.dataSource.options.type === 'postgres') query.setLock('pessimistic_write');
+    const invocations = invocationIds.length ? await query.getMany() : [];
+    const payloadIds = [...new Set([...invocations.flatMap(row => [row.requestPayloadId, row.responsePayloadId]),
+      ...keys.flatMap(key => key.payloadIds)].filter(Boolean))] as string[];
+    const payloads = payloadIds.length ? await tx.manager.getRepository(RuntimePayloadEntity).findBy({ id: In(payloadIds) }) : [];
+    const checkpoints = checkpointIds.length ? await tx.manager.getRepository(RuntimeIngestCheckpointEntity).findBy({ id: In(checkpointIds) }) : [];
+    const boundaries = checkpointIds.length ? await tx.manager.getRepository(RuntimePipelineStateEntity)
+      .findBy({ id: In(checkpointIds.map(id => 'call-observability:boundary:' + id)) }) : [];
+    return {
+      receipts: new Map(receipts.map(row => [row.id, row])), tombstones: new Map(tombstones.map(row => [row.id, row])),
+      invocations: new Map(invocations.map(row => [row.invocationId, row])), payloads: new Map(payloads.map(row => [row.id, row])),
+      checkpoints: new Map(checkpoints.map(row => [row.id, row])), boundaries: new Map(boundaries.map(row => [row.id, row])),
+      newReceipts: [], newPayloads: new Map(), current: new Map(), revisions: new Map(), closeRevisions: new Map(),
+      contributions: new Map(), changedCheckpoints: new Map(), changedBoundaries: new Map(), events: [],
+      eventDays: (await readEventRetentionPolicy(tx.manager)).eventDays,
+    };
+  }
+
+  private async upsertFactRows(tx: ObservabilityWriteTransaction, entity: any, rows: any[], key: string): Promise<void> {
+    for (let offset = 0; offset < rows.length; offset += 16) {
+      await tx.manager.getRepository(entity).upsert(rows.slice(offset, offset + 16), [key]);
+    }
+  }
+
+  private async flushFactBatch(tx: ObservabilityWriteTransaction, batch: IngestFactBatch): Promise<void> {
+    // At most 16 source records, 32 payloads and 32 events. Flush SQL in chunks of 16
+    // to stay below SQLite parameter limits even for wide invocation revisions.
+    const insert = async (entity: any, rows: any[], ignore = false) => {
+      for (let offset = 0; offset < rows.length; offset += 16) {
+        const query = tx.manager.getRepository(entity).createQueryBuilder().insert().values(rows.slice(offset, offset + 16));
+        if (ignore) query.orIgnore();
+        await query.execute();
+      }
+    };
+    const upsert = (entity: any, rows: any[], key: string) => this.upsertFactRows(tx, entity, rows, key);
+    await insert(RuntimeIngestReceiptEntity, batch.newReceipts);
+    await insert(RuntimePayloadEntity, [...batch.newPayloads.values()], true);
+    // Only the pre-batch revision needs a database update; intermediate versions are
+    // retained individually with their exact closing sequence in the pending map.
+    for (const previous of batch.closeRevisions.values()) {
+      await tx.manager.getRepository(RuntimeInvocationRevisionEntity).update({
+        invocationId: previous.invocationId, recordVersion: previous.recordVersion,
+      }, { validUntilSequence: previous.sequence });
+    }
+    await upsert(RuntimeInvocationEntity, [...batch.current.values()], 'invocationId');
+    await insert(RuntimeInvocationRevisionEntity, [...batch.revisions.values()]);
+    await upsert(RuntimeMetricContributionEntity, [...batch.contributions.values()], 'invocationId');
+    await insert(RuntimeObservabilityEventEntity, batch.events);
+    await upsert(RuntimePipelineStateEntity, [...batch.changedBoundaries.values()], 'id');
+    // Checkpoints are the final fact writes; every preceding write and the counter
+    // remain inside the original transaction, including failures in bucket flush.
+    await upsert(RuntimeIngestCheckpointEntity, [...batch.changedCheckpoints.values()], 'id');
+  }
+
+  private async prepareIngest(input: unknown, context: IngestContext, lease: PayloadLease,
+    retention: { days: number; previous: Map<string, { request?: string; response?: string }> },
+    project?: ProjectionHook, preparedKeys?: PreparedBatchKeys[]): Promise<(tx: ObservabilityWriteTransaction) => Promise<IngestResult>> {
       // Invalid schema/JSON must be handed to rejectRecord by the collector.
       const source = normalizeRuntimeAuditRecord(input, context);
       if (source.recordVersion > 2147483647) throw new ObservabilityStorageError('INVALID_RECORD_VERSION');
@@ -247,28 +453,22 @@ export class CallObservabilityStore {
         url: source.url ? redactAuditUrl(source.url) : null,
         path: source.path ? redactAuditUrl(source.path) : null,
       };
-      await this.ensurePayloadStorage();
-      return this.payloadCoordination.withWriter(async lease => {
         const now = new Date().toISOString();
         const retainFrom = record.completedAt || record.startedAt;
         // Snapshot the active policy before filesystem I/O. Existing invocation sides keep
         // their original deadline, including expired tombstones, across source revisions.
-        const bodyExpiry = await this.readSnapshot(async tx => {
-          const policy = await readEventRetentionPolicy(tx.manager);
-          const previous = await tx.manager.getRepository(RuntimeInvocationEntity)
-            .findOneBy({ invocationId: record.invocationId });
-          const payloads = tx.manager.getRepository(RuntimePayloadEntity);
-          const request = previous?.requestPayloadId ? await payloads.findOneBy({ id: previous.requestPayloadId }) : null;
-          const response = previous?.responsePayloadId ? await payloads.findOneBy({ id: previous.responsePayloadId }) : null;
-          const defaultExpiry = expiresAfter(retainFrom, policy.payloadDays);
-          return { request: request?.expiresAt ?? defaultExpiry, response: response?.expiresAt ?? defaultExpiry };
-        });
+        const previousExpiry = retention.previous.get(record.invocationId);
+        const defaultExpiry = expiresAfter(retainFrom, retention.days);
+        const bodyExpiry = { request: previousExpiry?.request ?? defaultExpiry,
+          response: previousExpiry?.response ?? defaultExpiry };
         const enabled = process.env.API_NOVA_OBSERVABILITY_PAYLOAD_QUOTA_ENABLED;
         const quota: PayloadPublicationQuota | undefined = enabled === undefined || enabled === 'false' ? undefined : {
           reserve: async (payloadId, fileKey, digest, storedBytes) => {
             if (enabled !== 'true') throw new ObservabilityStorageError('QUOTA_UNAVAILABLE');
             const primitives = new PayloadQuotaPrimitives();
             const intent = new PayloadPublicationIntentStore();
+            const physical = payloadPhysicalGuardEnabled()
+              ? { observation: await this.payloadStore.measureFreeSpace() } : null;
             const reservation = await this.transaction(async tx => {
               await this.payloadCoordination.assertWriter(tx, lease);
               const status = await primitives.status({ manager: tx.manager, now: tx.now, snapshotSeq: publicSequence(tx.currentSequence()) });
@@ -279,7 +479,7 @@ export class CallObservabilityStore {
                 result = await intent.reserve(tx, status.epoch, {
                   sourceInstanceId: record.sourceInstanceId, sourceEventId: record.sourceEventId,
                   payloadId, generation: lease.generation, fileKey, digest, storedBytes,
-                });
+                }, physical);
               } catch (error) {
                 if (status.state === 'limited' && error instanceof ObservabilityStorageError && error.code === 'QUOTA_NOT_READY') {
                   throw new ObservabilityStorageError('QUOTA_EXHAUSTED');
@@ -309,16 +509,32 @@ export class CallObservabilityStore {
           sourceInstanceId: record.sourceInstanceId, invocationId: record.invocationId, side: 'response',
         }, record.response, now, bodyExpiry.response, lease.generation, quota);
         const receiptId = contentHash(canonicalJson([record.sourceInstanceId, record.sourceEventId]));
-        return this.transaction(async tx => {
+        preparedKeys?.push({ invocationId: record.invocationId, receiptId, payloadIds: [request.entity.id, response.entity.id] });
+        return async tx => {
+          const batch = this.factBatches.get(tx);
           await this.payloadCoordination.assertWriter(tx, lease);
           const receipts = tx.manager.getRepository(RuntimeIngestReceiptEntity);
-          const previousReceipt = await receipts.findOne({ where: { id: receiptId } });
+          const previousReceipt = batch ? batch.receipts.get(receiptId) : await receipts.findOne({ where: { id: receiptId } });
           if (previousReceipt && previousReceipt.recordHash !== recordHash) {
             return this.quarantine(tx, context, recordHash, 'SOURCE_EVENT_CONFLICT', record);
           }
           const repository = tx.manager.getRepository(RuntimeInvocationEntity);
-          const previous = await repository.findOne({ where: { invocationId: record.invocationId } });
+          const previous = batch ? batch.invocations.get(record.invocationId) || null :
+            await repository.findOne({ where: { invocationId: record.invocationId } });
           if (previousReceipt) {
+            await this.checkpoint(tx, context.checkpoint, source.sourceSequence, source.sourceInstanceId);
+            return this.result(tx, 'duplicate', previous);
+          }
+          // The receipt remains authoritative while present; the tombstone only gates
+          // replay after the physical receipt is removed. Matching identity + hash is a
+          // duplicate with no sequence, event or invocation mutation; a different hash
+          // keeps the original conflict isolation.
+          const previousTombstone = batch ? batch.tombstones.get(receiptId) : await tx.manager
+            .getRepository(RuntimeIngestReceiptTombstoneEntity).findOne({ where: { id: receiptId } });
+          if (previousTombstone) {
+            if (previousTombstone.recordHash !== recordHash) {
+              return this.quarantine(tx, context, recordHash, 'SOURCE_EVENT_CONFLICT', record);
+            }
             await this.checkpoint(tx, context.checkpoint, source.sourceSequence, source.sourceInstanceId);
             return this.result(tx, 'duplicate', previous);
           }
@@ -334,10 +550,12 @@ export class CallObservabilityStore {
             return this.quarantine(tx, context, recordHash, 'TERMINAL_RECORD_MUTATION', record);
           }
 
-          await receipts.insert({
+          const receipt = receipts.create({
             id: receiptId, sourceInstanceId: record.sourceInstanceId, eventId: record.sourceEventId,
             recordHash, invocationId: record.invocationId, createdAt: tx.now, expiresAt: expiresAfter(tx.now, 32),
           });
+          if (batch) { batch.receipts.set(receiptId, receipt); batch.newReceipts.push(receipt); }
+          else await receipts.insert(receipt);
           if (previous && record.recordVersion <= previous.sourceRecordVersion) {
             await this.checkpoint(tx, context.checkpoint, source.sourceSequence, source.sourceInstanceId);
             return this.result(tx, recordHash === previous.recordHash ? 'duplicate' : 'stale', previous);
@@ -359,7 +577,7 @@ export class CallObservabilityStore {
             const payloads = tx.manager.getRepository(RuntimePayloadEntity);
             for (const [prepared, payloadId] of [[request, previous.requestPayloadId], [response, previous.responsePayloadId]] as const) {
               if (!payloadId) continue;
-              const existing = await payloads.findOneBy({ id: payloadId });
+              const existing = batch ? batch.payloads.get(payloadId) : await payloads.findOneBy({ id: payloadId });
               if (existing) prepared.entity.expiresAt = existing.expiresAt;
             }
           }
@@ -400,9 +618,8 @@ export class CallObservabilityStore {
           }
           await this.checkpoint(tx, context.checkpoint, source.sourceSequence, source.sourceInstanceId);
           return this.result(tx, previous ? 'updated' : 'inserted', current);
-        });
-      });
-    });
+
+        };
   }
 
   /** Only the recovery worker calls this after establishing lost terminal evidence. */
@@ -468,6 +685,14 @@ export class CallObservabilityStore {
   }
 
   private async persistPayload(tx: ObservabilityWriteTransaction, payload: PreparedPayload): Promise<void> {
+    const batch = this.factBatches.get(tx);
+    if (batch) {
+      if (!batch.payloads.has(payload.entity.id)) {
+        batch.payloads.set(payload.entity.id, payload.entity);
+        batch.newPayloads.set(payload.entity.id, payload.entity);
+      }
+      return;
+    }
     await tx.manager.getRepository(RuntimePayloadEntity).createQueryBuilder()
       .insert().values(payload.entity).orIgnore().execute();
   }
@@ -479,7 +704,8 @@ export class CallObservabilityStore {
     const selector = invocations.createQueryBuilder('invocation')
       .where('invocation.invocationId = :invocationId', { invocationId: current.invocationId });
     if (this.dataSource.options.type === 'postgres') selector.setLock('pessimistic_write');
-    const latest = await selector.getOne();
+    const batch = this.factBatches.get(tx);
+    const latest = batch ? batch.invocations.get(current.invocationId) || null : await selector.getOne();
     if (latest && latest.invocationId !== current.invocationId) return { status: 'stale', invocation: null };
     if (!latest) {
       if (previous) return { status: 'stale', invocation: null };
@@ -506,18 +732,28 @@ export class CallObservabilityStore {
       this.toBucketRevision(current),
     );
     if (plan.status !== 'apply') return { status: plan.status === 'duplicate' ? 'duplicate' : 'stale', invocation: latest };
-    if (latest) {
-      await revisions.update({ invocationId: latest.invocationId, recordVersion: latest.recordVersion }, {
+    const revision = Object.assign(new RuntimeInvocationRevisionEntity(), current, {
+      id: contentHash(canonicalJson([current.invocationId, current.recordVersion])),
+      validFromSequence: current.updatedSequence, validUntilSequence: null,
+    });
+    if (batch) {
+      if (latest) {
+        const id = contentHash(canonicalJson([latest.invocationId, latest.recordVersion]));
+        const pending = batch.revisions.get(id);
+        if (pending) pending.validUntilSequence = current.updatedSequence;
+        else batch.closeRevisions.set(id, { invocationId: latest.invocationId,
+          recordVersion: latest.recordVersion, sequence: current.updatedSequence });
+      }
+      batch.invocations.set(current.invocationId, current);
+      batch.current.set(current.invocationId, current);
+      batch.revisions.set(revision.id, revision);
+    } else {
+      if (latest) await revisions.update({ invocationId: latest.invocationId, recordVersion: latest.recordVersion }, {
         validUntilSequence: current.updatedSequence,
       });
+      await invocations.save(current);
+      await revisions.insert(revision);
     }
-    await invocations.save(current);
-    await revisions.insert(Object.assign(
-      new RuntimeInvocationRevisionEntity(), current, {
-        id: contentHash(canonicalJson([current.invocationId, current.recordVersion])),
-        validFromSequence: current.updatedSequence, validUntilSequence: null,
-      },
-    ));
     await this.persistProjectionContribution(tx, current, plan);
     await this.markBucketsForRecompute(tx, current, plan);
     return { status: 'apply', invocation: current };
@@ -549,12 +785,15 @@ export class CallObservabilityStore {
   private async persistProjectionContribution(tx: ObservabilityWriteTransaction,
     current: RuntimeInvocationEntity, plan: BucketRevisionPlan): Promise<void> {
     const repository = tx.manager.getRepository(RuntimeMetricContributionEntity);
-    await repository.save(Object.assign(new RuntimeMetricContributionEntity(), {
+    const contribution = Object.assign(new RuntimeMetricContributionEntity(), {
       invocationId: current.invocationId,
       recordVersion: current.recordVersion,
       contribution: plan,
       updatedAt: tx.now,
-    }));
+    });
+    const batch = this.factBatches.get(tx);
+    if (batch) batch.contributions.set(current.invocationId, contribution);
+    else await repository.save(contribution);
   }
 
   private async markBucketsForRecompute(tx: ObservabilityWriteTransaction,
@@ -562,10 +801,13 @@ export class CallObservabilityStore {
     const marker = current.record as CanonicalInvocation;
     const expiresAt = current.expiresAt;
     const metricBuckets = tx.manager.getRepository(RuntimeMetricBucketEntity);
-    const previousMetrics = new Map((await metricBuckets.findBy({
-      id: In(plan.invalidations.map(({ bucket }) => bucket.bucketId)),
-    })).map(row => [row.id, row]));
-    await metricBuckets.save(plan.invalidations.map(({ bucket, membershipChange, action }) => metricBuckets.create({
+    const batch = this.batchBuckets.get(tx);
+    const metricIds = plan.invalidations.map(({ bucket }) => bucket.bucketId).filter(id => !batch?.metrics.has(id));
+    const previousMetrics = new Map([
+      ...(metricIds.length ? await metricBuckets.findBy({ id: In(metricIds) }) : []).map(row => [row.id, row] as const),
+      ...(batch?.metrics.entries() || []),
+    ]);
+    const metricRows = plan.invalidations.map(({ bucket, membershipChange, action }) => metricBuckets.create({
       id: bucket.bucketId, scope: bucket.scope, bucketStart: bucket.bucketStart, bucketEnd: bucket.bucketEnd,
       dimensions: {
         keySchemaVersion: bucket.keySchemaVersion, runtimeAssetId: bucket.runtimeAssetId,
@@ -583,15 +825,19 @@ export class CallObservabilityStore {
       version: previousMetrics.get(bucket.bucketId)?.version ?? 0,
       dataWatermark: current.updatedSequence,
       expiresAt,
-    })));
+    }));
+    if (batch) for (const row of metricRows) batch.metrics.set(row.id, row);
+    else if (metricRows.length) await metricBuckets.save(metricRows);
     if (!current.record?.callerId) return;
     const callerBuckets = tx.manager.getRepository(RuntimeCallerBucketEntity);
     const callerKey = (bucket: BucketRevisionPlan['invalidations'][number]['bucket']) =>
       contentHash(canonicalJson([current.record.callerId, bucket.bucketId, bucket.scope, bucket.timeBasis, bucket.interval]));
-    const previousCallers = new Map((await callerBuckets.findBy({
-      id: In(plan.invalidations.map(({ bucket }) => callerKey(bucket))),
-    })).map(row => [row.id, row]));
-    await callerBuckets.save(plan.invalidations.map(({ bucket, membershipChange, action }) => callerBuckets.create({
+    const callerIds = plan.invalidations.map(({ bucket }) => callerKey(bucket)).filter(id => !batch?.callers.has(id));
+    const previousCallers = new Map([
+      ...(callerIds.length ? await callerBuckets.findBy({ id: In(callerIds) }) : []).map(row => [row.id, row] as const),
+      ...(batch?.callers.entries() || []),
+    ]);
+    const callerRows = plan.invalidations.map(({ bucket, membershipChange, action }) => callerBuckets.create({
       id: contentHash(canonicalJson([
         current.record.callerId, bucket.bucketId, bucket.scope, bucket.timeBasis, bucket.interval,
       ])),
@@ -608,26 +854,66 @@ export class CallObservabilityStore {
       },
       version: previousCallers.get(callerKey(bucket))?.version ?? 0,
       expiresAt,
-    })));
+    }));
+    if (batch) for (const row of callerRows) batch.callers.set(row.id, row);
+    else if (callerRows.length) await callerBuckets.save(callerRows);
   }
 
-  /** Repair queued recompute markers after scan completion to produce durable bucket payloads. */
-  async recomputePendingBuckets(): Promise<RecomputeBucketSummary> {
-    return this.transaction(async tx => this.recomputePendingBucketsInTransaction(tx));
+  /** Repair committed pending markers; production passes an explicit fair budget. */
+  async recomputePendingBuckets(limit?: number): Promise<RecomputeBucketSummary> {
+    if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 1 || limit > 128)) {
+      throw new ObservabilityStorageError('INVALID_RECOMPUTE_LIMIT');
+    }
+    return this.transaction(async tx => this.recomputePendingBucketsInTransaction(tx, limit));
   }
 
-  private async recomputePendingBucketsInTransaction(tx: ObservabilityWriteTransaction): Promise<RecomputeBucketSummary> {
+  private async recomputePendingBucketsInTransaction(tx: ObservabilityWriteTransaction,
+    limit?: number): Promise<RecomputeBucketSummary> {
     const metricBuckets = tx.manager.getRepository(RuntimeMetricBucketEntity);
     const callerBuckets = tx.manager.getRepository(RuntimeCallerBucketEntity);
     const snapshot = tx.currentSequence();
-    const pendingMetric = await metricBuckets.createQueryBuilder('bucket').where(
-      this.jsonText(tx.manager, 'bucket', 'metrics', 'recompute.state') + ' = :state',
-      { state: 'pending' },
-    ).getMany();
-    const pendingCaller = await callerBuckets.createQueryBuilder('bucket').where(
-      this.jsonText(tx.manager, 'bucket', 'metrics', 'recompute.state') + ' = :state',
-      { state: 'pending' },
-    ).getMany();
+    const now = Date.now();
+    for (const [key, until] of this.bucketRecomputeBackoff) if (until <= now) this.bucketRecomputeBackoff.delete(key);
+    const select = async <T extends { id: string }>(repository: any, kind: 'metric' | 'caller'): Promise<T[]> => {
+      const query = () => repository.createQueryBuilder('bucket').where(
+        this.jsonText(tx.manager, 'bucket', 'metrics', 'recompute.state') + ' = :state', { state: 'pending' });
+      if (limit === undefined) return query().getMany();
+      const deferred = [...this.bucketRecomputeBackoff.keys()].filter(key => key.startsWith(kind + ':'))
+        .map(key => key.slice(kind.length + 1));
+      const bounded = () => {
+        const result = query().orderBy('bucket.id', 'ASC');
+        if (deferred.length) result.andWhere('bucket.id NOT IN (:...deferred)', { deferred });
+        return result;
+      };
+      const cursor = this.bucketRecomputeCursor[kind];
+      const first: T[] = await bounded().andWhere('bucket.id > :cursor', { cursor }).take(limit).getMany();
+      if (cursor && first.length < limit) {
+        first.push(...await bounded().andWhere('bucket.id <= :cursor', { cursor }).take(limit - first.length).getMany());
+      }
+      return first;
+    };
+    let pendingMetric = await select<RuntimeMetricBucketEntity>(metricBuckets, 'metric');
+    let pendingCaller = await select<RuntimeCallerBucketEntity>(callerBuckets, 'caller');
+    if (limit !== undefined) {
+      // Fetch at most twice the work budget, then share it fairly between tables.
+      // Odd slots alternate; unused slots transfer to the other table.
+      const metricShare = this.bucketRecomputeCursor.preferCaller ? Math.floor(limit / 2) : Math.ceil(limit / 2);
+      const callerCount = Math.min(pendingCaller.length, limit - Math.min(pendingMetric.length, metricShare));
+      const metricCount = Math.min(pendingMetric.length, limit - callerCount);
+      pendingMetric = pendingMetric.slice(0, metricCount);
+      pendingCaller = pendingCaller.slice(0, callerCount);
+      if (pendingMetric.length) this.bucketRecomputeCursor.metric = pendingMetric[pendingMetric.length - 1].id;
+      if (pendingCaller.length) this.bucketRecomputeCursor.caller = pendingCaller[pendingCaller.length - 1].id;
+      this.bucketRecomputeCursor.preferCaller = !this.bucketRecomputeCursor.preferCaller;
+    }
+    const deferFailure = (kind: string, id: string) => {
+      if (limit === undefined) return;
+      const key = kind + ':' + id;
+      if (!this.bucketRecomputeBackoff.has(key) && this.bucketRecomputeBackoff.size >= 128) {
+        this.bucketRecomputeBackoff.delete(this.bucketRecomputeBackoff.keys().next().value!);
+      }
+      this.bucketRecomputeBackoff.set(key, Date.now() + 1000);
+    };
     const summary: RecomputeBucketSummary = { recomputed: 0, failed: 0 };
     let watermark: string | null = null;
     const ensureWatermark = () => {
@@ -655,6 +941,7 @@ export class CallObservabilityStore {
         row.dataWatermark = ensureWatermark();
       } catch {
         summary.failed += 1;
+        deferFailure('metric', row.id);
         await this.diagnostic(tx, 'recomputeBucketFailures', 1);
         continue;
       }
@@ -686,6 +973,7 @@ export class CallObservabilityStore {
         row.version = this.nextSubjectVersion(row.version);
       } catch {
         summary.failed += 1;
+        deferFailure('caller', row.id);
         await this.diagnostic(tx, 'recomputeBucketFailures', 1);
         continue;
       }
@@ -730,7 +1018,14 @@ export class CallObservabilityStore {
     if (projection.runtimeAssetId === null) query.andWhere('revision.runtimeAssetId IS NULL');
     else query.andWhere('revision.runtimeAssetId = :runtimeAssetId', { runtimeAssetId: projection.runtimeAssetId });
     if (callerId) query.andWhere('revision.callerId = :callerId', { callerId });
-    return query.getMany();
+    // Fetch one sentinel beyond the kernel limit, never the entire busy bucket.
+    // Reject before source expansion and leave the pending marker to the caller's
+    // existing failure/backoff path; a truncated sample must not become a metric.
+    const rows = await query.take(MAX_METRIC_OBSERVATIONS + 1).getMany();
+    if (rows.length > MAX_METRIC_OBSERVATIONS) {
+      throw new ObservabilityApiError('QUERY_TOO_LARGE', 'observations');
+    }
+    return rows;
   }
 
   private async loadSources(tx: ObservabilityWriteTransaction, rows: RuntimeInvocationRevisionEntity[])
@@ -851,9 +1146,11 @@ export class CallObservabilityStore {
       actorType: RuntimeObservabilityActorType.SYSTEM,
       occurredAt: new Date(tx.now), createdAt: new Date(tx.now),
       retentionClass: RuntimeObservabilityRetentionClass.STANDARD,
-      dispatchState: suppressEvent ? 'suppressed' : 'pending', expiresAt: new Date(expiresAfter(tx.now, (await readEventRetentionPolicy(tx.manager)).eventDays)),
+      dispatchState: suppressEvent ? 'suppressed' : 'pending', expiresAt: new Date(expiresAfter(tx.now, (this.factBatches.get(tx)?.eventDays ?? (await readEventRetentionPolicy(tx.manager)).eventDays))),
     });
-    await tx.manager.getRepository(RuntimeObservabilityEventEntity).insert(event);
+    const batch = this.factBatches.get(tx);
+    if (batch) batch.events.push(event);
+    else await tx.manager.getRepository(RuntimeObservabilityEventEntity).insert(event);
     if (!suppressEvent) tx.events.push({ eventId: event.id, sequence: publicSequence(sequence), eventType });
   }
 
@@ -890,7 +1187,7 @@ export class CallObservabilityStore {
       correlationId: row.traceId && row.traceId.length <= 120 ? row.traceId : undefined,
       actorType: RuntimeObservabilityActorType.RUNTIME,
       retentionClass: RuntimeObservabilityRetentionClass.STANDARD,
-      dispatchState: suppressEvent ? 'suppressed' : 'pending', expiresAt: new Date(expiresAfter(tx.now, (await readEventRetentionPolicy(tx.manager)).eventDays)),
+      dispatchState: suppressEvent ? 'suppressed' : 'pending', expiresAt: new Date(expiresAfter(tx.now, (this.factBatches.get(tx)?.eventDays ?? (await readEventRetentionPolicy(tx.manager)).eventDays))),
       dimensions: { runtimeAssetId: row.runtimeAssetId, serverType: row.serverType, origin: row.origin,
         spanKind: row.spanKind, callerId: row.callerId, endpointDefinitionId: row.endpointDefinitionId,
         sourceServiceInstanceId: row.sourceServiceInstanceId },
@@ -904,7 +1201,9 @@ export class CallObservabilityStore {
         request: { state: row.request.state, observedBytes: row.request.observedBytes },
         response: { state: row.response.state, observedBytes: row.response.observedBytes } },
     });
-    await tx.manager.getRepository(RuntimeObservabilityEventEntity).insert(event);
+    const batch = this.factBatches.get(tx);
+    if (batch) batch.events.push(event);
+    else await tx.manager.getRepository(RuntimeObservabilityEventEntity).insert(event);
     if (!suppressEvent) tx.events.push({ eventId: event.id, sequence: publicSequence(sequence), eventType });
   }
 
@@ -912,7 +1211,8 @@ export class CallObservabilityStore {
     checkpoint: IngestCheckpoint | undefined, sourceSequence: number | null, sourceInstanceId?: string): Promise<void> {
     if (!checkpoint) return;
     const repository = tx.manager.getRepository(RuntimeIngestCheckpointEntity);
-    const previous = await repository.findOne({ where: { id: checkpoint.id } });
+    const batch = this.factBatches.get(tx);
+    const previous = batch ? batch.checkpoints.get(checkpoint.id) : await repository.findOne({ where: { id: checkpoint.id } });
     const offset = sequenceKey(checkpoint.byteOffset);
     if (previous?.fileIdentity && previous.fileIdentity !== checkpoint.fileIdentity) {
       throw new ObservabilityStorageError('CHECKPOINT_FILE_CHANGED');
@@ -929,21 +1229,25 @@ export class CallObservabilityStore {
     if (checkpoint.boundaryHash) {
       const boundaries = tx.manager.getRepository(RuntimePipelineStateEntity);
       const id = 'call-observability:boundary:' + checkpoint.id;
-      const boundary = await boundaries.findOneBy({ id });
+      const boundary = batch ? batch.boundaries.get(id) : await boundaries.findOneBy({ id });
       const boundSource = boundary?.value?.sourceInstanceId;
       const mixedSources = boundary?.value?.mixedSources === true ||
         !!(boundSource && sourceInstanceId && boundSource !== sourceInstanceId);
-      await boundaries.save(boundaries.create({ id,
+      const nextBoundary = boundaries.create({ id,
         value: { hash: checkpoint.boundaryHash, mixedSources,
           sourceInstanceId: mixedSources ? null : sourceInstanceId || boundSource || null }, updatedAt: tx.now,
-      }));
+      });
+      if (batch) { batch.boundaries.set(id, nextBoundary); batch.changedBoundaries.set(id, nextBoundary); }
+      else await boundaries.save(nextBoundary);
     }
-    await repository.save(Object.assign(new RuntimeIngestCheckpointEntity(), {
+    const nextCheckpoint = Object.assign(new RuntimeIngestCheckpointEntity(), {
       id: checkpoint.id, fileName: checkpoint.fileName, fileIdentity: checkpoint.fileIdentity,
       byteOffset: offset, lastSequence: sourceSequence === null ? previous?.lastSequence || null :
         sequenceKey(BigInt(sourceSequence) > BigInt(previous?.lastSequence || '0')
           ? String(sourceSequence) : previous!.lastSequence!), updatedAt: tx.now, status: 'active', error: null,
-    }));
+    });
+    if (batch) { batch.checkpoints.set(checkpoint.id, nextCheckpoint); batch.changedCheckpoints.set(checkpoint.id, nextCheckpoint); }
+    else await repository.save(nextCheckpoint);
   }
 
   private validateCheckpoint(checkpoint?: IngestCheckpoint): void {

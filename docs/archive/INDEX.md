@@ -1,0 +1,314 @@
+# 历史文档清单
+
+所有条目均为archived；原元数据和日期只用于追溯，不代表当前状态。返回[归档说明](./README.md)或[当前阅读指引](../README.md)。
+
+- [ApiNova Server Monorepo 架构重构方案](architecture/monorepo-refactoring-proposal.md) · `architecture/monorepo-refactoring-proposal.md`
+- [ApiNova Parser 抽离实施计划](architecture/parser-extraction-implementation-plan.md) · `architecture/parser-extraction-implementation-plan.md`
+- [ApiNova Server 架构文档](architecture/README.md) · `architecture/README.md`
+- [审查报告 A1：手工服务注册 → 发布为代理服务的能力审查](audits/2026-09-04-manual-registration-publication.md) · `audits/2026-09-04-manual-registration-publication.md`
+- [2026-09-07 手工登记与发布修复审查性合并记录](audits/2026-09-07-reviewed-merge.md) · `audits/2026-09-07-reviewed-merge.md`
+- [Persistence And Compatibility Cleanup Review](audits/2026-09-08-persistence-cleanup.md) · `audits/2026-09-08-persistence-cleanup.md`
+- [活跃任务包依赖与并发推进记录](audits/2026-09-14-active-task-dependencies.md) · `audits/2026-09-14-active-task-dependencies.md`
+- [提交整理与可信资产快照](audits/2026-09-14-commit-ownership-wave.md) · `audits/2026-09-14-commit-ownership-wave.md`
+- [管理心跳、请求头与Gateway消费者并发推进](audits/2026-09-14-heartbeat-header-consumer-wave.md) · `audits/2026-09-14-heartbeat-header-consumer-wave.md`
+- [按规划推进：策略、状态覆盖与凭据管理](audits/2026-09-14-planned-next-wave.md) · `audits/2026-09-14-planned-next-wave.md`
+- [正文保留与调用事实消费推进](audits/2026-09-14-retention-consumer-wave.md) · `audits/2026-09-14-retention-consumer-wave.md`
+- [Gateway路由观测、MCP可信映射与策略UI](audits/2026-09-14-routing-policy-mapping-wave.md) · `audits/2026-09-14-routing-policy-mapping-wave.md`
+- [显式单跳凭据执行、容量样本与诊断UI](audits/2026-09-14-single-hop-capacity-diagnostics-wave.md) · `audits/2026-09-14-single-hop-capacity-diagnostics-wave.md`
+- [候选激活与GC重试](audits/2026-09-15-activation-gc-wave.md) · `audits/2026-09-15-activation-gc-wave.md`
+- [MCP装配可信映射接线](audits/2026-09-15-mcp-assembly-ownership-wave.md) · `audits/2026-09-15-mcp-assembly-ownership-wave.md`
+- [单查询归属与故障恢复](audits/2026-09-15-ownership-recovery-wave.md) · `audits/2026-09-15-ownership-recovery-wave.md`
+- [PROD-03 本地发布状态循环验收](audits/2026-09-15-prod-03-local-publication-cycle.md) · `audits/2026-09-15-prod-03-local-publication-cycle.md`
+- [发布读取与停机收敛](audits/2026-09-15-publication-shutdown-wave.md) · `audits/2026-09-15-publication-shutdown-wave.md`
+- [上游归属交叉核验](audits/2026-09-15-upstream-ownership-wave.md) · `audits/2026-09-15-upstream-ownership-wave.md`
+- [全范围工作包审核与子任务重排](audits/2026-09-15-work-package-replan.md) · `audits/2026-09-15-work-package-replan.md`
+- [重拆第二批：受管通道、生命周期基础与发布循环证据](audits/2026-09-16-replanned-batch-2-evidence.md) · `audits/2026-09-16-replanned-batch-2-evidence.md`
+- [重拆第三批：跨批围栏、原子基线与二进制样例证据](audits/2026-09-16-replanned-batch-3-evidence.md) · `audits/2026-09-16-replanned-batch-3-evidence.md`
+- [重拆第四批：保守恢复、二进制样例撤销与当前空库证据](audits/2026-09-16-replanned-batch-4-evidence.md) · `audits/2026-09-16-replanned-batch-4-evidence.md`
+- [重拆第五批：发布意图、样例孤儿整理与鉴权语义](audits/2026-09-16-replanned-batch-5-evidence.md) · `audits/2026-09-16-replanned-batch-5-evidence.md`
+- [额度中断完整性复核与现阶段交付](audits/2026-09-17-interruption-recovery-evidence.md) · `audits/2026-09-17-interruption-recovery-evidence.md`
+- [SEC-A1-02D 保存、发布、重启与真实请求闭环](audits/2026-09-21-auth-publication-loop.md) · `audits/2026-09-21-auth-publication-loop.md`
+- [Header策略编译与安全接线准备](audits/2026-09-21-header-policy-compilation.md) · `audits/2026-09-21-header-policy-compilation.md`
+- [Header双向过滤与受控真实流执行](audits/2026-09-21-header-wire-execution.md) · `audits/2026-09-21-header-wire-execution.md`
+- [SEC-D2-01 Gateway IP与匿名独立限流验收](audits/2026-09-21-independent-rate-limits.md) · `audits/2026-09-21-independent-rate-limits.md`
+- [SEC-A4-02当前版本PostgreSQL空库验收](audits/2026-09-21-isolated-postgres-schema.md) · `audits/2026-09-21-isolated-postgres-schema.md`
+- [JWT参数保存与真实运行验收](audits/2026-09-21-jwt-policy-lifecycle.md) · `audits/2026-09-21-jwt-policy-lifecycle.md`
+- [六层限流组合验收](audits/2026-09-21-layered-rate-limit-composition.md) · `audits/2026-09-21-layered-rate-limit-composition.md`
+- [在线凭证轮换与临时匿名闭环](audits/2026-09-21-live-rotation-temporary-anonymous.md) · `audits/2026-09-21-live-rotation-temporary-anonymous.md`
+- [SEC-A1-02B3受管鉴权模式一致性](audits/2026-09-21-managed-inbound-mode-evidence.md) · `audits/2026-09-21-managed-inbound-mode-evidence.md`
+- [锁定MCP Adapter协议边界验收](audits/2026-09-21-mcp-adapter-contract.md) · `audits/2026-09-21-mcp-adapter-contract.md`
+- [SEC-A1-02B4鉴权模式界面交付](audits/2026-09-21-mcp-mode-ui-evidence.md) · `audits/2026-09-21-mcp-mode-ui-evidence.md`
+- [SEC-A2-01B三入口拒绝矩阵](audits/2026-09-21-mcp-rejection-matrix.md) · `audits/2026-09-21-mcp-rejection-matrix.md`
+- [OBS-14-05C2C3恢复故障验收](audits/2026-09-21-payload-recovery-acceptance.md) · `audits/2026-09-21-payload-recovery-acceptance.md`
+- [持久撤销与既有会话验证](audits/2026-09-21-persistent-session-revocation.md) · `audits/2026-09-21-persistent-session-revocation.md`
+- [OBS-14-05C3 Windows PostgreSQL多写者验收](audits/2026-09-21-pg-quota-multiwriter-evidence.md) · `audits/2026-09-21-pg-quota-multiwriter-evidence.md`
+- [SEC-C3-02 Registry配置可信数据库归属验收](audits/2026-09-21-registry-db-ownership.md) · `audits/2026-09-21-registry-db-ownership.md`
+- [SEC-C3-01 固定凭据文件自动重载验收](audits/2026-09-21-registry-watch.md) · `audits/2026-09-21-registry-watch.md`
+- [锁定SDK会话与通知合同验证](audits/2026-09-21-sdk-session-contract.md) · `audits/2026-09-21-sdk-session-contract.md`
+- [临时匿名管理界面验收](audits/2026-09-21-temporary-anonymous-ui.md) · `audits/2026-09-21-temporary-anonymous-ui.md`
+- [SEC-B1-01 统一消费者凭证模型与双入口验收](audits/2026-09-21-unified-consumer-credentials.md) · `audits/2026-09-21-unified-consumer-credentials.md`
+- [Consumer与Upstream分区和重载恢复](audits/2026-09-21-upstream-credential-management-ui.md) · `audits/2026-09-21-upstream-credential-management-ui.md`
+- [SEC-C2-02 Windows秘密文件ACL验收](audits/2026-09-21-windows-secret-acl.md) · `audits/2026-09-21-windows-secret-acl.md`
+- [四类上游凭据与生命周期作用域验收](audits/2026-09-22-credential-types-scope.md) · `audits/2026-09-22-credential-types-scope.md`
+- [Header策略缓存隔离与真实命中验收](audits/2026-09-22-header-cache-isolation.md) · `audits/2026-09-22-header-cache-isolation.md`
+- [SEC-F3a-01 依赖可达性与风险处置审计（2026-09-26）](audits/2026-09-26-dependency-reachability-audit.md) · `audits/2026-09-26-dependency-reachability-audit.md`
+- [SEC-F3-02D 本地 N01–N17 真实连接矩阵（2026-09-26）](audits/2026-09-26-f3-n-matrix-local.md) · `audits/2026-09-26-f3-n-matrix-local.md`
+- [MAIL-02 受控邮件投递证据（2026-09-26）](audits/2026-09-26-mail-02-controlled-delivery.md) · `audits/2026-09-26-mail-02-controlled-delivery.md`
+- [OBS-06-01 MCP 正文与终态矩阵（Windows 本地）](audits/2026-09-26-mcp-observability-matrix.md) · `audits/2026-09-26-mcp-observability-matrix.md`
+- [OBS-13-02 长期传输与慢客户端验收（Windows 本地）](audits/2026-09-26-obs-13-02-long-transport.md) · `audits/2026-09-26-obs-13-02-long-transport.md`
+- [OBS-14-03D 投递/尝试保留与导入墓碑（Windows 本地）](audits/2026-09-26-obs-14-03d-lifecycle-retention.md) · `audits/2026-09-26-obs-14-03d-lifecycle-retention.md`
+- [OBS-14-03E2B/E3 授权物理清理证据（2026-09-26）](audits/2026-09-26-obs-14-03e3-physical-cleanup.md) · `audits/2026-09-26-obs-14-03e3-physical-cleanup.md`
+- [OBS-15-02 全链路身份与切换验收（Windows 本地）](audits/2026-09-26-obs-15-full-chain.md) · `audits/2026-09-26-obs-15-full-chain.md`
+- [OBS-16-02 本地故障与承载单元（Windows 冻结规模）](audits/2026-09-26-obs-16-local-unit.md) · `audits/2026-09-26-obs-16-local-unit.md`
+- [PROD-06 核定：完整 CAS 是否属于原 WP70 剩余出口（2026-09-26）](audits/2026-09-26-prod-06-cas-scope-determination.md) · `audits/2026-09-26-prod-06-cas-scope-determination.md`
+- [SEC-C3-03 多进程 Registry 版本协调证据（2026-09-27）](audits/2026-09-27-c3-03-multi-process-registry.md) · `audits/2026-09-27-c3-03-multi-process-registry.md`
+- [SEC-E1-02C1 受管 MCP 生命周期跨进程协调证据（2026-09-27，授权后）](audits/2026-09-27-e1-02c1-managed-lifecycle.md) · `audits/2026-09-27-e1-02c1-managed-lifecycle.md`
+- [SEC-E1-02C2 受管重启/失败/legacy 边界证据（2026-09-27）](audits/2026-09-27-e1-02c2-restart-failure-legacy.md) · `audits/2026-09-27-e1-02c2-restart-failure-legacy.md`
+- [SEC-E1-03 真实 child 受管执行闭环矩阵证据（2026-09-27）](audits/2026-09-27-e1-03-real-child-matrix.md) · `audits/2026-09-27-e1-03-real-child-matrix.md`
+- [Linux 容器平台验证证据（2026-09-27）](audits/2026-09-27-linux-container-platform-validation.md) · `audits/2026-09-27-linux-container-platform-validation.md`
+- [OBS-14-05D 配额状态机与本地故障联调证据（2026-09-27）](audits/2026-09-27-obs-14-05d-quota-state-joint.md) · `audits/2026-09-27-obs-14-05d-quota-state-joint.md`
+- [SEC-C4-01 运行时 Resolver 执行语义联合证据（2026-09-28）](audits/2026-09-28-c4-01-resolver-semantics.md) · `audits/2026-09-28-c4-01-resolver-semantics.md`
+- [SEC-E1-04 运行中版本变更与撤销证据（2026-09-28）](audits/2026-09-28-e1-04-runtime-change-revocation.md) · `audits/2026-09-28-e1-04-runtime-change-revocation.md`
+- [SEC-E2-01 当前产物安全联合矩阵证据（2026-09-28）](audits/2026-09-28-e2-01-security-joint-matrix.md) · `audits/2026-09-28-e2-01-security-joint-matrix.md`
+- [SEC-E2-02 双平台稳定性误差矩阵证据（2026-09-28）](audits/2026-09-28-e2-02-dual-platform-matrix.md) · `audits/2026-09-28-e2-02-dual-platform-matrix.md`
+- [EXT-06 安全加固与 EXT-07 失败候选保旧证据（2026-09-28）](audits/2026-09-28-ext-06-hardening-and-ext-07.md) · `audits/2026-09-28-ext-06-hardening-and-ext-07.md`
+- [EXT-08 / EXT-06 Windows 本机验收证据（2026-09-28）](audits/2026-09-28-ext-08-ext-06-windows-validation.md) · `audits/2026-09-28-ext-08-ext-06-windows-validation.md`
+- [EXT-09 / OBS-06-02 Ubuntu 容器验收证据（2026-09-28）](audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md) · `audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md`
+- [SEC-F1-02C3G5 Gateway 执行 Proof Guard 补全与注册证据（2026-09-28）](audits/2026-09-28-f1-02c3g5-gateway-proof-guard.md) · `audits/2026-09-28-f1-02c3g5-gateway-proof-guard.md`
+- [SEC-F1-02C3G6 MCP/Child 实时许可与撤销长链证据（2026-09-28）](audits/2026-09-28-f1-02c3g6-realtime-permits.md) · `audits/2026-09-28-f1-02c3g6-realtime-permits.md`
+- [SEC-F1-02E3b 运行中更新阻断与实时授权 IPC 证据（2026-09-28）](audits/2026-09-28-f1-02e3b-realtime-authorization.md) · `audits/2026-09-28-f1-02e3b-realtime-authorization.md`
+- [SEC-F1-02F 双运行时端到端与持久重开证据（2026-09-28）](audits/2026-09-28-f1-02f-dual-runtime-reopen.md) · `audits/2026-09-28-f1-02f-dual-runtime-reopen.md`
+- [SEC-F3-03 受管子进程秘密泄露矩阵证据（2026-09-28）](audits/2026-09-28-f3-03-secret-leak-matrix.md) · `audits/2026-09-28-f3-03-secret-leak-matrix.md`
+- [MAINT-01 前端结构与分块整理证据（2026-09-28，测量驱动）](audits/2026-09-28-maint-01-frontend-chunking.md) · `audits/2026-09-28-maint-01-frontend-chunking.md`
+- [OBS-16-03 环境依赖执行车道证据（2026-09-28）](audits/2026-09-28-obs-16-03-environment-lane.md) · `audits/2026-09-28-obs-16-03-environment-lane.md`
+- [ENV-01 Windows 完整健康复核与监控页入口修复](audits/2026-10-08-env-01-health-and-monitoring.md) · `audits/2026-10-08-env-01-health-and-monitoring.md`
+- [EXT-01～05：注册到Gateway消费者能力闭环（限定验收完成）](audits/2026-10-08-ext-01-05-gateway-lifecycle.md) · `audits/2026-10-08-ext-01-05-gateway-lifecycle.md`
+- [OPS-01 同版本Gateway重复部署恢复](audits/2026-10-08-gateway-repeat-deployment.md) · `audits/2026-10-08-gateway-repeat-deployment.md`
+- [OBS-16-04 本机隔离完整备份恢复演练](audits/2026-10-08-observability-backup-restore.md) · `audits/2026-10-08-observability-backup-restore.md`
+- [OBS-16-04 批量采集与投递联合验收](audits/2026-10-08-observability-bulk-pipeline.md) · `audits/2026-10-08-observability-bulk-pipeline.md`
+- [OBS-16-04 caller/source 事务内批投影](audits/2026-10-08-observability-caller-batch-projection.md) · `audits/2026-10-08-observability-caller-batch-projection.md`
+- [OBS-16-04 文件续读与桶重算公平调度](audits/2026-10-08-observability-collector-fairness.md) · `audits/2026-10-08-observability-collector-fairness.md`
+- [OBS-16-04 采集与投递限定验收及时间诊断](audits/2026-10-08-observability-functional-closure.md) · `audits/2026-10-08-observability-functional-closure.md`
+- [OBS-16-04 有界采集入库批处理](audits/2026-10-08-observability-ingest-batching.md) · `audits/2026-10-08-observability-ingest-batching.md`
+- [OBS-16-04 采集事实批量 SQL](audits/2026-10-08-observability-ingest-bulk-sql.md) · `audits/2026-10-08-observability-ingest-bulk-sql.md`
+- [OBS-16-04 本机真实链路性能测量与调度修复](audits/2026-10-08-observability-performance.md) · `audits/2026-10-08-observability-performance.md`
+- [OBS-16-04 只读持久化与生产身份投影联合验收](audits/2026-10-08-observability-persistence-and-projector.md) · `audits/2026-10-08-observability-persistence-and-projector.md`
+- [OBS-16-04 放宽超时重试与运行时指标持久化](audits/2026-10-08-observability-relaxed-timeouts.md) · `audits/2026-10-08-observability-relaxed-timeouts.md`
+- [OBS-16-04 跨调用指标批量持久化验收](audits/2026-10-08-observability-runtime-write-batching.md) · `audits/2026-10-08-observability-runtime-write-batching.md`
+- [OBS-16-04 可观测部署签收准备与剩余条件](audits/2026-10-08-observability-signoff-readiness.md) · `audits/2026-10-08-observability-signoff-readiness.md`
+- [OBS-16-04 源审计合并写与失败诊断](audits/2026-10-08-observability-source-writer.md) · `audits/2026-10-08-observability-source-writer.md`
+- [OBS-16-04 源写入、采集与投递批处理联合证据](audits/2026-10-08-observability-throughput-closure.md) · `audits/2026-10-08-observability-throughput-closure.md`
+- [PROD-04C 二进制样例留存联合验收](audits/2026-10-08-prod-04c-binary-lifecycle.md) · `audits/2026-10-08-prod-04c-binary-lifecycle.md`
+- [OBS-16-04 旧 Runtime 指标与状态事务合并](audits/2026-10-08-runtime-observability-write-transaction.md) · `audits/2026-10-08-runtime-observability-write-transaction.md`
+- [SEC-F4-02 第二批本机依赖风险处置](audits/2026-10-08-security-dependency-closure.md) · `audits/2026-10-08-security-dependency-closure.md`
+- [SEC-F4-02 文件监听依赖迁移](audits/2026-10-08-security-file-watch-migration.md) · `audits/2026-10-08-security-file-watch-migration.md`
+- [SEC-F4-02 Nest SSE 官方补丁回移与交付校验](audits/2026-10-08-security-nest-sse-backport.md) · `audits/2026-10-08-security-nest-sse-backport.md`
+- [SEC-F4-02 上传与解析器依赖链迁移](audits/2026-10-08-security-parser-chain-migration.md) · `audits/2026-10-08-security-parser-chain-migration.md`
+- [SEC-F4-02 file-type、UUID 迁移与 Nest SSE 剩余边界](audits/2026-10-08-security-residual-dependency-migration.md) · `audits/2026-10-08-security-residual-dependency-migration.md`
+- [SEC-F4-02 本机安全签收准备与依赖补丁](audits/2026-10-08-security-signoff-readiness.md) · `audits/2026-10-08-security-signoff-readiness.md`
+- [OBS-16-04 SQL.js 并发持久化放大复现与修复](audits/2026-10-08-sqljs-persistence-concurrency.md) · `audits/2026-10-08-sqljs-persistence-concurrency.md`
+- [OBS-16-04 SQL.js 只读事务持久化减负](audits/2026-10-08-sqljs-readonly-transaction-persistence.md) · `audits/2026-10-08-sqljs-readonly-transaction-persistence.md`
+- [ENV-01 空闲5GiB健康门槛及完整健康复验](audits/2026-10-14-health-free-space-policy.md) · `audits/2026-10-14-health-free-space-policy.md`
+- [OPS-01 浏览器 OpenAPI URL 导入到 Gateway 消费限定验收](audits/2026-10-14-ops-browser-openapi-import.md) · `audits/2026-10-14-ops-browser-openapi-import.md`
+- [OPS-01 打包浏览器 Gateway 主流程限定验收](audits/2026-10-14-ops-browser-workflow.md) · `audits/2026-10-14-ops-browser-workflow.md`
+- [v1.7.6-rc.3 发布复核与交付证据](audits/2026-10-14-release-v1.7.6-rc.3.md) · `audits/2026-10-14-release-v1.7.6-rc.3.md`
+- [在线依赖审计风险分诊](audits/2026-10-20-dependency-audit-triage.md) · `audits/2026-10-20-dependency-audit-triage.md`
+- [Gateway MCP 与发布入口并行开发验收](audits/2026-10-20-parallel-runtime-delivery.md) · `audits/2026-10-20-parallel-runtime-delivery.md`
+- [v1.7.6-rc.4 人工测试预发布](audits/2026-10-20-release-v1.7.6-rc.4.md) · `audits/2026-10-20-release-v1.7.6-rc.4.md`
+- [v1.7.6-rc.5 人工测试预发布](audits/2026-10-20-release-v1.7.6-rc.5.md) · `audits/2026-10-20-release-v1.7.6-rc.5.md`
+- [真实运行事件日志与无 server、多端点、A/B 迁移浏览器补验](audits/2026-10-20-runtime-logs-browser-lifecycle.md) · `audits/2026-10-20-runtime-logs-browser-lifecycle.md`
+- [依赖整改 生命周期收口与发布授权接线](audits/2026-10-20-security-lifecycle-authority-batch.md) · `audits/2026-10-20-security-lifecycle-authority-batch.md`
+- [顶部健康、页面刷新及文件导入补验](audits/2026-10-20-ui-health-refresh.md) · `audits/2026-10-20-ui-health-refresh.md`
+- [统一任务迁移与 Gateway 启动隔离验收](audits/2026-10-20-unified-planning-np10.md) · `audits/2026-10-20-unified-planning-np10.md`
+- [现有范围收口、台账归一与本机限定验收](audits/2026-10-26-existing-scope-closure.md) · `audits/2026-10-26-existing-scope-closure.md`
+- [oc_dev合并main记录（2026-10-26）](audits/2026-10-26-merge-oc-dev-main.md) · `audits/2026-10-26-merge-oc-dev-main.md`
+- [ApiNova 审查报告索引](audits/README.md) · `audits/README.md`
+- [SEC-A1-01 authentication-mode cross-layer matrix](audits/sec-a1-01-auth-mode-cross-layer-matrix.md) · `audits/sec-a1-01-auth-mode-cross-layer-matrix.md`
+- [ApiNova Project Baseline](baselines/PROJECT_BASELINE.md) · `baselines/PROJECT_BASELINE.md`
+- [ApiNova Release Baseline V1](baselines/RELEASE_BASELINE_V1.md) · `baselines/RELEASE_BASELINE_V1.md`
+- [Database Strategy](consolidated/2026-10-26/database-strategy.md) · `consolidated/2026-10-26/database-strategy.md`
+- [Management Permission Matrix](consolidated/2026-10-26/management-permission-matrix.md) · `consolidated/2026-10-26/management-permission-matrix.md`
+- [ApiNova Project Baseline](consolidated/2026-10-26/PROJECT_BASELINE.md) · `consolidated/2026-10-26/PROJECT_BASELINE.md`
+- [端点测试二进制样例合同](contracts/2026-10-26/endpoint-test-binary-sample-contract.md) · `contracts/2026-10-26/endpoint-test-binary-sample-contract.md`
+- [MCP受管发布端点合同](contracts/2026-10-26/mcp-publication-endpoint-contract.md) · `contracts/2026-10-26/mcp-publication-endpoint-contract.md`
+- [MCP可信操作身份映射](contracts/2026-10-26/mcp-trusted-operation-bindings.md) · `contracts/2026-10-26/mcp-trusted-operation-bindings.md`
+- [D1/F3 请求头与网络边界契约](contracts/2026-10-26/security-header-network-boundary-contract.md) · `contracts/2026-10-26/security-header-network-boundary-contract.md`
+- [上游凭据类型、生命周期与作用域合同](contracts/2026-10-26/upstream-credential-types-contract.md) · `contracts/2026-10-26/upstream-credential-types-contract.md`
+- [上游安全对账与发布门禁契约](contracts/2026-10-26/upstream-security-reconciliation-contract.md) · `contracts/2026-10-26/upstream-security-reconciliation-contract.md`
+- [ApiNova API Gateway Architecture And Requirements](guides/2026-10-26/api-gateway-architecture-and-requirements.md) · `guides/2026-10-26/api-gateway-architecture-and-requirements.md`
+- [Asset Model And Runtime Assets](guides/2026-10-26/asset-model-and-runtime-assets.md) · `guides/2026-10-26/asset-model-and-runtime-assets.md`
+- [Database Mode Quickstart](guides/2026-10-26/database-mode-quickstart.md) · `guides/2026-10-26/database-mode-quickstart.md`
+- [Endpoint Publication Profile Requirements](guides/2026-10-26/endpoint-semantic-layer-requirements.md) · `guides/2026-10-26/endpoint-semantic-layer-requirements.md`
+- [Fork Origin And Independence](guides/2026-10-26/fork-origin-and-independence.md) · `guides/2026-10-26/fork-origin-and-independence.md`
+- [GitHub Collaboration Workflow](guides/2026-10-26/github-collaboration-workflow.md) · `guides/2026-10-26/github-collaboration-workflow.md`
+- [Local Setup And Run](guides/2026-10-26/local-setup-and-run.md) · `guides/2026-10-26/local-setup-and-run.md`
+- [邮件投递范围与受控验收合同（MAIL-01）](guides/2026-10-26/mail-delivery-scope-and-acceptance.md) · `guides/2026-10-26/mail-delivery-scope-and-acceptance.md`
+- [Offline Dependency Migration](guides/2026-10-26/offline-dependency-migration.md) · `guides/2026-10-26/offline-dependency-migration.md`
+- [Publication Resource Baseline](guides/2026-10-26/publication-resource-baseline.md) · `guides/2026-10-26/publication-resource-baseline.md`
+- [统一调用可观测性：远端主链路与本地增量接入](guides/2026-10-26/runtime-observability-integration.md) · `guides/2026-10-26/runtime-observability-integration.md`
+- [统一调用日志、审计与可观测性功能需求](guides/2026-10-26/runtime-observability-requirements.md) · `guides/2026-10-26/runtime-observability-requirements.md`
+- [Runtime observability subscription integration](guides/2026-10-26/runtime-observability-subscription-integration.md) · `guides/2026-10-26/runtime-observability-subscription-integration.md`
+- [安全调用与日志审计](guides/2026-10-26/runtime-security-and-call-audit.md) · `guides/2026-10-26/runtime-security-and-call-audit.md`
+- [安全交付验收证据索引（SEC-F4-01）](guides/2026-10-26/security-delivery-evidence-index.md) · `guides/2026-10-26/security-delivery-evidence-index.md`
+- [ApiNova 安全功能需求](guides/2026-10-26/security-functional-requirements.md) · `guides/2026-10-26/security-functional-requirements.md`
+- [企业级API认证方式详解](guides/api-authentication-guide.md) · `guides/api-authentication-guide.md`
+- [ApiNova API Gateway Phase 1 Task Breakdown](guides/api-gateway-phase1-task-breakdown.md) · `guides/api-gateway-phase1-task-breakdown.md`
+- [ApiNova API Gateway Phase 1 Technical Design](guides/api-gateway-phase1-technical-design.md) · `guides/api-gateway-phase1-technical-design.md`
+- [ApiNova API Gateway Phase 2 Task Breakdown](guides/api-gateway-phase2-task-breakdown.md) · `guides/api-gateway-phase2-task-breakdown.md`
+- [Bearer Token认证快速开始指南](guides/bearer-token-quickstart.md) · `guides/bearer-token-quickstart.md`
+- [bearer-token-usage-guide](guides/bearer-token-usage-guide.md) · `guides/bearer-token-usage-guide.md`
+- [Current Convergence Plan](guides/current-convergence-plan.md) · `guides/current-convergence-plan.md`
+- [自定义请求头快速开始指南](guides/custom-headers-quickstart.md) · `guides/custom-headers-quickstart.md`
+- [ApiNova 完整部署指南](guides/deployment-guide.md) · `guides/deployment-guide.md`
+- [Dual Publication Implementation Outline](guides/dual-publication-implementation-outline.md) · `guides/dual-publication-implementation-outline.md`
+- [Endpoint 语义层改造 Sprint 拆解](guides/endpoint-semantic-layer-sprint-breakdown.md) · `guides/endpoint-semantic-layer-sprint-breakdown.md`
+- [轻量 API 接入管理机制需求（API Center，非重型网关）](guides/lightweight-api-access-management-requirements.md) · `guides/lightweight-api-access-management-requirements.md`
+- [轻量 API 接入管理 Sprint 拆解（非重型网关）](guides/lightweight-api-access-management-sprint-breakdown.md) · `guides/lightweight-api-access-management-sprint-breakdown.md`
+- [Next Phase Development Plan](guides/next-phase-development-plan.md) · `guides/next-phase-development-plan.md`
+- [外网 → 内网 离线依赖库迁移（ApiNova）](guides/offline-dependency-migration-pnpm.md) · `guides/offline-dependency-migration-pnpm.md`
+- [Product Spine Restructure Plan](guides/product-spine-restructure-plan-2026-04.md) · `guides/product-spine-restructure-plan-2026-04.md`
+- [ApiNova Server - 快速入门指南](guides/quick-start-guide.md) · `guides/quick-start-guide.md`
+- [发布收敛核对清单](guides/release-convergence-checklist.md) · `guides/release-convergence-checklist.md`
+- [Release v0.2.14](guides/release-v0.2.14.md) · `guides/release-v0.2.14.md`
+- [Release v0.2.17](guides/release-v0.2.17.md) · `guides/release-v0.2.17.md`
+- [Release v0.2.24](guides/release-v0.2.24.md) · `guides/release-v0.2.24.md`
+- [Release v0.2.25](guides/release-v0.2.25.md) · `guides/release-v0.2.25.md`
+- [Release v0.2.26](guides/release-v0.2.26.md) · `guides/release-v0.2.26.md`
+- [MCP Server 重启管理指南](guides/restart-guide.md) · `guides/restart-guide.md`
+- [Runtime Observability Stage 6 Model](guides/runtime-observability-stage6-model.md) · `guides/runtime-observability-stage6-model.md`
+- [ApiNova Server - 使用文档](guides/usage-guide.md) · `guides/usage-guide.md`
+- [WebSocket连接问题诊断指南 (已更新)](guides/websocket-troubleshooting.md) · `guides/websocket-troubleshooting.md`
+- [NestJS Feasibility Analysis](packages/api-nova-api/nestjs-feasibility-analysis.md) · `packages/api-nova-api/nestjs-feasibility-analysis.md`
+- [NestJS Quick Implementation Guide](packages/api-nova-api/nestjs-quick-implementation-guide.md) · `packages/api-nova-api/nestjs-quick-implementation-guide.md`
+- [NestJS Technical Specifications](packages/api-nova-api/nestjs-technical-specifications.md) · `packages/api-nova-api/nestjs-technical-specifications.md`
+- [ApiNova Parser API 文档](packages/api-nova-parser/2026-10-26/API_DOCUMENTATION.md) · `packages/api-nova-parser/2026-10-26/API_DOCUMENTATION.md`
+- [架构决策记录 (ADR)](packages/api-nova-parser/2026-10-26/ARCHITECTURE_DECISIONS.md) · `packages/api-nova-parser/2026-10-26/ARCHITECTURE_DECISIONS.md`
+- [ApiNova Parser 技术文档](packages/api-nova-parser/2026-10-26/TECHNICAL_DOCUMENTATION.md) · `packages/api-nova-parser/2026-10-26/TECHNICAL_DOCUMENTATION.md`
+- [executeHttpRequest 实现说明](packages/api-nova-parser/executeHttpRequest-implementation.md) · `packages/api-nova-parser/executeHttpRequest-implementation.md`
+- [Swagger Parser 对比分析](packages/api-nova-parser/PARSER_COMPARISON.md) · `packages/api-nova-parser/PARSER_COMPARISON.md`
+- [ApiNova Architecture](packages/api-nova-server/2026-10-26/ARCHITECTURE.md) · `packages/api-nova-server/2026-10-26/ARCHITECTURE.md`
+- [适配器层实现指南](packages/api-nova-server/adapter-implementation-guide.md) · `packages/api-nova-server/adapter-implementation-guide.md`
+- [ApiNova 架构重构综合方案](packages/api-nova-server/architecture-refactoring-comprehensive-plan.md) · `packages/api-nova-server/architecture-refactoring-comprehensive-plan.md`
+- [ApiNova 架构重构方案](packages/api-nova-server/architecture-refactoring-plan.md) · `packages/api-nova-server/architecture-refactoring-plan.md`
+- [Bearer Token 认证快速开始指南](packages/api-nova-server/bearer-token-quickstart.md) · `packages/api-nova-server/bearer-token-quickstart.md`
+- [兼容层实现指南](packages/api-nova-server/compatibility-layer-implementation.md) · `packages/api-nova-server/compatibility-layer-implementation.md`
+- [ApiNova 核心实现方案](packages/api-nova-server/core-implementation-guide.md) · `packages/api-nova-server/core-implementation-guide.md`
+- [ApiNova 重构实施计划](packages/api-nova-server/implementation-roadmap.md) · `packages/api-nova-server/implementation-roadmap.md`
+- [活跃工作包划分与验收子任务](plans/2026-10-26/active-work-package-breakdown.md) · `plans/2026-10-26/active-work-package-breakdown.md`
+- [开发任务包总览与执行状态](plans/2026-10-26/active-work-package-execution-status.md) · `plans/2026-10-26/active-work-package-execution-status.md`
+- [ApiNova 开发审查与后续线程交接（2026-10-14）](plans/2026-10-26/development-handoff-2026-10-14.md) · `plans/2026-10-26/development-handoff-2026-10-14.md`
+- [托管 MCP 凭据交付设计与验收契约](plans/2026-10-26/managed-mcp-credential-handoff-plan.md) · `plans/2026-10-26/managed-mcp-credential-handoff-plan.md`
+- [Runtime Instance And Regression Closure Development Plan](plans/2026-10-26/runtime-instance-and-regression-closure-plan.md) · `plans/2026-10-26/runtime-instance-and-regression-closure-plan.md`
+- [统一调用可观测性：专题阶段完成情况与证据](plans/2026-10-26/runtime-observability-completion-review.md) · `plans/2026-10-26/runtime-observability-completion-review.md`
+- [可观测性开发执行与验收状态](plans/2026-10-26/runtime-observability-development-execution-status.md) · `plans/2026-10-26/runtime-observability-development-execution-status.md`
+- [可观测性开发任务计划](plans/2026-10-26/runtime-observability-development-task-plan.md) · `plans/2026-10-26/runtime-observability-development-task-plan.md`
+- [Runtime observability external validation handoff](plans/2026-10-26/runtime-observability-external-validation-handoff.md) · `plans/2026-10-26/runtime-observability-external-validation-handoff.md`
+- [ApiNova 安全开发执行与状态记录](plans/2026-10-26/security-development-execution-status.md) · `plans/2026-10-26/security-development-execution-status.md`
+- [ApiNova 安全开发任务规划](plans/2026-10-26/security-development-task-plan.md) · `plans/2026-10-26/security-development-task-plan.md`
+- [Staged Development Plan](plans/2026-10-26/staged-development-plan.md) · `plans/2026-10-26/staged-development-plan.md`
+- [ApiNova 架构优化方案](plans/architecture-optimization-plan.md) · `plans/architecture-optimization-plan.md`
+- [ApiNova 后端 API 服务实施方案](plans/backend-api-service-implementation-plan.md) · `plans/backend-api-service-implementation-plan.md`
+- [ApiNova Server 后端技术栈选型分析](plans/backend-technology-stack-analysis.md) · `plans/backend-technology-stack-analysis.md`
+- [后端技术栈最终选择方案](plans/backend-technology-stack-final-recommendation.md) · `plans/backend-technology-stack-final-recommendation.md`
+- [Bearer Token认证方案设计文档](plans/bearer-token-authentication-design.md) · `plans/bearer-token-authentication-design.md`
+- [bearer-token-implementation-plan-revised](plans/bearer-token-implementation-plan-revised.md) · `plans/bearer-token-implementation-plan-revised.md`
+- [bearer-token-implementation-plan](plans/bearer-token-implementation-plan.md) · `plans/bearer-token-implementation-plan.md`
+- [bearer-token-implementation-steps](plans/bearer-token-implementation-steps.md) · `plans/bearer-token-implementation-steps.md`
+- [bearer-token-solution-comparison](plans/bearer-token-solution-comparison.md) · `plans/bearer-token-solution-comparison.md`
+- [cli-architecture-analysis](plans/cli-architecture-analysis.md) · `plans/cli-architecture-analysis.md`
+- [cli-design-showcase](plans/cli-design-showcase.md) · `plans/cli-design-showcase.md`
+- [ApiNova 自定义请求头设计方案](plans/custom-headers-design.md) · `plans/custom-headers-design.md`
+- [ApiNova 自定义请求头实现方案](plans/custom-headers-implementation.md) · `plans/custom-headers-implementation.md`
+- [企业级业务系统Token认证集成方案](plans/enterprise-token-integration-solution.md) · `plans/enterprise-token-integration-solution.md`
+- [ApiNova Server 前端界面设计文档](plans/frontend-design-spec.md) · `plans/frontend-design-spec.md`
+- [立即执行任务清单 - 第一周开发计划](plans/immediate-tasks-week1.md) · `plans/immediate-tasks-week1.md`
+- [ApiNova Server CLI 工具发布改进计划](plans/improvement-plan.md) · `plans/improvement-plan.md`
+- [活跃工作包划分与验收子任务](plans/main-2026-10-20/active-work-package-breakdown.md) · `plans/main-2026-10-20/active-work-package-breakdown.md`
+- [活跃子任务执行状态](plans/main-2026-10-20/active-work-package-execution-status.md) · `plans/main-2026-10-20/active-work-package-execution-status.md`
+- [托管 MCP 凭据交付设计与验收契约](plans/main-2026-10-20/managed-mcp-credential-handoff-plan.md) · `plans/main-2026-10-20/managed-mcp-credential-handoff-plan.md`
+- [ApiNova 审查报告索引](plans/main-2026-10-20/README.md) · `plans/main-2026-10-20/README.md`
+- [Runtime Instance And Regression Closure Development Plan](plans/main-2026-10-20/runtime-instance-and-regression-closure-plan.md) · `plans/main-2026-10-20/runtime-instance-and-regression-closure-plan.md`
+- [统一调用可观测性：当前完成情况与剩余工作](plans/main-2026-10-20/runtime-observability-completion-review.md) · `plans/main-2026-10-20/runtime-observability-completion-review.md`
+- [可观测性开发执行与验收状态](plans/main-2026-10-20/runtime-observability-development-execution-status.md) · `plans/main-2026-10-20/runtime-observability-development-execution-status.md`
+- [可观测性开发任务计划](plans/main-2026-10-20/runtime-observability-development-task-plan.md) · `plans/main-2026-10-20/runtime-observability-development-task-plan.md`
+- [ApiNova 安全开发执行与状态记录](plans/main-2026-10-20/security-development-execution-status.md) · `plans/main-2026-10-20/security-development-execution-status.md`
+- [ApiNova 安全开发任务规划](plans/main-2026-10-20/security-development-task-plan.md) · `plans/main-2026-10-20/security-development-task-plan.md`
+- [Staged Development Plan](plans/main-2026-10-20/staged-development-plan.md) · `plans/main-2026-10-20/staged-development-plan.md`
+- [ApiNova 统一开发计划](plans/main-2026-10-20/unified-development-plan.md) · `plans/main-2026-10-20/unified-development-plan.md`
+- [统一开发状态](plans/main-2026-10-20/unified-development-status.md) · `plans/main-2026-10-20/unified-development-status.md`
+- [统一工作包与任务映射](plans/main-2026-10-20/unified-work-packages.md) · `plans/main-2026-10-20/unified-work-packages.md`
+- [MCP-Centered Architecture Design](plans/mcp-centered-architecture-design.md) · `plans/mcp-centered-architecture-design.md`
+- [基于 AI + MCP 的 OpenAPI 接口自动化测试 — 可行性评估](plans/mcp-openapi-auto-testing-feasibility.md) · `plans/mcp-openapi-auto-testing-feasibility.md`
+- [基于 AI + MCP Tools 的 OpenAPI 接口自动化测试 — 实施方案](plans/mcp-openapi-auto-testing-implementation.md) · `plans/mcp-openapi-auto-testing-implementation.md`
+- [ApiNova Server Monorepo 架构提案](plans/monorepo-architecture-proposal.md) · `plans/monorepo-architecture-proposal.md`
+- [Monorepo 依赖管理与构建策略](plans/monorepo-dependency-management.md) · `plans/monorepo-dependency-management.md`
+- [NestJS 后端实施检查清单](plans/nestjs-implementation-checklist.md) · `plans/nestjs-implementation-checklist.md`
+- [NestJS 实施方案 - 立即执行指南](plans/nestjs-implementation-guide.md) · `plans/nestjs-implementation-guide.md`
+- [ApiNova Next Development Baseline](plans/next-development-baseline.md) · `plans/next-development-baseline.md`
+- [实用ApiNova UI架构实现方案](plans/practical-mcp-ui-architecture.md) · `plans/practical-mcp-ui-architecture.md`
+- [ApiNova Project Analysis and V1 Plan](plans/project-analysis-and-v1-plan.md) · `plans/project-analysis-and-v1-plan.md`
+- [ApiNova UI 项目现状分析与后续开发规划](plans/project-roadmap-and-planning.md) · `plans/project-roadmap-and-planning.md`
+- [Swagger2OpenAPI 集成实现方案](plans/swagger2openapi-integration-plan.md) · `plans/swagger2openapi-integration-plan.md`
+- [ApiNova Server 技术架构设计](plans/technical-architecture.md) · `plans/technical-architecture.md`
+- [Changesets Changelog 字段详解和实际效果](reference/2026-10-26/changelog-field-guide.md) · `reference/2026-10-26/changelog-field-guide.md`
+- [ESM vs CommonJS 快速参考](reference/2026-10-26/esm-commonjs-quick-reference.md) · `reference/2026-10-26/esm-commonjs-quick-reference.md`
+- [Management Observability Baseline](reference/2026-10-26/management-observability-baseline.md) · `reference/2026-10-26/management-observability-baseline.md`
+- [MCP 与 JSON-RPC 2.0 的关系说明](reference/2026-10-26/mcp-jsonrpc-relationship.md) · `reference/2026-10-26/mcp-jsonrpc-relationship.md`
+- [Node.js 模块系统详解：CommonJS vs ES Modules](reference/2026-10-26/nodejs-module-systems-guide.md) · `reference/2026-10-26/nodejs-module-systems-guide.md`
+- [Runtime Closure Design And Implementation Review](reference/2026-10-26/runtime-closure-design-implementation-review.md) · `reference/2026-10-26/runtime-closure-design-implementation-review.md`
+- [可观测性对外 API Endpoint 文档](reference/2026-10-26/runtime-observability-api-endpoints.md) · `reference/2026-10-26/runtime-observability-api-endpoints.md`
+- [可观测性容量计量、配额与降级合同](reference/2026-10-26/runtime-observability-capacity-quota-contract.md) · `reference/2026-10-26/runtime-observability-capacity-quota-contract.md`
+- [可观测性共享契约与当前源码映射](reference/2026-10-26/runtime-observability-contract-mapping.md) · `reference/2026-10-26/runtime-observability-contract-mapping.md`
+- [统一调用日志、审计与可观测性设计](reference/2026-10-26/runtime-observability-design.md) · `reference/2026-10-26/runtime-observability-design.md`
+- [可观测性生命周期、引用与墓碑合同](reference/2026-10-26/runtime-observability-lifecycle-contract.md) · `reference/2026-10-26/runtime-observability-lifecycle-contract.md`
+- [可观测性存储基础与当前持久链路](reference/2026-10-26/runtime-observability-storage-foundation.md) · `reference/2026-10-26/runtime-observability-storage-foundation.md`
+- [ApiNova 安全设计与实现方案](reference/2026-10-26/security-design-and-implementation.md) · `reference/2026-10-26/security-design-and-implementation.md`
+- [Versioning Policy](reference/2026-10-26/versioning-policy.md) · `reference/2026-10-26/versioning-policy.md`
+- [ApiNova - Changesets 实施指南](reference/changesets-implementation-guide.md) · `reference/changesets-implementation-guide.md`
+- [Changesets 集成指南](reference/changesets-integration-guide.md) · `reference/changesets-integration-guide.md`
+- [MCP 工具响应格式验证分析](reference/mcp-tool-response-validation.md) · `reference/mcp-tool-response-validation.md`
+- [ApiNova NPM 发布指南](reference/npm-publication-guide.md) · `reference/npm-publication-guide.md`
+- [npm 发布后 tslib 依赖缺失问题解决方案](reference/npm-tslib-issue-fix.md) · `reference/npm-tslib-issue-fix.md`
+- [为什么项目没有设置 "type": "module"](reference/why-no-type-module.md) · `reference/why-no-type-module.md`
+- [ApiNova 版本发布规范](releases/2026-10-26/RELEASE_STANDARD.md) · `releases/2026-10-26/RELEASE_STANDARD.md`
+- [ApiNova v1.7.5-rc.2 快速运行](releases/versions/v1.7.5-rc.2/QUICK_START.md) · `releases/versions/v1.7.5-rc.2/QUICK_START.md`
+- [ApiNova v1.7.5-rc.2](releases/versions/v1.7.5-rc.2/RELEASE_NOTES.md) · `releases/versions/v1.7.5-rc.2/RELEASE_NOTES.md`
+- [ApiNova v1.7.6-rc.3 快速运行](releases/versions/v1.7.6-rc.3/QUICK_START.md) · `releases/versions/v1.7.6-rc.3/QUICK_START.md`
+- [ApiNova v1.7.6-rc.3](releases/versions/v1.7.6-rc.3/RELEASE_NOTES.md) · `releases/versions/v1.7.6-rc.3/RELEASE_NOTES.md`
+- [ApiNova v1.7.6-rc.4 人工测试指南](releases/versions/v1.7.6-rc.4/QUICK_START.md) · `releases/versions/v1.7.6-rc.4/QUICK_START.md`
+- [ApiNova v1.7.6-rc.4](releases/versions/v1.7.6-rc.4/RELEASE_NOTES.md) · `releases/versions/v1.7.6-rc.4/RELEASE_NOTES.md`
+- [bearer-token-completion-summary](summaries/bearer-token-completion-summary.md) · `summaries/bearer-token-completion-summary.md`
+- [bearer-token-implementation-summary](summaries/bearer-token-implementation-summary.md) · `summaries/bearer-token-implementation-summary.md`
+- [bearer-token-solution-summary-final](summaries/bearer-token-solution-summary-final.md) · `summaries/bearer-token-solution-summary-final.md`
+- [bearer-token-solution-summary](summaries/bearer-token-solution-summary.md) · `summaries/bearer-token-solution-summary.md`
+- [🚀 ApiNova 项目完整升级总结](summaries/complete-upgrade-summary.md) · `summaries/complete-upgrade-summary.md`
+- [ApiNova 配置参数盘点与治理建议](summaries/configuration-audit-2026-04.md) · `summaries/configuration-audit-2026-04.md`
+- [自定义请求头功能实现总结](summaries/custom-headers-implementation-summary.md) · `summaries/custom-headers-implementation-summary.md`
+- [Monorepo 依赖管理与构建系统 - 实现总结](summaries/implementation-summary.md) · `summaries/implementation-summary.md`
+- [MCP 工具响应格式修复总结](summaries/mcp-response-fix-summary.md) · `summaries/mcp-response-fix-summary.md`
+- [ApiNova Server 解析器迁移总结](summaries/migration-summary.md) · `summaries/migration-summary.md`
+- [🎉 ApiNova Server - 发布完成使用指南](summaries/post-publication-guide.md) · `summaries/post-publication-guide.md`
+- [可观测性文档历史归档：2026-09-14](summaries/runtime-observability-2026-09-14/README.md) · `summaries/runtime-observability-2026-09-14/README.md`
+- [可观测性对外 API Endpoint 文档](summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md) · `summaries/runtime-observability-2026-09-14/runtime-observability-api-endpoints.md`
+- [统一调用可观测性：远端基线整合完成情况](summaries/runtime-observability-2026-09-14/runtime-observability-completion-review.md) · `summaries/runtime-observability-2026-09-14/runtime-observability-completion-review.md`
+- [可观测性共享契约与接入映射](summaries/runtime-observability-2026-09-14/runtime-observability-contract-mapping.md) · `summaries/runtime-observability-2026-09-14/runtime-observability-contract-mapping.md`
+- [统一调用日志、审计与可观测性设计](summaries/runtime-observability-2026-09-14/runtime-observability-design.md) · `summaries/runtime-observability-2026-09-14/runtime-observability-design.md`
+- [可观测性开发执行与任务包完成状态](summaries/runtime-observability-2026-09-14/runtime-observability-development-execution-status.md) · `summaries/runtime-observability-2026-09-14/runtime-observability-development-execution-status.md`
+- [可观测性开发任务计划](summaries/runtime-observability-2026-09-14/runtime-observability-development-task-plan.md) · `summaries/runtime-observability-2026-09-14/runtime-observability-development-task-plan.md`
+- [可观测性未完成清单与远端同步基线](summaries/runtime-observability-2026-09-14/runtime-observability-remaining-work-2026-09-14.md) · `summaries/runtime-observability-2026-09-14/runtime-observability-remaining-work-2026-09-14.md`
+- [可观测性存储基础实现说明](summaries/runtime-observability-2026-09-14/runtime-observability-storage-foundation.md) · `summaries/runtime-observability-2026-09-14/runtime-observability-storage-foundation.md`
+- [2026-09-14 安全文档历史快照](summaries/security-2026-09-14/README.md) · `summaries/security-2026-09-14/README.md`
+- [安全调用与日志审计](summaries/security-2026-09-14/runtime-security-and-call-audit.md) · `summaries/security-2026-09-14/runtime-security-and-call-audit.md`
+- [安全调用与日志审计验收用例](summaries/security-2026-09-14/runtime-security-audit-cases.md) · `summaries/security-2026-09-14/runtime-security-audit-cases.md`
+- [ApiNova 安全开发执行与状态记录](summaries/security-2026-09-14/security-development-execution-status.md) · `summaries/security-2026-09-14/security-development-execution-status.md`
+- [ApiNova 安全开发任务规划](summaries/security-2026-09-14/security-development-task-plan.md) · `summaries/security-2026-09-14/security-development-task-plan.md`
+- [ApiNova Parser - Swagger 2.0 支持功能增强总结](summaries/swagger2-support-implementation-summary.md) · `summaries/swagger2-support-implementation-summary.md`
+- [Task 5.1 完成总结 - 系统指标监控界面](summaries/task-5.1-completion-summary.md) · `summaries/task-5.1-completion-summary.md`
+- [WebSocket连接问题 - 最终解决方案](summaries/websocket-final-solution.md) · `summaries/websocket-final-solution.md`
+- [Runtime Publication Acceptance Cases](testing/2026-10-26/runtime-publication-acceptance-cases.md) · `testing/2026-10-26/runtime-publication-acceptance-cases.md`
+- [安全调用与日志审计验收用例](testing/2026-10-26/runtime-security-audit-cases.md) · `testing/2026-10-26/runtime-security-audit-cases.md`
+- [上游凭证 Provider Linux 隔离专项](testing/2026-10-26/upstream-secret-provider-linux.md) · `testing/2026-10-26/upstream-secret-provider-linux.md`
+- [ApiNova UI 架构设计文档](ui/mcp-swagger-ui-architecture.md) · `ui/mcp-swagger-ui-architecture.md`
+- [ApiNova UI 开发指南](ui/mcp-swagger-ui-development-guide.md) · `ui/mcp-swagger-ui-development-guide.md`
+- [ApiNova UI 技术文档](ui/mcp-swagger-ui-technical-documentation.md) · `ui/mcp-swagger-ui-technical-documentation.md`
+- [ApiNova UI 解析器升级总结](ui/mcp-swagger-ui-upgrade-summary.md) · `ui/mcp-swagger-ui-upgrade-summary.md`

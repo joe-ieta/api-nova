@@ -1,6 +1,11 @@
 import { UpstreamCredentialRegistry } from 'api-nova-parser';
 import { GatewayNetworkBootstrap } from './gateway-network-bootstrap';
 import { GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY } from './gateway-upstream-credential.providers';
+import {
+  GATEWAY_HOST_RUNTIME,
+  resolveGatewayHostRuntime,
+  type GatewayHostRuntime,
+} from './gateway-host-runtime.providers';
 import { requireGatewayRegistryHeaderV1 } from './gateway-header-v1-readiness';
 import { assertGatewayHeaderPolicyReady } from './gateway-header-policy';
 import { normalizeTemporaryAnonymousPolicy } from 'api-nova-parser';
@@ -15,17 +20,21 @@ import {
 export class GatewayPolicyService {
   constructor(
     @Optional() @Inject(GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY) private readonly registry?: UpstreamCredentialRegistry | null,
+    @Optional() @Inject(GATEWAY_HOST_RUNTIME) private readonly hostRuntime?: GatewayHostRuntime | null,
     @Optional() private readonly networkBootstrap?: GatewayNetworkBootstrap,
   ) {}
   assertHeaderV1Ready(route: GatewayRouteBindingEntity): string {
+    const host = resolveGatewayHostRuntime(this.hostRuntime);
+    if (host && this.networkBootstrap?.hostMode) throw new ServiceUnavailableException('gateway_host_configuration_conflict');
     const snapshot = this.networkBootstrap?.hostMode
       ? this.networkBootstrap.captureSnapshot()
-      : this.registry?.captureSnapshot();
+      : host ? host.captureSnapshot() : this.registry?.captureSnapshot();
     const policy = requireGatewayRegistryHeaderV1(route, snapshot);
     return JSON.stringify([snapshot!.generation, snapshot!.candidate.metadata.revision, policy.identity]);
   }
   compileForRoute(routeBinding: GatewayRouteBindingEntity): GatewayCompiledPolicyBundle {
     try {
+      resolveGatewayHostRuntime(this.hostRuntime)?.assertOpen();
       if ((routeBinding.upstreamConfig?.headerPolicyMigration as any)?.mode !== 'legacy' && routeBinding.upstreamConfig?.headerPolicyMigration !== undefined) this.assertHeaderV1Ready(routeBinding);
       else assertGatewayHeaderPolicyReady(routeBinding.upstreamConfig?.headerPolicy, routeBinding.id);
     }

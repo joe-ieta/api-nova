@@ -93,4 +93,22 @@ export const validationSchema = Joi.object({
   HOT_RELOAD: Joi.boolean().default(false),
   WATCH_FILES: Joi.boolean().default(false),
   DEBUG_MODE: Joi.boolean().default(false),
+
+  // Controlled mail delivery (MAIL-02). Secrets are read from the environment
+  // only and are never persisted, logged or echoed.
+  MAIL_ENABLED: Joi.boolean().default(false),
+  MAIL_TRANSPORT: Joi.string().valid('sink', 'smtp').default('sink'),
+  MAIL_SMTP_HOST: Joi.string().optional(),
+  MAIL_SMTP_PORT: Joi.number().port().default(587),
+  MAIL_SMTP_SECURE: Joi.boolean().default(false),
+  MAIL_SMTP_USER: Joi.string().allow('').optional(),
+  MAIL_SMTP_PASSWORD: Joi.string().allow('').optional(),
+  MAIL_FROM: Joi.string().default('no-reply@api-nova.local'),
+  MAIL_ALLOWED_RECIPIENTS: Joi.string().allow('').default(''),
+  MAIL_SUBJECT_PREFIX: Joi.string().allow('').default('[ApiNova] '),
+  MAIL_RATE_LIMIT_PER_HOUR: Joi.number().integer().min(1).default(10),
+  MAIL_SINK_DIR: Joi.string().optional(),
+  MAIL_ACTION_BASE_URL: Joi.string().uri().optional(),
+  WEBHOOK_NOTIFICATION_URL: Joi.string().uri().optional(),
+  SLACK_WEBHOOK_URL: Joi.string().uri().optional(),
 });

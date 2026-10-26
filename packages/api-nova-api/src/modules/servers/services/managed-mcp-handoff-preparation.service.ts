@@ -13,6 +13,7 @@ import { createMcpTrustedOperationBindings } from '../../runtime-assets/services
 import { resolveMcpEndpoint } from '../../runtime-assets/services/mcp-endpoint-config';
 import { buildManagedEnvironment, startManagedMcpChannel } from './managed-mcp-channel';
 import { assertTrustedMcp } from './managed-mcp-mode';
+import { resolveManagedMcpConfigValue } from './managed-mcp-trusted-config';
 
 export const MANAGED_MCP_SOURCES_CONFIG_KEY = 'managedMcp.handoffSources';
 export const MANAGED_MCP_PREPARATION_REJECTED = 'MANAGED_MCP_PREPARATION_REJECTED';
@@ -65,7 +66,7 @@ export class ManagedMcpHandoffPreparationService {
   constructor(private readonly db: DataSource, private readonly config: ConfigService) {}
 
   private source(runtimeAssetId: string): SourceConfiguration {
-    const sources = data(this.config.get(MANAGED_MCP_SOURCES_CONFIG_KEY));
+    const sources = data(resolveManagedMcpConfigValue(this.config, MANAGED_MCP_SOURCES_CONFIG_KEY, 'handoffSources'));
     if (Buffer.byteLength(JSON.stringify(sources), 'utf8') > 65536 || Array.isArray(sources) || !Object.prototype.hasOwnProperty.call(sources, runtimeAssetId)) reject();
     const source = sources[runtimeAssetId];
     exact(source, ['registrySource', 'approvedEnvironmentNames']);
@@ -90,6 +91,14 @@ export class ManagedMcpHandoffPreparationService {
       if (purpose !== 'experiment') assertTrustedMcp(server, runtimeAssetId);
       const allowedStatuses = purpose === 'experiment' ? ['stopped', 'error'] :
         purpose === 'start' ? ['stopped', 'error', 'starting'] : ['stopped', 'error', 'starting', 'running'];
+      // Trusted mode does not auto-migrate legacy secret-bearing configuration:
+      // bearer values and custom headers cannot be rebuilt from Secret References.
+      const hasHeaders = (value: unknown) => !!value && typeof value === 'object' && Object.keys(value).length > 0;
+      const legacyAuth = server.authConfig && (server.authConfig.type !== 'none' ||
+        !!(server.authConfig.config && (server.authConfig.config.bearerToken || server.authConfig.config.bearerEnv)));
+      const nestedAuth = config.mcpConfig?.authConfig;
+      if (legacyAuth || hasHeaders(config.customHeaders) || hasHeaders(config.mcpConfig?.customHeaders) ||
+        (nestedAuth && (nestedAuth.type !== 'none' || !!nestedAuth.bearerToken || !!nestedAuth.bearerEnv))) return reject();
       if (metadata.managedServerId !== serverId || config.runtimeAssetId !== runtimeAssetId || config.managedByRuntimeAsset !== true ||
         metadata.verificationRequired !== false || !allowedStatuses.includes(server.status) ||
         typeof config.verificationRunId !== 'string' || !config.verificationRunId || typeof config.verifiedCandidateRevision !== 'string' || !config.verifiedCandidateRevision) reject();
@@ -174,6 +183,12 @@ export class ManagedMcpHandoffPreparationService {
   /** Internal data-only envelope; business environment values never enter it. */
   async prepare(runtimeAssetId: string, serverId: string): Promise<ManagedMcpHandoffV1> {
     return (await this.capture(runtimeAssetId, serverId)).payload;
+  }
+
+  async captureForManagedLifecycle(runtimeAssetId: string, serverId: string) {
+    const captured = await this.capture(runtimeAssetId, serverId);
+    return { payload: captured.payload, approvedEnvironmentNames: captured.approvedEnvironmentNames,
+      environmentValues: captured.environmentValues };
   }
 
   /** Explicit internal experiment only: ACK is not readiness; await handle.ready.

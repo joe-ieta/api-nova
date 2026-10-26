@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Request } from 'express';
 import { Repository } from 'typeorm';
 import { createHash, timingSafeEqual } from 'node:crypto';
+import { consumeGatewayCandidateReplay } from './gateway-candidate-replay-authority';
 import {
   AuditAction,
   AuditLevel,
@@ -44,6 +45,12 @@ export class GatewaySecurityService {
       .trim().toLowerCase();
     const mode = configuredMode === 'anonymous' && visibility !== 'external'
       ? 'jwt' : configuredMode;
+    const verificationRunId = consumeGatewayCandidateReplay(req, resolvedRoute);
+    if (verificationRunId && mode !== 'anonymous') {
+      const context: GatewayRequestAuthContext = { mode, actorId: `verification:${verificationRunId}` };
+      this.attachAuthContext(req, context);
+      return context;
+    }
     if (mode === 'jwt') {
       try {
         const principal = await this.authenticateJwt(req.headers, resolvedRoute.routeBinding.upstreamConfig?.jwtPolicy);

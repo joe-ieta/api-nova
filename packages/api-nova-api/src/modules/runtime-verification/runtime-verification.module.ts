@@ -1,3 +1,4 @@
+import { EndpointTestingModule } from '../endpoint-testing/endpoint-testing.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EndpointTestSampleEntity } from '../../database/entities/endpoint-test-sample.entity';
@@ -24,6 +25,7 @@ import { RuntimeResponseAssertionService } from './services/runtime-response-ass
       RuntimeVerificationResultEntity,
     ]),
     SecurityModule,
+    EndpointTestingModule,
     RuntimeUpstreamBindingsModule,
     GatewayRuntimeModule,
   ],

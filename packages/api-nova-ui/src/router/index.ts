@@ -177,6 +177,15 @@ const routes: RouteRecordRaw[] = [
     },
   },
   {
+    path: "/forgot-password",
+    name: "forgot-password",
+    component: () => import("@/views/ForgotPassword.vue"),
+    meta: {
+      title: "Forgot Password",
+      hidden: true,
+    },
+  },
+  {
     path: "/:pathMatch(.*)*",
     name: "not-found",
     component: () => import("@/views/NotFound.vue"),

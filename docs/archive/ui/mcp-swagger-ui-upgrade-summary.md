@@ -167,10 +167,10 @@ VITE_ENABLE_DEMO_MODE=false # 生产时使用真实解析器
 
 ## 📖 相关文档
 
-- [解析器技术文档](../api-nova-parser/docs/TECHNICAL_DOCUMENTATION.md)
-- [API 文档](../api-nova-parser/docs/API_DOCUMENTATION.md)
-- [架构决策记录](../api-nova-parser/docs/ARCHITECTURE_DECISIONS.md)
-- [服务器迁移总结](../../docs/migration-summary.md)
+- [解析器技术文档](../packages/api-nova-parser/2026-10-26/TECHNICAL_DOCUMENTATION.md)
+- [API 文档](../packages/api-nova-parser/2026-10-26/API_DOCUMENTATION.md)
+- [架构决策记录](../packages/api-nova-parser/2026-10-26/ARCHITECTURE_DECISIONS.md)
+- [服务器迁移总结](../summaries/migration-summary.md)
 
 ---
 

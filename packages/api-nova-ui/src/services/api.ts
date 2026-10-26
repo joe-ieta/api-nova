@@ -1481,9 +1481,15 @@ export const userAuthAPI = {
     return response.data;
   },
 
-  // 邮箱验证
+  // 邮箱验证（token 一律走请求体，query 形式已废弃）
   async verifyEmail(token: string): Promise<{ message: string }> {
     const response = await api.post("/auth/verify-email", { token });
+    return response.data;
+  },
+
+  // 重新发送验证邮件（通用响应，不暴露账号是否存在）
+  async resendVerification(email: string): Promise<{ message: string }> {
+    const response = await api.post("/auth/resend-verification", { email });
     return response.data;
   },
 

@@ -1,3 +1,4 @@
+import { EndpointTestingService } from '../../endpoint-testing/services/endpoint-testing.service';
 import { resolveMcpEndpoint } from '../../runtime-assets/services/mcp-endpoint-config';
 import { MCPServerEntity } from '../../../database/entities/mcp-server.entity';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
@@ -51,6 +52,7 @@ export class RuntimeVerificationService {
     private readonly gatewayCandidateReplayService: GatewayCandidateReplayService,
     private readonly mcpCandidateReplayService: McpCandidateReplayService,
     private readonly responseAssertionService: RuntimeResponseAssertionService,
+    private readonly endpointTestingService: EndpointTestingService,
   ) {}
 
   async planCandidate(
@@ -417,7 +419,7 @@ export class RuntimeVerificationService {
           routePath: replay.routePath,
           method: replay.method,
           responseHeaders: this.sanitizeValue(replay.headers),
-          responsePayload: this.sanitizeValue(replay.body),
+          responsePayload: this.replayResponseEvidence(afterReplay.sample, replay.body),
           responseBodyBytes: replay.bodyBytes,
           responseTruncated: replay.truncated,
           responseAssertion: this.sanitizeValue(responseAssertion),
@@ -599,7 +601,7 @@ export class RuntimeVerificationService {
         result.evidence = this.sanitizeValue({
           toolName: replay.toolName,
           isError: replay.isError,
-          response: replay.body,
+          response: this.replayResponseEvidence(afterReplay.sample, replay.body),
           responseAssertion,
         }) as Record<string, unknown>;
         if (replay.statusCode === result.expectedStatusCode && responseAssertion.passed) {
@@ -750,6 +752,30 @@ export class RuntimeVerificationService {
           message: 'The selected binary sample object is no longer readable',
         } };
       }
+      try {
+        // Reuse the authorized-download content resolver internally: real file,
+        // digest, ownership and post-read reference checks must all still pass.
+        await this.endpointTestingService.readBinaryContent(sampleId);
+        // Download intentionally permits archived samples. Replay does not:
+        // repeat its stricter eligibility after the asynchronous file read.
+        const current = await this.sampleRepository.findOneBy({ id: sampleId });
+        if (!current || current.status !== EndpointTestSampleStatus.ACTIVE ||
+          current.enabled !== true ||
+          JSON.stringify(current.responsePayload) !== JSON.stringify(sample.responsePayload)) {
+          return { blocker: {
+            code: 'verification_sample_unavailable',
+            message: 'The selected endpoint test sample is no longer active and readable',
+          } };
+        }
+        const currentUnsupported = this.responseAssertionService.preflight(current);
+        if (currentUnsupported) return { blocker: currentUnsupported };
+        return { sample: current };
+      } catch {
+        return { blocker: {
+          code: 'binary_sample_object_unavailable',
+          message: 'The selected binary sample object is no longer readable',
+        } };
+      }
     }
     return { sample };
   }
@@ -835,6 +861,18 @@ export class RuntimeVerificationService {
     return mismatch
       ? `Response assertion failed (${assertion.mode}): ${mismatch.path} expected ${mismatch.expected}, received ${mismatch.actual}`
       : `Response assertion failed (${assertion.mode})`;
+  }
+
+  private replayResponseEvidence(sample: EndpointTestSampleEntity, body: unknown): unknown {
+    const descriptor = sample.responsePayload;
+    if (descriptor && typeof descriptor === 'object' && !Array.isArray(descriptor) &&
+      (descriptor as Record<string, unknown>).kind === 'binary') {
+      // Binary replay currently verifies status only. JSON sanitization cannot
+      // redact arbitrary raw bytes, and PostgreSQL JSONB rejects embedded NUL.
+      // Keep status/timing/byte counts separately without retaining the body.
+      return { omitted: true, reason: 'binary_status_only' };
+    }
+    return this.sanitizeValue(body);
   }
 
   private sanitizeValue(value: unknown): unknown {

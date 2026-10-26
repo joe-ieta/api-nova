@@ -15,6 +15,7 @@ import {
   LoginDto,
   RegisterDto,
   ForgotPasswordDto,
+  ResetPasswordDto,
   LoginResponseDto,
   UserResponseDto,
 } from '../dto/security.dto';
@@ -22,6 +23,8 @@ import { UserService } from './user.service';
 import { AuditService } from './audit.service';
 import { RoleService } from './role.service';
 import { MANAGEMENT_TOKEN_AUDIENCE, MANAGEMENT_TOKEN_ISSUER, MANAGEMENT_TOKEN_USE } from '../management-access-token';
+import { MailService } from '../../mail/services/mail.service';
+import { maskEmail } from '../../mail/utils/mail-address';
 
 export interface JwtPayload {
   sub: string; // user id
@@ -53,6 +56,7 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly auditService: AuditService,
     private readonly roleService: RoleService,
+    private readonly mailService: MailService,
   ) {}
 
   /**
@@ -141,17 +145,10 @@ export class AuthService {
         ipAddress,
       );
 
-      // 生成邮箱验证令牌
-      const verificationToken = await this.userService.generateEmailVerificationToken(
+      // 生成邮箱验证令牌（明文仅用于邮件投递，摘要入库）
+      const verification = await this.userService.generateEmailVerificationToken(
         user.id,
       );
-
-      this.logger.warn(
-        `Email verification delivery is not configured in the current baseline; user ${user.id} remains pending until verification is completed through an operator-managed flow.`,
-      );
-
-      // TODO: 发送验证邮件
-      // await this.emailService.sendVerificationEmail(user.email, verificationToken);
 
       // 记录审计日志
       await this.auditService.log({
@@ -165,6 +162,16 @@ export class AuthService {
           username: registerDto.username,
           email: registerDto.email,
         },
+      });
+
+      // 投递失败不回滚注册，仅记录审计，用户保持待验证
+      await this.sendVerificationEmail({
+        email: user.email,
+        username: user.username,
+        token: verification.token,
+        expiresAt: verification.expiresAt,
+        userId: user.id,
+        ipAddress,
       });
 
       this.logger.log(`用户注册成功: ${registerDto.username}`);
@@ -291,15 +298,19 @@ export class AuthService {
     const { email } = forgotPasswordDto;
 
     try {
-      // 生成密码重置令牌
-      const resetToken = await this.userService.generatePasswordResetToken(email);
+      // 生成密码重置令牌（明文仅用于邮件投递，摘要入库）
+      const reset = await this.userService.generatePasswordResetToken(email);
 
-      this.logger.warn(
-        `Password reset email delivery is not configured in the current baseline; request for ${email} only generated an internal reset token.`,
-      );
-
-      // TODO: 发送重置邮件
-      // await this.emailService.sendPasswordResetEmail(email, resetToken);
+      // 投递失败不回滚请求，仅记录审计，允许用户重新发起
+      await this.sendPasswordResetEmail({
+        email: reset.user.email,
+        username: reset.user.username,
+        token: reset.token,
+        expiresAt: reset.expiresAt,
+        locale: reset.user.preferences?.language,
+        userId: reset.user.id,
+        ipAddress,
+      });
 
       // 记录审计日志
       await this.auditService.log({
@@ -307,14 +318,144 @@ export class AuthService {
         level: AuditLevel.INFO,
         status: AuditStatus.SUCCESS,
         resource: 'auth',
+        resourceId: reset.user.id,
         ipAddress,
-        details: { email },
+        details: { operation: 'password_reset_requested' },
       });
 
-      this.logger.log(`密码重置请求: ${email}`);
+      this.logger.log(`密码重置请求: ${reset.user.id}`);
     } catch (error) {
       // 即使用户不存在，也不要暴露这个信息
-      this.logger.warn(`密码重置请求失败: ${email}`, error);
+      this.logger.warn('密码重置请求处理失败');
+    }
+  }
+
+  /**
+   * 重新发送验证邮件（通用响应，不暴露账号是否存在）
+   */
+  async resendVerification(email: string, ipAddress: string): Promise<void> {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { email: (email ?? '').trim() },
+      });
+
+      if (!user || user.emailVerified) {
+        return;
+      }
+
+      const verification = await this.userService.generateEmailVerificationToken(
+        user.id,
+      );
+
+      await this.sendVerificationEmail({
+        email: user.email,
+        username: user.username,
+        token: verification.token,
+        expiresAt: verification.expiresAt,
+        locale: user.preferences?.language,
+        userId: user.id,
+        ipAddress,
+      });
+    } catch (error) {
+      // 响应保持通用，不区分账号状态与投递结果
+      this.logger.warn('重新发送验证邮件请求处理失败');
+    }
+  }
+
+  /**
+   * 使用一次性令牌重置密码（公开入口，成功时撤销既有会话）
+   */
+  async resetPassword(
+    resetPasswordDto: ResetPasswordDto,
+    ipAddress: string,
+    userAgent?: string,
+  ): Promise<void> {
+    try {
+      const user = await this.userService.resetPassword(
+        resetPasswordDto,
+        ipAddress,
+      );
+      await this.revokeAllUserTokens(user.id);
+    } catch (error) {
+      await this.auditService.log({
+        action: AuditAction.USER_PASSWORD_CHANGED,
+        level: AuditLevel.WARNING,
+        status: AuditStatus.FAILED,
+        resource: 'auth',
+        ipAddress,
+        userAgent,
+        details: { operation: 'password_reset_failed', reason: 'invalid_or_expired_token' },
+      });
+
+      throw new BadRequestException('重置令牌无效或已过期');
+    }
+  }
+
+  private async sendVerificationEmail(params: {
+    email: string;
+    username: string;
+    token: string;
+    expiresAt: Date;
+    locale?: string;
+    userId: string;
+    ipAddress?: string;
+  }): Promise<void> {
+    try {
+      await this.mailService.send({
+        to: params.email,
+        templateId: 'verify-email.v1',
+        locale: params.locale,
+        userId: params.userId,
+        ipAddress: params.ipAddress,
+        auditAction: AuditAction.USER_UPDATED,
+        variables: {
+          appName: 'ApiNova',
+          username: params.username || params.email.split('@')[0],
+          emailMasked: maskEmail(params.email),
+          actionUrl: this.mailService.buildActionUrl('/verify-email', {
+            token: params.token,
+          }),
+          expiresAt: params.expiresAt.toISOString(),
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `验证邮件投递流程失败: ${maskEmail(params.email)}`,
+      );
+    }
+  }
+
+  private async sendPasswordResetEmail(params: {
+    email: string;
+    username: string;
+    token: string;
+    expiresAt: Date;
+    locale?: string;
+    userId: string;
+    ipAddress?: string;
+  }): Promise<void> {
+    try {
+      await this.mailService.send({
+        to: params.email,
+        templateId: 'reset-password.v1',
+        locale: params.locale,
+        userId: params.userId,
+        ipAddress: params.ipAddress,
+        auditAction: AuditAction.USER_PASSWORD_CHANGED,
+        variables: {
+          appName: 'ApiNova',
+          username: params.username || params.email.split('@')[0],
+          emailMasked: maskEmail(params.email),
+          actionUrl: this.mailService.buildActionUrl('/reset-password', {
+            token: params.token,
+          }),
+          expiresAt: params.expiresAt.toISOString(),
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `密码重置邮件投递流程失败: ${maskEmail(params.email)}`,
+      );
     }
   }
 
@@ -328,14 +469,14 @@ export class AuthService {
     try {
       await this.userService.verifyEmail(token);
 
-      // 记录审计日志
+      // 记录审计日志（不含令牌原文或前缀）
       await this.auditService.log({
         action: AuditAction.USER_UPDATED,
         level: AuditLevel.INFO,
         status: AuditStatus.SUCCESS,
         resource: 'auth',
         ipAddress,
-        details: { token: token.substring(0, 8) + '...' },
+        details: { operation: 'verify_email', result: 'verified' },
       });
 
       this.logger.log('邮箱验证成功');
@@ -348,8 +489,8 @@ export class AuthService {
         resource: 'auth',
         ipAddress,
         details: {
-          token: token.substring(0, 8) + '...',
-          error: error.message,
+          operation: 'verify_email',
+          reason: 'invalid_or_expired_token',
         },
       });
 
@@ -490,7 +631,14 @@ export class AuthService {
    * 转换为用户响应DTO
    */
   private toUserResponseDto(user: User): UserResponseDto {
-    const { password, passwordResetToken, emailVerificationToken, ...userData } = user;
+    const {
+      password,
+      passwordResetToken,
+      passwordResetExpires,
+      emailVerificationToken,
+      emailVerificationExpiresAt,
+      ...userData
+    } = user;
     return {
       ...userData,
       roles: user.roles?.map(role => ({

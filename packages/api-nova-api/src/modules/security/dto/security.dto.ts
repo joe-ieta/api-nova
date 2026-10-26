@@ -468,6 +468,11 @@ export class AuditLogQueryDto {
   @IsString()
   resource?: string;
 
+  @ApiPropertyOptional({ description: '资源ID' })
+  @IsOptional()
+  @IsString()
+  resourceId?: string;
+
   @ApiPropertyOptional({ description: 'IP地址' })
   @IsOptional()
   @IsString()
@@ -623,6 +628,20 @@ export class RegisterDto {
 }
 
 export class ForgotPasswordDto {
+  @ApiProperty({ description: '邮箱地址', example: 'john@example.com' })
+  @IsEmail()
+  email: string;
+}
+
+export class VerifyEmailDto {
+  @ApiPropertyOptional({ description: '邮箱验证令牌（推荐请求体传递）' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  token?: string;
+}
+
+export class ResendVerificationDto {
   @ApiProperty({ description: '邮箱地址', example: 'john@example.com' })
   @IsEmail()
   email: string;

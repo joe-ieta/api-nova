@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { grantGatewayCandidateReplay } from '../../gateway-runtime/services/gateway-candidate-replay-authority';
 import { Readable, Writable } from 'node:stream';
 import { markGatewayInternalVerification } from '../../gateway-runtime/services/gateway-audit-context';
 import { EndpointTestSampleEntity } from '../../../database/entities/endpoint-test-sample.entity';
@@ -59,26 +60,34 @@ export class GatewayCandidateReplayService {
     if (!target) {
       throw new Error(`Gateway candidate route did not resolve for ${method} ${routePath}`);
     }
+    if (target.membership.id !== input.runtimeMembershipId) {
+      throw new Error('Gateway candidate resolved a different membership');
+    }
     markGatewayInternalVerification(req);
+    const release = grantGatewayCandidateReplay(req, target, input.verificationRunId);
     const startedAt = Date.now();
-    await this.gatewayRuntimeService.forwardResolvedRoute(
-      target,
-      req as any,
-      response.stream as any,
-      startedAt,
-      { bypassCache: true },
-    );
-    const captured = await response.completed;
-    return {
-      statusCode: captured.statusCode,
-      headers: captured.headers,
-      body: this.parseBody(captured.body, captured.headers),
-      bodyBytes: captured.bodyBytes,
-      truncated: captured.truncated,
-      durationMs: Date.now() - startedAt,
-      routePath,
-      method,
-    };
+    try {
+      await this.gatewayRuntimeService.forwardResolvedRoute(
+        target,
+        req as any,
+        response.stream as any,
+        startedAt,
+        { bypassCache: true },
+      );
+      const captured = await response.completed;
+      return {
+        statusCode: captured.statusCode,
+        headers: captured.headers,
+        body: this.parseBody(captured.body, captured.headers),
+        bodyBytes: captured.bodyBytes,
+        truncated: captured.truncated,
+        durationMs: Date.now() - startedAt,
+        routePath,
+        method,
+      };
+    } finally {
+      release();
+    }
   }
 
   private createRequest(

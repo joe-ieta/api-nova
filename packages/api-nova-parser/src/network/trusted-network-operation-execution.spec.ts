@@ -26,6 +26,7 @@ describe('logical operation Parser host bridge with real Registry/DNS/HTTP/TLS',
   let dnsAddress: string, dnsQueries: number, requests: number, proxyConnections: number, connections: number, plaintextBytes: number;
   let sockets: Set<net.Socket>, lastAuthorization: string | undefined, lastHost: string | undefined, lastSni: string | false | null | undefined, seenBody: Buffer;
   let handler: (req: http.IncomingMessage, res: http.ServerResponse) => void;
+  let auditRecords: Array<Record<string, any>>;
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
   beforeAll(() => {
     directory = fs.mkdtempSync(path.join(os.tmpdir(), 'api-nova-pinned-tls-'));
@@ -37,6 +38,7 @@ describe('logical operation Parser host bridge with real Registry/DNS/HTTP/TLS',
   beforeEach(async () => {
     securityEpoch = 'security-1'; callController = new AbortController(); dnsHook = undefined;
     handshakeDelay = 0; handshakeTimers = []; dnsAddress = '127.0.0.1'; dnsQueries = requests = proxyConnections = connections = plaintextBytes = 0;
+    auditRecords = [];
     sockets = new Set(); lastAuthorization = lastHost = lastSni = undefined; seenBody = Buffer.alloc(0);
     handler = (_req, res) => { res.setHeader('x-fixture', 'isolated'); res.end('ok'); };
     const serve = (req: http.IncomingMessage, res: http.ServerResponse) => {
@@ -80,7 +82,8 @@ describe('logical operation Parser host bridge with real Registry/DNS/HTTP/TLS',
     const compiler = createNetworkPolicyCompiler({ deniedDestinations: [], loopback: 'test-only' });
     const policy = compiler.compile({ version: 1, id: 'p', revision: '1', sourceServiceAssetId: 'asset', siteId: 'site', origin, mode: 'private-exception', connection: 'direct',
       privateException: { id: 'test', revision: '1', sourceServiceAssetId: 'asset', siteId: 'site', origin, addresses: ['127.0.0.1'], purpose: 'isolated test', owner: 'test', approvalRef: 'test', issuedAt: new Date(Date.now() - 1000).toISOString(), expiresAt: new Date(Date.now() + 30000).toISOString() } });
-    const input = { credentialPolicy, operationLifecycle: { readSecurityEpoch: () => securityEpoch, readProviderEpoch: (captured: typeof snapshot) => 'provider-' + captured.generation, captureSignal: () => callController.signal }, compiler, servers: [`127.0.0.1:${dnsPort}`], ca, registrations: [{ snapshot, sourceServiceAssetId: 'asset', siteId: 'site', policy }] };
+    const input = { credentialPolicy, operationLifecycle: { readSecurityEpoch: () => securityEpoch, readProviderEpoch: (captured: typeof snapshot) => 'provider-' + captured.generation, captureSignal: () => callController.signal }, compiler, servers: [`127.0.0.1:${dnsPort}`], ca, registrations: [{ snapshot, sourceServiceAssetId: 'asset', siteId: 'site', policy }],
+      failureAudit: (record: Readonly<Record<string, any>>) => { auditRecords.push(record as any); } };
     const execution = createTrustedSingleHopNetworkExecution(input);
     const spec: any = { openapi: '3.0.3', info: { title: 'bounded fixture', version: '1' }, servers: [{ url: origin }], paths: { '/api/items/{id}': { post: { operationId: 'items', responses: { '200': { description: 'ok' } },
       'x-source-service-asset-id': 'forged', 'x-network-policy': { revision: 'forged' },
@@ -104,6 +107,30 @@ describe('logical operation Parser host bridge with real Registry/DNS/HTTP/TLS',
     const f = await setup('api', useTls), plan = await f.prepare(); dnsHook = () => f.execution.revoke('asset');
     await expect(f.execution.send(plan, {})).rejects.toMatchObject({ code: 'upstream_network_policy_denied' }); expect(connections).toBe(0); expect(requests).toBe(0);
     await expect(f.prepare()).rejects.toMatchObject({ code: 'upstream_network_policy_denied' }); securityEpoch = 'security-2'; dnsHook = undefined; expect((await f.execution.send(await f.prepare(), {})).statusCode).toBe(200);
+  });
+  it('audits a revoked operation once with trusted identity and no secret detail', async () => {
+    const f = await setup('api'), plan = await f.prepare(); dnsHook = () => f.execution.revoke('asset');
+    await expect(f.execution.send(plan, {})).rejects.toMatchObject({ code: 'upstream_network_policy_denied' });
+    expect(auditRecords).toHaveLength(1);
+    expect(auditRecords[0]).toMatchObject({
+      schemaVersion: 1,
+      eventName: 'upstream.network_failure',
+      reason: 'upstream_network_policy_denied',
+      stage: 'revocation',
+      attemptIndex: 1,
+      redirectHopIndex: 0,
+      revocationEpoch: '0',
+      sourceServiceAssetId: 'asset',
+      siteId: 'site',
+      endpointDefinitionId: 'endpoint',
+      policyId: 'p',
+      revision: '1',
+    });
+    expect(typeof auditRecords[0].operationId).toBe('string');
+    const serialized = JSON.stringify(auditRecords);
+    for (const secret of ['fixture.test', 'synthetic-secret', 'X-Private', 'memory:KEY']) {
+      expect(serialized).not.toContain(secret);
+    }
   });
   it('revokes a pending TLS handshake without any HTTP bytes', async () => {
     handshakeDelay = 200; const f = await setup('api', true), plan = await f.prepare(); const pending = f.execution.send(plan, {}); const denied = expect(pending).rejects.toMatchObject({ code: 'upstream_network_policy_denied' });

@@ -2,7 +2,7 @@
 
 ## 🎉 实现完成
 
-根据 [swagger2openapi 集成实现方案](./swagger2openapi-integration-plan.md)，我们已经成功为 `api-nova-parser` 增加了对 **Swagger 2.0 (OpenAPI 2.0)** 的完整支持。
+根据 [swagger2openapi 集成实现方案](../plans/swagger2openapi-integration-plan.md)，我们已经成功为 `api-nova-parser` 增加了对 **Swagger 2.0 (OpenAPI 2.0)** 的完整支持。
 
 ## ✅ 已完成的功能
 

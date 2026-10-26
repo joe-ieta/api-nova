@@ -13,14 +13,14 @@
 
 | 历史文件 | 原始位置 | 归档类型与当前入口 |
 | --- | --- | --- |
-| [合并前未完成工作报告](./runtime-observability-remaining-work-2026-09-14.md) | `docs/guides/runtime-observability-remaining-work-2026-09-14.md` | 已过期报告，移出 guides；由[当前完成情况](../../../guides/runtime-observability-completion-review.md)替代 |
-| [完成情况整理前快照](./runtime-observability-completion-review.md) | `docs/guides/runtime-observability-completion-review.md` | 历史快照；[当前版本](../../../guides/runtime-observability-completion-review.md) |
-| [执行状态及历史流水](./runtime-observability-development-execution-status.md) | `docs/guides/runtime-observability-development-execution-status.md` | 历史快照；[当前证据登记](../../../guides/runtime-observability-development-execution-status.md) |
-| [任务计划整理前快照](./runtime-observability-development-task-plan.md) | `docs/guides/runtime-observability-development-task-plan.md` | 历史快照；[当前任务计划](../../../guides/runtime-observability-development-task-plan.md) |
-| [API 契约整理前快照](./runtime-observability-api-endpoints.md) | `docs/reference/runtime-observability-api-endpoints.md` | 历史快照；[当前 API 契约](../../../reference/runtime-observability-api-endpoints.md) |
-| [存储基础整理前快照](./runtime-observability-storage-foundation.md) | `docs/reference/runtime-observability-storage-foundation.md` | 历史快照；[当前存储基础](../../../reference/runtime-observability-storage-foundation.md) |
-| [契约映射整理前快照](./runtime-observability-contract-mapping.md) | `docs/reference/runtime-observability-contract-mapping.md` | 历史快照；[当前契约映射](../../../reference/runtime-observability-contract-mapping.md) |
-| [设计整理前快照](./runtime-observability-design.md) | `docs/reference/runtime-observability-design.md` | 历史快照；[当前设计基线](../../../reference/runtime-observability-design.md) |
+| [合并前未完成工作报告](runtime-observability-remaining-work-2026-09-14.md) | `docs/guides/runtime-observability-remaining-work-2026-09-14.md` | 已过期报告，移出 guides；由[当前完成情况](../../plans/2026-10-26/runtime-observability-completion-review.md)替代 |
+| [完成情况整理前快照](runtime-observability-completion-review.md) | `docs/archive/plans/2026-10-26/runtime-observability-completion-review.md` | 历史快照；[当前版本](../../plans/2026-10-26/runtime-observability-completion-review.md) |
+| [执行状态及历史流水](runtime-observability-development-execution-status.md) | `docs/archive/plans/2026-10-26/runtime-observability-development-execution-status.md` | 历史快照；[当前证据登记](../../plans/2026-10-26/runtime-observability-development-execution-status.md) |
+| [任务计划整理前快照](runtime-observability-development-task-plan.md) | `docs/archive/plans/2026-10-26/runtime-observability-development-task-plan.md` | 历史快照；[当前任务计划](../../plans/2026-10-26/runtime-observability-development-task-plan.md) |
+| [API 契约整理前快照](runtime-observability-api-endpoints.md) | `docs/api/observability.md` | 历史快照；[当前 API 契约](../../../api/observability.md) |
+| [存储基础整理前快照](runtime-observability-storage-foundation.md) | `docs/archive/reference/2026-10-26/runtime-observability-storage-foundation.md` | 历史快照；[当前存储基础](../../reference/2026-10-26/runtime-observability-storage-foundation.md) |
+| [契约映射整理前快照](runtime-observability-contract-mapping.md) | `docs/archive/reference/2026-10-26/runtime-observability-contract-mapping.md` | 历史快照；[当前契约映射](../../reference/2026-10-26/runtime-observability-contract-mapping.md) |
+| [设计整理前快照](runtime-observability-design.md) | `docs/archive/reference/2026-10-26/runtime-observability-design.md` | 历史快照；[当前设计基线](../../reference/2026-10-26/runtime-observability-design.md) |
 
 ## 不归档的基线
 

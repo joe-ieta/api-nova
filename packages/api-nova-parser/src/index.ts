@@ -185,6 +185,11 @@ export * from './network/pinned-http-stream';
 export * from './network/trusted-single-hop-network-execution';
 export * from './network/bounded-network-serialization';
 
+// Unified network failure semantics and denial audit contract (pure).
+export * from './network/network-failure-contract';
+export * from './network/network-denial-audit';
+export * from './network/network-failure-adapter';
+
 // Host-only operation capability factory; no runtime activation is implied.
 export { createNetworkOperationAuthority } from './network/network-operation-authority';
 export type { NetworkOperationHandle, NetworkOperationSelector, AuthorizedNetworkOperationContext } from './network/network-operation-authority';

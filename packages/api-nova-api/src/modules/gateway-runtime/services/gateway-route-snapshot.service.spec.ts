@@ -25,6 +25,8 @@ describe('GatewayRouteSnapshotService', () => {
     const persistedSnapshots: any[] = [];
     const persistedSnapshotRepository = {
       find: jest.fn(async () => [...persistedSnapshots].reverse()),
+      findOneBy: jest.fn(async where => persistedSnapshots.find(row =>
+        row.runtimeAssetId === where.runtimeAssetId && row.revision === where.revision) || null),
       create: jest.fn(value => value),
       save: jest.fn(async value => {
         persistedSnapshots.push({ id: `snapshot-${persistedSnapshots.length + 1}`, ...value });
@@ -475,6 +477,32 @@ describe('GatewayRouteSnapshotService', () => {
     expect(service.resolve('localhost:9001', 'GET', '/pets/123/owner')?.routeBinding.id).toBe(
       'route-param',
     );
+  });
+
+  it('reuses immutable evidence after verifying an unchanged revision again', async () => {
+    const service = buildService('orders');
+    await service.prepareCandidate('runtime-1', 'unchanged');
+    await service.activateCandidate('unchanged');
+    const repository = (service as any).persistedSnapshotRepository;
+    const original = JSON.stringify(await repository.find());
+    await service.prepareCandidate('runtime-1', 'unchanged');
+    await expect(service.activateCandidate('unchanged')).resolves.toMatchObject({ activeRouteCount: 2 });
+    expect(repository.save).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(await repository.find())).toBe(original);
+  });
+
+  it.each(['fingerprint', 'payload'])('rejects a conflicting existing revision with damaged %s', async damage => {
+    const service = buildService('orders');
+    await service.prepareCandidate('runtime-1', 'conflict');
+    await service.activateCandidate('conflict');
+    const repository = (service as any).persistedSnapshotRepository;
+    const [persisted] = await repository.find();
+    if (damage === 'fingerprint') persisted.fingerprint = 'not-the-candidate';
+    else persisted.payload[0].upstreamBaseUrl = 'http://unexpected.invalid';
+    await service.prepareCandidate('runtime-1', 'conflict');
+    await expect(service.activateCandidate('conflict')).rejects.toThrow('GATEWAY_SNAPSHOT_REVISION_CONFLICT');
+    expect(repository.save).toHaveBeenCalledTimes(1);
+    expect(service.resolve('localhost:9001', 'GET', '/orders/pets/special')?.routeBinding.id).toBe('route-static');
   });
 
   it('stages an inactive runtime without changing active routes and supports atomic rollback', async () => {

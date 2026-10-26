@@ -67,6 +67,8 @@ export async function forwardGatewayNetworkStream(provider: GatewayTrustedNetwor
       if (failure.code === 'upstream_network_policy_unavailable') throw new ServiceUnavailableException(failure.code);
       throw new ServiceUnavailableException('gateway_network_policy_unavailable');
     }
-    throw failure;
+    // Unknown transport errors are classified by the provider audit; the wire
+    // response never carries raw DNS/TLS/host detail.
+    throw new ServiceUnavailableException('upstream_network_policy_unavailable');
   } finally { provider.close(networkLease); req.removeListener('aborted', cancel); req.removeListener('error', cancel); res.removeListener('close', closed); res.removeListener('error', cancel); }
 }

@@ -1,12 +1,12 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.0.1
 doc-status: active
-doc-updated: 2026-09-07
+doc-updated: 2026-10-26
 ---
 # ApiNova Product Constraints
 
 > Document status: Active
-> Last reviewed: 2026-07-22
+> Last reviewed: 2026-10-26
 
 ## Purpose
 

@@ -11,7 +11,9 @@ describe('registered upstream challenge evidence storage',()=>{
   try {
    process.env.DB_TYPE='sqlite';process.env.DB_SQLITE_PATH=join(root,'fixture.sqlite');const full=buildDatabaseOptions();const options={...full,migrations:(full.migrations as string[]).filter(path=>!path.includes('GatewayHeaderHistoryLedger') && !path.includes('UpstreamProductionChallengeEvidence')),entities:(full.entities as Function[]).filter(entity=>entity.name!=='GatewayHeaderHistoryLedgerEntity' && entity.name!=='UpstreamProductionChallengeEvidenceEntity')};
    db=await new DataSource({...options,migrations:(options.migrations as string[]).slice(0,-1)} as any).initialize();
-   expect(await db.runMigrations()).toHaveLength(4);
+   // The slice drops the newer user-email-expiry migration, not the evidence one:
+   // this fixture still upgrades the evidence table before the legacy row is inserted.
+   expect(await db.runMigrations()).toHaveLength(5);
    await db.query(`INSERT INTO source_service_assets (id,sourceKey) VALUES ('legacy-source','legacy-source')`);await db.destroy();
    db=await new DataSource(options).initialize();expect(await db.runMigrations()).toHaveLength(1);
    const repo=db.getRepository(Evidence);expect(await repo.count()).toBe(0);
@@ -24,7 +26,7 @@ describe('registered upstream challenge evidence storage',()=>{
    expect(await db.getRepository(Evidence).findOneByOrFail({id:row.id})).toMatchObject({runNonce:'old-process',result:'passed',evidenceKind:'challenge_prototype'});
    expect(await db.query(`SELECT sourceKey FROM source_service_assets WHERE id='legacy-source'`)).toEqual([{sourceKey:'legacy-source'}]);
    expect(db.getMetadata(Evidence).columns.map(c=>c.propertyName)).not.toEqual(expect.arrayContaining(['headers','secret','responseBody']));
-   await db.undoLastMigration();expect(await db.runMigrations()).toHaveLength(1);expect(await db.getRepository(Evidence).count()).toBe(0);
+   await db.undoLastMigration();await db.undoLastMigration();expect(await db.runMigrations()).toHaveLength(2);expect(await db.getRepository(Evidence).count()).toBe(0);
    expect((await db.driver.createSchemaBuilder().log()).upQueries).toHaveLength(0);
   } finally {if(db?.isInitialized)await db.destroy();process.env=original;const target=resolve(root);if(dirname(target)!==resolve(tmpdir())||!basename(target).startsWith('apinova-auth-migration-'))throw new Error('Unsafe fixture cleanup');rmSync(target,{recursive:true,force:true});}
  });

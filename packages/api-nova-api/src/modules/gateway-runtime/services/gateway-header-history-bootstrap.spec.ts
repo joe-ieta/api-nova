@@ -18,6 +18,7 @@ import { createConfiguredGatewayCredentialRegistry, GATEWAY_UPSTREAM_CREDENTIAL_
   GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY, gatewayUpstreamCredentialRegistryProvider,
   gatewayUpstreamCredentialResolverProvider, GATEWAY_HEADER_HISTORY_NAMESPACE as namespace,
   GATEWAY_HEADER_HISTORY_PROVENANCE as provenance } from './gateway-upstream-credential.providers';
+import { gatewayHostRuntimeProvider } from './gateway-host-runtime.providers';
 
 @Controller('health-fixture') class OtherApi { @Get() health() { return { ok: true }; } }
 const listen = (server: http.Server) => new Promise<number>(resolve => server.listen(0, '127.0.0.1', () => resolve((server.address() as any).port)));
@@ -35,7 +36,7 @@ describe('Gateway persistent history bootstrap and real HTTP', () => {
     secretProviders: name ? { env: { type: 'env' } } : {}, credentials: name ? { key: { type: 'apiKey', placement: { in: 'header', name }, secretRef: 'env:' + secret } } : {},
     sites: [{ id: 'site', sourceServiceAssetId: 'asset', match: { scheme: 'http', host: '127.0.0.1', port: upstreamPort, basePath: '/' }, allowedHosts: ['127.0.0.1'], credential: name ? 'key' : 'none', headerPolicy: { version: 1 }, endpoints: [{ endpointDefinitionId: 'endpoint' }] }] });
   const boot = () => Test.createTestingModule({ controllers: [OtherApi], providers: [
-    { provide: ConfigService, useValue: config() }, { provide: DataSource, useValue: db }, gatewayUpstreamCredentialRegistryProvider, gatewayUpstreamCredentialResolverProvider,
+    { provide: ConfigService, useValue: config() }, { provide: DataSource, useValue: db }, gatewayUpstreamCredentialRegistryProvider, gatewayUpstreamCredentialResolverProvider, gatewayHostRuntimeProvider,
   ] }).compile();
   beforeEach(async () => {
     root = await fs.mkdtemp(join(tmpdir(), 'history-bootstrap-')); file = join(root, 'bindings.json');

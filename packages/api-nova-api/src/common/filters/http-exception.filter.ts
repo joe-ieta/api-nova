@@ -70,6 +70,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
       response: errorResponse,
     });
 
+    // Streamed Gateway responses may fail after headers are committed, or after
+    // the consumer disconnected. A second JSON response would throw outside the
+    // route handler and can terminate the management process.
+    if (response.writableEnded || response.destroyed || request.aborted) return;
+    if (response.headersSent) {
+      response.destroy(); // Signal an incomplete stream instead of a false success.
+      return;
+    }
     response.status(status).json(errorResponse);
   }
 

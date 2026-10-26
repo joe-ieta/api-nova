@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import { createApplicationDataSource } from './sqljs-persistence';
 import { buildDatabaseOptions } from './database-options';
 
-export const AppDataSource = new DataSource(buildDatabaseOptions());
+export const AppDataSource = createApplicationDataSource(buildDatabaseOptions());

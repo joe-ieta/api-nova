@@ -53,10 +53,10 @@ Current limitations:
 
 Relevant files:
 
-- [main.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/main.ts)
-- [gateway-runtime.controller.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/gateway-runtime.controller.ts)
-- [gateway-runtime.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime.service.ts)
-- [gateway-runtime-metrics.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime-metrics.service.ts)
+- [main.ts](../../../packages/api-nova-api/src/main.ts)
+- [gateway-runtime.controller.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/gateway-runtime.controller.ts)
+- [gateway-runtime.service.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime.service.ts)
+- [gateway-runtime-metrics.service.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime-metrics.service.ts)
 
 Phase one replaces this path with an internal gateway execution pipeline.
 
@@ -200,8 +200,8 @@ Responsibilities:
 
 This service should build on the existing:
 
-- [gateway-runtime-metrics.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime-metrics.service.ts)
-- [runtime-observability.service.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/modules/runtime-observability/services/runtime-observability.service.ts)
+- [gateway-runtime-metrics.service.ts](../../../packages/api-nova-api/src/modules/gateway-runtime/services/gateway-runtime-metrics.service.ts)
+- [runtime-observability.service.ts](../../../packages/api-nova-api/src/modules/runtime-observability/services/runtime-observability.service.ts)
 
 ## 6. `GatewayRuntimeService`
 
@@ -287,7 +287,7 @@ If schema cost is too high for phase one, the snapshot may start in memory only,
 
 Transparent proxying is blocked by current global body parsing.
 
-Required change in [main.ts](/E:/CodexDev/api-nova/packages/api-nova-api/src/main.ts):
+Required change in [main.ts](../../../packages/api-nova-api/src/main.ts):
 
 - `express.json()` and `express.urlencoded()` must skip gateway routes
 

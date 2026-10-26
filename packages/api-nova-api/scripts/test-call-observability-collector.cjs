@@ -101,7 +101,8 @@ test('imports phases once and resumes from a transactionally committed byte offs
   assert.equal(await f.repository(entities.RuntimeInvocationEntity).count(), 1);
   assert.equal(await f.repository(entities.RuntimeInvocationRevisionEntity).count(), 2);
   assert.equal(await f.repository(entities.RuntimeIngestReceiptEntity).count(), 2);
-  assert.equal(await f.repository(Event).count(), 1);
+  // started in-flight delta + terminal in-flight delta + invocation.completed.
+  assert.equal(await f.repository(Event).count(), 3);
   const restarted = f.makeCollector();
   assert.equal((await restarted.collectFile(f.fileName)).processedRecords, 0);
 });
@@ -116,7 +117,8 @@ test('waits for an incomplete final line across collector restart without advanc
   assert.equal(partial.byteOffset, String(Buffer.byteLength(first)));
   assert.equal(partial.partialBytes, 71);
   assert.equal(partial.hasMore, false);
-  assert.equal(await f.repository(Event).count(), 0);
+  // Only the started in-flight delta is durable; the partial terminal is uncommitted.
+  assert.equal(await f.repository(Event).count(), 1);
   await fs.appendFile(f.file, end.slice(71));
   const result = await f.makeCollector().collectFile(f.fileName);
   assert.equal(result.processedRecords, 1);
@@ -178,12 +180,12 @@ test('failed projection does not commit evidence, checkpoint or its boundary fin
 test('a GC-held write lease fails without consuming the source and can be retried', async t => {
   const f = await fixture(t);
   await fs.writeFile(f.file, encode(evidence()));
-  const original = f.store.ingest.bind(f.store);
-  f.store.ingest = async () => { const error = new Error('PAYLOAD_GC_BUSY'); error.code = 'PAYLOAD_GC_BUSY'; throw error; };
+  const original = f.store.ingestBatch.bind(f.store);
+  f.store.ingestBatch = async () => { const error = new Error('PAYLOAD_GC_BUSY'); error.code = 'PAYLOAD_GC_BUSY'; throw error; };
   await assert.rejects(f.collector.collectFile(f.fileName), code('PAYLOAD_GC_BUSY'));
   assert.equal(await f.repository(entities.RuntimeIngestCheckpointEntity).count(), 0);
   assert.equal(await f.repository(entities.RuntimeIngestQuarantineEntity).count(), 0);
-  f.store.ingest = original;
+  f.store.ingestBatch = original;
   assert.equal((await f.collector.collectFile(f.fileName)).processedRecords, 1);
 });
 

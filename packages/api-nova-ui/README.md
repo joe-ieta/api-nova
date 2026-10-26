@@ -1,93 +1,12 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-10-26
+---
 # ApiNova UI
 
-`api-nova-ui` 是 ApiNova 的前端操作界面，基于 Vue 3、Vite 与 TypeScript。
+Vue管理界面；通过HTTP API及Socket.IO操作，不直接访问数据库。
 
-核心使用场景包括：
+[当前接入手册](../../docs/development/DEVELOPER_GUIDE.md) · [文档中心](../../docs/README.md)
 
-- 导入 OpenAPI / Swagger 文档
-- 校验、标准化与预览文档
-- 查看接口路径与生成能力
-- 管理运行中的 API / MCP 服务
-
-## 当前定位
-
-这是产品操作界面，不是独立的静态演示页。
-
-默认开发联调端口：
-
-- UI: `9000`
-- API: `http://127.0.0.1:9001`
-
-## 当前支持基线
-
-### 文档管理
-
-- 从 URL 导入
-- 从文本导入
-- 从文件导入
-- 规范校验
-- 标准化预览
-- 工具预览
-
-### 服务管理
-
-- 从已选文档创建 MCP 服务
-- 查看服务列表、详情、工具与日志
-- 管理启动与停止状态
-
-说明：
-
-- 历史占位页面或未完成操作不应视为发布承诺
-- UI 中的 WebSocket 仅用于管理与监控实时更新
-- WebSocket 不属于 MCP transport 矩阵
-
-## 本地开发
-
-```bash
-node -v
-npm -v
-npm ci
-npm run dev --workspace api-nova-ui
-```
-
-访问：
-
-```text
-http://127.0.0.1:9000
-```
-
-## 构建命令
-
-```bash
-npm run build --workspace api-nova-ui
-npm run preview --workspace api-nova-ui
-npm run type-check --workspace api-nova-ui
-npm run lint --workspace api-nova-ui
-```
-
-## 环境覆盖
-
-如需覆盖默认 API 目标，可使用 `.env.local`：
-
-```env
-VITE_API_BASE_URL=http://127.0.0.1:9001/api
-VITE_APP_TITLE=ApiNova
-```
-
-详见：
-
-- [Local Setup And Run](../../docs/guides/local-setup-and-run.md)
-
-## 当前重点
-
-- 保持 UI 与实际产品主路径一致
-- 优先保证“导入 -> 校验 -> 转换 -> 管理”链路稳定
-- 不应让视觉占位页或扩展页面优先于主链路稳定性
-
-## 相关文档
-
-- [Project README](../../README.md)
-- [Documentation Index](../../docs/README.md)
-- [Local Setup And Run](../../docs/guides/local-setup-and-run.md)
-- [Runtime Instance And Regression Closure Plan](../../docs/guides/runtime-instance-and-regression-closure-plan.md)
-- [Staged Development Plan](../../docs/guides/staged-development-plan.md)
+开发从仓库根目录安装根锁依赖并构建：`npm ci`、`npm run build`。具体启动、配置、权限及示例只在统一手册维护。产品Git标签与workspace package.json版本不同，不以本README推定公共npm发行版本或生产签收。

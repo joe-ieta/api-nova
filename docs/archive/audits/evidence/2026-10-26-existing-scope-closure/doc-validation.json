@@ -1,0 +1,20 @@
+{
+  "tasks": 209,
+  "statuses": {
+    "DONE": 204,
+    "IN_PROGRESS": 2,
+    "WAIT_DEP": 1,
+    "DEFERRED": 2
+  },
+  "contractsUnchanged": true,
+  "dependencies": 245,
+  "missingDependencies": 0,
+  "dependencyCycles": 0,
+  "versionsChecked": 16,
+  "localFileLinksChecked": 719,
+  "brokenLinks": [],
+  "anchorsChecked": 9,
+  "unresolvedAnchors": [],
+  "baseline": "7be57aab3f709f6e559f8557b1b8a8376e2192e3",
+  "productSourceAndLockUnchangedFrom": "v1.7.6-rc.5"
+}

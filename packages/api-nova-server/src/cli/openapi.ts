@@ -6,6 +6,21 @@ import yaml from 'js-yaml';
 import { isUrl } from '../utils/common';
 import { CliDesign } from './design';
 
+export const SPEC_ACCESS_TOKEN_ENV = 'API_NOVA_RUNTIME_SPEC_ACCESS_TOKEN';
+
+function specAccessHeaders(source: string): Record<string, string> | undefined {
+  const token = process.env[SPEC_ACCESS_TOKEN_ENV];
+  if (!token || token.length > 8192 || token.trim() !== token) return undefined;
+  try {
+    const url = new URL(source);
+    const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) return undefined;
+  } catch {
+    return undefined;
+  }
+  return { 'x-api-key': token };
+}
+
 export async function loadOpenAPIData(source: string): Promise<any> {
   try {
     const parseContent = (raw: string) => {
@@ -23,7 +38,8 @@ export async function loadOpenAPIData(source: string): Promise<any> {
     if (isUrl(source)) {
       console.log(CliDesign.loading(`正在从远程 URL 加载 OpenAPI 规范...`));
       console.log(CliDesign.brand.muted(`  ${CliDesign.icons.signal} ${source}`));
-      const response = await axios.get(source, { timeout: 10000 });
+      const headers = specAccessHeaders(source);
+      const response = await axios.get(source, { timeout: 10000, ...(headers ? { headers } : {}) });
       console.log(CliDesign.success('远程 OpenAPI 规范加载成功'));
       if (typeof response.data === 'string') {
         return parseContent(response.data);
@@ -53,6 +69,7 @@ export function watchOpenAPIFile(filePath: string, callback: () => void) {
     console.log(CliDesign.info('文件监控已启用'));
     console.log(CliDesign.brand.muted(`  ${CliDesign.icons.eye} 监控文件: ${resolvedPath}`));
     
+    // Chokidar 4 treats this exact source filename literally, including braces/brackets.
     const watcher = chokidar.watch(resolvedPath, {
       persistent: true,
       ignoreInitial: true,
@@ -71,7 +88,7 @@ export function watchOpenAPIFile(filePath: string, callback: () => void) {
     });
 
     watcher.on('error', (error) => {
-      console.log(CliDesign.error(`文件监控错误: ${error.message}`));
+      console.log(CliDesign.error(`文件监控错误: ${error instanceof Error ? error.message : String(error)}`));
     });
   }
 }

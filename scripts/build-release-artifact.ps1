@@ -141,6 +141,7 @@ $verification = [ordered]@{
   runtime = $actualRuntime
   nodeVersion = $nodeVersion
   npmVersion = $npmVersion
+  packageLockSha256 = $packageLockHash
   archive = $archiveName
   archiveSizeBytes = (Get-Item -LiteralPath $archivePath).Length
   archiveSha256 = $archiveHash

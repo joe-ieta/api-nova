@@ -6,6 +6,7 @@ import type { JwtModuleOptions, JwtSignOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
+import { MailModule } from '../mail/mail.module';
 
 // Entities
 import { User } from '../../database/entities/user.entity';
@@ -20,6 +21,7 @@ import { RoleService } from './services/role.service';
 import { PermissionService } from './services/permission.service';
 import { AuditService } from './services/audit.service';
 import { AuthService } from './services/auth.service';
+import { RuntimeSpecAccessService } from './services/runtime-spec-access.service';
 
 // Controllers
 import { AuthController } from './controllers/auth.controller';
@@ -45,6 +47,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       RefreshToken,
     ]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
+    MailModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService): Promise<JwtModuleOptions> => ({
@@ -66,6 +69,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     PermissionService,
     AuditService,
     AuthService,
+    RuntimeSpecAccessService,
     
     // Guards
     JwtAuthGuard,
@@ -88,6 +92,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     PermissionService,
     AuditService,
     AuthService,
+    RuntimeSpecAccessService,
     JwtAuthGuard,
     PermissionsGuard,
   ],

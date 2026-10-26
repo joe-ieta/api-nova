@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { UnauthorizedException } from '@nestjs/common';
 import { AuditAction } from '../../../database/entities/audit-log.entity';
+import { grantGatewayCandidateReplay } from './gateway-candidate-replay-authority';
+import { markGatewayInternalVerification } from './gateway-audit-context';
 import { GatewaySecurityService } from './gateway-security.service';
 
 describe('GatewaySecurityService', () => {
@@ -219,4 +221,53 @@ describe('GatewaySecurityService', () => {
       expect(req.gatewayAuth).toBe(existingIdentity ? identity : undefined);
     });
   });
+
+  it.each(['api_key', 'jwt'] as const)('authorizes a trusted %s candidate exactly once without a stored consumer secret', async mode => {
+    const { service, credentialRepository } = buildService();
+    const route = resolvedRoute(mode);
+    const req = { headers: {}, method: 'GET', originalUrl: '/candidate' } as any;
+    const release = grantGatewayCandidateReplay(req, route, 'run-1');
+    await expect(service.authorize(route, req)).resolves.toEqual({ mode, actorId: 'verification:run-1' });
+    expect(credentialRepository.findOne).not.toHaveBeenCalled();
+    await expect(service.authorize(route, req)).rejects.toMatchObject({ status: 401 });
+    release();
+  });
+
+  it('does not authorize a network header or the audit-only internal marker', async () => {
+    const { service } = buildService();
+    const req = { headers: { 'x-api-nova-verification-run-id': 'run-1' }, method: 'GET', originalUrl: '/candidate' } as any;
+    markGatewayInternalVerification(req);
+    await expect(service.authorize(resolvedRoute('api_key'), req)).rejects.toMatchObject({ status: 401 });
+  });
+
+  it.each(['cloned target', 'changed policy', 'changed path', 'changed method', 'released grant'])(
+    'rejects candidate authority with %s', async mutation => {
+      const { service } = buildService();
+      let route = resolvedRoute('api_key');
+      const req = { headers: {}, method: 'GET', originalUrl: '/candidate' } as any;
+      const release = grantGatewayCandidateReplay(req, route, 'run-1');
+      if (mutation === 'cloned target') route = { ...route };
+      if (mutation === 'changed policy') route.policies.auth.apiKeyQueryParamName = 'key';
+      if (mutation === 'changed path') req.originalUrl = '/other';
+      if (mutation === 'changed method') req.method = 'POST';
+      if (mutation === 'released grant') release();
+      await expect(service.authorize(route, req)).rejects.toMatchObject({ status: 401 });
+      release();
+    },
+  );
+
+  it('keeps invalid and expired anonymous policies closed during candidate replay', async () => {
+    const { service } = buildService();
+    const route = resolvedRoute('anonymous');
+    route.policies.auth.temporaryAnonymous = { actor: 'operator', expiresAt: '2000-01-01T00:00:00.000Z' };
+    const req = { headers: {}, method: 'GET', originalUrl: '/candidate' } as any;
+    const release = grantGatewayCandidateReplay(req, route, 'run-1');
+    await expect(service.authorize(route, req)).rejects.toBeDefined();
+    release();
+    route.policies.auth.mode = 'unknown';
+    const releaseInvalid = grantGatewayCandidateReplay(req, route, 'run-2');
+    await expect(service.authorize(route, req)).rejects.toMatchObject({ status: 503 });
+    releaseInvalid();
+  });
+
 });

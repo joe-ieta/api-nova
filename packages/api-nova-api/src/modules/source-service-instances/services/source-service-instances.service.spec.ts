@@ -146,6 +146,25 @@ describe('SourceServiceInstancesService', () => {
     }));
   });
 
+  it('records the operator actor for instance mutations', async () => {
+    instanceRepository.findOne.mockResolvedValueOnce({ ...instance }).mockResolvedValue(null);
+
+    await service.update('source-1', instance.id, { name: 'orders-prod-renamed' }, {
+      actorId: 'user-1',
+      ipAddress: '10.0.0.8',
+      userAgent: 'jest-operator',
+    });
+
+    expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({
+      resource: 'source_service_instance',
+      resourceId: 'instance-1',
+      userId: 'user-1',
+      ipAddress: '10.0.0.8',
+      userAgent: 'jest-operator',
+      details: expect.objectContaining({ operation: 'update' }),
+    }));
+  });
+
   it('keeps imported instance creation idempotent for repeated registration', async () => {
     const imported = {
       ...instance,

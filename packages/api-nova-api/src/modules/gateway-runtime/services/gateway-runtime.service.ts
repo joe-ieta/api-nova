@@ -1,5 +1,11 @@
 import { GatewayHeaderLegacyRuntimeGuard } from './gateway-header-legacy-runtime.guard';
-import { BadGatewayException, HttpException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { GATEWAY_UPSTREAM_PROOF_EXECUTION, resolveGatewayUpstreamProofExecution, type GatewayUpstreamProofExecution } from './gateway-upstream-proof-execution.wiring';
+import { BadGatewayException, HttpException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import {
+  GATEWAY_HOST_RUNTIME,
+  resolveGatewayHostRuntime,
+  type GatewayHostRuntime,
+} from './gateway-host-runtime.providers';
 import { GatewayNetworkBootstrap } from './gateway-network-bootstrap';
 import { Request, Response } from 'express';
 import { GatewayAccessLogService } from './gateway-access-log.service';
@@ -27,11 +33,14 @@ export class GatewayRuntimeService {
     private readonly gatewayAccessLogService: GatewayAccessLogService,
     private readonly gatewayRuntimeMetricsService: GatewayRuntimeMetricsService,
     private readonly gatewayHeaderLegacyRuntimeGuard?: GatewayHeaderLegacyRuntimeGuard,
+    @Optional() @Inject(GATEWAY_HOST_RUNTIME) private readonly gatewayHostRuntime?: GatewayHostRuntime | null,
+    @Optional() @Inject(GATEWAY_UPSTREAM_PROOF_EXECUTION) private readonly gatewayUpstreamProofExecution?: GatewayUpstreamProofExecution | null,
     @Optional() private readonly networkBootstrap?: GatewayNetworkBootstrap,
   ) {}
 
   async forwardRequest(routePath: string, req: Request, res: Response): Promise<void> {
     this.networkBootstrap?.assertTrafficAllowed();
+    resolveGatewayHostRuntime(this.gatewayHostRuntime)?.assertOpen();
     const startedAt = Date.now();
     const requestId = this.resolveRequestId(req, res);
     const target = this.gatewayRouteSnapshotService.resolve(req.headers.host, req.method, routePath);
@@ -64,6 +73,10 @@ export class GatewayRuntimeService {
     options: { bypassCache?: boolean } = {},
   ): Promise<void> {
     this.networkBootstrap?.assertTrafficAllowed(target);
+    resolveGatewayHostRuntime(this.gatewayHostRuntime)?.assertOpen();
+    // One absolute deadline per request, anchored at entry. The operation
+    // authority, prepare, send and cancellation all share this value.
+    const requestDeadline = this.resolveRequestDeadline(target, startedAt);
     const bypassCache = options.bypassCache;
     const requestId = this.resolveRequestId(req, res);
     const audit = beginGatewayRequestAudit(req, res, requestId, target);
@@ -71,6 +84,7 @@ export class GatewayRuntimeService {
     try {
       // Nest requires this provider. Directly constructed unit fixtures may omit it.
       await this.gatewayHeaderLegacyRuntimeGuard?.assertAllowed(target);
+      await resolveGatewayUpstreamProofExecution(this.gatewayUpstreamProofExecution)?.guard.assertCurrent(target, req);
       const authContext = await this.gatewaySecurityService.authorize(target, req);
       audit.authenticated();
       const admission = await this.gatewayTrafficControlService.admit(target, authContext, req);
@@ -79,7 +93,7 @@ export class GatewayRuntimeService {
         const correlationId = this.resolveCorrelationId(req);
         const publishedTarget = target;
         const prepared = (target.policies.upstream?.compiledHeaderPolicy || this.gatewayProxyEngineService.requiresPreparation?.(target))
-          ? await this.gatewayProxyEngineService.prepareRequest(target, req) : undefined;
+          ? await this.gatewayProxyEngineService.prepareRequest(target, req, { deadline: requestDeadline }) : undefined;
         if (prepared?.compiledHeaderPolicy) {
           // Request-local view only: the Registry exchange must drive cache and
           // retry decisions without modifying the published route snapshot.
@@ -132,7 +146,7 @@ export class GatewayRuntimeService {
           return;
         }
 
-        const upstreamResponse = await this.forwardWithRetry(target, req, res, prepared, publishedTarget);
+        const upstreamResponse = await this.forwardWithRetry(target, req, res, prepared, publishedTarget, requestDeadline);
         if (!bypassCache && !prepared?.networkLease && !prepared?.securityProofBound) {
           this.gatewayCacheService.store(target, req, authContext, upstreamResponse, prepared?.requestPolicy);
         }
@@ -232,12 +246,19 @@ export class GatewayRuntimeService {
     return undefined;
   }
 
+  private resolveRequestDeadline(target: GatewayResolvedRoute, startedAt: number): number {
+    const configured = Number(target.policies?.traffic?.timeoutMs ?? target.routeBinding.timeoutMs ?? 30000);
+    const timeoutMs = Number.isFinite(configured) && configured > 0 ? configured : 30000;
+    return startedAt + timeoutMs;
+  }
+
   private async forwardWithRetry(
     target: GatewayResolvedRoute,
     req: Request,
     res: Response,
     preparedRequest?: GatewayPreparedProxyRequest,
     publishedTarget: GatewayResolvedRoute = target,
+    deadline?: number,
   ) {
     const attempts = preparedRequest?.networkLease ? 1 : this.resolveMaxAttempts(target, req);
     const upstreamOperationId = randomUUID();
@@ -256,6 +277,7 @@ export class GatewayRuntimeService {
         const result = await this.gatewayProxyEngineService.forward(publishedTarget, req, res, {
           attemptIndex: attempt,
           upstreamOperationId,
+          ...(deadline === undefined ? {} : { deadline }),
           ...(preparedRequest && attempt === 1 ? { preparedRequest } : {}),
           captureResponseBodyMaxBytes: target.policies.cache.enabled
             ? target.policies.cache.maxBodyBytes

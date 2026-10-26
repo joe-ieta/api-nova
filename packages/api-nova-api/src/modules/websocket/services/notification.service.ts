@@ -1,7 +1,27 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { Repository } from 'typeorm';
+import { AppConfigService } from '../../../config/app-config.service';
+import { AuditAction } from '../../../database/entities/audit-log.entity';
+import { User } from '../../../database/entities/user.entity';
+import { MailRejectedError } from '../../mail/mail-rejected.error';
+import { MailService } from '../../mail/services/mail.service';
+import { maskEmail } from '../../mail/utils/mail-address';
 import { Alert, AlertSeverity } from './alert.service';
+
+export const NOTIFICATION_SERVICE_OPTIONS = 'NOTIFICATION_SERVICE_OPTIONS';
+
+export interface NotificationServiceOptions {
+  /** Injectable delay for deterministic retry tests. */
+  sleep?: (milliseconds: number) => Promise<void>;
+  /** Coalescing window for acknowledge/resolve email notifications. */
+  emailCoalesceDelayMs?: number;
+}
+
+const DEFAULT_EMAIL_COALESCE_DELAY_MS = 250;
+const defaultSleep = (milliseconds: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export interface NotificationChannel {
   id: string;
@@ -55,12 +75,25 @@ export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
   private readonly channels = new Map<string, NotificationChannel>();
   private readonly notifications = new Map<string, Notification>();
+  private readonly pendingEmails = new Map<string, {
+    notification: Notification;
+    channel: NotificationChannel;
+    timer: NodeJS.Timeout;
+  }>();
   private readonly maxRetries = 3;
   private readonly retryDelay = 5000; // 5秒
 
   constructor(
-    private readonly configService: ConfigService,
+    private readonly configService: AppConfigService,
     private readonly eventEmitter: EventEmitter2,
+    @Optional()
+    @InjectRepository(User)
+    private readonly userRepository?: Repository<User>,
+    @Optional()
+    private readonly mailService?: MailService,
+    @Optional()
+    @Inject(NOTIFICATION_SERVICE_OPTIONS)
+    private readonly options?: NotificationServiceOptions,
   ) {
     this.initializeDefaultChannels();
   }
@@ -108,7 +141,11 @@ export class NotificationService {
   /**
    * 发送通知
    */
-  async sendNotification(alert: Alert, channelIds?: string[]): Promise<void> {
+  async sendNotification(
+    alert: Alert,
+    channelIds?: string[],
+    options?: { coalesceEmail?: boolean },
+  ): Promise<void> {
     const targetChannels = channelIds 
       ? channelIds.map(id => this.channels.get(id)).filter(Boolean) as NotificationChannel[]
       : Array.from(this.channels.values()).filter(channel => channel.enabled);
@@ -129,9 +166,19 @@ export class NotificationService {
         timestamp: new Date(),
         status: NotificationStatus.PENDING,
         attempts: 0,
+        metadata: {
+          assetName: alert.serverName || alert.source || alert.type,
+        },
       };
 
       this.notifications.set(notification.id, notification);
+
+      // 确认/解决邮件按告警 ID 合并，同一告警只发一封（最新状态胜出）
+      if (options?.coalesceEmail && channel.type === NotificationChannelType.EMAIL) {
+        this.queueCoalescedEmail(notification, channel);
+        continue;
+      }
+
       await this.sendToChannel(notification, channel);
     }
   }
@@ -244,7 +291,11 @@ export class NotificationService {
         message: `Alert has been acknowledged by ${alert.acknowledgedBy}`,
       };
 
-      await this.sendNotification(acknowledgeAlert, acknowledgeChannels.map(c => c.id));
+      await this.sendNotification(
+        acknowledgeAlert,
+        acknowledgeChannels.map(c => c.id),
+        { coalesceEmail: true },
+      );
     }
   }
 
@@ -264,7 +315,11 @@ export class NotificationService {
         message: `Alert has been resolved`,
       };
 
-      await this.sendNotification(resolveAlert, resolveChannels.map(c => c.id));
+      await this.sendNotification(
+        resolveAlert,
+        resolveChannels.map(c => c.id),
+        { coalesceEmail: true },
+      );
     }
   }
 
@@ -348,13 +403,22 @@ export class NotificationService {
       // 发送失败事件
       this.eventEmitter.emit('notification.failed', notification);
 
-      // 如果还有重试机会，安排重试
+      // 如果还有重试机会，安排重试（不阻塞告警主流程）
       if (!isNonRetryable && notification.attempts < this.maxRetries) {
-        setTimeout(() => {
-          this.sendToChannel(notification, channel);
-        }, this.retryDelay * notification.attempts);
+        const delay = this.retryDelay * notification.attempts;
+        void this.scheduleRetry(delay, notification, channel);
       }
     }
+  }
+
+  private async scheduleRetry(
+    delay: number,
+    notification: Notification,
+    channel: NotificationChannel,
+  ): Promise<void> {
+    const sleep = this.options?.sleep ?? defaultSleep;
+    await sleep(delay);
+    await this.sendToChannel(notification, channel);
   }
 
   /**
@@ -409,23 +473,125 @@ export class NotificationService {
   }
 
   /**
-   * 发送邮件通知
+   * 发送邮件通知：收件人必须显式开启邮件偏好，不默认通知管理员。
    */
   private async sendEmailNotification(notification: Notification, channel: NotificationChannel): Promise<void> {
-    // TODO: 实现邮件发送逻辑
-    // 这里可以集成邮件服务提供商（如SendGrid、AWS SES等）
-    const message = 'Email notification delivery is not part of the current product baseline';
-    this.logger.warn(message);
-    throw new Error(message);
-  }
-
-
-  private isNonRetryableChannelError(channel: NotificationChannel, error: Error): boolean {
-    if (channel.type === NotificationChannelType.EMAIL) {
-      return true;
+    const mailService = this.mailService;
+    if (!mailService?.isEnabled) {
+      throw new MailRejectedError('mail_disabled');
     }
 
-    return error.message.includes('not part of the current product baseline');
+    const recipients = await this.resolveEmailRecipients();
+    if (recipients.length === 0) {
+      this.logger.debug(
+        `No email recipients opted in for alert notification ${notification.alertId}`,
+      );
+      return;
+    }
+
+    const actionUrl = mailService.buildActionUrl(
+      `/alerts/${encodeURIComponent(notification.alertId)}`,
+    );
+    const baseVariables = {
+      appName: 'ApiNova',
+      alertName: notification.title,
+      severity: String(notification.severity),
+      assetName: String(notification.metadata?.assetName || 'unknown'),
+      actionUrl,
+    };
+
+    let sent = 0;
+    let rejectedReason: string | undefined;
+    let failedReason: string | undefined;
+
+    for (const user of recipients) {
+      const result = await mailService.send({
+        to: user.email,
+        templateId: 'alert-notification.v1',
+        variables: {
+          ...baseVariables,
+          username: user.username,
+          emailMasked: maskEmail(user.email),
+        },
+        locale: user.preferences?.language,
+        userId: user.id,
+        auditAction: AuditAction.API_CALLED,
+      });
+
+      if (result.status === 'SENT') {
+        sent++;
+      } else if (result.status === 'REJECTED') {
+        rejectedReason = result.reason;
+      } else {
+        failedReason = result.reason;
+      }
+    }
+
+    if (sent > 0) {
+      return;
+    }
+    if (rejectedReason) {
+      throw new MailRejectedError(rejectedReason);
+    }
+    if (failedReason) {
+      throw new Error(`Email delivery failed: ${failedReason}`);
+    }
+  }
+
+  /** 只有策略拒绝不可重试；传输失败仍走 3 次指数退避。 */
+  private isNonRetryableChannelError(_channel: NotificationChannel, error: Error): boolean {
+    return error instanceof MailRejectedError;
+  }
+
+  /**
+   * 解析邮件收件人：仅 preferences.notifications.email === true 的用户。
+   */
+  private async resolveEmailRecipients(): Promise<User[]> {
+    if (!this.userRepository) {
+      return [];
+    }
+
+    const users = await this.userRepository.find();
+    return users.filter(
+      (user) =>
+        !!user.email && user.preferences?.notifications?.email === true,
+    );
+  }
+
+  /**
+   * 同一告警的 acknowledge/resolve 邮件合并为一封，最新状态胜出。
+   */
+  private queueCoalescedEmail(
+    notification: Notification,
+    channel: NotificationChannel,
+  ): void {
+    const existing = this.pendingEmails.get(notification.alertId);
+    if (existing) {
+      clearTimeout(existing.timer);
+      this.notifications.delete(existing.notification.id);
+    }
+
+    const delay =
+      this.options?.emailCoalesceDelayMs ?? DEFAULT_EMAIL_COALESCE_DELAY_MS;
+    const timer = setTimeout(() => {
+      void this.flushCoalescedEmail(notification.alertId);
+    }, delay);
+    timer.unref?.();
+
+    this.pendingEmails.set(notification.alertId, {
+      notification,
+      channel,
+      timer,
+    });
+  }
+
+  private async flushCoalescedEmail(alertId: string): Promise<void> {
+    const pending = this.pendingEmails.get(alertId);
+    if (!pending) {
+      return;
+    }
+    this.pendingEmails.delete(alertId);
+    await this.sendToChannel(pending.notification, pending.channel);
   }
   /**
    * 发送Slack通知
@@ -570,6 +736,20 @@ export class NotificationService {
         messageTemplate: '[{severity}] {title}: {message}',
       },
     });
+
+    // 邮件渠道仅在邮件功能启用时注册，收件人由用户偏好和允许清单决定
+    if (this.mailService?.isEnabled) {
+      this.addChannel({
+        id: 'email-default',
+        name: 'Email Notifications',
+        type: NotificationChannelType.EMAIL,
+        enabled: true,
+        config: {
+          notifyOnAcknowledge: true,
+          notifyOnResolve: true,
+        },
+      });
+    }
 
     // 从配置中加载其他渠道
     const webhookUrl = this.configService.get<string>('WEBHOOK_NOTIFICATION_URL');

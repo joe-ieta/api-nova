@@ -41,7 +41,7 @@ This release tightens governance consistency, but the following work remains int
 
 ## Related Guides
 
-- [Staged Development Plan](../../guides/staged-development-plan.md)
+- [Staged Development Plan](../plans/2026-10-26/staged-development-plan.md)
 - [Open Items](../../reference/open-items.md)
-- [Versioning Policy](../../reference/versioning-policy.md)
-- [GitHub Collaboration Workflow](../../guides/github-collaboration-workflow.md)
+- [Versioning Policy](../reference/2026-10-26/versioning-policy.md)
+- [GitHub Collaboration Workflow](2026-10-26/github-collaboration-workflow.md)

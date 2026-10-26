@@ -20,8 +20,13 @@ $outputSeparators = [char[]]@(
   [System.IO.Path]::AltDirectorySeparatorChar
 )
 $outputLeaf = [System.IO.Path]::GetFileName($outputPath.TrimEnd($outputSeparators))
-if ($outputLeaf -ieq 'api-nova-release') {
-  throw 'Refusing to package directly into the api-nova-release latest mirror. Use a versioned staging directory.'
+$releaseContainer = [IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $repoRoot) 'api-nova-release'))
+$containerPrefix = $releaseContainer + [IO.Path]::DirectorySeparatorChar
+$stagingPrefix = (Join-Path $releaseContainer '.staging') + [IO.Path]::DirectorySeparatorChar
+$insideContainer = $outputPath.StartsWith($containerPrefix, [StringComparison]::OrdinalIgnoreCase)
+$insideStaging = $outputPath.StartsWith($stagingPrefix, [StringComparison]::OrdinalIgnoreCase)
+if ($outputLeaf -ieq 'api-nova-release' -or $outputPath -ieq $releaseContainer -or ($insideContainer -and -not $insideStaging)) {
+  throw 'Refusing to package into a persistent release directory. Use api-nova-release/.staging/<tag>/<platform>/ instead.'
 }
 $runtimePlatform = node -p "process.platform + '-' + process.arch"
 $npmCommand = if ($IsWindows -or $env:OS -eq 'Windows_NT') { 'npm.cmd' } else { 'npm' }
@@ -201,6 +206,9 @@ echo [ApiNova] Node %NODE_VERSION% (%RUNTIME_PLATFORM%)
 
 $windowsInstallBlock
 
+%NODE_EXE% verify-nest-sse-backport.cjs .
+if errorlevel 1 exit /b 1
+
 set "API_NOVA_ENV_FILE=%CD%\.env"
 %NODE_EXE% initialize-database.cjs
 if errorlevel 1 exit /b 1
@@ -232,6 +240,8 @@ runtime_platform="`$(`$NODE_EXE -p "process.platform + '-' + process.arch")"
 echo "[ApiNova] `$(`$NODE_EXE -v) (`${runtime_platform})"
 
 $linuxInstallBlock
+
+"`$NODE_EXE" verify-nest-sse-backport.cjs .
 
 export API_NOVA_ENV_FILE="`$(pwd)/.env"
 "`$NODE_EXE" initialize-database.cjs
@@ -291,6 +301,10 @@ Change .env before startup for ports, secrets, or database settings.
 "@ | Set-Content -Path (Join-Path $Path 'README_RUN.md') -Encoding UTF8
 }
 
+# Check actual installed bytes even with -SkipBuild; stale same-version installs fail closed.
+& node (Join-Path $PSScriptRoot 'verify-nest-sse-backport.cjs') $repoRoot
+if ($LASTEXITCODE -ne 0) { throw 'Nest SSE dependency verification failed; run npm ci before packaging.' }
+
 if (-not $SkipBuild) {
   Push-Location $repoRoot
   try {
@@ -315,8 +329,12 @@ Copy-Item -Path (Join-Path $repoRoot 'package-lock.json') -Destination (Join-Pat
 Remove-ReleaseLifecycleScripts `
   -PackageJsonPath (Join-Path $outputPath 'package.json') `
   -PackageLockPath (Join-Path $outputPath 'package-lock.json')
+# Local reviewed dependency archives must remain available for portable/offline npm ci.
+Copy-Item -LiteralPath (Join-Path $repoRoot 'vendor') -Destination (Join-Path $outputPath 'vendor') -Recurse
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'initialize-release-database.cjs') -Destination (Join-Path $outputPath 'initialize-database.cjs')
-Copy-IfExists (Join-Path $repoRoot 'README.md') (Join-Path $outputPath 'README_PROJECT.md')
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'verify-nest-sse-backport.cjs') -Destination (Join-Path $outputPath 'verify-nest-sse-backport.cjs')
+& node (Join-Path $PSScriptRoot 'export-release-docs.cjs') --output-dir $outputPath
+if ($LASTEXITCODE -ne 0) { throw 'Release documentation export or link verification failed' }
 
 foreach ($pkg in @('api-nova-api', 'api-nova-parser', 'api-nova-server')) {
   $srcPkg = Join-Path $repoRoot "packages\$pkg"
@@ -347,6 +365,8 @@ if ($Mode -eq 'OfflineCurrentPlatform') {
   try {
     & $npmCommand ci --omit=dev --no-audit --no-fund
     if ($LASTEXITCODE -ne 0) { throw 'Production dependency installation failed' }
+    & node (Join-Path $outputPath 'verify-nest-sse-backport.cjs') $outputPath
+    if ($LASTEXITCODE -ne 0) { throw 'Packaged Nest SSE dependency verification failed' }
     $runtimePlatform | Set-Content -Path (Join-Path $outputPath '.api-nova-runtime-platform') -Encoding ASCII
   } finally {
     Pop-Location

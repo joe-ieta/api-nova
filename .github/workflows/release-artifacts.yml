@@ -80,17 +80,29 @@ jobs:
       - name: Verify runtime closure
         run: npm run verify:runtime-closure
 
+      - name: Verify release database initialization
+        run: node --test scripts/test-release-database.cjs
+
       - name: Run tests
         run: npm run test
 
       - name: Run type checks
         run: npm run type-check
 
+      - name: Verify UI health, runtime logs and current-page refresh
+        run: node --test packages/api-nova-ui/scripts/test-system-health.cjs packages/api-nova-ui/scripts/test-runtime-logs.cjs
+
       - name: Run lint
         run: npm run lint
 
       - name: Build production assets
         run: npm run build
+
+      - name: Verify current and archived documentation
+        run: node scripts/verify-docs.cjs
+
+      - name: Verify API snapshot and integration examples
+        run: node scripts/export-api-docs.cjs --check
 
   build-platform-artifacts:
     needs: release-gates

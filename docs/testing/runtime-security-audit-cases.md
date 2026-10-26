@@ -1,13 +1,13 @@
 ---
-doc-version: 1.2.0
+doc-version: 1.3.0
 doc-status: active
-doc-updated: 2026-09-14
+doc-updated: 2026-10-26
 ---
 # 安全调用与日志审计验收用例
 
 > Document status: Active acceptance baseline
 > Last reviewed: 2026-09-14
-> Contract: [安全调用与日志审计](../guides/runtime-security-and-call-audit.md)
+> Contract: [安全调用与日志审计](../archive/guides/2026-10-26/runtime-security-and-call-audit.md)
 
 ## 证据时效与当前开发
 
@@ -19,7 +19,7 @@ historical-passed 是 2026-09-06/08 已记录运行，不是本轮复跑或当�
 
 本地 Windows、Node.js、npm 工作区；单元/smoke 使用测试替身与 loopback 服务，多进程联调使用完整 API 入口、独立 MCP 进程、临时 SQLite、HTTPS 代理及远程 JWKS 夹具。所有证书、密钥和日志仅用于本次隔离测试，不依赖生产身份系统或业务数据库。以下本地结果对应本次提交的源代码基线，不代表线上验收。
 
-2026-09-08 清理后复验：Parser 8 套件/30 例、API 45 套件/237 例、Server 6 组冒烟、九阶段回归门禁与七项跨进程安全联调全部通过。真实本地 PG/SQLite 各 43 张业务表通过空库、事务与完整 API 启动冒烟；零数据、零结构差异。详细范围及保留空库位置见 [本轮清理审查记录](../audits/2026-09-08-persistence-cleanup.md)。以下旧计数保留为历史证据。
+2026-09-08 清理后复验：Parser 8 套件/30 例、API 45 套件/237 例、Server 6 组冒烟、九阶段回归门禁与七项跨进程安全联调全部通过。真实本地 PG/SQLite 各 43 张业务表通过空库、事务与完整 API 启动冒烟；零数据、零结构差异。详细范围及保留空库位置见 [本轮清理审查记录](../archive/audits/2026-09-08-persistence-cleanup.md)。以下旧计数保留为历史证据。
 
 2026-09-06 执行结果：parser 7 个测试套件、26 个用例通过；联调修复后 API 全量回归 45 个测试套件、199 个用例通过；server 的 CLI、基础运行、多会话、工具转换、安全审计共 5 组 smoke 全部通过；parser/server/API/UI 全量构建和类型检查通过。UI 构建仍提示既有循环 chunk/第三方注释警告，未将其计作测试失败。多进程联调 7 组检查通过，产生 3 次真实上游 API 调用和 4 次 HTTPS JWKS 获取；隔离 SQLite 验证 40 张业务表、零业务行、无待执行迁移，新增配置表通过实体结构零差异检查。生产依赖在线审计被环境策略拦截，状态见 `SEC-DEP-01`，不计作通过。
 
@@ -77,43 +77,7 @@ server 单项验证入口为 `npm run test:security-audit --workspace api-nova-s
 
 本次不验收日志分析、时间线展示、报表、QoS 分级、专用审计存储或多主机聚合 UI。
 
-## 2026-09-14 首次专项记录（历史）
 
-> 以下保留首次执行的失败与阻塞，不代表当前结果；授权修正后的最终复验见文末“2026-09-14 授权修正后最终复验”。
+## 历史记录与当前签收
 
-| 专项 | 当前结果 |
-| --- | --- |
-| 管理 JWT 密钥检查与启动 Schema | 41/41 通过；拒绝缺失/短值/固定回退/空白/控制字符，错误不泄密 |
-| C1 结构校验 | 测试已编写；TS2322 导致套件未启动 |
-| Gateway mode/Header 加固 | 测试已补充；定向 7 套件中 2 通过、5 被相同类型错误阻断 |
-| MCP 工具执行授权 | 主注册与库 File/URL/Spec 专项入口已编写，等待 Parser/Server 构建就绪 |
-| Parser 全回归 | 12 套件通过、1 套件未启动；119 个已执行用例通过，但整体失败 |
-| UI 构建 | 类型检查失败，Vite 未运行 |
-
-新增专项文件与日志统一登记于[执行台账](../guides/security-development-execution-status.md)。历史计数不覆盖上述未执行用例，不能以禁用 TypeScript 检查或旧 dist 绕过验收。
-
-## 2026-09-14 授权修正后最终复验
-
-| 验证范围 | 最终结果 | 验收边界 |
-| --- | --- | --- |
-| Parser / Server / API / UI | 四项构建通过 | UI 含类型检查和 Vite 构建，不含浏览器自动化 |
-| Parser Jest | 13 套，218/218 | 包含 C1 新增 99 项；纯对象校验，不代表凭证加载链路 |
-| Gateway / 管理 JWT Jest | 8 套，106/106 | 包含管理 JWT 41 项及新增 mode/Header 专项；不重复计数 |
-| MCP 执行前授权 | 20/20 | 注入转换夹具，复用当前身份并重读 scope；不是重新认证/撤销 |
-| MCP 既有 HTTP / Transport / HTTP delivery / STDIO | 15 + 15 + 11 + 12 = 53/53 | 保留既有 Windows streamable 大体积边界 |
-| MCP smoke | 3 个脚本退出码为 0 | runtime-security-audit、streamable-session、transform-from-spec |
-| 跨进程安全集成 | 7/7，3 次上游调用，4 次回环 HTTPS JWKS 读取 | 自有隔离 SQLite 与 API/MCP 测试子进程；包含真实管理登录和完整 v2 终态审计 |
-| API 可观测性联合 | 31 文件，547/547，失败/取消/跳过均为 0 | 显式排除真实 PostgreSQL 专项，完整文件清单见最终日志 |
-
-最终关键日志：
-
-- `tmp/security-2026-09-14-parser-tests-rerun-20260914-172608-794.log`
-- `tmp/security-2026-09-14-gateway-tests-rerun-173603010.log`
-- `tmp/security-2026-09-14-mcp-execution-tests-rerun-172755-087.log`
-- `tmp/security-2026-09-14-mcp-tests-rerun-172649-375.log`
-- `tmp/security-2026-09-14-integration-v2-rerun-173145.log`
-- `tmp/security-2026-09-14-observability-joint-shared-key-20260914-174929-844.log`
-
-本轮修正包含 Parser 类型推断、MCP 只读导出替换、Gateway 入口审计夹具、跨进程 v2 文件/终态读取与刷新、可观测性模块测试 JWT 初始化和共享密钥。全部安全断言保留，不恢复固定密钥、不绕过类型检查。失败日志和修正过程见[安全执行台账](../guides/security-development-execution-status.md)第 9、11 节。
-
-历史日期的通过数量保持原记录；当前 547 项与其它日期或包含文件级失败的 548 项不是同一计数口径。未运行真实 PostgreSQL、真实外部发送、联网依赖审计、跨平台全矩阵、浏览器自动化或生产部署，不据此新增整个安全任务包的 DONE。
+原失败/复验及阶段矩阵见[历史用例](../archive/testing/2026-10-26/runtime-security-audit-cases.md)。既有测试通过不代替目标身份/ACL/TLS/出站/依赖处置；当前SEC-F4-02状态及10-26依赖风险以[open-items](../reference/open-items.md)为准。

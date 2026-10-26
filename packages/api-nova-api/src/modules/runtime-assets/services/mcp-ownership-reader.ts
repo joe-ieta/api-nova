@@ -17,16 +17,21 @@ export interface McpOwnershipRead {
 export async function readMcpOwnership(manager: EntityManager, runtimeAssetId: string): Promise<McpOwnershipRead | null> {
   type JoinedMembership = RuntimeAssetEndpointBindingEntity & { ownershipProfile?: PublicationProfileEntity; ownershipPublication?: EndpointPublishBindingEntity; ownershipEndpoint?: EndpointDefinitionEntity & { ownershipSource?: SourceServiceAssetEntity } };
   type JoinedAsset = RuntimeAssetEntity & { ownershipMemberships?: JoinedMembership[] };
+  // PostgreSQL models generated primary keys as uuid while the ownership foreign
+  // columns are varchar(36). Cast the uuid side to text so these joins run on
+  // both dialects without a migration or a schema drift.
+  const idColumn = (column: string) => manager.connection.options.type === 'postgres' ? `${column}::text` : column;
+  const membershipId = idColumn('membership.id');
   const latestVersion = manager.createQueryBuilder(PublicationProfileEntity, 'profile_version')
     .select('MAX(profile_version.version)')
-    .where('profile_version.runtimeAssetEndpointBindingId = membership.id').getQuery();
+    .where(`profile_version.runtimeAssetEndpointBindingId = ${membershipId}`).getQuery();
   const asset = await manager.createQueryBuilder(RuntimeAssetEntity, 'asset')
-    .leftJoinAndMapMany('asset.ownershipMemberships', RuntimeAssetEndpointBindingEntity, 'membership', 'membership.runtimeAssetId = asset.id')
-    .leftJoinAndMapOne('membership.ownershipEndpoint', EndpointDefinitionEntity, 'endpoint', 'endpoint.id = membership.endpointDefinitionId')
-    .leftJoinAndMapOne('endpoint.ownershipSource', SourceServiceAssetEntity, 'source', 'source.id = endpoint.sourceServiceAssetId')
-    .leftJoinAndMapOne('membership.ownershipPublication', EndpointPublishBindingEntity, 'publication', 'publication.runtimeAssetEndpointBindingId = membership.id')
+    .leftJoinAndMapMany('asset.ownershipMemberships', RuntimeAssetEndpointBindingEntity, 'membership', `${idColumn('asset.id')} = membership.runtimeAssetId`)
+    .leftJoinAndMapOne('membership.ownershipEndpoint', EndpointDefinitionEntity, 'endpoint', `${idColumn('endpoint.id')} = membership.endpointDefinitionId`)
+    .leftJoinAndMapOne('endpoint.ownershipSource', SourceServiceAssetEntity, 'source', `${idColumn('source.id')} = endpoint.sourceServiceAssetId`)
+    .leftJoinAndMapOne('membership.ownershipPublication', EndpointPublishBindingEntity, 'publication', `publication.runtimeAssetEndpointBindingId = ${membershipId}`)
     .leftJoinAndMapOne('membership.ownershipProfile', PublicationProfileEntity, 'profile',
-      'profile.runtimeAssetEndpointBindingId = membership.id AND profile.version = (' + latestVersion + ')')
+      `profile.runtimeAssetEndpointBindingId = ${membershipId} AND profile.version = (` + latestVersion + ')')
     .where('asset.id = :runtimeAssetId', { runtimeAssetId })
     .orderBy('membership.updatedAt', 'DESC').addOrderBy('membership.id', 'ASC')
     // Use limit, not take: TypeORM take with joins may emit a second SELECT.

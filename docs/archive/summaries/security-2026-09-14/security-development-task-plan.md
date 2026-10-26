@@ -3,7 +3,7 @@
 > Document status: Approved, active execution
 > Last reviewed: 2026-09-07
 > Scope: 完善现有安全方案；OAuth2 保留为后续产品能力，当前里程碑不开发、不启用
-> Implementation status: Batch 1 已启动；执行状态与证据见 [安全开发执行与状态记录](./security-development-execution-status.md)
+> Implementation status: Batch 1 已启动；执行状态与证据见 [安全开发执行与状态记录](security-development-execution-status.md)
 
 ## 1. 范围决策
 

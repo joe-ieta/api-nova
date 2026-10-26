@@ -27,6 +27,7 @@ import { GatewayCacheService } from './gateway-cache.service';
 import { GatewayUpstreamSecurityRuntimeGuard } from './gateway-upstream-security-runtime.guard';
 import { GatewayHeaderLegacyRuntimeGuard } from './gateway-header-legacy-runtime.guard';
 import { gatewayHeaderLegacyRuntimeGuardProvider } from './gateway-header-legacy-runtime.providers';
+import { gatewayHostRuntimeProvider } from './gateway-host-runtime.providers';
 import { GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER } from './gateway-upstream-credential-resolver';
 import { GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY, gatewayUpstreamCredentialRegistryProvider, gatewayUpstreamCredentialResolverProvider } from './gateway-upstream-credential.providers';
 const listen = (s: http.Server) => new Promise<number>(resolve => s.listen(0, '127.0.0.1', () => resolve((s.address() as any).port)));
@@ -50,7 +51,7 @@ describe('H11A explicit Registry v1 membership transaction and Nest runtime', ()
     candidate = { apiVersion: 'security.apinova.io/v1', kind: 'UpstreamCredentialBindings', metadata: { revision: 'r1', environment: 'test' }, reload: { mode: 'manual', debounceMs: 0, rejectPlaintextSecrets: true }, secretProviders: {}, credentials: {}, sites: [{ id: 'site', sourceServiceAssetId: 'source', match: { scheme: 'http', host: '127.0.0.1', port: upstreamPort, basePath: '/' }, allowedHosts: ['127.0.0.1'], credential: 'none', headerPolicy: { version: 1, requestHeaders: ['x-safe'], responseHeaders: ['x-safe-result'] }, endpoints: [{ endpointDefinitionId: 'endpoint' }] }] };
     directory = await fs.mkdtemp(join(tmpdir(), 'apinova-h11a-'));
     const file = join(directory, 'registry.json'); await fs.writeFile(file, JSON.stringify(candidate));
-    module = await Test.createTestingModule({ providers: [{ provide: DataSource, useValue: db }, { provide: ConfigService, useValue: new ConfigService({ API_NOVA_UPSTREAM_CREDENTIAL_FILE: file, API_NOVA_UPSTREAM_CREDENTIAL_FORMAT: 'json', API_NOVA_UPSTREAM_CREDENTIAL_ENVIRONMENT: 'test' }) }, gatewayUpstreamCredentialRegistryProvider, gatewayUpstreamCredentialResolverProvider, gatewayHeaderLegacyRuntimeGuardProvider, GatewayPolicyService] }).compile();
+    module = await Test.createTestingModule({ providers: [{ provide: DataSource, useValue: db }, { provide: ConfigService, useValue: new ConfigService({ API_NOVA_UPSTREAM_CREDENTIAL_FILE: file, API_NOVA_UPSTREAM_CREDENTIAL_FORMAT: 'json', API_NOVA_UPSTREAM_CREDENTIAL_ENVIRONMENT: 'test' }) }, gatewayUpstreamCredentialRegistryProvider, gatewayUpstreamCredentialResolverProvider, gatewayHeaderLegacyRuntimeGuardProvider, gatewayHostRuntimeProvider, GatewayPolicyService] }).compile();
     registry = module.get(GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY); policy = module.get(GatewayPolicyService);
     const context = async () => ({ membership: await db.getRepository(Member).findOneByOrFail({ id: 'member' }), runtimeAsset: await db.getRepository(Runtime).findOneByOrFail({ id: 'runtime' }), endpointDefinition: await db.getRepository(Endpoint).findOneByOrFail({ id: 'endpoint' }), sourceServiceAsset: await db.getRepository(Source).findOneByOrFail({ id: 'source' }) });
     publication = Object.create(PublicationService.prototype);
@@ -100,7 +101,7 @@ describe('H11A explicit Registry v1 membership transaction and Nest runtime', ()
     await publish(); gateway.closeAllConnections(); await app.close(); app = undefined as any; gateway = undefined as any; await module.close();
     const database = (db.driver as any).export(); await db.destroy();
     db = await new DataSource({ type: 'sqljs', entities, database, synchronize: false }).initialize();
-    module = await Test.createTestingModule({ providers: [{ provide: DataSource, useValue: db }, { provide: ConfigService, useValue: new ConfigService({ API_NOVA_UPSTREAM_CREDENTIAL_FILE: join(directory, 'registry.json'), API_NOVA_UPSTREAM_CREDENTIAL_FORMAT: 'json', API_NOVA_UPSTREAM_CREDENTIAL_ENVIRONMENT: 'test' }) }, gatewayUpstreamCredentialRegistryProvider, gatewayUpstreamCredentialResolverProvider, gatewayHeaderLegacyRuntimeGuardProvider, GatewayPolicyService] }).compile();
+    module = await Test.createTestingModule({ providers: [{ provide: DataSource, useValue: db }, { provide: ConfigService, useValue: new ConfigService({ API_NOVA_UPSTREAM_CREDENTIAL_FILE: join(directory, 'registry.json'), API_NOVA_UPSTREAM_CREDENTIAL_FORMAT: 'json', API_NOVA_UPSTREAM_CREDENTIAL_ENVIRONMENT: 'test' }) }, gatewayUpstreamCredentialRegistryProvider, gatewayUpstreamCredentialResolverProvider, gatewayHeaderLegacyRuntimeGuardProvider, gatewayHostRuntimeProvider, GatewayPolicyService] }).compile();
     const cold = new GatewayRouteSnapshotService(module.get(GatewayPolicyService), db.getRepository(Route), db.getRepository(Snapshot), db.getRepository(Member), db.getRepository(Binding), db.getRepository(Runtime), db.getRepository(Endpoint), db.getRepository(Source), {} as any);
     await cold.reload(); const restored = cold.resolve(undefined, 'GET', '/items'); expect(restored).toBeTruthy();
     await expect(module.get(GatewayHeaderLegacyRuntimeGuard).assertAllowed(restored!)).resolves.toBeUndefined();

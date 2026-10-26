@@ -10,7 +10,7 @@ implementation-status: in-progress
 > Document status: Maintained execution plan; approved, active execution
 > Scope decision (2026-09-08, approved): 统一采用新格式、新 Endpoint 和新数据库初始化结构；移除旧格式导入、兼容查询和历史迁移链。任务编号不变，OBS-TP-15 改为全链路集成与旧能力收敛。
 > 需求、设计与建议默认值已于 2026-09-08 获得用户同意。任务计划已获用户确认，按依赖持续编码和验证。
-> 关联：[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[执行状态](./runtime-observability-development-execution-status.md)。
+> 关联：[需求](../../guides/2026-10-26/runtime-observability-requirements.md)、[设计](runtime-observability-design.md)、[对外 API](runtime-observability-api-endpoints.md)、[执行状态](runtime-observability-development-execution-status.md)。
 
 ## 1. 交付边界与工作规则
 
@@ -280,7 +280,7 @@ API 状态依其自己的契约测试推进，不由某个共享基础包 DONE �
 
 OBS-TP-02 已完成存储包退出条件：20 个存储实体、调用版本、正文对象、去重凭据、冲突隔离、断点与同事务事件基础，以及两个数据库的空库初始化文件；本轮补充正文归属、写入/回收租约、generation 隔离与有界 GC。新模块尚未接入应用入口；不能据此认为自动采集或查询 API 已经上线。
 
-OBS-TP-04 的单次物理上游请求适配器和 16 项故障/边界测试已补齐，四组 parser 测试共 60 项通过，parser/API 构建均通过，按共享采集器退出条件收口为 DONE。实际服务器接入仍归 TP-05/06/07，完整平台矩阵仍归 TP-16。实际完成情况以[执行台账](./runtime-observability-development-execution-status.md)为准。
+OBS-TP-04 的单次物理上游请求适配器和 16 项故障/边界测试已补齐，四组 parser 测试共 60 项通过，parser/API 构建均通过，按共享采集器退出条件收口为 DONE。实际服务器接入仍归 TP-05/06/07，完整平台矩阵仍归 TP-16。实际完成情况以[执行台账](runtime-observability-development-execution-status.md)为准。
 
 历史验证快照（2026-09-08，最新状态见执行台账）：API build、48 项存储/GC 用例及 PostgreSQL 四进程提交/回滚/回收竞争均已通过。此前两方言隔离烟测均为 63 表、schemaDrift=0；本轮 PostgreSQL 仍为零漂移，脚本清理退出码为 0。按原包级退出标准，TP-02=DONE、TP-03=READY，TP-08 仍等待 TP-04。Linux/完整矩阵留在 TP-16，全系统 SQL.js 并发和非致命 pg 弃用警告留在 TP-15；28 个 HTTP Endpoint 与两类推送仍为 PLANNED。
 
@@ -492,7 +492,7 @@ B02 实施时需在存储事务内重新读取已投影数据库版本，原子�
 
 ## 本轮完成情况复核与未完成标注（2026-09-11）
 
-> 当前总览以[任务完成情况复核与未完成清单](./runtime-observability-completion-review.md)为准。该文档逐包列出状态、逐条列出 16 个未完成 HTTP Endpoint，并以 REM-01~13 列出剩余工作与完成条件。
+> 当前总览以[任务完成情况复核与未完成清单](runtime-observability-completion-review.md)为准。该文档逐包列出状态、逐条列出 16 个未完成 HTTP Endpoint，并以 REM-01~13 列出剩余工作与完成条件。
 
 OBS-TP-01/02/03/04/05/08/09/11 为 DONE；OBS-TP-06/10/12 为 IN_PROGRESS；OBS-TP-07 为 READY；OBS-TP-13~16 为 BACKLOG。共 8 个任务包未完成，DONE=8、IN_PROGRESS=3、READY=1、BACKLOG=4。READY 只表示可开始，不能计入完成。
 

@@ -47,7 +47,7 @@ export class Normalizer {
    * Normalize server configurations
    */
   private normalizeServers(spec: OpenAPISpec): OpenAPISpec {
-    if (!spec.servers || spec.servers.length === 0) {
+    if ((!spec.servers || spec.servers.length === 0) && !this.config.preserveMissingServers) {
       // Add default server if none specified
       spec.servers = [{
         url: 'http://localhost',

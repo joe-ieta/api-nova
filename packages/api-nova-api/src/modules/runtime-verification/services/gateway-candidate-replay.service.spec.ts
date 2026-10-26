@@ -1,3 +1,4 @@
+import { consumeGatewayCandidateReplay } from '../../gateway-runtime/services/gateway-candidate-replay-authority';
 import { GatewayCandidateReplayService } from './gateway-candidate-replay.service';
 
 describe('GatewayCandidateReplayService', () => {
@@ -81,4 +82,27 @@ describe('GatewayCandidateReplayService', () => {
     ).rejects.toThrow("missing path parameter 'id'");
     expect(gatewayRuntimeService.forwardResolvedRoute).not.toHaveBeenCalled();
   });
+
+  it('binds authority to the selected membership and revokes it on failed forwarding', async () => {
+    const input = { candidateRevision: 'revision-1', runtimeMembershipId: 'membership-1',
+      verificationRunId: 'run-1', sample: { requestPayload: { id: 123 } } as any };
+    snapshotService.resolveCandidate.mockReturnValueOnce({ membership: { id: 'other' } });
+    await expect(service.replay(input)).rejects.toThrow('different membership');
+    expect(gatewayRuntimeService.forwardResolvedRoute).not.toHaveBeenCalled();
+    gatewayRuntimeService.forwardResolvedRoute.mockRejectedValueOnce(new Error('guard rejected'));
+    await expect(service.replay(input)).rejects.toThrow('guard rejected');
+    const [target, req] = gatewayRuntimeService.forwardResolvedRoute.mock.calls[0];
+    expect(consumeGatewayCandidateReplay(req, target)).toBeUndefined();
+  });
+
+  it('grants authority only while forwarding the selected candidate', async () => {
+    gatewayRuntimeService.forwardResolvedRoute.mockImplementationOnce(async (target, req, res) => {
+      expect(consumeGatewayCandidateReplay(req, target)).toBe('run-1');
+      expect(consumeGatewayCandidateReplay(req, target)).toBeUndefined();
+      res.end();
+    });
+    await service.replay({ candidateRevision: 'revision-1', runtimeMembershipId: 'membership-1',
+      verificationRunId: 'run-1', sample: { requestPayload: { id: 123 } } as any });
+  });
+
 });

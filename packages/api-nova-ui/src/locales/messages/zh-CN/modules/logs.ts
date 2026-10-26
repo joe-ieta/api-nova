@@ -1,5 +1,12 @@
 export default {
   logs: {
+    clearDisplay: "清空当前显示",
+    scope: "显示已持久化的运行事件，每页 50 条；搜索和来源筛选仅作用于当前页。清空显示不会删除服务器记录。",
+    previous: "上一页", next: "下一页", pageSummary: "第 {page} 页 · 共 {total} 条",
+    failures: {
+      unauthenticated: "请登录后查看运行事件", forbidden: "当前账号没有查看运行事件的权限",
+      unavailable: "运行事件加载失败，请重试", invalid: "运行事件响应格式异常，请重试", timeout: "运行事件查询超时，请重试",
+    },
     title: "日志查看",
     logLevel: "日志级别",
     logSource: "日志来源",

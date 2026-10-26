@@ -24,7 +24,7 @@ import {
   ApiQuery,
   ApiParam,
 } from '@nestjs/swagger';
-import { OpenAPIUploadInterceptor } from './openapi-upload.interceptor';
+import { OpenAPIUploadInterceptor, openAPIUploadLimit } from './openapi-upload.interceptor';
 import { Express } from 'express';
 import { LoggingInterceptor } from '../../common/interceptors/logging.interceptor';
 import { OpenAPIService } from './services/openapi.service';
@@ -44,16 +44,6 @@ export class OpenAPIController {
     private readonly openApiService: OpenAPIService,
     private readonly configService: AppConfigService,
   ) {}
-
-  private parseFileSize(sizeStr: string): number {
-    const units = { B: 1, KB: 1024, MB: 1024 * 1024, GB: 1024 * 1024 * 1024 };
-    const match = sizeStr.match(/^(\d+)\s*(B|KB|MB|GB)$/i);
-    if (!match) {
-      throw new Error(`Invalid file size format: ${sizeStr}`);
-    }
-    const [, size, unit] = match;
-    return parseInt(size) * units[unit.toUpperCase()];
-  }
 
   @Post('parse')
   @HttpCode(HttpStatus.OK)
@@ -250,7 +240,7 @@ export class OpenAPIController {
 
       // Check file size using configured limit
       const maxFileSizeStr = this.configService.maxOpenAPIFileSize;
-      const maxSize = this.parseFileSize(maxFileSizeStr);
+      const maxSize = openAPIUploadLimit(maxFileSizeStr);
       if (file.size > maxSize) {
         throw new BadRequestException(`File size exceeds ${maxFileSizeStr} limit`);
       }
@@ -339,7 +329,7 @@ export class OpenAPIController {
 
       // Check file size using configured limit
       const maxFileSizeStr = this.configService.maxOpenAPIFileSize;
-      const maxSize = this.parseFileSize(maxFileSizeStr);
+      const maxSize = openAPIUploadLimit(maxFileSizeStr);
       if (file.size > maxSize) {
         throw new BadRequestException(`File size exceeds ${maxFileSizeStr} limit`);
       }
@@ -513,32 +503,4 @@ export class OpenAPIController {
     }
   }
 
-  @Get('by-runtime-asset/:runtimeAssetId')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Get assembled OpenAPI document by runtime asset ID',
-    description: 'Retrieve assembled OpenAPI document from MCP runtime asset memberships',
-  })
-  @ApiParam({
-    name: 'runtimeAssetId',
-    description: 'Runtime Asset ID',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  async getOpenApiByRuntimeAssetId(@Param('runtimeAssetId') runtimeAssetId: string) {
-    try {
-      this.logger.log(`Retrieving assembled OpenAPI document for runtime asset ID: ${runtimeAssetId}`);
-      return await this.openApiService.getOpenApiByRuntimeAssetId(runtimeAssetId);
-    } catch (error) {
-      this.logger.error(
-        `Failed to retrieve assembled OpenAPI document for runtime asset ID ${runtimeAssetId}: ${error.message}`,
-        error.stack,
-      );
-
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-
-      throw new InternalServerErrorException('Failed to retrieve assembled OpenAPI document');
-    }
-  }
 }

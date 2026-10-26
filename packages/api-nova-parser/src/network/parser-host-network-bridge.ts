@@ -3,6 +3,7 @@ import { UpstreamCredentialRegistry, type UpstreamCredentialRegistrySnapshot } f
 import type { SingleHopUpstreamCredentialPolicy } from '../credentials/single-hop-execution';
 import { createHostSecurityEpochAuthority, HostSecurityEpochError, type HostSecurityEpoch } from './host-security-epoch-authority';
 import { createTrustedSingleHopNetworkExecution, type TrustedNetworkRegistration } from './trusted-single-hop-network-execution';
+import type { NetworkDenialAuditRecord } from './network-denial-audit';
 import { createNetworkPolicyCompiler } from './network-policy';
 import { ControlledDnsError } from './controlled-dns';
 import { pinnedRecord } from './pinned-http-connection';
@@ -21,9 +22,10 @@ const fail = (code: ControlledDnsError['code'] = 'upstream_network_policy_unavai
 export function createParserHostNetworkBridge(input: {
   registry: UpstreamCredentialRegistry; sourceServiceAssetId: string; compiler: ReturnType<typeof createNetworkPolicyCompiler>;
   servers: readonly string[]; ca?: string; registrations: readonly TrustedNetworkRegistration[]; providerEvidence?: ParserHostProviderEvidence;
+  failureAudit?: (record: Readonly<NetworkDenialAuditRecord>) => unknown;
   redirect?: Omit<NonNullable<Parameters<typeof createTrustedSingleHopNetworkExecution>[0]['redirect']>, 'providerEvidence'>;
 }) {
-  const raw = pinnedRecord(input, ['registry', 'sourceServiceAssetId', 'compiler', 'servers', 'ca', 'registrations', 'providerEvidence', 'redirect'], ['registry', 'sourceServiceAssetId', 'compiler', 'servers', 'registrations']);
+  const raw = pinnedRecord(input, ['registry', 'sourceServiceAssetId', 'compiler', 'servers', 'ca', 'registrations', 'providerEvidence', 'redirect', 'failureAudit'], ['registry', 'sourceServiceAssetId', 'compiler', 'servers', 'registrations']);
   const registry = raw.registry as UpstreamCredentialRegistry, source = raw.sourceServiceAssetId as string;
   if (!(registry instanceof UpstreamCredentialRegistry) || typeof source !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$/.test(source)) return fail();
   // Only the host constructor can enable redirects. The genuine issuer is shared
@@ -66,6 +68,7 @@ export function createParserHostNetworkBridge(input: {
   } });
   const execution = createTrustedSingleHopNetworkExecution({ credentialPolicy, compiler: raw.compiler as ReturnType<typeof createNetworkPolicyCompiler>, servers: raw.servers as readonly string[],
     ...(raw.ca === undefined ? {} : { ca: raw.ca as string }), registrations: initial,
+    ...(raw.failureAudit === undefined ? {} : { failureAudit: raw.failureAudit as (record: Readonly<NetworkDenialAuditRecord>) => unknown }),
     ...(redirect ? { redirect: { mode: 'safe-read' as const, providerEvidence: genuine!, targets: redirect.targets as NonNullable<Parameters<typeof createTrustedSingleHopNetworkExecution>[0]['redirect']>['targets'] } } : {}),
     operationLifecycle: { readSecurityEpoch: requestedSource => { if (requestedSource !== source) return fail('upstream_network_policy_denied'); return readHost().securityEpoch; }, readProviderEpoch: (snapshot, binding) => { if (binding.sourceServiceAssetId !== source) return fail('upstream_network_policy_denied'); return readProvider(snapshot); }, captureSignal: () => {
       const epoch = readHost(); if (epoch !== signalEpoch) {
