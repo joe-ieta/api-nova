@@ -1,8 +1,30 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-10-26
+---
 # Runtime Closure Design And Implementation Review
 
-> Document status: Active review record
-> Review date: 2026-09-07
+> Document status: Active contract/evidence index; current conclusions refreshed 2026-10-26
+> Original review date: 2026-09-07
 > Scope: Runtime instances, endpoint testing, publication bindings, Gateway/MCP deployment verification, and release closure
+
+## Current closure conclusion (2026-10-26)
+
+Use the [unified ledger](../guides/active-work-package-execution-status.md) for state and [open items](./open-items.md) for remaining acceptance. DEV-01 is mapped to PROD-01/02 and is no longer an unimplemented MCP endpoint/UI deviation. DEV-02~05 and EXT-01~09 have scoped evidence. Production acceptance remains with SEC-F4-02, OBS-16-04 and OPS-01; original contracts are not relaxed.
+
+| Former review gap | Current evidence and remaining boundary |
+| --- | --- |
+| DEV-01 MCP endpoint configuration | PROD-01/02 cover DTO, preview, governed form and actual Streamable/SSE custom listeners; target combinations remain separate |
+| Binary sample storage/lifecycle | PROD-04C local PG/HTTP lifecycle completed; target ACL, Linux file semantics and actual MCP binary outbound remain pending |
+| Instance changes and publication governance | PROD-03/05 and EXT workflow evidence exist; rc.5 adds bounded browser no-server/multi-endpoint/A-B coverage |
+| SQLite/PostgreSQL baseline | rc.5 records 73 tables, 8 migrations, zero drift, persistence/restart and API startup; earlier counts below are historical |
+| Release completion | rc.5 three-platform prerelease delivered; human feedback and production sign-off are still open |
+
+See [rc.5 delivery](../audits/2026-10-20-release-v1.7.6-rc.5.md), [browser lifecycle](../audits/2026-10-20-runtime-logs-browser-lifecycle.md) and [current closure evidence](../audits/2026-10-26-existing-scope-closure.md). This refresh does not treat every unknown global-state metric or unrun environment cell as a new feature task.
+
+<details>
+<summary>Original July/September review and exit conditions (historical evidence, not the current development queue)</summary>
 
 ## 2026-09-07 Governance And Sample-Retention Amendment
 
@@ -59,3 +81,5 @@ This review may be archived only after:
 2. `EXT-01` through `EXT-09` have recorded evidence;
 3. the release-readiness checklist is fully checked on Windows and Ubuntu;
 4. no active document links to a superseded plan as its source of truth.
+
+</details>

@@ -1,11 +1,11 @@
 ---
-doc-version: 2.5.0
+doc-version: 2.6.0
 doc-status: active
-doc-updated: 2026-10-14
+doc-updated: 2026-10-26
 ---
 # Runtime observability external validation handoff
 
-> **2026-10-14调度口径更新：本页保留专题阶段证据和原验收合同，以下历史计数/“当前未完成”文字不是现行待开发队列。** 当前能力状态、未关闭事项与并发依赖以[统一执行台账](./active-work-package-execution-status.md)、[任务划分](./active-work-package-breakdown.md)及[开发交接](./development-handoff-2026-10-14.md)为准。现保留SEC-F4-02、OBS-16-04、OPS-01三项目标签收和两项延期；已完成工程不重开，旧快照不能作为生产可用证明。
+> 当前状态见[统一台账](./active-work-package-execution-status.md)和[open-items](../reference/open-items.md)。下方AC映射保留原合同及当时证据入口；已经完成的状态流、配额、清理和集成子项不重开。实际部署清单仍由SEC-F4-02/OBS-16-04/OPS-01签收，本轮没有外发或生产启用授权。
 
 ## Document status
 
@@ -23,11 +23,11 @@ Already implemented and locally verified slices include new delivery retention o
 
 **Real-environment deployment acceptance remains NOT PERFORMED.** 2026-09-28 补充：集成 Windows/隔离 PostgreSQL 与 Linux(Alpine)/PostgreSQL 的多进程 outbox/delivery（真实 SIGKILL 恢复、skip_locked 租约）与受控接收端矩阵已按 [OBS-16-03 证据](../audits/2026-09-28-obs-16-03-environment-lane.md) 执行（5 格通过、2 格 blocked：自签 TLS 成功需部署信任配置、容器 `--network none` 需预装 PG 包）；持续负载/性能、glibc/多主机与部署签收仍未验。TP02 有历史 PostgreSQL 存储证据；不要把本补充外推为整系统或部署就绪。Isolated fixtures do not establish receiver reachability, installed secrets, certificates or deployment readiness.
 
-## AC evidence map and remaining acceptance
+## Historical AC evidence map and retained acceptance contract
 
 The authoritative expected results are [AC-01~20 in the requirements](runtime-observability-requirements.md); ownership and package exits are in the [task plan](runtime-observability-development-task-plan.md). The table maps evidence entry points, **not twenty newly passed ACs**. Script names below are relative to [API scripts](../../packages/api-nova-api/scripts/), prefixed `test-call-observability-` and suffixed `.cjs` unless another name/path is given. Read each script's fixture, build and environment requirements before running it; some consume built `dist`, others load source. No script was rerun for this handoff.
 
-| AC | Existing evidence or runnable entry point | Remaining acceptance / limitation |
+| AC | Existing evidence or runnable entry point | Original-stage gap / limitation (current state follows unified ledger) |
 | --- | --- | --- |
 | 01, 03 | `test-gateway-call-observability.cjs`; execution register historical integration and later Gateway slices | Full integrated request-to-receiver chain, all rejection/identity paths and old-consumer removal remain TP15 work. MCP admission coverage also belongs to TP06. |
 | 02, 04, 05 | [MCP矩阵执行器](../../scripts/verify-mcp-observability-matrix.cjs)（`npm run verify:mcp-observability-matrix`）聚合 [Server transport scripts](../../packages/api-nova-server/scripts/)；[OBS-06-01证据](../audits/2026-09-26-mcp-observability-matrix.md) | Complete retry/error/transport matrix remains TP06/16. Windows Node v24.15.0 16 MiB Streamable cork/uncork has a recorded 3-second noncompletion in both native and audited controls; passing the control test does not mean recovery succeeded. |

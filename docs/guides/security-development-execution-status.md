@@ -1,34 +1,23 @@
 ---
-doc-version: 1.131.0
+doc-version: 1.132.0
 doc-status: active
-doc-updated: 2026-10-14
+doc-updated: 2026-10-26
 ---
 # ApiNova 安全开发执行与状态记录
 
-> **2026-10-14调度口径更新：本页保留专题阶段证据和原验收合同，以下历史计数/“当前未完成”文字不是现行待开发队列。** 当前能力状态、未关闭事项与并发依赖以[统一执行台账](./active-work-package-execution-status.md)、[任务划分](./active-work-package-breakdown.md)及[开发交接](./development-handoff-2026-10-14.md)为准。现保留SEC-F4-02、OBS-16-04、OPS-01三项目标签收和两项延期；已完成工程不重开，旧快照不能作为生产可用证明。
+> 当前调度以[统一台账](./active-work-package-execution-status.md)和[open-items](../reference/open-items.md)为准；本页保留专题证据和原合同，不另生成任务计数。2026-10-26收口不新增功能，不改变生产签收和延期状态。
 
-> Document status: Active execution ledger
-> 原阶段摘要日期：2026-09-21；2026-10-14仅更新调度入口。
-> 范围：JWT/API Key/显式 Anonymous；MCP SDK 1.29 的 2025 Session 基线。OAuth2 与后续无状态协议升级延期。
-> 本轮按依赖完成 C3 Stable Read 与 Gateway 配置激活：Parser 全量 342/342、Gateway 全量专项 123/123（含句柄检测）及 Parser/Server/API 构建通过；扩大回归发现的 4 项旧夹具失败已修复并保留原证据。文件配置现支持主机显式Watch及manual，受权管理Reload/状态API已验证；MCP/完整网络安全仍未闭环；凭据链证据与下一依赖见第18节；缓存身份边界见第19节；C3受权重载见第20节；D1请求头见第21节，可信映射见第22节；显式单跳共享Resolver与隔离回归见第23节；可信资产快照生成与提交整理见第24节；装配接线见第25节；单语句归属读取见第26节；发布信息并入同语句见第27节；上游跨源核验见第28节；最新激活版本防护见第29节。
+## 当前收口状态（2026-10-26）
 
-> 2026-09-15 调度重排：父包原退出条件不变；当前细分、跨计划归属和下一队列见[工作包划分](./active-work-package-breakdown.md)，逐项状态见[子任务执行台账](./active-work-package-execution-status.md)。父包 IN_PROGRESS 不表示正在同时执行；文档子项完成不计为代码完成。
+209条任务中204条限定DONE；SEC-F4-02、OBS-16-04保留IN_PROGRESS，OPS-01保留WAIT_DEP，DEFER-01/02继续延期。rc.5已完成预发布，人工反馈与目标生产签收仍待办，见[发布审计](../audits/2026-10-20-release-v1.7.6-rc.5.md)和[本轮验收](../audits/2026-10-26-existing-scope-closure.md)。
 
-D2b3c2 限定 DONE：5份源码/测试文件完成私有品牌 host 与同一真实 issuer、固定 Snapshot/source/epoch 的一次性 consumeProof；协调器只接受 exact committed catalog、route 真对象与当前版本，逐 route 核对编译 policy 和 Registry Site 的 source/endpoint/origin。reload/removed、issuer/generation 终态先同步失效再 abort，不复用旧 proof；proof/策略到期关闭、clone/跨 source/epoch/错误 origin 拒绝。专项2 suites/20 tests、Gateway48 suites/707 tests、API build、diff-check通过；隔离PG41 warm+4 cold检查组（本叶新增27组）通过，schema零漂移且集群已停止/清理。SQL.js boot仍拒绝，仅以真实SQL.js路由负例验收；PG正向使用真实已迁移数据库，首次混用enum夹具和异步deployed等待失败均已修正为明确reload完成事件后复验。D2b3d拆为d1限定DONE/d2a限定DONE/d2b限定DONE；生产DI/default-on、旧watch/admin、网络发送或外部目标部署未交付。
+状态流/配额/清理/受管child/许可和host装配的各限定DONE按统一台账复用；局部证据不覆盖未验平台、长时、多主机及实际外部接收端。已有unknown/null指标不改报完整或实时业务存活。
 
-D2b3d1 限定 DONE：品牌稳定facade把同bundle的Provider与私有Resolver成对原子swap，旧lease/pending固定旧pair，Proxy旧DI callback零调用；bundle/issuer撤销同步abort，proof到期必须host新proof显式重装。已保护runtimeAsset/route/scope保留有界墓碑，route+membership同时更换也不回落legacy；128保留pair超限拒绝，1024墓碑超限后本实例全局fail-closed且不驱逐，恢复需新受信host生命周期。4源码/测试文件、专项2 suites/9 tests、Gateway49 suites/711 tests、API build与diff-check通过；隔离PG53 warm+4 cold检查组（d1新增12组）通过，schema零漂移/重启/stop/cleanup完成。夹具先触发catalog容量、旧host策略拒绝与路由字典序fingerprint检查，均保留门禁并修正真实夹具后复验。未接RuntimeModule、生产DI/default-on、旧watch/admin；d2拆为d2a限定DONE/d2b限定DONE，真实Nest/HTTP装配和外部环境另验。
+10-26生产依赖复审为11 moderate、6 high、0 critical（17个包节点，不等于17条实际可利用路径）；不再沿用10-20的0 high结论。现有SSE回移继续保留，其余可达性、补丁和残余风险处置归SEC-F4-02，本轮未接受风险，详见[审计明细](../audits/2026-10-26-existing-scope-closure.md#依赖时效与安全签收)。
 
-D2b3d2a 限定 DONE：新增共享host启动依赖GATEWAY_HOST_RUNTIME（仅显式brand；null/undefined即默认off）：legacy凭据Registry工厂在读取任何配置或启动watch前短路为null，admin自动disabled；GatewayPolicyService与legacy guard改读受控只读Snapshot；启动/失败时整Gateway闭锁（固定503 gateway_host_runtime_locked），非Gateway Nest health保持200；无host行为不变。新增专项1 suite/7 tests、Gateway 50 suites/718 tests、API build通过。未接RuntimeModule生产装配/d2b、真实host安装或Nest/PG/HTTP联合；旧watch/admin仍不交付。
+<details>
+<summary>原阶段状态、证据与未验边界（按各节日期追溯，不是现行开发队列）</summary>
 
-SEC-F3-02C1d2b3d2b 限定 DONE：新增默认off的GATEWAY_NETWORK_HOST_SOURCE/FACADE显式host装配；onApplicationBootstrap等待真实committed catalog与host snapshot，以新一次性proof执行c2 bundle与d1稳定facade成对装配；与legacy env/file/watch冲突显式拒绝，装配失败整Gateway保持闭锁；成功路径经GatewayProxyEngineService+facade provider真实HTTP到回环上游200。专项1 suite/8 tests、Gateway 51 suites/726 tests、API build、隔离PG warm 56/cold 4检查（Nest/PG/HTTP正例与冲突/闭锁负例）、零schema漂移并停止清理。未接AppModule生产默认启用/外部Secret Manager/多进程。
-
-SEC-F3-02C1d4 限定 DONE：隔离PG真实host/Registry+本地HTTP联合验证facade在途流固定旧pair/旧凭据且新请求见新代次、错误origin装配被拒后当前pair继续服务、在途proof到期主动abort活动流并释放lease、shutdown同步中止全部signal且abort listener清零；隔离PG warm 61（本叶新增5）/cold 4检查、零漂移并停止清理；Gateway 51 suites/726 tests与既有真实TLS专项为邻证。未含外部Secret Manager/多进程E3b/目标环境。
-
-SEC-F3-02C5b 限定 DONE：新增parser `toNetworkFailure`与C5a导出，Gateway provider在prepare/send/completed单点emit `upstream.network_failure`（operationId/policy/revision/site/endpoint/revocationEpoch/attempt/hop/stage），stream对未知错误固定503且不回传原始DNS/TLS细节；Parser single-hop与host bridge显式failureAudit透传并按阶段emit。真实HTTP/TLS负测含sink故障不改拒绝与秘密扫描；Parser 49 suites/1196 tests、Gateway 51 suites/735 tests、两包构建通过。未持久化事件（归C6/F3D）、无managed child/E3b、生产默认关闭。
-
-SEC-F3-02C6 限定 DONE：新增`scripts/verify-f3-dual-runtime.cjs`（npm run verify:f3-dual-runtime）聚合重跑Parser 4 suites/78 tests与Gateway 3 suites/95 tests并输出clause矩阵`F3_DUAL_RUNTIME_MATRIX_OK`；仅本地回环DNS/HTTP/TLS，不代表生产默认启用/PG/F3D平台验收。
-
-SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估结果，preview、G3单成员发布（toValidator）与G4批量/激活共用；G4 activateCandidate新增recheck并在await后重比epoch，激活前以`assertTransactionCurrent`复核context与验证证据；撤销/成员revision漂移被拒绝且零写入，生产G2 canPublish:false保持。专项1 suite/5 tests、publication 20 suites/245 tests、API build；未注册生产DI，PG并发归F1-02F。
 
 ## 1. 状态与证据规则
 
@@ -764,3 +753,5 @@ SEC-F1-02C3G5仅完成独立Gateway proof消费guard与真实HTTP切片，3 suit
 ## 52. F3网络执行拆分启动（2026-09-24）
 
 原SEC-F3-02横跨配置/地址分类、受控DNS与连接固定、逐跳凭据/redirect/撤销状态机和双运行时真实网络矩阵，不能由单一纯函数关闭。A限定纯compiler现已DONE：严格v1 Schema、URL/origin、IPv4/IPv6完整分类、mapped归一与精确private-exception已实现；静态IANA表版本为`iana-2025-10-09-conservative-v1`，以后更新必须审查IANA registry差异并重跑地址边界回归。B1现限定DONE：真实UDP 26/26、Parser 31 suites/748 tests及typecheck/build通过，覆盖受信Resolver、A/AAAA/CNAME有界全集、规范化去重、逐地址授权及混合/未分类/截断拒绝；结果仅是DNS批准集合，无上游socket、peer或TLS证据。B2现以31专项、Parser 32 suites/779 tests及typecheck/build限定DONE，仅交付≤8MiB Buffer固定获批IP单跳transport primitive，覆盖真实HTTP/TLS/peer/代理陷阱与Windows Node24；未接Gateway/Transformer host，不支持Readable/大体积流或逐跳撤销。B3继续拆为a/b/c：a现READY，负责Parser共享verified connection、Readable单跳、背压/取消及大于8MiB真实矩阵；b等待a后接Parser host-only可信Site/Registry版本桥和bounded adapter；c等待a后独立接Gateway可信route网络Provider/stream桥，并在C闭合网络身份与撤销前保持缓存关闭。B3聚合与TP-F3继续IN_PROGRESS；C同时依赖b/c，N01–N17双运行时矩阵仍归D，生产启用不得提前。
+
+</details>

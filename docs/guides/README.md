@@ -1,18 +1,19 @@
 ---
-doc-version: 1.4.0
+doc-version: 1.5.0
 doc-status: active
-doc-updated: 2026-10-14
+doc-updated: 2026-10-26
 ---
 # Guides
 
 > Document status: Active index
-> Last reviewed: 2026-10-14
+> Last reviewed: 2026-10-26
 
 Only currently supported product paths, durable architecture contracts, and active execution plans belong here.
 
 ## Active Execution And Release
 
-- [开发审查与后续线程交接（2026-10-14）](./development-handoff-2026-10-14.md)
+- [现有范围收口与限定验收（2026-10-26）](../audits/2026-10-26-existing-scope-closure.md)
+- [开发交接快照（2026-10-14，历史范围）](./development-handoff-2026-10-14.md)
 - [Current Work Package Status And Next Actions](./active-work-package-execution-status.md)
 - [Current Work Package Contracts And Dependencies](./active-work-package-breakdown.md)
 

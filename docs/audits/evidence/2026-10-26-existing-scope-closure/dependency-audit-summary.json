@@ -1,0 +1,519 @@
+{
+  "date": "2026-10-26",
+  "command": "npm audit --omit=dev --json",
+  "lockfileSha256": "8e233d5f22d47011bd9ed35aa458af54825f9cea05fcf642ab9eadea560fbfd5",
+  "rawSha256": "76aef043d0f57055cb0b55d9719e9fa1fc5804233e08550672d91b664e9c46a0",
+  "counts": {
+    "info": 0,
+    "low": 0,
+    "moderate": 11,
+    "high": 6,
+    "critical": 0,
+    "total": 17
+  },
+  "semantics": "npm vulnerable package nodes; not a count of proven exploitable paths. No upgrades or risk acceptance applied. Track under existing SEC-F4-02.",
+  "packages": {
+    "@nestjs/core": {
+      "severity": "high",
+      "direct": true,
+      "range": "<=11.1.17",
+      "fixAvailable": {
+        "name": "@nestjs/swagger",
+        "version": "12.0.4",
+        "isSemVerMajor": true
+      },
+      "via": [
+        "@nestjs/platform-express",
+        "@nestjs/websockets",
+        {
+          "source": 1117063,
+          "name": "@nestjs/core",
+          "dependency": "@nestjs/core",
+          "title": "@nestjs/core Improperly Neutralizes Special Elements in Output Used by a Downstream Component ('Injection')",
+          "url": "https://github.com/advisories/GHSA-36xv-jgw5-4q75",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-74"
+          ],
+          "cvss": {
+            "score": 6.1,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:N/A:L"
+          },
+          "range": "<=11.1.17"
+        }
+      ],
+      "nodes": [
+        "node_modules/@nestjs/core"
+      ],
+      "lockedVersions": {
+        "node_modules/@nestjs/core": "10.4.22"
+      }
+    },
+    "@nestjs/event-emitter": {
+      "severity": "moderate",
+      "direct": true,
+      "range": "",
+      "fixAvailable": false,
+      "via": [
+        "@nestjs/core"
+      ],
+      "nodes": [
+        "node_modules/@nestjs/event-emitter"
+      ],
+      "lockedVersions": {
+        "node_modules/@nestjs/event-emitter": "2.1.1"
+      }
+    },
+    "@nestjs/platform-express": {
+      "severity": "high",
+      "direct": true,
+      "range": "<=11.0.1 || >=11.1.2",
+      "fixAvailable": {
+        "name": "@nestjs/platform-express",
+        "version": "12.2.0",
+        "isSemVerMajor": true
+      },
+      "via": [
+        "@nestjs/core",
+        "body-parser",
+        "multer"
+      ],
+      "nodes": [
+        "node_modules/@nestjs/platform-express"
+      ],
+      "lockedVersions": {
+        "node_modules/@nestjs/platform-express": "10.4.22"
+      }
+    },
+    "@nestjs/platform-socket.io": {
+      "severity": "moderate",
+      "direct": true,
+      "range": "<=11.0.0-next.4",
+      "fixAvailable": {
+        "name": "@nestjs/platform-socket.io",
+        "version": "12.2.0",
+        "isSemVerMajor": true
+      },
+      "via": [
+        "@nestjs/websockets"
+      ],
+      "nodes": [
+        "node_modules/@nestjs/platform-socket.io"
+      ],
+      "lockedVersions": {
+        "node_modules/@nestjs/platform-socket.io": "10.4.22"
+      }
+    },
+    "@nestjs/schedule": {
+      "severity": "moderate",
+      "direct": true,
+      "range": "",
+      "fixAvailable": false,
+      "via": [
+        "@nestjs/core"
+      ],
+      "nodes": [
+        "node_modules/@nestjs/schedule"
+      ],
+      "lockedVersions": {
+        "node_modules/@nestjs/schedule": "4.1.2"
+      }
+    },
+    "@nestjs/swagger": {
+      "severity": "moderate",
+      "direct": true,
+      "range": "<=8.1.1 || 12.0.0-alpha.0 - 12.0.0-alpha.2",
+      "fixAvailable": {
+        "name": "@nestjs/swagger",
+        "version": "12.0.4",
+        "isSemVerMajor": true
+      },
+      "via": [
+        "@nestjs/core"
+      ],
+      "nodes": [
+        "node_modules/@nestjs/swagger"
+      ],
+      "lockedVersions": {
+        "node_modules/@nestjs/swagger": "7.4.2"
+      }
+    },
+    "@nestjs/terminus": {
+      "severity": "moderate",
+      "direct": true,
+      "range": "",
+      "fixAvailable": false,
+      "via": [
+        "@nestjs/core",
+        "@nestjs/typeorm"
+      ],
+      "nodes": [
+        "packages/api-nova-api/node_modules/@nestjs/terminus"
+      ],
+      "lockedVersions": {
+        "packages/api-nova-api/node_modules/@nestjs/terminus": "10.3.0"
+      }
+    },
+    "@nestjs/throttler": {
+      "severity": "moderate",
+      "direct": true,
+      "range": "",
+      "fixAvailable": false,
+      "via": [
+        "@nestjs/core"
+      ],
+      "nodes": [
+        "node_modules/@nestjs/throttler"
+      ],
+      "lockedVersions": {
+        "node_modules/@nestjs/throttler": "5.2.0"
+      }
+    },
+    "@nestjs/typeorm": {
+      "severity": "moderate",
+      "direct": true,
+      "range": "",
+      "fixAvailable": false,
+      "via": [
+        "@nestjs/core"
+      ],
+      "nodes": [
+        "node_modules/@nestjs/typeorm"
+      ],
+      "lockedVersions": {
+        "node_modules/@nestjs/typeorm": "10.0.2"
+      }
+    },
+    "@nestjs/websockets": {
+      "severity": "moderate",
+      "direct": true,
+      "range": "<=11.0.0-next.4",
+      "fixAvailable": {
+        "name": "@nestjs/websockets",
+        "version": "12.2.0",
+        "isSemVerMajor": true
+      },
+      "via": [
+        "@nestjs/core",
+        "@nestjs/platform-socket.io"
+      ],
+      "nodes": [
+        "node_modules/@nestjs/websockets"
+      ],
+      "lockedVersions": {
+        "node_modules/@nestjs/websockets": "10.4.22"
+      }
+    },
+    "body-parser": {
+      "severity": "high",
+      "direct": false,
+      "range": "<1.20.9 || >=2.0.0 <2.4.0",
+      "fixAvailable": {
+        "name": "@nestjs/platform-express",
+        "version": "12.2.0",
+        "isSemVerMajor": true
+      },
+      "via": [
+        {
+          "source": 1243073,
+          "name": "body-parser",
+          "dependency": "body-parser",
+          "title": "body-parser vulnerable to Denial of Service via trailing bytes after a compressed request body",
+          "url": "https://github.com/advisories/GHSA-27r3-jxmh-p828",
+          "severity": "high",
+          "cwe": [
+            "CWE-248"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<1.20.9"
+        },
+        {
+          "source": 1243074,
+          "name": "body-parser",
+          "dependency": "body-parser",
+          "title": "body-parser vulnerable to Denial of Service via trailing bytes after a compressed request body",
+          "url": "https://github.com/advisories/GHSA-27r3-jxmh-p828",
+          "severity": "high",
+          "cwe": [
+            "CWE-248"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": ">=2.0.0 <2.4.0"
+        }
+      ],
+      "nodes": [
+        "node_modules/@modelcontextprotocol/sdk/node_modules/body-parser",
+        "node_modules/body-parser"
+      ],
+      "lockedVersions": {
+        "node_modules/@modelcontextprotocol/inspector-server/node_modules/body-parser": "2.3.0",
+        "node_modules/@modelcontextprotocol/sdk/node_modules/body-parser": "2.3.0",
+        "node_modules/body-parser": "1.20.8"
+      }
+    },
+    "fast-uri": {
+      "severity": "moderate",
+      "direct": false,
+      "range": "3.0.0 - 3.1.8",
+      "fixAvailable": true,
+      "via": [
+        {
+          "source": 1243098,
+          "name": "fast-uri",
+          "dependency": "fast-uri",
+          "title": "fast-uri vulnerable to URI scheme spoofing via percent-encoded scheme decoding",
+          "url": "https://github.com/advisories/GHSA-w74x-v6f9-j3xg",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-172",
+            "CWE-180"
+          ],
+          "cvss": {
+            "score": 6.1,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+          },
+          "range": ">=3.0.0 <3.1.9"
+        },
+        {
+          "source": 1243101,
+          "name": "fast-uri",
+          "dependency": "fast-uri",
+          "title": "fast-uri vulnerable to improper path equivalence in relative reference normalization",
+          "url": "https://github.com/advisories/GHSA-xhq7-xmqj-769h",
+          "severity": "low",
+          "cwe": [
+            "CWE-41"
+          ],
+          "cvss": {
+            "score": 3.7,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N"
+          },
+          "range": ">=3.0.0 <3.1.9"
+        },
+        {
+          "source": 1243104,
+          "name": "fast-uri",
+          "dependency": "fast-uri",
+          "title": "fast-uri vulnerable to host confusion via unchecked WHATWG host canonicalization",
+          "url": "https://github.com/advisories/GHSA-wjr9-j795-jxcr",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-20",
+            "CWE-436"
+          ],
+          "cvss": {
+            "score": 4.8,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N"
+          },
+          "range": ">=3.1.3 <3.1.9"
+        },
+        {
+          "source": 1243107,
+          "name": "fast-uri",
+          "dependency": "fast-uri",
+          "title": "fast-uri vulnerable to scheme injection via an unescaped first-segment colon in suffix references",
+          "url": "https://github.com/advisories/GHSA-333x-w4r6-6crp",
+          "severity": "low",
+          "cwe": [
+            "CWE-41",
+            "CWE-116"
+          ],
+          "cvss": {
+            "score": 3.7,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N"
+          },
+          "range": ">=3.0.0 <3.1.9"
+        }
+      ],
+      "nodes": [
+        "node_modules/fast-uri"
+      ],
+      "lockedVersions": {
+        "node_modules/fast-uri": "3.1.8"
+      }
+    },
+    "follow-redirects": {
+      "severity": "high",
+      "direct": false,
+      "range": "1.16.0",
+      "fixAvailable": true,
+      "via": [
+        {
+          "source": 1242604,
+          "name": "follow-redirects",
+          "dependency": "follow-redirects",
+          "title": "follow-redirects array-form headers bypass cross-origin credential stripping",
+          "url": "https://github.com/advisories/GHSA-q3jh-wrc6-jgq8",
+          "severity": "high",
+          "cwe": [
+            "CWE-200",
+            "CWE-212"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=1.16.0 <1.16.1"
+        },
+        {
+          "source": 1242605,
+          "name": "follow-redirects",
+          "dependency": "follow-redirects",
+          "title": "follow-redirects sensitiveHeaders regex escaping can expose credential headers",
+          "url": "https://github.com/advisories/GHSA-8r9p-f939-6h3c",
+          "severity": "high",
+          "cwe": [
+            "CWE-185",
+            "CWE-200"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=1.16.0 <1.16.1"
+        }
+      ],
+      "nodes": [
+        "node_modules/follow-redirects"
+      ],
+      "lockedVersions": {
+        "node_modules/follow-redirects": "1.16.0"
+      }
+    },
+    "hono": {
+      "severity": "moderate",
+      "direct": false,
+      "range": "4.12.4 - 4.13.10",
+      "fixAvailable": true,
+      "via": [
+        {
+          "source": 1242595,
+          "name": "hono",
+          "dependency": "hono",
+          "title": "Hono: `serveStatic` decodes the request path a second time, leading to bypass of middleware on static paths",
+          "url": "https://github.com/advisories/GHSA-5r4p-p66f-jhc7",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-174"
+          ],
+          "cvss": {
+            "score": 5.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"
+          },
+          "range": ">=4.12.4 <4.13.11"
+        }
+      ],
+      "nodes": [
+        "node_modules/hono"
+      ],
+      "lockedVersions": {
+        "node_modules/hono": "4.13.9"
+      }
+    },
+    "ip-address": {
+      "severity": "moderate",
+      "direct": false,
+      "range": "<=10.7.3",
+      "fixAvailable": true,
+      "via": [
+        {
+          "source": 1242883,
+          "name": "ip-address",
+          "dependency": "ip-address",
+          "title": "ip-address: Address6 matches a zone identifier in quadratic time ahead of its length limit, allowing a single long string to stall the process",
+          "url": "https://github.com/advisories/GHSA-rxp7-6hxx-x8q5",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-1333"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<=10.7.3"
+        }
+      ],
+      "nodes": [
+        "node_modules/ip-address"
+      ],
+      "lockedVersions": {
+        "node_modules/ip-address": "10.7.2"
+      }
+    },
+    "multer": {
+      "severity": "high",
+      "direct": true,
+      "range": "2.0.0 - 2.4.0",
+      "fixAvailable": {
+        "name": "@nestjs/platform-express",
+        "version": "12.2.0",
+        "isSemVerMajor": true
+      },
+      "via": [
+        {
+          "source": 1243083,
+          "name": "multer",
+          "dependency": "multer",
+          "title": "multer vulnerable to Denial of Service via a pending asynchronous fileFilter after request teardown",
+          "url": "https://github.com/advisories/GHSA-q7qp-rjg7-q26m",
+          "severity": "high",
+          "cwe": [
+            "CWE-248",
+            "CWE-404"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": ">=2.0.0 <2.5.0"
+        }
+      ],
+      "nodes": [
+        "node_modules/multer"
+      ],
+      "lockedVersions": {
+        "node_modules/multer": "2.4.0"
+      }
+    },
+    "zod": {
+      "severity": "high",
+      "direct": true,
+      "range": "<4.6.6",
+      "fixAvailable": {
+        "name": "zod",
+        "version": "4.6.7",
+        "isSemVerMajor": true
+      },
+      "via": [
+        {
+          "source": 1243066,
+          "name": "zod",
+          "dependency": "zod",
+          "title": "Zod can exhaust memory while validating oversized constrained collections",
+          "url": "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5",
+          "severity": "high",
+          "cwe": [
+            "CWE-770"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<4.6.6"
+        }
+      ],
+      "nodes": [
+        "node_modules/zod"
+      ],
+      "lockedVersions": {
+        "node_modules/zod": "3.25.76"
+      }
+    }
+  }
+}

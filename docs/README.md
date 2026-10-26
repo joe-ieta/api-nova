@@ -1,12 +1,12 @@
 ---
-doc-version: 1.4.0
+doc-version: 1.5.0
 doc-status: active
-doc-updated: 2026-10-14
+doc-updated: 2026-10-26
 ---
 # ApiNova Documentation Index
 
 > Document status: Active canonical index
-> Last reviewed: 2026-10-14
+> Last reviewed: 2026-10-26
 
 ## Documentation Classes
 
@@ -29,7 +29,8 @@ doc-updated: 2026-10-14
 
 ## Current Product Closure
 
-- [开发审查与后续线程交接（2026-10-14）](./guides/development-handoff-2026-10-14.md)
+- [现有范围收口与限定验收（2026-10-26）](./audits/2026-10-26-existing-scope-closure.md)
+- [开发交接快照（2026-10-14，历史范围）](./guides/development-handoff-2026-10-14.md)
 - [Current Work Package Status And Next Actions](./guides/active-work-package-execution-status.md)
 - [Current Work Package Contracts And Dependencies](./guides/active-work-package-breakdown.md)
 

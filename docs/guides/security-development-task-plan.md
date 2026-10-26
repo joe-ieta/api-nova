@@ -1,9 +1,16 @@
 ---
-doc-version: 1.100.0
+doc-version: 1.101.0
 doc-status: active
-doc-updated: 2026-09-26
+doc-updated: 2026-10-26
 ---
 # ApiNova 安全开发任务规划
+
+> 2026-10-26：本页保留原批准任务定义、依赖和退出条件；当前状态唯一入口为[统一台账](./active-work-package-execution-status.md)，去重剩余事项见[open-items](../reference/open-items.md)。旧专题父包计数不作为新增待开发队列；本轮不新增功能或变更验收合同。
+
+<details>
+<summary>原审批背景与阶段增量记录</summary>
+
+
 
 > Document status: Approved, active execution
 > Last reviewed: 2026-09-14
@@ -27,6 +34,8 @@ SEC-F3-02C5b 限定 DONE：新增parser `toNetworkFailure`与C5a导出，Gateway
 SEC-F3-02C6 限定 DONE：新增`scripts/verify-f3-dual-runtime.cjs`（npm run verify:f3-dual-runtime）聚合重跑Parser 4 suites/78 tests与Gateway 3 suites/95 tests并输出clause矩阵`F3_DUAL_RUNTIME_MATRIX_OK`；仅本地回环DNS/HTTP/TLS，不代表生产默认启用/PG/F3D平台验收。
 
 SEC-F1-02D 限定 DONE：新增`publication-security-evaluation.ts`统一评估结果，preview、G3单成员发布（toValidator）与G4批量/激活共用；G4 activateCandidate新增recheck并在await后重比epoch，激活前以`assertTransactionCurrent`复核context与验证证据；撤销/成员revision漂移被拒绝且零写入，生产G2 canPublish:false保持。专项1 suite/5 tests、publication 20 suites/245 tests、API build；未注册生产DI，PG并发归F1-02F。
+
+</details>
 
 ## 1. 范围决策
 

@@ -1,11 +1,18 @@
 ---
-doc-version: 2.12.0
+doc-version: 2.13.0
 doc-status: active
-doc-updated: 2026-09-26
+doc-updated: 2026-10-26
 approval-status: approved
 implementation-status: in-progress
 ---
 # 可观测性开发任务计划
+
+> 2026-10-26：本页保留原批准任务定义、依赖和退出条件；当前状态唯一入口为[统一台账](./active-work-package-execution-status.md)，去重剩余事项见[open-items](../reference/open-items.md)。旧专题父包计数不作为新增待开发队列；本轮不新增功能或变更验收合同。
+
+<details>
+<summary>原审批背景与阶段增量记录</summary>
+
+
 
 > Document status: Maintained execution plan; approved, active execution
 > Scope decision (2026-09-08, approved): 统一采用新格式、新 Endpoint 和新数据库初始化结构；移除旧格式导入、兼容查询和历史迁移链。任务编号不变，OBS-TP-15 改为全链路集成与旧能力收敛。
@@ -13,6 +20,8 @@ implementation-status: in-progress
 > 关联：[需求](./runtime-observability-requirements.md)、[设计](../reference/runtime-observability-design.md)、[对外 API](../reference/runtime-observability-api-endpoints.md)、[执行状态](./runtime-observability-development-execution-status.md)。
 
 > 2026-09-15 调度重排：父包原退出条件不变；当前细分、跨计划归属和下一队列见[工作包划分](./active-work-package-breakdown.md)，逐项状态见[子任务执行台账](./active-work-package-execution-status.md)。父包 IN_PROGRESS 不表示正在同时执行；文档子项完成不计为代码完成。
+
+</details>
 
 ## 1. 交付边界与工作规则
 
@@ -22,11 +31,11 @@ implementation-status: in-progress
 
 每个任务包都有进入条件、输出物、适用测试、文档责任和退出标准；只写代码不算完成。接口文档和任务台账在同一任务包中维护，不等最终联调再补写。
 
-全局编码门禁 OBS-GATE-01 已通过。当前状态唯一汇总见[完成情况复核](./runtime-observability-completion-review.md)，[执行状态](./runtime-observability-development-execution-status.md)维护证据索引与真实剩余清单；本文维护批准任务目标、依赖和退出条件，不追加逐轮执行流水。
+全局编码门禁 OBS-GATE-01 已通过。当前状态唯一汇总见[统一执行台账](./active-work-package-execution-status.md)，[执行状态](./runtime-observability-development-execution-status.md)维护证据索引与真实剩余清单；本文维护批准任务目标、依赖和退出条件，不追加逐轮执行流水。
 
 2026-09-15 对齐口径：OBS-TP-01~05、07~09、11、12 为 DONE，共 10 包；06、10、13、14、15 为 IN_PROGRESS；16 为 BACKLOG。OBS-API-01~28 在限定契约内 VERIFIED，27/28覆盖新事件与新正文留存，AVAILABLE=0。Webhook 包已闭环但 Worker 默认关闭、未部署；Socket.IO 有界事件页已验证，完整状态/快照协议未闭合。任务包完成不等于跨包 AC 或整体平台、性能、部署验收完成。
 
-## 2. 任务包总表
+## 2. 原批准任务包总表（阶段状态不替代统一台账）
 
 表中依赖均为整包退出的硬依赖。已有稳定契约和可验证实现时，可提前开发、接线并验证不依赖剩余能力的切片；前置包未满足退出条件时，不据局部切片把依赖或本包标为完成。规模 S/M/L 表示相对复杂度，不是天数或工期承诺。
 

@@ -1,25 +1,13 @@
 ---
-doc-version: 1.203.1
+doc-version: 1.204.0
 doc-status: active
-doc-updated: 2026-10-20
+doc-updated: 2026-10-26
 ---
 # 开发任务包总览与执行状态
 
-> v1.7.6-rc.5已完成三平台人工测试预发布、latest切换和远端七附件核验，见[发布审计](../audits/2026-10-20-release-v1.7.6-rc.5.md)。本轮日志与导入/绑定修复已纳入该版本，旧rc.4记录保留历史含义。209条任务及目标生产签收、延期边界不变。
-
-> 2026-10-20后续推进：日志页已接入真实运行事件；无server URL导入、首次production绑定及端口表单阻塞已修复，同一Gateway双端点和A/B迁移完成本机浏览器补验。见[审计与人工检查单](../audits/2026-10-20-runtime-logs-browser-lifecycle.md)。这些变更属于rc.4之后开发分支，原包未被替换；人工反馈仍待办，209条任务及生产签收口径不变。下方“日志示例数据”与已补验组合为历史记录。
-
-> v1.7.6-rc.4人工测试预发布已完成：三平台原生离线验证、完整CI、latest切换和远端7附件均核验通过，详见[发布审计](../audits/2026-10-20-release-v1.7.6-rc.4.md)。源码提交afc7954；本轮不改变生产签收状态。
-
-> 2026-10-20：修复顶部模拟健康及无效刷新，补齐带绝对server的JSON文件导入浏览器闭环，URL导入/手工注册与Vite代理回归通过，见[本轮审计](../audits/2026-10-20-ui-health-refresh.md)。rc.4作为人工测试候选推进；剩余工作顺序以[open-items最新整理](../reference/open-items.md)为准。209条计数与3项目标签收/2项延期保持不变；下方较早的“文件导入未覆盖”不再包含此次已验组合。
-
-> 2026-10-14总体审查与跨线程续接见[开发交接文档](./development-handoff-2026-10-14.md)：已完成能力、全部未关闭事项、证据边界、并发依赖及人工要求。交接快照之后的本机导入补验见下方最新记录，原任务计数与生产签收边界保持不变。
-
-> 2026-10-08 用户调整验收规则：未关闭事项的时间门禁不再作为不能关闭的硬条件。可见3秒、投递5秒、查询2秒及采集A/B开销目标保留为诊断指标；本机耗时不再单独阻断任务关闭。完整数据/投递、持久化、权限与恢复正确性仍为验收条件，生产签收仍待办。历史性能记录保留当时口径。
-
-> 最近复核：2026-10-14；本轮验收基线：`oc_dev / 0e7763c`加治理实例入口修复及验收脚本，随本包提交。**打包UI手工注册与OpenAPI URL导入→治理→Gateway发布/部署→凭证→真实消费→监控终态本机限定完成；生产签收仍待办**。[OpenAPI导入浏览器证据](../audits/2026-10-14-ops-browser-openapi-import.md)记录本次导入19/19、手工回归19/19及40项UI回归。
+> 当前收口基线（2026-10-26）：v1.7.6-rc.5已完成三平台离线预发布；产品代码与发布源提交a2639ce一致。见[发布审计](../audits/2026-10-20-release-v1.7.6-rc.5.md)、[本轮收口验收](../audits/2026-10-26-existing-scope-closure.md)和[去重剩余清单](../reference/open-items.md)。本轮只统一文档并复用已有隔离验收，不新增功能、任务ID或退出门槛。
 >
-> 当前保留 **3项签收任务、2项延期**。OBS本机工程A/B及专项已完成，SEC本地SSE修复已完成；SEC/OBS父项保留目标签收，OPS本地Gateway浏览器流程已限定验收，最终汇总仍等待目标环境。时间指标与SQLite未完成的大样本观察单列为非阻断诊断，不再形成反复开发的门禁。
+> 当前保留3项签收（SEC-F4-02、OBS-16-04、OPS-01）及2项延期。人工反馈与生产签收不由自动化代签；3/5/2秒及大样本时间观察仍为非阻断诊断，完整性、持久化、权限和恢复合同不变。
 
 阅读入口：[任务包总览](#package-overview) · [后续执行清单](#next-work) · [子任务统计与明细](#task-ledger) · [历史记录](#history)。原任务合同与依赖见[任务划分](./active-work-package-breakdown.md)。
 
@@ -35,8 +23,8 @@ doc-updated: 2026-10-20
 | 二进制样例完整留存 | **本机联合验收完成，转回归维护** | PROD-04C：真实PG/HTTP 16项及相关专项通过，采集→授权读取→撤销/到期→清理→重启恢复闭环 | 目标运行账户/ACL、Linux和MCP二进制真实外发覆盖归SEC-F4-02/OPS-01；见[二进制联合证据](../audits/2026-10-08-prod-04c-binary-lifecycle.md) |
 | 安全发布 | **本地SSE修复完成，目标签收待办** | 凭据/权限、策略、许可、撤销、局部跨平台矩阵及官方SSE回移已有证据 | SEC-F4-02：目标平台/DB、身份、网络、依赖与有效开关核验 |
 | 可观测与审计运维 | **工程及限定专项已完成；目标签收待办** | A采集/B投递改造完成；双库43组、API1940项通过。PG3000全流程通过；SQLite大样本仍有积压，按调整后口径保留非阻断诊断 | OBS-16-04：目标账户/开关/平台、容量和回退签收；[证据与未覆盖范围](../audits/2026-10-08-observability-functional-closure.md) |
-| 安装、健康与用户操作 | **本机Gateway浏览器闭环完成；目标签收待办** | 打包UI正常登录、手工注册、测试/治理、smoke样本、Registry v1配置、发布/部署、消费凭证、401/200真实消费与同请求监控刷新已验；[证据](../audits/2026-10-14-ops-browser-workflow.md) | ENV-01按新5GiB门槛已实测完整健康通过；OPS-01等待同版本目标部署、权限/TLS、告警与回退签收；带绝对server URL的浏览器导入已补验；文件/无server导入、MCP/迁移分支仍未证明 |
-| 最终发布交付 | **未完成：等待签收汇总** | 各能力包的实现与限定证据可复用 | OPS-01依赖安全与可观测签收，汇总留存/健康与整体操作结果，形成可复现部署、回退及发布结论 |
+| 安装、健康与用户操作 | **本机限定验收完成；目标签收待办** | 手工/URL/文件/无server双端点导入、探测测试、发布部署、凭证消费、A/B迁移、真实日志及关联监控已有限定浏览器证据；见[rc.5验收](../audits/2026-10-20-runtime-logs-browser-lifecycle.md) | 人工反馈、MCP浏览器/认证规范/多角色等原定组合及目标权限/TLS/健康/回退仍归OPS-01；不重新打开已验分支 |
+| 最终发布交付 | **rc.5预发布交付完成；生产签收待办** | 三平台原生离线包、门禁、归档、latest、标签及远端七附件已核验，见[发布审计](../audits/2026-10-20-release-v1.7.6-rc.5.md) | OPS-01仍依赖SEC/OBS的目标签收，预发布不等于生产交付完成 |
 | 邮件、前端分块与国际化 | **已限定交付，转回归维护** | MAIL-01/02、MAINT-01/02已有受控投递、构建及相关回归 | 生产SMTP/告警触达归目标部署验收；仅修交付阻断或重大问题，不重新扩展整理任务 |
 
 <a id="next-work"></a>
@@ -46,7 +34,7 @@ doc-updated: 2026-10-20
 
 | 顺序与原任务 | 当前状态 / 可并行关系 | 下一步具体工作 | 完成标准 |
 | --- | --- | --- | --- |
-| 1A · SEC-F4-02 安全发布签收 | **IN_PROGRESS，本地SSE补丁已完成；目标签收待办**；与OBS独立 | 已回移官方SSE修复，真实HTTP、干净安装和发布布局合同6/6；构建/打包/启动校验实际补丁。10-08的npm审计为10 moderate版本范围节点、0 high/critical；后续维护迁移与目标身份/网络/开关签收 | 原安全出口有可追溯结果，残余版本范围风险有明确处置；本地修复不代替目标或生产签收 |
+| 1A · SEC-F4-02 安全发布签收 | **IN_PROGRESS，本地SSE补丁已完成；目标签收待办**；与OBS独立 | 已回移官方SSE修复，真实HTTP、干净安装和发布布局合同6/6；构建/打包/启动校验实际补丁。10-26复审为11 moderate、6 high、0 critical，较10-20历史基线变化，处置仍待SEC签收；后续维护迁移与目标身份/网络/开关签收 | 原安全出口有可追溯结果，残余版本范围风险有明确处置；本地修复不代替目标或生产签收 |
 | 1B · OBS-16-04 可观测部署签收 | **工程/功能专项DONE；父项IN_PROGRESS，目标签收待办** | 本机不再继续时间优化。以同候选核对目标账户/ACL、平台/DB、有效开关、保留、恢复和回退；参考硬件及采集A/B仅诊断 | 已验范围可追溯，部署出口有实际目标证据；SQLite3000全量未证明，不作该容量的生产保证 |
 | 2 · OPS-01 最终交付签收 | **WAIT_DEP，最终签收待前置**；本机Gateway浏览器闭环限定完成 | 在同一候选版本与目标环境汇总健康、安全和可观测结果；部署重启、权限/TLS、告警及回退仍待核验；[本机浏览器证据](../audits/2026-10-14-ops-browser-workflow.md) | 交付步骤可复现，必要证据齐备，给出发布/不发布结论；本机流程通过不能代替生产签收 |
 
@@ -54,11 +42,13 @@ doc-updated: 2026-10-20
 
 推进安排：停止因本机时间指标追加数据库优化。OPS打包浏览器主流程已完成；SEC/OBS准备同候选目标签收资料，环境具备后并行执行，OPS汇总交付结论。每包同步证据并提交推送。
 
-当前磁盘策略：用户于2026-10-14明确调整为至少空闲5GiB（5,368,709,120字节）。新构建已完成隔离API+真实MCP完整health复验，返回200，四项均up；当时可用约9.000GiB。原90%规则下的失败保留为历史，不再要求先释放2GiB；见[5GiB门槛与健康复验](../audits/2026-10-14-health-free-space-policy.md)。目标环境仍待签收。
+当前磁盘策略仍为至少空闲5GiB（5,368,709,120字节）。10-14完整health200及10-20发布时空间不足均为当时事实；本轮主机观察与实际启动结果见[收口审计](../audits/2026-10-26-existing-scope-closure.md)，不以磁盘空间单独代替完整健康验收。
 
 明确延期：**DEFER-01（OAuth2）**、**DEFER-02（额外令牌适配与跨协议QoS）**。不计入上述三项，也不作为本里程碑发布的新增开发前置条件。
 
 ## 最近完成的能力包
+
+rc.5已交付真实运行事件日志、导入/绑定修复、完整浏览器生命周期补验及双库CI修复；API186套/1950项、Parser51套/1213项、UI95项及三平台发布证据见[rc.5审计](../audits/2026-10-20-release-v1.7.6-rc.5.md)。以下日期记录保留各轮当时范围和数字，不作为新待办。
 
 2026-10-14用户调整磁盘门槛：[5GiB门槛与健康复验](../audits/2026-10-14-health-free-space-policy.md)完成至少空闲5GiB实现、8项健康回归及API构建；真实API+MCP完整health200、两种监控入口8项HTTP通过。生产签收状态不变。
 
@@ -225,7 +215,7 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | SEC-F3-03 | DONE | 限定全渠道扫描完成（[证据](../audits/2026-09-28-f3-03-secret-leak-matrix.md)）：真实child+回环上游+SQL.js，9合成秘密跨15渠道、904项检查0泄露、检测器非空洞自测；含OS级argv/spawn与实际env/stdio/错误面/静态码/持久行/状态事件/日志投影/管理审计检索；notCovered=部署级HTTP审计sink/ProcessInfo/观测事件sink/Linux argv |
 | SEC-F3a-01 | DONE | 限定在线审计完成（[证据](../audits/2026-09-26-dependency-reachability-audit.md)）：首轮生产32项（0C/10H/21M/1L）；授权后补丁批已执行：主版本内12包+UI echarts6/vue-echarts8，生产降至19（0C/4H/15M/0L），残余全部归Nest12族；Parser 49/1196、API 148/1623与三包构建回归通过 |
 | SEC-F4-01 | DONE | 当前112个SEC叶子以逐项或明确聚合旧ID维护，D2b1/b2/b3a–d及C2b1/b2a/b2b1/b2b2/b3依赖已登记；区分历史/本地限定/未运行环境，不代表F4-02签收 |
-| SEC-F4-02 | IN_PROGRESS | [官方SSE补丁回移](../audits/2026-10-08-security-nest-sse-backport.md)修复实际编码器，vendor/lock可追溯，正常/注入HTTP、干净安装和发布布局6/6通过；构建/打包/启动拒绝旧字节。10-08的npm审计为10 moderate版本节点、0 high/critical；原解析/file-type/UUID门禁和API184套/1932项通过。维护版本迁移与目标身份/网络/开关及生产签收继续待办 |
+| SEC-F4-02 | IN_PROGRESS | [官方SSE补丁回移](../audits/2026-10-08-security-nest-sse-backport.md)修复实际编码器，vendor/lock可追溯，正常/注入HTTP、干净安装和发布布局6/6通过；构建/打包/启动拒绝旧字节。10-26复审为11 moderate、6 high、0 critical，较10-20历史基线变化，处置仍待SEC签收；原解析/file-type/UUID门禁和API184套/1932项通过。维护版本迁移与目标身份/网络/开关及生产签收继续待办 |
 | OBS-06-01 | DONE | 限定矩阵完成：新增`verify:mcp-observability-matrix`聚合4个server脚本（11+17+15+12）与Parser上游失败74项，输出`MCP_OBSERVABILITY_MATRIX_OK`；success/cancel/发送中断/大响应三transport有结果（16MiB Tool省略/8MiB完整），Windows原生对照复现双方timeout；Linux/OBS-06-02、AC-02 retry与MCP调用超时仍归TP06/16 |
 | OBS-06-02 | DONE | 限定跨平台完成（[证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:obs-06-02` `OBS_06_02_VERIFY_OK`——Ubuntu24.04/容器Node v24.15.0与Windows同版本矩阵22行21匹配（server 11/17/15/12、parser 74/74、15 transport单元一致）；1项记录差异=16MiB cork/uncork Linux completed vs Windows timeout（字节相同、两侧native/audited自洽）；裸机内核/PG/负载与生产启用未覆盖 |
 | OBS-10-01 | DONE | 受管业务子进程start/stop/unexpected_exit/lost已进入独立持久投影；runtimeAssetId+serverId+generation绑定，旧generation迟到终止不能覆盖新start，管理心跳不作为业务存活。SQL.js重开4/4、真实child/事件hook 3/3、状态投影1/1、ProcessManager相邻5 suites/32及API type-check/build通过 |
@@ -304,7 +294,7 @@ EXT-01～05已完成Windows本地真实HTTP联合验收：导入/注册→测试
 | EXT-08 | DONE | 限定本机完成（[证据](../audits/2026-09-28-ext-08-ext-06-windows-validation.md)）：`verify:ext-08` `EXT_08_VERIFY_OK` 26/26 gating——隔离9011/5181真实启动API/UI、ready、SPA 10/11路由、超管登录、上传/URL导入/文档转换、治理probe/test/sample/readiness、发布至MCP候选并deploy-mcp激活（candidateRevision与activeRevision一致）；浏览器点击/截图与受管child会话归EXT-06/手工 |
 | EXT-09 | DONE | 限定容器完成（[证据](../audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:ext-09` `EXT_09_VERIFY_OK`——ubuntu:24.04/容器Node v24.15.0同版本、npm ci+三包构建+迁移+启动ready+Streamable E2E（managed-runtime 14/14、publication-endpoints 3/3）+优雅停止；裸机/systemd/PG/UI/长时为notCovered |
 | ENV-01 | DONE | [5GiB门槛与健康复验](../audits/2026-10-14-health-free-space-policy.md)：用户批准至少空闲5GiB，健康专项8/8、API构建及真实API+MCP完整health200通过；监控入口两种方式8项HTTP通过。旧磁盘受限结果归历史，目标部署仍待签收 |
-| OPS-01 | WAIT_DEP | 本机打包UI Gateway主流程限定完成：[浏览器证据](../audits/2026-10-14-ops-browser-workflow.md)；真实手工注册→测试/治理→样本→发布/部署→UI凭证→HTTP消费→同请求监控刷新。最终仍直接依赖SEC-F4-02/OBS-16-04目标环境权限/TLS、告警、备份与回退签收；带绝对server URL的浏览器导入已补验（[OpenAPI导入浏览器证据](../audits/2026-10-14-ops-browser-openapi-import.md)）；文件/无server导入、MCP/迁移仍未覆盖，不重复计数 |
+| OPS-01 | WAIT_DEP | rc.5已完成手工/URL/文件/无server双端点→测试治理→发布部署→凭证消费→监控与A/B迁移的限定浏览器验证，见[现有证据](../audits/2026-10-20-runtime-logs-browser-lifecycle.md)。目标权限/TLS、告警、恢复/回退和生产签收仍直接依赖SEC-F4-02/OBS-16-04；人工反馈、MCP浏览器/认证规范/多角色及其他原定组合保留未验，不重复计数 |
 | MAIL-01 | DONE | [邮件投递范围与受控验收合同](./mail-delivery-scope-and-acceptance.md)冻结三类接口、模板、测试邮箱与证据合同；仅DOC，不改变当前运行默认 |
 | MAIL-02 | DONE | 限定受控投递完成（[证据](../audits/2026-09-26-mail-02-controlled-delivery.md)）：配置/模块/认证/通知/失败恢复/测试/UI全部落地，sink端到端6套件30例+双构建+SQLite drift 0；PG运行时装迁移已由隔离PG实测通过（8迁移/drift 0/API启动）；真实外发、生产启用与队列化另需授权/另立任务 |
 | MAINT-01 | DONE | 限定整理完成（[证据](../audits/2026-09-28-maint-01-frontend-chunking.md)）：首屏预载2113.02→1776.71 kB raw（gzip 619.66→531.98）、CSS 360.15→266.92、vendor-misc 416.06→172.95与循环chunk告警消除；feature-editor/openapi/servers与charts/monitoring/testing退出首屏；仅改vite.config.ts+main.ts；type-check/build/i18n(8/8)通过、lint仅6个既有错误、预览4路由200与懒chunk可用；无路由/接口/依赖变更 |

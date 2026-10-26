@@ -1,10 +1,22 @@
+---
+doc-version: 1.0.0
+doc-status: active
+doc-updated: 2026-10-26
+---
 # Runtime Instance And Regression Closure Development Plan
 
 > Document status: Active
-> Last reviewed: 2026-09-08 (governance and sample-retention amendment; earlier work-package evidence remains dated)
+> Last reviewed: 2026-10-26; original governance/sample-retention amendment: 2026-09-08
 
 
-> 2026-09-15 current scheduling: this WP00-WP90 product plan overlaps OBS/SEC; do not add its ten packages to the 39 specialist packages. Use [work breakdown](./active-work-package-breakdown.md) and [execution status](./active-work-package-execution-status.md) for deduplicated remaining work. The July WP60 DEV02 gap was later implemented internally; real publication acceptance remains. WP70's original implementation completion is historical evidence, while additional full CAS must first be checked against approved scope (PROD-06), not silently added as a new exit condition.
+> Historical scheduling note (2026-09-15): this WP00-WP90 product plan overlaps OBS/SEC; do not add its ten packages to the 39 specialist packages. Use [work breakdown](./active-work-package-breakdown.md) and [execution status](./active-work-package-execution-status.md) for deduplicated remaining work. The July WP60 DEV02 gap was later implemented internally; real publication acceptance remains. WP70's original implementation completion is historical evidence, while additional full CAS must first be checked against approved scope (PROD-06), not silently added as a new exit condition.
+
+## Current execution boundary (2026-10-26)
+
+The approved WP00-WP90 contracts below are retained, not a second backlog. Current scoped implementation and EXT acceptance are recorded in the [unified ledger](./active-work-package-execution-status.md); remaining exits are in [open items](../reference/open-items.md). MCP endpoint/UI (former DEV-01), binary local lifecycle and local Gateway/browser workflows have later completion evidence. rc.5 clean SQLite/PostgreSQL initialization verifies 73 tables and 8 migrations. Production, human feedback and unrun target combinations remain open. See [rc.5 delivery](../audits/2026-10-20-release-v1.7.6-rc.5.md) and [closure audit](../audits/2026-10-26-existing-scope-closure.md).
+
+<details>
+<summary>July/September implementation progress and then-open gaps (dated history)</summary>
 
 ## Status
 
@@ -45,6 +57,9 @@ Implementation progress on 2026-07-22:
 
 Drift review on 2026-09-07 found no architecture-level reversal: successful samples remain automatic, runtime coordinates remain instance-owned, and Runtime Asset managed MCP servers cannot bypass verification through legacy start/restart actions. The former eager verification-required, instance-aware readiness, sample size/cleanup, and mutation-audit gaps are implemented in the current baseline; MCP endpoint UI/contract completion and external acceptance remain tracked in `docs/reference/open-items.md`. Manual real-upstream acceptance, the remaining Windows interactive startup/import checks, and the complete Ubuntu release path remain explicit release blockers.
 
+
+</details>
+
 ## Purpose
 
 Close the ApiNova product loop across:
@@ -67,7 +82,7 @@ The target operator lifecycle remains:
 
 The new work strengthens the contracts between these stages. It must not restore registration-time quick publish behavior.
 
-## 1. Current Problems To Solve
+## 1. Original Problems And Approved Design Inputs
 
 ### 1.1 Imported addresses are not durable runtime truth
 

@@ -1,0 +1,620 @@
+{
+  "date": "2026-10-26",
+  "sourceHead": "7be57aab3f709f6e559f8557b1b8a8376e2192e3",
+  "releaseTag": "v1.7.6-rc.5",
+  "releaseSource": "a2639ce8d20d0709a3088e9de7e59bbd5dee8159",
+  "platform": "win32",
+  "node": "v24.15.0",
+  "scope": "Windows loopback, isolated new SQLite databases; no production or human signoff",
+  "build": {
+    "command": "npm run build",
+    "passed": true,
+    "log": ".tmp/closure-20261026/build.log",
+    "sha256": "380794d64cfda9623cca3455fa20c44be511bb9407ef2c04195c89d6e12d57ca"
+  },
+  "environment": {
+    "startedAt": "2026-10-26T01:57:22.880Z",
+    "finishedAt": "2026-10-26T01:57:39.911Z",
+    "diskPolicy": {
+      "minimumFreeBytes": 5368709120,
+      "unit": "GiB",
+      "minimumFreeGiB": 5
+    },
+    "systemDisk": {
+      "free": 20767936512,
+      "size": 106757660672,
+      "usedRatio": 0.8054665456204874,
+      "requiredFreeBytes": 5368709120,
+      "additionalFreeBytesNeeded": 0,
+      "source": "filesystem_statfs"
+    },
+    "ready": {
+      "status": 200,
+      "body": {
+        "status": "ready",
+        "timestamp": "2026-10-26T01:57:35.694Z",
+        "uptime": 5.0413096
+      }
+    },
+    "live": {
+      "status": 200,
+      "body": {
+        "status": "alive",
+        "timestamp": "2026-10-26T01:57:36.747Z",
+        "pid": 3688
+      }
+    },
+    "monitoring": [
+      {
+        "mode": "packaged",
+        "pageStatus": 200,
+        "readyStatus": 200,
+        "missingApiStatus": 404,
+        "socketHandshakeStatus": 200
+      },
+      {
+        "mode": "vite",
+        "pageStatus": 200,
+        "readyStatus": 200,
+        "missingApiStatus": 404,
+        "socketHandshakeStatus": 200
+      }
+    ],
+    "fullIdle": {
+      "status": 503,
+      "body": {
+        "success": false,
+        "error": {
+          "code": "SERVICE_UNAVAILABLE",
+          "message": {
+            "mcp_server": {
+              "status": "down",
+              "message": "connect ECONNREFUSED 127.0.0.1:53950"
+            }
+          },
+          "details": {
+            "status": "error",
+            "info": {
+              "memory_heap": {
+                "status": "up"
+              },
+              "memory_rss": {
+                "status": "up"
+              },
+              "disk": {
+                "status": "up",
+                "path": "C:\\",
+                "freeBytes": 20776456192,
+                "requiredFreeBytes": 5368709120
+              }
+            },
+            "details": {
+              "memory_heap": {
+                "status": "up"
+              },
+              "memory_rss": {
+                "status": "up"
+              },
+              "disk": {
+                "status": "up",
+                "path": "C:\\",
+                "freeBytes": 20776456192,
+                "requiredFreeBytes": 5368709120
+              },
+              "mcp_server": {
+                "status": "down",
+                "message": "connect ECONNREFUSED 127.0.0.1:53950"
+              }
+            }
+          },
+          "timestamp": "2026-10-26T01:57:36.956Z",
+          "path": "/health",
+          "method": "GET"
+        }
+      }
+    },
+    "fullRunning": {
+      "status": 200,
+      "body": {
+        "status": "ok",
+        "info": {
+          "memory_heap": {
+            "status": "up"
+          },
+          "memory_rss": {
+            "status": "up"
+          },
+          "disk": {
+            "status": "up",
+            "path": "C:\\",
+            "freeBytes": 20762865664,
+            "requiredFreeBytes": 5368709120
+          },
+          "mcp_server": {
+            "status": "up"
+          }
+        },
+        "error": {},
+        "details": {
+          "memory_heap": {
+            "status": "up"
+          },
+          "memory_rss": {
+            "status": "up"
+          },
+          "disk": {
+            "status": "up",
+            "path": "C:\\",
+            "freeBytes": 20762865664,
+            "requiredFreeBytes": 5368709120
+          },
+          "mcp_server": {
+            "status": "up"
+          }
+        }
+      }
+    },
+    "outcome": "FULL_HEALTH_PASSED",
+    "contractSatisfied": true,
+    "remainingFailures": [],
+    "cleanup": {
+      "api": true,
+      "mcp": true,
+      "ui": true
+    },
+    "artifacts": [
+      {
+        "path": "scripts\\verify-env-01.cjs",
+        "sha256": "1fa4366550eef54a9b5e66142a0fb951c378b8c6e36451ecbdd19079266bcf79"
+      },
+      {
+        "path": "packages\\api-nova-api\\dist\\src\\main.js",
+        "sha256": "6a4fe3454476c997967d48d016f45f6243728d863f2d8bec467494c3a625760c"
+      },
+      {
+        "path": "packages\\api-nova-server\\dist\\cli.js",
+        "sha256": "c6e2f85c3e1039b315d8cf37f3b9320c003e74c456404fbb1606287072e56049"
+      },
+      {
+        "path": "packages\\api-nova-api\\dist\\src\\modules\\health\\disk-free-space.health.js",
+        "sha256": "18dc91f42c588ef05a92c005f5f0ef6c9fee4f4d96591fe64462df6a18104261"
+      },
+      {
+        "path": "packages\\api-nova-api\\dist\\src\\modules\\health\\health.controller.js",
+        "sha256": "1c6598429e3b2fa50ac7537d5c5d153b5b854f2e3485502f64e6103cc139f268"
+      }
+    ],
+    "limits": [
+      "Local Windows only; no deployment signoff",
+      "Readiness only measures process uptime",
+      "MCP health does not prove tool business correctness"
+    ]
+  },
+  "browser": {
+    "command": "node scripts/verify-ops-01-browser.cjs --lifecycle --logs",
+    "startedAt": "2026-10-26T01:57:22.814Z",
+    "finishedAt": "2026-10-26T01:58:28.505Z",
+    "scenario": "openapi-no-server-multi-endpoint-migration",
+    "uiMode": "packaged",
+    "browser": {
+      "version": "156.0.4314.42",
+      "pageErrors": []
+    },
+    "ok": true,
+    "steps": [
+      {
+        "id": "isolated.migration",
+        "passed": true
+      },
+      {
+        "id": "isolated.start",
+        "passed": true
+      },
+      {
+        "id": "browser.login",
+        "passed": true
+      },
+      {
+        "id": "browser.openapi_url_import",
+        "passed": true
+      },
+      {
+        "id": "browser.unbound_attach_without_reimport",
+        "passed": true
+      },
+      {
+        "id": "fixture.registry_A",
+        "passed": true
+      },
+      {
+        "id": "browser.qualify_A./imported",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.mark_smoke_sample",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.create_gateway",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.add_gateway_member",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.configure_gateway_profile_route",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.bind_gateway_upstream",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.publish_gateway_member",
+        "passed": true
+      },
+      {
+        "id": "browser.qualify_A./secondary",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.mark_smoke_sample",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.add_gateway_member",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.configure_gateway_profile_route",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.bind_gateway_upstream",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.publish_gateway_member",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.deploy_gateway",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.create_consumer_credential",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.real_http_consumer",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.runtime_access_logs_refresh",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.monitoring_navigation_terminal_refresh",
+        "passed": true
+      },
+      {
+        "id": "browser.multi_endpoint_consumer_A",
+        "passed": true
+      },
+      {
+        "id": "browser.archive_A_attach_B",
+        "passed": true
+      },
+      {
+        "id": "fixture.registry_B",
+        "passed": true
+      },
+      {
+        "id": "browser.qualify_B./imported",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.bind_gateway_upstream",
+        "passed": true
+      },
+      {
+        "id": "browser.qualify_B./secondary",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.bind_gateway_upstream",
+        "passed": true
+      },
+      {
+        "id": "OPS01.browser.deploy_gateway",
+        "passed": true
+      },
+      {
+        "id": "browser.migration_identity_and_persisted_verification",
+        "passed": true
+      },
+      {
+        "id": "browser.multi_endpoint_consumer_B",
+        "passed": true
+      },
+      {
+        "id": "browser.logs_real_persisted_events",
+        "passed": true
+      },
+      {
+        "id": "browser.logs_failure_empty_and_recovery",
+        "passed": true
+      },
+      {
+        "id": "browser.logs_paging_filters_and_escaped_text",
+        "passed": true
+      }
+    ],
+    "cleanup": {
+      "api": true,
+      "mcp": true,
+      "upstreamA": true,
+      "upstreamB": true
+    },
+    "notCovered": [
+      "external deployed upstreams",
+      "PostgreSQL",
+      "production identity providers",
+      "MCP transport",
+      "browser manual registration",
+      "browser file import",
+      "production deployment signoff"
+    ],
+    "artifacts": [
+      {
+        "path": "scripts\\verify-ops-01-browser.cjs",
+        "sha256": "db8350df07543f2740f60266dc82b668f974c900b4c2e2bc2a42086722248b40"
+      },
+      {
+        "path": "scripts\\ops-browser-lifecycle.cjs",
+        "sha256": "f5235e88cadd0ede6ca4a47478c4094df9e11d1bba9a90a27386820e54431917"
+      },
+      {
+        "path": "scripts\\ops-browser-logs.cjs",
+        "sha256": "847f6056022e527968c7bd7d9baa14cdd935883b6dd213426211270cd7f03cf0"
+      },
+      {
+        "path": "packages\\api-nova-ui\\src\\services\\runtime-logs.ts",
+        "sha256": "fdc508692bcffa4af30d5b35815ac62b5c9d48e5c1b30bfbdde4938ff28474c0"
+      },
+      {
+        "path": "packages\\api-nova-ui\\src\\modules\\logs\\LogViewer.vue",
+        "sha256": "4a43016b2e32ec891d724047660192a4e0f81910def6d65fcdf1bb973f9d7b53"
+      },
+      {
+        "path": "scripts\\ops-browser-import.cjs",
+        "sha256": "38b44ca407d1f4506600afa3a55537d250b98da2ac9d707ad4fa920848a09b88"
+      },
+      {
+        "path": "packages\\api-nova-ui\\src\\modules\\openapi\\OpenAPIManager.vue",
+        "sha256": "bb35e6a65d0e7b0ce993305fe5a45e63e9459350ddb28c0b0e4974c7034d9f6b"
+      },
+      {
+        "path": "scripts\\ops-browser-scenario.cjs",
+        "sha256": "65aa6bd3bfa48019f68c33c89df7794955bdbced0c80a4948a847ac182c5d0e4"
+      },
+      {
+        "path": "scripts\\ops-browser-publication.cjs",
+        "sha256": "f0c886d1fccceb29f0a99b09c6ed7838dce3bf1496312f058aec00f21f4d3db4"
+      },
+      {
+        "path": "scripts\\ops-browser-consumption.cjs",
+        "sha256": "cdc2b1be2c057492fdac908eeff1bb54e6abbb48fbbb47fbe3fc4322a5c4d97d"
+      },
+      {
+        "path": "packages\\api-nova-ui\\src\\modules\\endpoint-registry\\EndpointRegistry.vue",
+        "sha256": "b83bcc0275e2530c5720d7aa42958f4f35b48c7bf0c12b40f6ffe825718072e4"
+      },
+      {
+        "path": "packages\\api-nova-ui\\src\\modules\\runtime-assets\\RuntimeAssetDetail.vue",
+        "sha256": "8a8e821ba6dff280d8d98065de702a3eda5106df8c3bea1e598d36054870f5a5"
+      },
+      {
+        "path": "packages\\api-nova-api\\dist\\src\\main.js",
+        "sha256": "6a4fe3454476c997967d48d016f45f6243728d863f2d8bec467494c3a625760c"
+      },
+      {
+        "path": "packages\\api-nova-ui\\src\\modules\\endpoint-registry\\SourceServiceInstancesDialog.vue",
+        "sha256": "028de679d501db1e939a82f4997006fd069a7fc14201c3a9b5343d73ac116f47"
+      },
+      {
+        "path": "packages\\api-nova-ui\\src\\modules\\endpoint-registry\\RuntimeUpstreamBindingDialog.vue",
+        "sha256": "9d81f9de16667045cb4c4666c0cb90dfe926f5ca896404d3c122b14d9a13c609"
+      },
+      {
+        "path": "packages\\api-nova-parser\\dist\\core\\normalizer.js",
+        "sha256": "516a455f116116da2c85355cbc329c71bf9a0bda16a5e9c9104af86fd3f83a09"
+      },
+      {
+        "path": "packages\\api-nova-api\\dist\\src\\modules\\openapi\\services\\parser.service.js",
+        "sha256": "1d21ea13dd9e451ecdaa4a263a67bbce6a9cdf8e619f9999c7721b4a47ca2e45"
+      },
+      {
+        "path": "packages\\api-nova-api\\dist\\src\\modules\\asset-catalog\\services\\asset-catalog.service.js",
+        "sha256": "24ffacd599a6e30fdf13c4da681c3bf27c3c5e3d883ab89244f6a88c642e8f3e"
+      },
+      {
+        "path": "packages\\api-nova-api\\dist\\src\\modules\\gateway-runtime\\services\\gateway-security.service.js",
+        "sha256": "4ec917a8af34cde4558d02d8f8cdf1d698ace55cccff2f7f56989a2854f51151"
+      },
+      {
+        "path": "packages\\api-nova-api\\dist\\src\\modules\\gateway-runtime\\services\\gateway-candidate-replay-authority.js",
+        "sha256": "fdde55e6d2f53d3065efa488ebfe3e45d23e622f66a8e286a2a9f53abfd9be79"
+      },
+      {
+        "path": "packages\\api-nova-api\\dist\\src\\modules\\runtime-verification\\services\\gateway-candidate-replay.service.js",
+        "sha256": "8ca739ff0c3bf1920aad148d2b5029948c1b4fa81e53aae082d24a7b6bb4bce3"
+      }
+    ]
+  },
+  "mcp": {
+    "sdkVersion": "1.32.1",
+    "checks": [
+      {
+        "name": "sdk-matches-lockfile",
+        "status": "pass"
+      },
+      {
+        "name": "isolated-ports-free",
+        "status": "pass"
+      },
+      {
+        "name": "built-artifacts-present",
+        "status": "pass"
+      },
+      {
+        "name": "migrations-on-isolated-db",
+        "status": "pass"
+      },
+      {
+        "name": "loopback-upstream-ready",
+        "status": "pass"
+      },
+      {
+        "name": "seed-publication-graph",
+        "status": "pass"
+      },
+      {
+        "name": "real-api-listening",
+        "status": "pass"
+      },
+      {
+        "name": "management-login",
+        "status": "pass"
+      },
+      {
+        "name": "runtime-spec-callback-credential-guard",
+        "status": "pass"
+      },
+      {
+        "name": "selected-transport-credentials-issued",
+        "status": "pass"
+      },
+      {
+        "name": "legacy-publication-deploy",
+        "status": "pass"
+      },
+      {
+        "name": "legacy-publication-start",
+        "status": "pass"
+      },
+      {
+        "name": "legacy-child-process-and-argv",
+        "status": "pass"
+      },
+      {
+        "name": "streamable-sdk-connect-list-call",
+        "status": "pass"
+      },
+      {
+        "name": "unauthorized-transport-credentials-rejected",
+        "status": "pass"
+      },
+      {
+        "name": "tool-scope-credential-restricted",
+        "status": "pass"
+      },
+      {
+        "name": "session-identity-and-cross-subject-denial",
+        "status": "pass"
+      },
+      {
+        "name": "revocation-denies-active-and-new-sessions",
+        "status": "pass"
+      },
+      {
+        "name": "sse-publication-redeploy",
+        "status": "pass"
+      },
+      {
+        "name": "sse-sdk-connect-list-call",
+        "status": "pass"
+      },
+      {
+        "name": "secret-scan-artifacts-and-logs",
+        "status": "pass"
+      },
+      {
+        "name": "trusted-asset-deploy-through-api",
+        "status": "pass"
+      },
+      {
+        "name": "trusted-managed-channel-ready",
+        "status": "pass"
+      },
+      {
+        "name": "trusted-managed-sdk-connect-list-call",
+        "status": "pass"
+      },
+      {
+        "name": "trusted-managed-stop-cleanup",
+        "status": "pass"
+      }
+    ],
+    "failures": [],
+    "notCovered": [
+      {
+        "item": "linux-variant",
+        "reason": "Windows-only execution; Ubuntu/EXT-09 matrix was not run here."
+      },
+      {
+        "item": "external-network",
+        "reason": "Loopback-only; no external receivers, real upstreams, OIDC/OAuth provider or EXT-10 flows."
+      },
+      {
+        "item": "production-enablement",
+        "reason": "No production enablement: Verified/canPublish stays closed, no production migrations or DI switches."
+      },
+      {
+        "item": "trusted-lifecycle-via-api-config",
+        "reason": "The API trusted lifecycle reads managedMcp.handoffSources/lifecycleApproval through Nest ConfigService, which now supports the validated API_NOVA_MANAGED_MCP_CONFIG environment envelope (and still accepts injected host config). The trusted managed child is proven here through the existing SEC-E1-03 fixture channel, while the env-driven config path is covered by API unit/HTTP specs."
+      }
+    ],
+    "distStale": false,
+    "portsReleased": {
+      "api": true,
+      "legacyMcp": true,
+      "trustedMcp": true
+    },
+    "passed": true,
+    "fatal": null
+  },
+  "mcpFirstAttempt": {
+    "passed": false,
+    "checks": 1,
+    "failure": "Obsolete sdk-pinned-1.29.0 assertion rejected current installed/locked 1.32.1 before services started",
+    "remedy": "Verifier now compares installed SDK version to root package-lock.json; no product or lock change"
+  },
+  "executionPolicyDiagnostic": {
+    "readSucceeded": false,
+    "limitation": "Windows PowerShell could not autoload Microsoft.PowerShell.Security for Get-ExecutionPolicy. This shell diagnostic does not prove target account execution policy; health and MCP/browser processes ran successfully."
+  },
+  "rawEvidence": [
+    {
+      "path": ".tmp/env-01-NRI96C/evidence.json",
+      "sha256": "42af4b7f7bc89ddf58633e1eceddab3a4894e383bd8a35e8a4d9a27e563f46d7"
+    },
+    {
+      "path": ".tmp/ops-01-browser-SIYtjP/evidence.json",
+      "sha256": "41da9babae161901f34acb280c631857265f70856409531ac0d058bc483aeddc"
+    },
+    {
+      "path": ".tmp/closure-20261026/ext06/evidence.json",
+      "sha256": "f1a16496ccbe18416e44b6cbd32c7c12463dd462c41b2e4090040f97b59fd1ef"
+    },
+    {
+      "path": ".tmp/closure-20261026/ext06-rerun/evidence.json",
+      "sha256": "00bc3d65f023072e7fc2619f9d4b3fd76f5a2a28d52a7f8ac389da53b342b2a0"
+    }
+  ],
+  "changedVerifier": {
+    "path": "scripts/verify-ext-06.cjs",
+    "sha256": "b7c92ebcaeb68ca5bde5ff5960fb6c4a22a3ad759ba9eb2156309c1f51db1e9f"
+  }
+}

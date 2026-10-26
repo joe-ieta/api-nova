@@ -40,6 +40,8 @@ const SKIP_MANAGED = process.env.EXT06_SKIP_MANAGED === '1';
 
 const sdkRoot = path.resolve(path.dirname(require.resolve('@modelcontextprotocol/sdk/server/mcp.js')), '..', '..', '..');
 const sdkVersion = JSON.parse(fs.readFileSync(path.join(sdkRoot, 'package.json'), 'utf8')).version;
+const lockedSdkVersion = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package-lock.json'), 'utf8'))
+  .packages['node_modules/@modelcontextprotocol/sdk'].version;
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js');
 const { SSEClientTransport } = require('@modelcontextprotocol/sdk/client/sse.js');
@@ -364,7 +366,7 @@ async function main() {
     if (fs.existsSync(artifact)) fs.rmSync(artifact, { force: true });
   }
 
-  await step('sdk-pinned-1.29.0', async () => { assert.equal(sdkVersion, '1.29.0'); });
+  await step('sdk-matches-lockfile', async () => { assert.equal(sdkVersion, lockedSdkVersion); });
   await step('isolated-ports-free', async () => {
     await assertPortFree(API_PORT, 'API');
     await assertPortFree(LEGACY_MCP_PORT, 'legacy MCP');

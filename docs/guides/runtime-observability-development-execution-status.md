@@ -1,16 +1,21 @@
 ---
-doc-version: 2.36.0
+doc-version: 2.37.0
 doc-status: active
-doc-updated: 2026-10-14
+doc-updated: 2026-10-26
 ---
 # 可观测性开发执行与验收状态
 
-> **2026-10-14调度口径更新：本页保留专题阶段证据和原验收合同，以下历史计数/“当前未完成”文字不是现行待开发队列。** 当前能力状态、未关闭事项与并发依赖以[统一执行台账](./active-work-package-execution-status.md)、[任务划分](./active-work-package-breakdown.md)及[开发交接](./development-handoff-2026-10-14.md)为准。现保留SEC-F4-02、OBS-16-04、OPS-01三项目标签收和两项延期；已完成工程不重开，旧快照不能作为生产可用证明。
+> 当前调度以[统一台账](./active-work-package-execution-status.md)和[open-items](../reference/open-items.md)为准；本页保留专题证据和原合同，不另生成任务计数。2026-10-26收口不新增功能，不改变生产签收和延期状态。
 
-> Document status: Active evidence register
-> 当前任务包计数与未完成清单见[统一执行台账](./active-work-package-execution-status.md)。本页与[专题复核](./runtime-observability-completion-review.md)保留历史阶段证据。
+## 当前收口状态（2026-10-26）
 
-> 2026-09-15 调度重排：父包原退出条件不变；当前细分、跨计划归属和下一队列见[工作包划分](./active-work-package-breakdown.md)，逐项状态见[子任务执行台账](./active-work-package-execution-status.md)。父包 IN_PROGRESS 不表示正在同时执行；文档子项完成不计为代码完成。
+209条任务中204条限定DONE；SEC-F4-02、OBS-16-04保留IN_PROGRESS，OPS-01保留WAIT_DEP，DEFER-01/02继续延期。rc.5已完成预发布，人工反馈与目标生产签收仍待办，见[发布审计](../audits/2026-10-20-release-v1.7.6-rc.5.md)和[本轮验收](../audits/2026-10-26-existing-scope-closure.md)。
+
+状态流/配额/清理/受管child/许可和host装配的各限定DONE按统一台账复用；局部证据不覆盖未验平台、长时、多主机及实际外部接收端。已有unknown/null指标不改报完整或实时业务存活。
+
+<details>
+<summary>原阶段状态、证据与未验边界（按各节日期追溯，不是现行开发队列）</summary>
+
 
 ## 1. 原阶段快照
 
@@ -204,3 +209,4 @@ SQL.js CAS/坏行/重开专项4/4、真实Windows child start→taskkill stop与
 OBS-10-02A限定DONE：复用`RuntimeInvocationEntity`当前行、managed lifecycle投影及`CallObservabilityStore`快照水位，完成5100条保留历史有界聚合、revision水位、资产隔离、legacy坏行与SQL.js重开，专项4 suites/15 tests通过。retained unfinished=0只表示保留事实中没有未完成项，不能解释为无业务流量；coverage保持unknown，live active保持null；状态只投影最新generation，不是全历史。本切片未修改Realtime/WebSocket，统一API build由并行工作包独立执行，不在此预记结果。
 
 预研确认managed lifecycle最新行、legacy runtime state和asset目录没有共同调用事件水位，不能直接宣称跨状态snapshot或断线无丢失。OBS-10-02B1现限定DONE：managed start/terminal与最新generation投影在同一Store事务写入`server.state_changed`并分配sequence，4 suites/21 tests及API build通过；只证明同一DataSource内并发与耐久delta，不接Realtime，也不证明跨实例全局水位或实时liveness。OBS-10-02B2现限定DONE：仅对有runtimeAssetId的gateway_request/mcp_tool，在in-flight成员变化时与调用修订同一Store事务写入sequence-bound状态delta；5 suites/28 tests及API build通过。storage旧断言因新增合法delta首轮2项失败，精确更新后storage单跑32/32；events 16、invocations 38、restart 3首轮均通过，共89项分别验证，不称一次性脚本全绿。只改Store、Event reader、新spec与旧storage脚本，不接Realtime/grant/ACK/gap恢复。legacy状态、asset目录、全局多实例水位及实时liveness继续为unknown。OBS-10父包按限定范围DONE；OBS-13-01现拆为A/B/C。A限定DONE：独立server_state_v1 opaque grant绑定H、TTL、principal/fingerprint、授权asset/filter、current auth、isPartial/excluded，5 suites/31 tests及API build通过；兼容43项首轮42过，补旧EventGap夹具后overview 20/20，其余23项此前通过，不称一次性全绿。A不接Realtime或消费者，现有invocation_facts_only合同保持不变。原B再拆为B1/B2。B1限定DONE：新状态专用reader/spec与A authorizer小接口共3文件，复用A grant、签名cursor与同一事件表，每页读前后复核当前DB角色/资产范围，只接受managed_server_process_lifecycle和retained_business_in_flight，gap/expiry强制resnapshot；生命周期delta仅提供受限字段和refreshRequired。6 suites/39 tests、旧events/overview/bridge/Realtime脚本39/39及API build通过。组合首轮38/39源于SQL.js TypeORM bulk fixture ID回写交换；固定UUID复现后以updateEntity(false)和ID不可变断言修正夹具，最终39/39，生产reader未放宽。B1未注册module/controller/WS；B2限定DONE：新增state realtime service/spec及module/gateway接线共4文件，使用新server_state_v1事件名接WebSocket、整页ACK、ACK前重放与重连游标，真实Socket.IO 3 suites/23 tests、旧Realtime脚本11/11及API build通过。两真实连接以独立room隔离，无跨协议帧、旧broadcast或initial snapshot泄漏，并覆盖ACK精确、断线重放、gap、撤权与过期；过期测试首轮全局时间跃迁误触Engine.IO heartbeat，修为仅同步grant.resolve内控时，生产TTL未变。旧invocation_facts_only订阅、handler、cursor和协议保持不变。C现限定DONE：共3文件，新增18项验收spec，将state reader未知evidenceScope由skip改为EVENT_CURSOR_EXPIRED，并以旧reader spec两处合法过滤外fixture保持原断言；真实Socket.IO+SQL.js 4 suites/41 tests、旧realtime+events脚本27/27及API build通过。撤权/锁定/asset缩窄、grant TTL/authorizer重启、ACK前重放/后续传、scoped gap和跨旧协议隔离均通过；正版本乱序只发refreshRequired，durable重复sequence由数据库唯一约束拒绝，未ACK重放为合法语义。OBS-13-01 A/B1/B2/C聚合限定DONE，OBS-13-02解锁READY；无UI reducer/exactly-once、多实例grant/全局水位/Socket.IO房间或跨部署证据，legacy状态、asset目录及live liveness继续unknown，因此TP13/父OBS-13保持IN_PROGRESS。
+</details>

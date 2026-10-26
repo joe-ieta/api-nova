@@ -1,18 +1,11 @@
 ---
-doc-version: 1.13.0
+doc-version: 1.14.0
 doc-status: active
-doc-updated: 2026-10-14
+doc-updated: 2026-10-26
 ---
 # Staged Development Plan
 
-> 2026-10-14总体审查与跨线程续接见[开发交接文档](./development-handoff-2026-10-14.md)：已完成能力、全部未关闭事项、证据边界、并发依赖及人工要求。本轮为文档复核，不新增任务或产品验收。
-
-> 2026-10-08 用户调整验收规则：未关闭事项的时间门禁不再作为不能关闭的硬条件。可见3秒、投递5秒、查询2秒及采集A/B开销目标保留为诊断指标；本机耗时不再单独阻断任务关闭。完整数据/投递、持久化、权限与恢复正确性仍为验收条件，生产签收仍待办。历史性能记录保留当时口径。
-
-> Document status: Active
-> Last reviewed: 2026-10-14
-
-> 2026-09-15 调度重排：父包原退出条件不变；当前细分、跨计划归属和下一队列见[工作包划分](./active-work-package-breakdown.md)，逐项状态见[子任务执行台账](./active-work-package-execution-status.md)。父包 IN_PROGRESS 不表示正在同时执行；文档子项完成不计为代码完成。
+> Current closure baseline: v1.7.6-rc.5, reviewed 2026-10-26. Use the [unified ledger](./active-work-package-execution-status.md) for status and [open items](../reference/open-items.md) for remaining exits. Phase 1/2 remain closed; Phase 3 contains existing acceptance and sign-off only. See the [closure evidence](../audits/2026-10-26-existing-scope-closure.md). No new feature or task is added.
 
 ## Purpose
 
@@ -53,8 +46,8 @@ Closed baseline:
 
 Remaining work:
 
-- only incremental governance productivity and testing-report refinements remain
-- these refinements do not reopen Phase 1
+- no new Phase 1 feature is scheduled for this closure
+- address only defects blocking the existing accepted workflow
 
 ## Phase 2: Publication, Runtime Model, Observability
 
@@ -71,8 +64,8 @@ Closed baseline:
 
 Remaining work:
 
-- compatibility cleanup and deeper monitoring correlation continue in Phase 3
-- these follow-ups do not reopen Phase 2
+- existing target acceptance continues under SEC-F4-02, OBS-16-04 and OPS-01
+- this does not schedule open-ended compatibility or monitoring enhancements
 
 ## Phase 3: Product Workflow Acceptance And Release Sign-off
 
@@ -96,16 +89,17 @@ Current progress:
 
 Next order:
 
-The 2026-10-14 packaged-browser run closes the local manual-registration Gateway journey through test/governance, smoke samples, publication/deployment, UI-created credentials, real HTTP consumption and correlated terminal monitoring after reload. Registry v1 policy selection, production i18n JSON rendering, draft-member visibility and upstream source identity blockers were fixed. Browser OpenAPI-import/MCP/migration branches and production sign-off are not implied. See [browser evidence](../audits/2026-10-14-ops-browser-workflow.md).
+1. Reuse the rc.5 evidence for the local Gateway browser lifecycle, file/URL/no-server import, two endpoints, A/B migration, logs and monitoring. These branches are already accepted within their stated scope; human feedback and MCP-browser/auth-spec/multi-role combinations remain separately recorded.
+2. Run existing bounded local acceptance where prerequisites are available, and record passed/failed/unrun with source and build identity. Do not turn missing target deployment into repeated local engineering.
+3. Complete SEC-F4-02 and OBS-16-04 against the same approved target; OPS-01 consolidates the final deployment conclusion. Production remains unsigned while the user continues local isolated validation.
 
-1. Ingestion coordination and delivery batching are complete within the tested scope: 43 dual-database groups and 186 API suites / 1940 tests pass. PostgreSQL passes the complete 3000-call flow. SQLite returns all 3000 business responses with intact source records, but the 30-minute observation does not cover every terminal projection/delivery; it is not claimed as full acceptance. Per the user decision, timing and bounded load observations remain non-blocking diagnostics, not a reason to keep reopening implementation work. The local packaged-UI Gateway browser workflow is now accepted within its stated scope; continue target-environment sign-off. See [scoped acceptance and diagnostics](../audits/2026-10-08-observability-functional-closure.md).
-2. Consolidate the results on one candidate version and finish target-environment sign-off (SEC-F4-02, OBS-16-04, OPS-01). The user selected local isolated validation for now; production sign-off remains open.
+Timing targets and the incomplete SQLite3000 bounded observation remain non-blocking diagnostics under the user's existing decision. Preserve integrity, durability, authorization and recovery requirements; do not claim full capacity or invent a new optimization phase.
 
 PROD-04C is complete within local Windows/isolated PostgreSQL scope: 16 real-HTTP lifecycle checks plus related regression coverage; production identity/ACL, Linux semantics and real MCP binary outbound remain outside this run. See [binary lifecycle evidence](../audits/2026-10-08-prod-04c-binary-lifecycle.md).
 
-ENV-01 is complete under its original pass-or-evidenced-limitation criterion: the real MCP health failure is now propagated, while full health still reports the host system-disk threshold. Monitoring SPA routing is repaired in packaged and Vite startup modes. See [health evidence](../audits/2026-10-08-env-01-health-and-monitoring.md). A completed diagnostic task is not a claim that full health is green.
+ENV-01 uses the approved minimum 5GiB free-space policy. The 2026-10-26 isolated rerun passed full API+MCP health (200), MCP-down propagation (503), and eight packaged/Vite monitoring checks. Earlier disk failures are dated host observations. See [current evidence](../audits/2026-10-26-existing-scope-closure.md); target account policy and production acceptance remain separate.
 
-EXT-01 through EXT-05 are now complete within Windows local real-HTTP scope: 11/11 workflow stages, 94 suites/1312 tests, and the final API build passed. The workflow exposed and fixed incorrect instance creation for unbound imports, authenticated candidate replay, and stale probe addresses after instance migration. See [acceptance evidence](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md). PostgreSQL, Linux, browser interaction, production identity, and MCP transport are outside this run.
+EXT-01 through EXT-05 are now complete within Windows local real-HTTP scope: 11/11 workflow stages, 94 suites/1312 tests, and the final API build passed. The workflow exposed and fixed incorrect instance creation for unbound imports, authenticated candidate replay, and stale probe addresses after instance migration. See [acceptance evidence](../audits/2026-10-08-ext-01-05-gateway-lifecycle.md). That 10-08 HTTP run did not cover PostgreSQL, Linux, browser interaction, production identity or MCP. Later bounded browser evidence is in the rc.5 audit; original limits are not erased.
 
 F3 host assembly, managed-child lifecycle and revocation, F1 evidence/permit integration, EXT-06 through EXT-09, controlled mail delivery, delivery i18n, and measured frontend chunking already have scoped acceptance records. Reuse those results; only fix defects that block the current workflow or have a clear material impact. Current details and remaining boundaries are maintained in [open items](../reference/open-items.md) and the [execution ledger](./active-work-package-execution-status.md).
 

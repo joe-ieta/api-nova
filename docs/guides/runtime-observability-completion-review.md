@@ -1,16 +1,21 @@
 ---
-doc-version: 2.30.0
+doc-version: 2.31.0
 doc-status: active
-doc-updated: 2026-10-14
+doc-updated: 2026-10-26
 ---
 # 统一调用可观测性：专题阶段完成情况与证据
 
-> **2026-10-14调度口径更新：本页保留专题阶段证据和原验收合同，以下历史计数/“当前未完成”文字不是现行待开发队列。** 当前能力状态、未关闭事项与并发依赖以[统一执行台账](./active-work-package-execution-status.md)、[任务划分](./active-work-package-breakdown.md)及[开发交接](./development-handoff-2026-10-14.md)为准。现保留SEC-F4-02、OBS-16-04、OPS-01三项目标签收和两项延期；已完成工程不重开，旧快照不能作为生产可用证明。
+> 当前调度以[统一台账](./active-work-package-execution-status.md)和[open-items](../reference/open-items.md)为准；本页保留专题证据和原合同，不另生成任务计数。2026-10-26收口不新增功能，不改变生产签收和延期状态。
 
-> Document status: Active implementation review
-> 原阶段核对日期：2026-09-24。下文计数与“当前”均指原阶段；10-14仅更新调度入口，不重写历史验收。
+## 当前收口状态（2026-10-26）
 
-> 2026-09-15 调度重排：父包原退出条件不变；当前细分、跨计划归属和下一队列见[工作包划分](./active-work-package-breakdown.md)，逐项状态见[子任务执行台账](./active-work-package-execution-status.md)。父包 IN_PROGRESS 不表示正在同时执行；文档子项完成不计为代码完成。
+209条任务中204条限定DONE；SEC-F4-02、OBS-16-04保留IN_PROGRESS，OPS-01保留WAIT_DEP，DEFER-01/02继续延期。rc.5已完成预发布，人工反馈与目标生产签收仍待办，见[发布审计](../audits/2026-10-20-release-v1.7.6-rc.5.md)和[本轮验收](../audits/2026-10-26-existing-scope-closure.md)。
+
+状态流/配额/清理/受管child/许可和host装配的各限定DONE按统一台账复用；局部证据不覆盖未验平台、长时、多主机及实际外部接收端。已有unknown/null指标不改报完整或实时业务存活。
+
+<details>
+<summary>原阶段状态、证据与未验边界（按各节日期追溯，不是现行开发队列）</summary>
+
 
 ## 1. 项目能力与本轮核对范围
 
@@ -92,3 +97,5 @@ Windows / Node v24.15.0、16 MiB Streamable 响应的原生 cork/uncork 恢复�
 - 旧待办报告和整理前混有历史流水的七份全文快照：[归档索引](../archive/summaries/runtime-observability-2026-09-14/README.md)。归档只供追溯，不参与当前状态计数。
 
 后续更新应替换当前结论并登记证据，不再在同一文件末尾追加相互矛盾的“当前状态”。
+
+</details>

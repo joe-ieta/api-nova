@@ -1,14 +1,15 @@
 ---
-doc-version: 1.2.0
+doc-version: 1.3.0
 doc-status: active
-doc-updated: 2026-10-14
+doc-updated: 2026-10-26
 ---
 # Release Readiness Checklist
 
 > Document status: Active
-> Last reviewed: 2026-10-14
+> Last reviewed: 2026-10-26
+> Current candidate: v1.7.6-rc.5. Its prerelease engineering/artifact gates passed; human and production sign-off remain open under SEC-F4-02, OBS-16-04 and OPS-01. Record each check result separately; this reusable checklist is not an all-passed report.
 
-Use this checklist before cutting a release or calling the current baseline publishable.
+Use this checklist before cutting a release or calling the current baseline publishable. The 2026-10-26 dependency rescan reports 6 high and 11 moderate package nodes; security disposition remains open in [SEC-F4-02 evidence](../audits/2026-10-26-existing-scope-closure.md#依赖时效与安全签收), regardless of the earlier prerelease gates.
 
 The goal is to validate the real supported path, not to create an aspirational checklist for features that are still incomplete.
 
@@ -151,7 +152,7 @@ Verify:
 - startup logs clearly report `Database mode: postgres`
 - schema initialization and migrations succeed
 
-Current target on September 8, 2026: 43 domain tables plus the migration ledger, including the configuration and three process/health tables. Both isolated SQLite and PostgreSQL migration, persistence and complete API-startup checks passed with zero schema drift and automatic synchronization disabled. See [Persistence Cleanup Review](../audits/2026-10-14-persistence-cleanup.md).
+Current recorded baseline: rc.5 verifies 73 domain tables and 8 applied migrations in isolated SQLite and PostgreSQL, with zero schema drift, persistence, restart and API startup. See the [rc.5 release evidence](../audits/2026-10-20-release-v1.7.6-rc.5.md). No production database acceptance is implied. The earlier 38/40/43-table counts below describe historical stages.
 
 Historical clean-schema verification on July 21, 2026:
 
@@ -212,11 +213,9 @@ At minimum verify:
 - parser verification path
 - `npm run test:streamable-session --workspace api-nova-server`
 
-Latest local evidence on 2026-07-22:
+Recorded evidence: rc.5 passed native Windows x64, Ubuntu24.04 x64 and ARM64 staging and fresh-extraction offline startup checks. Local bounded browser acceptance covers manual/URL/file/no-server import, multi-endpoint Gateway publication and A/B migration. See the [release audit](../audits/2026-10-20-release-v1.7.6-rc.5.md) and [browser evidence](../audits/2026-10-20-runtime-logs-browser-lifecycle.md).
 
-- Windows `npm run build` passed for Parser, Server, API, and UI production output
-- Windows streamable multi-session smoke passed for two concurrent MCP sessions
-- Windows API/UI interactive startup, basic import/conversion, and the complete Ubuntu path remain required before release
+The 2026-07 Windows startup/import and Ubuntu release-path gaps are superseded within these later recorded scopes. This does not mark Linux browser workflows, every MCP/auth/role combination, human feedback or production deployment signed off. The [current closure audit](../audits/2026-10-26-existing-scope-closure.md) records fresh local checks without replacing published artifacts.
 
 ## 12. Open Items Review
 
@@ -226,7 +225,7 @@ Execute and record the [Runtime Publication Acceptance Cases](../testing/runtime
 - operator-visible gaps are disclosed clearly enough
 - no archived guide is still treated as an active source of truth
 - security, auth, monitoring, and UI placeholder risks are understood
-- deferred auth and notification flows are described honestly in API and operator guidance
+- deferred OAuth/token/QoS scope and pending production activation of implemented notification flows are described accurately
 
 A release is ready only when the documented baseline, the real implementation, and the tested operator path all match.
 
