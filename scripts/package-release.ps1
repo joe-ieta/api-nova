@@ -37,8 +37,10 @@ function Copy-IfExists {
     [string]$Destination
   )
 
-  if (Test-Path $Source) {
-    Copy-Item -Path $Source -Destination $Destination -Force
+  # Curated manuals are already exported with rewritten links and hashes.
+  # Optional source files must not overwrite those verified copies.
+  if ((Test-Path -LiteralPath $Source) -and -not (Test-Path -LiteralPath $Destination)) {
+    Copy-Item -LiteralPath $Source -Destination $Destination
   }
 }
 
@@ -330,7 +332,12 @@ Remove-ReleaseLifecycleScripts `
   -PackageJsonPath (Join-Path $outputPath 'package.json') `
   -PackageLockPath (Join-Path $outputPath 'package-lock.json')
 # Local reviewed dependency archives must remain available for portable/offline npm ci.
-Copy-Item -LiteralPath (Join-Path $repoRoot 'vendor') -Destination (Join-Path $outputPath 'vendor') -Recurse
+$vendorOutput = Join-Path $outputPath 'vendor'
+New-Item -ItemType Directory -Force -Path $vendorOutput | Out-Null
+# vendor/README.md is owned by the documentation exporter; copy only payloads here.
+Get-ChildItem -LiteralPath (Join-Path $repoRoot 'vendor') -Force |
+  Where-Object Name -ne 'README.md' |
+  Copy-Item -Destination $vendorOutput -Recurse
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'initialize-release-database.cjs') -Destination (Join-Path $outputPath 'initialize-database.cjs')
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'verify-nest-sse-backport.cjs') -Destination (Join-Path $outputPath 'verify-nest-sse-backport.cjs')
 & node (Join-Path $PSScriptRoot 'export-release-docs.cjs') --output-dir $outputPath
