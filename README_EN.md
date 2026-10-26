@@ -1,5 +1,5 @@
 ---
-doc-version: 1.1.0
+doc-version: 1.2.0
 doc-status: active
 doc-updated: 2026-10-26
 ---
@@ -11,7 +11,7 @@ ApiNova governs existing HTTP APIs and publishes them through HTTP Gateway route
 
 The repository contains Parser, MCP Server, API/control plane with HTTP Gateway, and UI workspaces. SQLite is the default; PostgreSQL is optional. MCP transports are stdio, streamable and sse; management Socket.IO is separate.
 
-The latest delivered candidate is **v1.7.6-rc.5**, a manual-testing prerelease. Production acceptance remains open. The post-merge October 26 dependency scan reports 7 high and 9 moderate package nodes; disposition remains in the existing security work item. Documentation updates do not replace published artifacts.
+The release candidate is **v1.7.6-rc.6**, a manual-testing prerelease. Production acceptance remains open. The post-merge October 26 dependency scan reports 7 high and 9 moderate package nodes; disposition remains in the existing security work item. This candidate is built from main as one complete three-platform offline release.
 
 ## Reading and running
 

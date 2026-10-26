@@ -1,5 +1,5 @@
 ---
-doc-version: 1.2.0
+doc-version: 1.3.0
 doc-status: active
 doc-updated: 2026-10-26
 ---
@@ -9,7 +9,7 @@ doc-updated: 2026-10-26
 
 | 项目 | 当前基线 |
 | --- | --- |
-| 当前候选 | v1.7.6-rc.5，人工测试预发布；源a2639ce8d20d0709a3088e9de7e59bbd5dee8159 |
+| 当前候选 | v1.7.6-rc.6，从main构建三平台人工测试预发布；精确源提交见发布包RELEASE_INFO.json和标签 |
 | 当前开发线 | 用户已授权oc_dev合入main；合并提交保留双亲，不覆盖rc.5产物 |
 | 产品包 | Parser共享内核、Server MCP运行时、API控制面/Gateway、UI |
 | 工具链 | Node>=20/npm>=10；根packageManager锁npm10.9.2；rc.5验证Node24.15.0 |

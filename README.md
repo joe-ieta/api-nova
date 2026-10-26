@@ -1,5 +1,5 @@
 ---
-doc-version: 1.1.0
+doc-version: 1.2.0
 doc-status: active
 doc-updated: 2026-10-26
 ---
@@ -11,7 +11,7 @@ ApiNova把已有HTTP API整理为可治理的能力资产，通过HTTP Gateway�
 
 仓库包含Parser共享内核、Server MCP运行时、API控制面/Gateway和UI。默认SQLite，也支持PostgreSQL；MCP支持stdio、streamable、sse。定位为应用内部的API能力交付，不承诺企业全流量网关或任意协议转换。
 
-当前候选 **v1.7.6-rc.5** 是人工测试预发布，生产签收仍开放。2026-10-26合并后依赖审计有7个high、9个moderate包节点，处置见[open-items](./docs/reference/open-items.md)；本轮文档整理不更改已发布包。
+当前候选 **v1.7.6-rc.6** 是人工测试预发布，生产签收仍开放。2026-10-26合并后依赖审计有7个high、9个moderate包节点，处置见[open-items](./docs/reference/open-items.md)；本版本在main执行三平台完整候选发布，生产签收另行保留。
 
 ## 从这里阅读
 
@@ -22,11 +22,11 @@ ApiNova把已有HTTP API整理为可治理的能力资产，通过HTTP Gateway�
 | 自定义UI/系统集成 | [开发手册](./docs/development/DEVELOPER_GUIDE.md)、[API手册](./docs/api/README.md) |
 | 当前剩余与验收 | [open-items](./docs/reference/open-items.md)、[项目基线](./docs/baseline/PROJECT_BASELINE.md) |
 | 最新文档和阅读顺序 | [文档中心](./docs/README.md)、[现行清单](./docs/VERSIONS.md) |
-| 发布交付 | [发布规范](./RELEASE_STANDARD.md)、[当前版本指南](./docs/release/versions/v1.7.6-rc.5/QUICK_START.md) |
+| 发布交付 | [发布规范](./RELEASE_STANDARD.md)、[当前版本指南](./docs/release/versions/v1.7.6-rc.6/QUICK_START.md) |
 
 ## 运行
 
-下载匹配OS/CPU的[rc.5离线包](https://github.com/joe-ieta/api-nova/releases/tag/v1.7.6-rc.5)，完整解压；Windows执行start.bat，Linux执行./start.sh，打开`http://127.0.0.1:9001/`。公开本地测试账号为admin / admin@123456，网络共享前修改管理员密码和独立JWT秘密；完整步骤见部署手册。
+下载匹配OS/CPU的[rc.6离线包](https://github.com/joe-ieta/api-nova/releases/tag/v1.7.6-rc.6)，完整解压；Windows执行start.bat，Linux执行./start.sh，打开`http://127.0.0.1:9001/`。公开本地测试账号为admin / admin@123456，网络共享前修改管理员密码和独立JWT秘密；完整步骤见部署手册。
 
 源码开发从根目录执行`npm ci`、`npm run build`，再按部署手册分别启动API/UI/Server。根dev命令不启动完整产品API。不要把npm workspace版本当作产品Git标签，也不要混用不同平台依赖。
 

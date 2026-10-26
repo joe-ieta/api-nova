@@ -69,7 +69,7 @@
       "path": "docs/baseline/PROJECT_BASELINE.md",
       "title": "项目当前基线",
       "kind": "active",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "updated": "2026-10-26",
       "catalogLink": "baseline/PROJECT_BASELINE.md"
     },
@@ -101,7 +101,7 @@
       "path": "docs/guides/active-work-package-execution-status.md",
       "title": "开发任务包总览与执行状态",
       "kind": "active",
-      "version": "1.206.0",
+      "version": "1.207.0",
       "updated": "2026-10-26",
       "catalogLink": "guides/active-work-package-execution-status.md"
     },
@@ -117,7 +117,7 @@
       "path": "docs/guides/DEPLOYMENT.md",
       "title": "安装、部署与运维手册",
       "kind": "active",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "updated": "2026-10-26",
       "catalogLink": "guides/DEPLOYMENT.md"
     },
@@ -173,7 +173,7 @@
       "path": "docs/guides/USER_GUIDE.md",
       "title": "使用手册：注册到发布与消费",
       "kind": "active",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "updated": "2026-10-26",
       "catalogLink": "guides/USER_GUIDE.md"
     },
@@ -181,7 +181,7 @@
       "path": "docs/overview/PRODUCT.md",
       "title": "项目概览、能力定位与功能范围",
       "kind": "active",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "updated": "2026-10-26",
       "catalogLink": "overview/PRODUCT.md"
     },
@@ -189,7 +189,7 @@
       "path": "docs/README.md",
       "title": "项目文档与阅读指引",
       "kind": "active",
-      "version": "1.6.0",
+      "version": "1.7.0",
       "updated": "2026-10-26",
       "catalogLink": "README.md"
     },
@@ -213,7 +213,7 @@
       "path": "docs/reference/open-items.md",
       "title": "未完成事项",
       "kind": "active",
-      "version": "1.37.0",
+      "version": "1.38.0",
       "updated": "2026-10-26",
       "catalogLink": "reference/open-items.md"
     },
@@ -253,7 +253,7 @@
       "path": "docs/release/DOCUMENTATION.md",
       "title": "文档整理与随包交付",
       "kind": "active",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "updated": "2026-10-26",
       "catalogLink": "release/DOCUMENTATION.md"
     },
@@ -261,7 +261,7 @@
       "path": "docs/release/README.md",
       "title": "版本发布文档入口",
       "kind": "active",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "updated": "2026-10-26",
       "catalogLink": "release/README.md"
     },
@@ -281,7 +281,7 @@
       "path": "docs/release/versions/README.md",
       "title": "版本文档索引",
       "kind": "active",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "updated": "2026-10-26",
       "catalogLink": "release/versions/README.md"
     },
@@ -296,6 +296,18 @@
       "title": "ApiNova v1.7.6-rc.5",
       "kind": "release-record",
       "catalogLink": "release/versions/v1.7.6-rc.5/RELEASE_NOTES.md"
+    },
+    {
+      "path": "docs/release/versions/v1.7.6-rc.6/QUICK_START.md",
+      "title": "ApiNova v1.7.6-rc.6 人工测试指南",
+      "kind": "release-record",
+      "catalogLink": "release/versions/v1.7.6-rc.6/QUICK_START.md"
+    },
+    {
+      "path": "docs/release/versions/v1.7.6-rc.6/RELEASE_NOTES.md",
+      "title": "ApiNova v1.7.6-rc.6",
+      "kind": "release-record",
+      "catalogLink": "release/versions/v1.7.6-rc.6/RELEASE_NOTES.md"
     },
     {
       "path": "docs/testing/README.md",
@@ -417,7 +429,7 @@
       "path": "README_EN.md",
       "title": "ApiNova",
       "kind": "active",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "updated": "2026-10-26",
       "catalogLink": "../README_EN.md"
     },
@@ -425,7 +437,7 @@
       "path": "README.md",
       "title": "ApiNova · 达雅",
       "kind": "active",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "updated": "2026-10-26",
       "catalogLink": "../README.md"
     },

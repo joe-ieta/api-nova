@@ -1,11 +1,11 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
 doc-updated: 2026-10-26
 ---
 # 安装、部署与运维手册
 
-本文区分已发布离线包和源码开发。当前候选为v1.7.6-rc.5，生产环境签收未完成；使用其[快速指南](../release/versions/v1.7.6-rc.5/QUICK_START.md)和[发布说明](../release/versions/v1.7.6-rc.5/RELEASE_NOTES.md)核对版本限制。
+本文区分已发布离线包和源码开发。当前候选为v1.7.6-rc.6，生产环境签收未完成；使用其[快速指南](../release/versions/v1.7.6-rc.6/QUICK_START.md)和[发布说明](../release/versions/v1.7.6-rc.6/RELEASE_NOTES.md)核对版本限制。
 
 ## 离线包启动
 

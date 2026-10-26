@@ -1,5 +1,5 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
 doc-updated: 2026-10-26
 ---
@@ -43,4 +43,4 @@ MCP客户端连接现有工具端点，完成工具列举及调用；协议与�
 
 ## 6. 人工测试与反馈
 
-当前rc.5人工操作顺序以[版本快速指南](../release/versions/v1.7.6-rc.5/QUICK_START.md)为准。记录平台/CPU、版本/commit、前置配置、操作、预期与实际、脱敏请求ID/日志；生产签收和未验角色/认证/MCP浏览器组合继续保留在[open-items](../reference/open-items.md)。自动浏览器结果不代签人工反馈。
+当前rc.6人工操作顺序以[版本快速指南](../release/versions/v1.7.6-rc.6/QUICK_START.md)为准。记录平台/CPU、版本/commit、前置配置、操作、预期与实际、脱敏请求ID/日志；生产签收和未验角色/认证/MCP浏览器组合继续保留在[open-items](../reference/open-items.md)。自动浏览器结果不代签人工反馈。

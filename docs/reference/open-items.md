@@ -1,5 +1,5 @@
 ---
-doc-version: 1.37.0
+doc-version: 1.38.0
 doc-status: active
 doc-updated: 2026-10-26
 ---
@@ -7,7 +7,7 @@ doc-updated: 2026-10-26
 
 本页只列现有批准范围内的剩余出口；任务状态以[统一执行台账](../guides/active-work-package-execution-status.md)为准，合同和依赖见[工作包划分](../guides/active-work-package-breakdown.md)。历史阶段记录不另算待开发任务。
 
-当前候选为 **v1.7.6-rc.5**，源提交 `a2639ce8d20d0709a3088e9de7e59bbd5dee8159`；三平台离线包、不可变归档、latest、注释标签和远端七附件已完成，见[发布审计](../archive/audits/2026-10-20-release-v1.7.6-rc.5.md)。10-26前轮已完成台账归一和隔离验收；本轮进一步整理发布文档，不新增功能或修改已发布包。前轮结果见[2026-10-26收口审计](../archive/audits/2026-10-26-existing-scope-closure.md)。
+上一候选为 **v1.7.6-rc.5**，源提交 `a2639ce8d20d0709a3088e9de7e59bbd5dee8159`；三平台离线包、不可变归档、latest、注释标签和远端七附件已完成，见[发布审计](../archive/audits/2026-10-20-release-v1.7.6-rc.5.md)。10-26前轮已完成台账归一和隔离验收；本轮以main准备v1.7.6-rc.6三平台完整候选发布，门禁、归档、latest及远端结果由新版本证据记录；历史包不改写，不新增功能或关闭外部签收。前轮结果见[2026-10-26收口审计](../archive/audits/2026-10-26-existing-scope-closure.md)。
 
 合并后的main包含两边运行时接线、兼容依赖整改和最新文档，结果见[main合并记录](../archive/audits/2026-10-26-merge-oc-dev-main.md)；rc.5发布物未重建。
 
@@ -27,7 +27,7 @@ doc-updated: 2026-10-26
 
 | 事项 | 归属与当前事实 | 下一步及边界 |
 | --- | --- | --- |
-| 人工反馈 | OPS-01；rc.5自动化和浏览器证据已有，用户人工反馈未签收 | 按[rc.5快速指南](../release/versions/v1.7.6-rc.5/QUICK_START.md)记录操作、预期/实际和问题；自动化不代签 |
+| 人工反馈 | OPS-01；rc.5自动化和浏览器证据已有，用户人工反馈未签收 | 按[rc.6快速指南](../release/versions/v1.7.6-rc.6/QUICK_START.md)记录操作、预期/实际和问题；自动化不代签 |
 | 浏览器未验组合 | OPS-01；认证规范、MCP、多角色及其他原定组合未全面覆盖 | 只按原承诺支持的组合补证据；已有HTTP/SDK验收不等于浏览器验收，不追加无限排列 |
 | 二进制目标矩阵 | SEC/OPS；PROD-04C本机PG/HTTP留存闭环已完成 | 目标账户ACL、Linux文件语义、MCP真实二进制外发另验，不重做存储原语 |
 | 部署与外部接入 | SEC/OBS/OPS；受控sink、回环TLS、局部容器结果已有 | 真实SMTP/Webhook、证书/反代/出站、裸机/systemd、长时/多进程及原定平台组合需实际环境证据；仅使用获准接收端 |
