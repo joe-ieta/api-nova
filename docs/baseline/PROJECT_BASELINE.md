@@ -1,5 +1,5 @@
 ---
-doc-version: 1.3.0
+doc-version: 1.4.0
 doc-status: active
 doc-updated: 2026-10-26
 ---
@@ -9,10 +9,10 @@ doc-updated: 2026-10-26
 
 | 项目 | 当前基线 |
 | --- | --- |
-| 当前候选 | v1.7.6-rc.6，从main构建三平台人工测试预发布；精确源提交见发布包RELEASE_INFO.json和标签 |
+| 当前候选 | v1.7.6-rc.6，main源1fd5753，三平台预发布已完成；[发布审计](../archive/audits/2026-10-26-release-v1.7.6-rc.6.md) |
 | 当前开发线 | 用户已授权oc_dev合入main；合并提交保留双亲，不覆盖rc.5产物 |
 | 产品包 | Parser共享内核、Server MCP运行时、API控制面/Gateway、UI |
-| 工具链 | Node>=20/npm>=10；根packageManager锁npm10.9.2；rc.5验证Node24.15.0 |
+| 工具链 | Node>=20/npm>=10；根packageManager锁npm10.9.2；rc.6三平台验证Node24.15.0 |
 | 默认端口 | 开发UI9000、API9001、独立MCP9022；离线UI由9001托管 |
 | 持久化 | SQLite默认、PostgreSQL显式可选；73业务表/每方言8迁移、synchronize=false |
 | MCP | stdio、streamable、sse；管理Socket.IO不是MCP传输 |

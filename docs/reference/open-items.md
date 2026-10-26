@@ -1,5 +1,5 @@
 ---
-doc-version: 1.38.0
+doc-version: 1.39.0
 doc-status: active
 doc-updated: 2026-10-26
 ---
@@ -7,7 +7,7 @@ doc-updated: 2026-10-26
 
 本页只列现有批准范围内的剩余出口；任务状态以[统一执行台账](../guides/active-work-package-execution-status.md)为准，合同和依赖见[工作包划分](../guides/active-work-package-breakdown.md)。历史阶段记录不另算待开发任务。
 
-上一候选为 **v1.7.6-rc.5**，源提交 `a2639ce8d20d0709a3088e9de7e59bbd5dee8159`；三平台离线包、不可变归档、latest、注释标签和远端七附件已完成，见[发布审计](../archive/audits/2026-10-20-release-v1.7.6-rc.5.md)。10-26前轮已完成台账归一和隔离验收；本轮以main准备v1.7.6-rc.6三平台完整候选发布，门禁、归档、latest及远端结果由新版本证据记录；历史包不改写，不新增功能或关闭外部签收。前轮结果见[2026-10-26收口审计](../archive/audits/2026-10-26-existing-scope-closure.md)。
+当前候选为 **v1.7.6-rc.6**，main源提交 `1fd5753db4673cfe13853785497a43c7187dbffd`；三平台原生离线验证、不可变七文件归档、latest、注释标签及远端七附件已完成，见[发布审计](../archive/audits/2026-10-26-release-v1.7.6-rc.6.md)。旧latest完整备份，历史rc.5归档及legacy数据库保留；生产签收、人工反馈和延期不因预发布关闭。原收口范围见[2026-10-26收口审计](../archive/audits/2026-10-26-existing-scope-closure.md)。
 
 合并后的main包含两边运行时接线、兼容依赖整改和最新文档，结果见[main合并记录](../archive/audits/2026-10-26-merge-oc-dev-main.md)；rc.5发布物未重建。
 

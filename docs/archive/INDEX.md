@@ -122,6 +122,7 @@
 - [统一任务迁移与 Gateway 启动隔离验收](audits/2026-10-20-unified-planning-np10.md) · `audits/2026-10-20-unified-planning-np10.md`
 - [现有范围收口、台账归一与本机限定验收](audits/2026-10-26-existing-scope-closure.md) · `audits/2026-10-26-existing-scope-closure.md`
 - [oc_dev合并main记录（2026-10-26）](audits/2026-10-26-merge-oc-dev-main.md) · `audits/2026-10-26-merge-oc-dev-main.md`
+- [v1.7.6-rc.6 三平台候选发布](audits/2026-10-26-release-v1.7.6-rc.6.md) · `audits/2026-10-26-release-v1.7.6-rc.6.md`
 - [ApiNova 审查报告索引](audits/README.md) · `audits/README.md`
 - [SEC-A1-01 authentication-mode cross-layer matrix](audits/sec-a1-01-auth-mode-cross-layer-matrix.md) · `audits/sec-a1-01-auth-mode-cross-layer-matrix.md`
 - [ApiNova Project Baseline](baselines/PROJECT_BASELINE.md) · `baselines/PROJECT_BASELINE.md`

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.1.0
+doc-version: 1.2.0
 doc-status: active
 doc-updated: 2026-10-26
 ---
@@ -9,7 +9,7 @@ doc-updated: 2026-10-26
 
 | 版本 | 定位 | 文档 |
 | --- | --- | --- |
-| v1.7.6-rc.6 | main三平台候选发布，生产签收未完成 | [说明](./v1.7.6-rc.6/RELEASE_NOTES.md)、[快速指南](./v1.7.6-rc.6/QUICK_START.md) |
+| v1.7.6-rc.6 | 当前人工测试预发布，三平台已交付，生产签收未完成 | [说明](./v1.7.6-rc.6/RELEASE_NOTES.md)、[快速指南](./v1.7.6-rc.6/QUICK_START.md) |
 | v1.7.6-rc.5 | 历史人工测试预发布，三平台交付 | [说明](./v1.7.6-rc.5/RELEASE_NOTES.md)、[快速指南](./v1.7.6-rc.5/QUICK_START.md) |
 | v1.7.6-rc.4 | 历史三平台预发布 | [归档说明](../../archive/releases/versions/v1.7.6-rc.4/RELEASE_NOTES.md) |
 | v1.7.6-rc.3 | 历史三平台预发布 | [归档说明](../../archive/releases/versions/v1.7.6-rc.3/RELEASE_NOTES.md) |

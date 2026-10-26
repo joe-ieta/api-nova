@@ -69,7 +69,7 @@
       "path": "docs/baseline/PROJECT_BASELINE.md",
       "title": "项目当前基线",
       "kind": "active",
-      "version": "1.3.0",
+      "version": "1.4.0",
       "updated": "2026-10-26",
       "catalogLink": "baseline/PROJECT_BASELINE.md"
     },
@@ -101,7 +101,7 @@
       "path": "docs/guides/active-work-package-execution-status.md",
       "title": "开发任务包总览与执行状态",
       "kind": "active",
-      "version": "1.207.0",
+      "version": "1.208.0",
       "updated": "2026-10-26",
       "catalogLink": "guides/active-work-package-execution-status.md"
     },
@@ -213,7 +213,7 @@
       "path": "docs/reference/open-items.md",
       "title": "未完成事项",
       "kind": "active",
-      "version": "1.38.0",
+      "version": "1.39.0",
       "updated": "2026-10-26",
       "catalogLink": "reference/open-items.md"
     },
@@ -245,7 +245,7 @@
       "path": "docs/release/api-nova-release-requirements.md",
       "title": "发布构建操作说明",
       "kind": "active",
-      "version": "1.3.0",
+      "version": "1.4.0",
       "updated": "2026-10-26",
       "catalogLink": "release/api-nova-release-requirements.md"
     },
@@ -261,7 +261,7 @@
       "path": "docs/release/README.md",
       "title": "版本发布文档入口",
       "kind": "active",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "updated": "2026-10-26",
       "catalogLink": "release/README.md"
     },
@@ -281,7 +281,7 @@
       "path": "docs/release/versions/README.md",
       "title": "版本文档索引",
       "kind": "active",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "updated": "2026-10-26",
       "catalogLink": "release/versions/README.md"
     },

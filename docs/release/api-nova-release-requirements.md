@@ -1,5 +1,5 @@
 ---
-doc-version: 1.3.0
+doc-version: 1.4.0
 doc-status: active
 doc-updated: 2026-10-26
 ---
@@ -24,3 +24,7 @@ doc-updated: 2026-10-26
 已有脚本：`scripts/build-release-artifact.ps1`、`scripts/test-release-package.ps1`、`scripts/create-release-manifest.ps1`、`scripts/promote-release-set.ps1`，CI为`.github/workflows/release-artifacts.yml`。所需参数以脚本param块及标准为准，不能把包含尖括号的路径示意直接当运行命令。
 
 发布容器的latest/archive/backups/evidence不得作为底层打包输出。只在.staging新目录构建；已发布版本不原地覆盖，历史业务库不清理。完整文档随下一次新版本构建交付，见[文档交付说明](./DOCUMENTATION.md)。
+
+## Windows上的Linux镜像准备
+
+Windows本地latest中的Linux目录仅作为分发镜像，不替代原生Linux验证。系统tar可能缺少符号链接权限，GNU tar的目标副本回退也可能遇到长路径限制；本次受路径约束的长路径解压、链接目标副本及整体晋升执行记录见[rc.6发布审计](../archive/audits/2026-10-26-release-v1.7.6-rc.6.md)。原始Linux tar.gz保持链接、执行权限和SHA-256不变；Linux安装与验收使用原生归档。禁止为准备本地镜像重建已发布包、静默改其字节或复制Windows依赖。
