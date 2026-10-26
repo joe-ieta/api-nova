@@ -256,4 +256,4 @@ api-nova-server --config production.json
 
 - API 文档（历史引用未留存：`docs/api.md`）
 - 配置参考（历史引用未留存：`docs/configuration.md`）
-- [部署指南](../../../guides/deployment.md)
+- [部署指南](../../../guides/DEPLOYMENT.md)
