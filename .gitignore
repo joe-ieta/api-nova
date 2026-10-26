@@ -92,3 +92,8 @@ packages/api-nova-server/mcp-server-stats.json
 /api-nova-release-archive/
 /api-nova-release-staging/
 /api-nova-release-preview/
+
+# Local development scratch files and evidence archives
+/.tmp/
+/.local-archive/
+/*.log

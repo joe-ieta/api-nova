@@ -19,7 +19,7 @@ doc-updated: 2026-10-26
 | [总体设计与功能架构](architecture/OVERALL_DESIGN.md) | 1.0.0 | active | 2026-10-26 |
 | [ApiNova Product Constraints](baseline/PRODUCT_CONSTRAINTS.md) | 1.0.1 | active | 2026-10-26 |
 | [项目当前基线](baseline/PROJECT_BASELINE.md) | 1.4.0 | active | 2026-10-26 |
-| [开发与系统集成手册](development/DEVELOPER_GUIDE.md) | 1.0.0 | active | 2026-10-26 |
+| [开发与系统集成手册](development/DEVELOPER_GUIDE.md) | 1.1.0 | active | 2026-10-26 |
 | [Offline Development Kit](development/offline-dev-migration.md) | 1.0.0 | active | 2026-10-26 |
 | [活跃工作包划分与验收子任务](guides/active-work-package-breakdown.md) | 1.108.0 | active | 2026-10-26 |
 | [开发任务包总览与执行状态](guides/active-work-package-execution-status.md) | 1.208.0 | active | 2026-10-26 |
