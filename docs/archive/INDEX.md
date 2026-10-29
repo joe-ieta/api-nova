@@ -3,6 +3,7 @@
 所有条目均为archived；原元数据和日期只用于追溯，不代表当前状态。返回[归档说明](./README.md)或[当前阅读指引](../README.md)。
 
 - [2026-10-29 发布保旧与依赖整改](audits/2026-10-29-publication-preservation-and-dependencies.md) · `audits/2026-10-29-publication-preservation-and-dependencies.md`
+- [2026-10-29 双库CI结果核验](audits/2026-10-29-dual-database-ci.md) · `audits/2026-10-29-dual-database-ci.md`
 
 - [ApiNova Server Monorepo 架构重构方案](architecture/monorepo-refactoring-proposal.md) · `architecture/monorepo-refactoring-proposal.md`
 - [ApiNova Parser 抽离实施计划](architecture/parser-extraction-implementation-plan.md) · `architecture/parser-extraction-implementation-plan.md`

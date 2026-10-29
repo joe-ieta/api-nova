@@ -69,7 +69,7 @@
       "path": "docs/baseline/PROJECT_BASELINE.md",
       "title": "项目当前基线",
       "kind": "active",
-      "version": "1.5.0",
+      "version": "1.6.0",
       "updated": "2026-10-29",
       "catalogLink": "baseline/PROJECT_BASELINE.md"
     },
@@ -93,7 +93,7 @@
       "path": "docs/guides/active-work-package-breakdown.md",
       "title": "活跃工作包划分与验收子任务",
       "kind": "active",
-      "version": "1.109.0",
+      "version": "1.110.0",
       "updated": "2026-10-29",
       "catalogLink": "guides/active-work-package-breakdown.md"
     },
@@ -101,7 +101,7 @@
       "path": "docs/guides/active-work-package-execution-status.md",
       "title": "开发任务包总览与执行状态",
       "kind": "active",
-      "version": "1.209.0",
+      "version": "1.210.0",
       "updated": "2026-10-29",
       "catalogLink": "guides/active-work-package-execution-status.md"
     },
@@ -213,7 +213,7 @@
       "path": "docs/reference/open-items.md",
       "title": "未完成事项",
       "kind": "active",
-      "version": "1.40.0",
+      "version": "1.41.0",
       "updated": "2026-10-29",
       "catalogLink": "reference/open-items.md"
     },
@@ -345,7 +345,7 @@
       "path": "docs/VERSIONS.md",
       "title": "当前文档版本与类型清单",
       "kind": "active",
-      "version": "2.2.0",
+      "version": "2.3.0",
       "updated": "2026-10-29",
       "catalogLink": "VERSIONS.md"
     },

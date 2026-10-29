@@ -1,5 +1,5 @@
 ---
-doc-version: 1.209.0
+doc-version: 1.210.0
 doc-status: active
 doc-updated: 2026-10-29
 ---
@@ -18,11 +18,13 @@ doc-updated: 2026-10-29
 
 | 原任务归属与步骤 | 本轮进度 | 退出证据与未关闭边界 |
 | --- | --- | --- |
-| OPS-01 / EXT-05：批量发布失败保旧 | 本机修复与回归完成 | 修复前两个autoStart分支真实HTTP均复现503；新增14项覆盖修订连续性、冷/热缓存、重复失败、DB/Registry重开、旧格式、审计失败及撤销负例；最终API192套/2065项通过 |
-| SEC-F4-02：依赖漏洞维护 | 兼容补丁完成；残余迁移与签收待办 | body-parser 1.20.9/2.4.0、multer 2.5.0、follow-redirects 1.16.2、TypeORM 0.3.31；干净安装、HTTP/SSE/UUID/file-type16项及实际解析链通过；最终5 high、12 moderate、0 critical，17包节点未自动接受 |
-| OPS-01：集成与交付 | 本轮本机回归通过；不发布 | 四包构建、Parser1213项、UI95项、Server全链及零Lint错误通过；安全/可观测目标签收、人工反馈及既有未验组合仍开放；209/245历史统计不变 |
+| OPS-01 / EXT-05：批量发布失败保旧 | 本机修复与远端限定回归完成 | 修复前两个autoStart分支真实HTTP均复现503；新增14项覆盖修订连续性、冷/热缓存、重复失败、DB/Registry重开、旧格式、审计失败及撤销负例；a63d076的两个CI作业各通过API192套/2065项 |
+| SEC-F4-02：依赖漏洞维护 | 兼容补丁与双库CI通过；残余迁移与签收待办 | body-parser 1.20.9/2.4.0、multer 2.5.0、follow-redirects 1.16.2、TypeORM 0.3.31；干净安装、HTTP/SSE/UUID/file-type16项及实际解析链通过；上一批审计5 high、12 moderate、0 critical，17包节点未自动接受，CI未重新审计 |
+| OPS-01：集成与交付 | 本机及CI限定回归通过；不发布 | 本机四包构建、Parser1213项、UI95项、Server全链及零Lint错误通过；远端SQLite/PostgreSQL均73表/8迁移、零漂移、持久化及live/初始化启动冒烟通过；目标安全/可观测、人工反馈仍开放；209/245历史统计不变 |
 
 本轮证据：[发布保旧与依赖整改审计](../archive/audits/2026-10-29-publication-preservation-and-dependencies.md)。剩余Vue I18n/Intlify、Zod和Hono/MCP SDK主版本迁移须分别验证Node支持及消费合同；Nest版本范围告警结合现有SSE回移字节判定，不能用审计计数宣称已证利用。新安全专项已纳入双库CI及发布前门禁，本轮未触发远端发布。
+
+远端复核：[运行40811446522](https://github.com/joe-ieta/api-nova/actions/runs/40811446522)的head为a63d076，SQLite/PostgreSQL作业均success，无失败项，不需补修或追加重复回归。两个作业API测试均用隔离SQL.js；实际方言验证由独立db:smoke/迁移/启动步骤证明，不能把单元测试计数外推为全量PG执行。见[双库CI证据](../archive/audits/2026-10-29-dual-database-ci.md)；生产签收状态不变。
 
 <a id="package-overview"></a>
 ## 当前任务包总览

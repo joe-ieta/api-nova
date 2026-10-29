@@ -1,5 +1,5 @@
 ---
-doc-version: 1.40.0
+doc-version: 1.41.0
 doc-status: active
 doc-updated: 2026-10-29
 ---
@@ -8,6 +8,8 @@ doc-updated: 2026-10-29
 本页只列现有批准范围内的剩余出口；任务状态以[统一执行台账](../guides/active-work-package-execution-status.md)为准，合同和依赖见[工作包划分](../guides/active-work-package-breakdown.md)。历史阶段记录不另算待开发任务。
 
 2026-10-29批量发布部分失败导致旧Gateway路由503已修复，新增14项回归，API192套/2065项通过；兼容依赖整改后生产审计为5 high、12 moderate、0 critical（17包节点）。见[本轮台账](../guides/active-work-package-execution-status.md#fix-20261029)与[审计](../archive/audits/2026-10-29-publication-preservation-and-dependencies.md)。用户要求暂不发布；10-26记录保留为历史，SEC-F4-02及生产签收不因本机修复关闭。
+
+提交a63d076的[双库CI40811446522](../archive/audits/2026-10-29-dual-database-ci.md)已核验为success：两个作业单元/安全/UI回归、实际SQLite/PostgreSQL schema/迁移/持久化及启动冒烟均通过，无失败项待修。此CI未重新在线审计依赖，也不替代目标完整健康、部署与人工验收；正式未关闭任务和延期项不变。
 
 当前候选为 **v1.7.6-rc.6**，main源提交 `1fd5753db4673cfe13853785497a43c7187dbffd`；三平台原生离线验证、不可变七文件归档、latest、注释标签及远端七附件已完成，见[发布审计](../archive/audits/2026-10-26-release-v1.7.6-rc.6.md)。旧latest完整备份，历史rc.5归档及legacy数据库保留；生产签收、人工反馈和延期不因预发布关闭。原收口范围见[2026-10-26收口审计](../archive/audits/2026-10-26-existing-scope-closure.md)。
 

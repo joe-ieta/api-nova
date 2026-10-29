@@ -1,0 +1,283 @@
+{
+  "verifiedDate": "2026-10-29",
+  "runId": 40811446522,
+  "headSha": "a63d07655a04111b90cc22de2c1e5488a0fa8684",
+  "status": "completed",
+  "conclusion": "success",
+  "url": "https://github.com/joe-ieta/api-nova/actions/runs/40811446522",
+  "scope": "Ubuntu 24.04, Node 24.15.0, npm 10.9.2. API unit tests use isolated SQL.js in both jobs; real matrix databases are exercised separately by db:smoke, migrations and startup.",
+  "jobs": [
+    {
+      "id": 123242457585,
+      "name": "api-db-matrix (sqlite)",
+      "dialect": "sqlite",
+      "conclusion": "success",
+      "url": "https://github.com/joe-ieta/api-nova/actions/runs/40811446522/job/123242457585",
+      "startedAt": "2026-10-29T03:19:03Z",
+      "completedAt": "2026-10-29T03:25:54Z",
+      "apiUnitTests": {
+        "fixtureDatabase": "SQL.js",
+        "suites": 192,
+        "passed": 2065,
+        "failed": 0
+      },
+      "uiTests": {
+        "passed": 95,
+        "failed": 0
+      },
+      "dependencyTests": {
+        "passed": 16,
+        "failed": 0
+      },
+      "databaseSmoke": {
+        "marker": "DATABASE_SMOKE_OK",
+        "dialect": "sqlite",
+        "entities": 73,
+        "domainTables": 73,
+        "appliedMigrations": 8,
+        "empty": true,
+        "schemaDrift": 0,
+        "restart": true,
+        "restartMigrations": 0,
+        "restartSchemaDrift": 0,
+        "persistence": true,
+        "apiStartup": true,
+        "authenticationEvidenceStorage": true
+      },
+      "startupRoutes": [
+        "/api/health/live",
+        "/api/system/initialization"
+      ],
+      "logSha256": "73975cfe1498ec22dc857df6892043dc1ce77dc9b07844ec273919663d790258",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Initialize containers",
+          "conclusion": "success"
+        },
+        {
+          "name": "Checkout",
+          "conclusion": "success"
+        },
+        {
+          "name": "Setup Node.js",
+          "conclusion": "success"
+        },
+        {
+          "name": "Setup exact npm",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install dependencies",
+          "conclusion": "success"
+        },
+        {
+          "name": "Build shared runtime dependencies",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify dependency security regressions",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run API unit tests with their isolated SQL.js fixtures",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run UI regressions",
+          "conclusion": "success"
+        },
+        {
+          "name": "Build API package",
+          "conclusion": "success"
+        },
+        {
+          "name": "Build UI package",
+          "conclusion": "success"
+        },
+        {
+          "name": "Set database environment",
+          "conclusion": "success"
+        },
+        {
+          "name": "Prepare PostgreSQL database",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Verify matrix database schema and persistence",
+          "conclusion": "success"
+        },
+        {
+          "name": "Initialize isolated database",
+          "conclusion": "success"
+        },
+        {
+          "name": "Startup smoke test",
+          "conclusion": "success"
+        },
+        {
+          "name": "Upload logs on failure",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Post Setup Node.js",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Checkout",
+          "conclusion": "success"
+        },
+        {
+          "name": "Stop containers",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 123242457877,
+      "name": "api-db-matrix (postgres)",
+      "dialect": "postgres",
+      "conclusion": "success",
+      "url": "https://github.com/joe-ieta/api-nova/actions/runs/40811446522/job/123242457877",
+      "startedAt": "2026-10-29T03:19:03Z",
+      "completedAt": "2026-10-29T03:25:00Z",
+      "apiUnitTests": {
+        "fixtureDatabase": "SQL.js",
+        "suites": 192,
+        "passed": 2065,
+        "failed": 0
+      },
+      "uiTests": {
+        "passed": 95,
+        "failed": 0
+      },
+      "dependencyTests": {
+        "passed": 16,
+        "failed": 0
+      },
+      "databaseSmoke": {
+        "marker": "DATABASE_SMOKE_OK",
+        "dialect": "postgres",
+        "entities": 73,
+        "domainTables": 73,
+        "appliedMigrations": 8,
+        "empty": true,
+        "schemaDrift": 0,
+        "restart": true,
+        "restartMigrations": 0,
+        "restartSchemaDrift": 0,
+        "persistence": true,
+        "apiStartup": true,
+        "authenticationEvidenceStorage": true
+      },
+      "startupRoutes": [
+        "/api/health/live",
+        "/api/system/initialization"
+      ],
+      "logSha256": "6da48aa495b8a1a6a4d0d0ae04e09dcd18d1bdc7deb800d92e242cf987108e63",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Initialize containers",
+          "conclusion": "success"
+        },
+        {
+          "name": "Checkout",
+          "conclusion": "success"
+        },
+        {
+          "name": "Setup Node.js",
+          "conclusion": "success"
+        },
+        {
+          "name": "Setup exact npm",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install dependencies",
+          "conclusion": "success"
+        },
+        {
+          "name": "Build shared runtime dependencies",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify dependency security regressions",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run API unit tests with their isolated SQL.js fixtures",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run UI regressions",
+          "conclusion": "success"
+        },
+        {
+          "name": "Build API package",
+          "conclusion": "success"
+        },
+        {
+          "name": "Build UI package",
+          "conclusion": "success"
+        },
+        {
+          "name": "Set database environment",
+          "conclusion": "success"
+        },
+        {
+          "name": "Prepare PostgreSQL database",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify matrix database schema and persistence",
+          "conclusion": "success"
+        },
+        {
+          "name": "Initialize isolated database",
+          "conclusion": "success"
+        },
+        {
+          "name": "Startup smoke test",
+          "conclusion": "success"
+        },
+        {
+          "name": "Upload logs on failure",
+          "conclusion": "skipped"
+        },
+        {
+          "name": "Post Setup Node.js",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Checkout",
+          "conclusion": "success"
+        },
+        {
+          "name": "Stop containers",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "No target production signoff",
+    "Liveness and initialization smoke do not imply full production health",
+    "Dependency audit was not rerun by this CI",
+    "No release workflow dispatched or new release created"
+  ]
+}

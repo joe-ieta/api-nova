@@ -1,5 +1,5 @@
 ---
-doc-version: 1.5.0
+doc-version: 1.6.0
 doc-status: active
 doc-updated: 2026-10-29
 ---
@@ -10,13 +10,14 @@ doc-updated: 2026-10-29
 | 项目 | 当前基线 |
 | --- | --- |
 | 当前候选 | v1.7.6-rc.6，main源1fd5753，三平台预发布已完成；[发布审计](../archive/audits/2026-10-26-release-v1.7.6-rc.6.md) |
-| 当前开发线 | main/dea8206上开展10-29发布保旧与依赖维护；用户要求暂不发布，不覆盖既有rc.6产物；[本轮进度](../guides/active-work-package-execution-status.md#fix-20261029) |
+| 当前开发线 | main/a63d076已提交推送发布保旧与兼容依赖维护，双库CI通过；用户要求暂不发布，不覆盖既有rc.6产物；[本轮进度](../guides/active-work-package-execution-status.md#fix-20261029) |
 | 产品包 | Parser共享内核、Server MCP运行时、API控制面/Gateway、UI |
 | 工具链 | Node>=20/npm>=10；根packageManager锁npm10.9.2；rc.6三平台验证Node24.15.0 |
 | 默认端口 | 开发UI9000、API9001、独立MCP9022；离线UI由9001托管 |
 | 持久化 | SQLite默认、PostgreSQL显式可选；73业务表/每方言8迁移、synchronize=false |
 | MCP | stdio、streamable、sse；管理Socket.IO不是MCP传输 |
 | 最近本机复验 | 10-29四包构建、API192套/2065项、Parser1213项、UI95项、Server全链及依赖专项16项通过；目标签收仍开放 |
+| 最近远端复验 | [双库CI40811446522](../archive/audits/2026-10-29-dual-database-ci.md)：a63d076两个作业success；各API2065项（SQL.js fixture）、UI95项、依赖16项，实际SQLite/PG均73表/8迁移、零漂移、持久化及live/初始化冒烟通过 |
 | 依赖审计 | 10-29兼容整改后5 high、12 moderate包节点；主版本迁移、Nest范围告警处置及目标风险签收仍归SEC-F4-02 |
 | 任务口径 | 209项：204 DONE、2 IN_PROGRESS、1 WAIT_DEP、2 DEFERRED；245条依赖 |
 
