@@ -1,5 +1,5 @@
 ---
-doc-version: 1.211.0
+doc-version: 1.212.0
 doc-status: active
 doc-updated: 2026-10-29
 ---
@@ -21,9 +21,9 @@ doc-updated: 2026-10-29
 | SEC-F4-02 · Vue I18n/Intlify | 限定安全回移完成；官方11系迁移保留 | 因官方11.4.16要求Node22，保留9系引擎并回移官方sanitizer/escapeParams；3归档/20文件hash与Node20/24各24项通过，中英文各1963条文案逐条验；UI构建前拒绝同版本旧字节，不用ignore-engines |
 | SEC-F4-02 · Zod | 4.6.7迁移及限定验收完成 | Parser/Server/实际SDK统一v4，保留整数、JSON Schema/default/effects/required/additionalProperties语义；真实工具及有界集合12项在Node20/24通过，未误用旧内嵌v4 |
 | SEC-F4-02 · Hono/MCP SDK | 2.1.5 / 1.32.2迁移及限定验收完成 | 根锁单一Hono2，SDK显式消费Zod4；旧静态前缀漏洞有失败对照，新真实HTTP/session3项与Node20产品适配37项通过 |
-| SEC-F4-02 / OPS-01 · 统一集成 | 本机验证完成；CI矩阵已接线，不发布 | 最终API2065、Parser1213、UI119、Server全链、四包构建及零Lint错误；新增有界file-type ZIP兼容补齐既有Node20缺口，两Node安全19项通过；Node20实际UI构建和SQLite73表/8迁移/零漂移通过 |
+| SEC-F4-02 / OPS-01 · 统一集成 | 本机及四组合CI验收完成，不发布 | 最终API2065、Parser1213、UI119、Server全链、四包构建及零Lint错误；新增有界file-type ZIP兼容补齐既有Node20缺口，两Node安全19项通过；Node20实际UI构建和SQLite73表/8迁移/零漂移通过 |
 
-证据见[Node20兼容整改审计](../archive/audits/2026-10-29-node20-dependency-migrations.md)。生产审计17→14节点（4 high、10 moderate），保留版本号的I18n/Nest本地回移继续按实际字节与公告评估，不清零或自动接受风险。根Node>=20.0.0不变；精确npm10.9.2原本要求20线>=20.5，故CI扩展20.5/24.15双Node双库四格，最低运行验证仍用真实20.0。远端结果另记，生产签收不变。
+证据见[Node20兼容整改审计](../archive/audits/2026-10-29-node20-dependency-migrations.md)。生产审计17→14节点（4 high、10 moderate），保留版本号的I18n/Nest本地回移继续按实际字节与公告评估，不清零或自动接受风险。根Node>=20.0.0不变；精确npm10.9.2原本要求20线>=20.5，故CI扩展20.5/24.15双Node双库四格，最低运行验证仍用真实20.0。提交42d69da的[Node20/24双库四组合CI](../archive/audits/2026-10-29-node20-node24-db-ci.md)已核验全部success：各API2065/UI119/依赖19/schema12，实际双库73表/8迁移、零漂移、持久化及启动冒烟通过；无失败，无需新增业务修复。生产签收不变。
 
 <a id="fix-20261029"></a>
 ## 本轮执行：发布保旧与依赖整改（2026-10-29）
@@ -246,7 +246,7 @@ DONE行保存各子项验收时的限定快照，其中“仍未接/后续”等
 | SEC-F3-03 | DONE | 限定全渠道扫描完成（[证据](../archive/audits/2026-09-28-f3-03-secret-leak-matrix.md)）：真实child+回环上游+SQL.js，9合成秘密跨15渠道、904项检查0泄露、检测器非空洞自测；含OS级argv/spawn与实际env/stdio/错误面/静态码/持久行/状态事件/日志投影/管理审计检索；notCovered=部署级HTTP审计sink/ProcessInfo/观测事件sink/Linux argv |
 | SEC-F3a-01 | DONE | 限定在线审计完成（[证据](../archive/audits/2026-09-26-dependency-reachability-audit.md)）：首轮生产32项（0C/10H/21M/1L）；授权后补丁批已执行：主版本内12包+UI echarts6/vue-echarts8，生产降至19（0C/4H/15M/0L），残余全部归Nest12族；Parser 49/1196、API 148/1623与三包构建回归通过 |
 | SEC-F4-01 | DONE | 当前112个SEC叶子以逐项或明确聚合旧ID维护，D2b1/b2/b3a–d及C2b1/b2a/b2b1/b2b2/b3依赖已登记；区分历史/本地限定/未运行环境，不代表F4-02签收 |
-| SEC-F4-02 | IN_PROGRESS | [10-29 Node20兼容整改](../archive/audits/2026-10-29-node20-dependency-migrations.md)完成Zod4、Hono2/SDK1.32.2、I18n官方安全回移及file-type有界ZIP适配；Node20/24专项、API2065/Parser1213/UI119及四包构建通过，最终4 high、10 moderate（14包节点，保留版本号的I18n/Nest回移告警）。官方Vue11迁移与Node基线约束、后续公告/Nest维护、目标身份/网络/开关及生产签收继续待办，不自动接受风险；原[SSE证据](../archive/audits/2026-10-08-security-nest-sse-backport.md)保留 |
+| SEC-F4-02 | IN_PROGRESS | [10-29 Node20兼容整改](../archive/audits/2026-10-29-node20-dependency-migrations.md)完成Zod4、Hono2/SDK1.32.2、I18n官方安全回移及file-type有界ZIP适配；Node20/24专项、API2065/Parser1213/UI119及四包构建通过；[42d69da四组合CI](../archive/audits/2026-10-29-node20-node24-db-ci.md)全部success，限定维护验收完成。最终4 high、10 moderate（14包节点，保留版本号的I18n/Nest回移告警）。官方Vue11迁移与Node基线约束、后续公告/Nest维护、目标身份/网络/开关及生产签收继续待办，不自动接受风险；原[SSE证据](../archive/audits/2026-10-08-security-nest-sse-backport.md)保留 |
 | OBS-06-01 | DONE | 限定矩阵完成：新增`verify:mcp-observability-matrix`聚合4个server脚本（11+17+15+12）与Parser上游失败74项，输出`MCP_OBSERVABILITY_MATRIX_OK`；success/cancel/发送中断/大响应三transport有结果（16MiB Tool省略/8MiB完整），Windows原生对照复现双方timeout；Linux/OBS-06-02、AC-02 retry与MCP调用超时仍归TP06/16 |
 | OBS-06-02 | DONE | 限定跨平台完成（[证据](../archive/audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:obs-06-02` `OBS_06_02_VERIFY_OK`——Ubuntu24.04/容器Node v24.15.0与Windows同版本矩阵22行21匹配（server 11/17/15/12、parser 74/74、15 transport单元一致）；1项记录差异=16MiB cork/uncork Linux completed vs Windows timeout（字节相同、两侧native/audited自洽）；裸机内核/PG/负载与生产启用未覆盖 |
 | OBS-10-01 | DONE | 受管业务子进程start/stop/unexpected_exit/lost已进入独立持久投影；runtimeAssetId+serverId+generation绑定，旧generation迟到终止不能覆盖新start，管理心跳不作为业务存活。SQL.js重开4/4、真实child/事件hook 3/3、状态投影1/1、ProcessManager相邻5 suites/32及API type-check/build通过 |
