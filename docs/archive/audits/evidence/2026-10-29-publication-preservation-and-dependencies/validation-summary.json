@@ -1,0 +1,252 @@
+{
+  "date": "2026-10-29",
+  "baseCommit": "dea82065f4c82bafb96ddea9d91f7f2b3d0aa7d1",
+  "state": "local validation captured before commit; no release, tag or package performed",
+  "environment": {
+    "node": "v24.22.1",
+    "npm": "10.9.2",
+    "databaseFixtures": "SQL.js",
+    "http": "loopback"
+  },
+  "lockfile": {
+    "beforeSha256": "8e830b4d694317c2188244401e2ede3bf998972980318b6a873814fdcc43f40e",
+    "afterSha256": "8c7f56df8003a4264413a9f428559ad8f0c9867116d517416bf2c9f766cb9fc6",
+    "installedCrlfSha256": "2b077f0b28a5c1952a6d4a9e89cef4674917b163c1a50cd5233368ac2c172b32",
+    "normalization": "CRLF to repository-required LF; parsed JSON equality verified"
+  },
+  "regressionBeforeFix": {
+    "failures": 2,
+    "rawSha256": "19e354c4fd65489470a9df3c2d566f26caa6a5ab9b1db2de6c8947587c4782a4"
+  },
+  "api": {
+    "suites": 192,
+    "tests": 2065,
+    "passed": 2065,
+    "rawSha256": "4f1314d29902d3bff619681dcc6404923a4de4264b148419fa369aec97037ba8"
+  },
+  "parser": {
+    "suites": 51,
+    "tests": 1213,
+    "passed": 1213,
+    "rawSha256": "d0d04a96cadf6ffd2099d5d4e8b85b66d527a9f8ed6c836d96d39086120fbff3"
+  },
+  "ui": {
+    "tests": 95,
+    "passed": 95,
+    "rawSha256": "171097424d253a44bb2474c1b69bd6b5bd236439374e46e17f98e8cf87539788"
+  },
+  "dependencyRegressions": {
+    "tests": 16,
+    "passed": 16,
+    "rawSha256": "f8b4451dac836846794556b92682abd229ac91f2dac9ef49e8022cc58f858825"
+  },
+  "parserDependencyConsumption": {
+    "versionChecks": 13,
+    "invalidLimitChecks": 2,
+    "rawSha256": "553c83eb3cf2927cb95006159bb54389e8ad6b151cd32cb1a6430a969eed0e52"
+  },
+  "server": {
+    "command": "npm test --workspace api-nova-server",
+    "exitCode": 0,
+    "rawSha256": "984ac9635f8502623d20e2bee11e535472e313b3a92ab6c73341a68b86ae37a0"
+  },
+  "build": {
+    "command": "node scripts/build.js",
+    "exitCode": 0,
+    "packages": 4,
+    "rawSha256": "ca1764be1f173ed6b75078a26b72e7bf897a8e5c86377e208acdc5b7cc4a467e"
+  },
+  "lint": {
+    "exitCode": 0,
+    "errors": 0,
+    "warnings": 287,
+    "rawSha256": "20ecf28cc8f4062d608483f89501ffa3f28667f9072ec4083468fa226a1a1ce4"
+  },
+  "apiSnapshot": {
+    "semanticChanges": false,
+    "paths": 228,
+    "operations": 268,
+    "codeSha256": "66cf61beb6d85a7ea413ecfdb5b55f3028f31e74cf6449b93ec74ae040f5a0f3",
+    "rawSha256": "9fd50becf225ea98d5c3374925990762bfd6ab2144b29d1931fdf9118082d537"
+  },
+  "audits": {
+    "command": "npm audit --omit=dev --json; lock-only comparison also uses --package-lock-only",
+    "earlier": {
+      "counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 10,
+        "high": 10,
+        "critical": 0,
+        "total": 20
+      },
+      "rawSha256": "c8400d373e0a26b8f823b61fac6e12385bb02df5b0b49661bb7b554c6b39017f"
+    },
+    "originalConfiguration": {
+      "counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 11,
+        "high": 11,
+        "critical": 0,
+        "total": 22
+      },
+      "rawSha256": "e83888974d81b7874c369c1b0113355d7f9c6b2c9cb3260af7677444b7810f90"
+    },
+    "installedFinalConfiguration": {
+      "counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 12,
+        "high": 5,
+        "critical": 0,
+        "total": 17
+      },
+      "rawSha256": "64f8354aba5b5622a12a7aa03c628ecfbb5c14fe14fbc8a002548f11daf703aa"
+    },
+    "databaseFrozen": false,
+    "limitation": "The earlier 20 versus later 22 nodes has no proven cause. Original configuration includes HEAD root/workspace manifests and lock; no mixed overrides.",
+    "exitedNodes": [
+      "body-parser",
+      "express",
+      "follow-redirects",
+      "multer",
+      "typeorm"
+    ],
+    "residualNodes": [
+      {
+        "name": "@hono/node-server",
+        "severity": "moderate",
+        "versions": [
+          "1.19.17"
+        ]
+      },
+      {
+        "name": "@intlify/core-base",
+        "severity": "high",
+        "versions": [
+          "9.14.5"
+        ]
+      },
+      {
+        "name": "@intlify/message-compiler",
+        "severity": "high",
+        "versions": [
+          "9.14.5"
+        ]
+      },
+      {
+        "name": "@intlify/shared",
+        "severity": "high",
+        "versions": [
+          "9.14.5"
+        ]
+      },
+      {
+        "name": "@modelcontextprotocol/sdk",
+        "severity": "moderate",
+        "versions": [
+          "1.32.1"
+        ]
+      },
+      {
+        "name": "@nestjs/core",
+        "severity": "moderate",
+        "versions": [
+          "10.4.22"
+        ]
+      },
+      {
+        "name": "@nestjs/event-emitter",
+        "severity": "moderate",
+        "versions": [
+          "2.1.1"
+        ]
+      },
+      {
+        "name": "@nestjs/platform-express",
+        "severity": "moderate",
+        "versions": [
+          "10.4.22"
+        ]
+      },
+      {
+        "name": "@nestjs/platform-socket.io",
+        "severity": "moderate",
+        "versions": [
+          "10.4.22"
+        ]
+      },
+      {
+        "name": "@nestjs/schedule",
+        "severity": "moderate",
+        "versions": [
+          "4.1.2"
+        ]
+      },
+      {
+        "name": "@nestjs/swagger",
+        "severity": "moderate",
+        "versions": [
+          "7.4.2"
+        ]
+      },
+      {
+        "name": "@nestjs/terminus",
+        "severity": "moderate",
+        "versions": [
+          "10.3.0"
+        ]
+      },
+      {
+        "name": "@nestjs/throttler",
+        "severity": "moderate",
+        "versions": [
+          "5.2.0"
+        ]
+      },
+      {
+        "name": "@nestjs/typeorm",
+        "severity": "moderate",
+        "versions": [
+          "10.0.2"
+        ]
+      },
+      {
+        "name": "@nestjs/websockets",
+        "severity": "moderate",
+        "versions": [
+          "10.4.22"
+        ]
+      },
+      {
+        "name": "vue-i18n",
+        "severity": "high",
+        "versions": [
+          "9.14.5"
+        ]
+      },
+      {
+        "name": "zod",
+        "severity": "high",
+        "versions": [
+          "3.25.76"
+        ]
+      }
+    ]
+  },
+  "acceptance": {
+    "tasks": 209,
+    "dependencies": 245,
+    "SEC_F4_02": "IN_PROGRESS",
+    "OBS_16_04": "IN_PROGRESS",
+    "OPS_01": "WAIT_DEP",
+    "riskAccepted": false
+  },
+  "limitations": [
+    "No PostgreSQL revalidation this round",
+    "No target production signoff",
+    "No multiplatform offline package build",
+    "Remote CI results are separate from this pre-commit local validation"
+  ]
+}

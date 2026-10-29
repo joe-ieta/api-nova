@@ -1,11 +1,13 @@
 ---
-doc-version: 1.39.0
+doc-version: 1.40.0
 doc-status: active
-doc-updated: 2026-10-26
+doc-updated: 2026-10-29
 ---
 # 未完成事项
 
 本页只列现有批准范围内的剩余出口；任务状态以[统一执行台账](../guides/active-work-package-execution-status.md)为准，合同和依赖见[工作包划分](../guides/active-work-package-breakdown.md)。历史阶段记录不另算待开发任务。
+
+2026-10-29批量发布部分失败导致旧Gateway路由503已修复，新增14项回归，API192套/2065项通过；兼容依赖整改后生产审计为5 high、12 moderate、0 critical（17包节点）。见[本轮台账](../guides/active-work-package-execution-status.md#fix-20261029)与[审计](../archive/audits/2026-10-29-publication-preservation-and-dependencies.md)。用户要求暂不发布；10-26记录保留为历史，SEC-F4-02及生产签收不因本机修复关闭。
 
 当前候选为 **v1.7.6-rc.6**，main源提交 `1fd5753db4673cfe13853785497a43c7187dbffd`；三平台原生离线验证、不可变七文件归档、latest、注释标签及远端七附件已完成，见[发布审计](../archive/audits/2026-10-26-release-v1.7.6-rc.6.md)。旧latest完整备份，历史rc.5归档及legacy数据库保留；生产签收、人工反馈和延期不因预发布关闭。原收口范围见[2026-10-26收口审计](../archive/audits/2026-10-26-existing-scope-closure.md)。
 
@@ -31,7 +33,7 @@ doc-updated: 2026-10-26
 | 浏览器未验组合 | OPS-01；认证规范、MCP、多角色及其他原定组合未全面覆盖 | 只按原承诺支持的组合补证据；已有HTTP/SDK验收不等于浏览器验收，不追加无限排列 |
 | 二进制目标矩阵 | SEC/OPS；PROD-04C本机PG/HTTP留存闭环已完成 | 目标账户ACL、Linux文件语义、MCP真实二进制外发另验，不重做存储原语 |
 | 部署与外部接入 | SEC/OBS/OPS；受控sink、回环TLS、局部容器结果已有 | 真实SMTP/Webhook、证书/反代/出站、裸机/systemd、长时/多进程及原定平台组合需实际环境证据；仅使用获准接收端 |
-| 依赖与Nest维护 | SEC-F4-02；官方SSE回移和字节门禁已完成；10-20的10 moderate/0 high为历史结果；10-26复审为9 moderate、7 high、0 critical（16个包节点，非16条已证利用链） | 高危及可补丁节点继续归SEC-F4-02核实影响与处置，当前不满足安全签收；保留补丁，不因清零审计强制跨大版本升级；风险接受需责任人决定 |
+| 依赖与Nest维护 | SEC-F4-02；10-29兼容补丁及16项专项通过，最终5 high、12 moderate、0 critical（17包节点，非17条已证利用链）；官方SSE回移和字节门禁保留 | Vue I18n/Intlify、Zod、Hono/MCP SDK分别进行主版本兼容迁移；Nest版本范围告警结合实际补丁处置。历史审计保留，不静默抬高Node支持基线，不自动接受残余风险；目标安全签收继续待办 |
 | Lint技术债 | rc.5 CI为0 error、272 warnings；本机当时273 warnings | 保留差异及原记录；只处理实际影响/门禁问题，0 warning不是新增退出条件 |
 | 安装支持 | 根manifest/lock安装与完整离线包已验证 | 脱离根锁文件的独立API workspace安装不保证；未批准的新分发形式不作为本轮硬门禁 |
 | 健康与资源 | ENV-01的5GiB策略已完成；10-20发布时C盘约3.1GiB是历史主机条件 | 10-26实测C盘约19.3GiB，真实API+MCP完整health200、MCP停用503、监控入口8项通过；目标账户执行策略读取失败仍单列，不降低门槛 |

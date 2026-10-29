@@ -77,6 +77,11 @@ jobs:
       - name: Verify package manager
         run: npm run verify:package-manager
 
+      - name: Verify dependency security regressions
+        run: |
+          npm run verify:security-parser-dependencies
+          node --test scripts/test-security-http-dependencies.cjs scripts/test-security-residual-dependencies.cjs scripts/test-security-nest-sse-backport.cjs
+
       - name: Verify runtime closure
         run: npm run verify:runtime-closure
 

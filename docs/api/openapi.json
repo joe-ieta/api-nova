@@ -16935,7 +16935,7 @@
     "description": "Controller/DTO snapshot. Read README.md for response families, resource authorization, runtime routes and annotation limitations.",
     "version": "source-snapshot",
     "contact": {},
-    "x-repository-code-sha256": "09ac04e2c32333a7bc7123e3a08f139fc4f465b926fa6779391e5e2d4071a1bd"
+    "x-repository-code-sha256": "66cf61beb6d85a7ea413ecfdb5b55f3028f31e74cf6449b93ec74ae040f5a0f3"
   },
   "tags": [],
   "servers": [

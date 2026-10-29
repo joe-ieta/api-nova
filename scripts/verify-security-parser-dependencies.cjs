@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const { createRequire } = require('node:module');
 const path = require('node:path');
-const root = path.resolve(process.argv[2] || path.join(__dirname, '..'));
+const root = path.resolve(process.argv[2] || process.env.API_NOVA_SECURITY_CANDIDATE_ROOT || path.join(__dirname, '..'));
 const rootRequire = createRequire(path.join(root, 'package.json'));
 const apiRequire = createRequire(path.join(root, 'packages/api-nova-api/package.json'));
 const records = [];
@@ -16,14 +16,14 @@ function check(requireFrom, dependency, expected, source) {
   return createRequire(file);
 }
 const platform = consumer('@nestjs/platform-express');
-check(platform, 'multer', '2.4.0', 'Nest FileInterceptor');
+check(platform, 'multer', '2.5.0', 'Nest FileInterceptor');
 const express = check(platform, 'express', '4.22.3', 'Nest ExpressAdapter');
 const directExpress = check(apiRequire, 'express', '4.22.3', 'API explicit body parsers');
 for (const [source, req] of [['Nest ExpressAdapter', platform], ['Nest Express', express], ['API Express', directExpress]]) {
-  const bodyParser = check(req, 'body-parser', '1.20.8', source);
-  check(bodyParser, 'qs', '6.16.0', source + ' body-parser');
+  const bodyParser = check(req, 'body-parser', '1.20.9', source);
+  check(bodyParser, 'qs', '6.16.1', source + ' body-parser');
 }
-check(express, 'qs', '6.16.0', 'Nest Express');
+check(express, 'qs', '6.16.1', 'Nest Express');
 check(consumer('@nestjs/swagger'), 'js-yaml', '4.3.2', 'Swagger');
 check(consumer('@nestjs/swagger'), 'lodash', '4.18.1', 'Swagger');
 check(consumer('@nestjs/config'), 'lodash', '4.18.1', 'Config');

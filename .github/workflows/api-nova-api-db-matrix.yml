@@ -4,6 +4,11 @@ on:
   push:
     paths:
       - '.github/workflows/api-nova-api-db-matrix.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/*security*dependencies.cjs'
+      - 'scripts/test-security-nest-sse-backport.cjs'
+      - 'scripts/verify-nest-sse-backport.cjs'
       - 'packages/api-nova-api/**'
       - 'packages/api-nova-ui/**'
       - 'packages/api-nova-parser/**'
@@ -11,6 +16,11 @@ on:
   pull_request:
     paths:
       - '.github/workflows/api-nova-api-db-matrix.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/*security*dependencies.cjs'
+      - 'scripts/test-security-nest-sse-backport.cjs'
+      - 'scripts/verify-nest-sse-backport.cjs'
       - 'packages/api-nova-api/**'
       - 'packages/api-nova-ui/**'
       - 'packages/api-nova-parser/**'
@@ -59,6 +69,11 @@ jobs:
         run: |
           npm run build --workspace api-nova-parser
           npm run build --workspace api-nova-server
+
+      - name: Verify dependency security regressions
+        run: |
+          npm run verify:security-parser-dependencies
+          node --test scripts/test-security-http-dependencies.cjs scripts/test-security-residual-dependencies.cjs scripts/test-security-nest-sse-backport.cjs
 
       - name: Run API unit tests with their isolated SQL.js fixtures
         env:

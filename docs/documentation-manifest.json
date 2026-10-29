@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewed": "2026-10-26",
+  "reviewed": "2026-10-29",
   "policy": "One current entry per topic. Archive bodies retain historical metadata; archive path determines historical status. Published release records and package changelogs retain their bytes.",
   "documents": [
     {
@@ -69,8 +69,8 @@
       "path": "docs/baseline/PROJECT_BASELINE.md",
       "title": "项目当前基线",
       "kind": "active",
-      "version": "1.4.0",
-      "updated": "2026-10-26",
+      "version": "1.5.0",
+      "updated": "2026-10-29",
       "catalogLink": "baseline/PROJECT_BASELINE.md"
     },
     {
@@ -93,16 +93,16 @@
       "path": "docs/guides/active-work-package-breakdown.md",
       "title": "活跃工作包划分与验收子任务",
       "kind": "active",
-      "version": "1.108.0",
-      "updated": "2026-10-26",
+      "version": "1.109.0",
+      "updated": "2026-10-29",
       "catalogLink": "guides/active-work-package-breakdown.md"
     },
     {
       "path": "docs/guides/active-work-package-execution-status.md",
       "title": "开发任务包总览与执行状态",
       "kind": "active",
-      "version": "1.208.0",
-      "updated": "2026-10-26",
+      "version": "1.209.0",
+      "updated": "2026-10-29",
       "catalogLink": "guides/active-work-package-execution-status.md"
     },
     {
@@ -213,16 +213,16 @@
       "path": "docs/reference/open-items.md",
       "title": "未完成事项",
       "kind": "active",
-      "version": "1.39.0",
-      "updated": "2026-10-26",
+      "version": "1.40.0",
+      "updated": "2026-10-29",
       "catalogLink": "reference/open-items.md"
     },
     {
       "path": "docs/reference/publication-contract.md",
       "title": "资产、发布与样例合同",
       "kind": "active",
-      "version": "1.0.0",
-      "updated": "2026-10-26",
+      "version": "1.1.0",
+      "updated": "2026-10-29",
       "catalogLink": "reference/publication-contract.md"
     },
     {
@@ -345,8 +345,8 @@
       "path": "docs/VERSIONS.md",
       "title": "当前文档版本与类型清单",
       "kind": "active",
-      "version": "2.1.0",
-      "updated": "2026-10-26",
+      "version": "2.2.0",
+      "updated": "2026-10-29",
       "catalogLink": "VERSIONS.md"
     },
     {

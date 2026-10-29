@@ -1,7 +1,7 @@
 ---
-doc-version: 1.208.0
+doc-version: 1.209.0
 doc-status: active
-doc-updated: 2026-10-26
+doc-updated: 2026-10-29
 ---
 # 开发任务包总览与执行状态
 
@@ -10,6 +10,19 @@ doc-updated: 2026-10-26
 > 当前保留3项签收（SEC-F4-02、OBS-16-04、OPS-01）及2项延期。人工反馈与生产签收不由自动化代签；3/5/2秒及大样本时间观察仍为非阻断诊断，完整性、持久化、权限和恢复合同不变。
 
 阅读入口：[任务包总览](#package-overview) · [后续执行清单](#next-work) · [子任务统计与明细](#task-ledger) · [历史记录](#history)。原任务合同与依赖见[任务划分](active-work-package-breakdown.md)。
+
+<a id="fix-20261029"></a>
+## 本轮执行：发布保旧与依赖整改（2026-10-29）
+
+本轮从main/dea8206推进已批准范围内的缺陷维护，用户明确暂不发布。旧本地改动仍归档于stash，不回放进当前修复；已发布rc.6字节与记录不改。
+
+| 原任务归属与步骤 | 本轮进度 | 退出证据与未关闭边界 |
+| --- | --- | --- |
+| OPS-01 / EXT-05：批量发布失败保旧 | 本机修复与回归完成 | 修复前两个autoStart分支真实HTTP均复现503；新增14项覆盖修订连续性、冷/热缓存、重复失败、DB/Registry重开、旧格式、审计失败及撤销负例；最终API192套/2065项通过 |
+| SEC-F4-02：依赖漏洞维护 | 兼容补丁完成；残余迁移与签收待办 | body-parser 1.20.9/2.4.0、multer 2.5.0、follow-redirects 1.16.2、TypeORM 0.3.31；干净安装、HTTP/SSE/UUID/file-type16项及实际解析链通过；最终5 high、12 moderate、0 critical，17包节点未自动接受 |
+| OPS-01：集成与交付 | 本轮本机回归通过；不发布 | 四包构建、Parser1213项、UI95项、Server全链及零Lint错误通过；安全/可观测目标签收、人工反馈及既有未验组合仍开放；209/245历史统计不变 |
+
+本轮证据：[发布保旧与依赖整改审计](../archive/audits/2026-10-29-publication-preservation-and-dependencies.md)。剩余Vue I18n/Intlify、Zod和Hono/MCP SDK主版本迁移须分别验证Node支持及消费合同；Nest版本范围告警结合现有SSE回移字节判定，不能用审计计数宣称已证利用。新安全专项已纳入双库CI及发布前门禁，本轮未触发远端发布。
 
 <a id="package-overview"></a>
 ## 当前任务包总览
@@ -34,7 +47,7 @@ doc-updated: 2026-10-26
 
 | 顺序与原任务 | 当前状态 / 可并行关系 | 下一步具体工作 | 完成标准 |
 | --- | --- | --- | --- |
-| 1A · SEC-F4-02 安全发布签收 | **IN_PROGRESS，本地SSE补丁已完成；目标签收待办**；与OBS独立 | 已回移官方SSE修复，真实HTTP、干净安装和发布布局合同6/6；构建/打包/启动校验实际补丁。10-26复审为9 moderate、7 high、0 critical，较10-20历史基线变化，处置仍待SEC签收；后续维护迁移与目标身份/网络/开关签收 | 原安全出口有可追溯结果，残余版本范围风险有明确处置；本地修复不代替目标或生产签收 |
+| 1A · SEC-F4-02 安全发布签收 | **IN_PROGRESS，兼容补丁完成；迁移与目标签收待办**；与OBS独立 | SSE回移及字节门禁保留；10-29兼容依赖整改与16项专项通过，生产审计5 high、12 moderate、0 critical；继续Vue I18n/Zod/Hono主版本兼容验证、Nest维护及目标身份/网络/开关签收 | 原安全出口有可追溯结果，残余版本范围风险有明确处置；本地修复不代替目标或生产签收 |
 | 1B · OBS-16-04 可观测部署签收 | **工程/功能专项DONE；父项IN_PROGRESS，目标签收待办** | 本机不再继续时间优化。以同候选核对目标账户/ACL、平台/DB、有效开关、保留、恢复和回退；参考硬件及采集A/B仅诊断 | 已验范围可追溯，部署出口有实际目标证据；SQLite3000全量未证明，不作该容量的生产保证 |
 | 2 · OPS-01 最终交付签收 | **WAIT_DEP，最终签收待前置**；本机Gateway浏览器闭环限定完成 | 在同一候选版本与目标环境汇总健康、安全和可观测结果；部署重启、权限/TLS、告警及回退仍待核验；[本机浏览器证据](../archive/audits/2026-10-14-ops-browser-workflow.md) | 交付步骤可复现，必要证据齐备，给出发布/不发布结论；本机流程通过不能代替生产签收 |
 
@@ -217,7 +230,7 @@ DONE行保存各子项验收时的限定快照，其中“仍未接/后续”等
 | SEC-F3-03 | DONE | 限定全渠道扫描完成（[证据](../archive/audits/2026-09-28-f3-03-secret-leak-matrix.md)）：真实child+回环上游+SQL.js，9合成秘密跨15渠道、904项检查0泄露、检测器非空洞自测；含OS级argv/spawn与实际env/stdio/错误面/静态码/持久行/状态事件/日志投影/管理审计检索；notCovered=部署级HTTP审计sink/ProcessInfo/观测事件sink/Linux argv |
 | SEC-F3a-01 | DONE | 限定在线审计完成（[证据](../archive/audits/2026-09-26-dependency-reachability-audit.md)）：首轮生产32项（0C/10H/21M/1L）；授权后补丁批已执行：主版本内12包+UI echarts6/vue-echarts8，生产降至19（0C/4H/15M/0L），残余全部归Nest12族；Parser 49/1196、API 148/1623与三包构建回归通过 |
 | SEC-F4-01 | DONE | 当前112个SEC叶子以逐项或明确聚合旧ID维护，D2b1/b2/b3a–d及C2b1/b2a/b2b1/b2b2/b3依赖已登记；区分历史/本地限定/未运行环境，不代表F4-02签收 |
-| SEC-F4-02 | IN_PROGRESS | [官方SSE补丁回移](../archive/audits/2026-10-08-security-nest-sse-backport.md)修复实际编码器，vendor/lock可追溯，正常/注入HTTP、干净安装和发布布局6/6通过；构建/打包/启动拒绝旧字节。10-26复审为9 moderate、7 high、0 critical，较10-20历史基线变化，处置仍待SEC签收；原解析/file-type/UUID门禁和API184套/1932项通过。维护版本迁移与目标身份/网络/开关及生产签收继续待办 |
+| SEC-F4-02 | IN_PROGRESS | [官方SSE回移](../archive/audits/2026-10-08-security-nest-sse-backport.md)与字节门禁保留；[10-29兼容整改](../archive/audits/2026-10-29-publication-preservation-and-dependencies.md)完成body-parser/multer/follow-redirects/TypeORM维护、干净安装、依赖16项及API192套/2065项回归，最终5 high、12 moderate、0 critical（17包节点）。Vue I18n/Zod/Hono主版本迁移、Nest版本范围风险处置与目标身份/网络/开关签收继续待办，不自动接受残余风险 |
 | OBS-06-01 | DONE | 限定矩阵完成：新增`verify:mcp-observability-matrix`聚合4个server脚本（11+17+15+12）与Parser上游失败74项，输出`MCP_OBSERVABILITY_MATRIX_OK`；success/cancel/发送中断/大响应三transport有结果（16MiB Tool省略/8MiB完整），Windows原生对照复现双方timeout；Linux/OBS-06-02、AC-02 retry与MCP调用超时仍归TP06/16 |
 | OBS-06-02 | DONE | 限定跨平台完成（[证据](../archive/audits/2026-09-28-ext-09-obs-06-02-ubuntu-validation.md)）：`verify:obs-06-02` `OBS_06_02_VERIFY_OK`——Ubuntu24.04/容器Node v24.15.0与Windows同版本矩阵22行21匹配（server 11/17/15/12、parser 74/74、15 transport单元一致）；1项记录差异=16MiB cork/uncork Linux completed vs Windows timeout（字节相同、两侧native/audited自洽）；裸机内核/PG/负载与生产启用未覆盖 |
 | OBS-10-01 | DONE | 受管业务子进程start/stop/unexpected_exit/lost已进入独立持久投影；runtimeAssetId+serverId+generation绑定，旧generation迟到终止不能覆盖新start，管理心跳不作为业务存活。SQL.js重开4/4、真实child/事件hook 3/3、状态投影1/1、ProcessManager相邻5 suites/32及API type-check/build通过 |

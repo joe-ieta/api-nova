@@ -32,6 +32,9 @@ import { RuntimeAssetEntity as Runtime, RuntimeAssetType } from '../../../databa
 import { RuntimeAssetEndpointBindingEntity as Member } from '../../../database/entities/runtime-asset-endpoint-binding.entity';
 import { EndpointPublishBindingEntity as Binding } from '../../../database/entities/endpoint-publish-binding.entity';
 import { PublicationProfileEntity as Profile } from '../../../database/entities/publication-profile.entity';
+import { PublicationProfileHistoryEntity as History } from '../../../database/entities/publication-profile-history.entity';
+import { PublicationBatchRunEntity as Batch } from '../../../database/entities/publication-batch-run.entity';
+import { PublicationAuditEventEntity as Audit } from '../../../database/entities/publication-audit-event.entity';
 import { EndpointDefinitionEntity as Endpoint } from '../../../database/entities/endpoint-definition.entity';
 import { SourceServiceAssetEntity as Source } from '../../../database/entities/source-service-asset.entity';
 import { GatewayHeaderHistoryLedgerEntity as Ledger } from '../../../database/entities/gateway-header-history-ledger.entity';
@@ -50,7 +53,7 @@ import { GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER } from './gateway-upstream-credent
 import { GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY, gatewayUpstreamCredentialRegistryProvider, gatewayUpstreamCredentialResolverProvider } from './gateway-upstream-credential.providers';
 const listen = (s: http.Server) => new Promise<number>(resolve => s.listen(0, '127.0.0.1', () => resolve((s.address() as any).port)));
 const close = (s: http.Server) => new Promise<void>(resolve => { s.closeAllConnections(); s.close(() => resolve()); });
-const entities = [Route, Snapshot, Runtime, Member, Binding, Profile, Endpoint, Source, Ledger, Instance, UpstreamBinding, UpstreamCandidate, Sample, Run, Result, MCPServerEntity, GatewayConsumerCredentialEntity];
+const entities = [Route, Snapshot, Runtime, Member, Binding, Profile, History, Batch, Audit, Endpoint, Source, Ledger, Instance, UpstreamBinding, UpstreamCandidate, Sample, Run, Result, MCPServerEntity, GatewayConsumerCredentialEntity];
 describe('H11B real deployment/replay and published Header v1 HTTP matrix', () => {
   let app: INestApplication, db: DataSource, module: TestingModule, registry: UpstreamCredentialRegistry, policy: GatewayPolicyService;
   let upstream: http.Server, gateway: http.Server, directory: string, port: number, upstreamPort: number, seen: any[], candidate: any;
@@ -78,30 +81,41 @@ describe('H11B real deployment/replay and published Header v1 HTTP matrix', () =
     upstreamBindings = new RuntimeUpstreamBindingsService(db.getRepository(UpstreamBinding), db.getRepository(UpstreamCandidate), db.getRepository(Instance), db, { log: async () => undefined } as any, invalidation);
     await upstreamBindings.upsert('member', { sourceServiceAssetId: 'source', environment: 'test', selectionMode: 'fixed_primary', primaryInstanceId: 'instance', status: 'active', candidates: [{ sourceServiceInstanceId: 'instance' }] } as any, { actorId: 'fixture' });
     await db.getRepository(Sample).save({ id: 'sample', endpointDefinitionId: 'endpoint', testRunId: 'test', fingerprint: 'fixture', tags: ['smoke'], capturedAt: new Date(), requestPayload: {}, responseStatusCode: 200, responsePayload: 'ok', metadata: { responseAssertion: { mode: 'exact' } } });
-    const context = async () => ({ membership: await db.getRepository(Member).findOneByOrFail({ id: 'member' }), runtimeAsset: await db.getRepository(Runtime).findOneByOrFail({ id: 'runtime' }), endpointDefinition: await db.getRepository(Endpoint).findOneByOrFail({ id: 'endpoint' }), sourceServiceAsset: await db.getRepository(Source).findOneByOrFail({ id: 'source' }) });
-    publication = Object.create(PublicationService.prototype);
-    Object.assign(publication, { gatewayPolicyService: policy, routeBindingRepository: db.getRepository(Route), profileRepository: db.getRepository(Profile),
-      resolveMembershipPublicationContext: context, ensureRouteConflictFree: jest.fn(), writeHistory: jest.fn(), recordAuditEvent: jest.fn(),
-      emitGatewaySnapshotRefresh: jest.fn(() => { expect(db.createQueryRunner().isTransactionActive).toBe(false); }),
-      buildMembershipPublicationState: context, buildPostPublishDeploymentState: async () => ({ attempted: false }) });
+    publication = new PublicationService(db.getRepository(Endpoint), db.getRepository(Runtime), db.getRepository(Member),
+      db.getRepository(Source), db.getRepository(Profile), db.getRepository(History), db.getRepository(Batch),
+      db.getRepository(Audit), db.getRepository(Binding), db.getRepository(Route), {} as any,
+      { emit: () => { expect(db.createQueryRunner().isTransactionActive).toBe(false); } } as any, upstreamBindings, policy);
     await publication.configureRuntimeMembershipGatewayRoute('member', { routePath: '/items', routeMethod: 'GET', upstreamPath: '/items', upstreamMethod: 'GET', routeVisibility: 'external', authPolicyRef: 'anonymous', cachePolicyRef: 'enabled', upstreamConfig: { cache: { ttlMs: 30000, maxBodyBytes: 4096 }, headerPolicyMigration: { version: 1, mode: 'v1', source: 'registry' } } });
     snapshots = new GatewayRouteSnapshotService(policy, db.getRepository(Route), db.getRepository(Snapshot), db.getRepository(Member), db.getRepository(Binding), db.getRepository(Runtime), db.getRepository(Endpoint), db.getRepository(Source), upstreamBindings);
+    createRuntime();
+    const verification = new RuntimeVerificationService(db.getRepository(Runtime), db.getRepository(Member), db.getRepository(Sample), db.getRepository(Run), db.getRepository(Result), upstreamBindings, snapshots, new GatewayCandidateReplayService(snapshots, runtime), new McpCandidateReplayService(), new RuntimeResponseAssertionService(), {} as any);
+    assets = new RuntimeAssetsService({} as any, { emit() {} } as any, db.getRepository(Runtime), db.getRepository(MCPServerEntity), db.getRepository(Member), db.getRepository(Endpoint), db.getRepository(Source), db.getRepository(Profile), db.getRepository(Binding), db.getRepository(Route), db.getRepository(GatewayConsumerCredentialEntity), {} as any, { getRuntimeAssetMetrics: () => ({}) } as any, {} as any, { recordRuntimeControlEvent: async () => undefined } as any, { log: async () => undefined } as any, upstreamBindings, verification);
+    await startGateway();
+  });
+  function createRuntime() {
     const actualResolver = module.get(GATEWAY_UPSTREAM_CREDENTIAL_RESOLVER);
     const wrapper = { headerPolicyEnabled: true, resolve: (...args: any[]) => actualResolver.resolve(...args) }; resolverSpy = jest.spyOn(wrapper, 'resolve');
     const metrics: any = Object.fromEntries(['recordPolicyEvent', 'recordCacheResult', 'recordForwardResult', 'recordPolicyObservabilityEvent'].map(name => [name, jest.fn().mockResolvedValue(undefined)]));
     const traffic: any = Object.fromEntries(['beforeAttempt', 'recordAttemptSuccess', 'recordAttemptFailure', 'recordRetryAttempt'].map(name => [name, jest.fn().mockResolvedValue(undefined)])); traffic.admit = async () => ({ release() {} });
     runtime = new GatewayRuntimeService(snapshots, { authorize: async () => ({ mode: 'anonymous' }) } as any, traffic, new GatewayCacheService(), new GatewayProxyEngineService(new GatewayRequestCaptureService(), wrapper, metrics, new GatewayUpstreamSecurityRuntimeGuard(db.getRepository(Endpoint))), { recordRequest: async () => undefined } as any, metrics, module.get(GatewayHeaderLegacyRuntimeGuard));
-    const verification = new RuntimeVerificationService(db.getRepository(Runtime), db.getRepository(Member), db.getRepository(Sample), db.getRepository(Run), db.getRepository(Result), upstreamBindings, snapshots, new GatewayCandidateReplayService(snapshots, runtime), new McpCandidateReplayService(), new RuntimeResponseAssertionService(), {} as any);
-    assets = new RuntimeAssetsService({} as any, { emit() {} } as any, db.getRepository(Runtime), db.getRepository(MCPServerEntity), db.getRepository(Member), db.getRepository(Endpoint), db.getRepository(Source), db.getRepository(Profile), db.getRepository(Binding), db.getRepository(Route), db.getRepository(GatewayConsumerCredentialEntity), {} as any, { getRuntimeAssetMetrics: () => ({}) } as any, {} as any, { recordRuntimeControlEvent: async () => undefined } as any, { log: async () => undefined } as any, upstreamBindings, verification);
+  }
+  async function startGateway() {
     const httpModule = await Test.createTestingModule({ controllers: [GatewayRuntimeController], providers: [{ provide: GatewayRuntimeService, useValue: runtime }] }).compile();
     app = httpModule.createNestApplication(); app.setGlobalPrefix('api'); await app.init();
     installGatewayHttpIngressBoundary(app.getHttpServer(), req => { const current = snapshots.resolve(req.headers.host, req.method || 'GET', '/items'); return Boolean(current && policy.assertHeaderV1Ready(current.routeBinding)); });
     await app.listen(0, '127.0.0.1');
     gateway = app.getHttpServer(); port = (gateway.address() as any).port;
-  });
+  }
   afterEach(async () => { if (declaration === undefined) delete process.env.API_NOVA_H11B_SECRET; else process.env.API_NOVA_H11B_SECRET = declaration; if (gateway) gateway.closeAllConnections(); await app?.close(); if (upstream) await close(upstream); await module?.close(); if (db?.isInitialized) await db.destroy(); if (directory) await fs.rm(directory, { recursive: true, force: true }); });
-  async function publish() {
+  async function publish(withoutContinuity = false) {
     await publication.publishRuntimeMembership('member', { autoStart: false });
+    if (withoutContinuity) {
+      // Existing rc.6 deployments predate service-owned continuity records.
+      const member = await db.getRepository(Member).findOneByOrFail({ id: 'member' });
+      const bindingConfig = { ...member.bindingConfig };
+      delete bindingConfig.gatewayPublicationContinuity;
+      await db.getRepository(Member).update('member', { bindingConfig });
+    }
     // SQL.js timestamps are second precision; do not weaken production stale-candidate checks.
     await new Promise(resolve => setTimeout(resolve, 1050));
     const deployed = await assets.deployGatewayRuntimeAsset('runtime').catch(error => { throw new Error(JSON.stringify(error.getResponse?.() ?? error.message)); });
@@ -118,6 +132,123 @@ describe('H11B real deployment/replay and published Header v1 HTTP matrix', () =
     await publish(); expect(await db.getRepository(Run).count()).toBe(1); expect(await db.getRepository(Result).count()).toBe(1);
     seen = []; expect((await request()).body.toString()).toBe('ok'); const cached = await request();
     expect(cached.headers['x-apinova-cache']).toBe('HIT'); expect(seen).toHaveLength(1);
+  });
+
+  async function partialPublication(autoStart = true) {
+    await db.getRepository(Endpoint).save({ id: 'blocked-endpoint', sourceServiceAssetId: 'source', path: '/blocked', method: 'GET', publishEnabled: false, rawOperation: {} });
+    await db.getRepository(Member).save({ id: 'blocked-member', runtimeAssetId: 'runtime', endpointDefinitionId: 'blocked-endpoint' });
+    const batch = await publication.batchPublishRuntimeMemberships({ membershipIds: ['member', 'blocked-member'], autoStart });
+    expect(batch.items.map((item: any) => item.status)).toEqual(['success', 'failed']);
+    expect(batch.batchRun).toMatchObject({ status: 'partial', successCount: 1, failedCount: 1 });
+    expect(batch.deployment).toMatchObject({ code: 'BATCH_PUBLICATION_INCOMPLETE', attempted: false });
+    return batch;
+  }
+
+  it.each([true, false])('keeps the deployed route usable after partial publication (autoStart=%s)', async autoStart => {
+    await publish();
+    const before = await db.getRepository(Runtime).findOneByOrFail({ id: 'runtime' });
+    const snapshotCount = await db.getRepository(Snapshot).count();
+    await partialPublication(autoStart);
+    expect((await db.getRepository(Member).findOneByOrFail({ id: 'member' })).publicationRevision).toBe(2);
+    expect(snapshots.resolve(undefined, 'GET', '/items')!.membership.publicationRevision).toBe(1);
+    seen = [];
+    expect((await request()).status).toBe(200);
+    expect((await request()).headers['x-apinova-cache']).toBe('HIT');
+    expect(seen).toHaveLength(1);
+    const after = await db.getRepository(Runtime).findOneByOrFail({ id: 'runtime' });
+    expect(after.metadata!.activeRevision).toBe(before.metadata!.activeRevision);
+    expect(after.metadata!.activeGatewaySnapshotFingerprint).toBe(before.metadata!.activeGatewaySnapshotFingerprint);
+    expect(await db.getRepository(Snapshot).count()).toBe(snapshotCount);
+    await snapshots.reload();
+    expect(snapshots.resolve(undefined, 'GET', '/items')!.membership.publicationRevision).toBe(1);
+    expect((await request()).status).toBe(200);
+  });
+
+  it('keeps a populated cache callable across repeated partial publications', async () => {
+    await publish();
+    expect((await request()).status).toBe(200);
+    seen = [];
+    await partialPublication();
+    await partialPublication();
+    expect((await db.getRepository(Member).findOneByOrFail({ id: 'member' })).publicationRevision).toBe(3);
+    const response = await request();
+    expect(response.status).toBe(200); expect(response.headers['x-apinova-cache']).toBe('HIT');
+    expect(seen).toHaveLength(0);
+  });
+
+  it('preserves an existing deployment without continuity metadata on its first partial republication', async () => {
+    await publish(true); await partialPublication();
+    expect(snapshots.resolve(undefined, 'GET', '/items')!.membership.bindingConfig?.gatewayPublicationContinuity).toBeUndefined();
+    expect((await request()).status).toBe(200);
+  });
+
+  it('keeps the old route callable when publication commits but its audit side effect fails', async () => {
+    await publish(); expect((await request()).status).toBe(200);
+    const auditFailure = jest.spyOn(publication, 'recordAuditEvent').mockRejectedValueOnce(new Error('synthetic audit failure'));
+    const batch = await publication.batchPublishRuntimeMemberships({ membershipIds: ['member'] });
+    auditFailure.mockRestore();
+    expect(batch.items[0]).toMatchObject({ status: 'committed_side_effect_failed', committed: true, publicationRevision: 2 });
+    expect(batch.deployment).toMatchObject({ code: 'BATCH_PUBLICATION_INCOMPLETE', attempted: false });
+    seen = [];
+    const response = await request();
+    expect(response.status).toBe(200); expect(response.headers['x-apinova-cache']).toBe('HIT');
+    expect(seen).toHaveLength(0);
+  });
+
+  it('restores the old deployed HTTP route after reopening the DB and Registry following partial publication', async () => {
+    await publish(); await partialPublication();
+    const database = (db.driver as any).export();
+    gateway.closeAllConnections(); await app.close(); gateway = undefined as any; app = undefined as any;
+    await module.close(); await db.destroy();
+    db = await new DataSource({ type: 'sqljs', entities, database, synchronize: false }).initialize();
+    module = await Test.createTestingModule({ providers: [{ provide: DataSource, useValue: db },
+      { provide: ConfigService, useValue: new ConfigService({ API_NOVA_UPSTREAM_CREDENTIAL_FILE: join(directory, 'registry.json'), API_NOVA_UPSTREAM_CREDENTIAL_FORMAT: 'json', API_NOVA_UPSTREAM_CREDENTIAL_ENVIRONMENT: 'test' }) },
+      gatewayUpstreamCredentialRegistryProvider, gatewayUpstreamCredentialResolverProvider, gatewayHeaderLegacyRuntimeGuardProvider, gatewayHostRuntimeProvider, GatewayPolicyService] }).compile();
+    policy = module.get(GatewayPolicyService); registry = module.get(GATEWAY_UPSTREAM_CREDENTIAL_REGISTRY);
+    snapshots = new GatewayRouteSnapshotService(policy, db.getRepository(Route), db.getRepository(Snapshot), db.getRepository(Member), db.getRepository(Binding), db.getRepository(Runtime), db.getRepository(Endpoint), db.getRepository(Source), {} as any);
+    await snapshots.reload(); createRuntime(); await startGateway();
+    expect(snapshots.resolve(undefined, 'GET', '/items')!.membership.publicationRevision).toBe(1);
+    expect((await db.getRepository(Member).findOneByOrFail({ id: 'member' })).publicationRevision).toBe(2);
+    seen = [];
+    const response = await request();
+    expect(response.status).toBe(200); expect(response.body.toString()).toBe('ok'); expect(seen).toHaveLength(1);
+  });
+
+  it('does not resurrect a revoked deployment when its member is republished without deployment', async () => {
+    await publish(); expect((await request()).status).toBe(200);
+    await publication.offlineRuntimeMembership('member', {});
+    expect((await request()).status).toBe(503);
+    await db.getRepository(Profile).update('profile', { status: 'reviewed' as any });
+    await partialPublication();
+    resolverSpy.mockClear(); seen = [];
+    expect((await request()).status).toBe(503);
+    expect(resolverSpy).not.toHaveBeenCalled(); expect(seen).toHaveLength(0);
+  });
+
+  it('rejects a coherent revision increase that did not pass through the publication writer', async () => {
+    await publish(); expect((await request()).status).toBe(200);
+    await db.getRepository(Member).update('member', { publicationRevision: 2 });
+    await db.getRepository(Binding).update(route.routeBinding.publishBindingId, { publicationRevision: 2 });
+    resolverSpy.mockClear(); seen = [];
+    expect((await request()).status).toBe(503);
+    expect(resolverSpy).not.toHaveBeenCalled(); expect(seen).toHaveLength(0);
+  });
+
+  it.each(['offline', 'disabled', 'policy', 'protected', 'revision-mismatch', 'revision-rollback'])('still rejects %s after partial publication before cache, resolver and upstream', async change => {
+    await publish(); await partialPublication();
+    expect((await request()).status).toBe(200);
+    resolverSpy.mockClear(); seen = [];
+    if (change === 'offline') await publication.offlineRuntimeMembership('member', {});
+    if (change === 'disabled') await db.getRepository(Member).update('member', { enabled: false });
+    if (change === 'policy') await db.getRepository(Route).update(route.routeBinding.id, { cachePolicyRef: 'changed' });
+    if (change === 'protected') await db.getRepository(Endpoint).update('endpoint', { rawOperation: { security: [{ Missing: [] }] } });
+    if (change === 'revision-mismatch') await db.getRepository(Member).update('member', { publicationRevision: 3 });
+    if (change === 'revision-rollback') {
+      await db.getRepository(Member).update('member', { publicationRevision: 0 });
+      await db.getRepository(Binding).update(route.routeBinding.publishBindingId, { publicationRevision: 0 });
+    }
+    expect((await request()).status).toBe(503);
+    expect(resolverSpy).not.toHaveBeenCalled(); expect(seen).toHaveLength(0);
   });
 
   async function reload(configure: (value: any) => void) {

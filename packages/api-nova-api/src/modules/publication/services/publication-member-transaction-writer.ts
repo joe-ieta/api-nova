@@ -10,6 +10,7 @@ import { EndpointDefinitionEntity as Endpoint } from '../../../database/entities
 import { UpstreamProductionChallengeEvidenceEntity as Evidence } from '../../../database/entities/upstream-production-challenge-evidence.entity';
 import { newGatewayHeaderPolicyDraft, normalizeGatewayHeaderMigration } from '../../gateway-runtime/services/gateway-header-migration';
 import { evaluatePublicationMemberReadiness, type PublicationMemberRows } from './publication-member-readiness';
+import { nextGatewayPublicationContinuity } from './gateway-publication-continuity';
 
 export interface PublicationMemberIds { membershipId: string; evidenceId: string }
 export interface PublicationMemberValidationContext {
@@ -129,7 +130,11 @@ export class PublicationMemberTransactionWriter {
       const binding = currentBinding ?? manager.create(Binding, { id: randomUUID(), endpointDefinitionId: endpoint.id, runtimeAssetEndpointBindingId: membership.id, publicationRevision: 0 });
       if (binding.publicationRevision !== membership.publicationRevision) throw new Error('publication_transaction_revision_mismatch');
       const publicationRevision = membership.publicationRevision + 1;
-      const claimed = await manager.update(Membership, { id: membership.id, publicationRevision: membership.publicationRevision }, { status: RuntimeAssetEndpointBindingStatus.ACTIVE, publicationRevision });
+      const gatewayPublicationContinuity = nextGatewayPublicationContinuity(membership, binding, route, publicationRevision);
+      const claimed = await manager.update(Membership, { id: membership.id, publicationRevision: membership.publicationRevision }, {
+        status: RuntimeAssetEndpointBindingStatus.ACTIVE, publicationRevision,
+        bindingConfig: { ...membership.bindingConfig, gatewayPublicationContinuity },
+      });
       if (claimed.affected !== 1) throw new Error('publication_transaction_revision_conflict');
       profile.status = PublicationProfileStatus.PUBLISHED; await manager.save(Profile, profile);
       Object.assign(binding, { publicationProfileId: profile.id, publicationRevision, reviewStatus: PublicationReviewStatus.REVIEWED,

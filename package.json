@@ -60,6 +60,7 @@
     "verify:obs-16-04-backup-restore": "node scripts/verify-obs-16-04-backup-restore.cjs",
     "verify:obs-16-04-performance": "node scripts/verify-obs-16-04-performance.cjs",
     "verify:security-parser-dependencies": "node scripts/verify-security-parser-dependencies.cjs",
+    "verify:security-http-dependencies": "node --test scripts/test-security-http-dependencies.cjs",
     "verify:security-residual-dependencies": "node --test scripts/test-security-residual-dependencies.cjs",
     "verify:security-nest-sse": "node --test scripts/test-security-nest-sse-backport.cjs",
     "verify:ops-01-browser": "node scripts/verify-ops-01-browser.cjs"
@@ -96,17 +97,20 @@
   },
   "overrides": {
     "@nestjs/platform-express": {
-      "multer": "2.4.0",
+      "multer": "2.5.0",
       "express": "4.22.3",
-      "body-parser": "1.20.8"
+      "body-parser": "1.20.9"
     },
     "express@4": {
-      "body-parser": "1.20.8",
+      "body-parser": "1.20.9",
       "qs": "6.16.1"
     },
     "body-parser@1": {
+      ".": "1.20.9",
       "qs": "6.16.1"
     },
+    "body-parser@2": "2.4.0",
+    "follow-redirects": "1.16.2",
     "@nestjs/swagger": {
       "js-yaml": "4.3.2",
       "lodash": "4.18.1"
