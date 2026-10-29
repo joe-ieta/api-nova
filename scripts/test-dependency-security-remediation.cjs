@@ -51,8 +51,8 @@ test('actual consumers resolve patched nested dependencies, not just root copies
   atLeast(consumer(require, 'concurrently'), 'shell-quote', '1.11.0');
   atLeast(api, 'joi', '17.13.8');
   const sdk = consumer(api, '@modelcontextprotocol/sdk/server/streamableHttp.js');
-  atLeast(sdk, '@hono/node-server', '1.19.17');
-  assert.equal(semver.major(version(sdk, '@hono/node-server')), 1);
+  atLeast(sdk, '@hono/node-server', '2.1.5');
+  assert.equal(semver.major(version(sdk, '@hono/node-server')), 2);
   assert.equal(typeof api('@modelcontextprotocol/sdk/server/streamableHttp.js').StreamableHTTPServerTransport, 'function');
   for (const workspace of ['api', 'parser', 'server', 'ui']) {
     const loader = createRequire(path.join(root, `packages/api-nova-${workspace}/package.json`));

@@ -80,7 +80,8 @@ jobs:
       - name: Verify dependency security regressions
         run: |
           npm run verify:security-parser-dependencies
-          node --test scripts/test-security-http-dependencies.cjs scripts/test-security-residual-dependencies.cjs scripts/test-security-nest-sse-backport.cjs
+          node vendor/file-type-node20/verify.cjs
+          node --test scripts/test-security-http-dependencies.cjs scripts/test-security-residual-dependencies.cjs scripts/test-security-nest-sse-backport.cjs scripts/test-security-hono-mcp-dependencies.cjs
 
       - name: Verify runtime closure
         run: npm run verify:runtime-closure
@@ -95,7 +96,7 @@ jobs:
         run: npm run type-check
 
       - name: Verify UI health, runtime logs and current-page refresh
-        run: node --test packages/api-nova-ui/scripts/test-system-health.cjs packages/api-nova-ui/scripts/test-runtime-logs.cjs
+        run: node --test packages/api-nova-ui/scripts/test-system-health.cjs packages/api-nova-ui/scripts/test-runtime-logs.cjs packages/api-nova-ui/scripts/test-i18n-security-compat.cjs
 
       - name: Run lint
         run: npm run lint

@@ -1,0 +1,13 @@
+{
+  "patch": "apinova-file-type-node20.1",
+  "source": "https://registry.npmjs.org/file-type/-/file-type-21.3.4.tgz",
+  "upstreamIntegrity": "sha512-Ievi/yy8DS3ygGvT47PjSfdFoX+2isQueoYP1cntFW1JLYAuS4GD7NUPGg4zv2iZfV52uDyk5w5Z0TdpRS6Q1g==",
+  "upstreamCoreSha256": "f528e3f8b5472fd2af534c678741c72e00f06be07896da5834bdc3cfd6597362",
+  "patchedCoreSha256": "9f8e2e739b48c9e88b43d14b375cb2e4aa3ffbaf5f72051303fad74202bcf0af",
+  "archive": "vendor/file-type-node20/file-type-21.3.4-apinova-node20.1.tgz",
+  "archiveSha256": "54fe10b47425d54cf4f188d7e845fefa79ce32d82f4d99afd73c046ff77a9a85",
+  "archiveIntegrity": "sha512-3SX43xo41WLhVcBjlbWHgkc7eKBCVbH0LXzZ7ol0Wj911jO6fP68lYgdFjfD7FWAezKRb6e6QswvVs8bdAqR0A==",
+  "version": "21.3.4",
+  "nodeEngineUnchanged": ">=20",
+  "scope": "Only core.js bounded Node20 fallback and package provenance metadata changed; native Web decompression remains preferred."
+}

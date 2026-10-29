@@ -61,6 +61,7 @@
     "verify:obs-16-04-performance": "node scripts/verify-obs-16-04-performance.cjs",
     "verify:security-parser-dependencies": "node scripts/verify-security-parser-dependencies.cjs",
     "verify:security-http-dependencies": "node --test scripts/test-security-http-dependencies.cjs",
+    "verify:security-hono-mcp-dependencies": "node --test scripts/test-security-hono-mcp-dependencies.cjs",
     "verify:security-residual-dependencies": "node --test scripts/test-security-residual-dependencies.cjs",
     "verify:security-nest-sse": "node --test scripts/test-security-nest-sse-backport.cjs",
     "verify:ops-01-browser": "node scripts/verify-ops-01-browser.cjs"
@@ -87,6 +88,10 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@intlify/core-base": "file:vendor/i18n-node20/intlify-core-base-9.14.5-apinova-security.1.tgz",
+    "@intlify/shared": "file:vendor/i18n-node20/intlify-shared-9.14.5-apinova-security.1.tgz",
+    "zod": "4.6.7",
+    "file-type": "file:vendor/file-type-node20/file-type-21.3.4-apinova-node20.1.tgz",
     "@nestjs/platform-express": "10.4.22",
     "@nestjs/swagger": "7.4.2",
     "@nestjs/config": "3.3.0",
@@ -96,6 +101,9 @@
     "@nestjs/core": "file:vendor/nestjs-core-10.4.22-apinova-sse.1.tgz"
   },
   "overrides": {
+    "@intlify/core-base": "$@intlify/core-base",
+    "@intlify/shared": "$@intlify/shared",
+    "@modelcontextprotocol/sdk": { "zod": "$zod" },
     "@nestjs/platform-express": {
       "multer": "2.5.0",
       "express": "4.22.3",
@@ -119,7 +127,7 @@
       "lodash": "4.18.1"
     },
     "@nestjs/common": {
-      "file-type": "21.3.4"
+      "file-type": "$file-type"
     },
     "@nestjs/schedule": {
       "uuid": "11.1.1"
@@ -131,7 +139,7 @@
     "concurrently": {
       "shell-quote": "1.12.0"
     },
-    "@hono/node-server": "1.19.17",
+    "@hono/node-server": "2.1.5",
     "qs@^6": "6.16.1",
     "shell-quote": "1.12.0",
     "handlebars": "4.7.10"

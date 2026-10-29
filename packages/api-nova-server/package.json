@@ -12,7 +12,7 @@
   "scripts": {
     "test:security-audit": "npm run build && node scripts/runtime-security-audit-smoke.js",
     "test:stdio-audit": "npm run build && node --test scripts/test-mcp-stdio-observability.cjs",
-    "test": "npm run build && node scripts/cli-smoke.js && node scripts/smoke-test.js && node scripts/streamable-session-smoke.js && node scripts/transform-from-spec-smoke.js && node scripts/runtime-security-audit-smoke.js && node --test scripts/test-mcp-stdio-observability.cjs && node scripts/persistence-smoke.js && node --test scripts/test-literal-file-watch.cjs",
+    "test": "npm run build && node scripts/cli-smoke.js && node scripts/smoke-test.js && node scripts/streamable-session-smoke.js && node scripts/transform-from-spec-smoke.js && node scripts/test-zod4-schema-compat.cjs && node scripts/runtime-security-audit-smoke.js && node --test scripts/test-mcp-stdio-observability.cjs && node scripts/persistence-smoke.js && node --test scripts/test-literal-file-watch.cjs",
     "test:smoke": "npm run build && node scripts/smoke-test.js",
     "test:cli": "npm run build && node scripts/cli-smoke.js",
     "test:streamable-session": "npm run build && node scripts/streamable-session-smoke.js",
@@ -78,8 +78,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@hono/node-server": "^1.19.17",
-    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@hono/node-server": "^2.1.5",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@types/figlet": "^1.7.0",
     "api-nova-parser": "1.7.0",
     "axios": "^1.20.0",
@@ -99,8 +99,7 @@
     "ora": "^5.4.1",
     "tslib": "^2.8.1",
     "uuid": "^11.1.1",
-    "zod": "^3.25.28",
-    "zod-to-json-schema": "^3.24.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@modelcontextprotocol/inspector": "^0.13.0",

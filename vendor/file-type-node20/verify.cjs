@@ -1,0 +1,18 @@
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const assert = require('node:assert/strict');
+const { createRequire } = require('node:module');
+const root = path.resolve(__dirname, '../..');
+const provenance = JSON.parse(fs.readFileSync(path.join(__dirname, 'provenance.json')));
+const api = createRequire(path.join(root, 'packages/api-nova-api/package.json'));
+const common = createRequire(api.resolve('@nestjs/common'));
+const core = common.resolve('file-type/core');
+const metadata = JSON.parse(fs.readFileSync(path.join(path.dirname(core), 'package.json')));
+const hash = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+assert.equal(hash(path.join(root, provenance.archive)), provenance.archiveSha256);
+assert.equal(hash(core), provenance.patchedCoreSha256, 'Unpatched same-version file-type');
+assert.equal(metadata.apiNovaNode20Compatibility?.revision, 1);
+assert.equal(metadata.engines.node, provenance.nodeEngineUnchanged);
+console.log(JSON.stringify({ patch: provenance.patch, version: metadata.version, node: process.version }));

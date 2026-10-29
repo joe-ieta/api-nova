@@ -69,7 +69,7 @@
       "path": "docs/baseline/PROJECT_BASELINE.md",
       "title": "项目当前基线",
       "kind": "active",
-      "version": "1.6.0",
+      "version": "1.7.0",
       "updated": "2026-10-29",
       "catalogLink": "baseline/PROJECT_BASELINE.md"
     },
@@ -93,7 +93,7 @@
       "path": "docs/guides/active-work-package-breakdown.md",
       "title": "活跃工作包划分与验收子任务",
       "kind": "active",
-      "version": "1.110.0",
+      "version": "1.111.0",
       "updated": "2026-10-29",
       "catalogLink": "guides/active-work-package-breakdown.md"
     },
@@ -101,7 +101,7 @@
       "path": "docs/guides/active-work-package-execution-status.md",
       "title": "开发任务包总览与执行状态",
       "kind": "active",
-      "version": "1.210.0",
+      "version": "1.211.0",
       "updated": "2026-10-29",
       "catalogLink": "guides/active-work-package-execution-status.md"
     },
@@ -213,7 +213,7 @@
       "path": "docs/reference/open-items.md",
       "title": "未完成事项",
       "kind": "active",
-      "version": "1.41.0",
+      "version": "1.42.0",
       "updated": "2026-10-29",
       "catalogLink": "reference/open-items.md"
     },
@@ -345,7 +345,7 @@
       "path": "docs/VERSIONS.md",
       "title": "当前文档版本与类型清单",
       "kind": "active",
-      "version": "2.3.0",
+      "version": "2.4.0",
       "updated": "2026-10-29",
       "catalogLink": "VERSIONS.md"
     },
@@ -451,10 +451,10 @@
     },
     {
       "path": "vendor/README.md",
-      "title": "Nest SSE security backport",
+      "title": "Vendored runtime security and compatibility",
       "kind": "active",
-      "version": "1.0.0",
-      "updated": "2026-10-26",
+      "version": "1.1.0",
+      "updated": "2026-10-29",
       "catalogLink": "../vendor/README.md"
     }
   ]

@@ -1,5 +1,5 @@
 ---
-doc-version: 1.110.0
+doc-version: 1.111.0
 doc-status: active
 doc-updated: 2026-10-29
 ---
@@ -8,6 +8,8 @@ doc-updated: 2026-10-29
 > 已发布候选基线：v1.7.6-rc.6，源1fd5753；2026-10-29从main/dea8206开展缺陷与依赖维护，暂不发布。状态唯一入口为[统一台账](active-work-package-execution-status.md)，剩余事项见[open-items](../reference/open-items.md)。209条原合同和245条依赖保留，生产签收和延期项不改变。
 
 ## 本轮修复工作包（2026-10-29）
+
+当前执行步骤为[Node20基线依赖迁移](active-work-package-execution-status.md#dependency-migration-20261029)，仍归SEC-F4-02：Zod4、Hono2/SDK1.32.2迁移及I18n官方修复回移已完成本机限定验收，另补file-type有界ZIP的既有Node20缺口；根锁串行集成、实际Node20.0/24验证schema/翻译/MCP/构建，生产审计17→14。不能把回移称Vue11官方升级、抬高Node最低版本或忽略engines来清零；官方Vue11迁移、未来公告和生产签收仍开放。CI已扩展20.5/24.15双Node双库，本轮暂不发布，历史任务数和签收依赖不变。
 
 以下是原任务内的执行步骤，不新增或重复统计历史叶子。两条实现线可并行；依赖锁文件完成后统一干净安装，再运行最终回归与构建。本轮不创建版本、tag、离线包，不改变已发布rc.6。
 

@@ -1,9 +1,22 @@
 ---
-doc-version: 1.0.0
+doc-version: 1.1.0
 doc-status: active
-doc-updated: 2026-10-26
+doc-updated: 2026-10-29
 ---
-# Nest SSE security backport
+# Vendored runtime security and compatibility
+
+The product root lock pins reviewed local archives. These are limited local
+backports/compatibility builds, not upstream releases or blanket risk acceptance.
+The Node>=20 product baseline is unchanged. Each directory retains upstream MIT
+licenses, source/integrity evidence, build instructions and regression boundaries.
+
+- [I18n Node20 security backport](i18n-node20/README.md): official v11 security
+  fixes backported to v9 because official v11 requires Node22; no engine override.
+- [file-type bounded ZIP compatibility](file-type-node20/README.md): Node20
+  deflate-raw fallback with output bounds and full compressed-input consumption.
+- Nest SSE backport is documented below; its existing archive bytes are unchanged.
+
+## Nest SSE security backport
 
 This directory contains the MIT-licensed `@nestjs/core@10.4.22` npm archive with only the SSE field sanitization from upstream commit [0f962c75a474b08fbc1bdf072b89eda14151c856](https://github.com/nestjs/nest/commit/0f962c75a474b08fbc1bdf072b89eda14151c856) backported. The original `package/LICENSE`, version, metadata, and every other file are unchanged. This local archive is **not an upstream Nest release**.
 

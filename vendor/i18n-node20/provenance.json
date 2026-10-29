@@ -1,0 +1,236 @@
+{
+  "localPatch": "apinova-i18n-security.1",
+  "nodeEngineUnchanged": ">= 16",
+  "projectNodeBaselineUnchanged": ">=20.0.0",
+  "upstreamInputs": {
+    "vue-i18n-9.14.5": "sha512-0jQ9Em3ymWngyiIkj0+c/k7WgaPO+TNzjKSNq9BvBQaKJECqn9cd9fL4tkDhB5G1QBskGl9YxxbDAhgbFtpe2g==",
+    "intlify-shared-9.14.5": "sha512-9gB+E53BYuAEMhbCAxVgG38EZrk59sxBtv3jSizNL2hEWlgjBjAw1AwpLHtNaeda12pe6W20OGEa0TwuMSRbyQ==",
+    "intlify-core-base-9.14.5": "sha512-5ah5FqZG4pOoHjkvs8mjtv+gPKYU0zCISaYNjBNNqYiaITxW8ZtVih3GS/oTOqN8d9/mDLyrjD46GBApNxmlsA==",
+    "intlify-shared-11.4.16": "sha512-xehmkbEgbbNh/V+d8r3hFup0ViaN29YTJSAfRr28C54rxjyZEO0RNQKqW7VVajj16gLdglotNjiq+sIVNtHGzw==",
+    "intlify-core-base-11.4.16": "sha512-xB8nMdMRLNx7b0zPvrHy0+N9uq9Vfi1aUxHqWgn2e2/TbjCKy8HfoFpnUXXxVP8I0p1ccd6LFSC3XsFjZ3vweA=="
+  },
+  "sanitizerDonorSha256": "0ced7c7802148346e8eb72a59c0128c24359d6afbff69e07d2056d64757b63df",
+  "escapeParamsDonorSha256": "2824b623090762a6d4724fa190d17ea38187255a8bbc315caa9391b5c4a9dc3b",
+  "source": [
+    "https://github.com/intlify/vue-i18n/commit/43391d20e7c85403cb59bdb21b5d542819f54042",
+    "https://github.com/intlify/vue-i18n/pull/2680",
+    "https://github.com/intlify/vue-i18n/releases/tag/v11.4.16"
+  ],
+  "archives": [
+    {
+      "package": "vue-i18n",
+      "version": "9.14.5",
+      "archive": "vendor/i18n-node20/vue-i18n-9.14.5-apinova-security.1.tgz",
+      "integrity": "sha512-6gUxwMXzPOoP7MaD7xyWN2imqqDZjqC6/p64VqVzbK1U/0/FuB8qdYqMfaJhTiU3GR3QGZArzcV+y6BXKO07Xw==",
+      "sha256": "c9427f1b34e5e083731c1c51b81ba7a3040b870aae7eb1ba0b90dc108ee03ee1"
+    },
+    {
+      "package": "@intlify/shared",
+      "version": "9.14.5",
+      "archive": "vendor/i18n-node20/intlify-shared-9.14.5-apinova-security.1.tgz",
+      "integrity": "sha512-6r6mhlnCtfVeo+bgX8EMjUie4LDJvebsOxx53K9LUMEVRL2kI92BjhKbxxqOYbaa1XBjJC/JLatgffE2x9l3YQ==",
+      "sha256": "c56191c3b2a144da6fbc659fda67549ed1fb469f501b7c3c7ed705be09c57e76"
+    },
+    {
+      "package": "@intlify/core-base",
+      "version": "9.14.5",
+      "archive": "vendor/i18n-node20/intlify-core-base-9.14.5-apinova-security.1.tgz",
+      "integrity": "sha512-WJu40OswHmCiLXg/B0yh46zClOqJ4vtk8K1H2BFzbQvZkCJJ2QQ07A+n4Hsm2DtCKvmbOW2upWhaH+/uSkCVDQ==",
+      "sha256": "c98501b613bbc14e1841e9beb95864b8791f8aab3dd984f074ef589af97dee97"
+    }
+  ],
+  "files": [
+    {
+      "package": "vue-i18n-9.14.5",
+      "file": "dist/vue-i18n.esm-browser.js",
+      "patches": [
+        "sanitizer",
+        "escapeParams"
+      ],
+      "upstreamSha256": "7a79120ea4481ae9b648615bfb720eccb2ce91f4181521ab26565277ad5d4358",
+      "patchedSha256": "c94848756212da22979b8a21c2659306d4233c2c4f001d91af7100e7e5cee89d"
+    },
+    {
+      "package": "vue-i18n-9.14.5",
+      "file": "dist/vue-i18n.esm-browser.prod.js",
+      "patches": [
+        "sanitizer",
+        "escapeParams"
+      ],
+      "upstreamSha256": "cc8d47d055f40de5b6a58ddb2ca936b5f78456a7382f5a74aa985fde7e10c2df",
+      "patchedSha256": "1ce521c4feee3f3b03cd2151be6b3d7ee6cf62313eaa17b35129ef8a4665d44d"
+    },
+    {
+      "package": "vue-i18n-9.14.5",
+      "file": "dist/vue-i18n.global.js",
+      "patches": [
+        "sanitizer",
+        "escapeParams"
+      ],
+      "upstreamSha256": "b51d0405ba5a74ce944943b99d210841113494aab3ea33f194ecf9b422383dd8",
+      "patchedSha256": "41f04a06fa94d6b0ede3eb3aa619743eb59f0da7e468fcfbc2d82c679907fe77"
+    },
+    {
+      "package": "vue-i18n-9.14.5",
+      "file": "dist/vue-i18n.global.prod.js",
+      "patches": [
+        "escapeParams",
+        "sanitizer"
+      ],
+      "upstreamSha256": "112ed7006f9f5f84ad17d775b6e32d3ca8d6b32abf427030521eee71d855321a",
+      "patchedSha256": "19eae4315f93221d2e0d5d94625c85442c11aec88757de3ec18fc2548c7c98a4"
+    },
+    {
+      "package": "vue-i18n-9.14.5",
+      "file": "dist/vue-i18n.runtime.esm-browser.js",
+      "patches": [
+        "sanitizer",
+        "escapeParams"
+      ],
+      "upstreamSha256": "a5cdd19660e8bc01a2def786bd91c41e19e58ede057016fad8c43edb9412ab62",
+      "patchedSha256": "a7804ee3607649b7657128649830c35247e60012024e16a577f4e6c5fae8565c"
+    },
+    {
+      "package": "vue-i18n-9.14.5",
+      "file": "dist/vue-i18n.runtime.esm-browser.prod.js",
+      "patches": [
+        "sanitizer",
+        "escapeParams"
+      ],
+      "upstreamSha256": "982d5721aa28c8c9b94c4e94f125bd16a5c62cceaec5676ef5401b4400d502cb",
+      "patchedSha256": "2e15aa7d522c5200132f711f9f6862f75e077cef8ecb17d14f3b726b99972d62"
+    },
+    {
+      "package": "vue-i18n-9.14.5",
+      "file": "dist/vue-i18n.runtime.global.js",
+      "patches": [
+        "sanitizer",
+        "escapeParams"
+      ],
+      "upstreamSha256": "6ebcf1d87283436ae143f0c4728b031ac4767da46b445e441cf3bb1c0f13e373",
+      "patchedSha256": "1fee62a56a60aa408068d9183ab06ca3115b8a1fc3361ac38c0972c29ee25e06"
+    },
+    {
+      "package": "vue-i18n-9.14.5",
+      "file": "dist/vue-i18n.runtime.global.prod.js",
+      "patches": [
+        "escapeParams",
+        "sanitizer"
+      ],
+      "upstreamSha256": "542b54005684d7cdb3245e50dddefa3cac092c49ef172708f297d3c889447a14",
+      "patchedSha256": "9d32b7e9d12d29c3ea62765d23f28578dac0551b3cc930807c7e02a00b9ca42d"
+    },
+    {
+      "package": "intlify-shared-9.14.5",
+      "file": "dist/shared.cjs",
+      "patches": [
+        "sanitizer"
+      ],
+      "upstreamSha256": "ae7129a25a8617e9a53482a81654a3f3c0189191790a263a715879691cdfece0",
+      "patchedSha256": "6c16332f13fc55f77c3eaead9e74f251e7537addd782f63e493756c85f4f8ea6"
+    },
+    {
+      "package": "intlify-shared-9.14.5",
+      "file": "dist/shared.esm-browser.js",
+      "patches": [
+        "sanitizer"
+      ],
+      "upstreamSha256": "97f5162ee6b8175d5c2d378a346bda2e90632726dcc9efc4969bd429edfb6245",
+      "patchedSha256": "5d5df186430cb70244893eb79ecd7430a76c44005c9e5446d7b687cbe1fd1280"
+    },
+    {
+      "package": "intlify-shared-9.14.5",
+      "file": "dist/shared.esm-browser.prod.js",
+      "patches": [
+        "sanitizer"
+      ],
+      "upstreamSha256": "9fe30ccf05d1f40ba2448a741c81ea74c6ad2f7e92da6b942cd80d7afc09a339",
+      "patchedSha256": "86aecddc689e603108292d043e48e4605bd86dc08a56c70d49d58171e0187354"
+    },
+    {
+      "package": "intlify-shared-9.14.5",
+      "file": "dist/shared.mjs",
+      "patches": [
+        "sanitizer"
+      ],
+      "upstreamSha256": "d78ae8b5a6bde49ffb0940bb609d047d921d61d3544a115d2cce6f741c453350",
+      "patchedSha256": "41ca66f4a0e91dc00c28f7fc9cc5e56e0ffb9ca04e720456b147573ca33ce051"
+    },
+    {
+      "package": "intlify-shared-9.14.5",
+      "file": "dist/shared.prod.cjs",
+      "patches": [
+        "sanitizer"
+      ],
+      "upstreamSha256": "7ac5a938f720fac802da0efe79daa5e898c886cacf1513e8631191d979b21428",
+      "patchedSha256": "3591aad2f3a834fcd6ccb4c601abaab082d892f20faeaa60a5d96e2142cbe43b"
+    },
+    {
+      "package": "intlify-core-base-9.14.5",
+      "file": "dist/core-base.cjs",
+      "patches": [
+        "escapeParams"
+      ],
+      "upstreamSha256": "517ae3c6cc17ea6fd1056c23b48f62f18c7ee730053d24b767441c3e59438945",
+      "patchedSha256": "6867de55d58c5a44bd62ac03c87f6e567e001f8df72baef7df17e8cbff123875"
+    },
+    {
+      "package": "intlify-core-base-9.14.5",
+      "file": "dist/core-base.esm-browser.js",
+      "patches": [
+        "sanitizer",
+        "escapeParams"
+      ],
+      "upstreamSha256": "d5214095d2b75e162b86b5e5c1146b3e44986dd160910e1035ec1e4fb2e22360",
+      "patchedSha256": "6ea9e84f124f3dc790e670e705142042a17cb4930e08bb26084494ce2434b84a"
+    },
+    {
+      "package": "intlify-core-base-9.14.5",
+      "file": "dist/core-base.esm-browser.prod.js",
+      "patches": [
+        "sanitizer",
+        "escapeParams"
+      ],
+      "upstreamSha256": "e129caf554459d49a9d7dfd935584017a0589cdbdde6b3f12cb31ae803619e54",
+      "patchedSha256": "28c62e6037b4f491cd6b0bcd277c4d8158e3b764829222596f00d2ee5e7b7ff9"
+    },
+    {
+      "package": "intlify-core-base-9.14.5",
+      "file": "dist/core-base.global.js",
+      "patches": [
+        "sanitizer",
+        "escapeParams"
+      ],
+      "upstreamSha256": "55bd8c8965d5132ae1be70a5671284f0618ff1dd2d82c3886aa78ceb233baf70",
+      "patchedSha256": "75129c9533e2688861524cc895054ddad5003f54dce2b052c91121ccd97baf16"
+    },
+    {
+      "package": "intlify-core-base-9.14.5",
+      "file": "dist/core-base.global.prod.js",
+      "patches": [
+        "escapeParams",
+        "sanitizer"
+      ],
+      "upstreamSha256": "30aceebd7662b1e9ea48b240587aee027448ed84330d2ee98d27284fa7fa8de3",
+      "patchedSha256": "1732ca5aef72f57afe03a5286f4c980a86645d1d9b3c02fbffac5c0dd7174b6d"
+    },
+    {
+      "package": "intlify-core-base-9.14.5",
+      "file": "dist/core-base.mjs",
+      "patches": [
+        "escapeParams"
+      ],
+      "upstreamSha256": "0c2ce68e9c52bd8a9f56b160d0799bf46b257a7824a088a6908ed9ea6b515401",
+      "patchedSha256": "4547cecfed7bf598fb20268bdd5a200433f4c18a07271ab453d6444bebbf449a"
+    },
+    {
+      "package": "intlify-core-base-9.14.5",
+      "file": "dist/core-base.prod.cjs",
+      "patches": [
+        "escapeParams"
+      ],
+      "upstreamSha256": "4bfbb4bddfbf5a7b559c4b02cdcfe102f7cb4dd5912c3bca2495b35ac7ae8a56",
+      "patchedSha256": "bba75817974907a294909ea24290355c84320dff71732f395488018574b4c9ca"
+    }
+  ]
+}

@@ -337,7 +337,9 @@ function convertSchemaNodeToZod(schema?: JsonSchemaProperty): z.ZodTypeAny {
       zodType = z.number();
       break;
     case 'integer':
-      zodType = z.number().int();
+      // Zod 4 .int() adds safe-integer bounds absent from JSON Schema and
+      // the previous converter. Keep the existing finite integer domain.
+      zodType = z.number().multipleOf(1).meta({ type: 'integer' });
       break;
     case 'boolean':
       zodType = z.boolean();
@@ -374,7 +376,8 @@ function convertInputSchemaToZod(inputSchema: MCPTool['inputSchema']): z.ZodRawS
     return {};
   }
 
-  const zodSchema: z.ZodRawShape = {};
+  // Zod 4's public raw-shape alias is readonly; build a mutable shape locally.
+  const zodSchema: Record<string, z.ZodType> = {};
 
   for (const [propName, propDef] of Object.entries(inputSchema.properties)) {
     const isRequired = inputSchema.required?.includes(propName) ?? false;

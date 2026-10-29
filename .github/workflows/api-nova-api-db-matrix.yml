@@ -6,6 +6,7 @@ on:
       - '.github/workflows/api-nova-api-db-matrix.yml'
       - 'package.json'
       - 'package-lock.json'
+      - 'vendor/**'
       - 'scripts/*security*dependencies.cjs'
       - 'scripts/test-security-nest-sse-backport.cjs'
       - 'scripts/verify-nest-sse-backport.cjs'
@@ -18,6 +19,7 @@ on:
       - '.github/workflows/api-nova-api-db-matrix.yml'
       - 'package.json'
       - 'package-lock.json'
+      - 'vendor/**'
       - 'scripts/*security*dependencies.cjs'
       - 'scripts/test-security-nest-sse-backport.cjs'
       - 'scripts/verify-nest-sse-backport.cjs'
@@ -33,6 +35,7 @@ jobs:
       fail-fast: false
       matrix:
         db_type: [sqlite, postgres]
+        node_version: [20.5.0, 24.15.0]
 
     services:
       postgres:
@@ -56,7 +59,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24.15.0
+          # npm 10.9.2 already requires >=20.5; runtime floor stays Node >=20.
+          node-version: ${{ matrix.node_version }}
           cache: npm
 
       - name: Setup exact npm
@@ -73,7 +77,8 @@ jobs:
       - name: Verify dependency security regressions
         run: |
           npm run verify:security-parser-dependencies
-          node --test scripts/test-security-http-dependencies.cjs scripts/test-security-residual-dependencies.cjs scripts/test-security-nest-sse-backport.cjs
+          node vendor/file-type-node20/verify.cjs
+          node --test scripts/test-security-http-dependencies.cjs scripts/test-security-residual-dependencies.cjs scripts/test-security-nest-sse-backport.cjs scripts/test-security-hono-mcp-dependencies.cjs
 
       - name: Run API unit tests with their isolated SQL.js fixtures
         env:
@@ -81,6 +86,9 @@ jobs:
           # these tests. The matrix database is exercised by db:smoke below.
           DB_TYPE: sqlite
         run: npm run test --workspace api-nova-api -- --runInBand
+
+      - name: Verify Zod schema and SDK compatibility
+        run: node packages/api-nova-server/scripts/test-zod4-schema-compat.cjs
 
       - name: Run UI regressions
         run: node --test packages/api-nova-ui/scripts/test-*.cjs
@@ -160,5 +168,5 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: api-db-matrix-${{ matrix.db_type }}-logs
+          name: api-db-matrix-${{ matrix.db_type }}-node-${{ matrix.node_version }}-logs
           path: tmp/ci/logs

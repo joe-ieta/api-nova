@@ -1,0 +1,278 @@
+{
+  "date": "2026-10-29",
+  "baseCommit": "97b560d297d4200f2683ad0643e0ed165563db97",
+  "state": "Local validation captured before commit; no release/tag/offline package created",
+  "engines": {
+    "projectNode": ">=20.0.0",
+    "projectNpm": ">=10.0.0",
+    "packageManager": "npm@10.9.2",
+    "minimumRuntime": "20.0.0",
+    "normalRuntime": "v24.22.1",
+    "existingNpmCliNodeRequirement": "^18.17.0 || >=20.5.0",
+    "configuredCiNodes": [
+      "20.5.0",
+      "24.15.0"
+    ],
+    "node20ExeSha256": "964d157e4ea07b6df6ce0eb81cc5e866e91dbda78583571ae60de08f132301e5"
+  },
+  "lockfileSha256": "42267231c1f4bbca2829bca960bbd69de010903d4466760ede9daed10586667f",
+  "consumption": [
+    {
+      "workspace": "api",
+      "zod": "4.6.7",
+      "sdkZod": "4.6.7"
+    },
+    {
+      "workspace": "server",
+      "zod": "4.6.7",
+      "sdkZod": "4.6.7"
+    },
+    {
+      "workspace": "parser",
+      "zod": "4.6.7",
+      "sdkZod": "4.6.7"
+    }
+  ],
+  "api": {
+    "suites": 192,
+    "passed": 2065,
+    "failed": 0,
+    "rawSha256": "9e89b28e2fd40e31fbd27e79246e20b77286d14156ff74bdff1cbffbe2077dcc"
+  },
+  "parser": {
+    "suites": 51,
+    "passed": 1213,
+    "failed": 0,
+    "rawSha256": "0e6c571530f7bbb8f11a87dc9e9ec418eb5ebde5f9b44282674807b95239318f"
+  },
+  "ui": {
+    "passed": 119,
+    "failed": 0,
+    "rawSha256": "ef9cebc364bfd26e766d4751a7846d48805ece4f911762ca965214f359068361"
+  },
+  "node24Security": {
+    "passed": 19,
+    "failed": 0,
+    "rawSha256": "15f5b21bb504526ecb78207ebb20ac9a0300543c7b4c46b2e8a2c8fb8b4df7e0"
+  },
+  "node24Schema": {
+    "passed": 12,
+    "failed": 0,
+    "rawSha256": "26bf557162804deae5d282cd20ef855f0f3bfd07be0a2370791e84430152ec56"
+  },
+  "node20Security": {
+    "passed": 19,
+    "failed": 0,
+    "rawSha256": "f18238d6138dfe02805bf5151b65ab6f1b2d48f5448d090104bd1b8afd909e22"
+  },
+  "node20Schema": {
+    "passed": 12,
+    "failed": 0,
+    "rawSha256": "184864a0a4f456aef8f887850cb12174e6a368b13c18f4be7e4db63ed3c22ab6"
+  },
+  "node20ProductAdapters": {
+    "passed": 37,
+    "failed": 0,
+    "rawSha256": "68f26e4eb97a57f15c427c616282d28115fb9af9771e6bd6428711dbd50a3983"
+  },
+  "node20I18nAndHono": {
+    "passed": 27,
+    "failed": 0,
+    "rawSha256": "62ed1b572f5fc860c7bbec393fcb07342ff7b513e24f2d402465b84b7e756f5a"
+  },
+  "node20Ui": {
+    "passed": 119,
+    "failed": 0,
+    "rawSha256": "5682e95b3591e3eacd3eb4eb90c8f1efa279cd38285f7376bd969d6c4ff235c5"
+  },
+  "node20Database": {
+    "marker": "DATABASE_SMOKE_OK",
+    "dialect": "sqlite",
+    "entities": 73,
+    "domainTables": 73,
+    "appliedMigrations": 8,
+    "empty": true,
+    "schemaDrift": 0,
+    "restart": true,
+    "restartMigrations": 0,
+    "restartSchemaDrift": 0,
+    "persistence": true,
+    "apiStartup": true,
+    "authenticationEvidenceStorage": true,
+    "rawSha256": "76063e261dee32af8bb1f10232a8eb1690cf030cf4bb3a74f3ddf3019ddc6c8f"
+  },
+  "builds": {
+    "node24": {
+      "command": "node scripts/build.js",
+      "exitCode": 0,
+      "rawSha256": "a50d947462d6af1bda5641980529befc11aa5bff6ed3b0e55fe547b73428e8a0"
+    },
+    "node20Ui": {
+      "command": "node20 vue-tsc --noEmit; node20 vite build --outDir isolated-directory",
+      "exitCode": 0,
+      "rawSha256": "c3816a37fd3022cbf80ddd167f2b02a214d520b184eeda02d067332b73516ca6"
+    },
+    "serverFull": {
+      "command": "npm test --workspace api-nova-server",
+      "exitCode": 0,
+      "rawSha256": "cc00fa09d39a459c64f94c427f3f0f5a40da85df1eec1e67c7e0403ed229c6da"
+    },
+    "lint": {
+      "errors": 0,
+      "warnings": 287,
+      "rawSha256": "20ecf28cc8f4062d608483f89501ffa3f28667f9072ec4083468fa226a1a1ce4"
+    }
+  },
+  "failuresRetained": {
+    "honoOriginal": {
+      "expectedFailures": 2,
+      "rawSha256": "ac7a1f0a667c70c4e610937c753d302ef8ffa3e476802e78673b85803955b5b6"
+    },
+    "node20OriginalFileType": {
+      "expectedFailures": 1,
+      "rawSha256": "b110f9a7b353d35de8ce4c27c404eccfa02bb8786ad2e2ab46537f2c149ee36a"
+    },
+    "node20ChildTapUnicode": {
+      "code": "ERR_TAP_LEXER_ERROR",
+      "disposition": "Same 12 node:test assertions executed directly, all passing; no assertions disabled",
+      "rawSha256": "b6116c23075addf3cdde3f26267789da660bbe41d54fc010beb68e3025fb1e88"
+    },
+    "fileTypeCandidateTrailingInput": {
+      "disposition": "Review found incomplete input consumption; info.engine.bytesWritten equality and non-recoverable rejection added for both MIME policies before commit"
+    }
+  },
+  "audits": {
+    "original": {
+      "counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 12,
+        "high": 5,
+        "critical": 0,
+        "total": 17
+      },
+      "rawSha256": "64f8354aba5b5622a12a7aa03c628ecfbb5c14fe14fbc8a002548f11daf703aa"
+    },
+    "final": {
+      "counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 10,
+        "high": 4,
+        "critical": 0,
+        "total": 14
+      },
+      "rawSha256": "aec71f78291ba4400053604ab065cab04bc354f51aedfe6b7099380f61685fe6"
+    },
+    "exitedNodes": [
+      "@hono/node-server",
+      "@modelcontextprotocol/sdk",
+      "zod"
+    ],
+    "residualNodes": [
+      {
+        "name": "@intlify/core-base",
+        "severity": "high"
+      },
+      {
+        "name": "@intlify/message-compiler",
+        "severity": "high"
+      },
+      {
+        "name": "@intlify/shared",
+        "severity": "high"
+      },
+      {
+        "name": "@nestjs/core",
+        "severity": "moderate"
+      },
+      {
+        "name": "@nestjs/event-emitter",
+        "severity": "moderate"
+      },
+      {
+        "name": "@nestjs/platform-express",
+        "severity": "moderate"
+      },
+      {
+        "name": "@nestjs/platform-socket.io",
+        "severity": "moderate"
+      },
+      {
+        "name": "@nestjs/schedule",
+        "severity": "moderate"
+      },
+      {
+        "name": "@nestjs/swagger",
+        "severity": "moderate"
+      },
+      {
+        "name": "@nestjs/terminus",
+        "severity": "moderate"
+      },
+      {
+        "name": "@nestjs/throttler",
+        "severity": "moderate"
+      },
+      {
+        "name": "@nestjs/typeorm",
+        "severity": "moderate"
+      },
+      {
+        "name": "@nestjs/websockets",
+        "severity": "moderate"
+      },
+      {
+        "name": "vue-i18n",
+        "severity": "high"
+      }
+    ],
+    "databaseFrozen": false,
+    "riskAccepted": false,
+    "interpretation": "I18n/Nest local backports retain original versions; raw range hits are not silently removed. Dev-only Inspector Zod3 is not covered by the production-audit claim."
+  },
+  "i18nBackport": {
+    "patch": "apinova-i18n-security.1",
+    "provenanceSha256": "481562ba57cd8438a9b05ea1aca9d0ab9c890a784ea313bbfb86c6ad0e615276",
+    "files": 20,
+    "archives": 3,
+    "engineUnchanged": ">= 16",
+    "officialMajor11Migrated": false,
+    "messagesPerLocale": 1963
+  },
+  "fileTypeCompatibility": {
+    "patch": "apinova-file-type-node20.1",
+    "source": "https://registry.npmjs.org/file-type/-/file-type-21.3.4.tgz",
+    "upstreamIntegrity": "sha512-Ievi/yy8DS3ygGvT47PjSfdFoX+2isQueoYP1cntFW1JLYAuS4GD7NUPGg4zv2iZfV52uDyk5w5Z0TdpRS6Q1g==",
+    "upstreamCoreSha256": "f528e3f8b5472fd2af534c678741c72e00f06be07896da5834bdc3cfd6597362",
+    "patchedCoreSha256": "9f8e2e739b48c9e88b43d14b375cb2e4aa3ffbaf5f72051303fad74202bcf0af",
+    "archive": "vendor/file-type-node20/file-type-21.3.4-apinova-node20.1.tgz",
+    "archiveSha256": "54fe10b47425d54cf4f188d7e845fefa79ce32d82f4d99afd73c046ff77a9a85",
+    "archiveIntegrity": "sha512-3SX43xo41WLhVcBjlbWHgkc7eKBCVbH0LXzZ7ol0Wj911jO6fP68lYgdFjfD7FWAezKRb6e6QswvVs8bdAqR0A==",
+    "version": "21.3.4",
+    "nodeEngineUnchanged": ">=20",
+    "scope": "Only core.js bounded Node20 fallback and package provenance metadata changed; native Web decompression remains preferred.",
+    "fullInputConsumptionRequired": true,
+    "outputLimitRetained": 1048576
+  },
+  "apiSnapshot": {
+    "semanticChanges": false,
+    "paths": 228,
+    "operations": 268,
+    "codeSha256": "a6fed6d64c25bab32561655a65c9cce84b260e8c035fe4b0082ca91e465c5739",
+    "rawSha256": "9fd50becf225ea98d5c3374925990762bfd6ab2144b29d1931fdf9118082d537"
+  },
+  "acceptance": {
+    "tasks": 209,
+    "dependencies": 245,
+    "SEC_F4_02": "IN_PROGRESS",
+    "OBS_16_04": "IN_PROGRESS",
+    "OPS_01": "WAIT_DEP"
+  },
+  "limitations": [
+    "No production signoff",
+    "No new multiplatform offline package",
+    "Official Vue11 upgrade not performed",
+    "New four-cell remote CI result tracked separately"
+  ]
+}

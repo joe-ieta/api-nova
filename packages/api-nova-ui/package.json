@@ -4,11 +4,13 @@
   "description": "Vue 3 operator interface for ApiNova API management and runtime operations",
   "type": "module",
   "scripts": {
+    "prebuild": "node ../../vendor/i18n-node20/verify.cjs",
     "dev": "vite",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix-dry-run --ignore-path .gitignore"
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix-dry-run --ignore-path .gitignore",
+    "test:i18n-security": "node --test scripts/test-i18n-security-compat.cjs"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.0",
@@ -24,7 +26,7 @@
     "socket.io-client": "^4.8.1",
     "vue": "^3.4.0",
     "vue-echarts": "^8.3.0",
-    "vue-i18n": "^9.14.5",
+    "vue-i18n": "file:../../vendor/i18n-node20/vue-i18n-9.14.5-apinova-security.1.tgz",
     "vue-router": "^4.2.5"
   },
   "devDependencies": {

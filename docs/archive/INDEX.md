@@ -4,6 +4,7 @@
 
 - [2026-10-29 发布保旧与依赖整改](audits/2026-10-29-publication-preservation-and-dependencies.md) · `audits/2026-10-29-publication-preservation-and-dependencies.md`
 - [2026-10-29 双库CI结果核验](audits/2026-10-29-dual-database-ci.md) · `audits/2026-10-29-dual-database-ci.md`
+- [2026-10-29 Node20基线下的依赖兼容整改](audits/2026-10-29-node20-dependency-migrations.md) · `audits/2026-10-29-node20-dependency-migrations.md`
 
 - [ApiNova Server Monorepo 架构重构方案](architecture/monorepo-refactoring-proposal.md) · `architecture/monorepo-refactoring-proposal.md`
 - [ApiNova Parser 抽离实施计划](architecture/parser-extraction-implementation-plan.md) · `architecture/parser-extraction-implementation-plan.md`

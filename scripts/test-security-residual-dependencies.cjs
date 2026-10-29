@@ -22,6 +22,22 @@ async function fileTypeProbe() {
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2ioAAAAASUVORK5CYII=', 'base64');
   assert.equal(await valid('image/png', png), true);
   assert.equal(await valid('image/png', Buffer.from('{}')), false);
+  const docxMime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  const validXml = Buffer.from('<Types><Override ContentType="' + docxMime + '.main+xml" /></Types>');
+  const validName = Buffer.from('[Content_Types].xml'), validCompressed = deflateRawSync(validXml), validHeader = Buffer.alloc(30);
+  validHeader.writeUInt32LE(0x04034b50, 0); validHeader.writeUInt16LE(20, 4); validHeader.writeUInt16LE(8, 8);
+  validHeader.writeUInt32LE(validCompressed.length, 18); validHeader.writeUInt32LE(validXml.length, 22); validHeader.writeUInt16LE(validName.length, 26);
+  const validZip = Buffer.concat([validHeader, validName, validCompressed]);
+  assert.deepEqual(await fileTypeFromBuffer(validZip), { ext: 'docx', mime: docxMime });
+  assert.equal(await valid(docxMime, validZip), true, 'Node20 must still accept a valid compressed Office document');
+  for (const trailing of [Buffer.from('junk-after-stream'), deflateRawSync(Buffer.from('second stream'))]) {
+    const combined = Buffer.concat([validCompressed, trailing]);
+    const header = Buffer.from(validHeader);
+    header.writeUInt32LE(combined.length, 18);
+    const tailedZip = Buffer.concat([header, validName, combined]);
+    assert.equal(await valid(docxMime, tailedZip), false, 'a valid first stream must not hide trailing input');
+    assert.equal(await valid('application/zip', tailedZip), false, 'generic ZIP policy must not accept a rejected trailing stream');
+  }
   const asf = Buffer.alloc(55); Buffer.from('3026b2758e66cf11a6d900aa0062ce6c', 'hex').copy(asf);
   assert.equal(await fileTypeFromBuffer(asf), undefined);
   assert.equal(await valid('video/x-ms-asf', asf), false);

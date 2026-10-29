@@ -191,7 +191,9 @@ export class MCPRegistry implements IMCPRegistry {
           zodType = z.number();
           break;
         case 'integer':
-          zodType = z.number().int();
+          // Preserve the previous integer domain; Zod 4 .int() additionally
+          // imposes safe-integer bounds that the input schema never declared.
+          zodType = z.number().multipleOf(1).meta({ type: 'integer' });
           break;
         case 'boolean':
           zodType = z.boolean();
